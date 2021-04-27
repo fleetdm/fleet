@@ -1,9 +1,9 @@
-<% if(typeof me === 'undefined') {
+<%
   // In case we're displaying the 404 or 500 page and relevant code in the "custom" hook was not able to run,
   // we make sure certain common view locals exist.  This ensures we don't have to do `typeof` checks below.
-  var me = undefined;
-  var page = undefined;
-} %><!DOCTYPE html>
+  var me;
+  var page;
+%><!DOCTYPE html>
 <html>
   <head>
     <title>Fleet for osquery | Open source device management</title>
