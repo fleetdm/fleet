@@ -1,8 +1,10 @@
-<% if(typeof me === 'undefined') {
+<%
   // In case we're displaying the 404 or 500 page and relevant code in the "custom" hook was not able to run,
-  // we make sure `me` exists.  This ensures we don't have to do `typeof` checks below.
-  var me = undefined;
-} %><!DOCTYPE html>
+  // we make sure certain view locals exist that are commonly used in this layout.ejs file.  This ensures we
+  // don't have to do `typeof` checks below.
+  var me;
+  var isHomepage;
+%><!DOCTYPE html>
 <html>
   <head>
     <title>Fleet for osquery | Open source device management</title>
@@ -50,10 +52,10 @@
   </head>
   <body>
     <div purpose="page-wrap">
-      <div style="max-width: 1440px" class="<%= headerClass %> container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-4 px-sm-5" purpose="page-header">
+      <div style="max-width: 1440px" class="<%= isHomepage ? 'homepage-header' : 'header' %> container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-4 px-sm-5" purpose="page-header">
         <a href="/">
           <% /* The homepage-header on the homepage has a white fleet logo */ %>
-          <% if (page === 'homepage') { %>
+          <% if (isHomepage) { %>
           <img alt="Fleet logo" src="/images/logo-white-162x92@2x.png" style="height: 92px; width: 162px;"/>
           <% } else { %>
           <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
@@ -63,7 +65,7 @@
           <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
             <span class="mr-2">Menu</span>
             <% /* The hamburger icon on the homepage is white */ %>
-            <% if (page === 'homepage') { %>
+            <% if (isHomepage) { %>
             <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-16x14@2x.png" style="width: 16px;" />
             <% } else { %>
             <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png" style="width: 16px;" />
