@@ -1,7 +1,9 @@
 <% if(typeof me === 'undefined') {
   // In case we're displaying the 404 or 500 page and relevant code in the "custom" hook was not able to run,
-  // we make sure `me` exists.  This ensures we don't have to do `typeof` checks below.
+  // we make sure certain common view locals exist.  This ensures we don't have to do `typeof` checks below.
   var me = undefined;
+  var page = undefined;
+  var headerClass = undefined;
 } %><!DOCTYPE html>
 <html>
   <head>
