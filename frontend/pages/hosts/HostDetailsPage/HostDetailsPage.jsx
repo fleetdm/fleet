@@ -275,9 +275,11 @@ export class HostDetailsPage extends Component {
             </table>
           </div>
         ) : (
-          <div>
-            <p>No installed software detected on this host.</p>
-            <p>
+          <div className="results">
+            <p className="results__header">
+              No installed software detected on this host.
+            </p>
+            <p className="results__data">
               Expecting to see software? Try again in a few seconds as the
               system catches up.
             </p>

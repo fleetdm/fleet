@@ -48,6 +48,21 @@
         }
       }
     }
+
+    .results {
+      margin: auto;
+      width: 350px;
+
+      &__header {
+        font-size: $small;
+        color: $core-black;
+        font-weight: $bold;
+      }
+
+      &__data {
+        font-size: $x-small;
+      }
+    }
   }
 
   .title {
