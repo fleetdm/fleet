@@ -3,6 +3,7 @@ module github.com/fleetdm/orbit
 go 1.15
 
 require (
+	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/fatih/color v1.10.0
 	github.com/goreleaser/nfpm/v2 v2.2.2

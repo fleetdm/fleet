@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dgraph-io/badger"
 	"github.com/fleetdm/orbit/pkg/certificate"
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/database"
@@ -151,9 +152,18 @@ func main() {
 			return errors.Wrap(err, "initialize root dir")
 		}
 
-		db, err := database.Open(filepath.Join(c.String("root-dir"), "orbit.db"))
+		dbPath := filepath.Join(c.String("root-dir"), "orbit.db")
+		db, err := database.Open(dbPath)
 		if err != nil {
-			return err
+			if errors.Is(err, badger.ErrTruncateNeeded) {
+				db, err = database.OpenTruncate(dbPath)
+				if err != nil {
+					return err
+				}
+				log.Warn().Msg("Open badger required truncate. Data loss is possible.")
+			} else {
+				return err
+			}
 		}
 		defer func() {
 			if err := db.Close(); err != nil {
