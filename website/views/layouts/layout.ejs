@@ -3,7 +3,6 @@
   // we make sure certain common view locals exist.  This ensures we don't have to do `typeof` checks below.
   var me = undefined;
   var page = undefined;
-  var headerClass = undefined;
 } %><!DOCTYPE html>
 <html>
   <head>
@@ -52,7 +51,7 @@
   </head>
   <body>
     <div purpose="page-wrap">
-      <div style="max-width: 1440px" class="<%= headerClass %> container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-4 px-sm-5" purpose="page-header">
+      <div style="max-width: 1440px" class="<%= typeof headerClass !== 'undefined' ? headerClass : '' %> container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-4 px-sm-5" purpose="page-header">
         <a href="/">
           <% /* The homepage-header on the homepage has a white fleet logo */ %>
           <% if (page === 'homepage') { %>
