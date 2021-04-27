@@ -13,6 +13,8 @@ import teamActions from "redux/nodes/entities/teams/actions";
 import TableContainer from "components/TableContainer";
 import { useDispatch, useSelector } from "react-redux";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
+import { IFormData } from "../../../UserManagementPage/components/UserForm/UserForm";
+import userManagementHelpers from "../../../UserManagementPage/helpers";
 import AddMemberModal from "./components/AddMemberModal";
 import EmptyMembers from "./components/EmptyMembers";
 import RemoveMemberModal from "./components/RemoveMemberModal";
@@ -73,7 +75,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     [showRemoveMemberModal, setShowRemoveMemberModal, setUserEditing]
   );
 
-  const toggleEditUserModal = useCallback(
+  const toggleEditMemberModal = useCallback(
     (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
@@ -114,6 +116,25 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     [dispatch, team_id, toggleAddUserModal]
   );
 
+  const onEditMemberSubmit = useCallback(
+    (formData: IFormData) => {
+      const updatedAttrs = userManagementHelpers.generateUpdateData(
+        userEditing as IUser,
+        formData
+      );
+
+      dispatch(userActions.update(userEditing, updatedAttrs))
+        .then(() => {
+          dispatch(renderFlash("success", "User updated"));
+        })
+        .catch(() => {
+          dispatch(renderFlash("error", "User failed"));
+        });
+      toggleEditMemberModal();
+    },
+    [dispatch, toggleEditMemberModal]
+  );
+
   // NOTE: this will fire on initial render, so we use this to get the list of
   // users for this team, as well as use it as a handler when the table query
   // changes.
@@ -135,7 +156,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const onActionSelection = (action: string, user: IUser): void => {
     switch (action) {
       case "edit":
-        toggleEditUserModal(user);
+        toggleEditMemberModal(user);
         break;
       case "remove":
         toggleRemoveMemberModal(user);
@@ -183,8 +204,8 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       ) : null}
       {showEditUserModal ? (
         <EditUserModal
-          onCancel={toggleEditUserModal}
-          onSubmit={() => console.log("submit")}
+          onCancel={toggleEditMemberModal}
+          onSubmit={onEditMemberSubmit}
           defaultName={userEditing?.name}
           defaultEmail={userEditing?.email}
           defaultGlobalRole={userEditing?.global_role}

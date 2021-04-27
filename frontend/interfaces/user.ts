@@ -28,3 +28,11 @@ export interface IUser {
   teams: ITeam[];
   username: string;
 }
+
+export interface IUserUpdateBody {
+  global_role?: string | null;
+  teams?: ITeam[];
+  name?: string;
+  email?: string;
+  sso_enabled?: boolean;
+}

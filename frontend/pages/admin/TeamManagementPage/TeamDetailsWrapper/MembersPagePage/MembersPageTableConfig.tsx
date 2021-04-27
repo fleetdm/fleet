@@ -126,6 +126,7 @@ const enhanceMembersData = (users: {
       email: user.email,
       role: generateRole(user.teams, user.global_role),
       teams: user.teams,
+      sso_enabled: user.sso_enabled,
       actions: generateActionDropdownOptions(user.id),
       id: user.id,
     };

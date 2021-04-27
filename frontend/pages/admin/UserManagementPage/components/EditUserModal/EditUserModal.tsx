@@ -2,12 +2,12 @@ import React from "react";
 
 import { ITeam } from "interfaces/team";
 import Modal from "components/modals/Modal";
-import { IEditTeamFormData } from "../../../TeamManagementPage/components/EditTeamModal/EditTeamModal";
 import UserForm from "../UserForm";
+import { IFormData } from "../UserForm/UserForm";
 
 interface IEditUserModalProps {
   onCancel: () => void;
-  onSubmit: (formData: IEditTeamFormData) => void;
+  onSubmit: (formData: IFormData) => void;
   defaultName?: string;
   defaultEmail?: string;
   defaultGlobalRole?: string | null;

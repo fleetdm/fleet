@@ -42,7 +42,7 @@ const globalUserRoles = [
   },
 ];
 
-interface IFormData {
+export interface IFormData {
   email: string;
   name: string;
   sso_enabled: boolean;

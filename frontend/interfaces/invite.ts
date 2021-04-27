@@ -19,5 +19,6 @@ export interface IInvite {
   invited_by: number;
   name: string;
   teams: ITeam[];
+  sso_enabled: boolean;
   global_role: string | null;
 }
