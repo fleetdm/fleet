@@ -26,6 +26,7 @@ Fleet's standard query library includes a growing collection of useful queries f
 - [Get authorized keys](./get-authorized-keys.md) (macOS, Linux)
 - [Get OS version](./get-os-version.md) (macOS, Linux, Windows, FreeBSD)
 - [Get mounts](./get-mounts.md) (macOS, Linux)
+- [Get startup items](./get-startup-items.md) (macOS, Linux, Windows, FreeBSD)
 
 ### Contributors
 
