@@ -251,7 +251,17 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
-        {host.software ? (
+        {host.software.length === 0 ? (
+          <div className="results">
+            <p className="results__header">
+              No installed software detected on this host.
+            </p>
+            <p className="results__data">
+              Expecting to see software? Try again in a few seconds as the
+              system catches up.
+            </p>
+          </div>
+        ) : (
           <div className={`${baseClass}__wrapper`}>
             <table className={wrapperClassName}>
               <thead>
@@ -273,16 +283,6 @@ export class HostDetailsPage extends Component {
                   })}
               </tbody>
             </table>
-          </div>
-        ) : (
-          <div className="results">
-            <p className="results__header">
-              No installed software detected on this host.
-            </p>
-            <p className="results__data">
-              Expecting to see software? Try again in a few seconds as the
-              system catches up.
-            </p>
           </div>
         )}
       </div>
@@ -436,7 +436,7 @@ export class HostDetailsPage extends Component {
         </div>
         {renderLabels()}
         {renderPacks()}
-        {renderSoftware()}
+        {host.software && renderSoftware()}
         {renderDeleteHostModal()}
       </div>
     );
