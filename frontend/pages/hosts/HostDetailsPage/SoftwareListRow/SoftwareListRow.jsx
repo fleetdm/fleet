@@ -33,7 +33,7 @@ class SoftwareListRow extends Component {
       pkg_packages: "Package (pkg)",
     };
 
-    const type = TYPE_CONVERSION[source];
+    const type = TYPE_CONVERSION[source] || "Unknown";
 
     return (
       <tr>

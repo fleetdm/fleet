@@ -14,20 +14,6 @@
     border-bottom: 0;
   }
 
-  &--selected {
-    background-color: $core-blue-label-down;
-  }
-
-  &:hover {
-    cursor: pointer;
-    background-color: $core-blue-label-over;
-  }
-
-  &:active,
-  &:focus {
-    outline: none;
-  }
-
   td {
     font-size: $x-small;
 
