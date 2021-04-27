@@ -1,6 +1,6 @@
-import React from 'react';
+import React from "react";
 
-const baseClass = 'agent-options';
+const baseClass = "agent-options";
 
 const AgentOptionsPage = (): JSX.Element => {
   return (
