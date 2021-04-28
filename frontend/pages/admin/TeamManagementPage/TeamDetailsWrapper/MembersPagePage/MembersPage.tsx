@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 // @ts-ignore
 import memoize from "memoize-one";
 
@@ -59,6 +59,19 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
 
+  const loadingTableData = useSelector(
+    (state: IRootState) => state.entities.users.loading
+  );
+  const users = useSelector((state: IRootState) =>
+    generateDataSet(teamId, state.entities.users.data)
+  );
+  const team = useSelector((state: IRootState) => {
+    return state.entities.teams.data[teamId];
+  });
+  const teams = useSelector((state: IRootState) => {
+    return memoizedGetTeams(state.entities.teams.data);
+  });
+
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
@@ -109,7 +122,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           dispatch(
             renderFlash(
               "success",
-              `${newMembers.users.length} members successfully added to TEAM.`
+              `${newMembers.users.length} members successfully added to ${team.name}.`
             )
           ); // TODO: update team name
         })
@@ -130,12 +143,18 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
         formData
       );
 
+      const userName = userEditing?.name;
       dispatch(userActions.update(userEditing, updatedAttrs))
         .then(() => {
-          dispatch(renderFlash("success", "User updated"));
+          dispatch(renderFlash("success", `Successfully edited ${userName}.`));
         })
         .catch(() => {
-          dispatch(renderFlash("error", "Failed to edit user"));
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not edit ${userName}. Please try again.`
+            )
+          );
         });
       toggleEditMemberModal();
     },
@@ -174,22 +193,9 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
 
   const tableHeaders = generateTableHeaders(onActionSelection);
 
-  const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.users.loading
-  );
-  const users = useSelector((state: IRootState) =>
-    generateDataSet(teamId, state.entities.users.data)
-  );
-  const team = useSelector((state: IRootState) => {
-    return state.entities.teams.data[teamId];
-  });
-  const teams = useSelector((state: IRootState) => {
-    return memoizedGetTeams(state.entities.teams.data);
-  });
-
   return (
     <div className={baseClass}>
-      <p>Add, customize, and remove members from Walmart Pay.</p>
+      <p>Add, customize, and remove members from {team.name}.</p>
       <h2>Members Page</h2>
       <TableContainer
         columns={tableHeaders}
