@@ -15,7 +15,6 @@ import EmptyTeams from "./components/EmptyTeams";
 import { ICreateTeamFormData } from "./components/CreateTeamModal/CreateTeamModal";
 import { IEditTeamFormData } from "./components/EditTeamModal/EditTeamModal";
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
-// import { AnyAaaaRecord } from "node:dns";
 
 const baseClass = "team-management";
 
@@ -91,9 +90,9 @@ const TeamManagementPage = (): JSX.Element => {
             renderFlash("error", "Could not create team. Please try again.")
           );
         });
-      setShowCreateTeamModal(false);
+      toggleCreateTeamModal();
     },
-    [dispatch, setShowCreateTeamModal]
+    [dispatch, toggleCreateTeamModal]
   );
 
   const onDeleteSubmit = useCallback(() => {
