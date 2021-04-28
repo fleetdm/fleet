@@ -12,6 +12,8 @@ import Modal from "components/modals/Modal";
 import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 
 import entityGetter from "redux/utilities/entityGetter";
+import queryActions from "redux/nodes/entities/queries/actions";
+import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
@@ -25,6 +27,7 @@ import {
   humanHostDetailUpdated,
 } from "kolide/helpers";
 import helpers from "./helpers";
+import SelectQueryModal from "./SelectQueryModal";
 
 const baseClass = "host-details";
 
@@ -34,6 +37,8 @@ export class HostDetailsPage extends Component {
     hostID: PropTypes.string,
     dispatch: PropTypes.func,
     isLoadingHost: PropTypes.bool,
+    queries: PropTypes.arrayOf(queryInterface),
+    queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   };
 
   static defaultProps = {
@@ -46,7 +51,16 @@ export class HostDetailsPage extends Component {
 
     this.state = {
       showDeleteHostModal: false,
+      showQueryHostModal: false,
     };
+  }
+
+  componentWillMount() {
+    const { dispatch } = this.props;
+
+    dispatch(queryActions.loadAll()).catch(() => false);
+
+    return false;
   }
 
   componentDidMount() {
@@ -57,15 +71,6 @@ export class HostDetailsPage extends Component {
 
     return false;
   }
-
-  onQueryHost = (host) => {
-    const { dispatch } = this.props;
-    const { queryHost } = helpers;
-
-    queryHost(dispatch, host);
-
-    return false;
-  };
 
   onDestroyHost = () => {
     const { dispatch, host } = this.props;
@@ -93,6 +98,18 @@ export class HostDetailsPage extends Component {
     const { dispatch } = this.props;
 
     return dispatch(push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`));
+  };
+
+  toggleQueryHostModal = () => {
+    return () => {
+      const { showQueryHostModal } = this.state;
+
+      this.setState({
+        showQueryHostModal: !showQueryHostModal,
+      });
+
+      return false;
+    };
   };
 
   toggleDeleteHostModal = () => {
@@ -146,7 +163,7 @@ export class HostDetailsPage extends Component {
   };
 
   renderActionButtons = () => {
-    const { toggleDeleteHostModal, onQueryHost } = this;
+    const { toggleDeleteHostModal, toggleQueryHostModal } = this;
     const { host } = this.props;
 
     const isOnline = host.status === "online";
@@ -156,7 +173,7 @@ export class HostDetailsPage extends Component {
       <div className={`${baseClass}__action-button-container`}>
         <div data-tip data-for="query" data-tip-disable={isOnline}>
           <Button
-            onClick={() => onQueryHost(host)}
+            onClick={toggleQueryHostModal()}
             variant="inverse"
             disabled={isOffline}
             className={`${baseClass}__query-button`}
@@ -290,8 +307,10 @@ export class HostDetailsPage extends Component {
   };
 
   render() {
-    const { host, isLoadingHost } = this.props;
+    const { host, isLoadingHost, dispatch, queries, queryErrors } = this.props;
+    const { showQueryHostModal } = this.state;
     const {
+      toggleQueryHostModal,
       renderDeleteHostModal,
       renderActionButtons,
       renderLabels,
@@ -438,12 +457,23 @@ export class HostDetailsPage extends Component {
         {renderPacks()}
         {host.software && renderSoftware()}
         {renderDeleteHostModal()}
+        {showQueryHostModal && (
+          <SelectQueryModal
+            host={host}
+            toggleQueryHostModal={toggleQueryHostModal}
+            queries={queries}
+            dispatch={dispatch}
+            queryErrors={queryErrors}
+          />
+        )}
       </div>
     );
   }
 }
 
 const mapStateToProps = (state, ownProps) => {
+  const queryEntities = entityGetter(state).get("queries");
+  const { entities: queries, errors: queryErrors } = queryEntities;
   const { host_id: hostID } = ownProps.params;
   const host = entityGetter(state).get("hosts").findBy({ id: hostID });
   const { loading: isLoadingHost } = state.entities.hosts;
@@ -451,6 +481,8 @@ const mapStateToProps = (state, ownProps) => {
     host,
     hostID,
     isLoadingHost,
+    queries,
+    queryErrors,
   };
 };
 
