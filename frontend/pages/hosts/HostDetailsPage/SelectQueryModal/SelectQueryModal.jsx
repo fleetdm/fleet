@@ -65,7 +65,6 @@ const SelectQueryModal = (props) => {
   const queriesFiltered = getQueries();
 
   const queriesCount = queriesFiltered.length;
-  const disabled = !queriesFilter && queriesCount === 0;
 
   const results = () => {
     if (queryErrors) {
@@ -105,7 +104,20 @@ const SelectQueryModal = (props) => {
           </Button>
         );
       });
-      return <div>{queryList}</div>;
+      return (
+        <div>
+          <div className={`${baseClass}__filter-queries`}>
+            <InputField
+              name="query-filter"
+              onChange={onFilterQueries}
+              placeholder="Filter queries"
+              value={queriesFilter}
+            />
+            <KolideIcon name="search" />
+          </div>
+          <div>{queryList}</div>
+        </div>
+      );
     }
 
     if (!queriesFilter && queriesCount === 0) {
@@ -122,14 +134,25 @@ const SelectQueryModal = (props) => {
 
     if (queriesFilter && queriesCount === 0) {
       return (
-        <div className={`${baseClass}__no-query-results`}>
-          <span className="info__header">
-            No queries match the current search criteria.
-          </span>
-          <span className="info__data">
-            Expecting to see queries? Try again in a few seconds as the system
-            catches up.
-          </span>
+        <div>
+          <div className={`${baseClass}__filter-queries`}>
+            <InputField
+              name="query-filter"
+              onChange={onFilterQueries}
+              placeholder="Filter queries"
+              value={queriesFilter}
+            />
+            <KolideIcon name="search" />
+          </div>
+          <div className={`${baseClass}__no-query-results`}>
+            <span className="info__header">
+              No queries match the current search criteria.
+            </span>
+            <span className="info__data">
+              Expecting to see queries? Try again in a few seconds as the system
+              catches up.
+            </span>
+          </div>
         </div>
       );
     }
@@ -141,16 +164,6 @@ const SelectQueryModal = (props) => {
       onExit={toggleQueryHostModal(null)}
       className={`${baseClass}__modal`}
     >
-      <div className={`${baseClass}__filter-queries`}>
-        <InputField
-          name="query-filter"
-          onChange={onFilterQueries}
-          placeholder="Filter queries"
-          value={queriesFilter}
-          disabled={disabled}
-        />
-        <KolideIcon name="search" />
-      </div>
       {results()}
       <p>
         <Button
@@ -158,7 +171,7 @@ const SelectQueryModal = (props) => {
           variant="unstyled"
           className={`${baseClass}__custom-query-button`}
         >
-          Custom Query
+          Create custom query
         </Button>
       </p>
     </Modal>
