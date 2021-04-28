@@ -104,14 +104,20 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
 
   const onAddMemberSubmit = useCallback(
     (newMembers: INewMembersBody) => {
-      dispatch(teamActions.addMembers(teamId, newMembers)).then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `${newMembers.users.length} members successfully added to TEAM.`
-          )
-        ); // TODO: update team name
-      });
+      dispatch(teamActions.addMembers(teamId, newMembers))
+        .then(() => {
+          dispatch(
+            renderFlash(
+              "success",
+              `${newMembers.users.length} members successfully added to TEAM.`
+            )
+          ); // TODO: update team name
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash("error", "Could not add members. Please try again.")
+          );
+        });
       toggleAddUserModal();
     },
     [dispatch, teamId, toggleAddUserModal]
