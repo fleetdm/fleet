@@ -16,7 +16,7 @@ export interface ITeam {
   name: string;
   id: number;
   host_count: number;
-  user_count: number | IUser[];
+  user_count: number;
   role?: string;
 }
 

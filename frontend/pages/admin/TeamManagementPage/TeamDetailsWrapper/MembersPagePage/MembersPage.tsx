@@ -92,7 +92,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           renderFlash("success", `Successfully removed ${userEditing?.name}`)
         );
       })
-      .catch(() => console.log("error removing"));
+      .catch(() => dispatch(renderFlash("error", "Remove failed")));
     toggleRemoveMemberModal();
   }, [
     dispatch,
@@ -129,7 +129,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           dispatch(renderFlash("success", "User updated"));
         })
         .catch(() => {
-          dispatch(renderFlash("error", "User failed"));
+          dispatch(renderFlash("error", "Failed to edit user"));
         });
       toggleEditMemberModal();
     },

@@ -19,9 +19,12 @@ const AddMemberModal = (props: IAddMemberModal): JSX.Element => {
 
   const [selectedMembers, setSelectedMembers] = useState([]);
 
-  const onChangeDropdown = useCallback((values) => {
-    setSelectedMembers(values);
-  }, []);
+  const onChangeDropdown = useCallback(
+    (values) => {
+      setSelectedMembers(values);
+    },
+    [setSelectedMembers]
+  );
 
   const onFormSubmit = useCallback(() => {
     const userIds = selectedMembers.map((member: IUser) => {

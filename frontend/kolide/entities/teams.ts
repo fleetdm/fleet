@@ -2,8 +2,12 @@ import endpoints from "kolide/endpoints";
 import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
 
-interface ITeamsResponse {
+interface ILoadAllTeamsResponse {
   teams: ITeam[];
+}
+
+interface ILoadTeamResponse {
+  team: ITeam;
 }
 
 export default (client: any) => {
@@ -27,7 +31,7 @@ export default (client: any) => {
 
       return client
         .authenticatedGet(endpoint)
-        .then((response: any) => response.team);
+        .then((response: ILoadTeamResponse) => response.team);
     },
     loadAll: ({ page = 0, perPage = 100, globalFilter = "" }) => {
       const { TEAMS } = endpoints;
@@ -43,7 +47,7 @@ export default (client: any) => {
       const teamsEndpoint = `${TEAMS}?${pagination}${searchQuery}`;
       return client
         .authenticatedGet(client._endpoint(teamsEndpoint))
-        .then((response: ITeamsResponse) => {
+        .then((response: ILoadAllTeamsResponse) => {
           const { teams } = response;
           return teams;
         });
