@@ -57,6 +57,7 @@ const generateSelectedTeamData = (
   return teamsFormList.reduce((selectedTeams: ITeam[], teamItem) => {
     if (teamItem.isChecked) {
       selectedTeams.push({
+        description: teamItem.description,
         id: teamItem.id,
         host_count: teamItem.host_count,
         user_count: teamItem.user_count,

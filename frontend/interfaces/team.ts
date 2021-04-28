@@ -1,5 +1,4 @@
 import PropTypes from "prop-types";
-import { IUser } from "./user";
 
 export default PropTypes.shape({
   name: PropTypes.string,
@@ -13,10 +12,12 @@ export default PropTypes.shape({
  * The shape of a team entity
  */
 export interface ITeam {
+  description: string;
   name: string;
   id: number;
   host_count: number;
   user_count: number;
+  // role value is included when the team is in the context of a user.
   role?: string;
 }
 
