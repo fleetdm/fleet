@@ -101,10 +101,20 @@ export class UserManagementPage extends Component {
     if (currentUser.id === userEditing.id) {
       return dispatch(updateUser(userData, updatedAttrs))
         .then(() => {
-          dispatch(renderFlash("success", "User updated"));
+          dispatch(
+            renderFlash("success", `Successfully edited ${userEditing?.name}`)
+          );
           toggleEditUserModal();
         })
-        .catch(() => false);
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not edit ${userEditing?.name}. Please try again.`
+            )
+          );
+          toggleEditUserModal();
+        });
     }
 
     return dispatch(userActions.silentUpdate(userData, formData))
@@ -112,7 +122,15 @@ export class UserManagementPage extends Component {
         dispatch(renderFlash("success", "User updated"));
         toggleEditUserModal();
       })
-      .catch(() => false);
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            `Couldn't update ${userEditing?.name}. Please try again.`
+          )
+        );
+        toggleEditUserModal();
+      });
   };
 
   onCreateUserSubmit = (formData) => {
@@ -125,9 +143,17 @@ export class UserManagementPage extends Component {
     delete requestData.currentUserId; // dont need this for the request.
     dispatch(inviteActions.create(requestData))
       .then(() => {
+        dispatch(
+          renderFlash("success", `Successfully created ${formData.name}.`)
+        );
         this.toggleCreateUserModal();
       })
-      .catch(() => false);
+      .catch(() => {
+        dispatch(
+          renderFlash("error", "Could not create user. Please try again.")
+        );
+        this.toggleCreateUserModal();
+      });
   };
 
   onCreateCancel = (evt) => {
@@ -143,17 +169,33 @@ export class UserManagementPage extends Component {
     if (userEditing.type === "invite") {
       dispatch(inviteActions.destroy(userEditing))
         .then(() => {
-          dispatch(renderFlash("success", "User deleted"));
-          toggleDeleteUserModal();
+          dispatch(
+            renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
+          );
         })
-        .catch(() => false);
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not delete ${userEditing?.name}. Please try again.`
+            )
+          );
+        });
+      toggleDeleteUserModal();
     } else {
       dispatch(userActions.destroy(userEditing))
         .then(() => {
           dispatch(renderFlash("success", "User deleted"));
-          toggleDeleteUserModal();
         })
-        .catch(() => false);
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not delete ${userEditing?.name}. Please try again.`
+            )
+          );
+        });
+      toggleDeleteUserModal();
     }
   };
 

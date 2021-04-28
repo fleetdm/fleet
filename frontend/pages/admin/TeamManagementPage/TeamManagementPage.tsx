@@ -80,24 +80,37 @@ const TeamManagementPage = (): JSX.Element => {
     (formData: ICreateTeamFormData) => {
       dispatch(teamActions.create(formData))
         .then(() => {
-          dispatch(renderFlash("success", "Team created"));
+          dispatch(
+            renderFlash("success", `Successfully created ${formData.name}.`)
+          );
           dispatch(teamActions.loadAll());
-          // TODO: error handling
         })
-        .catch(() => null);
-      setShowCreateTeamModal(false);
+        .catch(() => {
+          dispatch(
+            renderFlash("error", "Could not create team. Please try again.")
+          );
+        });
+      toggleCreateTeamModal();
     },
-    [dispatch, setShowCreateTeamModal]
+    [dispatch, toggleCreateTeamModal]
   );
 
   const onDeleteSubmit = useCallback(() => {
     dispatch(teamActions.destroy(teamEditing?.id))
       .then(() => {
-        dispatch(renderFlash("success", "Team removed"));
+        dispatch(
+          renderFlash("success", `Successfully deleted ${teamEditing?.name}.`)
+        );
         dispatch(teamActions.loadAll());
-        // TODO: error handling
       })
-      .catch(() => null);
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            `Could not delete ${teamEditing?.name}. Please try again.`
+          )
+        );
+      });
     toggleDeleteTeamModal();
   }, [dispatch, teamEditing, toggleDeleteTeamModal]);
 
@@ -111,11 +124,19 @@ const TeamManagementPage = (): JSX.Element => {
       }
       dispatch(teamActions.update(teamEditing?.id, updatedAttrs))
         .then(() => {
-          dispatch(renderFlash("success", "Team updated"));
+          dispatch(
+            renderFlash("success", `Successfully edited ${formData.name}.`)
+          );
           dispatch(teamActions.loadAll());
-          // TODO: error handling
         })
-        .catch(() => null);
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not edit ${teamEditing?.name}. Please try again.`
+            )
+          );
+        });
       toggleEditTeamModal();
     },
     [dispatch, teamEditing, toggleEditTeamModal]
