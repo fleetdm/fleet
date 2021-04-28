@@ -1,3 +1,17 @@
+## Fleet 3.11.0 (Apr 28, 2021)
+
+* Improve Fleet performance by batch updating host seen time instead of updating synchronously. This improvement reduces MySQL CPU usage by ~33% with 4,000 simulated hosts and MySQL running in Docker.
+
+* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](https://github.com/fleetdm/fleet/blob/master/docs/2-Deployment/2-Configuration.md#software-inventory).
+
+* Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Basic customers.
+
+* Make running common queries more convenient by adding the ability to select a saved query directly from a host's respective _Host details_ page.
+
+* Fix an issue on the _Query_ page in which Fleet would override the CMD + L browser hotkey.
+
+* Fix an issue in which a host would display an unreasonable time in the "Last fetched" column.
+
 ## Fleet 3.10.1 (Apr 6, 2021)
 
 * Fix a frontend bug that prevented the "Pack" page and "Edit pack" page from rendering in the Fleet UI. This issue occurred when the `platform` key, in the requested pack's configuration, was set to any value other than `darwin`, `linux`, `windows`, or `all`.
