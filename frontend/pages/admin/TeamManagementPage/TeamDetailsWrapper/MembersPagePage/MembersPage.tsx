@@ -198,6 +198,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       <p>Add, customize, and remove members from {team.name}.</p>
       <h2>Members Page</h2>
       <TableContainer
+        resultsTitle={"members"}
         columns={tableHeaders}
         data={users}
         isLoading={loadingTableData}
