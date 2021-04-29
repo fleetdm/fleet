@@ -1,3 +1,6 @@
+import { IUser } from "interfaces/user";
+import { ITeam } from "interfaces/team";
+
 export const adminUserStub = {
   id: 1,
   admin: true,
@@ -150,13 +153,29 @@ export const scheduledQueryStub = {
   snapshot: true,
 };
 
-export const userStub = {
+export const teamStub: ITeam = {
+  description: "This is the test team",
+  host_count: 10,
   id: 1,
-  admin: false,
+  name: "Test Team",
+  user_count: 5,
+};
+
+export const userTeamStub: ITeam = {
+  ...teamStub,
+  role: "observer",
+};
+
+export const userStub: IUser = {
+  id: 1,
   email: "hi@gnar.dog",
-  enabled: true,
+  force_password_reset: false,
+  global_role: "admin",
+  gravatar_url: "https://image.com",
   name: "Gnar Mike",
+  sso_enabled: false,
   username: "gnardog",
+  teams: [{ ...userTeamStub }],
 };
 
 const queryResultStub = {

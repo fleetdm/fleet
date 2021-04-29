@@ -12,6 +12,7 @@ import { syncHistoryWithStore } from "react-router-redux";
 import AdminAppSettingsPage from "pages/admin/AppSettingsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
+import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import AllPacksPage from "pages/packs/AllPacksPage";
 import App from "components/App";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
@@ -35,6 +36,8 @@ import Fleet404 from "pages/Fleet404";
 import Fleet500 from "pages/Fleet500";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
+import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPagePage";
+import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import PATHS from "router/paths";
 import store from "redux/store";
 
@@ -64,6 +67,10 @@ const routes = (
                 <Route path="organization" component={AdminAppSettingsPage} />
                 <Route path="users" component={AdminUserManagementPage} />
                 <Route path="teams" component={AdminTeamManagementPage} />
+              </Route>
+              <Route path="teams/:team_id" component={TeamDetailsWrapper}>
+                <Route path="members" component={MembersPage} />
+                <Route path="options" component={AgentOptionsPage} />
               </Route>
             </Route>
             <Route path="hosts">

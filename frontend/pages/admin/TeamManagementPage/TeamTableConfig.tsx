@@ -1,10 +1,11 @@
 import React from "react";
 
-import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import PATHS from "router/paths";
 
 interface IHeaderProps {
   column: {
@@ -31,12 +32,8 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-interface ITeamTableData {
-  name: string;
-  hosts: number;
-  members: number;
+interface ITeamTableData extends ITeam {
   actions: IDropdownOption[];
-  id: number;
 }
 
 // NOTE: cellProps come from react-table
@@ -50,21 +47,26 @@ const generateTableHeaders = (
       Header: "Name",
       disableSortBy: true,
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <LinkCell
+          value={cellProps.cell.value}
+          path={PATHS.TEAM_DETAILS_MEMBERS(cellProps.row.original.id)}
+        />
+      ),
     },
     // TODO: need to add this info to API
     {
       title: "Hosts",
       Header: "Hosts",
       disableSortBy: true,
-      accessor: "hosts",
+      accessor: "host_count",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
       title: "Members",
       Header: "Members",
       disableSortBy: true,
-      accessor: "members",
+      accessor: "user_count",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
@@ -104,9 +106,10 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
 const enhanceTeamData = (teams: { [id: number]: ITeam }): ITeamTableData[] => {
   return Object.values(teams).map((team) => {
     return {
+      description: team.description,
       name: team.name,
-      hosts: team.hosts,
-      members: team.members,
+      host_count: team.host_count,
+      user_count: team.user_count,
       actions: generateActionDropdownOptions(),
       id: team.id,
     };

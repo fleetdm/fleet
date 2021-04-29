@@ -12,6 +12,7 @@ export default new Config({
   createFunc: Kolide.teams.create,
   destroyFunc: Kolide.teams.destroy,
   entityName: "teams",
+  loadFunc: Kolide.teams.load,
   loadAllFunc: Kolide.teams.loadAll,
   schema: TEAMS,
   updateFunc: Kolide.teams.update,

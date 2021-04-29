@@ -41,4 +41,7 @@ export default {
   STATUS_LIVE_QUERY: "/v1/fleet/status/live_query",
   STATUS_RESULT_STORE: "/v1/fleet/status/result_store",
   TEAMS: "/v1/fleet/teams",
+  TEAMS_MEMBERS: (teamId: number) => {
+    return `/v1/fleet/teams/${teamId}/users`;
+  },
 };

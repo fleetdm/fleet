@@ -43,10 +43,10 @@ class Kolide extends Base {
     this.teams = teamMethods(this);
   }
 
-  authenticatedDelete(endpoint, overrideHeaders = {}) {
+  authenticatedDelete(endpoint, overrideHeaders = {}, body) {
     const headers = this._authenticatedHeaders(overrideHeaders);
 
-    return Base._deleteRequest(endpoint, headers);
+    return Base._deleteRequest(endpoint, headers, body);
   }
 
   authenticatedGet(endpoint, overrideHeaders = {}) {

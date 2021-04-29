@@ -1,19 +1,20 @@
 import React, { Component } from "react";
-import PropTypes from "prop-types";
 import classnames from "classnames";
 
+// ignore TS error for now until these are rewritten in ts.
+// @ts-ignore
 import KolideIcon from "components/icons/KolideIcon";
 
 const baseClass = "modal";
 
-class Modal extends Component {
-  static propTypes = {
-    children: PropTypes.node,
-    className: PropTypes.string,
-    onExit: PropTypes.func,
-    title: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
-  };
+interface IModalProps {
+  children: JSX.Element;
+  onExit: () => void;
+  title: string | JSX.Element;
+  className?: string;
+}
 
+class Modal extends Component<IModalProps> {
   render() {
     const { children, className, onExit, title } = this.props;
     const modalContainerClassName = classnames(

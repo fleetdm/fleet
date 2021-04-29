@@ -65,7 +65,7 @@ describe("Kolide - API client (users)", () => {
       const request = userMocks.loadAll.valid(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
-      return Kolide.users.loadAll().then(() => {
+      return Kolide.users.loadAll({}).then(() => {
         expect(request.isDone()).toEqual(true);
       });
     });
@@ -74,13 +74,12 @@ describe("Kolide - API client (users)", () => {
       const request = userMocks.loadAll.validWithParams(bearerToken);
       const page = 3;
       const perPage = 100;
-      const selectedFilter = undefined;
-      const query = "testQuery";
+      const globalFilter = "testQuery";
       const sortBy = [{ id: "name", desc: true }];
 
       Kolide.setBearerToken(bearerToken);
       return Kolide.users
-        .loadAll(page, perPage, selectedFilter, query, sortBy)
+        .loadAll({ page, perPage, globalFilter, sortBy })
         .then(() => {
           expect(request.isDone()).toEqual(true);
         });

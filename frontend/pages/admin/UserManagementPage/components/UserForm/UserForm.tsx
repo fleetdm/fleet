@@ -42,27 +42,28 @@ const globalUserRoles = [
   },
 ];
 
-interface IFormData {
+export interface IFormData {
   email: string;
   name: string;
   sso_enabled: boolean;
-  currentUserId: number;
   global_role: string | null;
   teams: ITeam[];
+  currentUserId?: number;
   invited_by?: number;
 }
 
 interface ICreateUserFormProps {
   availableTeams: ITeam[];
-  currentUserId: number;
   onCancel: () => void;
   onSubmit: (formData: IFormData) => void;
-  canUseSSO: boolean;
   submitText: string;
+  canUseSSO?: boolean;
   defaultName?: string;
   defaultEmail?: string;
+  currentUserId?: number;
   defaultGlobalRole?: string | null;
-  defaultTeams: ITeam[];
+  defaultTeams?: ITeam[];
+  validationErrors: any[]; // TODO: proper interface for validationErrors
 }
 
 interface ICreateUserFormState {
@@ -88,9 +89,9 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       formData: {
         email: props.defaultEmail || "",
         name: props.defaultName || "",
-        sso_enabled: false,
+        sso_enabled: props.canUseSSO || false,
         global_role: props.defaultGlobalRole || null,
-        teams: props.defaultTeams,
+        teams: props.defaultTeams || [],
         currentUserId: props.currentUserId,
       },
       isGlobalUser: props.defaultGlobalRole !== null,
