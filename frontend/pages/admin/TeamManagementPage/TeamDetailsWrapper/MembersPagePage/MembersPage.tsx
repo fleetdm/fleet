@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 // @ts-ignore
 import memoize from "memoize-one";
 
@@ -18,6 +18,7 @@ import userManagementHelpers from "../../../UserManagementPage/helpers";
 import AddMemberModal from "./components/AddMemberModal";
 import EmptyMembers from "./components/EmptyMembers";
 import RemoveMemberModal from "./components/RemoveMemberModal";
+import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 import {
   generateTableHeaders,
@@ -195,8 +196,13 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
 
   return (
     <div className={baseClass}>
-      <p>Add, customize, and remove members from {team.name}.</p>
-      <h2>Members Page</h2>
+      <p className={`${baseClass}__page-description`}>
+        Add and remove members from {team.name}.{" "}
+        <a>
+          Manage users with global access here{" "}
+          <img src={OpenNewTabIcon} alt="open new tab" />
+        </a>
+      </p>
       <TableContainer
         resultsTitle={"members"}
         columns={tableHeaders}

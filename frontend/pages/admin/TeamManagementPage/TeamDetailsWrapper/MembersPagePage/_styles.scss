@@ -1,3 +1,20 @@
 .members {
+  &__page-description {
+    font-size: $x-small;
+    color: $core-fleet-black;
+    @include sticky-settings-description;
+    padding-bottom: $pad-medium;
 
+    a {
+      color: $core-vibrant-blue;
+      font-size: $x-small;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
+    img {
+      width: 12px;
+      height: 12px;
+    }
+  }
 }
