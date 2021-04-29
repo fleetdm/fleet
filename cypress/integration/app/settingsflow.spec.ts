@@ -137,6 +137,6 @@ describe("Settings flow", () => {
 
     cy.findByLabelText(/host expiry window/i).should("have.value", "5");
 
-    cy.getHelloEmail();
+    cy.getLastEmail("Hello from Fleet");
   });
 });
