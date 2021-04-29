@@ -4,6 +4,7 @@ import memoize from "memoize-one";
 
 import { IUser } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
+import { Link } from "react-router";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -12,6 +13,7 @@ import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import TableContainer from "components/TableContainer";
 import { useDispatch, useSelector } from "react-redux";
+import PATHS from "../../../../../router/paths";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import { IFormData } from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
@@ -198,10 +200,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     <div className={baseClass}>
       <p className={`${baseClass}__page-description`}>
         Add and remove members from {team.name}.{" "}
-        <a>
-          Manage users with global access here{" "}
-          <img src={OpenNewTabIcon} alt="open new tab" />
-        </a>
+        <Link to={PATHS.ADMIN_USERS}>Manage users with global access here</Link>
       </p>
       <TableContainer
         resultsTitle={"members"}
