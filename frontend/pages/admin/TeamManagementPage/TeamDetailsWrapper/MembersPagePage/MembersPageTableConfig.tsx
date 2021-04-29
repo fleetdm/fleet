@@ -4,6 +4,7 @@ import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import stringUtils from "utilities/strings";
 
 interface IHeaderProps {
   column: {
@@ -99,7 +100,8 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   ];
 };
 const generateRole = (teamId: number, teams: ITeam[]): string => {
-  return teams.find((team) => teamId === team.id)?.role ?? "";
+  const role = teams.find((team) => teamId === team.id)?.role ?? "";
+  return stringUtils.capitalize(role);
 };
 
 const enhanceMembersData = (
