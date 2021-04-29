@@ -38,6 +38,7 @@ class AppSettingsPage extends Component {
         return false;
       });
 
+    window.scrollTo(0, 0);
     return false;
   };
 
