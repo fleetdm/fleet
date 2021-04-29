@@ -117,3 +117,12 @@ Cypress.Commands.add("loginSSO", () => {
     });
   });
 });
+
+Cypress.Commands.add("getEmails", () => {
+  return cy
+    .request("http://localhost:8025/api/v2/messages")
+    .then((response) => {
+      expect(response.status).to.eq(200);
+      return response;
+    });
+});
