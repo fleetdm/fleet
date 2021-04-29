@@ -683,13 +683,9 @@ const mapStateToProps = (state, ownProps) => {
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
   const title = queryID ? "Edit query" : "New query";
-
   let selectedHosts = [];
 
-  if (
-    !queryID &&
-    ((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0
-  ) {
+  if (((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {
     const hostIDsArr = Array.isArray(hostIDs) ? hostIDs : [hostIDs];
     const hostUUIDsArr = Array.isArray(hostUUIDs) ? hostUUIDs : [hostUUIDs];
     const { entities: hosts } = stateEntities.get("hosts");

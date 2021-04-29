@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -330,13 +331,31 @@ const hostAdditionalQueryPrefix = "fleet_additional_query_"
 // run from a distributed query campaign
 const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
+type detailQuery struct {
+	Query string
+	// Platforms is a list of platforms to run the query on. If this value is
+	// empty, run on all platforms.
+	Platforms  []string
+	IngestFunc func(logger log.Logger, host *kolide.Host, rows []map[string]string) error
+}
+
+// runForPlatform determines whether this detail query should run on the given platform
+func (q *detailQuery) runForPlatform(platform string) bool {
+	if len(q.Platforms) == 0 {
+		return true
+	}
+	for _, p := range q.Platforms {
+		if p == platform {
+			return true
+		}
+	}
+	return false
+}
+
 // detailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // kolide.Host data model. This map should not be modified at runtime.
-var detailQueries = map[string]struct {
-	Query      string
-	IngestFunc func(logger log.Logger, host *kolide.Host, rows []map[string]string) error
-}{
+var detailQueries = map[string]detailQuery{
 	"network_interface": {
 		Query: `select address, mac
                         from interface_details id join interface_addresses ia
@@ -559,6 +578,209 @@ var detailQueries = map[string]struct {
 			return nil
 		},
 	},
+	"software_macos": {
+		Query: `
+SELECT
+  name AS name,
+  bundle_short_version AS version,
+  'Application (macOS)' AS type,
+  'apps' AS source
+FROM apps
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Python)' AS type,
+  'python_packages' AS source
+FROM python_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Chrome)' AS type,
+  'chrome_extensions' AS source
+FROM chrome_extensions
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Firefox)' AS type,
+  'firefox_addons' AS source
+FROM firefox_addons
+UNION
+SELECT
+  name As name,
+  version AS version,
+  'Browser plugin (Safari)' AS type,
+  'safari_extensions' AS source
+FROM safari_extensions
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Homebrew)' AS type,
+  'homebrew_packages' AS source
+FROM homebrew_packages;
+`,
+		Platforms:  []string{"darwin"},
+		IngestFunc: ingestSoftware,
+	},
+	"software_linux": {
+		Query: `
+SELECT
+  name AS name,
+  version AS version,
+  'Package (APT)' AS type,
+  'apt_sources' AS source
+FROM apt_sources
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (deb)' AS type,
+  'deb_packages' AS source
+FROM deb_packages
+UNION
+SELECT
+  package AS name,
+  version AS version,
+  'Package (Portage)' AS type,
+  'portage_packages' AS source
+FROM portage_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (RPM)' AS type,
+  'rpm_packages' AS source
+FROM rpm_packages
+UNION
+SELECT
+  name AS name,
+  '' AS version,
+  'Package (YUM)' AS type,
+  'yum_sources' AS source
+FROM yum_sources
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (NPM)' AS type,
+  'npm_packages' AS source
+FROM npm_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Atom)' AS type,
+  'atom_packages' AS source
+FROM atom_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Python)' AS type,
+  'python_packages' AS source
+FROM python_packages;
+`,
+		Platforms:  []string{"linux", "rhel", "ubuntu", "centos"},
+		IngestFunc: ingestSoftware,
+	},
+	"software_windows": {
+		Query: `
+SELECT
+  name AS name,
+  version AS version,
+  'Program (Windows)' AS type,
+  'programs' AS source
+FROM programs
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Python)' AS type,
+  'python_packages' AS source
+FROM python_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (IE)' AS type,
+  'ie_extensions' AS source
+FROM ie_extensions
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Chrome)' AS type,
+  'chrome_extensions' AS source
+FROM chrome_extensions
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Firefox)' AS type,
+  'firefox_addons' AS source
+FROM firefox_addons
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Chocolatey)' AS type,
+  'chocolatey_packages' AS source
+FROM chocolatey_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Atom)' AS type,
+  'atom_packages' AS source
+FROM atom_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Python)' AS type,
+  'python_packages' AS source
+FROM python_packages;
+`,
+		Platforms:  []string{"windows"},
+		IngestFunc: ingestSoftware,
+	},
+}
+
+func ingestSoftware(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+	software := kolide.HostSoftware{Modified: true}
+
+	for _, row := range rows {
+		name := row["name"]
+		version := row["version"]
+		source := row["source"]
+		if name == "" {
+			level.Debug(logger).Log(
+				"msg", "host reported software with empty name",
+				"host", host.HostName,
+				"version", version,
+				"source", source,
+			)
+			continue
+		}
+		if source == "" {
+			level.Debug(logger).Log(
+				"msg", "host reported software with empty name",
+				"host", host.HostName,
+				"version", version,
+				"name", name,
+			)
+			continue
+		}
+		s := kolide.Software{Name: name, Version: version, Source: source}
+		software.Software = append(software.Software, s)
+	}
+
+	host.HostSoftware = software
+
+	return nil
 }
 
 // hostDetailQueries returns the map of queries that should be executed by
@@ -571,7 +793,16 @@ func (svc service) hostDetailQueries(host kolide.Host) (map[string]string, error
 	}
 
 	for name, query := range detailQueries {
-		queries[hostDetailQueryPrefix+name] = query.Query
+		if query.runForPlatform(host.Platform) {
+			if strings.HasPrefix(name, "software_") {
+				// Feature flag this because of as-yet-untested performance
+				// considerations.
+				if os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") == "" {
+					continue
+				}
+			}
+			queries[hostDetailQueryPrefix+name] = query.Query
+		}
 	}
 
 	// Get additional queries
@@ -628,7 +859,7 @@ func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string
 	}
 
 	accelerate := uint(0)
-	if host.HostName == "" && host.Platform == "" {
+	if host.HostName == "" || host.Platform == "" {
 		// Assume this host is just enrolling, and accelerate checkins
 		// (to allow for platform restricted labels to run quickly
 		// after platform is retrieved from details)
@@ -807,6 +1038,12 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		err = svc.ds.SaveHost(&host)
 		if err != nil {
 			return osqueryError{message: "failed to update host details: " + err.Error()}
+		}
+
+		if host.HostSoftware.Modified {
+			if err := svc.ds.SaveHostSoftware(&host); err != nil {
+				return osqueryError{message: "failed to save host software: " + err.Error()}
+			}
 		}
 	}
 

@@ -155,7 +155,8 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		config.Password = strings.TrimSpace(string(fileContents))
 	}
 
-	if config.TLSConfig != "" {
+	if config.TLSCA != "" {
+		config.TLSConfig = "custom"
 		err := registerTLS(config)
 		if err != nil {
 			return nil, errors.Wrap(err, "register TLS config for mysql")
@@ -346,15 +347,18 @@ func registerTLS(config config.MysqlConfig) error {
 	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
 		return errors.New("failed to append PEM.")
 	}
-	clientCert := make([]tls.Certificate, 0, 1)
-	certs, err := tls.LoadX509KeyPair(config.TLSCert, config.TLSKey)
-	if err != nil {
-		return errors.Wrap(err, "load mysql client cert and key")
-	}
-	clientCert = append(clientCert, certs)
 	cfg := tls.Config{
-		RootCAs:      rootCertPool,
-		Certificates: clientCert,
+		RootCAs: rootCertPool,
+	}
+	if config.TLSCert != "" {
+		clientCert := make([]tls.Certificate, 0, 1)
+		certs, err := tls.LoadX509KeyPair(config.TLSCert, config.TLSKey)
+		if err != nil {
+			return errors.Wrap(err, "load mysql client cert and key")
+		}
+		clientCert = append(clientCert, certs)
+
+		cfg.Certificates = clientCert
 	}
 	if config.TLSServerName != "" {
 		cfg.ServerName = config.TLSServerName

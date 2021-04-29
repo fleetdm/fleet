@@ -16,6 +16,7 @@ type Datastore interface {
 	ScheduledQueryStore
 	OsqueryOptionsStore
 	CarveStore
+	SoftwareStore
 	Name() string
 	Drop() error
 	// MigrateTables creates and migrates the table schemas

@@ -7,6 +7,7 @@ Fleet's standard query library includes a growing collection of useful queries f
 - [Detect machines with gatekeeper disabled](./detect-machines-with-gatekeeper-disabled.md) (macOS)
 - [Detect presence of authorized SSH keys](./detect-presence-of-authorized-ssh-keys.md) (macOS, Linux)
 - [Detect hosts with the firewall disabled](./detect-hosts-with-the-firewall-disabled.md) (macOS)
+- [Detect Linux hosts with high severity vulnerable versions of OpenSSL](./detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md) (Linux)
 - [Get installed Chrome extensions](./get-installed-chrome-extensions.md) (macOS, Linux, Windows, FreeBSD)
 - [Get installed FreeBSD software](./get-installed-freebsd-software.md) (FreeBSD)
 - [Get installed Homebrew packages](./get-installed-homebrew-packages.md) (macOS)
@@ -23,6 +24,9 @@ Fleet's standard query library includes a growing collection of useful queries f
 - [Get USB devices](./get-usb-devices.md) (macOS, Linux)
 - [Count Apple applications installed](./count-apple-applications-installed.md) (macOS)
 - [Get authorized keys](./get-authorized-keys.md) (macOS, Linux)
+- [Get OS version](./get-os-version.md) (macOS, Linux, Windows, FreeBSD)
+- [Get mounts](./get-mounts.md) (macOS, Linux)
+- [Get startup items](./get-startup-items.md) (macOS, Linux, Windows, FreeBSD)
 
 ### Contributors
 

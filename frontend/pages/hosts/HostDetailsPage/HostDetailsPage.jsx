@@ -9,8 +9,11 @@ import { noop, pick } from "lodash";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
+import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 
 import entityGetter from "redux/utilities/entityGetter";
+import queryActions from "redux/nodes/entities/queries/actions";
+import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
@@ -24,6 +27,7 @@ import {
   humanHostDetailUpdated,
 } from "kolide/helpers";
 import helpers from "./helpers";
+import SelectQueryModal from "./SelectQueryModal";
 
 const baseClass = "host-details";
 
@@ -33,6 +37,8 @@ export class HostDetailsPage extends Component {
     hostID: PropTypes.string,
     dispatch: PropTypes.func,
     isLoadingHost: PropTypes.bool,
+    queries: PropTypes.arrayOf(queryInterface),
+    queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   };
 
   static defaultProps = {
@@ -45,7 +51,16 @@ export class HostDetailsPage extends Component {
 
     this.state = {
       showDeleteHostModal: false,
+      showQueryHostModal: false,
     };
+  }
+
+  componentWillMount() {
+    const { dispatch } = this.props;
+
+    dispatch(queryActions.loadAll()).catch(() => false);
+
+    return false;
   }
 
   componentDidMount() {
@@ -56,15 +71,6 @@ export class HostDetailsPage extends Component {
 
     return false;
   }
-
-  onQueryHost = (host) => {
-    const { dispatch } = this.props;
-    const { queryHost } = helpers;
-
-    queryHost(dispatch, host);
-
-    return false;
-  };
 
   onDestroyHost = () => {
     const { dispatch, host } = this.props;
@@ -92,6 +98,18 @@ export class HostDetailsPage extends Component {
     const { dispatch } = this.props;
 
     return dispatch(push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`));
+  };
+
+  toggleQueryHostModal = () => {
+    return () => {
+      const { showQueryHostModal } = this.state;
+
+      this.setState({
+        showQueryHostModal: !showQueryHostModal,
+      });
+
+      return false;
+    };
   };
 
   toggleDeleteHostModal = () => {
@@ -145,7 +163,7 @@ export class HostDetailsPage extends Component {
   };
 
   renderActionButtons = () => {
-    const { toggleDeleteHostModal, onQueryHost } = this;
+    const { toggleDeleteHostModal, toggleQueryHostModal } = this;
     const { host } = this.props;
 
     const isOnline = host.status === "online";
@@ -155,7 +173,7 @@ export class HostDetailsPage extends Component {
       <div className={`${baseClass}__action-button-container`}>
         <div data-tip data-for="query" data-tip-disable={isOnline}>
           <Button
-            onClick={() => onQueryHost(host)}
+            onClick={toggleQueryHostModal()}
             variant="inverse"
             disabled={isOffline}
             className={`${baseClass}__query-button`}
@@ -203,7 +221,11 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section labels">
         <p className="section__header">Labels</p>
-        <ul className="list">{labelItems}</ul>
+        {labels.length === 0 ? (
+          <p className="info__item">No labels are associated with this host.</p>
+        ) : (
+          <ul className="list">{labelItems}</ul>
+        )}
       </div>
     );
   };
@@ -230,17 +252,69 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        <ul className="list">{packItems}</ul>
+        {packs.length === 0 ? (
+          <p className="info__item">No packs have this host as a target.</p>
+        ) : (
+          <ul className="list">{packItems}</ul>
+        )}
+      </div>
+    );
+  };
+
+  renderSoftware = () => {
+    const { host } = this.props;
+    const wrapperClassName = `${baseClass}__table`;
+
+    return (
+      <div className="section section--software">
+        <p className="section__header">Software</p>
+        {host.software.length === 0 ? (
+          <div className="results">
+            <p className="results__header">
+              No installed software detected on this host.
+            </p>
+            <p className="results__data">
+              Expecting to see software? Try again in a few seconds as the
+              system catches up.
+            </p>
+          </div>
+        ) : (
+          <div className={`${baseClass}__wrapper`}>
+            <table className={wrapperClassName}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Installed Version</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!!host.software.length &&
+                  host.software.map((software) => {
+                    return (
+                      <SoftwareListRow
+                        key={`software-row-${software.id}`}
+                        software={software}
+                      />
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     );
   };
 
   render() {
-    const { host, isLoadingHost } = this.props;
+    const { host, isLoadingHost, dispatch, queries, queryErrors } = this.props;
+    const { showQueryHostModal } = this.state;
     const {
+      toggleQueryHostModal,
       renderDeleteHostModal,
       renderActionButtons,
       renderLabels,
+      renderSoftware,
       renderPacks,
     } = this;
 
@@ -381,13 +455,25 @@ export class HostDetailsPage extends Component {
         </div>
         {renderLabels()}
         {renderPacks()}
+        {host.software && renderSoftware()}
         {renderDeleteHostModal()}
+        {showQueryHostModal && (
+          <SelectQueryModal
+            host={host}
+            toggleQueryHostModal={toggleQueryHostModal}
+            queries={queries}
+            dispatch={dispatch}
+            queryErrors={queryErrors}
+          />
+        )}
       </div>
     );
   }
 }
 
 const mapStateToProps = (state, ownProps) => {
+  const queryEntities = entityGetter(state).get("queries");
+  const { entities: queries, errors: queryErrors } = queryEntities;
   const { host_id: hostID } = ownProps.params;
   const host = entityGetter(state).get("hosts").findBy({ id: hostID });
   const { loading: isLoadingHost } = state.entities.hosts;
@@ -395,6 +481,8 @@ const mapStateToProps = (state, ownProps) => {
     host,
     hostID,
     isLoadingHost,
+    queries,
+    queryErrors,
   };
 };
 

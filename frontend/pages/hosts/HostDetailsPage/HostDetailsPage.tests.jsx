@@ -14,12 +14,13 @@ describe("HostDetailsPage - component", () => {
 
   const propsWithOnlineHost = {
     host: onlineHost,
-    hostID: onlineHost.id,
+    hostID: onlineHost.id.toString(),
+    queries: {},
   };
 
   const propsWithOfflineHost = {
     host: offlineHost,
-    hostID: offlineHost.id,
+    hostID: offlineHost.id.toString(),
   };
 
   describe("Loading host data", () => {
@@ -89,19 +90,19 @@ describe("HostDetailsPage - component", () => {
   });
 
   describe("Query a host", () => {
-    it("Calls onQueryHost when the query button is clicked for an online host", () => {
-      const dispatch = () => Promise.resolve();
-      const props = { ...propsWithOnlineHost, dispatch };
-      const page = mount(<HostDetailsPage {...props} />);
-      const spy = jest.spyOn(page.instance(), "onQueryHost");
-      page.setState({});
+    const dispatch = () => Promise.resolve();
+    const props = { ...propsWithOnlineHost, dispatch };
+    const page = mount(<HostDetailsPage {...props} />);
+    const queryBtn = page.find("Button").at(0);
+    expect(queryBtn.text()).toBe("Query");
 
-      const queryBtn = page.find("Button").at(0);
-      expect(queryBtn.text()).toBe("Query");
+    expect(page.find("Modal").length).toEqual(0);
 
-      queryBtn.simulate("click");
+    queryBtn.simulate("click");
 
-      expect(spy).toHaveBeenCalledWith(onlineHost);
-    });
+    const confirmModal = page.find("Modal");
+    console.log("confirmModal", confirmModal);
+
+    expect(confirmModal.length).toEqual(1);
   });
 });

@@ -2,7 +2,7 @@
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
-imageTag: 3.10.1 # Version of Fleet to deploy
+imageTag: 3.11.0 # Version of Fleet to deploy
 createIngress: true # Whether or not to automatically create an Ingress
 ingressAnnotations: {} # Additional annotation to add to the Ingress
 podAnnotations: {} # Additional annotations to add to the Fleet pod
@@ -27,15 +27,15 @@ tolerations: []
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
-    - podAffinityTerm:
-        labelSelector:
-          matchExpressions:
-          - key: app
-            operator: In
-            values:
-            - fleet
-        topologyKey: kubernetes.io/hostname
-      weight: 100
+      - podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - fleet
+          topologyKey: kubernetes.io/hostname
+        weight: 100
 
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
@@ -74,7 +74,7 @@ fleet:
       stsAssumeRoleARN: ""
 
 ## Section: osquery
-# All of the settings related to osquery's interactions with the Fleet server 
+# All of the settings related to osquery's interactions with the Fleet server
 osquery:
   # Name of the secret resource containing optional secrets for AWS credentials
   secretName: osquery
