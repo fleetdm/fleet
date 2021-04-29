@@ -13,35 +13,37 @@ Global users with the Admin role receive all permissions.
 The following table depicts various permissions levels at the global level.
 
 | Action                                               | Observer | Maintainer | Admin |
-| ---------------------------------------------------- | -------- | ---------- | ------|
-| Browse all hosts                                     | ✅       | ✅          | ✅    |
-| Filter hosts using labels                            | ✅       | ✅          | ✅    |
-| Target hosts using labels                            | ✅       | ✅          | ✅    |
-| Run saved queries as live queries against all hosts  | ✅       | ✅          | ✅    |
-| Run custom queries as live queries against all hosts |          | ✅          | ✅    |
-| Enroll hosts                                         |          | ✅          | ✅    |
-| Delete hosts                                         |          | ✅          | ✅    |
-| Transfer hosts between teams                         |          | ✅          | ✅    |
-| Create saved queries                                 |          | ✅          | ✅    |
-| Edit saved queries                                   |          | ✅          | ✅    |
-| Delete saved queries                                 |          | ✅          | ✅    |
-| Create packs                                         |          | ✅          | ✅    |
-| Edit packs                                           |          | ✅          | ✅    |
-| Delete packs                                         |          | ✅          | ✅    |
-| Create labels                                        |          | ✅          | ✅    |
-| Edit labels                                          |          | ✅          | ✅    |
-| Delete labels                                        |          | ✅          | ✅    |
+| ---------------------------------------------------- | -------- | ---------- | ----- |
+| Browse all hosts                                     | ✅       | ✅         | ✅    |
+| Filter hosts using labels                            | ✅       | ✅         | ✅    |
+| Target hosts using labels                            | ✅       | ✅         | ✅    |
+| Run saved queries as live queries against all hosts  | ✅       | ✅         | ✅    |
+| Run custom queries as live queries against all hosts |          | ✅         | ✅    |
+| Enroll hosts                                         |          | ✅         | ✅    |
+| Delete hosts                                         |          | ✅         | ✅    |
+| Transfer hosts between teams                         |          | ✅         | ✅    |
+| Create saved queries                                 |          | ✅         | ✅    |
+| Edit saved queries                                   |          | ✅         | ✅    |
+| Delete saved queries                                 |          | ✅         | ✅    |
+| Create packs                                         |          | ✅         | ✅    |
+| Edit packs                                           |          | ✅         | ✅    |
+| Delete packs                                         |          | ✅         | ✅    |
+| Create labels                                        |          | ✅         | ✅    |
+| Edit labels                                          |          | ✅         | ✅    |
+| Delete labels                                        |          | ✅         | ✅    |
 | Create users                                         |          |            | ✅    |
 | Edit users                                           |          |            | ✅    |
 | Delete users                                         |          |            | ✅    |
 | Edit organization settings                           |          |            | ✅    |
+| Create enroll secrets                                |          |            | ✅    |
+| Edit enroll secrets                                  |          |            | ✅    |
 | Edit global level agent options                      |          |            | ✅    |
-| Edit team level agent options *                      |          |            | ✅    |
-| Create teams *                                       |          |            | ✅    |
-| Edit teams *                                         |          |            | ✅    |
-| Add members to teams *                               |          |            | ✅    |
+| Edit team level agent options \*                     |          |            | ✅    |
+| Create teams \*                                      |          |            | ✅    |
+| Edit teams \*                                        |          |            | ✅    |
+| Add members to teams \*                              |          |            | ✅    |
 
-*Available in Fleet Basic
+\*Available with Fleet Basic
 
 ## Team member permissions
 
@@ -57,13 +59,12 @@ The following table depicts various permissions levels in a team.
 
 | Action                                                       | Observer | Maintainer |
 | ------------------------------------------------------------ | -------- | ---------- |
-| Browse hosts assigned to team                                | ✅       | ✅          |
-| Filter hosts assigned to team using labels                   | ✅       | ✅          |
-| Target hosts assigned to team using labels                   | ✅       | ✅          |
-| Run saved queries as live queries on hosts assigned to team  | ✅       | ✅          |
-| Run custom queries as live queries on hosts assigned to team |          | ✅          |
-| Enroll hosts to member team                                  |          | ✅          |
-| Delete hosts belonging to member team                        |          | ✅          |
-| Create saved queries                                         |          | ✅          |
-| Edit saved queries                                           |          | ✅          |
-
+| Browse hosts assigned to team                                | ✅       | ✅         |
+| Filter hosts assigned to team using labels                   | ✅       | ✅         |
+| Target hosts assigned to team using labels                   | ✅       | ✅         |
+| Run saved queries as live queries on hosts assigned to team  | ✅       | ✅         |
+| Run custom queries as live queries on hosts assigned to team |          | ✅         |
+| Enroll hosts to member team                                  |          | ✅         |
+| Delete hosts belonging to member team                        |          | ✅         |
+| Create saved queries                                         |          | ✅         |
+| Edit saved queries                                           |          | ✅         |
