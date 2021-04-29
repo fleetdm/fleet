@@ -91,8 +91,7 @@ const TeamManagementPage = (): JSX.Element => {
           );
           dispatch(teamActions.loadAll({}));
         })
-        .catch((err: any) => {
-          console.log(err);
+        .catch(() => {
           dispatch(
             renderFlash("error", "Could not create team. Please try again.")
           );
