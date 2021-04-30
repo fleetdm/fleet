@@ -18,7 +18,7 @@ describe("User invite and activation", () => {
 
     cy.findByRole("button", { name: /invite/i }).click();
 
-    cy.wait(6000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.logout();
 
@@ -38,8 +38,6 @@ describe("User invite and activation", () => {
 
     cy.visit(inviteLink);
 
-    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-
     cy.findByLabelText(/username/i)
       .click()
       .type("ash.ketchum");
@@ -55,9 +53,6 @@ describe("User invite and activation", () => {
 
     cy.findByRole("button", { name: /submit/i }).click();
 
-    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-    cy.logout();
     cy.login();
 
     cy.visit("/settings/organization");

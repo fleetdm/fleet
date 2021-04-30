@@ -48,6 +48,8 @@ Cypress.Commands.add("logout", () => {
     auth: {
       bearer: window.localStorage.getItem("KOLIDE::auth_token"),
     },
+  }).then(() => {
+    window.localStorage.removeItem("KOLIDE::auth_token");
   });
 });
 
