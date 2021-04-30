@@ -1,9 +1,9 @@
 .dropdown {
   &__label {
     display: block;
-    font-size: $x-small;
+    font-size: $small;
     font-weight: $regular;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     margin-bottom: $pad-xsmall;
 
     &--error {
@@ -77,20 +77,20 @@
         top: 50%;
         left: 50%;
         visibility: visible;
-        font-size: $x-small;
+        font-size: $small;
         color: $ui-gray;
         text-indent: 0;
       }
 
       &:hover {
         &::after {
-          color: $core-fleet-black;
+          color: $core-fleet-blue;
         }
       }
     }
 
     .Select-value-label {
-      font-size: $x-small;
+      font-size: $small;
       font-weight: $regular;
       color: $core-fleet-black;
       line-height: 28px;
@@ -106,7 +106,7 @@
   }
 
   .Select-arrow {
-    border-top-color: $core-fleet-blue;
+    border-top-color: $core-fleet-black;
   }
 
   &.is-focused {
@@ -127,7 +127,7 @@
       .Select-value {
         .Select-value-label {
           color: $core-fleet-black;
-          font-size: $x-small;
+          font-size: $small;
         }
       }
     }
@@ -149,15 +149,15 @@
   .Select-option {
     color: $core-fleet-black;
     font-size: $x-small;
-    margin: $pad-small;
-    padding: $pad-small;
+    margin: 6px 0;
+    padding: 6px $pad-medium;
     display: block;
 
     &.is-focused {
-      background-color: $ui-vibrant-blue-25;
+      background-color: $ui-vibrant-blue-10;
 
       .Select-icon {
-        color: $ui-vibrant-blue-25;
+        color: $ui-vibrant-blue-10;
       }
     }
 
@@ -176,8 +176,8 @@
   }
 
   .Select-placeholder {
-    color: $core-fleet-black;
-    font-size: $x-small;
+    color: $core-fleet-blue;
+    font-size: $small;
     line-height: 40px;
     padding: 0 12px;
     box-sizing: border-box;
@@ -205,7 +205,7 @@
         cursor: default;
 
         &.is-focused {
-          background-color: $ui-vibrant-blue-25;
+          background-color: $ui-vibrant-blue-10;
           color: $core-white;
         }
       }

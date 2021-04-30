@@ -1,9 +1,9 @@
 .app-settings {
-  padding: $pad-xxlarge $pad-xlarge;
+  padding: $pad-xxlarge 30px;
 
   &__page-description {
     font-size: $x-small;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     @include sticky-settings-description;
   }
 
@@ -13,7 +13,7 @@
     color: $core-fleet-black;
     border-bottom: solid 1px $ui-fleet-blue-15;
     margin: 0 0 15px;
-    padding: 0 0 8px;
+    padding: 0 0 $pad-small;
 
     a {
       text-decoration: none;

@@ -21,6 +21,23 @@
 
   &__title {
     font-size: $large;
+
+    .kolidecon {
+      color: $core-fleet-blue;
+      margin-right: 15px;
+    }
+
+    .kolidecon-success-check {
+      color: $ui-success;
+    }
+
+    .kolidecon-offline {
+      color: $ui-error;
+    }
+
+    .kolidecon-mia {
+      color: $core-fleet-black;
+    }
   }
 
   &__label-actions {
@@ -36,7 +53,7 @@
 
     h2 {
       text-transform: uppercase;
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
       font-weight: $regular;
       font-size: $small;
     }
@@ -49,6 +66,21 @@
     }
   }
 
+  &__toggle-view {
+    .kolidecon {
+      width: 24px;
+      height: 24px;
+      margin-left: 12px;
+      fill: $ui-gray;
+    }
+
+    &--active {
+      .kolidecon {
+        fill: $core-fleet-purple;
+      }
+    }
+  }
+
   &__modal-buttons {
     width: 100%;
     display: flex;
@@ -56,22 +88,6 @@
 
     .button:first-child {
       margin-right: $pad-medium;
-    }
-  }
-
-  .data-table {
-    &__status {
-      &--online {
-        &:before {
-          background-color: $ui-success;
-        }
-      }
-
-      &--offline {
-        &:before {
-          background-color: $ui-offline;
-        }
-      }
     }
   }
 }

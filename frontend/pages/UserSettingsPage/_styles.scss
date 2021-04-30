@@ -62,7 +62,7 @@
   }
 
   &__more-info-detail {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
 
     .kolidecon {
       color: $ui-gray;
@@ -78,7 +78,7 @@
   &__last-updated {
     font-size: $x-small;
     font-style: italic;
-    margin: $pad-xsmall 0 $pad-large;
+    margin: 4px 0 $pad-large;
   }
 
   &__reveal-secret {
@@ -89,7 +89,7 @@
   &__secret-label {
     font-size: $x-small;
     font-weight: $bold;
-    margin: 0 0 4px;
+    margin: 0 0 $pad-xsmall;
 
     a {
       color: $core-vibrant-blue;

@@ -1,5 +1,5 @@
 .osquery-options {
-  padding: $pad-xxlarge $pad-xlarge;
+  padding: $pad-xxlarge 30px;
   flex-grow: 1;
 
   &__page-wrap {
@@ -9,7 +9,7 @@
 
   &__page-description {
     font-size: $x-small;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
   }
@@ -18,6 +18,10 @@
     display: flex;
     flex-direction: row;
     align-items: center;
+    padding: $pad-medium;
+    border-radius: $border-radius;
+    border: 1px solid #d9d9fe;
+    background-color: $ui-vibrant-blue-10;
     margin-bottom: $pad-medium;
 
     p {
@@ -53,7 +57,7 @@
       font-weight: $regular;
       line-height: 1.6;
       letter-spacing: 0.5px;
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
     }
   }
 

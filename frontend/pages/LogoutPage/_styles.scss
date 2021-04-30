@@ -11,8 +11,8 @@
     background-color: $core-white;
     height: 30px;
     margin-top: 20px;
-    border-top-left-radius: $border-radius;
-    border-top-right-radius: $border-radius;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
     box-shadow: 0 5px 30px 0 rgba($core-fleet-black, 0.3);
     width: 376px;
   }

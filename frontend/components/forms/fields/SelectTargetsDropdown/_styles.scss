@@ -54,7 +54,7 @@
 
       > input {
         line-height: 30px;
-        padding: $pad-small 0;
+        padding: 8px 0;
         color: $core-fleet-black;
         font-size: $small;
       }
@@ -76,7 +76,7 @@
 
         &.is-disabled {
           &.is-focused {
-            background-color: $ui-vibrant-blue-25;
+            background-color: $ui-vibrant-blue-10;
             border-radius: 8px;
           }
         }
@@ -181,7 +181,7 @@
   .Select-clear {
     font-size: $x-large;
     margin-right: 10px;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
 
     &:hover {
       color: $ui-error;

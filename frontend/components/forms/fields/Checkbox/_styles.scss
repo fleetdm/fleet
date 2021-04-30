@@ -15,7 +15,7 @@
     &:checked + .kolide-checkbox__tick {
       &::after {
         background-color: $core-vibrant-blue;
-        border: solid 2px $core-vibrant-blue;
+        border: solid 1px $core-vibrant-blue;
       }
 
       &::before {
@@ -43,8 +43,8 @@
     &::after {
       @include size(20px);
       transition: border 75ms ease-in-out, background 75ms ease-in-out;
-      border-radius: $border-radius;
-      border: solid 2px $ui-fleet-black-25;
+      border-radius: 2px;
+      border: solid 1px $ui-fleet-blue-15;
       content: "";
       box-sizing: border-box;
       display: block;
@@ -55,7 +55,6 @@
     &--disabled {
       &::after {
         background-color: $ui-fleet-blue-15;
-        border: 1px solid $ui-fleet-blue-15;
       }
     }
   }
@@ -64,7 +63,8 @@
     font-size: $x-small;
     font-weight: $regular;
     line-height: 20px;
+    letter-spacing: 0.5px;
     color: $core-fleet-black;
-    padding-left: $pad-small;
+    padding-left: 25px;
   }
 }

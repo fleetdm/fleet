@@ -2,7 +2,7 @@
   padding: $pad-medium 20px 0;
 
   &__description {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: $x-small;
     word-wrap: break-word;
   }
@@ -18,7 +18,7 @@
   }
 
   &__pack-icon {
-    color: $core-fleet-black;
+    color: $core-fleet-blue;
     margin-right: 11px;
   }
 
@@ -31,8 +31,8 @@
   }
 
   &__query-icon {
-    color: $core-fleet-black;
-    font-size: $small;
+    color: $core-fleet-blue;
+    font-size: $pad-medium;
     margin-right: 15px;
   }
 

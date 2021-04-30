@@ -46,12 +46,12 @@ a {
 }
 
 .wrapper {
-  background: $gradients-dark-gradient-vertical;
+  background: $gradients-dark-gradient;
   margin: 0;
 }
 
 .body-wrap {
-  padding: $pad-xxlarge $pad-xlarge 0;
+  padding: $pad-xxlarge 30px 0;
   border-radius: 3px;
   background-color: $core-white;
   border: solid 1px $core-white;

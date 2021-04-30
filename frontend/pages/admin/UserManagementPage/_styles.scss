@@ -3,9 +3,64 @@
 
   &__page-description {
     font-size: $x-small;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
+  }
+
+  &__wrapper {
+    border: solid 1px $ui-fleet-blue-15;
+    border-radius: 6px;
+    margin-top: $pad-medium;
+  }
+
+  &__header {
+    font-size: $large;
+  }
+
+  &__table {
+    border-collapse: collapse;
+    color: $core-fleet-black;
+    font-size: $x-small;
+    width: 100%;
+  }
+
+  tr {
+    border-bottom: 1px solid $ui-fleet-blue-15;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  thead {
+    background-color: $ui-off-white;
+    color: $core-fleet-black;
+    text-align: left;
+    border-bottom: 1px solid $ui-fleet-blue-15;
+
+    th {
+      padding: 18px 30px;
+      white-space: nowrap;
+      border-radius: 6px 0;
+    }
+  }
+
+  tbody {
+    td {
+      padding: 0 30px;
+      white-space: nowrap;
+    }
+
+    .user-row__actions {
+      padding: 4px 30px;
+      width: 120px;
+      float: right;
+    }
+  }
+
+  &__heading-wrapper {
+    width: 100%;
   }
 
   &__smtp-warning-wrapper {
@@ -19,7 +74,26 @@
     margin-left: $pad-medium;
   }
 
-  &__create-user-modal {
+  &__user-count {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+    margin: 0;
+  }
+
+  &__add-user-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__users {
+    display: flex;
+    flex-wrap: wrap;
+    clear: both;
+  }
+
+  &__invite-modal {
     &.modal__modal_container {
       width: 540px;
     }

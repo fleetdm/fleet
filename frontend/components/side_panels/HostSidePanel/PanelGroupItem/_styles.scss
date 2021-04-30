@@ -13,7 +13,7 @@ $base-class: "panel-group-item";
 
   &.#{$base-class}--selected {
     font-weight: $bold;
-    background-color: $ui-vibrant-blue-25;
+    background-color: $ui-vibrant-blue-10;
 
     .#{$base-class}__count {
       font-weight: $bold;

@@ -47,7 +47,7 @@
       line-height: 20px;
       letter-spacing: normal;
       color: $core-fleet-black;
-      margin: $pad-small 0 0 44px;
+      margin: 8px 0 0 44px;
     }
 
     a {
@@ -118,9 +118,9 @@
   pre,
   code {
     background-color: $ui-off-white;
-    color: $core-fleet-black;
+    color: $core-fleet-blue;
     border: 1px solid $ui-fleet-blue-15;
-    border-radius: $border-radius;
+    border-radius: 4px;
     padding: 7px $pad-medium;
     margin: $pad-large 0 0 44px;
   }

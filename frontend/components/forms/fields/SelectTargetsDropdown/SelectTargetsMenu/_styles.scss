@@ -1,11 +1,11 @@
 .target-list {
   &__type {
-    padding: 0 8px 4px;
+    padding: 0 8px $pad-xsmall;
     margin: $pad-xxlarge 0 0;
     text-transform: uppercase;
     font-weight: $bold;
     font-size: $xx-small;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     letter-spacing: 0.5px;
     border-bottom: 1px solid $ui-fleet-blue-15;
 
@@ -38,6 +38,6 @@
 
   &__not-found {
     font-size: $x-small;
-    padding: 0 4px 4px;
+    padding: 0 $pad-xsmall $pad-xsmall;
   }
 }

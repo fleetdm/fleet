@@ -5,9 +5,9 @@
     font-style: normal;
     font-stretch: normal;
     letter-spacing: -0.5px;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     display: block;
-    margin: 0 0 4px;
+    margin: 0 0 $pad-xsmall;
     min-height: 25px;
 
     &--error {

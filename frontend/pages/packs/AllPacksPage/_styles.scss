@@ -21,7 +21,7 @@
 
     &--delete {
       i {
-        color: $core-fleet-black;
+        color: $core-fleet-blue;
       }
     }
   }
@@ -45,7 +45,7 @@
     input {
       &[name="pack-filter"] {
         width: 100%;
-        margin-top: 24px;
+        margin-top: $pad-large;
         padding-left: 42px;
       }
     }
@@ -55,7 +55,7 @@
       top: 36px;
       left: 9px;
       font-size: 18px;
-      color: $core-fleet-black;
+      color: $ui-gray;
     }
   }
 
@@ -64,7 +64,7 @@
   }
 
   &__wrapper {
-    padding: $pad-xxlarge $pad-xlarge;
+    padding: $pad-xxlarge 30px;
   }
 
   &__table {

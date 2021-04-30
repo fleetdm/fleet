@@ -15,9 +15,8 @@
     @include position(absolute, 22px null null null);
     background-color: $core-white;
     width: 658px;
-    padding: 40px;
-    border-radius: 8px;
-    // font-size: 16px;
+    padding: $pad-xxlarge;
+    border-radius: $pad-small;
 
     a {
       font-size: $x-small;
@@ -59,7 +58,7 @@
       position: absolute;
       top: 10px;
       left: 10px;
-      font-size: 20px;
+      font-size: $medium;
       color: $ui-fleet-black-25;
     }
   }

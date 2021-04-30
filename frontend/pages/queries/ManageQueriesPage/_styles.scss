@@ -51,7 +51,7 @@
       top: 36px;
       left: 9px;
       font-size: 18px;
-      color: $core-fleet-black;
+      color: $ui-gray;
     }
   }
 
@@ -60,7 +60,7 @@
   }
 
   &__wrapper {
-    padding: $pad-xxlarge $pad-xlarge;
+    padding: $pad-xxlarge 30px;
   }
 
   &__modal-btn-wrap {

@@ -8,7 +8,7 @@
     right: 6px;
     top: 28px;
     font-size: 18px;
-    color: $core-fleet-black;
+    color: $core-fleet-blue;
 
     &--active {
       color: $core-vibrant-blue;
@@ -32,8 +32,8 @@
     color: $core-fleet-black;
     font-weight: $regular;
 
-    &::placeholder {
-      color: $ui-fleet-black-25;
+    ::placeholder {
+      color: $core-fleet-blue;
     }
 
     &:focus {
@@ -66,7 +66,7 @@
     code {
       color: $core-vibrant-blue;
       background-color: $ui-light-grey;
-      padding: 2px;
+      padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
   }

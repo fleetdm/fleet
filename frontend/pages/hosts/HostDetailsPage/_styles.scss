@@ -88,7 +88,7 @@
 
     .last-fetched {
       font-size: $xx-small;
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
       margin: 0;
       padding-left: $pad-small;
     }
@@ -120,7 +120,7 @@
   }
 
   .status {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     text-transform: capitalize;
 
     &--online {
@@ -208,7 +208,7 @@
     border-bottom: 1px solid $ui-fleet-blue-15;
 
     th {
-      padding: 16px 27px;
+      padding: $pad-medium 27px;
       white-space: nowrap;
       border-right: 1px solid $ui-fleet-blue-15;
 

@@ -44,7 +44,7 @@
       border-bottom: 1px solid $ui-fleet-blue-15;
 
       th {
-        padding: 16px 27px;
+        padding: $pad-medium 27px;
         white-space: nowrap;
         border-right: 1px solid $ui-fleet-blue-15;
 
@@ -76,7 +76,7 @@
           content: " ";
           display: inline-block;
           height: 8px;
-          margin-right: 8px;
+          margin-right: $pad-small;
           width: 8px;
         }
       }
@@ -89,7 +89,7 @@
           content: " ";
           display: inline-block;
           height: 8px;
-          margin-right: 8px;
+          margin-right: $pad-small;
           width: 8px;
         }
       }
