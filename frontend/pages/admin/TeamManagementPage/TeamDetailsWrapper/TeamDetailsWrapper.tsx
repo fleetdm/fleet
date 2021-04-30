@@ -178,21 +178,21 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
             })}
           </TabList>
         </Tabs>
-        {showDeleteTeamModal ? (
-          <DeleteTeamModal
-            onCancel={toggleDeleteTeamModal}
-            onSubmit={onDeleteSubmit}
-            name={team.name}
-          />
-        ) : null}
-        {showEditTeamModal ? (
-          <EditTeamModal
-            onCancel={toggleEditTeamModal}
-            onSubmit={onEditSubmit}
-            defaultName={team.name}
-          />
-        ) : null}
       </div>
+      {showDeleteTeamModal ? (
+        <DeleteTeamModal
+          onCancel={toggleDeleteTeamModal}
+          onSubmit={onDeleteSubmit}
+          name={team.name}
+        />
+      ) : null}
+      {showEditTeamModal ? (
+        <EditTeamModal
+          onCancel={toggleEditTeamModal}
+          onSubmit={onEditSubmit}
+          defaultName={team.name}
+        />
+      ) : null}
       {children}
     </div>
   );
