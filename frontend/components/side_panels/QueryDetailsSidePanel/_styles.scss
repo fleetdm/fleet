@@ -7,7 +7,7 @@
     font-size: $small;
 
     .kolidecon {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
       margin-right: 6px;
     }
   }
@@ -15,13 +15,13 @@
   &__label {
     font-size: $medium;
     font-weight: $bold;
-    margin: 24px 0 16px;
+    margin: $pad-large 0 $pad-medium;
   }
 
   &__description {
     font-size: $small;
     font-weight: $regular;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     word-wrap: break-word;
   }
 
@@ -38,7 +38,7 @@
   }
 
   &__packs {
-    margin-bottom: 24px;
+    margin-bottom: $pad-large;
     padding: 0;
     list-style: none;
   }
@@ -48,6 +48,6 @@
     text-decoration: none;
     font-size: $small;
     vertical-align: middle;
-    color: $core-blue;
+    color: $core-vibrant-blue;
   }
 }

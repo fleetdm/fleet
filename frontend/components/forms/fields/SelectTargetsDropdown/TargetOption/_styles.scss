@@ -27,7 +27,7 @@
 
   &__add-btn {
     transition: color 0ms;
-    color: $core-blue;
+    color: $core-vibrant-blue;
 
     font-size: $medium;
   }
@@ -40,9 +40,9 @@
   }
 
   &__count {
-    background-color: $core-dark-blue-grey;
+    background-color: $core-fleet-black;
     border-radius: $border-radius;
-    color: $white;
+    color: $core-white;
     font-size: $xx-small;
     line-height: 16px;
     font-weight: bold;
@@ -51,37 +51,37 @@
   }
 
   &__icon {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     font-size: $small;
 
     &--online {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
 
     &--offline {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
 
     &--mia {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
   }
 
   &__ip {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     font-size: $small;
   }
 
   &__label-host {
-    color: $core-purple;
+    color: $core-fleet-purple;
     font-size: $medium;
-    margin-left: $pad-half;
+    margin-left: $pad-small;
   }
 
   &__label-label {
-    color: $core-dark-blue-grey;
-    font-size: 14px;
-    margin-left: $pad-half;
+    color: $core-fleet-black;
+    font-size: $x-small;
+    margin-left: $pad-small;
 
     .all-hosts {
       font-weight: $bold;
@@ -89,15 +89,15 @@
   }
 
   &__more-info {
-    color: $core-blue;
+    color: $core-vibrant-blue;
     cursor: pointer;
     float: right;
-    margin-right: $pad-base;
+    margin-right: $pad-medium;
   }
 
   &__target-icon {
     font-size: $medium;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     margin-right: $pad-xsmall;
   }
 

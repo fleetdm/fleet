@@ -1,6 +1,6 @@
 .kolide-slider {
   transition: background-color 150ms ease-in-out;
-  background-color: $core-dark-blue-grey;
+  background-color: $core-fleet-black;
   border-radius: 12px;
   border: 1px solid #eaeaea;
   cursor: pointer;
@@ -12,15 +12,15 @@
   box-shadow: inset 0 1px 6px 0 rgba(0, 0, 0, 0.2);
 
   &:hover {
-    background-color: $core-dark-blue-grey;
+    background-color: $core-fleet-black;
     box-shadow: inset 0 1px 6px 0 rgba(0, 0, 0, 0.2);
   }
 
   &--active {
-    background-color: $core-blue;
+    background-color: $core-vibrant-blue;
 
     &:hover {
-      background-color: $core-blue;
+      background-color: $core-vibrant-blue;
     }
   }
 
@@ -36,7 +36,7 @@
     transition: left 150ms ease-in-out;
     margin-top: 3px;
     border-radius: 50%;
-    background-color: $white;
+    background-color: $core-white;
     box-shadow: 0 2px 3px 0 rgba(0, 0, 0, 0.25);
 
     &--active {
@@ -50,10 +50,10 @@
     text-align: left;
     vertical-align: text-bottom;
     margin-right: 10px;
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
 
     &--active {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       margin-right: 0;
       margin-left: 10px;
     }

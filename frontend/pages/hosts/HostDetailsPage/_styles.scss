@@ -7,10 +7,10 @@
   .section {
     display: flex;
     flex-direction: column;
-    margin: 40px 0 0;
+    margin: $pad-xxlarge 0 0;
 
     &__header {
-      margin: 0 0 16px;
+      margin: 0 0 $pad-medium;
       font-size: $medium;
     }
 
@@ -24,12 +24,12 @@
         white-space: nowrap;
 
         &--title {
-          margin-right: 40px;
+          margin-right: $pad-xxlarge;
         }
       }
 
       &__header {
-        color: $core-black;
+        color: $core-fleet-black;
         font-weight: $bold;
       }
     }
@@ -55,7 +55,7 @@
 
       &__header {
         font-size: $small;
-        color: $core-black;
+        color: $core-fleet-black;
         font-weight: $bold;
       }
 
@@ -68,11 +68,11 @@
   .title {
     flex-direction: row;
     justify-content: space-between;
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
     margin: 0;
 
     &__inner {
-      padding-bottom: 16px;
+      padding-bottom: $pad-medium;
     }
 
     .hostname-container {
@@ -88,7 +88,7 @@
 
     .last-fetched {
       font-size: $xx-small;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
       margin: 0;
       padding-left: $pad-small;
     }
@@ -106,10 +106,10 @@
       &__block {
         display: flex;
         flex-direction: column;
-        margin-right: 40px;
+        margin-right: $pad-xxlarge;
 
         span {
-          margin-bottom: 16px;
+          margin-bottom: $pad-medium;
 
           &:last-child {
             margin-bottom: 0;
@@ -120,29 +120,29 @@
   }
 
   .status {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     text-transform: capitalize;
 
     &--online {
       &:before {
-        background-color: $success;
+        background-color: $ui-success;
         border-radius: 100%;
         content: " ";
         display: inline-block;
         height: 8px;
-        margin-right: 8px;
+        margin-right: $pad-small;
         width: 8px;
       }
     }
 
     &--offline {
       &:before {
-        background-color: $ui-dark-grey;
+        background-color: $ui-fleet-black-25;
         border-radius: 100%;
         content: " ";
         display: inline-block;
         height: 8px;
-        margin-right: 8px;
+        margin-right: $pad-small;
         width: 8px;
       }
     }
@@ -159,7 +159,7 @@
 
   &__modal {
     p {
-      font-size: 16px;
+      font-size: $small;
     }
   }
 
@@ -180,9 +180,9 @@
   }
 
   &__wrapper {
-    border: solid 1px $ui-borders;
+    border: solid 1px $ui-fleet-blue-15;
     border-radius: 6px;
-    margin-top: $pad-half;
+    margin-top: $pad-small;
     overflow: scroll;
     box-shadow: inset -8px 0 17px -10px #e8edf4;
   }
@@ -190,11 +190,11 @@
   &__table {
     width: 100%;
     border-collapse: collapse;
-    color: $core-black;
+    color: $core-fleet-black;
     font-size: $x-small;
   }
   tr {
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
 
     &:last-child {
       border-bottom: 0;
@@ -202,15 +202,15 @@
   }
 
   thead {
-    background-color: $core-light-blue-grey;
-    color: $core-black;
+    background-color: $ui-off-white;
+    color: $core-fleet-black;
     text-align: left;
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
 
     th {
-      padding: 16px 27px;
+      padding: $pad-medium 27px;
       white-space: nowrap;
-      border-right: 1px solid $ui-borders;
+      border-right: 1px solid $ui-fleet-blue-15;
 
       &:last-child {
         border-right: none;

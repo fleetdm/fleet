@@ -1,5 +1,5 @@
 .input-icon-field {
-  margin-top: 16px;
+  margin-top: $pad-medium;
   position: relative;
   width: 100%;
 
@@ -8,19 +8,19 @@
     right: 6px;
     top: 28px;
     font-size: 18px;
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
 
     &--active {
-      color: $core-blue;
+      color: $core-vibrant-blue;
     }
 
     &--error {
-      color: $alert;
+      color: $ui-error;
     }
   }
 
   &__input {
-    border: 1px solid $ui-borders;
+    border: 1px solid $ui-fleet-blue-15;
     background-color: $ui-light-grey;
     border-radius: 4px;
     padding: 9px 30px 9px 16px;
@@ -29,11 +29,11 @@
     position: relative;
     width: 100%;
     box-sizing: border-box;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     font-weight: $regular;
 
     ::placeholder {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
     }
 
     &:focus {
@@ -41,14 +41,14 @@
     }
 
     &--error {
-      border-bottom-color: $alert;
+      border-bottom-color: $ui-error;
     }
   }
 
   &__label {
     font-size: $x-small;
     font-weight: $bold;
-    margin-bottom: 4px;
+    margin-bottom: $pad-xsmall;
   }
 
   &__errors {
@@ -64,9 +64,9 @@
     margin-top: 8px;
 
     code {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       background-color: $ui-light-grey;
-      padding: 2px;
+      padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
   }

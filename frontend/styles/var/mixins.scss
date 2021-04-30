@@ -30,9 +30,9 @@ $max-width: 2560px;
 @mixin sticky-settings-description {
   position: sticky;
   // this is the current spacing needed to keep the description looking correct under the sub nav when scrolling.
-  top: 97px;
+  top: 94px;
   z-index: 2;
-  background-color: $white;
+  background-color: $core-white;
   margin: 0;
-  padding: 40px 0 54px 0;
+  padding: $pad-xxlarge 0 54px 0;
 }

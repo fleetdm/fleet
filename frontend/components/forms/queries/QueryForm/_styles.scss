@@ -1,7 +1,7 @@
 .query-form {
   &__wrapper {
     h1 {
-      margin-bottom: 24px;
+      margin-bottom: $pad-large;
     }
   }
 
@@ -29,11 +29,11 @@
   }
 
   &__text-editor-wrapper {
-    margin: $pad-base 0;
+    margin: $pad-medium 0;
   }
 
   &__title {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     display: inline-block;
     font-size: $large;
   }

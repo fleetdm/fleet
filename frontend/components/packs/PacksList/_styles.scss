@@ -3,15 +3,15 @@
   overflow: scroll;
 
   &__wrapper {
-    border: 1px solid $ui-borders;
+    border: 1px solid $ui-fleet-blue-15;
     border-radius: 4px;
     overflow: hidden;
     margin-top: 16px;
   }
 
   thead {
-    background-color: $core-light-blue-grey;
-    border-bottom: 1px solid $ui-borders;
+    background-color: $ui-off-white;
+    border-bottom: 1px solid $ui-fleet-blue-15;
   }
 
   &__th {
@@ -41,6 +41,6 @@
   &__empty-table {
     text-align: center;
     font-size: $x-small;
-    color: $core-black;
+    color: $core-fleet-black;
   }
 }

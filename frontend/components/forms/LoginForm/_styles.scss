@@ -14,22 +14,22 @@
   &__container {
     display: flex;
     align-items: center;
-    background-color: $white;
+    background-color: $core-white;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
     box-sizing: border-box;
     flex-direction: column;
-    padding: 40px;
+    padding: $pad-xxlarge;
     font-weight: $regular;
   }
 
   &__submit-btn {
-    margin-top: 40px;
+    margin-top: $pad-xxlarge;
     width: 160px;
   }
 
   &__sso-btn {
-    margin-top: 40px;
+    margin-top: $pad-xxlarge;
   }
 
   &__forgot-wrap {
@@ -41,7 +41,7 @@
   &__forgot-link {
     font-size: $x-small;
     text-decoration: none;
-    color: $core-blue;
+    color: $core-vibrant-blue;
   }
 
   &__sso-image {
