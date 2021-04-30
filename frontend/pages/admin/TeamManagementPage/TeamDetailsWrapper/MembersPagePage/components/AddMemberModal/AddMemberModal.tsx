@@ -10,12 +10,13 @@ import AutocompleteDropdown from "components/forms/fields/AutocompleteDropdown";
 const baseClass = "add-member-modal";
 
 interface IAddMemberModal {
+  disabledMembers: number[];
   onCancel: () => void;
   onSubmit: (userIds: INewMembersBody) => void;
 }
 
 const AddMemberModal = (props: IAddMemberModal): JSX.Element => {
-  const { onCancel, onSubmit } = props;
+  const { disabledMembers, onCancel, onSubmit } = props;
 
   const [selectedMembers, setSelectedMembers] = useState([]);
 
@@ -41,6 +42,7 @@ const AddMemberModal = (props: IAddMemberModal): JSX.Element => {
           resourceUrl={endpoints.USERS}
           onChange={onChangeDropdown}
           placeholder={"Search users by name"}
+          disabledOptions={disabledMembers}
           value={selectedMembers}
           valueKey={"id"}
           labelKey={"name"}

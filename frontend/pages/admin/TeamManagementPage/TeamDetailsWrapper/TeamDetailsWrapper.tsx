@@ -10,6 +10,7 @@ import { ITeam } from "interfaces/team";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
+import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
@@ -96,7 +97,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
 
   useEffect(() => {
     dispatch(teamActions.loadAll({ perPage: 500 }));
-  }, []);
+  }, [dispatch]);
 
   const toggleDeleteTeamModal = useCallback(() => {
     setShowDeleteTeamModal(!showDeleteTeamModal);
@@ -136,7 +137,13 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
     [dispatch, toggleEditTeamModal, team]
   );
 
-  if (isLoadingTeams || team === undefined) return <p>loading...</p>;
+  if (isLoadingTeams || team === undefined) {
+    return (
+      <div className={`${baseClass}__loading-spinner`}>
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className={baseClass}>

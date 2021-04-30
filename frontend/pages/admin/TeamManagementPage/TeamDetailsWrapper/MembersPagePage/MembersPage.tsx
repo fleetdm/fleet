@@ -74,6 +74,9 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const teams = useSelector((state: IRootState) => {
     return memoizedGetTeams(state.entities.teams.data);
   });
+  const memberIds = users.map((member) => {
+    return member.id;
+  });
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
@@ -217,6 +220,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       />
       {showAddMemberModal ? (
         <AddMemberModal
+          disabledMembers={memberIds}
           onCancel={toggleAddUserModal}
           onSubmit={onAddMemberSubmit}
         />
