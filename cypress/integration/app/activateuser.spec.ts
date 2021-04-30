@@ -1,11 +1,11 @@
 describe("User invite and activation", () => {
-  beforeEach(() => {
+  let inviteLink = {};
+
+  it("Invites and activates a user", () => {
     cy.setup();
     cy.login();
     cy.setupSMTP();
-  });
 
-  it("Invites and activates a user", () => {
     cy.visit("/settings/organization");
 
     cy.findByRole("tab", { name: /^users$/i }).click();
@@ -20,8 +20,6 @@ describe("User invite and activation", () => {
 
     cy.wait(6000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    let inviteLink = {};
-
     const regex = /\/login\/invites\/[a-zA-Z0-9=?%&@._-]*/gm;
 
     cy.getEmails().then((response) => {
@@ -33,37 +31,39 @@ describe("User invite and activation", () => {
       const match = response.body.items[0].Content.Body.match(regex);
       inviteLink["url"] = match[0];
     });
+  });
 
+  it("activate user", () => {
     cy.visit(inviteLink);
 
-    // cy.findByLabelText(/username/i)
-    //   .click()
-    //   .type("ash.ketchum");
+    cy.findByLabelText(/username/i)
+      .click()
+      .type("ash.ketchum");
 
-    // // ^$ exact match
-    // cy.findByLabelText(/^password$/i)
-    //   .click()
-    //   .type("#pikachu1");
+    // ^$ exact match
+    cy.findByLabelText(/^password$/i)
+      .click()
+      .type("#pikachu1");
 
-    // cy.findByLabelText(/confirm password/i)
-    //   .click()
-    //   .type("#pikachu1");
+    cy.findByLabelText(/confirm password/i)
+      .click()
+      .type("#pikachu1");
 
-    // cy.findByRole("button", { name: /submit/i }).click();
+    cy.findByRole("button", { name: /submit/i }).click();
 
-    // cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    // cy.logout();
-    // cy.login();
+    cy.logout();
+    cy.login();
 
-    // cy.visit("/settings/organization");
+    cy.visit("/settings/organization");
 
-    // cy.findByRole("tab", { name: /^users$/i }).click();
+    cy.findByRole("tab", { name: /^users$/i }).click();
 
-    // cy.get("tbody>tr")
-    //   .contains("ash.ketchum")
-    //   .next()
-    //   .findByText(/active/i)
-    //   .should("exist");
+    cy.get("tbody>tr")
+      .contains("ash.ketchum")
+      .next()
+      .findByText(/active/i)
+      .should("exist");
   });
 });
