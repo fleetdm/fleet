@@ -26,7 +26,7 @@ const IconToolTip = (props: IIconToolTipProps): JSX.Element => {
           />
         </svg>
       </span>
-      {/* same colour as $core-fleet-black */}
+      {/* same colour as $core-fleet-blue */}
       <ReactTooltip
         effect={"solid"}
         data-html={isHtml}
