@@ -1,11 +1,11 @@
 describe("User invite and activation", () => {
-  let inviteLink = {};
-
-  it("Invites and activates a user", () => {
+  beforeEach(() => {
     cy.setup();
     cy.login();
     cy.setupSMTP();
+  });
 
+  it("Invites and activates a user", () => {
     cy.visit("/settings/organization");
 
     cy.findByRole("tab", { name: /^users$/i }).click();
@@ -20,6 +20,10 @@ describe("User invite and activation", () => {
 
     cy.wait(6000); // eslint-disable-line cypress/no-unnecessary-waiting
 
+    cy.logout();
+
+    let inviteLink = {};
+
     const regex = /\/login\/invites\/[a-zA-Z0-9=?%&@._-]*/gm;
 
     cy.getEmails().then((response) => {
@@ -31,10 +35,10 @@ describe("User invite and activation", () => {
       const match = response.body.items[0].Content.Body.match(regex);
       inviteLink["url"] = match[0];
     });
-  });
 
-  it("activate user", () => {
     cy.visit(inviteLink);
+
+    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.findByLabelText(/username/i)
       .click()
