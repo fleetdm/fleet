@@ -1,0 +1,30 @@
+.autocomplete-dropdown {
+  .Select {
+    &.Select--multi {
+      .Select-option {
+        color: $core-fleet-black;
+        font-size: $x-small;
+        margin: $pad-small;
+        padding: $pad-small;
+        display: block;
+
+        &.is-focused {
+          background-color: $ui-vibrant-blue-25;
+
+          .Select-icon {
+            color: $ui-vibrant-blue-25;
+          }
+        }
+
+        &.is-disabled {
+          color: $ui-gray;
+
+          .Select-icon {
+            visibility: hidden;
+            opacity: 0;
+          }
+        }
+      }
+    }
+  }
+}

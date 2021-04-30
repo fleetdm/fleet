@@ -75,6 +75,7 @@ const AutocompleteDropdown = (props: IAutocompleteDropdown): JSX.Element => {
         return res.json();
       })
       .then((json) => {
+        // TODO: make more generic
         const optionsData = json.users.map((user: any) => {
           if (disabledOptions.includes(user.id)) {
             user.disabled = true;
