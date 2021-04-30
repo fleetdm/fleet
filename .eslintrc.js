@@ -80,6 +80,13 @@ module.exports = {
         "@typescript-eslint/explicit-module-boundary-types": ["warn"],
       },
     },
+    {
+      files: ["cypress/**/*.ts"],
+      // Set to turn off jest linting error on cypress library
+      rules: {
+        "jest/valid-expect": "off",
+      },
+    },
   ],
   settings: {
     "import/resolver": {

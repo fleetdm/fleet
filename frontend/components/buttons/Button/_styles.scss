@@ -207,6 +207,36 @@ $base-class: "button";
     }
   }
 
+  &--unstyled-modal-query {
+    @include button-variant(transparent);
+    border: 0;
+    box-shadow: none;
+    color: $core-fleet-black;
+    cursor: pointer;
+    margin: 0;
+    padding: 15px 12px;
+    height: auto;
+    line-height: normal;
+    display: block;
+    width: 100%;
+    border-radius: 0px;
+    border-bottom: 1px solid $ui-fleet-blue-15;
+
+    &:active {
+      box-shadow: none;
+      top: 0;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover {
+      background-color: $ui-vibrant-blue-10;
+      box-shadow: none;
+    }
+  }
+
   &--contextual-nav-item {
     @include button-variant(transparent, $ui-vibrant-blue-10);
     display: flex;

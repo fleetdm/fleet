@@ -1,5 +1,4 @@
 import { push } from "react-router-redux";
-
 import PATHS from "router/paths";
 import hostActions from "redux/nodes/entities/hosts/actions";
 
@@ -17,7 +16,7 @@ export const destroyHost = (dispatch, host) => {
   });
 };
 
-export const queryHost = (dispatch, host) => {
+export const queryHostCustom = (dispatch, host) => {
   return dispatch(
     push({
       pathname: PATHS.NEW_QUERY,
@@ -26,4 +25,13 @@ export const queryHost = (dispatch, host) => {
   );
 };
 
-export default { fetchHost, destroyHost, queryHost };
+export const queryHostSaved = (dispatch, host, selectedQuery) => {
+  return dispatch(
+    push({
+      pathname: PATHS.EDIT_QUERY(selectedQuery),
+      query: { host_ids: [host.id] },
+    })
+  );
+};
+
+export default { fetchHost, destroyHost, queryHostCustom, queryHostSaved };

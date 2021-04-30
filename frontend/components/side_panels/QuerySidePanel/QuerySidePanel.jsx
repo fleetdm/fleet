@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
+import IconToolTip from "components/IconToolTip";
 import osqueryTableInterface from "interfaces/osquery_table";
 import { osqueryTableNames } from "utilities/osquery_tables";
 import Dropdown from "components/forms/fields/Dropdown";
@@ -50,15 +51,11 @@ class QuerySidePanel extends Component {
       return (
         <li key={column.name} className={`${columnBaseClass}__item`}>
           <span className={`${columnBaseClass}__name`}>{column.name}</span>
+          <IconToolTip text={column.description} />
           <div className={`${columnBaseClass}__description`}>
             <span className={`${columnBaseClass}__type`}>
               {displayTypeForDataType(column.type)}
             </span>
-            <KolideIcon
-              name="help-solid"
-              className={`${columnBaseClass}__help`}
-              title={column.description}
-            />
           </div>
         </li>
       );
@@ -124,7 +121,7 @@ class QuerySidePanel extends Component {
                   className={iconClasses}
                 />
               );
-              if (platform === "linux")
+              if (platform === "linux") {
                 icon = (
                   <img
                     src={LinuxIcon}
@@ -132,7 +129,7 @@ class QuerySidePanel extends Component {
                     className={iconClasses}
                   />
                 );
-              else if (platform === "windows")
+              } else if (platform === "windows") {
                 icon = (
                   <img
                     src={WindowsIcon}
@@ -140,6 +137,7 @@ class QuerySidePanel extends Component {
                     className={iconClasses}
                   />
                 );
+              }
 
               return (
                 <li key={platform}>

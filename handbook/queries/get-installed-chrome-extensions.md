@@ -3,7 +3,7 @@
 List installed Chrome Extensions for all users.
 
 ### Support
-macOS
+macOS, Linux, Windows, FreeBSD
 
 ### Query
 ```sql

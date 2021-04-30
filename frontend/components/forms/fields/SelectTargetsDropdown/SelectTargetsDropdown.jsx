@@ -104,9 +104,7 @@ class SelectTargetsDropdown extends Component {
 
       const currentMoreInfoTarget = this.state.moreInfoTarget || {};
 
-      if (
-        isEqual(moreInfoTarget.display_text, currentMoreInfoTarget.display_text)
-      ) {
+      if (isEqual(moreInfoTarget.id, currentMoreInfoTarget.id)) {
         return false;
       }
 

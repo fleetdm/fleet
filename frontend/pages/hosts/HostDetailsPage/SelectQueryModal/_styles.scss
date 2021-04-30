@@ -1,0 +1,72 @@
+.select-query-modal {
+  #error-icon {
+    height: 12px;
+    width: 12px;
+    margin-right: 8px;
+  }
+
+  #new-tab-icon {
+    height: 12px;
+    width: 12px;
+    margin-left: 6px;
+  }
+
+  &__modal {
+    @include position(absolute, 22px null null null);
+    background-color: $core-white;
+    width: 658px;
+    padding: 40px;
+    border-radius: 8px;
+    // font-size: 16px;
+
+    a {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
+    .info {
+      display: flex;
+
+      &__header {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: $bold;
+        font-size: $x-small;
+        text-align: left;
+      }
+      &__data {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: normal;
+        font-size: $x-small;
+        text-align: left;
+        margin-top: 10px;
+      }
+    }
+  }
+
+  &__filter-queries {
+    flex-grow: 1;
+    position: relative;
+
+    .input-field {
+      padding-left: 42px;
+    }
+
+    .kolidecon {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      color: $ui-fleet-black-25;
+    }
+  }
+
+  &__custom-query-button {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+  }
+}

@@ -37,6 +37,7 @@ import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 
 const NEW_LABEL_HASH = "#new_label";
+const EDIT_LABEL_HASH = "#edit_label";
 const baseClass = "manage-hosts";
 
 export class ManageHostsPage extends PureComponent {
@@ -44,6 +45,7 @@ export class ManageHostsPage extends PureComponent {
     config: configInterface,
     dispatch: PropTypes.func,
     isAddLabel: PropTypes.bool,
+    isEditLabel: PropTypes.bool,
     labelErrors: PropTypes.shape({
       base: PropTypes.string,
     }),
@@ -72,7 +74,6 @@ export class ManageHostsPage extends PureComponent {
     );
 
     this.state = {
-      isEditLabel: false,
       labelQueryText: "",
       showAddHostModal: false,
       selectedHost: null,
@@ -98,9 +99,18 @@ export class ManageHostsPage extends PureComponent {
   onAddLabelClick = (evt) => {
     evt.preventDefault();
 
-    const { dispatch } = this.props;
+    const { dispatch, selectedFilter } = this.props;
+    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${NEW_LABEL_HASH}`));
 
-    dispatch(push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`));
+    return false;
+  };
+
+  onEditLabelClick = (evt) => {
+    evt.preventDefault();
+
+    const { dispatch, selectedFilter } = this.props;
+    console.log(selectedFilter);
+    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${EDIT_LABEL_HASH}`));
 
     return false;
   };
@@ -126,9 +136,17 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onCancelAddLabel = () => {
-    const { dispatch } = this.props;
+    const { dispatch, selectedFilter } = this.props;
 
-    dispatch(push(PATHS.MANAGE_HOSTS));
+    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
+
+    return false;
+  };
+
+  onCancelEditLabel = () => {
+    const { dispatch, selectedFilter } = this.props;
+
+    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
 
     return false;
   };
@@ -163,12 +181,12 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onEditLabel = (formData) => {
-    const { dispatch, selectedLabel } = this.props;
+    const { dispatch, selectedLabel, selectedFilter } = this.props;
     const updateAttrs = deepDifference(formData, selectedLabel);
 
     return dispatch(labelActions.update(selectedLabel, updateAttrs))
       .then(() => {
-        this.toggleEditLabel();
+        dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
 
         return false;
       })
@@ -234,14 +252,6 @@ export class ManageHostsPage extends PureComponent {
     const { showDeleteLabelModal } = this.state;
 
     this.setState({ showDeleteLabelModal: !showDeleteLabelModal });
-    return false;
-  };
-
-  toggleEditLabel = () => {
-    const { isEditLabel } = this.state;
-
-    this.setState({ isEditLabel: !isEditLabel });
-
     return false;
   };
 
@@ -318,7 +328,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderDeleteButton = () => {
-    const { toggleDeleteLabelModal, toggleEditLabel } = this;
+    const { toggleDeleteLabelModal, onEditLabelClick } = this;
     const {
       selectedLabel: { type },
     } = this.props;
@@ -329,7 +339,7 @@ export class ManageHostsPage extends PureComponent {
 
     return (
       <div className={`${baseClass}__label-actions`}>
-        <Button onClick={toggleEditLabel} variant="inverse">
+        <Button onClick={onEditLabelClick} variant="inverse">
           Edit
         </Button>
         <Button onClick={toggleDeleteLabelModal} variant="inverse">
@@ -405,14 +415,13 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderForm = () => {
-    const { isAddLabel, labelErrors, selectedLabel } = this.props;
-    const { isEditLabel } = this.state;
+    const { isAddLabel, isEditLabel, labelErrors, selectedLabel } = this.props;
     const {
       onCancelAddLabel,
+      onCancelEditLabel,
       onEditLabel,
       onOsqueryTableSelect,
       onSaveAddLabel,
-      toggleEditLabel,
     } = this;
 
     if (isAddLabel) {
@@ -433,7 +442,7 @@ export class ManageHostsPage extends PureComponent {
         <div className="body-wrap">
           <LabelForm
             formData={selectedLabel}
-            onCancel={toggleEditLabel}
+            onCancel={onCancelEditLabel}
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onEditLabel}
             isEdit
@@ -525,8 +534,13 @@ export class ManageHostsPage extends PureComponent {
       renderEditColumnsModal,
       onAddHostClick,
     } = this;
-    const { isAddLabel, loadingLabels, selectedLabel } = this.props;
-    const { isEditLabel } = this.state;
+    const {
+      isAddLabel,
+      isEditLabel,
+      loadingLabels,
+      selectedLabel,
+      selectedFilter,
+    } = this.props;
 
     return (
       <div className="has-sidebar">
@@ -565,6 +579,7 @@ const mapStateToProps = (state, { location, params }) => {
   const labelEntities = entityGetter(state).get("labels");
   const { entities: labels } = labelEntities;
   const isAddLabel = location.hash === NEW_LABEL_HASH;
+  const isEditLabel = location.hash === EDIT_LABEL_HASH;
   const selectedLabel = labelEntities.findBy(
     { slug: selectedFilter },
     { ignoreCase: true }
@@ -583,6 +598,7 @@ const mapStateToProps = (state, { location, params }) => {
   return {
     selectedFilter,
     isAddLabel,
+    isEditLabel,
     labelErrors,
     labels,
     loadingLabels,

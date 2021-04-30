@@ -1,9 +1,12 @@
 # Installation
+
 - [Installing the Fleet binary](#installing-the-fleet-binary)
   - [Docker container](#docker-container)
   - [Raw binaries](#raw-binaries)
+- [TLS configuration](#tls-configuration)
+  - [TLS certificate considerations](#tls-certificate-considerations)
 - [Infrastructure dependencies](#infrastructure-dependencies)
-	- [MySQL](#mysql)
+  - [MySQL](#mysql)
   - [Redis](#redis)
 
 The Fleet application is distributed as a single static binary. This binary serves:
@@ -16,7 +19,7 @@ All of these are served via a built-in HTTP server, so there is no need for comp
 
 ## Installing the Fleet binary
 
-Because everyone's infrastructure is different, there are multiple options available for installing the Fleet binary.
+There are multiple options available for installing the Fleet binary.
 
 ### Docker container
 
@@ -50,7 +53,17 @@ unzip fleet.zip 'linux/*' -d fleet
 
 For more information on using Fleet, refer to the [Configuration](./2-Configuration.md) documentation.
 
-## Infrastructure Dependencies
+## TLS configuration
+
+In order for osqueryd clients to connect, the connection to Fleet must use TLS. The TLS connection may be terminated by Fleet itself, or by a proxy serving traffic to Fleet.
+
+### TLS certificate considerations
+
+- The CNAME or one of the Subject Alternate Names (SANs) on the certificate must match the hostname that osquery clients use to connect to the server/proxy.
+- If self-signed certificates are used, the full certificate chain must be provided to osquery via the `--tls_server_certs` flag.
+- If Fleet terminates TLS, consider using an ECDSA (rather than RSA) certificate, as RSA certificates have been associated with [performance problems in Fleet due to Go's standard library TLS implementation](https://github.com/fleetdm/fleet/issues/655).
+
+## Infrastructure dependencies
 
 Fleet currently has two infrastructure dependencies in addition to the `fleet` web server itself. Those dependencies are MySQL and Redis.
 

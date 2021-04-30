@@ -102,6 +102,7 @@ type HostListOptions struct {
 
 type Host struct {
 	UpdateCreateTimestamps
+	HostSoftware
 	ID uint `json:"id"`
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be

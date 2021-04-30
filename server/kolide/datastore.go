@@ -17,6 +17,7 @@ type Datastore interface {
 	OsqueryOptionsStore
 	CarveStore
 	TeamStore
+	SoftwareStore
 
 	Name() string
 	Drop() error

@@ -200,6 +200,32 @@ export class QueryPage extends Component {
     return false;
   };
 
+  onExportErrorsResults = (evt) => {
+    evt.preventDefault();
+
+    const { campaign } = this.state;
+    const { errors } = campaign;
+
+    if (errors) {
+      const csv = convertToCSV(errors, (fields) => {
+        const result = filter(fields, (f) => f !== "host_hostname");
+
+        result.unshift("host_hostname");
+
+        return result;
+      });
+      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
+      const filename = `${this.csvQueryName} Errors (${formattedTime}).csv`;
+      const file = new global.window.File([csv], filename, {
+        type: "text/csv",
+      });
+
+      FileSaver.saveAs(file);
+    }
+
+    return false;
+  };
+
   onFetchTargets = (query, targetResponse) => {
     const { dispatch } = this.props;
     const { targets_count: targetsCount } = targetResponse;
@@ -219,7 +245,7 @@ export class QueryPage extends Component {
   };
 
   onRunQuery = debounce(() => {
-    const { queryText } = this.state;
+    const { queryText, targetsCount } = this.state;
     const { query } = this.props.query;
     const sql = queryText || query;
     const { dispatch, selectedTargets } = this.props;
@@ -228,6 +254,15 @@ export class QueryPage extends Component {
     if (!selectedTargets.length) {
       this.setState({
         targetsError: "You must select at least one target to run a query",
+      });
+
+      return false;
+    }
+
+    if (!targetsCount) {
+      this.setState({
+        targetsError:
+          "You must select a target with at least one host to run a query",
       });
 
       return false;
@@ -513,6 +548,7 @@ export class QueryPage extends Component {
     } = this.state;
     const {
       onExportQueryResults,
+      onExportErrorsResults,
       onToggleQueryFullScreen,
       onRunQuery,
       onStopQuery,
@@ -537,6 +573,7 @@ export class QueryPage extends Component {
         <QueryResultsTable
           campaign={campaign}
           onExportQueryResults={onExportQueryResults}
+          onExportErrorsResults={onExportErrorsResults}
           isQueryFullScreen={isQueryFullScreen}
           isQueryShrinking={isQueryShrinking}
           onToggleQueryFullScreen={onToggleQueryFullScreen}
@@ -646,13 +683,9 @@ const mapStateToProps = (state, ownProps) => {
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
   const title = queryID ? "Edit query" : "New query";
-
   let selectedHosts = [];
 
-  if (
-    !queryID &&
-    ((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0
-  ) {
+  if (((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {
     const hostIDsArr = Array.isArray(hostIDs) ? hostIDs : [hostIDs];
     const hostUUIDsArr = Array.isArray(hostUUIDs) ? hostUUIDs : [hostUUIDs];
     const { entities: hosts } = stateEntities.get("hosts");

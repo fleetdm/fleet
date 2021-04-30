@@ -38,5 +38,15 @@ declare namespace Cypress {
      * requests.
      */
     setupSSO(enable_idp_login?: boolean): Chainable<Element>;
+
+    /**
+     * Custom command to login a user1@example.com via SSO.
+     */
+    loginSSO(): Chainable<Element>;
+
+    /**
+     * Custom command to get the emails handled by the Mailhog server.
+     */
+    getEmails(): Chainable<Response>;
   }
 }

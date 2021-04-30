@@ -25,6 +25,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// 3 detail queries are currently feature flagged off by default.
+var expectedDetailQueries = len(detailQueries) - 3
+
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
 	ds.VerifyEnrollSecretFunc = func(secret string) (string, error) {
@@ -259,6 +262,7 @@ func TestHostDetailQueries(t *testing.T) {
 			},
 		},
 
+		Platform:         "rhel",
 		DetailUpdateTime: mockClock.Now(),
 		NodeKey:          "test_key",
 		HostName:         "test_hostname",
@@ -276,7 +280,7 @@ func TestHostDetailQueries(t *testing.T) {
 
 	queries, err = svc.hostDetailQueries(host)
 	assert.Nil(t, err)
-	assert.Len(t, queries, len(detailQueries)+2)
+	assert.Len(t, queries, expectedDetailQueries+2)
 	for name, _ := range queries {
 		assert.True(t,
 			strings.HasPrefix(name, hostDetailQueryPrefix) || strings.HasPrefix(name, hostAdditionalQueryPrefix),
@@ -302,7 +306,9 @@ func TestLabelQueries(t *testing.T) {
 	svc, err := newTestServiceWithClock(ds, nil, lq, mockClock)
 	require.Nil(t, err)
 
-	host := &kolide.Host{}
+	host := &kolide.Host{
+		Platform: "darwin",
+	}
 
 	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -328,12 +334,11 @@ func TestLabelQueries(t *testing.T) {
 	// should be turned on so that we can quickly fill labels)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
-	assert.Len(t, queries, len(detailQueries))
+	assert.Len(t, queries, expectedDetailQueries)
 	assert.NotZero(t, acc)
 
 	// Simulate the detail queries being added
 	host.DetailUpdateTime = mockClock.Now().Add(-1 * time.Minute)
-	host.Platform = "darwin"
 	host.HostName = "zwass.local"
 	ctx = hostctx.NewContext(ctx, *host)
 
@@ -553,7 +558,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	svc, err := newTestServiceWithClock(ds, nil, lq, mockClock)
 	require.Nil(t, err)
 
-	host := kolide.Host{}
+	host := kolide.Host{Platform: "windows"}
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
@@ -569,7 +574,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
-	assert.Len(t, queries, len(detailQueries))
+	assert.Len(t, queries, expectedDetailQueries)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -709,7 +714,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 
 	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
-	assert.Len(t, queries, len(detailQueries))
+	assert.Len(t, queries, expectedDetailQueries)
 	assert.Zero(t, acc)
 }
 
@@ -720,7 +725,7 @@ func TestDetailQueries(t *testing.T) {
 	svc, err := newTestServiceWithClock(ds, nil, lq, mockClock)
 	require.Nil(t, err)
 
-	host := kolide.Host{}
+	host := kolide.Host{Platform: "linux"}
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
@@ -736,7 +741,7 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
-	assert.Len(t, queries, len(detailQueries))
+	assert.Len(t, queries, expectedDetailQueries)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -864,6 +869,7 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, uint(60), gotHost.LoggerTLSPeriod)
 
 	host.HostName = "computer.local"
+	host.Platform = "darwin"
 	host.DetailUpdateTime = mockClock.Now()
 	mockClock.AddTime(1 * time.Minute)
 
@@ -879,7 +885,7 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
-	assert.Len(t, queries, len(detailQueries))
+	assert.Len(t, queries, expectedDetailQueries)
 	assert.Zero(t, acc)
 }
 
@@ -1065,7 +1071,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		return &kolide.AppConfig{}, nil
 	}
 
-	host := &kolide.Host{ID: 1}
+	host := &kolide.Host{ID: 1, Platform: "windows"}
 	hostCtx := hostctx.NewContext(context.Background(), *host)
 
 	lq.On("QueriesForHost", uint(1)).Return(
@@ -1079,7 +1085,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.Nil(t, err)
-	assert.Len(t, queries, len(detailQueries)+1)
+	assert.Len(t, queries, expectedDetailQueries+1)
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 	assert.Equal(t, "select * from time", queries[queryKey])
 	assert.NotZero(t, acc)
