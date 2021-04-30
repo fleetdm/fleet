@@ -48,6 +48,29 @@ Cypress.Commands.add("logout", () => {
     auth: {
       bearer: window.localStorage.getItem("KOLIDE::auth_token"),
     },
+  }).then(() => {
+    window.localStorage.removeItem("KOLIDE::auth_token");
+  });
+});
+
+Cypress.Commands.add("setupSMTP", () => {
+  const body = {
+    smtp_settings: {
+      authentication_type: "authtype_none",
+      enable_smtp: true,
+      port: 1025,
+      sender_address: "gabriel+dev@fleetdm.com",
+      server: "localhost",
+    },
+  };
+
+  cy.request({
+    url: "/api/v1/fleet/config",
+    method: "PATCH",
+    body,
+    auth: {
+      bearer: window.localStorage.getItem("KOLIDE::auth_token"),
+    },
   });
 });
 

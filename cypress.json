@@ -1,3 +1,4 @@
 {
-  "baseUrl": "https://localhost:8642"
+  "baseUrl": "https://localhost:8642",
+  "fixturesFolder": false
 }
