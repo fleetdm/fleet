@@ -13,14 +13,13 @@ import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import TableContainer from "components/TableContainer";
 import { useDispatch, useSelector } from "react-redux";
-import PATHS from "../../../../../router/paths";
+import PATHS from "router/paths";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import { IFormData } from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
 import AddMemberModal from "./components/AddMemberModal";
 import EmptyMembers from "./components/EmptyMembers";
 import RemoveMemberModal from "./components/RemoveMemberModal";
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 import {
   generateTableHeaders,
