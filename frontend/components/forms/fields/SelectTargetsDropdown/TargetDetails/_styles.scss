@@ -3,7 +3,7 @@
   padding: $pad-large;
 
   &__back {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     font-size: $xx-small;
     display: none;
 
@@ -21,7 +21,7 @@
   }
 
   @include breakpoint(ltdesktop) {
-    padding-top: $pad-most;
+    padding-top: $pad-xxlarge;
   }
 }
 
@@ -30,21 +30,21 @@
     font-size: $medium;
     font-weight: $bold;
     letter-spacing: 0.6px;
-    color: $core-black;
+    color: $core-fleet-black;
     margin: 0;
   }
 
   &__icon {
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
     margin-right: $pad-small;
     width: 21px;
 
     &--online {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
 
     &--offline {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
   }
 
@@ -56,11 +56,11 @@
     text-transform: uppercase;
 
     &--is-online {
-      color: $success;
+      color: $ui-success;
     }
 
     &--is-offline {
-      color: $alert;
+      color: $ui-error;
     }
   }
 
@@ -73,7 +73,7 @@
     font-size: $small;
     font-weight: $bold;
     letter-spacing: 0.9px;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     text-transform: uppercase;
     margin: 0;
   }
@@ -83,7 +83,7 @@
     font-weight: $regular;
     line-height: 1.85;
     letter-spacing: 0.5px;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -119,12 +119,12 @@
     font-size: $medium;
     font-weight: $bold;
     letter-spacing: 0.6px;
-    color: $core-black;
+    color: $core-fleet-black;
     margin: 0;
   }
 
   &__icon {
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
     margin-right: $pad-small;
     width: 21px;
   }
@@ -138,7 +138,7 @@
 
   &__hosts-count {
     font-weight: $bold;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
 
     strong {
       min-width: 21px;
@@ -150,14 +150,14 @@
   }
 
   &__hosts-online {
-    color: $success;
+    color: $ui-success;
   }
 
   &__description {
     font-size: $pad-medium;
     font-weight: $regular;
     line-height: 1.71;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     margin: 0 0 $pad-small;
   }
 }
@@ -174,8 +174,8 @@
     th {
       font-weight: $bold;
       line-height: 2.3;
-      color: $core-dark-blue-grey;
-      padding-right: $pad-half;
+      color: $core-fleet-black;
+      padding-right: $pad-small;
     }
   }
 }

@@ -1,5 +1,5 @@
 .invite-user-form {
-  margin-top: 24px;
+  margin-top: $pad-large;
 
   &__radio {
     margin-top: 22px;
@@ -8,16 +8,16 @@
       margin-top: 5px;
 
       &__label {
-        font-size: 16px;
+        font-size: $small;
         font-weight: $regular;
-        color: $core-dark-blue-grey;
-        padding-left: 32px;
+        color: $core-fleet-black;
+        padding-left: $pad-xlarge;
       }
     }
   }
 
   &__role {
-    color: $core-black;
+    color: $core-fleet-black;
     font-size: $x-small;
     font-weight: $bold;
     margin: 0;

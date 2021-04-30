@@ -1,6 +1,6 @@
 .queries-list-row {
   line-height: 38px;
-  border-bottom: 1px solid $ui-borders;
+  border-bottom: 1px solid $ui-fleet-blue-15;
 
   &__description {
     max-width: 280px;
@@ -11,12 +11,12 @@
   }
 
   &--selected {
-    background-color: $core-blue-label-down;
+    background-color: $ui-vibrant-blue-10;
   }
 
   &:hover {
     cursor: pointer;
-    background-color: $core-blue-label-over;
+    background-color: $ui-vibrant-blue-10;
   }
 
   &:active,

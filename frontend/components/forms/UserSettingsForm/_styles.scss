@@ -16,13 +16,13 @@
 
   &__button-wrap {
     width: 100%;
-    margin-top: 40px;
+    margin-top: $pad-xxlarge;
     display: flex;
     justify-content: flex-end;
 
     .button {
       &:last-child {
-        margin-left: 16px;
+        margin-left: $pad-medium;
       }
     }
   }

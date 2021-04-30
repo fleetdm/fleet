@@ -2,26 +2,26 @@
   &__pager-wrap {
     display: flex;
     justify-content: flex-end;
-    margin-top: $pad-half;
-    margin-bottom: $pad-half;
+    margin-top: $pad-small;
+    margin-bottom: $pad-small;
     margin-left: auto;
     text-align: right;
 
     button {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       padding: 6px;
 
       .kolidecon-chevronleft {
-        margin-right: $pad-half;
+        margin-right: $pad-small;
       }
 
       .kolidecon-chevronright {
-        margin-left: $pad-half;
+        margin-left: $pad-small;
       }
     }
 
     button:hover {
-      background-color: $core-blue-label-over;
+      background-color: $ui-vibrant-blue-10;
     }
 
     .button--disabled:hover {

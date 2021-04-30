@@ -15,7 +15,7 @@
   }
 
   &__query-count {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     font-size: $x-small;
     font-weight: $bold;
     margin: 0 12px 0 0;
@@ -33,7 +33,7 @@
     input {
       &[name="query-filter"] {
         width: 100%;
-        margin-top: 24px;
+        margin-top: $pad-large;
       }
     }
   }
@@ -51,7 +51,7 @@
       top: 36px;
       left: 9px;
       font-size: 18px;
-      color: $ui-medium-grey;
+      color: $ui-gray;
     }
   }
 
@@ -60,7 +60,7 @@
   }
 
   &__wrapper {
-    padding: 40px 30px;
+    padding: $pad-xxlarge 30px;
   }
 
   &__modal-btn-wrap {
@@ -77,7 +77,7 @@
     font-size: $medium;
     font-weight: $bold;
     padding: 20px 20px 0;
-    margin: 24px 0;
+    margin: $pad-large 0;
   }
 
   &__empty-description {

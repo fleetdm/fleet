@@ -4,7 +4,7 @@
     font-size: 18px;
     font-weight: $bold;
     letter-spacing: -0.5px;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     margin: 0 0 10px;
   }
 
@@ -21,10 +21,10 @@
     word-wrap: break-word;
 
     h2 {
-      font-size: 16px;
+      font-size: $small;
       font-weight: $bold;
       letter-spacing: -0.5px;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
       border-bottom: 1px solid #eaeefb;
       padding: 0 0 9px;
       margin: 0 0 9px;
@@ -32,10 +32,10 @@
 
     p {
       margin: 0 0 10px;
-      font-size: 14px;
+      font-size: $x-small;
       font-weight: $regular;
       line-height: 1.71;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
   }
 }

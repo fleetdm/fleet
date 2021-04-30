@@ -4,10 +4,10 @@
   }
 
   a {
-    color: $core-blue;
+    color: $core-vibrant-blue;
     text-decoration: none;
     display: block;
-    margin-top: 16px;
+    margin-top: $pad-medium;
 
     &:hover {
       text-decoration: underline;
@@ -43,7 +43,7 @@
     > h1 {
       font-size: 32px;
       min-width: 479px;
-      color: $core-black;
+      color: $core-fleet-black;
 
       span {
         font-weight: $bold;

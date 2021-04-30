@@ -1,7 +1,7 @@
 .pack-info-side-panel {
-  background-color: $white;
+  background-color: $core-white;
   bottom: 0;
-  border-left: 1px solid $ui-borders;
+  border-left: 1px solid $ui-fleet-blue-15;
   box-sizing: border-box;
   overflow: scroll;
   padding: 30px;
@@ -9,16 +9,16 @@
   &__title {
     font-size: $medium;
     font-weight: $regular;
-    color: $core-dark-blue-grey;
-    border-bottom: 1px solid $ui-borders;
+    color: $core-fleet-black;
+    border-bottom: 1px solid $ui-fleet-blue-15;
     padding-bottom: 8px;
-    margin: 0 0 4px;
+    margin: 0 0 $pad-xsmall;
   }
 
   &__subtitle {
     font-size: $small;
     font-weight: $regular;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     margin: 0 0 10px;
     padding-top: 15px;
   }
@@ -26,17 +26,17 @@
   p,
   ul {
     font-size: $x-small;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
   }
 
   dl {
     dt {
       font-weight: $bold;
       font-size: $x-small;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
 
       .kolidecon {
-        font-size: 20px;
+        font-size: $medium;
         margin-right: 5px;
       }
 
@@ -47,7 +47,7 @@
 
     dd {
       font-size: 13px;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
       margin-left: 30px;
     }
   }
