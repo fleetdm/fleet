@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 // @ts-ignore
 import memoize from "memoize-one";
 
@@ -12,7 +13,6 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import TableContainer from "components/TableContainer";
-import { useDispatch, useSelector } from "react-redux";
 import PATHS from "router/paths";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import { IFormData } from "../../../UserManagementPage/components/UserForm/UserForm";
