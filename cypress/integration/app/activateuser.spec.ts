@@ -22,7 +22,7 @@ describe("User invite and activation", () => {
 
     cy.logout();
 
-    let inviteLink = {};
+    const inviteLink = {};
 
     const regex = /\/login\/invites\/[a-zA-Z0-9=?%&@._-]*/gm;
 
@@ -33,7 +33,7 @@ describe("User invite and activation", () => {
       expect(response.body.items[0].From.Mailbox).to.equal("gabriel+dev");
       expect(response.body.items[0].From.Domain).to.equal("fleetdm.com");
       const match = response.body.items[0].Content.Body.match(regex);
-      inviteLink["url"] = match[0];
+      inviteLink.url = match[0];
     });
 
     cy.visit(inviteLink);
