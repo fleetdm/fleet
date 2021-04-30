@@ -18,6 +18,8 @@ describe("Teams flow", () => {
 
     cy.visit("/settings/teams");
 
+    cy.wait(5000);
+
     cy.get(".Select-arrow-zone").click();
 
     // need force:true for dropdown
@@ -30,6 +32,8 @@ describe("Teams flow", () => {
     cy.findByRole("button", { name: /save/i }).click();
 
     cy.visit("/settings/teams");
+
+    cy.wait(5000);
 
     cy.get(".Select-arrow-zone").click();
 
