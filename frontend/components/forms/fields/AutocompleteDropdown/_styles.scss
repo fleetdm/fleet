@@ -17,11 +17,28 @@
         }
 
         &.is-disabled {
-          color: $ui-gray;
+          color: $ui-fleet-black-25;
 
           .Select-icon {
             visibility: hidden;
             opacity: 0;
+          }
+        }
+      }
+    }
+
+    .Select-control {
+      .Select-value {
+        border: 1px solid $core-vibrant-blue;
+        background-color: $ui-vibrant-blue-10;
+
+        .Select-value-label {
+          font-weight: $bold;
+        }
+
+        .Select-value-icon {
+          &:after {
+            color: $core-fleet-black;
           }
         }
       }

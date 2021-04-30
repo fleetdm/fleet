@@ -75,9 +75,9 @@ const AutocompleteDropdown = (props: IAutocompleteDropdown): JSX.Element => {
         return res.json();
       })
       .then((json) => {
-        // TODO: make more generic
+        // TODO: make more generic.
         const optionsData = json.users.map((user: any) => {
-          if (disabledOptions.includes(user.id)) {
+          if (disabledOptions.includes(user.id) || user.global_role !== null) {
             user.disabled = true;
           }
           return user;
