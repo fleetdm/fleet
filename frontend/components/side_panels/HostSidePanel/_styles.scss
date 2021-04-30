@@ -1,5 +1,5 @@
 .host-side-panel {
-  color: $core-dark-blue-grey;
+  color: $core-fleet-black;
   padding: 14px 20px 22px;
 
   .input-icon-field {
@@ -17,17 +17,17 @@
   h3 {
     font-size: $x-small;
     font-weight: $bold;
-    color: $core-dark-blue-grey;
-    margin: 24px 0 10px 16px;
+    color: $core-fleet-black;
+    margin: $pad-large 0 10px $pad-medium;
   }
 
   &__add-label-btn {
     width: 100%;
-    margin-top: 24px;
+    margin-top: $pad-large;
   }
 
   &__panel-group-item {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     width: 100%;
 
     &--filter {
@@ -37,19 +37,19 @@
         position: absolute;
         top: 10px;
         left: 12px;
-        font-size: 20px;
-        color: $core-medium-blue-grey;
+        font-size: $medium;
+        color: $core-fleet-blue;
       }
     }
 
     .title {
       padding-left: 20px;
-      font-size: 16px;
+      font-size: $small;
     }
   }
 
   &__filter-labels {
-    margin-bottom: 16px;
+    margin-bottom: $pad-medium;
 
     .input-field {
       padding-left: 42px;

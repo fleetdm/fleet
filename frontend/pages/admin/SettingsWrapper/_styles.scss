@@ -7,12 +7,12 @@
     padding-top: 15px;
     position: sticky;
     top: 0;
-    background-color: $white;
+    background-color: $core-white;
     z-index: 2;
   }
 
   h1 {
-    margin-bottom: $pad-half;
+    margin-bottom: $pad-small;
   }
 
   .body-wrap {
@@ -21,14 +21,14 @@
 
   .react-tabs {
     .react-tabs__tab-list {
-      border-bottom: 1px solid $ui-medium-grey;
+      border-bottom: 1px solid $ui-gray;
     }
 
     &__tab {
       font-size: $x-small;
       border: none;
-      padding: 0 0 $pad-base 0;
-      margin-left: 40px;
+      padding: 0 0 $pad-medium 0;
+      margin-left: $pad-xxlarge;
       display: inline-flex;
       flex-direction: column;
       align-items: center;
@@ -62,7 +62,7 @@
     &__tab--selected,
     &__tab--selected:focus {
       font-weight: $bold;
-      border-bottom: 1px solid $core-blue;
+      border-bottom: 1px solid $core-vibrant-blue;
     }
   }
 }

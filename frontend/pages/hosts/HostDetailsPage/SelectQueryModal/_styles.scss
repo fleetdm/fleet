@@ -13,15 +13,14 @@
 
   &__modal {
     @include position(absolute, 22px null null null);
-    background-color: $white;
+    background-color: $core-white;
     width: 658px;
-    padding: 40px;
-    border-radius: 8px;
-    // font-size: 16px;
+    padding: $pad-xxlarge;
+    border-radius: $pad-small;
 
     a {
       font-size: $x-small;
-      color: $core-blue;
+      color: $core-vibrant-blue;
       font-weight: $bold;
       text-decoration: none;
     }
@@ -31,14 +30,14 @@
 
       &__header {
         display: block;
-        color: $core-black;
+        color: $core-fleet-black;
         font-weight: $bold;
         font-size: $x-small;
         text-align: left;
       }
       &__data {
         display: block;
-        color: $core-dark-blue-grey;
+        color: $core-fleet-black;
         font-weight: normal;
         font-size: $x-small;
         text-align: left;
@@ -59,14 +58,14 @@
       position: absolute;
       top: 10px;
       left: 10px;
-      font-size: 20px;
-      color: $ui-dark-grey;
+      font-size: $medium;
+      color: $ui-fleet-black-25;
     }
   }
 
   &__custom-query-button {
     font-size: $x-small;
-    color: $core-blue;
+    color: $core-vibrant-blue;
     font-weight: $bold;
   }
 }

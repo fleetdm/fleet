@@ -1,13 +1,13 @@
 .target-list {
   &__type {
-    padding: 0 8px 4px;
-    margin: 40px 0 0;
+    padding: 0 8px $pad-xsmall;
+    margin: $pad-xxlarge 0 0;
     text-transform: uppercase;
     font-weight: $bold;
     font-size: $xx-small;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
 
     &:first-child {
       margin: 0;
@@ -21,16 +21,16 @@
     min-height: 500px;
     position: relative;
     z-index: 2;
-    padding: 24px 16px;
-    border-right: 1px solid $ui-borders;
-    background-color: $white;
+    padding: $pad-large $pad-medium;
+    border-right: 1px solid $ui-fleet-blue-15;
+    background-color: $core-white;
   }
 
   &__spotlight {
     width: 50%;
     float: right;
     overflow-y: auto;
-    background-color: $white;
+    background-color: $core-white;
     min-height: 500px;
     position: relative;
     z-index: 1;
@@ -38,6 +38,6 @@
 
   &__not-found {
     font-size: $x-small;
-    padding: 0 4px 4px;
+    padding: 0 $pad-xsmall $pad-xsmall;
   }
 }

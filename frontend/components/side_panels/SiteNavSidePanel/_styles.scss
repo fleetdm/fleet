@@ -5,7 +5,7 @@
   border-bottom: 3px solid transparent;
 
   &:hover {
-    background-color: $core-black-over;
+    background-color: $core-fleet-black;
   }
 
   &--multiple.site-nav-item--active {
@@ -17,15 +17,15 @@
     }
 
     .site-nav-item__link {
-      border-right: 3px solid $core-blue;
-      background-color: $core-black;
+      border-right: 3px solid $core-vibrant-blue;
+      background-color: $core-fleet-black;
     }
   }
 
   &__icon {
     position: relative;
     font-size: $large;
-    margin-right: 8px;
+    margin-right: $pad-small;
     width: 16px;
     height: 16px;
     vertical-align: sub;
@@ -39,7 +39,7 @@
   }
 
   a {
-    color: $white;
+    color: $core-white;
     text-align: center;
     display: flex;
     align-items: center;
@@ -47,11 +47,11 @@
   }
 
   &--active {
-    border-bottom: 3px solid $core-blue;
-    background-color: $core-black;
+    border-bottom: 3px solid $core-vibrant-blue;
+    background-color: $core-fleet-black;
 
     &:hover {
-      background-color: $core-black;
+      background-color: $core-fleet-black;
     }
 
     .site-nav-item__name {

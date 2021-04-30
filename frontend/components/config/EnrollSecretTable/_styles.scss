@@ -22,8 +22,8 @@
   }
 
   &__secret-copy-icon {
-    color: $core-blue;
-    margin-right: 16px;
+    color: $core-vibrant-blue;
+    margin-right: $pad-medium;
   }
 
   .buttons {
@@ -52,7 +52,7 @@
   &__secret-download-icon {
     display: block;
     font-size: $x-small;
-    color: $core-blue;
+    color: $core-vibrant-blue;
     font-weight: $bold;
 
     a {
@@ -80,7 +80,7 @@
       // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
       background-image: linear-gradient(
         to bottom,
-        $white,
+        $core-white,
         rgba(255, 255, 255, 0)
       );
     }
@@ -97,7 +97,7 @@
       background-image: linear-gradient(
         to bottom,
         rgba(255, 255, 255, 0),
-        $white
+        $core-white
       );
     }
 
@@ -106,7 +106,7 @@
     }
 
     .enroll-secrets__secret-download-icon {
-      margin-bottom: 16px;
+      margin-bottom: $pad-medium;
     }
   }
 }

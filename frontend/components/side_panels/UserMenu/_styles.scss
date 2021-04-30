@@ -4,7 +4,7 @@
   }
 
   .dropdown-button__options {
-    padding: 8px;
+    padding: $pad-small;
     right: 10px;
 
     button {
@@ -12,8 +12,8 @@
       min-width: 125px;
 
       &:hover {
-        background-color: $info;
-        color: $core-dark-blue-grey;
+        background-color: $ui-vibrant-blue-10;
+        color: $core-fleet-black;
       }
     }
   }

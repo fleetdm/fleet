@@ -1,5 +1,5 @@
 .osquery-options {
-  padding: 40px 30px;
+  padding: $pad-xxlarge 30px;
   flex-grow: 1;
 
   &__page-wrap {
@@ -9,7 +9,7 @@
 
   &__page-description {
     font-size: $x-small;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
   }
@@ -18,11 +18,11 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 16px;
+    padding: $pad-medium;
     border-radius: $border-radius;
     border: 1px solid #d9d9fe;
-    background-color: $info;
-    margin-bottom: 16px;
+    background-color: $ui-vibrant-blue-10;
+    margin-bottom: $pad-medium;
 
     p {
       margin: 0;
@@ -30,11 +30,11 @@
     }
 
     a {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       font-size: $x-small;
       font-weight: $bold;
       text-decoration: none;
-      margin-left: 16px;
+      margin-left: $pad-medium;
     }
 
     img {
@@ -57,11 +57,11 @@
       font-weight: $regular;
       line-height: 1.6;
       letter-spacing: 0.5px;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
   }
 
   i {
-    margin-left: 8px;
+    margin-left: $pad-small;
   }
 }

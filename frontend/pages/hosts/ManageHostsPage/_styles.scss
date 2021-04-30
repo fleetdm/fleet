@@ -3,11 +3,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: $pad-medium;
   }
 
   .ace-kolide {
-    margin-bottom: $pad-base;
+    margin-bottom: $pad-medium;
   }
 
   &__header {
@@ -16,27 +16,27 @@
   }
 
   &__text {
-    margin-right: 24px;
+    margin-right: $pad-large;
   }
 
   &__title {
     font-size: $large;
 
     .kolidecon {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
       margin-right: 15px;
     }
 
     .kolidecon-success-check {
-      color: $success;
+      color: $ui-success;
     }
 
     .kolidecon-offline {
-      color: $alert;
+      color: $ui-error;
     }
 
     .kolidecon-mia {
-      color: $core-black;
+      color: $core-fleet-black;
     }
   }
 
@@ -49,17 +49,17 @@
   }
 
   &__description {
-    margin: 0 0 16px;
+    margin: 0 0 $pad-medium;
 
     h2 {
       text-transform: uppercase;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
       font-weight: $regular;
-      font-size: 16px;
+      font-size: $small;
     }
 
     p {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
       margin: 0;
       font-size: $x-small;
       font-style: italic;
@@ -71,12 +71,12 @@
       width: 24px;
       height: 24px;
       margin-left: 12px;
-      fill: $ui-medium-grey;
+      fill: $ui-gray;
     }
 
     &--active {
       .kolidecon {
-        fill: $core-purple;
+        fill: $core-fleet-purple;
       }
     }
   }
@@ -87,7 +87,7 @@
     justify-content: flex-end;
 
     .button:first-child {
-      margin-right: $pad-base;
+      margin-right: $pad-medium;
     }
   }
 }

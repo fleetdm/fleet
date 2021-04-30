@@ -2,45 +2,45 @@
   padding: 0 28px;
 
   &__header {
-    margin: 0 0 16px;
+    margin: 0 0 $pad-medium;
     font-size: $x-small;
     font-weight: $bold;
-    color: $core-black;
+    color: $core-fleet-black;
   }
 
   &__choose-table {
-    margin: 40px 0 16px;
+    margin: $pad-xxlarge 0 $pad-medium;
 
     .form-field {
-      margin-bottom: 16px;
+      margin-bottom: $pad-medium;
     }
 
     .Select {
-      margin: 0 0 $pad-half;
+      margin: 0 0 $pad-small;
     }
   }
 
   &__description {
     font-size: $x-small;
     font-style: italic;
-    color: $core-black;
+    color: $core-fleet-black;
     margin: 0;
   }
 
   &__platforms {
-    font-size: 14px;
-    color: $core-black;
+    font-size: $x-small;
+    color: $core-fleet-black;
     list-style: none;
-    margin: 0 0 24px;
+    margin: 0 0 $pad-large;
     padding: 0;
 
     .kolidecon {
       font-size: 18px;
-      margin-right: 16px;
+      margin-right: $pad-medium;
     }
 
     .icon {
-      margin-right: 16px;
+      margin-right: $pad-medium;
       width: 20px;
       height: 20px;
     }
@@ -49,7 +49,7 @@
       height: 20px;
       display: flex;
       align-items: center;
-      padding-bottom: 16px;
+      padding-bottom: $pad-medium;
 
       &:last-child {
         padding-bottom: 0;
@@ -59,7 +59,7 @@
 
   &__columns,
   &__suggested-queries {
-    margin: 0 0 24px;
+    margin: 0 0 $pad-large;
   }
 
   &__column-list {
@@ -71,17 +71,17 @@
   &__column-wrapper {
     display: flex;
     margin: 0 0 15px;
-    padding-top: $pad-half;
-    border-top: 1px solid $ui-borders;
+    padding-top: $pad-small;
+    border-top: 1px solid $ui-fleet-blue-15;
   }
 
   &__suggestion {
     flex-grow: 1;
-    font-size: 14px;
+    font-size: $x-small;
     line-height: 1.71;
     letter-spacing: 0.5px;
     text-align: left;
-    color: $core-black;
+    color: $core-fleet-black;
   }
 
   &__load-suggestion {
@@ -96,7 +96,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    color: $core-black;
+    color: $core-fleet-black;
     font-size: px-to-rem(14);
     padding: 12px 0;
 
@@ -108,7 +108,7 @@
   &__name {
     padding: 4px 8px 4px 0px;
     font-weight: $bold;
-    color: $core-black;
+    color: $core-fleet-black;
   }
 
   &__description {
@@ -118,6 +118,6 @@
 
   &__type {
     font-size: $x-small;
-    color: $core-black;
+    color: $core-fleet-black;
   }
 }
