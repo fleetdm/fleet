@@ -29,11 +29,15 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
     [setName]
   );
 
-  const onFormSubmit = useCallback(() => {
-    onSubmit({
-      name,
-    });
-  }, [onSubmit, name]);
+  const onFormSubmit = useCallback(
+    (evt) => {
+      evt.preventDefault();
+      onSubmit({
+        name,
+      });
+    },
+    [onSubmit, name]
+  );
 
   return (
     <Modal title={"Create team"} onExit={onCancel} className={baseClass}>

@@ -1,3 +1,4 @@
+import { string } from "prop-types";
 import React from "react";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -7,6 +8,7 @@ import { IInvite } from "interfaces/invite";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import stringUtils from "utilities/strings";
 import DropdownCell from "../../../components/TableContainer/DataTable/DropdownCell";
 
 interface IHeaderProps {
@@ -149,14 +151,14 @@ const generateRole = (teams: ITeam[], globalRole: string | null): string => {
       return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
-      return teams[0].role as string;
+      return stringUtils.capitalize(teams[0].role ?? "");
     }
     return "Various"; // no global role and multiple teams
   }
 
   if (teams.length === 0) {
     // global role and no teams
-    return globalRole;
+    return stringUtils.capitalize(globalRole);
   }
   return "Various"; // global role and one or more teams
 };

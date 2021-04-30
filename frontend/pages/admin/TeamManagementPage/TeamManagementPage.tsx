@@ -71,7 +71,13 @@ const TeamManagementPage = (): JSX.Element => {
   const onQueryChange = useCallback(
     (queryData) => {
       const { pageIndex, pageSize, searchQuery } = queryData;
-      dispatch(teamActions.loadAll(pageIndex, pageSize, searchQuery));
+      dispatch(
+        teamActions.loadAll({
+          page: pageIndex,
+          perPage: pageSize,
+          globalFilter: searchQuery,
+        })
+      );
     },
     [dispatch]
   );
@@ -83,7 +89,7 @@ const TeamManagementPage = (): JSX.Element => {
           dispatch(
             renderFlash("success", `Successfully created ${formData.name}.`)
           );
-          dispatch(teamActions.loadAll());
+          dispatch(teamActions.loadAll({}));
         })
         .catch(() => {
           dispatch(
@@ -101,7 +107,7 @@ const TeamManagementPage = (): JSX.Element => {
         dispatch(
           renderFlash("success", `Successfully deleted ${teamEditing?.name}.`)
         );
-        dispatch(teamActions.loadAll());
+        dispatch(teamActions.loadAll({}));
       })
       .catch(() => {
         dispatch(
@@ -127,7 +133,7 @@ const TeamManagementPage = (): JSX.Element => {
           dispatch(
             renderFlash("success", `Successfully edited ${formData.name}.`)
           );
-          dispatch(teamActions.loadAll());
+          dispatch(teamActions.loadAll({}));
         })
         .catch(() => {
           dispatch(

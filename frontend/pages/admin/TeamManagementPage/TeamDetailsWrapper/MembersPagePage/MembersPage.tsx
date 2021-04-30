@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 // @ts-ignore
 import memoize from "memoize-one";
 
 import { IUser } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
+import { Link } from "react-router";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -11,7 +13,7 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import TableContainer from "components/TableContainer";
-import { useDispatch, useSelector } from "react-redux";
+import PATHS from "router/paths";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import { IFormData } from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
@@ -70,6 +72,9 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   });
   const teams = useSelector((state: IRootState) => {
     return memoizedGetTeams(state.entities.teams.data);
+  });
+  const memberIds = users.map((member) => {
+    return member.id;
   });
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -195,8 +200,10 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
 
   return (
     <div className={baseClass}>
-      <p>Add, customize, and remove members from {team.name}.</p>
-      <h2>Members Page</h2>
+      <p className={`${baseClass}__page-description`}>
+        Add and remove members from {team.name}.{" "}
+        <Link to={PATHS.ADMIN_USERS}>Manage users with global access here</Link>
+      </p>
       <TableContainer
         resultsTitle={"members"}
         columns={tableHeaders}
@@ -212,6 +219,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       />
       {showAddMemberModal ? (
         <AddMemberModal
+          disabledMembers={memberIds}
           onCancel={toggleAddUserModal}
           onSubmit={onAddMemberSubmit}
         />

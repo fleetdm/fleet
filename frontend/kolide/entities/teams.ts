@@ -10,6 +10,12 @@ interface ILoadTeamResponse {
   team: ITeam;
 }
 
+interface ITeamSearchOptions {
+  page?: number;
+  perPage?: number;
+  globalFilter?: string;
+}
+
 export default (client: any) => {
   return {
     create: (formData: ICreateTeamFormData) => {
@@ -33,7 +39,11 @@ export default (client: any) => {
         .authenticatedGet(endpoint)
         .then((response: ILoadTeamResponse) => response.team);
     },
-    loadAll: ({ page = 0, perPage = 100, globalFilter = "" }) => {
+    loadAll: ({
+      page = 0,
+      perPage = 100,
+      globalFilter = "",
+    }: ITeamSearchOptions) => {
       const { TEAMS } = endpoints;
 
       // TODO: add this query param logic to client class

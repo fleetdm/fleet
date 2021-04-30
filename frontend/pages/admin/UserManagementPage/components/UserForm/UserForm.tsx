@@ -1,3 +1,4 @@
+import { create } from "domain";
 import React, { Component, FormEvent } from "react";
 
 import { ITeam } from "interfaces/team";
@@ -154,22 +155,31 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   };
 
   onFormSubmit = (evt: FormEvent): void => {
+    const { createSubmitData, validate } = this;
     evt.preventDefault();
-    const valid = this.validate();
+    const valid = validate();
     if (valid) {
-      const {
-        formData: { email, name, sso_enabled, global_role, teams },
-      } = this.state;
-      const { onSubmit, currentUserId } = this.props;
-      return onSubmit({
-        email,
-        currentUserId,
-        name,
-        sso_enabled,
-        global_role,
-        teams,
-      });
+      const { onSubmit } = this.props;
+      return onSubmit(createSubmitData());
     }
+  };
+
+  createSubmitData = (): IFormData => {
+    const { currentUserId } = this.props;
+    const {
+      isGlobalUser,
+      formData: { email, name, sso_enabled, global_role, teams },
+    } = this.state;
+
+    const submitData = {
+      email,
+      name,
+      sso_enabled,
+      currentUserId,
+    };
+    return isGlobalUser
+      ? { ...submitData, global_role, teams: [] }
+      : { ...submitData, global_role: null, teams };
   };
 
   validate = (): boolean => {
