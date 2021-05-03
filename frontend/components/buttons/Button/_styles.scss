@@ -142,6 +142,36 @@ $base-class: "button";
     }
   }
 
+  &--text-link-icon {
+    @include button-variant(transparent);
+    border: 0;
+    box-shadow: none;
+    color: $core-fleet-black;
+    font-size: $x-small;
+    font-weight: $regular;
+    cursor: pointer;
+    padding: 0;
+
+    img {
+      transform: scale(0.5);
+      margin-right: $pad-small;
+    }
+
+    &:active {
+      box-shadow: none;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover {
+      background-color: transparent;
+      box-shadow: none;
+      text-decoration: underline;
+    }
+  }
+
   &--inverse {
     @include button-variant(
       $core-white,

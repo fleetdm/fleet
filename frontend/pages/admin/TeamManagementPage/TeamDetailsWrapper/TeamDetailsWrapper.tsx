@@ -16,6 +16,9 @@ import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
 
+import PencilIcon from "../../../../../assets/images/icon-pencil-14x14@2x.png";
+import TrashIcon from "../../../../../assets/images/icon-trash-14x14@2x.png";
+
 const baseClass = "team-details";
 
 interface ITeamDetailsSubNavItem {
@@ -158,8 +161,18 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
           </div>
           <div className={`${baseClass}__team-actions`}>
             <Button onClick={() => console.log("click")}>Add hosts</Button>
-            <Button onClick={toggleEditTeamModal}>Edit team</Button>
-            <Button onClick={toggleDeleteTeamModal}>Delete team</Button>
+            <Button onClick={toggleEditTeamModal} variant={"text-link-icon"}>
+              <>
+                <img src={PencilIcon} alt="pencil icon" />
+                Edit team
+              </>
+            </Button>
+            <Button onClick={toggleDeleteTeamModal} variant={"text-link-icon"}>
+              <>
+                <img src={TrashIcon} alt="pencil icon" />
+                Delete team
+              </>
+            </Button>
           </div>
         </div>
         <Tabs

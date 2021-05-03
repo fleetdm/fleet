@@ -27,6 +27,8 @@ import {
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
 
+import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
+
 import {
   defaultHiddenColumns,
   hostTableHeaders,
@@ -512,6 +514,8 @@ export class ManageHostsPage extends PureComponent {
         defaultSortHeader={"hostname"}
         defaultSortDirection={"desc"}
         actionButtonText={"Edit columns"}
+        actionButtonIcon={EditColumnsIcon}
+        actionButtonVariant={"text-link-icon"}
         additionalQueries={JSON.stringify([selectedFilter])}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}

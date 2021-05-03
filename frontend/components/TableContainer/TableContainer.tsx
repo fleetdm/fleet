@@ -34,6 +34,8 @@ interface ITableContainerProps<T, U> {
   defaultSortDirection: string;
   onActionButtonClick: () => void;
   actionButtonText: string;
+  actionButtonIcon?: string;
+  actionButtonVariant: string;
   onQueryChange: (queryData: ITableQueryData) => void;
   inputPlaceHolder: string;
   includesTableActionButton?: boolean; // will be used later to conditionally show button
@@ -68,6 +70,8 @@ const TableContainer = <T, U>(
     className,
     disableActionButton,
     actionButtonText,
+    actionButtonIcon,
+    actionButtonVariant,
   } = props;
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -177,10 +181,15 @@ const TableContainer = <T, U>(
           <Button
             disabled={disableActionButton}
             onClick={onActionButtonClick}
-            variant="unstyled"
+            variant={actionButtonVariant}
             className={`${baseClass}__table-action-button`}
           >
-            {actionButtonText}
+            <>
+              {actionButtonIcon && (
+                <img src={actionButtonIcon} alt={`${actionButtonText} icon`} />
+              )}
+              {actionButtonText}
+            </>
           </Button>
           <div className={`${baseClass}__search-input`}>
             <InputField
