@@ -14,11 +14,6 @@ declare namespace Cypress {
     login(): Chainable<Element>;
 
     /**
-     * Custom command to login a user1@example.com via SSO.
-     */
-    loginSSO(): Chainable<Element>;
-
-    /**
      * Custom command to log out the current user.
      */
     logout(): Chainable<Element>;
