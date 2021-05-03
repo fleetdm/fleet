@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import classnames from "classnames";
 
+import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { noop, pick } from "lodash";
 
@@ -28,6 +29,8 @@ import {
 } from "kolide/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
+
+import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "host-details";
 
@@ -192,7 +195,7 @@ export class HostDetailsPage extends Component {
             You can’t <br /> query an <br /> offline host.
           </span>
         </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="inverse">
+        <Button onClick={toggleDeleteHostModal()} variant="active">
           Delete
         </Button>
       </div>
@@ -219,7 +222,7 @@ export class HostDetailsPage extends Component {
     });
 
     return (
-      <div className="section labels">
+      <div className="section labels col-25">
         <p className="section__header">Labels</p>
         {labels.length === 0 ? (
           <p className="info__item">No labels are associated with this host.</p>
@@ -344,6 +347,12 @@ export class HostDetailsPage extends Component {
       Object.keys(object).forEach((key) => {
         if (object[key] === "") {
           object[key] = "--";
+        } else if (
+          key === "logger_tls_period" ||
+          key === "config_tls_refresh" ||
+          key === "distributed_interval"
+        ) {
+          object[key] = `${object[key]} sec`;
         }
       });
     });
@@ -356,6 +365,12 @@ export class HostDetailsPage extends Component {
 
     return (
       <div className={`${baseClass} body-wrap`}>
+        <div>
+          <Link to="/hosts/manage">
+            <img src={BackChevron} alt="back chevron" id="back-chevron" />
+            Back to Hosts
+          </Link>
+        </div>
         <div className="section title">
           <div className="title__inner">
             <div className="hostname-container">
@@ -395,22 +410,20 @@ export class HostDetailsPage extends Component {
           </div>
           {renderActionButtons()}
         </div>
-        <div className="section about">
+        <div className="section about col-50">
           <p className="section__header">About this host</p>
           <div className="info">
             <div className="info__item info__item--about">
               <div className="info__block">
-                <span className="info__header">Last seen</span>
-                <span className="info__header">Enrolled</span>
-                <span className="info__header">Uptime</span>
-              </div>
-              <div className="info__block">
-                <span className="info__data">
-                  {humanHostLastSeen(aboutData.seen_time)}
-                </span>
+                <span className="info__header">Created at</span>
                 <span className="info__data">
                   {humanHostEnrolled(aboutData.last_enrolled_at)}
                 </span>
+                <span className="info__header">Updated at</span>
+                <span className="info__data">
+                  {humanHostLastSeen(aboutData.seen_time)}
+                </span>
+                <span className="info__header">Uptime</span>
                 <span className="info__data">
                   {humanHostUptime(aboutData.uptime)}
                 </span>
@@ -419,33 +432,27 @@ export class HostDetailsPage extends Component {
             <div className="info__item info__item--about">
               <div className="info__block">
                 <span className="info__header">Hardware model</span>
-                <span className="info__header">Serial number</span>
-                <span className="info__header">IP address</span>
-              </div>
-              <div className="info__block">
                 <span className="info__data">{aboutData.hardware_model}</span>
+                <span className="info__header">Serial number</span>
                 <span className="info__data">{aboutData.hardware_serial}</span>
+                <span className="info__header">IPv4</span>
                 <span className="info__data">{aboutData.primary_ip}</span>
               </div>
             </div>
           </div>
         </div>
-        <div className="section osquery">
-          <p className="section__header">Osquery configuration</p>
-          <div className="info">
-            <div className="info__item info__item--title">
-              <span className="info__header">Config refresh</span>
+        <div className="section osquery col-25">
+          <p className="section__header">Agent Options</p>
+          <div className="info__item info__item--about">
+            <div className="info__block">
+              <span className="info__header">Config TLS refresh</span>
               <span className="info__data">
                 {osqueryData.config_tls_refresh}
               </span>
-            </div>
-            <div className="info__item info__item--title">
               <span className="info__header">Logger TLS period</span>
               <span className="info__data">
                 {osqueryData.logger_tls_period}
               </span>
-            </div>
-            <div className="info__item info__item--title">
               <span className="info__header">Distributed interval</span>
               <span className="info__data">
                 {osqueryData.distributed_interval}
