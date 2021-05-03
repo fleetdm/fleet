@@ -1,3 +1,10 @@
+a {
+  font-size: $x-small;
+  color: $core-vibrant-blue;
+  font-weight: $bold;
+  text-decoration: none;
+}
+
 .host-details {
   display: flex;
   flex-wrap: wrap;
@@ -238,5 +245,10 @@
       padding: 12px 27px;
       white-space: nowrap;
     }
+  }
+
+  #back-chevron {
+    width: 12px;
+    margin-right: 10px;
   }
 }

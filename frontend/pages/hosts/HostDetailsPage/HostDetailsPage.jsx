@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import classnames from "classnames";
 
+import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { noop, pick } from "lodash";
 
@@ -28,6 +29,8 @@ import {
 } from "kolide/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
+
+import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "host-details";
 
@@ -344,6 +347,8 @@ export class HostDetailsPage extends Component {
       Object.keys(object).forEach((key) => {
         if (object[key] === "") {
           object[key] = "--";
+        } elif (key = logger_tls_period || config_tls_refresh || distributed_interval) {
+          object[key] = `{object[key]} sec`;
         }
       });
     });
@@ -356,6 +361,12 @@ export class HostDetailsPage extends Component {
 
     return (
       <div className={`${baseClass} body-wrap`}>
+        <div>
+          <Link to="/hosts/manage">
+            <img src={BackChevron} alt="back chevron" id="back-chevron" />
+            Back to Hosts
+          </Link>
+        </div>
         <div className="section title">
           <div className="title__inner">
             <div className="hostname-container">
@@ -400,15 +411,15 @@ export class HostDetailsPage extends Component {
           <div className="info">
             <div className="info__item info__item--about">
               <div className="info__block">
-                <span className="info__header">Created at:</span>
+                <span className="info__header">Created at</span>
                 <span className="info__data">
                   {humanHostEnrolled(aboutData.last_enrolled_at)}
                 </span>
-                <span className="info__header">Updated at:</span>
+                <span className="info__header">Updated at</span>
                 <span className="info__data">
                   {humanHostLastSeen(aboutData.seen_time)}
                 </span>
-                <span className="info__header">Uptime:</span>
+                <span className="info__header">Uptime</span>
                 <span className="info__data">
                   {humanHostUptime(aboutData.uptime)}
                 </span>
@@ -416,11 +427,11 @@ export class HostDetailsPage extends Component {
             </div>
             <div className="info__item info__item--about">
               <div className="info__block">
-                <span className="info__header">Hardware model:</span>
+                <span className="info__header">Hardware model</span>
                 <span className="info__data">{aboutData.hardware_model}</span>
-                <span className="info__header">Serial number:</span>
+                <span className="info__header">Serial number</span>
                 <span className="info__data">{aboutData.hardware_serial}</span>
-                <span className="info__header">IPv4:</span>
+                <span className="info__header">IPv4</span>
                 <span className="info__data">{aboutData.primary_ip}</span>
               </div>
             </div>
