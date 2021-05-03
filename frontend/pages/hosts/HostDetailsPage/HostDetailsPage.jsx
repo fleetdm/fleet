@@ -347,13 +347,13 @@ export class HostDetailsPage extends Component {
       Object.keys(object).forEach((key) => {
         if (object[key] === "") {
           object[key] = "--";
+        } else if (
+          key === "logger_tls_period" ||
+          key === "config_tls_refresh" ||
+          key === "distributed_interval"
+        ) {
+          object[key] = `${object[key]} sec`;
         }
-        // elif
-        //   (key ==
-        //     logger_tls_period || config_tls_refresh || distributed_interval
-        // ) {
-        //   object[key] = `{object[key]} sec`;
-        // }
       });
     });
 
