@@ -400,17 +400,15 @@ export class HostDetailsPage extends Component {
           <div className="info">
             <div className="info__item info__item--about">
               <div className="info__block">
-                <span className="info__header">Last seen</span>
-                <span className="info__header">Enrolled</span>
-                <span className="info__header">Uptime</span>
-              </div>
-              <div className="info__block">
-                <span className="info__data">
-                  {humanHostLastSeen(aboutData.seen_time)}
-                </span>
+                <span className="info__header">Created at:</span>
                 <span className="info__data">
                   {humanHostEnrolled(aboutData.last_enrolled_at)}
                 </span>
+                <span className="info__header">Updated at:</span>
+                <span className="info__data">
+                  {humanHostLastSeen(aboutData.seen_time)}
+                </span>
+                <span className="info__header">Uptime:</span>
                 <span className="info__data">
                   {humanHostUptime(aboutData.uptime)}
                 </span>
@@ -418,13 +416,11 @@ export class HostDetailsPage extends Component {
             </div>
             <div className="info__item info__item--about">
               <div className="info__block">
-                <span className="info__header">Hardware model</span>
-                <span className="info__header">Serial number</span>
-                <span className="info__header">IP address</span>
-              </div>
-              <div className="info__block">
+                <span className="info__header">Hardware model:</span>
                 <span className="info__data">{aboutData.hardware_model}</span>
+                <span className="info__header">Serial number:</span>
                 <span className="info__data">{aboutData.hardware_serial}</span>
+                <span className="info__header">IPv4:</span>
                 <span className="info__data">{aboutData.primary_ip}</span>
               </div>
             </div>
@@ -435,16 +431,14 @@ export class HostDetailsPage extends Component {
           <div className="info__item info__item--about">
             <div className="info__block">
               <span className="info__header">Config TLS refresh</span>
-              <span className="info__header">Logger TLS period</span>
-              <span className="info__header">Distributed interval</span>
-            </div>
-            <div className="info__block">
               <span className="info__data">
                 {osqueryData.config_tls_refresh}
               </span>
+              <span className="info__header">Logger TLS period</span>
               <span className="info__data">
                 {osqueryData.logger_tls_period}
               </span>
+              <span className="info__header">Distributed interval</span>
               <span className="info__data">
                 {osqueryData.distributed_interval}
               </span>

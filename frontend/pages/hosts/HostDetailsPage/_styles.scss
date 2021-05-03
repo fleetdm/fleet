@@ -16,9 +16,9 @@
     padding: $pad-xxlarge;
 
     &__header {
-      margin: 0 0 $pad-medium;
       font-size: $medium;
       font-weight: bold;
+      margin: 0 0 $pad-medium 0;
     }
 
     .info {
@@ -115,13 +115,12 @@
         display: flex;
         flex-direction: column;
         margin-right: $pad-xxlarge;
+      }
+      &__data {
+        margin-bottom: $pad-medium;
 
-        span {
-          margin-bottom: $pad-medium;
-
-          &:last-child {
-            margin-bottom: 0;
-          }
+        &:last-child {
+          margin-bottom: 0;
         }
       }
     }
