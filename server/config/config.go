@@ -139,9 +139,11 @@ type S3Config struct {
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
-	Project     string
-	StatusTopic string `yaml:"status_topic"`
-	ResultTopic string `yaml:"result_topic"`
+	Project              string
+	StatusTopic          string `yaml:"status_topic"`
+	ResultTopic          string `yaml:"result_topic"`
+	IncludeAttributes    string `yaml:"include_attributes"`
+	DecorationAttributes string `yaml:"decoration_attributes"`
 }
 
 // FilesystemConfig defines configs for the Filesystem logging plugin
@@ -325,6 +327,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
 	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
 	man.addConfigString("pubsub.result_topic", "", "PubSub topic for result logs")
+	man.addConfigString("pubsub.include_attributes", "", "Comma-separated list of json keys to include as PubSub attributes")
+	man.addConfigString("pubsub.decoration_attributes", "", "Comma-separated list of decorations to include as PubSub attributes")
 
 	// Filesystem
 	man.addConfigString("filesystem.status_log_file", "/tmp/osquery_status",
@@ -459,9 +463,11 @@ func (man Manager) LoadConfig() KolideConfig {
 			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
 		},
 		PubSub: PubSubConfig{
-			Project:     man.getConfigString("pubsub.project"),
-			StatusTopic: man.getConfigString("pubsub.status_topic"),
-			ResultTopic: man.getConfigString("pubsub.result_topic"),
+			Project:              man.getConfigString("pubsub.project"),
+			StatusTopic:          man.getConfigString("pubsub.status_topic"),
+			ResultTopic:          man.getConfigString("pubsub.result_topic"),
+			IncludeAttributes:    man.getConfigString("pubsub.include_attributes"),
+			DecorationAttributes: man.getConfigString("pubsub.decoration_attributes"),
 		},
 		Filesystem: FilesystemConfig{
 			StatusLogFile:        man.getConfigString("filesystem.status_log_file"),
