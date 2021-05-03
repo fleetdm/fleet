@@ -19,15 +19,24 @@ img {
 }
 
 // Get rid of weird background on <a>s with button styles
-.btn, [type='button'] {
+.btn,
+[type="button"] {
   -webkit-appearance: none;
 }
 
 // Override heading font styles
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: @header-font;
 }
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-weight: 800;
 }
 
@@ -50,7 +59,6 @@ footer {
   font-size: 14px;
   line-height: 24px;
 }
-
 
 .btn {
   font-family: @header-font;
@@ -79,21 +87,25 @@ footer {
   }
 
   &.btn-primary {
-    background-color: #FF5C83;
-    border-color: #FF5C83;
+    background-color: #ff5c83;
+    border-color: #ff5c83;
     &:hover {
-      background-color: darken(#FF5C83, 10%);
-      border-color: darken(#FF5C83, 10%);
+      background-color: darken(#ff5c83, 10%);
+      border-color: darken(#ff5c83, 10%);
     }
   }
   &.btn-info {
-    background-color: #6B6CFA;
-    border-color: #6B6CFA;
+    background-color: #6b6cfa;
+    border-color: #6b6cfa;
     &:hover {
-      background-color: darken(#6B6CFA, 10%);
-      border-color: darken(#6B6CFA, 10%);
+      background-color: darken(#6b6cfa, 10%);
+      border-color: darken(#6b6cfa, 10%);
     }
   }
+}
+
+.card {
+  box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.05);
 }
 
 .dropdown:hover > .dropdown-menu {
@@ -104,7 +116,7 @@ footer {
 }
 
 .dropdown-menu {
-  left: 16px !important;//lesshint-disable-line importantRule
+  left: 16px !important; //lesshint-disable-line importantRule
   min-width: 0;
   margin: 0;
 }
