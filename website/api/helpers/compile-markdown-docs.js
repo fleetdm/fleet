@@ -25,7 +25,6 @@ module.exports = {
 
 
   fn: async function ({path: compileFromPath}, exits) {
-    console.log('compile docs for', compileFromPath);
 
     var path = require('path');
     var cheerio = require('cheerio');
@@ -63,7 +62,7 @@ module.exports = {
         // by the `afterConvert()` lifecycle hook
         mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + LANG_MARKER_PREFIX + '$2' + LANG_MARKER_SUFFIX + '$3');
 
-        return proceed(null, mdString);
+        return proceed(undefined, mdString);
       },
       afterConvert: (html, proceed)=>{// This function is applied to each template after the markdown is converted to markup
 
@@ -142,8 +141,6 @@ module.exports = {
             }
           }//--•
 
-
-
           // Otherwise, it is external, so add target="_blank" so the link will open in a new tab.
           var newHtmlAttrsSnippet = match.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
 
@@ -184,7 +181,7 @@ module.exports = {
           '$1 class="$5"$2$3'
         );
 
-        return proceed(null, html);
+        return proceed(undefined, html);
       },
     }], (err)=>{
       if (err) { return exits.error(err); }
