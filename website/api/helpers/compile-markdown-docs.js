@@ -31,7 +31,6 @@ module.exports = {
     var cheerio = require('cheerio');
     var DocTemplater = require('doc-templater');
 
-
     // This is just to make it easier to tell what is happening.
     var compileFromOldRepo = sails.config.custom.branch === '0.12';
     var BRANCH = sails.config.custom.branch === undefined ? 'master' : ''+sails.config.custom.branch;
@@ -50,7 +49,7 @@ module.exports = {
       htmlDirPath: path.join('views/partials/doc-templates/', compileFromPath),
       jsMenuPath: path.join('views/partials/doc-menus', compileFromPath+'.jsmenu'),
       outputExtension: 'ejs',
-      beforeConvert: (mdString, done)=>{// This function is applied to each template before the markdown is converted to markup
+      beforeConvert: (mdString, proceed)=>{// This function is applied to each template before the markdown is converted to markup
 
         // This is an HTML comment because it is easy to over-match and "accidentally"
         // add it underneath each code block as well (being an HTML comment ensures it
@@ -64,9 +63,9 @@ module.exports = {
         // by the `afterConvert()` lifecycle hook
         mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + LANG_MARKER_PREFIX + '$2' + LANG_MARKER_SUFFIX + '$3');
 
-        return done(null, mdString);
+        return proceed(null, mdString);
       },
-      afterConvert: (html, done)=>{// This function is applied to each template after the markdown is converted to markup
+      afterConvert: (html, proceed)=>{// This function is applied to each template after the markdown is converted to markup
 
         // Replace github emoji with HTML
         html = html.replace(/\:white_check_mark\:/g, '<i class="sails-icon icon-plus"></i>');
@@ -185,7 +184,7 @@ module.exports = {
           '$1 class="$5"$2$3'
         );
 
-        return done(null, html);
+        return proceed(null, html);
       },
     }], (err)=>{
       if (err) { return exits.error(err); }
