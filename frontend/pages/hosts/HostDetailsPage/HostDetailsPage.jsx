@@ -195,7 +195,7 @@ export class HostDetailsPage extends Component {
             You can’t <br /> query an <br /> offline host.
           </span>
         </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="inverse">
+        <Button onClick={toggleDeleteHostModal()} variant="active">
           Delete
         </Button>
       </div>
