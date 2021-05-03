@@ -219,7 +219,7 @@ export class HostDetailsPage extends Component {
     });
 
     return (
-      <div className="section labels">
+      <div className="section labels col-25">
         <p className="section__header">Labels</p>
         {labels.length === 0 ? (
           <p className="info__item">No labels are associated with this host.</p>
@@ -395,7 +395,7 @@ export class HostDetailsPage extends Component {
           </div>
           {renderActionButtons()}
         </div>
-        <div className="section about">
+        <div className="section about col-50">
           <p className="section__header">About this host</p>
           <div className="info">
             <div className="info__item info__item--about">
@@ -430,23 +430,21 @@ export class HostDetailsPage extends Component {
             </div>
           </div>
         </div>
-        <div className="section osquery">
-          <p className="section__header">Osquery configuration</p>
-          <div className="info">
-            <div className="info__item info__item--title">
-              <span className="info__header">Config refresh</span>
+        <div className="section osquery col-25">
+          <p className="section__header">Agent Options</p>
+          <div className="info__item info__item--about">
+            <div className="info__block">
+              <span className="info__header">Config TLS refresh</span>
+              <span className="info__header">Logger TLS period</span>
+              <span className="info__header">Distributed interval</span>
+            </div>
+            <div className="info__block">
               <span className="info__data">
                 {osqueryData.config_tls_refresh}
               </span>
-            </div>
-            <div className="info__item info__item--title">
-              <span className="info__header">Logger TLS period</span>
               <span className="info__data">
                 {osqueryData.logger_tls_period}
               </span>
-            </div>
-            <div className="info__item info__item--title">
-              <span className="info__header">Distributed interval</span>
               <span className="info__data">
                 {osqueryData.distributed_interval}
               </span>

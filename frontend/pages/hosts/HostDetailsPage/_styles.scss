@@ -1,17 +1,24 @@
 .host-details {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   padding-bottom: 50px;
   min-width: 0;
+  background-color: $ui-off-white;
+  gap: $pad-large;
 
   .section {
+    flex: 100%;
     display: flex;
     flex-direction: column;
-    margin: $pad-xxlarge 0 0;
+    background-color: $core-white;
+    border-radius: 16px;
+    border: 1px solid $ui-fleet-blue-15;
+    padding: $pad-xxlarge;
 
     &__header {
       margin: 0 0 $pad-medium;
       font-size: $medium;
+      font-weight: bold;
     }
 
     .info {
@@ -94,7 +101,8 @@
     }
   }
 
-  .about {
+  .about,
+  .osquery {
     .info {
       &__item {
         &--about {
@@ -117,6 +125,14 @@
         }
       }
     }
+  }
+
+  .col-50 {
+    flex: 2;
+  }
+
+  .col-25 {
+    flex: 1;
   }
 
   .status {
