@@ -1,4 +1,5 @@
 # Using Fleet FAQ
+
 - [Has anyone stress tested Fleet? How many clients can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle)
 - [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
 - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
@@ -10,9 +11,9 @@
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
-Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. There are numerous production deployments in the thousands, in the tens of thousands of hosts range, and there are production deployments in the high tens of thousands of hosts range. 
+Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. Production deployments exist with over 100,000 hosts and numerous production deployments manage tens of thousands of hosts.
 
-It’s standard deployment practice to have multiple Fleet servers behind a load balancer. However, typically the MySQL database is the bottleneck and an individual Fleet server can handle tens of thousands of hosts.
+It’s standard deployment practice to have multiple Fleet servers behind a load balancer. However, typically the MySQL database is the performance bottleneck and a single Fleet server can handle tens of thousands of hosts.
 
 ## How often do labels refresh? Is the refresh frequency configurable?
 
@@ -29,7 +30,6 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 ## How do I monitor a Fleet server?
 
 Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./5-Monitoring-Fleet.md) documentation for details.
-
 
 ## Why is the “Add User” button disabled?
 
@@ -51,7 +51,7 @@ It is possible to configure osqueryd to log query results outside of Fleet. For 
 
 ### What are my options for storing the osquery logs?
 
-Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog. 
+Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
 The [logger configuration options](https://github.com/fleetdm/fleet/blob/master/docs/2-Deployment/2-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
 
