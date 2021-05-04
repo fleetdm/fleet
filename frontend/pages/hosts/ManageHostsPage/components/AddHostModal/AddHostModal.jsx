@@ -24,7 +24,7 @@ class AddHostModal extends Component {
 
   constructor(props) {
     super(props);
-    this.state = { fetchCertificateError: undefined };
+    this.state = { fetchCertificateError: undefined, selectedTeam: null };
   }
 
   componentDidMount() {
@@ -56,6 +56,12 @@ class AddHostModal extends Component {
     return false;
   };
 
+  onChangeSelectTeam = (teamId) => {
+    const { teams } = this.props;
+    const selectedTeam = teams.find((team) => team.id === teamId);
+    this.setState({ selectedTeam });
+  };
+
   createTeamDropdownOptions = (teams) => {
     return teams.map((team) => {
       return {
@@ -67,8 +73,8 @@ class AddHostModal extends Component {
 
   render() {
     const { config, onReturnToApp, enrollSecret, teams } = this.props;
-    const { fetchCertificateError } = this.state;
-    const { createTeamDropdownOptions } = this;
+    const { fetchCertificateError, selectedTeam } = this.state;
+    const { createTeamDropdownOptions, onChangeSelectTeam } = this;
 
     let tlsHostname = config.kolide_server_url;
     try {
@@ -155,7 +161,10 @@ class AddHostModal extends Component {
                 <Dropdown
                   wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
                   label={"Select a team for this new host:"}
+                  value={selectedTeam && selectedTeam.id}
                   options={createTeamDropdownOptions(teams)}
+                  onChange={onChangeSelectTeam}
+                  placeholder={"No team"}
                   searchable={false}
                 />
                 <EnrollSecretTable secrets={enrollSecret} />
