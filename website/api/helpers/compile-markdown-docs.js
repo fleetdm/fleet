@@ -17,40 +17,45 @@ module.exports = {
     },
 
     repoBranch: {
-      description: 'The name of the branch to compile from, if not "master".',
+      description: 'The name of the branch to compile from.',
       type: 'string',
       defaultsTo: 'master'
+    },
+
+    repoUrl: {
+      description: 'The git:// URL of the remote Git repo to compile from.',
+      type: 'string',
+      defaultsTo: 'git://github.com/fleetdm/fleet.git',
     }
 
   },
 
 
-  fn: async function ({repoPath: compileFromPath, repoBranch: compileFromBranch}) {
+  fn: async function ({repoPath, repoBranch, repoUrl}) {
 
     let path = require('path');
     let cheerio = require('cheerio');
     let DocTemplater = require('doc-templater');
 
-    // This is just to make it easier to tell what is happening.
-    let compileFromOldRepo = (compileFromBranch === '0.12');
-    let compileFromRemote = compileFromOldRepo? 'git://github.com/balderdashy/sails-docs.git' : 'git://github.com/fleetdm/fleet.git';
-    console.log('Compiling `%s` docs from the `%s` branch of `%s`...', compileFromPath, compileFromBranch, compileFromRemote);
+    console.log('Compiling `%s` docs from the `%s` branch of `%s`...', repoPath, repoBranch, repoUrl);
+
+    // Relative paths within this app where output will be written.
+    let htmlOutputPath = 'views/partials/doc-templates/';
+    let jsMenuOutputPath = 'views/partials/doc-menus/';
 
     // Delete current rendered partials if they exist
-    let expectedOutputPath = path.resolve(sails.config.appPath, path.join('views/partials/doc-templates/', compileFromPath));
-    await sails.helpers.fs.rmrf(expectedOutputPath);
-
-    // TODO: be smarter about checking or normalizing compileFromPath so it works properly below even w/ trailing slashes (in the past, this was always used at the top level, so it justworked™)
+    // TODO: find out why we aren't clearing out jsmenus (prbly meant to be)
+    await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, path.join(htmlOutputPath, repoPath)));
 
     // Compile the markdown into HTML templates
     await new Promise((resolve, reject)=>{
       DocTemplater().build([{
-        remote: compileFromRemote,
-        branch: compileFromBranch,
-        remoteSubPath: compileFromOldRepo? compileFromPath : `docs/${compileFromPath}`,
-        htmlDirPath: path.join('views/partials/doc-templates/', compileFromPath),
-        jsMenuPath: path.join('views/partials/doc-menus', compileFromPath+'.jsmenu'),
-        outputExtension: 'ejs',
+        remote: repoUrl,
+        branch: repoBranch,
+        remoteSubPath: repoPath,
+        outputExtension: 'ejs',//« the file extension for resulting HTML files
+        htmlDirPath: path.join(htmlOutputPath, repoPath),
+        jsMenuPath: path.join(jsMenuOutputPath, repoPath+'.jsmenu'),// TODO: be smarter about checking or normalizing repoPath so it works properly below even w/ trailing slashes (in the past, this was always used at the top level, so it justworked™)
         beforeConvert: (mdString, proceed)=>{// This function is applied to each template before the markdown is converted to markup
           // Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation by the `afterConvert()` lifecycle hook
           // Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything)
@@ -61,21 +66,24 @@ module.exports = {
         },
         afterConvert: (html, proceed)=>{// This function is applied to each template after the markdown is converted to markup
 
-          // Replace github emoji with HTML
-          let modifiedHtml = html.replace(/\:white_check_mark\:/g, '<i class="sails-icon icon-plus"></i>');
-          modifiedHtml = modifiedHtml.replace(/\:white_large_square\:/g, '<i class="sails-icon icon-minus"></i>');
-          modifiedHtml = modifiedHtml.replace(/\:heavy_multiplication_x\:/g, '<i class="sails-icon icon-times"></i>');
+          let modifiedHtml = html;
 
-          // Replace ((bubble))s with HTML
-          modifiedHtml = modifiedHtml.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');
+          // Replace github emoji with unicode emojis
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          // TODO: actually sub unicode, instead of the following  (there's probably an open source lib out there to do it)
+          // modifiedHtml = html.replace(/\:white_check_mark\:/g, '<i class="sails-icon icon-plus"></i>');
+          // modifiedHtml = modifiedHtml.replace(/\:white_large_square\:/g, '<i class="sails-icon icon-minus"></i>');
+          // modifiedHtml = modifiedHtml.replace(/\:heavy_multiplication_x\:/g, '<i class="sails-icon icon-times"></i>');
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-          // Flag <h2>, <h3>, <h4>, and <h5> tags
-          // with the `permalinkable` directive
-          //
-          // e.g.
-          // if the page is #/documentation/reference/req
-          // and the slug is "transport-compatibility"
-          // then the final URL will be #/documentation/reference/req?q=transport-compatibility
+          // TODO: As equivalent concepts are identified in the Fleet docs (e.g. in the API reference), maybe bring this back:
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          // // Replace ((bubble))s with HTML
+          // modifiedHtml = modifiedHtml.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+          // Flag <h2>, <h3>, <h4>, and <h5> tags with the `permalinkable` directive, so they can be clicked
+          // e.g. ?q=transport-compatibility
           let $ = cheerio.load(modifiedHtml);
           $('h2, h3, h4, h5').each(function() {
             let content = $(this).text() || '';
@@ -86,91 +94,58 @@ module.exports = {
               .replace(/\s/g, '-') // spaces => dashes
               .toLowerCase();
 
-            // set the permalink attr
+            // set the "permalink" HTML attr to the slug
             $(this).attr('permalink', slug);
 
-            // this was throwing ".wrap is undefined"
-            if ($(this) && typeof $(this).wrap === 'function') {
+            if ($(this) && typeof $(this).wrap === 'function') {// this was throwing ".wrap is undefined"
               $(this).wrap('<div class="permalink-header"></div>');
             }
 
           });
           modifiedHtml = $.html();
 
-          // Convert URL fragment links (i.e. for client-side routes) into
-          // web-root-relative URLs (i.e. they'll have a leading slash).
-          // (this is because there are lots of links left over from when sailsjs.org
-          // used client-side routes for navigation around the documentation pages.)
-          modifiedHtml = modifiedHtml.replace(/(href=")\.?\/?#\/?([^"]*)"/g, '$1/$2"');
+          // TODO: Once verified this is not relevant, delete it:
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          // // Get rid of the '.html' at the end of ANY internal web-root-relative URL that
+          // // point at the documentation pages. Any links form the docs that start with
+          // // '/documentation' and ends in '.html' will have the file extension stripped off.
+          // modifiedHtml = modifiedHtml.replace(/(href="\/documentation)([^"]*)\.html"/g, '$1$2"');
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-          // e.g.
-          //   href="/#/asdjgasdg"     =>  href="/asdjgasdg"
-          //   href="#/asdjgasdg"      =>  href="/asdjgasdg"
-          //   href="/#/"              =>  href="/"
-          //   href="#/asdjgasdg"      =>  href="/asdjgasdg"
-
-          // Get rid of the '.html' at the end of ANY internal web-root-relative URL that
-          // point at the documentation pages. Any links form the docs that start with
-          // '/documentation' and ends in '.html' will have the file extension stripped off.
-          modifiedHtml = modifiedHtml.replace(/(href="\/documentation)([^"]*)\.html"/g, '$1$2"');
-
-          // Add target=_blank to external links (e.g. http://google.com or https://chase.com)
-          modifiedHtml = modifiedHtml.replace(/(href="https?:\/\/([^"]+)")/g, (match)=>{
-            // Check if this is an external link that is ALSO not a link to some page
-            // on `(*.)?sailsjs.com` or `(*.)?sailsjs.org`.
-            let isExternal = ! match.match(/^href=\"https?:\/\/([^\.]+\.)*sailsjs\.(org|com)/g);
-
-            // If it is NOT external, check whether we are on one of the special
-            // versioned sailsjs.com subdomains. If so, make sure the internal links have the correct subdomain added to them.
-            if (!isExternal) {
-              // If the internal link has any subdomain in front of the sailsjs.com (e.g. next.sailsjs.com), leave it be.
-              let link = match.replace(/href="https?:\/\//, '');
-              let hasVersionSubdomain = link.split('.')[0] !== 'sailsjs';
-              if(hasVersionSubdomain) {
-                return match;
-              }
-              // Otherwise, change the link to be without the 'http://sailsjs.com'.
+          // Modify links
+          modifiedHtml = modifiedHtml.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{
+            // Check if this is an external link (like https://google.com) but that is ALSO not a link
+            // to some page on the destination site where this will be hosted, like `(*.)?sailsjs.com`.
+            // If external, add target="_blank" so the link will open in a new tab.
+            let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.]+\.)*fleetdm\.com/g);
+            if (isExternal) {
+              return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
+            } else {
+              // Otherwise, change the link to be web root relative.
               // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
-              else {
-                return link.replace(/^sailsjs\.(org|com)/, 'href="');
-              }
-            }//--•
+              // Note: See the Git version history of this file for examples of ways this can work across versioned subdomains.
+              return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
+            }
+          });//∞
 
-            // Otherwise, it is external, so add target="_blank" so the link will open in a new tab.
-            let newHtmlAttrsSnippet = match.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
-
-            return newHtmlAttrsSnippet;
-          });
-
-
-          // Add the appropriate class to the `<code>` based on the temporary marker
-          // (TMP_LANG_MARKER_EXPR) that was added in the `beforeConvert()` lifecycle
-          // hook above
-          // console.log('RAN AFTER HOOK, found: ',html.match(/(<code)([^>]*)(>\s*)(\&lt;!--\s*__LANG=\%[^\%]*\%__\s*--\&gt;)/g));
-
-          // Interpret `js` as `javascript`
-          modifiedHtml = modifiedHtml.replace(
+          // Add the appropriate class to the `<code>` based on the temporary marker that was added in the `beforeConvert` function above
+          // console.log('RAN AFTER HOOK, found: ',modifiedHtml.match(/(<code)([^>]*)(>\s*)(\&lt;!--\s*__LANG=\%[^\%]*\%__\s*--\&gt;)/g));
+          modifiedHtml = modifiedHtml.replace(// Interpret `js` as `javascript`
             // $1     $2     $3   $4
             /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
             '$1 class="javascript"$2$3'
           );
-
-          // Interpret `sh` and `bash` as `bash`
-          modifiedHtml = modifiedHtml.replace(
+          modifiedHtml = modifiedHtml.replace(// Interpret `sh` and `bash` as `bash`
             // $1     $2     $3   $4
             /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
             '$1 class="bash"$2$3'
           );
-
-          // When unspecified, default to `text`
-          modifiedHtml = modifiedHtml.replace(
+          modifiedHtml = modifiedHtml.replace(// When unspecified, default to `text`
             // $1     $2     $3   $4
             /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
             '$1 class="nohighlight"$2$3'
           );
-
-          // Finally, nab the rest, leaving the code language as-is.
-          modifiedHtml = modifiedHtml.replace(
+          modifiedHtml = modifiedHtml.replace(// Finally, nab the rest, leaving the code language as-is.
             // $1     $2     $3   $4               $5    $6
             /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
             '$1 class="$5"$2$3'
