@@ -1,3 +1,9 @@
+# This configuration file allows for the managing of the global agent options in Fleet.
+# These configuration options will be applied to all hosts in your organization.
+
+# Applies to Fleet Basic:
+# See teams.yml for an example on how to override global agent options with team specific agent options.
+
 ---
 apiVersion: v1
 kind: options
