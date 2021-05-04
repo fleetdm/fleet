@@ -20,19 +20,18 @@ module.exports = {
 
   fn: async function ({path: compileFromPath}) {
 
-    var path = require('path');
-    var cheerio = require('cheerio');
-    var DocTemplater = require('doc-templater');
+    let path = require('path');
+    let cheerio = require('cheerio');
+    let DocTemplater = require('doc-templater');
 
     // This is just to make it easier to tell what is happening.
-    var compileFromOldRepo = sails.config.custom.branch === '0.12';
-    var BRANCH = sails.config.custom.branch === undefined ? 'master' : ''+sails.config.custom.branch;
-    var REMOTE = compileFromOldRepo? 'git://github.com/balderdashy/sails-docs.git' : 'git://github.com/balderdashy/sails.git';
+    let compileFromOldRepo = sails.config.custom.branch === '0.12';
+    let BRANCH = sails.config.custom.branch === undefined ? 'master' : ''+sails.config.custom.branch;
+    let REMOTE = compileFromOldRepo? 'git://github.com/balderdashy/sails-docs.git' : 'git://github.com/balderdashy/sails.git';
     console.log('Compiling `%s` docs from the `%s` branch of `%s`...', compileFromPath, BRANCH, REMOTE);
 
     // Delete current rendered partials if they exist
     await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, path.join('views/partials/doc-templates/', compileFromPath)));
-    // console.log('would have deleted: ',path.resolve(sails.config.appPath, path.join('views/partials/doc-templates/', compileFromPath)));
 
     // Compile the markdown into HTML templates
     await new Promise((resolve, reject)=>{
@@ -68,12 +67,12 @@ module.exports = {
           // if the page is #/documentation/reference/req
           // and the slug is "transport-compatibility"
           // then the final URL will be #/documentation/reference/req?q=transport-compatibility
-          var $ = cheerio.load(modifiedHtml);
+          let $ = cheerio.load(modifiedHtml);
           $('h2, h3, h4, h5').each(function() {
-            var content = $(this).text() || '';
+            let content = $(this).text() || '';
 
             // build the URL slug suffix
-            var slug = content
+            let slug = content
               .replace(/[\?\!\.\-\_\:\;\'\"]/g, '') // punctuation => gone
               .replace(/\s/g, '-') // spaces => dashes
               .toLowerCase();
@@ -110,14 +109,14 @@ module.exports = {
           modifiedHtml = modifiedHtml.replace(/(href="https?:\/\/([^"]+)")/g, (match)=>{
             // Check if this is an external link that is ALSO not a link to some page
             // on `(*.)?sailsjs.com` or `(*.)?sailsjs.org`.
-            var isExternal = ! match.match(/^href=\"https?:\/\/([^\.]+\.)*sailsjs\.(org|com)/g);
+            let isExternal = ! match.match(/^href=\"https?:\/\/([^\.]+\.)*sailsjs\.(org|com)/g);
 
             // If it is NOT external, check whether we are on one of the special
             // versioned sailsjs.com subdomains. If so, make sure the internal links have the correct subdomain added to them.
             if (!isExternal) {
               // If the internal link has any subdomain in front of the sailsjs.com (e.g. next.sailsjs.com), leave it be.
-              var link = match.replace(/href="https?:\/\//, '');
-              var hasVersionSubdomain = link.split('.')[0] !== 'sailsjs';
+              let link = match.replace(/href="https?:\/\//, '');
+              let hasVersionSubdomain = link.split('.')[0] !== 'sailsjs';
               if(hasVersionSubdomain) {
                 return match;
               }
@@ -129,7 +128,7 @@ module.exports = {
             }//--•
 
             // Otherwise, it is external, so add target="_blank" so the link will open in a new tab.
-            var newHtmlAttrsSnippet = match.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
+            let newHtmlAttrsSnippet = match.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
 
             return newHtmlAttrsSnippet;
           });
