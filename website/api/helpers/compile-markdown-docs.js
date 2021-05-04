@@ -9,26 +9,32 @@ module.exports = {
 
   inputs: {
 
-    path: {
-      description: 'The path in the GitHub repo to pull from.',
+    repoPath: {
+      description: 'The path of the subdirectory in the Git repo to compile from.',
+      type: 'string',
       example: 'anatomy',
       required: true
+    },
+
+    repoBranch: {
+      description: 'The name of the branch to compile from, if not "master".',
+      type: 'string',
+      defaultsTo: 'master'
     }
 
   },
 
 
-  fn: async function ({path: compileFromPath}) {
+  fn: async function ({repoPath: compileFromPath, repoBranch: compileFromBranch}) {
 
     let path = require('path');
     let cheerio = require('cheerio');
     let DocTemplater = require('doc-templater');
 
     // This is just to make it easier to tell what is happening.
-    let compileFromOldRepo = sails.config.custom.branch === '0.12';
-    let BRANCH = sails.config.custom.branch === undefined ? 'master' : ''+sails.config.custom.branch;
-    let REMOTE = compileFromOldRepo? 'git://github.com/balderdashy/sails-docs.git' : 'git://github.com/balderdashy/sails.git';
-    console.log('Compiling `%s` docs from the `%s` branch of `%s`...', compileFromPath, BRANCH, REMOTE);
+    let compileFromOldRepo = (compileFromBranch === '0.12');
+    let compileFromRemote = compileFromOldRepo? 'git://github.com/balderdashy/sails-docs.git' : 'git://github.com/balderdashy/sails.git';
+    console.log('Compiling `%s` docs from the `%s` branch of `%s`...', compileFromPath, compileFromBranch, compileFromRemote);
 
     // Delete current rendered partials if they exist
     await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, path.join('views/partials/doc-templates/', compileFromPath)));
@@ -36,8 +42,8 @@ module.exports = {
     // Compile the markdown into HTML templates
     await new Promise((resolve, reject)=>{
       DocTemplater().build([{
-        remote: REMOTE,
-        branch: BRANCH,
+        remote: compileFromRemote,
+        branch: compileFromBranch,
         remoteSubPath: compileFromOldRepo? compileFromPath : `docs/${compileFromPath}`,
         htmlDirPath: path.join('views/partials/doc-templates/', compileFromPath),
         jsMenuPath: path.join('views/partials/doc-menus', compileFromPath+'.jsmenu'),
