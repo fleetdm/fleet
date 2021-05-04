@@ -161,13 +161,13 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
           </div>
           <div className={`${baseClass}__team-actions`}>
             <Button onClick={() => console.log("click")}>Add hosts</Button>
-            <Button onClick={toggleEditTeamModal} variant={"text-link-icon"}>
+            <Button onClick={toggleEditTeamModal} variant={"text-icon"}>
               <>
                 <img src={PencilIcon} alt="pencil icon" />
                 Edit team
               </>
             </Button>
-            <Button onClick={toggleDeleteTeamModal} variant={"text-link-icon"}>
+            <Button onClick={toggleDeleteTeamModal} variant={"text-icon"}>
               <>
                 <img src={TrashIcon} alt="pencil icon" />
                 Delete team

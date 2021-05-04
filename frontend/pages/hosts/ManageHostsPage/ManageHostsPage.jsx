@@ -515,7 +515,7 @@ export class ManageHostsPage extends PureComponent {
         defaultSortDirection={"desc"}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
-        actionButtonVariant={"text-link-icon"}
+        actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify([selectedFilter])}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}

@@ -142,7 +142,7 @@ $base-class: "button";
     }
   }
 
-  &--text-link-icon {
+  &--text-icon {
     @include button-variant(transparent);
     border: 0;
     box-shadow: none;
@@ -150,10 +150,10 @@ $base-class: "button";
     font-size: $x-small;
     font-weight: $regular;
     cursor: pointer;
-    padding: 0;
 
     img {
-      transform: scale(0.5);
+      height: 14px;
+      width: 14px;
       margin-right: $pad-small;
     }
 
