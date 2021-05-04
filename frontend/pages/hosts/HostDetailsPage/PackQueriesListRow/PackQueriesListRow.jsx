@@ -17,14 +17,14 @@ class PackQueriesListRow extends Component {
 
   render() {
     const { query } = this.props;
-    const { name, description, frequency, lastRun } = query;
+    const { name, description, frequency, last_executed } = query;
 
     return (
       <tr>
         <td className={`${baseClass}__name`}>{name}</td>
         <td className={`${baseClass}__description`}>{description}</td>
         <td className={`${baseClass}__frequency`}>{frequency}</td>
-        <td className={`${baseClass}__last-run`}>{lastRun}</td>
+        <td className={`${baseClass}__last-run`}>{last_executed}</td>
       </tr>
     );
   }

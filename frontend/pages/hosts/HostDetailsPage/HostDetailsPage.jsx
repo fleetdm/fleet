@@ -247,27 +247,27 @@ export class HostDetailsPage extends Component {
     const wrapperClassName = `${baseClass}__table`;
 
     const packsAccordion = packs.map((pack) => {
-      const dummyPackQueries = [
+      const packDOTscheduled_queries = [
         {
           id: 1,
           name: "per_query_perf",
           description: "First query",
           frequency: "10 minutes",
-          lastRun: "29 days ago",
+          last_executed: "29 days ago",
         },
         {
           id: 2,
           name: "runtime_perf",
           description: "Second query",
           frequency: "4 hours",
-          lastRun: "2 days ago",
+          last_executed: "2 days ago",
         },
         {
           id: 3,
           name: "endpoint_security_perf",
           description: "Third query",
           frequency: "10 minutes",
-          lastRun: "3 minutes ago",
+          last_executed: "3 minutes ago",
         },
       ];
 
@@ -277,33 +277,36 @@ export class HostDetailsPage extends Component {
             <AccordionItemButton>{pack.name}</AccordionItemButton>
           </AccordionItemHeading>
           <AccordionItemPanel>
-            <table className={wrapperClassName}>
-              <thead>
-                <tr>
-                  <th>Query Name</th>
-                  <th>Description</th>
-                  <th>Frequency</th>
-                  <th>Last Run</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!!dummyPackQueries.length &&
-                  dummyPackQueries.map((query) => {
-                    return (
-                      <PackQueriesListRow
-                        key={`pack-row-${pack.id}-${query.id}`}
-                        query={query}
-                      />
-                    );
-                  })}
-              </tbody>
-            </table>
+            {!packDOTscheduled_queries.length ? (
+              <div>There are no schedule queries for this pack.</div>
+            ) : (
+              <table className={wrapperClassName}>
+                <thead>
+                  <tr>
+                    <th>Query Name</th>
+                    <th>Description</th>
+                    <th>Frequency</th>
+                    <th>Last Run</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!!packDOTscheduled_queries.length &&
+                    packDOTscheduled_queries.map((query) => {
+                      return (
+                        <PackQueriesListRow
+                          key={`pack-row-${pack.id}-${query.id}`}
+                          query={query}
+                        />
+                      );
+                    })}
+                </tbody>
+              </table>
+            )}
           </AccordionItemPanel>
         </AccordionItem>
       );
     });
 
-    // <PackListRow key={`pack-row-${query.id}`} pack={pack} />
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
