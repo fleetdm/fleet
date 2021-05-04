@@ -47,6 +47,10 @@ Documentation for Fleet can be found [here on GitHub](./docs/README.md).
 
 Please join us in the #fleet channel on [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
 
+#### Contributing
+
+Contributions are welcome, whether you answer questions on Slack/GitHub/StackOverflow/Twitter, improve the documentation or website, write a tutorial, give a talk, start a local osquery meetup, troubleshoot reported issues, or [submit a patch](https://github.com/fleetdm/fleet/blob/master/CONTRIBUTING.md).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/master/CODE_OF_CONDUCT.md).
+
 #### Community projects
 
 Below are some projects created by Fleet community members. Please submit a pull request if you'd like your project featured.
