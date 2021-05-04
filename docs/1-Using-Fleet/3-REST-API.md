@@ -589,7 +589,7 @@ None.
 
 Returns the information of the specified host. 
 
-The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../2-Deployment/2-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
+The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../3-Deployment/2-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
 
 `GET /api/v1/fleet/hosts/{id}`
 
