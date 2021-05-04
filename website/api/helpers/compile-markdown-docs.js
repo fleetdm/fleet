@@ -37,7 +37,8 @@ module.exports = {
     console.log('Compiling `%s` docs from the `%s` branch of `%s`...', compileFromPath, compileFromBranch, compileFromRemote);
 
     // Delete current rendered partials if they exist
-    await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, path.join('views/partials/doc-templates/', compileFromPath)));
+    let expectedOutputPath = path.resolve(sails.config.appPath, path.join('views/partials/doc-templates/', compileFromPath));
+    await sails.helpers.fs.rmrf(expectedOutputPath);
 
     // Compile the markdown into HTML templates
     await new Promise((resolve, reject)=>{
