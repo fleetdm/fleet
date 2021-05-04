@@ -26,6 +26,7 @@ import {
 } from "redux/nodes/components/ManageHostsPage/actions";
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
+import permissionUtils from "utilities/permissions";
 
 import {
   defaultHiddenColumns,
@@ -58,6 +59,7 @@ export class ManageHostsPage extends PureComponent {
     statusLabels: statusLabelsInterface,
     hosts: PropTypes.arrayOf(hostInterface),
     loadingHosts: PropTypes.bool,
+    canAddNewHosts: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -279,10 +281,10 @@ export class ManageHostsPage extends PureComponent {
   renderAddHostModal = () => {
     const { toggleAddHostModal } = this;
     const { showAddHostModal } = this.state;
-    const { enrollSecret, config } = this.props;
+    const { enrollSecret, config, canAddNewHosts } = this.props;
 
-    if (!showAddHostModal) {
-      return false;
+    if (!canAddNewHosts || !showAddHostModal) {
+      return null;
     }
 
     return (
@@ -539,7 +541,7 @@ export class ManageHostsPage extends PureComponent {
       isEditLabel,
       loadingLabels,
       selectedLabel,
-      selectedFilter,
+      canAddNewHosts,
     } = this.props;
 
     return (
@@ -550,12 +552,14 @@ export class ManageHostsPage extends PureComponent {
           <div className={`${baseClass} body-wrap`}>
             <div className="header-wrap">
               {renderHeader()}
-              <Button
-                onClick={onAddHostClick}
-                className={`${baseClass}__add-hosts button button--brand`}
-              >
-                <span>Add new host</span>
-              </Button>
+              {canAddNewHosts ? (
+                <Button
+                  onClick={onAddHostClick}
+                  className={`${baseClass}__add-hosts button button--brand`}
+                >
+                  <span>Add new host</span>
+                </Button>
+              ) : null}
             </div>
             {selectedLabel && renderQuery()}
             {renderTable()}
@@ -595,6 +599,11 @@ const mapStateToProps = (state, { location, params }) => {
 
   const { loading: loadingHosts } = state.entities.hosts;
 
+  const currentUser = state.auth.user;
+  const canAddNewHosts =
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser);
+
   return {
     selectedFilter,
     isAddLabel,
@@ -609,6 +618,7 @@ const mapStateToProps = (state, { location, params }) => {
     config,
     hosts,
     loadingHosts,
+    canAddNewHosts,
   };
 };
 
