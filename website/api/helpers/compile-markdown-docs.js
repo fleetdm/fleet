@@ -40,6 +40,8 @@ module.exports = {
     let expectedOutputPath = path.resolve(sails.config.appPath, path.join('views/partials/doc-templates/', compileFromPath));
     await sails.helpers.fs.rmrf(expectedOutputPath);
 
+    // TODO: be smarter about checking or normalizing compileFromPath so it works properly below even w/ trailing slashes (in the past, this was always used at the top level, so it justworked™)
+
     // Compile the markdown into HTML templates
     await new Promise((resolve, reject)=>{
       DocTemplater().build([{
