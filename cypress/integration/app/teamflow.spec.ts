@@ -18,7 +18,7 @@ describe("Teams flow", () => {
 
     cy.visit("/settings/teams");
 
-    cy.get(".Select-arrow-zone").click();
+    cy.contains("Valor").get(".Select-arrow-zone").click();
 
     // need force:true for dropdown
     cy.findByText(/edit/i).click({ force: true });
@@ -31,7 +31,7 @@ describe("Teams flow", () => {
 
     cy.visit("/settings/teams");
 
-    cy.get(".Select-arrow-zone").click();
+    cy.contains("Mystic").get(".Select-arrow-zone").click();
 
     cy.findByText(/delete/i).click({ force: true });
 
