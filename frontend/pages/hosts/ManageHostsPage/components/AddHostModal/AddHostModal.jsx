@@ -5,15 +5,18 @@ import FileSaver from "file-saver";
 import Kolide from "kolide";
 import Button from "components/buttons/Button";
 import configInterface from "interfaces/config";
+import teamInterface from "interfaces/team";
 import enrollSecretInterface from "interfaces/enroll_secret";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
 import KolideIcon from "components/icons/KolideIcon";
-import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
+import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
+import Dropdown from "../../../../../components/forms/fields/Dropdown";
 
 const baseClass = "add-host-modal";
 
 class AddHostModal extends Component {
   static propTypes = {
+    teams: PropTypes.arrayOf(teamInterface),
     onReturnToApp: PropTypes.func,
     enrollSecret: enrollSecretInterface,
     config: configInterface,
@@ -53,10 +56,19 @@ class AddHostModal extends Component {
     return false;
   };
 
-  render() {
-    const { config, onReturnToApp, enrollSecret } = this.props;
+  createTeamDropdownOptions = (teams) => {
+    return teams.map((team) => {
+      return {
+        value: team.id,
+        label: team.name,
+      };
+    });
+  };
 
+  render() {
+    const { config, onReturnToApp, enrollSecret, teams } = this.props;
     const { fetchCertificateError } = this.state;
+    const { createTeamDropdownOptions } = this;
 
     let tlsHostname = config.kolide_server_url;
     try {
@@ -136,10 +148,16 @@ class AddHostModal extends Component {
                 secret
               </h4>
               <p>
-                Provide an active enroll secret to allow osquery to authenticate
-                with the Fleet server:
+                Osquery uses an enroll secret to authenticate with the Fleet
+                server.
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
+                <Dropdown
+                  wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
+                  label={"Select a team for this new host:"}
+                  options={createTeamDropdownOptions(teams)}
+                  searchable={false}
+                />
                 <EnrollSecretTable secrets={enrollSecret} />
               </div>
             </li>
