@@ -256,7 +256,6 @@ a {
   }
 
   .accordion {
-    border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 2px;
   }
 
@@ -265,33 +264,37 @@ a {
   }
 
   .accordion__button {
-    background-color: #f4f4f4;
-    color: #444;
+    background-color: #fff;
+    color: $core-fleet-black;
     cursor: pointer;
-    padding: 18px;
-    width: 100%;
     text-align: left;
+    font-size: $x-small;
+    font-weight: bold;
     border: none;
+    padding: 17px 12px;
   }
 
   .accordion__button:hover {
-    background-color: #ddd;
+    background-color: $ui-vibrant-blue-10;
   }
 
-  .accordion__button:before {
-    display: inline-block;
-    content: "";
-    height: 10px;
-    width: 10px;
-    margin-right: 12px;
-    border-bottom: 2px solid currentColor;
-    border-right: 2px solid currentColor;
-    transform: rotate(-45deg);
+  .accordion__button:after {
+    display: block;
+    content: url("../assets/images/icon-chevron-purple-9x6@2x.png");
+    text-align: center;
+    top: 50%;
+    float: right;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background-color: $core-white;
+    transform: scale(0.5) translate(-50%, -60%);
   }
 
-  .accordion__button[aria-expanded="true"]::before,
-  .accordion__button[aria-selected="true"]::before {
-    transform: rotate(45deg);
+  .accordion__button[aria-expanded="true"]::after,
+  .accordion__button[aria-selected="true"]::after {
+    background-color: $core-vibrant-blue;
+    content: url("../assets/images/icon-chevron-white-9x6@2x.png");
   }
 
   [hidden] {
