@@ -18,12 +18,6 @@ module.exports = {
   },
 
 
-  exits: {
-
-
-  },
-
-
   fn: async function ({path: compileFromPath}) {
 
     var path = require('path');
