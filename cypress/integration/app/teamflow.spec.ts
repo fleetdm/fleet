@@ -17,6 +17,7 @@ describe("Teams flow", () => {
     cy.findByRole("button", { name: /^create$/i }).click();
 
     cy.visit("/settings/teams");
+    cy.wait(100);
 
     cy.contains("Valor").get(".Select-arrow-zone").click();
 
@@ -30,6 +31,7 @@ describe("Teams flow", () => {
     cy.findByRole("button", { name: /save/i }).click();
 
     cy.visit("/settings/teams");
+    cy.wait(100);
 
     cy.contains("Mystic").get(".Select-arrow-zone").click();
 
