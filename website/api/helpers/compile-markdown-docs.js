@@ -37,25 +37,26 @@ module.exports = {
     let cheerio = require('cheerio');
     let DocTemplater = require('doc-templater');
 
-    console.log('Compiling `%s` docs from the `%s` branch of `%s`...', repoPath, repoBranch, repoUrl);
+    sails.log.info('Compiling `%s` docs from the `%s` branch of `%s`...', repoPath, repoBranch, repoUrl);
 
     // Relative paths within this app where output will be written.
-    let htmlOutputPath = 'views/partials/doc-templates/';
-    let jsMenuOutputPath = 'views/partials/doc-menus/';
+    let htmlOutputPath = path.join('views/partials/doc-templates/', repoPath);
+    let jsMenuOutputPath = path.join('views/partials/doc-menus/', `${repoPath}.jsmenu`);
 
-    // Delete current rendered partials if they exist
-    // TODO: find out why we aren't clearing out jsmenus (prbly meant to be)
-    await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, path.join(htmlOutputPath, repoPath)));
+    // Delete existing output from previous runs, if any.
+    await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, htmlOutputPath));
+    await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, jsMenuOutputPath));
 
-    // Compile the markdown into HTML templates
+    // Compile the markdown into HTML templates and menu files.
+    // (Note that "lastModified" in the resulting jsmenu files can be misleading)
     await new Promise((resolve, reject)=>{
       DocTemplater().build([{
         remote: repoUrl,
         branch: repoBranch,
         remoteSubPath: repoPath,
         outputExtension: 'ejs',//« the file extension for resulting HTML files
-        htmlDirPath: path.join(htmlOutputPath, repoPath),
-        jsMenuPath: path.join(jsMenuOutputPath, repoPath+'.jsmenu'),// TODO: be smarter about checking or normalizing repoPath so it works properly below even w/ trailing slashes (in the past, this was always used at the top level, so it justworked™)
+        htmlDirPath: htmlOutputPath,
+        jsMenuPath: jsMenuOutputPath,
         beforeConvert: (mdString, proceed)=>{// This function is applied to each template before the markdown is converted to markup
           // Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation by the `afterConvert()` lifecycle hook
           // Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything)
