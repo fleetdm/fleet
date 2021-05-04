@@ -14,12 +14,14 @@ func (d *Datastore) NewTeam(team *kolide.Team) (*kolide.Team, error) {
 	query := `
 	INSERT INTO teams (
 		name,
+		agent_options,
 		description
-	) VALUES ( ?, ? )
+	) VALUES ( ?, ?, ? )
 	`
 	result, err := d.db.Exec(
 		query,
 		team.Name,
+		team.AgentOptions,
 		team.Description,
 	)
 	if err != nil {
@@ -128,10 +130,11 @@ func (d *Datastore) SaveTeam(team *kolide.Team) (*kolide.Team, error) {
 	query := `
 		UPDATE teams SET
 			name = ?,
+			agent_options = ?,
 			description = ?
 		WHERE id = ?
 	`
-	_, err := d.db.Exec(query, team.Name, team.Description, team.ID)
+	_, err := d.db.Exec(query, team.Name, team.AgentOptions, team.Description, team.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving team")
 	}

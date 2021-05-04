@@ -46,23 +46,28 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return setupResponse{Err: err}, nil
 		}
+
+		if req.Admin == nil {
+			return setupResponse{Err: errors.New("setup request must provide admin")}, nil
+		}
+
 		// creating the user should be the last action. If there's a user
 		// present and other errors occur, the setup endpoint closes.
-		if req.Admin != nil {
-			if *req.Admin.Email == "" {
-				err := errors.Errorf("admin email cannot be empty")
-				return setupResponse{Err: err}, nil
-			}
-			if *req.Admin.Password == "" {
-				err := errors.Errorf("admin password cannot be empty")
-				return setupResponse{Err: err}, nil
-			}
-			// Make the user an admin
-			*req.Admin.GlobalRole = "admin"
-			admin, err = svc.CreateUser(ctx, *req.Admin)
-			if err != nil {
-				return setupResponse{Err: err}, nil
-			}
+		adminPayload := *req.Admin
+		if adminPayload.Email == nil || *adminPayload.Email == "" {
+			err := errors.Errorf("admin email cannot be empty")
+			return setupResponse{Err: err}, nil
+		}
+		if adminPayload.Password == nil || *adminPayload.Password == "" {
+			err := errors.Errorf("admin password cannot be empty")
+			return setupResponse{Err: err}, nil
+		}
+		// Make the user an admin
+		adminStr := "admin"
+		adminPayload.GlobalRole = &adminStr
+		admin, err = svc.CreateUser(ctx, adminPayload)
+		if err != nil {
+			return setupResponse{Err: err}, nil
 		}
 
 		// If everything works to this point, log the user in and return token.  If

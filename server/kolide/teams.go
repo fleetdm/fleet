@@ -2,6 +2,7 @@ package kolide
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 )
 
@@ -40,8 +41,9 @@ type TeamService interface {
 }
 
 type TeamPayload struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
+	Name         *string          `json:"name"`
+	Description  *string          `json:"description"`
+	AgentOptions *json.RawMessage `json:"agent_options"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -57,6 +59,8 @@ type Team struct {
 	Name string `json:"name" db:"name"`
 	// Description is an optional description for the team.
 	Description string `json:"description" db:"description"`
+	// AgentOptions is the options for osquery and Orbit.
+	AgentOptions *json.RawMessage `json:"agent_options" db:"agent_options"`
 
 	// Derived from JOINs
 

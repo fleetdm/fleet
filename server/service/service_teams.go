@@ -8,7 +8,7 @@ import (
 )
 
 func (svc service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.Team, error) {
-	team := &kolide.Team{}
+	team := &kolide.Team{AgentOptions: p.AgentOptions}
 
 	if p.Name == nil {
 		return nil, newInvalidArgumentError("name", "missing required argument")
@@ -42,6 +42,9 @@ func (svc service) ModifyTeam(ctx context.Context, id uint, payload kolide.TeamP
 	}
 	if payload.Description != nil {
 		team.Description = *payload.Description
+	}
+	if payload.AgentOptions != nil {
+		team.AgentOptions = payload.AgentOptions
 	}
 
 	return svc.ds.SaveTeam(team)
