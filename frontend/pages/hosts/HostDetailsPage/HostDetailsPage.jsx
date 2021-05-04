@@ -11,6 +11,7 @@ import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
+import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 
 import entityGetter from "redux/utilities/entityGetter";
 import queryActions from "redux/nodes/entities/queries/actions";
@@ -18,6 +19,13 @@ import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionItemHeading,
+  AccordionItemButton,
+  AccordionItemPanel,
+} from "react-accessible-accordion";
 
 import hostInterface from "interfaces/host";
 import {
@@ -234,36 +242,83 @@ export class HostDetailsPage extends Component {
   };
 
   renderPacks = () => {
-    const { onPackClick } = this;
     const { host } = this.props;
     const { packs = [] } = host;
+    const wrapperClassName = `${baseClass}__table`;
 
-    const packItems = packs.map((pack) => {
+    const packsAccordion = packs.map((pack) => {
+      const dummyPackQueries = [
+        {
+          id: 1,
+          name: "per_query_perf",
+          description: "First query",
+          frequency: "10 minutes",
+          lastRun: "29 days ago",
+        },
+        {
+          id: 2,
+          name: "runtime_perf",
+          description: "Second query",
+          frequency: "4 hours",
+          lastRun: "2 days ago",
+        },
+        {
+          id: 3,
+          name: "endpoint_security_perf",
+          description: "Third query",
+          frequency: "10 minutes",
+          lastRun: "3 minutes ago",
+        },
+      ];
+
       return (
-        <li className="list__item" key={pack.id}>
-          <Button
-            onClick={() => onPackClick(pack)}
-            variant="text-link"
-            className="list__button"
-          >
-            {pack.name}
-          </Button>
-        </li>
+        <AccordionItem key={pack.id}>
+          <AccordionItemHeading>
+            <AccordionItemButton>{pack.name}</AccordionItemButton>
+          </AccordionItemHeading>
+          <AccordionItemPanel>
+            <table className={wrapperClassName}>
+              <thead>
+                <tr>
+                  <th>Query Name</th>
+                  <th>Description</th>
+                  <th>Frequency</th>
+                  <th>Last Run</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!!dummyPackQueries.length &&
+                  dummyPackQueries.map((query) => {
+                    return (
+                      <PackQueriesListRow
+                        key={`pack-row-${pack.id}-${query.id}`}
+                        query={query}
+                      />
+                    );
+                  })}
+              </tbody>
+            </table>
+          </AccordionItemPanel>
+        </AccordionItem>
       );
     });
 
+    // <PackListRow key={`pack-row-${query.id}`} pack={pack} />
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
         {packs.length === 0 ? (
           <p className="info__item">No packs have this host as a target.</p>
         ) : (
-          <ul className="list">{packItems}</ul>
+          <Accordion allowMultipleExpanded="true" allowZeroExpanded="true">
+            {packsAccordion}
+          </Accordion>
         )}
       </div>
     );
   };
 
+  //          <ul className="list">{packItems}</ul>
   renderSoftware = () => {
     const { host } = this.props;
     const wrapperClassName = `${baseClass}__table`;
