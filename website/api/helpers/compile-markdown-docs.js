@@ -33,7 +33,7 @@ module.exports = {
 
     // This is just to make it easier to tell what is happening.
     let compileFromOldRepo = (compileFromBranch === '0.12');
-    let compileFromRemote = compileFromOldRepo? 'git://github.com/balderdashy/sails-docs.git' : 'git://github.com/balderdashy/sails.git';
+    let compileFromRemote = compileFromOldRepo? 'git://github.com/balderdashy/sails-docs.git' : 'git://github.com/fleetdm/fleet.git';
     console.log('Compiling `%s` docs from the `%s` branch of `%s`...', compileFromPath, compileFromBranch, compileFromRemote);
 
     // Delete current rendered partials if they exist
