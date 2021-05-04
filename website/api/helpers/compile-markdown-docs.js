@@ -105,14 +105,6 @@ module.exports = {
           });
           modifiedHtml = $.html();
 
-          // TODO: Once verified this is not relevant, delete it:
-          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-          // // Get rid of the '.html' at the end of ANY internal web-root-relative URL that
-          // // point at the documentation pages. Any links form the docs that start with
-          // // '/documentation' and ends in '.html' will have the file extension stripped off.
-          // modifiedHtml = modifiedHtml.replace(/(href="\/documentation)([^"]*)\.html"/g, '$1$2"');
-          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
           // Modify links
           modifiedHtml = modifiedHtml.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{
             // Check if this is an external link (like https://google.com) but that is ALSO not a link
