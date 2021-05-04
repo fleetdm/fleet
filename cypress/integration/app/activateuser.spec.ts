@@ -18,6 +18,7 @@ describe("User invite and activation", () => {
 
     cy.findByRole("button", { name: /^create$/i }).click();
 
+    // Ensure the email has been delivered
     cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.logout();
