@@ -13,7 +13,7 @@ Fleet is the most widely used open source osquery manager.  Deploying osquery wi
 
 ```bash
 # Install the Fleet command-line tool
-npm install -g fleetctl
+sudo npm install -g fleetctl
 # Run a local demo of the Fleet server
 sudo fleetctl preview
 ```
