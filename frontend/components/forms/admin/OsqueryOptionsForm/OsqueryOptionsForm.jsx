@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { size } from "lodash";
+import { useSelector } from "react-redux";
 
 import Button from "components/buttons/Button";
 import Form from "components/forms/Form";
@@ -10,6 +11,10 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import constructErrorString from "./helpers";
 
 const baseClass = "osquery-options-form";
+
+const team = useSelector((state: IRootState) => {
+  return state.entities.teams.data[team_id];
+});
 
 const validate = (formData) => {
   const errors = {};
