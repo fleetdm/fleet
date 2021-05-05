@@ -287,14 +287,13 @@ a {
     width: 32px;
     height: 32px;
     border-radius: 4px;
-    background-color: $core-white;
     transform: scale(0.5) translate(-50%, -60%);
   }
 
   .accordion__button[aria-expanded="true"]::after,
   .accordion__button[aria-selected="true"]::after {
     background-color: $core-vibrant-blue;
-    content: url("../assets/images/icon-chevron-white-9x6@2x.png");
+    content: url("../assets/images/icon-accordion-collapse-16x16@2x.png");
   }
 
   [hidden] {

@@ -280,27 +280,29 @@ export class HostDetailsPage extends Component {
             {!packDOTscheduled_queries.length ? (
               <div>There are no schedule queries for this pack.</div>
             ) : (
-              <table className={wrapperClassName}>
-                <thead>
-                  <tr>
-                    <th>Query Name</th>
-                    <th>Description</th>
-                    <th>Frequency</th>
-                    <th>Last Run</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {!!packDOTscheduled_queries.length &&
-                    packDOTscheduled_queries.map((query) => {
-                      return (
-                        <PackQueriesListRow
-                          key={`pack-row-${pack.id}-${query.id}`}
-                          query={query}
-                        />
-                      );
-                    })}
-                </tbody>
-              </table>
+              <div className={`${baseClass}__wrapper`}>
+                <table className={wrapperClassName}>
+                  <thead>
+                    <tr>
+                      <th>Query Name</th>
+                      <th>Description</th>
+                      <th>Frequency</th>
+                      <th>Last Run</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!!packDOTscheduled_queries.length &&
+                      packDOTscheduled_queries.map((query) => {
+                        return (
+                          <PackQueriesListRow
+                            key={`pack-row-${pack.id}-${query.id}`}
+                            query={query}
+                          />
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </AccordionItemPanel>
         </AccordionItem>
