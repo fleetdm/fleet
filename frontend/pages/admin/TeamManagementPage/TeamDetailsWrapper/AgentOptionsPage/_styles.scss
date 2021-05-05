@@ -1,1 +1,13 @@
-.agent-options {}
+.agent-options {
+  font-size: $x-small;
+  a {
+    color: #6a67fe;
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .icon {
+    width: 12px;
+    height: 12px;
+  }
+}
