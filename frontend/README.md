@@ -5,7 +5,7 @@ The Fleet front-end is a Single Page Application using React and Redux.
 ## Running the Fleet web app
 
 For details instruction on building and serving the Fleet web application
-consult the [Development Documentation](https://github.com/fleetdm/fleet/tree/master/docs/2-Deployment)
+consult the [Development Documentation](https://github.com/fleetdm/fleet/tree/master/docs/3-Deployment)
 
 ## Directory Structure
 

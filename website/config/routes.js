@@ -36,7 +36,7 @@ module.exports.routes = {
   'GET /pricing':    { action:   'view-pricing' },
   '/try-fleet': '/get-started',
   '/documentation': 'https://github.com/fleetdm/fleet/tree/master/docs',
-  '/contribute': 'https://github.com/fleetdm/fleet/tree/master/docs/3-Contribution',
+  '/contribute': 'https://github.com/fleetdm/fleet/tree/master/docs/4-Contribution',
   '/hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
 
 
