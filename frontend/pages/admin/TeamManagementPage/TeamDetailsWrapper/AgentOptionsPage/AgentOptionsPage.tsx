@@ -1,7 +1,6 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import yaml from "js-yaml";
-
 import { ITeam } from "interfaces/team";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
@@ -14,16 +13,13 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import OsqueryOptionsForm from "components/forms/admin/OsqueryOptionsForm";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
-
 const baseClass = "agent-options";
-
 interface IAgentOptionsPageProps {
   options: Record<string, unknown> | null;
   params: {
     team_id: string;
   };
 }
-
 interface IRootState {
   entities: {
     teams: {
@@ -32,42 +28,33 @@ interface IRootState {
     };
   };
 }
-
 const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
   const {
     params: { team_id },
   } = props;
-
   const teamId = parseInt(team_id, 10);
-
   const dispatch = useDispatch();
-
   const team = useSelector((state: IRootState) => {
     return state.entities.teams.data[teamId];
   });
-
   console.log("This is my team data", team);
-
   const formData = {
     options: yaml.dump(team.agent_options),
   };
-
-  const onSaveOsqueryOptionsFormSubmit = () => {
-    const { error } = validateYaml(formData.options);
-
+  const onSaveOsqueryOptionsFormSubmit = (updatedForm: any) => {
+    const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {
-      dispatch(renderFlash("error", error));
+      dispatch(renderFlash("error", error.reason));
+      return false;
     }
-
-    dispatch(osqueryOptionsActions.updateOsqueryOptions(formData))
+    dispatch(osqueryOptionsActions.updateOsqueryOptions(updatedForm))
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
       })
-      .catch((errors: Record<string, unknown>) => {
-        dispatch(renderFlash("error", errors));
+      .catch((errors: { [key: string]: any }) => {
+        dispatch(renderFlash("error", errors.message.message));
       });
   };
-
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
@@ -95,5 +82,4 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
     </div>
   );
 };
-
 export default AgentOptionsPage;
