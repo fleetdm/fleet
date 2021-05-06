@@ -144,6 +144,7 @@ type PubSubConfig struct {
 	ResultTopic          string `yaml:"result_topic"`
 	IncludeAttributes    string `yaml:"include_attributes"`
 	DecorationAttributes string `yaml:"decoration_attributes"`
+	DecorationPrefix     string `yaml:"decoration_prefix"`
 }
 
 // FilesystemConfig defines configs for the Filesystem logging plugin
@@ -329,6 +330,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("pubsub.result_topic", "", "PubSub topic for result logs")
 	man.addConfigString("pubsub.include_attributes", "", "Comma-separated list of json keys to include as PubSub attributes")
 	man.addConfigString("pubsub.decoration_attributes", "", "Comma-separated list of decorations to include as PubSub attributes")
+	man.addConfigString("pubsub.decoration_prefix", "", "Prefix decoration attributes with this value, to avoid conflicts top-level attributes")
 
 	// Filesystem
 	man.addConfigString("filesystem.status_log_file", "/tmp/osquery_status",
@@ -468,6 +470,7 @@ func (man Manager) LoadConfig() KolideConfig {
 			ResultTopic:          man.getConfigString("pubsub.result_topic"),
 			IncludeAttributes:    man.getConfigString("pubsub.include_attributes"),
 			DecorationAttributes: man.getConfigString("pubsub.decoration_attributes"),
+			DecorationPrefix:     man.getConfigString("pubsub.decoration_prefix"),
 		},
 		Filesystem: FilesystemConfig{
 			StatusLogFile:        man.getConfigString("filesystem.status_log_file"),

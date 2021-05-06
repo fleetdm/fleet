@@ -12,16 +12,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-const decorationPrefix = "d_"
-
 type pubSubLogWriter struct {
 	topic                *pubsub.Topic
 	logger               log.Logger
 	includeAttributes    []string
 	decorationAttributes []string
+	decorationPrefix     string
 }
 
-func NewPubSubLogWriter(projectId string, topicName string, includeAttributes string, decorationAttributes string, logger log.Logger) (*pubSubLogWriter, error) {
+func NewPubSubLogWriter(projectId string, topicName string, includeAttributes string, decorationAttributes string, decorationPrefix string, logger log.Logger) (*pubSubLogWriter, error) {
 	ctx := context.Background()
 
 	client, err := pubsub.NewClient(ctx, projectId)
@@ -37,6 +36,7 @@ func NewPubSubLogWriter(projectId string, topicName string, includeAttributes st
 		"topic", topicName,
 		"include_attributes", includeAttributes,
 		"decoration_attributes", decorationAttributes,
+		"decoration_prefix", decorationPrefix,
 	)
 
 	return &pubSubLogWriter{
@@ -44,14 +44,13 @@ func NewPubSubLogWriter(projectId string, topicName string, includeAttributes st
 		logger:               logger,
 		includeAttributes:    strings.Split(includeAttributes, ","),
 		decorationAttributes: strings.Split(decorationAttributes, ","),
+		decorationPrefix:     decorationPrefix,
 	}, nil
 }
 
 func asString(value interface{}) (string, bool) {
 	switch v := value.(type) {
-	case string:
-		return v, true
-	case float64, bool:
+	case string, float64, bool, nil:
 		return fmt.Sprint(v), true
 	default:
 		return "", false
@@ -82,7 +81,7 @@ func extractAttributes(dest map[string]string, source map[string]interface{}, at
 	return attributeSize
 }
 
-func extractDecorations(dest map[string]string, source interface{}, attributes []string, logger log.Logger) int {
+func extractDecorations(dest map[string]string, source interface{}, attributes []string, decorationPrefix string, logger log.Logger) int {
 	var attributeSize int
 
 	if source == nil || len(attributes) == 0 {
@@ -139,7 +138,7 @@ func (w *pubSubLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 			}
 
 			attributeSize = extractAttributes(attributes, unmarshaled, w.includeAttributes, w.logger)
-			attributeSize += extractDecorations(attributes, unmarshaled["decorations"], w.decorationAttributes, w.logger)
+			attributeSize += extractDecorations(attributes, unmarshaled["decorations"], w.decorationAttributes, w.decorationPrefix, w.logger)
 		}
 
 		if len(data)+attributeSize > pubsub.MaxPublishRequestBytes {
