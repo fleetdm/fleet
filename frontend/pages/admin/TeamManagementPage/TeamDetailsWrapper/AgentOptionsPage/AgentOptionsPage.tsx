@@ -1,11 +1,9 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
-// import { noop } from "lodash";
+import { useDispatch, useSelector } from "react-redux";
+import yaml from "js-yaml";
 
 import { ITeam } from "interfaces/team";
-// @ts-ignore
-import yaml from "js-yaml";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -22,28 +20,37 @@ const baseClass = "agent-options";
 
 interface IAgentOptionsPageProps {
   options: any;
-  dispatch: any;
-  params: any;
+  params: {
+    team_id: string;
+  };
+}
+
+interface IRootState {
+  entities: {
+    teams: {
+      loading: boolean;
+      data: { [id: number]: ITeam };
+    };
+  };
 }
 
 const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
   const {
     options,
-    dispatch,
     params: { team_id },
   } = props;
+
+  const teamId = parseInt(team_id, 10);
+
+  const dispatch = useDispatch();
+
+  const team = useSelector((state: IRootState) => {
+    return state.entities.teams.data[teamId];
+  });
 
   const formData = {
     osquery_options: yaml.dump(options),
   };
-
-  // do we grab this or do we pass it in from teamdetailswrapper
-  // commented out because it was bugging the code
-  // const team = useSelector((state: IRootState) => {
-  //   return state.entities.teams.data[team_id];
-  // });
-
-  console.log(team);
 
   const onSaveOsqueryOptionsFormSubmit = () => {
     const { error } = validateYaml(formData.osquery_options);
