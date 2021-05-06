@@ -12,10 +12,6 @@ import constructErrorString from "./helpers";
 
 const baseClass = "osquery-options-form";
 
-const team = useSelector((state: IRootState) => {
-  return state.entities.teams.data[team_id];
-});
-
 const validate = (formData) => {
   const errors = {};
   const { error: yamlError, valid: yamlValid } = validateYaml(

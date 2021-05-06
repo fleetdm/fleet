@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import yaml from "js-yaml";
 
@@ -19,7 +18,7 @@ import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2
 const baseClass = "agent-options";
 
 interface IAgentOptionsPageProps {
-  options: any;
+  options: Record<string, unknown> | null;
   params: {
     team_id: string;
   };
@@ -36,7 +35,6 @@ interface IRootState {
 
 const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
   const {
-    options,
     params: { team_id },
   } = props;
 
@@ -48,34 +46,26 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
     return state.entities.teams.data[teamId];
   });
 
+  console.log("This is my team data", team);
+
   const formData = {
-    osquery_options: yaml.dump(options),
+    options: yaml.dump(team.agent_options),
   };
 
   const onSaveOsqueryOptionsFormSubmit = () => {
-    const { error } = validateYaml(formData.osquery_options);
+    const { error } = validateYaml(formData.options);
 
     if (error) {
       dispatch(renderFlash("error", error));
-
-      return false;
     }
 
     dispatch(osqueryOptionsActions.updateOsqueryOptions(formData))
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
-
-        return false;
       })
-      .catch((errors: any) => {
-        if (errors.base) {
-          dispatch(renderFlash("error", errors.base));
-        }
-
-        return false;
+      .catch((errors: Record<string, unknown>) => {
+        dispatch(renderFlash("error", errors));
       });
-
-    return false;
   };
 
   return (
