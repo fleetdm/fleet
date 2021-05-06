@@ -24,6 +24,7 @@ module.exports.routes = {
   '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /company/contact':    { action:   'view-contact' },
+  'GET /apply': 'https://fleet-device-management.breezy.hr',
   'GET /get-started': 'https://github.com/fleetdm/fleet/blob/master/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
   'GET /pricing':    { action:   'view-pricing' },
   '/documentation': 'https://github.com/fleetdm/fleet/tree/master/docs',
