@@ -13,7 +13,7 @@ Fleet is the most widely used open source osquery manager.  Deploying osquery wi
 
 ```bash
 # Install the Fleet command-line tool
-npm install -g fleetctl
+sudo npm install -g fleetctl
 # Run a local demo of the Fleet server
 sudo fleetctl preview
 ```
@@ -46,6 +46,10 @@ Documentation for Fleet can be found [here on GitHub](./docs/README.md).
 #### Chat
 
 Please join us in the #fleet channel on [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+
+#### Contributing
+
+Contributions are welcome, whether you answer questions on Slack/GitHub/StackOverflow/Twitter, improve the documentation or website, write a tutorial, give a talk, start a local osquery meetup, troubleshoot reported issues, or [submit a patch](https://github.com/fleetdm/fleet/blob/master/CONTRIBUTING.md).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/master/CODE_OF_CONDUCT.md).
 
 #### Community projects
 

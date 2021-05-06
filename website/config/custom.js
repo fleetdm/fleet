@@ -98,8 +98,9 @@ module.exports.custom = {
   /***************************************************************************
   *                                                                          *
   * Any other custom config this Sails app should use during development.    *
+  * (and possibly in ALL environments, if not overridden in config/env/)     *
   *                                                                          *
   ***************************************************************************/
-  // …
+  //…
 
 };
