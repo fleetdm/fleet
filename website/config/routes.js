@@ -17,24 +17,15 @@ module.exports.routes = {
 
   '/blog':           'https://medium.com/fleetdm',
 
-  '/pricing':        (req, res)=>{
-    // FUTURE: pricing page explaining commercial support and EE, w/ our subscription terms
-    res.redirect('mailto:todo@example.com?subject=Pricing question&body=Please do not send this email!\n\nWe are a very young company and still working on our processes.  For now, if you have a pricing question or would like to know Fleet\'s latest pricing and support tiers, please create an issue at https://github.com/fleetdm/fleet/issues.  Thank you!');
-  },
-
   '/legal/terms': 'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
 
-  '/security':       (req, res)=>{
-    // FUTURE: make a page- check out how Sails does it, and also https://about.gitlab.com/security/
-    res.redirect('mailto:todo@example.com?subject=Security vulnerability&body=Please do not send this email!\n\nWe are a very young company and still working on our processes.  For now, if you have a security vulnerability to report, please send a DM to mikermcneil or Zach Wasserman in the "osquery" Slack workspace.  Thank you for letting us know!');
-  },
+  '/security': 'https://github.com/fleetdm/fleet/security/policy',
 
   '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /company/contact':    { action:   'view-contact' },
-  'GET /get-started':    { action:   'view-get-started' },
+  'GET /get-started': 'https://github.com/fleetdm/fleet/blob/master/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
   'GET /pricing':    { action:   'view-pricing' },
-  '/try-fleet': '/get-started',
   '/documentation': 'https://github.com/fleetdm/fleet/tree/master/docs',
   '/contribute': 'https://github.com/fleetdm/fleet/tree/master/docs/4-Contribution',
   '/hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
@@ -62,13 +53,17 @@ module.exports.routes = {
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
-  // '/logout':                  '/api/v1/account/logout',
+
+  // Convenience
   '/company':                    '/company/about',
   '/support':                    '/company/contact',
   '/contact':                    '/company/contact',
   '/legal':                      '/legal/terms',
   '/terms':                      '/legal/terms',
+  // '/logout':                  '/api/v1/account/logout',
 
+  // Legacy (to avoid breaking links)
+  '/try-fleet':                  '/get-started',
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
