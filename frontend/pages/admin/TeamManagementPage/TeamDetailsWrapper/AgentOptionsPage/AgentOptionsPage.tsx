@@ -13,13 +13,15 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import OsqueryOptionsForm from "components/forms/admin/OsqueryOptionsForm";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+
 const baseClass = "agent-options";
+
 interface IAgentOptionsPageProps {
-  options: Record<string, unknown> | null;
   params: {
     team_id: string;
   };
 }
+
 interface IRootState {
   entities: {
     teams: {
@@ -28,6 +30,7 @@ interface IRootState {
     };
   };
 }
+
 const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
   const {
     params: { team_id },
@@ -37,10 +40,13 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
   const team = useSelector((state: IRootState) => {
     return state.entities.teams.data[teamId];
   });
+
   console.log("This is my team data", team);
+
   const formData = {
     options: yaml.dump(team.agent_options),
   };
+
   const onSaveOsqueryOptionsFormSubmit = (updatedForm: any) => {
     const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {
@@ -82,4 +88,5 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
     </div>
   );
 };
+
 export default AgentOptionsPage;
