@@ -747,6 +747,80 @@ FROM python_packages;
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestSoftware,
 	},
+	"scheduled_query_stats": {
+		Query: `
+			SELECT *,
+				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+			FROM osquery_schedule
+`,
+		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+			packs := map[string][]kolide.ScheduledQueryStats{}
+
+			for _, row := range rows {
+				providedName := row["name"]
+				if providedName == "" {
+					level.Debug(logger).Log(
+						"msg", "host reported scheduled query with empty name",
+						"host", host.HostName,
+					)
+					continue
+				}
+				delimiter := row["delimiter"]
+				if delimiter == "" {
+					level.Debug(logger).Log(
+						"msg", "host reported scheduled query with empty delimiter",
+						"host", host.HostName,
+					)
+					continue
+				}
+
+				// Split with a limit of 2 in case query name includes the
+				// delimiter. Not much we can do if pack name includes the
+				// delimiter.
+				trimmedName := strings.TrimPrefix(providedName, "pack"+delimiter)
+				parts := strings.SplitN(trimmedName, delimiter, 2)
+				if len(parts) != 2 {
+					level.Debug(logger).Log(
+						"msg", "could not split pack and query names",
+						"host", host.HostName,
+						"name", providedName,
+						"delimiter", delimiter,
+					)
+					continue
+				}
+				packName, scheduledName := parts[0], parts[1]
+
+				stats := kolide.ScheduledQueryStats{
+					ScheduledQueryName: scheduledName,
+					PackName:           packName,
+					AverageMemory:      cast.ToInt(row["average_memory"]),
+					Denylisted:         cast.ToBool(row["denylisted"]),
+					Executions:         cast.ToInt(row["executions"]),
+					Interval:           cast.ToInt(row["interval"]),
+					// Cast to int first to allow cast.ToTime to interpret the unix timestamp.
+					LastExecuted: time.Unix(cast.ToInt64(row["last_executed"]), 0).UTC(),
+					OutputSize:   cast.ToInt(row["output_size"]),
+					SystemTime:   cast.ToInt(row["system_time"]),
+					UserTime:     cast.ToInt(row["user_time"]),
+					WallTime:     cast.ToInt(row["wall_time"]),
+				}
+				packs[packName] = append(packs[packName], stats)
+			}
+
+			host.PackStats = []kolide.PackStats{}
+			for packName, stats := range packs {
+				host.PackStats = append(
+					host.PackStats,
+					kolide.PackStats{
+						PackName:   packName,
+						QueryStats: stats,
+					},
+				)
+			}
+
+			return nil
+		},
+	},
 }
 
 func ingestSoftware(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
