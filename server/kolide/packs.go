@@ -176,3 +176,9 @@ type PackTarget struct {
 	PackID uint
 	Target
 }
+
+type PackStats struct {
+	PackID     uint                  `json:"pack_id,omitempty"`
+	PackName   string                `json:"pack_name,omitempty"`
+	QueryStats []ScheduledQueryStats `json:"query_stats"`
+}

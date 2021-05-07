@@ -92,6 +92,125 @@ func testSaveHosts(t *testing.T, ds kolide.Datastore) {
 	assert.Nil(t, host)
 }
 
+func testSaveHostPackStats(t *testing.T, ds kolide.Datastore) {
+	host, err := ds.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
+		SeenTime:         time.Now(),
+		NodeKey:          "1",
+		UUID:             "1",
+		HostName:         "foo.local",
+		PrimaryIP:        "192.168.1.1",
+		PrimaryMac:       "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	// Pack and query must exist for stats to save successfully
+	pack1 := test.NewPack(t, ds, "test1")
+	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
+	stats1 := []kolide.ScheduledQueryStats{
+		{
+			ScheduledQueryName: squery1.Name,
+			ScheduledQueryID:   squery1.ID,
+			QueryName:          query1.Name,
+			PackName:           pack1.Name,
+			PackID:             pack1.ID,
+			AverageMemory:      8000,
+			Denylisted:         false,
+			Executions:         164,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+			OutputSize:         1337,
+			SystemTime:         150,
+			UserTime:           180,
+			WallTime:           0,
+		},
+	}
+
+	pack2 := test.NewPack(t, ds, "test2")
+	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query1.ID, 30, true, true, "time-scheduled")
+	query2 := test.NewQuery(t, ds, "processes", "select * from processes", 0, true)
+	squery3 := test.NewScheduledQuery(t, ds, pack2.ID, query2.ID, 30, true, true, "processes")
+	stats2 := []kolide.ScheduledQueryStats{
+		{
+			ScheduledQueryName: squery2.Name,
+			ScheduledQueryID:   squery2.ID,
+			QueryName:          query1.Name,
+			PackName:           pack2.Name,
+			PackID:             pack2.ID,
+			AverageMemory:      431,
+			Denylisted:         true,
+			Executions:         1,
+			Interval:           30,
+			LastExecuted:       time.Unix(980943843, 0).UTC(),
+			OutputSize:         134,
+			SystemTime:         1656,
+			UserTime:           18453,
+			WallTime:           10,
+		},
+		{
+			ScheduledQueryName: squery3.Name,
+			ScheduledQueryID:   squery3.ID,
+			QueryName:          query2.Name,
+			PackName:           pack2.Name,
+			PackID:             pack2.ID,
+			AverageMemory:      8000,
+			Denylisted:         false,
+			Executions:         164,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+			OutputSize:         1337,
+			SystemTime:         150,
+			UserTime:           180,
+			WallTime:           0,
+		},
+	}
+
+	host.PackStats = []kolide.PackStats{
+		{
+			PackName: "test1",
+			// Append an additional entry to be sure that receiving stats for a
+			// now-deleted query doesn't break saving. This extra entry should
+			// not be returned on loading the host.
+			QueryStats: append(stats1, kolide.ScheduledQueryStats{PackName: "foo", ScheduledQueryName: "bar"}),
+		},
+		{
+			PackName:   "test2",
+			QueryStats: stats2,
+		},
+	}
+
+	require.NoError(t, ds.SaveHost(host))
+
+	host, err = ds.Host(host.ID)
+	require.NoError(t, err)
+
+	require.Len(t, host.PackStats, 2)
+	sort.Slice(host.PackStats, func(i, j int) bool {
+		return host.PackStats[i].PackName < host.PackStats[j].PackName
+	})
+	assert.Equal(t, host.PackStats[0].PackName, "test1")
+	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats1)
+	assert.Equal(t, host.PackStats[1].PackName, "test2")
+	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats2)
+
+	// Set to nil should not overwrite
+	host.PackStats = nil
+	require.NoError(t, ds.SaveHost(host))
+	host, err = ds.Host(host.ID)
+	require.NoError(t, err)
+	require.Len(t, host.PackStats, 2)
+
+	// Set to empty should make it empty
+	host.PackStats = []kolide.PackStats{}
+	require.NoError(t, ds.SaveHost(host))
+	host, err = ds.Host(host.ID)
+	require.NoError(t, err)
+	require.Len(t, host.PackStats, 0)
+}
+
 func testDeleteHost(t *testing.T, ds kolide.Datastore) {
 	host, err := ds.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),

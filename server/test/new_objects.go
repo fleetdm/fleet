@@ -9,10 +9,14 @@ import (
 )
 
 func NewQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint, saved bool) *kolide.Query {
+	authorPtr := &authorID
+	if authorID == 0 {
+		authorPtr = nil
+	}
 	query, err := ds.NewQuery(&kolide.Query{
 		Name:     name,
 		Query:    q,
-		AuthorID: &authorID,
+		AuthorID: authorPtr,
 		Saved:    saved,
 	})
 	require.Nil(t, err)
@@ -122,8 +126,9 @@ func NewUser(t *testing.T, ds kolide.Datastore, name, username, email string, ad
 	return u
 }
 
-func NewScheduledQuery(t *testing.T, ds kolide.Datastore, pid, qid, interval uint, snapshot, removed bool) *kolide.ScheduledQuery {
+func NewScheduledQuery(t *testing.T, ds kolide.Datastore, pid, qid, interval uint, snapshot, removed bool, name string) *kolide.ScheduledQuery {
 	sq, err := ds.NewScheduledQuery(&kolide.ScheduledQuery{
+		Name:     name,
 		PackID:   pid,
 		QueryID:  qid,
 		Interval: interval,
