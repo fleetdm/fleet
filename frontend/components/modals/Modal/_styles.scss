@@ -21,15 +21,48 @@
     text-decoration: none;
 
     .button {
-      @include size(30px);
-      line-height: 30px;
-      color: $core-fleet-black;
-      font-size: $x-large;
+      content: url("../assets/images/icon-close-8x8@2x.png");
+      padding: 8px;
+      width: 8px;
+      height: 8px;
+      border-radius: 0px;
 
       &:hover {
         color: $ui-error;
       }
     }
+    // MOST RECENT:::
+    // &__ex {
+    //   text-decoration: none;
+    //   content: url("../assets/images/icon-close-8x8@2x.png");
+    //   width: 8px;
+    //   height: 8px;
+    //   margin-right: 2px;
+    //   margin-top: 10px;
+
+    //   &:hover {
+    //     color: $ui-error;
+    //   }
+    //   .button {
+    //     border-radius: 0px;
+    //   }
+    // }
+    // .button {
+    //   @include size(30px);
+    //   line-height: 30px;
+    //   color: $core-fleet-black;
+    //   font-size: $x-large;
+
+    //   &:hover {
+    //     color: $ui-error;
+    //   }
+    // }
+
+    // .close {
+    //   content: url("../assets/images/icon-close-8x8@2x.png");
+    //   width: 15px;
+    //   height: 15px;
+    // }
   }
 
   &__header {
