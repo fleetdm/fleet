@@ -80,6 +80,24 @@ html, body {
     background-color: #f1f0ff;
     font-weight: @bold;
   }
+  .menu-link {
+    color: #192147;
+    font-weight: @bold;
+    svg {
+      path {
+        fill: #192147;
+      }
+    }
+  }
+  .menu-link:hover {
+    color: #6a67fe;
+
+    svg {
+      path {
+        fill: #6a67fe;
+      }
+    }
+  }
 }
 
 [purpose='page-header'].header {
@@ -141,6 +159,24 @@ html, body {
     background-color: #f1f0ff;
     font-weight: @bold;
   }
+  .menu-link {
+    color: #192147;
+    font-weight: @bold;
+    svg {
+      path {
+        fill: #192147;
+      }
+    }
+  }
+  .menu-link:hover {
+    color: #6a67fe;
+
+    svg {
+      path {
+        fill: #6a67fe;
+      }
+    }
+  }
 }
 
 [purpose='page-footer'] {
@@ -175,6 +211,10 @@ body.detected-mobile {
   // mobile device, regardless of viewport dimensions.  This includes tablet
   // devices (like the iPad) as well as handset devices (like the iPhone).
   // …
+}
+
+.dropdown:hover > .btn.btn-link {
+  color: #6a67fe;
 }
 
 @media (max-width: 1199px) {
