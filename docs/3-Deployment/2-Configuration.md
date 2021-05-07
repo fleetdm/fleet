@@ -422,7 +422,9 @@ Note that some other configurations may need to be changed when modifying the UR
 
 ###### `server_keepalive`
 
-Controls the server side http keep alive property. 
+Controls the server side http keep alive property.
+
+Turning off keepalives has helped reduce outstanding TCP connections in some deployments.
 
 - Default value: true
 - Environment variable: `FLEET_SERVER_KEEPALIVE`
