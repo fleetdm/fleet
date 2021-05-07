@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -129,6 +130,126 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		return errors.Wrapf(err, "save host with id %d", host.ID)
 	}
 
+	// Save host pack stats only if it is non-nil. Empty stats should be
+	// represented by an empty slice.
+	if host.PackStats != nil {
+		if err := d.saveHostPackStats(host); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d *Datastore) saveHostPackStats(host *kolide.Host) error {
+	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		sql := `
+			DELETE FROM scheduled_query_stats
+			WHERE host_id = ?
+		`
+		if _, err := tx.Exec(sql, host.ID); err != nil {
+			return errors.Wrap(err, "delete old stats")
+		}
+
+		// Bulk insert software entries
+		var args []interface{}
+		queryCount := 0
+		for _, pack := range host.PackStats {
+			for _, query := range pack.QueryStats {
+				queryCount++
+
+				args = append(args,
+					query.PackName,
+					query.ScheduledQueryName,
+					host.ID,
+					query.AverageMemory,
+					query.Denylisted,
+					query.Executions,
+					query.Interval,
+					query.LastExecuted,
+					query.OutputSize,
+					query.SystemTime,
+					query.UserTime,
+					query.WallTime,
+				)
+			}
+		}
+
+		if queryCount == 0 {
+			return nil
+		}
+
+		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
+		sql = fmt.Sprintf(`
+			INSERT IGNORE INTO scheduled_query_stats (
+				scheduled_query_id,
+				host_id,
+				average_memory,
+				denylisted,
+				executions,
+				schedule_interval,
+				last_executed,
+				output_size,
+				system_time,
+				user_time,
+				wall_time
+			)
+			VALUES %s
+		`, values)
+		if _, err := tx.Exec(sql, args...); err != nil {
+			return errors.Wrap(err, "insert pack stats")
+		}
+
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "save pack stats")
+	}
+	return nil
+}
+
+func (d *Datastore) loadHostPackStats(host *kolide.Host) error {
+	sql := `
+SELECT
+	sqs.scheduled_query_id,
+	sqs.average_memory,
+	sqs.denylisted,
+	sqs.executions,
+	sqs.schedule_interval,
+	sqs.last_executed,
+	sqs.output_size,
+	sqs.system_time,
+	sqs.user_time,
+	sqs.wall_time,
+	sq.name AS scheduled_query_name,
+	sq.id AS scheduled_query_id,
+	sq.query_name AS query_name,
+	p.name AS pack_name,
+	p.id as pack_id,
+	q.description
+FROM scheduled_query_stats sqs
+	JOIN scheduled_queries sq ON (sqs.scheduled_query_id = sq.id)
+	JOIN packs p ON (sq.pack_id = p.id)
+	JOIN queries q ON (sq.query_name = q.name)
+WHERE host_id = ?
+`
+	var stats []kolide.ScheduledQueryStats
+	if err := d.db.Select(&stats, sql, host.ID); err != nil {
+		return errors.Wrap(err, "load pack stats")
+	}
+
+	packs := map[uint]kolide.PackStats{}
+	for _, query := range stats {
+		pack := packs[query.PackID]
+		pack.PackName = query.PackName
+		pack.PackID = query.PackID
+		pack.QueryStats = append(pack.QueryStats, query)
+		packs[pack.PackID] = pack
+	}
+
+	for _, pack := range packs {
+		host.PackStats = append(host.PackStats, pack)
+	}
+
 	return nil
 }
 
@@ -148,7 +269,10 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	host := &kolide.Host{}
 	err := d.db.Get(host, sqlStatement, id)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting host by id")
+		return nil, errors.Wrap(err, "get host by id")
+	}
+	if err := d.loadHostPackStats(host); err != nil {
+		return nil, err
 	}
 
 	return host, nil
@@ -603,6 +727,10 @@ func (d *Datastore) HostByIdentifier(identifier string) (*kolide.Host, error) {
 	err := d.db.Get(host, sql, identifier)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host by identifier")
+	}
+
+	if err := d.loadHostPackStats(host); err != nil {
+		return nil, err
 	}
 
 	return host, nil

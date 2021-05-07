@@ -145,6 +145,9 @@ type Host struct {
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
 	Additional                *json.RawMessage    `json:"additional,omitempty" db:"additional"`
 	EnrollSecretName          string              `json:"enroll_secret_name" db:"enroll_secret_name"`
+
+	// Loaded via JOIN in DB
+	PackStats []PackStats `json:"pack_stats"`
 }
 
 // HostDetail provides the full host metadata along with associated labels and
