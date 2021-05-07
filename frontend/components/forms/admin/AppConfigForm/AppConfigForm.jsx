@@ -56,7 +56,11 @@ const formFields = [
 ];
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = (
-    <KolideIcon name={showAdvancedOptions ? "downcarat" : "upcarat"} />
+    <Button
+      className={`button button--unstyled ${
+        showAdvancedOptions ? "upcarat" : "downcarat"
+      }`}
+    />
   );
 
   return (

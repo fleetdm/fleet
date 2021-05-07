@@ -31,8 +31,10 @@
     }
 
     .Select-arrow {
-      border-width: 8px 8px 2.5px;
+      // border-width: 8px 8px 2.5px;
       content: url("../assets/images/icon-chevron-black-9x6@2x.png");
+      height: 50px;
+      width: 50px;
     }
 
     &.is-open {
