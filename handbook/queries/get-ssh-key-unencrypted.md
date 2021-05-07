@@ -1,4 +1,4 @@
-# Detect unencrypted SSH keys 
+# Detect unencrypted SSH keys
 
 ## Description
 SSH keys can be used in Lateral Movement, where attackers use unencrypted SSH keys to access other systems.
