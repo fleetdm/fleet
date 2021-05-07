@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import { humanQueryLastRun } from "kolide/helpers";
 
 import queryInterface from "interfaces/query";
 
@@ -11,14 +12,21 @@ class PackQueriesListRow extends Component {
 
   render() {
     const { query } = this.props;
-    const { name, description, interval, last_executed } = query;
+    const {
+      scheduled_query_name,
+      description,
+      interval,
+      last_executed,
+    } = query;
 
     return (
       <tr>
-        <td className={`${baseClass}__name`}>{name}</td>
+        <td className={`${baseClass}__name`}>{scheduled_query_name}</td>
         <td className={`${baseClass}__description`}>{description}</td>
         <td className={`${baseClass}__frequency`}>{interval} seconds</td>
-        <td className={`${baseClass}__last-run`}>{last_executed}</td>
+        <td className={`${baseClass}__last-run`}>
+          {humanQueryLastRun(last_executed)}
+        </td>
       </tr>
     );
   }

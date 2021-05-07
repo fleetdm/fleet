@@ -301,6 +301,16 @@ export const humanHostDetailUpdated = (detailUpdated: string): string => {
   return moment(detailUpdated).fromNow();
 };
 
+export const humanQueryLastRun = (lastRun: string): string => {
+  // Handles the case when a query has never been ran.
+  // July 28, 2016 is the date of the initial commit to kolide/fleet.
+  if (lastRun < "2016-07-28T00:00:00Z") {
+    return "Never";
+  }
+
+  return moment(lastRun).fromNow();
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -313,6 +323,7 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  humanQueryLastRun,
   labelSlug,
   setupData,
 };

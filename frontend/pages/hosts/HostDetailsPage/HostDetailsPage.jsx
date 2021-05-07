@@ -243,41 +243,17 @@ export class HostDetailsPage extends Component {
 
   renderPacks = () => {
     const { host } = this.props;
-    const { packs = [] } = host;
+    const { packs = [], pack_stats = [] } = host;
     const wrapperClassName = `${baseClass}__table`;
 
-    const packsAccordion = packs.map((pack) => {
-      const packDOTscheduled_queries = [
-        {
-          id: 1,
-          name: "per_query_perf",
-          description: "First query",
-          interval: 10,
-          last_executed: "29 days ago",
-        },
-        {
-          id: 2,
-          name: "runtime_perf",
-          description: "Second query",
-          interval: 4,
-          last_executed: "2 days ago",
-        },
-        {
-          id: 3,
-          name: "endpoint_security_perf",
-          description: "Third query",
-          interval: 10,
-          last_executed: "3 minutes ago",
-        },
-      ];
-
+    const packsAccordion = pack_stats.map((pack) => {
       return (
-        <AccordionItem key={pack.id}>
+        <AccordionItem key={pack.pack_id}>
           <AccordionItemHeading>
-            <AccordionItemButton>{pack.name}</AccordionItemButton>
+            <AccordionItemButton>{pack.pack_name}</AccordionItemButton>
           </AccordionItemHeading>
           <AccordionItemPanel>
-            {!packDOTscheduled_queries.length ? (
+            {!pack.query_stats.length ? (
               <div>There are no schedule queries for this pack.</div>
             ) : (
               <div className={`${baseClass}__wrapper`}>
@@ -291,11 +267,11 @@ export class HostDetailsPage extends Component {
                     </tr>
                   </thead>
                   <tbody>
-                    {!!packDOTscheduled_queries.length &&
-                      packDOTscheduled_queries.map((query) => {
+                    {!!pack.query_stats.length &&
+                      pack.query_stats.map((query) => {
                         return (
                           <PackQueriesListRow
-                            key={`pack-row-${pack.id}-${query.id}`}
+                            key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
                             query={query}
                           />
                         );
