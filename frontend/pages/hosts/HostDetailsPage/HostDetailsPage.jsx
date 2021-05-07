@@ -246,6 +246,10 @@ export class HostDetailsPage extends Component {
     const { packs = [], pack_stats = [] } = host;
     const wrapperClassName = `${baseClass}__table`;
 
+    if (pack_stats === null || pack_stats.length === 0) {
+      return <p>There are no packs for this host.</p>;
+    }
+
     const packsAccordion = pack_stats.map((pack) => {
       return (
         <AccordionItem key={pack.pack_id}>
