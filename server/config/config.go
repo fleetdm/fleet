@@ -228,7 +228,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.url_prefix", "",
 		"URL prefix used on server and frontend endpoints")
 	man.addConfigBool("server.keepalive", true,
-		"Controls wether HTTP keep-alives are enabled."
+		"Controls wether HTTP keep-alives are enabled.")
 
 	// Auth
 	man.addConfigString("auth.jwt_key", "",
