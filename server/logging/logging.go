@@ -74,8 +74,7 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 		status, err = NewPubSubLogWriter(
 			config.PubSub.Project,
 			config.PubSub.StatusTopic,
-			"",
-			"",
+			false,
 			logger,
 		)
 		if err != nil {
@@ -147,8 +146,7 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 		result, err = NewPubSubLogWriter(
 			config.PubSub.Project,
 			config.PubSub.ResultTopic,
-			config.PubSub.IncludeAttributes,
-			config.PubSub.DecorationAttributes,
+			config.PubSub.AddAttributes,
 			logger,
 		)
 		if err != nil {

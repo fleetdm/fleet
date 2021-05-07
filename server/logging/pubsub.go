@@ -3,8 +3,7 @@ package logging
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strings"
+	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/go-kit/kit/log"
@@ -13,14 +12,18 @@ import (
 )
 
 type pubSubLogWriter struct {
-	topic                *pubsub.Topic
-	logger               log.Logger
-	includeAttributes    []string
-	decorationAttributes []string
-	decorationPrefix     string
+	topic         *pubsub.Topic
+	logger        log.Logger
+	addAttributes bool
 }
 
-func NewPubSubLogWriter(projectId string, topicName string, includeAttributes string, decorationAttributes string, decorationPrefix string, logger log.Logger) (*pubSubLogWriter, error) {
+type PubSubAttributes struct {
+	Name        string            `json:"name"`
+	UnixTime    int64             `json:"unixTime"`
+	Decorations map[string]string `json:"decorations"`
+}
+
+func NewPubSubLogWriter(projectId string, topicName string, addAttributes bool, logger log.Logger) (*pubSubLogWriter, error) {
 	ctx := context.Background()
 
 	client, err := pubsub.NewClient(ctx, projectId)
@@ -34,88 +37,22 @@ func NewPubSubLogWriter(projectId string, topicName string, includeAttributes st
 		"msg", "GCP PubSub writer configured",
 		"project", projectId,
 		"topic", topicName,
-		"include_attributes", includeAttributes,
-		"decoration_attributes", decorationAttributes,
-		"decoration_prefix", decorationPrefix,
+		"add_attributes", addAttributes,
 	)
 
 	return &pubSubLogWriter{
-		topic:                topic,
-		logger:               logger,
-		includeAttributes:    strings.Split(includeAttributes, ","),
-		decorationAttributes: strings.Split(decorationAttributes, ","),
-		decorationPrefix:     decorationPrefix,
+		topic:         topic,
+		logger:        logger,
+		addAttributes: addAttributes,
 	}, nil
 }
 
-func asString(value interface{}) (string, bool) {
-	switch v := value.(type) {
-	case string, float64, bool, nil:
-		return fmt.Sprint(v), true
-	default:
-		return "", false
+func estimateAttributeSize(attributes map[string]string) int {
+	var sz int
+	for k, v := range attributes {
+		sz += len(k) + len(v) + 2
 	}
-}
-
-func extractAttributes(dest map[string]string, source map[string]interface{}, attributes []string, logger log.Logger) int {
-	var attributeSize int
-
-	for _, key := range attributes {
-		value, ok := source[key]
-		if !ok {
-			continue
-		}
-
-		stringVal, ok := asString(value)
-		if !ok {
-			level.Warn(logger).Log(
-				"msg", "not including pubsub attribute with composite typed value",
-				"key", key,
-				"type", fmt.Sprintf("%T", value),
-			)
-			continue
-		}
-		dest[key] = stringVal
-		attributeSize += len(key) + len(stringVal) + 2
-	}
-	return attributeSize
-}
-
-func extractDecorations(dest map[string]string, source interface{}, attributes []string, decorationPrefix string, logger log.Logger) int {
-	var attributeSize int
-
-	if source == nil || len(attributes) == 0 {
-		return 0
-	}
-
-	decorations, ok := source.(map[string]interface{})
-	if !ok {
-		level.Warn(logger).Log(
-			"msg", "decorations is not an object type",
-			"type", fmt.Sprintf("%T", source),
-		)
-		return 0
-	}
-
-	for _, key := range attributes {
-		value, ok := decorations[key]
-		if !ok {
-			continue
-		}
-
-		stringVal, ok := asString(value)
-		if !ok {
-			level.Warn(logger).Log(
-				"msg", "not including pubsub attribute with composite typed value",
-				"key", key,
-				"type", fmt.Sprintf("%T", value),
-			)
-			continue
-		}
-		dest[decorationPrefix+key] = stringVal
-		attributeSize += len(decorationPrefix) + len(key) + len(stringVal) + 2
-	}
-	return attributeSize
+	return sz
 }
 
 func (w *pubSubLogWriter) Write(ctx context.Context, logs []json.RawMessage) error {
@@ -129,19 +66,21 @@ func (w *pubSubLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 		}
 
 		attributes := make(map[string]string)
-		var attributeSize int
 
-		if len(w.includeAttributes) > 0 || len(w.decorationAttributes) > 0 {
-			unmarshaled := make(map[string]interface{})
+		if w.addAttributes {
+			var unmarshaled PubSubAttributes
+
 			if err := json.Unmarshal(log, &unmarshaled); err != nil {
 				return errors.Wrap(err, "unmarshalling log message JSON")
 			}
-
-			attributeSize = extractAttributes(attributes, unmarshaled, w.includeAttributes, w.logger)
-			attributeSize += extractDecorations(attributes, unmarshaled["decorations"], w.decorationAttributes, w.decorationPrefix, w.logger)
+			attributes["name"] = unmarshaled.Name
+			attributes["timestamp"] = time.Unix(unmarshaled.UnixTime, 0).Format(time.RFC3339)
+			for k, v := range unmarshaled.Decorations {
+				attributes[k] = v
+			}
 		}
 
-		if len(data)+attributeSize > pubsub.MaxPublishRequestBytes {
+		if len(data)+estimateAttributeSize(attributes) > pubsub.MaxPublishRequestBytes {
 			level.Info(w.logger).Log(
 				"msg", "dropping log over 10MB PubSub limit",
 				"size", len(data),

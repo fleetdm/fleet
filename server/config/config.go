@@ -139,12 +139,10 @@ type S3Config struct {
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
-	Project              string
-	StatusTopic          string `yaml:"status_topic"`
-	ResultTopic          string `yaml:"result_topic"`
-	IncludeAttributes    string `yaml:"include_attributes"`
-	DecorationAttributes string `yaml:"decoration_attributes"`
-	DecorationPrefix     string `yaml:"decoration_prefix"`
+	Project       string
+	StatusTopic   string `yaml:"status_topic"`
+	ResultTopic   string `yaml:"result_topic"`
+	AddAttributes bool   `yaml:"add_attributes"`
 }
 
 // FilesystemConfig defines configs for the Filesystem logging plugin
@@ -328,9 +326,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
 	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
 	man.addConfigString("pubsub.result_topic", "", "PubSub topic for result logs")
-	man.addConfigString("pubsub.include_attributes", "", "Comma-separated list of json keys to include as PubSub attributes")
-	man.addConfigString("pubsub.decoration_attributes", "", "Comma-separated list of decorations to include as PubSub attributes")
-	man.addConfigString("pubsub.decoration_prefix", "", "Prefix decoration attributes with this value, to avoid conflicts top-level attributes")
+	man.addConfigBool("pubsub.add_attributes", false, "Add PubSub attributes in addition to the message body")
 
 	// Filesystem
 	man.addConfigString("filesystem.status_log_file", "/tmp/osquery_status",
@@ -465,12 +461,10 @@ func (man Manager) LoadConfig() KolideConfig {
 			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
 		},
 		PubSub: PubSubConfig{
-			Project:              man.getConfigString("pubsub.project"),
-			StatusTopic:          man.getConfigString("pubsub.status_topic"),
-			ResultTopic:          man.getConfigString("pubsub.result_topic"),
-			IncludeAttributes:    man.getConfigString("pubsub.include_attributes"),
-			DecorationAttributes: man.getConfigString("pubsub.decoration_attributes"),
-			DecorationPrefix:     man.getConfigString("pubsub.decoration_prefix"),
+			Project:       man.getConfigString("pubsub.project"),
+			StatusTopic:   man.getConfigString("pubsub.status_topic"),
+			ResultTopic:   man.getConfigString("pubsub.result_topic"),
+			AddAttributes: man.getConfigBool("pubsub.add_attributes"),
 		},
 		Filesystem: FilesystemConfig{
 			StatusLogFile:        man.getConfigString("filesystem.status_log_file"),
