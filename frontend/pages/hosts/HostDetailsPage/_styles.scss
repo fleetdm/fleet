@@ -251,7 +251,71 @@ a {
   }
 
   #back-chevron {
-    width: 12px;
-    margin-right: 10px;
+    width: 16px;
+    margin-right: $pad-small;
+  }
+
+  .accordion {
+    border-radius: 2px;
+  }
+
+  .accordion__item + .accordion__item {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .accordion__button {
+    background-color: #fff;
+    color: $core-fleet-black;
+    cursor: pointer;
+    text-align: left;
+    font-size: $x-small;
+    font-weight: bold;
+    border: none;
+    padding: 17px 12px;
+  }
+
+  .accordion__button:hover {
+    background-color: $ui-vibrant-blue-10;
+  }
+
+  .accordion__button:after {
+    display: block;
+    content: url("../assets/images/icon-chevron-purple-9x6@2x.png");
+    text-align: center;
+    top: 50%;
+    float: right;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    transform: scale(0.5) translate(-50%, -60%);
+  }
+
+  .accordion__button[aria-expanded="true"]::after,
+  .accordion__button[aria-selected="true"]::after {
+    background-color: $core-vibrant-blue;
+    content: url("../assets/images/icon-accordion-collapse-16x16@2x.png");
+  }
+
+  [hidden] {
+    display: none;
+  }
+
+  .accordion__panel {
+    padding: 20px;
+    animation: fadein 0.35s ease-in;
+  }
+
+  /* -------------------------------------------------- */
+  /* ---------------- Animation part ------------------ */
+  /* -------------------------------------------------- */
+
+  @keyframes fadein {
+    0% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
   }
 }
