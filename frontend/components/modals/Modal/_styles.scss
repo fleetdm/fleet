@@ -21,48 +21,18 @@
     text-decoration: none;
 
     .button {
-      content: url("../assets/images/icon-close-8x8@2x.png");
-      padding: 8px;
-      width: 8px;
-      height: 8px;
+      content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
+      width: 17px;
+      height: 17px;
       border-radius: 0px;
-
-      &:hover {
-        color: $ui-error;
-      }
     }
-    // MOST RECENT:::
-    // &__ex {
-    //   text-decoration: none;
-    //   content: url("../assets/images/icon-close-8x8@2x.png");
-    //   width: 8px;
-    //   height: 8px;
-    //   margin-right: 2px;
-    //   margin-top: 10px;
 
-    //   &:hover {
-    //     color: $ui-error;
-    //   }
-    //   .button {
-    //     border-radius: 0px;
-    //   }
-    // }
-    // .button {
-    //   @include size(30px);
-    //   line-height: 30px;
-    //   color: $core-fleet-black;
-    //   font-size: $x-large;
-
-    //   &:hover {
-    //     color: $ui-error;
-    //   }
-    // }
-
-    // .close {
-    //   content: url("../assets/images/icon-close-8x8@2x.png");
-    //   width: 15px;
-    //   height: 15px;
-    // }
+    .button:hover {
+      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+      width: 17px;
+      height: 17px;
+      border-radius: 0px;
+    }
   }
 
   &__header {
