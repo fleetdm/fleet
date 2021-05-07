@@ -53,7 +53,7 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
       dispatch(renderFlash("error", error.reason));
       return false;
     }
-    dispatch(osqueryOptionsActions.updateOsqueryOptions(updatedForm))
+    dispatch(osqueryOptionsActions.updateOsqueryOptions(updatedForm, teamId))
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
       })
