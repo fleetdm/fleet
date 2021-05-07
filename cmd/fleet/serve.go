@@ -368,7 +368,7 @@ the way that the Fleet server works.
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
 			}
-			srv.SetKeepAlivesEnabled(config.Server.KeepAlive)
+			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 			errs := make(chan error, 2)
 			go func() {
 				if !config.Server.TLS {

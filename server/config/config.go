@@ -55,7 +55,7 @@ type ServerConfig struct {
 	TLS        bool
 	TLSProfile string // TODO #271 set `yaml:"tls_compatibility"`
 	URLPrefix  string `yaml:"url_prefix"`
-	KeepAlive  bool   `yaml:"keepalive"`
+	Keepalive  bool   `yaml:"keepalive"`
 }
 
 // AuthConfig defines configs related to user authorization
@@ -398,7 +398,7 @@ func (man Manager) LoadConfig() KolideConfig {
 			TLS:        man.getConfigBool("server.tls"),
 			TLSProfile: man.getConfigTLSProfile(),
 			URLPrefix:  man.getConfigString("server.url_prefix"),
-			KeepAlive:  man.getConfigBool("server.keepalive"),
+			Keepalive:  man.getConfigBool("server.keepalive"),
 		},
 		Auth: AuthConfig{
 			JwtKey:      man.getConfigString("auth.jwt_key"),

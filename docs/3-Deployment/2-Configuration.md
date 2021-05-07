@@ -420,6 +420,19 @@ Note that some other configurations may need to be changed when modifying the UR
   	url_prefix: /apps/fleet
   ```
 
+###### `server_keepalive`
+
+Controls the server side http keep alive property. 
+
+- Default value: True
+- Environment variable: `FLEET_SERVER_KEEPALIVE`
+- Config file format:
+
+  ```
+  server:
+  	keepalive: true
+  ```
+
 ##### Auth
 
 ###### `auth_jwt_key`
