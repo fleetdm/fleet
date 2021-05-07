@@ -224,10 +224,12 @@ SELECT
 	sq.id AS scheduled_query_id,
 	sq.query_name AS query_name,
 	p.name AS pack_name,
-	p.id as pack_id
+	p.id as pack_id,
+	q.description
 FROM scheduled_query_stats sqs
 	JOIN scheduled_queries sq ON (sqs.scheduled_query_id = sq.id)
-	JOIN packs p ON (sq.pack_id = p.id)  
+	JOIN packs p ON (sq.pack_id = p.id)
+	JOIN queries q ON (sq.query_name = q.name)
 WHERE host_id = ?
 `
 	var stats []kolide.ScheduledQueryStats
