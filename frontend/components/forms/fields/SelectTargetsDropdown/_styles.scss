@@ -31,15 +31,20 @@
     }
 
     .Select-arrow {
-      // border-width: 8px 8px 2.5px;
       content: url("../assets/images/icon-chevron-black-9x6@2x.png");
-      height: 50px;
-      width: 50px;
+      height: 6px;
+      width: 9px;
+      margin-bottom: 4px;
+      border: none;
     }
 
     &.is-open {
       .Select-arrow {
-        border-width: 2.5px 8px 8px;
+        content: url("../assets/images/icon-accordion-collapse-black-16x16@2x.png");
+        height: 16px;
+        width: 16px;
+        margin-bottom: 4px;
+        border: none;
       }
 
       .Select-arrow-zone {
