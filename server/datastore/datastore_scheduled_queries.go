@@ -84,9 +84,11 @@ func testNewScheduledQuery(t *testing.T, ds kolide.Datastore) {
 	query, err := ds.NewScheduledQuery(&kolide.ScheduledQuery{
 		PackID:  p1.ID,
 		QueryID: q1.ID,
+		Name:    "foo-scheduled",
 	})
 	require.Nil(t, err)
-	assert.Equal(t, "foo", query.Name)
+	assert.Equal(t, "foo", query.QueryName)
+	assert.Equal(t, "foo-scheduled", query.Name)
 	assert.Equal(t, "select * from time;", query.Query)
 }
 

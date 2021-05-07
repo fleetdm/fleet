@@ -1061,9 +1061,9 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
 	assert.Len(t, host.PackStats, 2)
 	sort.Slice(host.PackStats, func(i, j int) bool {
-		return host.PackStats[i].Name < host.PackStats[j].Name
+		return host.PackStats[i].PackName < host.PackStats[j].PackName
 	})
-	assert.Equal(t, host.PackStats[0].Name, "pack-2")
+	assert.Equal(t, host.PackStats[0].PackName, "pack-2")
 	assert.ElementsMatch(t, host.PackStats[0].QueryStats,
 		[]kolide.ScheduledQueryStats{
 			{
@@ -1081,7 +1081,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 			},
 		},
 	)
-	assert.Equal(t, host.PackStats[1].Name, "test")
+	assert.Equal(t, host.PackStats[1].PackName, "test")
 	assert.ElementsMatch(t, host.PackStats[1].QueryStats,
 		[]kolide.ScheduledQueryStats{
 			{
