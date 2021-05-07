@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+kind: query
+spec:
+  description: Returns the private keys which are not encrypted for local accounts
+  name: ssh_keys_unencrypted
+  query: SELECT uid, username, description, path, encrypted FROM users cross join user_ssh_keys using (uid) WHERE encrypted=0;
