@@ -169,7 +169,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
             </Button>
             <Button onClick={toggleDeleteTeamModal} variant={"text-icon"}>
               <>
-                <img src={TrashIcon} alt="pencil icon" />
+                <img src={TrashIcon} alt="trash icon" />
                 Delete team
               </>
             </Button>
