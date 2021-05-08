@@ -1172,7 +1172,7 @@ The identifier of the pubsub topic that osquery status logs will be published to
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
-Add Pub/Sub attributes to messages.  When enabled, the plugin parses the OSQuery result
+Add Pub/Sub attributes to messages.  When enabled, the plugin parses the osquery result
 messages, and adds the following Pub/Sub message attributes:
 
 - `name` - the `name` attribute from the message body
