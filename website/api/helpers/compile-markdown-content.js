@@ -166,8 +166,12 @@ module.exports = {
       });//_∏_
     });
 
-    // Return the menu data, to provide a nicer way of programmatically working with it.
+    // Now return the menu data, to provide a nicer way of programmatically working with it.
+    // But first, we'll clean it up a bit.
     let filesGenerated = await sails.helpers.fs.readJson(jsMenuOutputPath);
+
+    // TODO: bring in the other cleanup in marshal-doc-page-metadata from sailsjs.com repo
+
     // Since the format from the doc-templater package can be a little bit misleading,
     // we'll also munge the resulting data a little bit.
     for (let fileInfo of filesGenerated) {
