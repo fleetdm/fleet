@@ -45,7 +45,7 @@
 
     &.is-open {
       .Select-arrow {
-        content: url("../assets/images/icon-accordion-collapse-black-16x16@2x.png");
+        content: url("../assets/images/icon-collapse-black-16x16@2x.png");
         height: 16px;
         width: 16px;
         margin-top: 11px;
@@ -53,7 +53,7 @@
         border: none;
 
         &:hover {
-          content: url("../assets/images/icon-accordion-collapse-blue-16x16@2x.png");
+          content: url("../assets/images/icon-collapse-blue-16x16@2x.png");
         }
       }
 
