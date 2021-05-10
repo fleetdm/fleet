@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Compile markdown docs',
+  friendlyName: 'Compile markdown content',
 
 
   description: 'Compile documentation templates from markdown.',
