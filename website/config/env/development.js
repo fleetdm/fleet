@@ -14,4 +14,10 @@ module.exports = {
   // be running on port 1337 on your computer.)
   port: 2024,
 
+  // Add any dev-only routes for local development of not-yet-released pages.
+  // e.g. http://localhost:2024/sandbox/example-query
+  routes: {
+    'GET /sandbox/example-query': { action: 'view-query-detail' },
+  },
+
 };
