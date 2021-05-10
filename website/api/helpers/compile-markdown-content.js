@@ -63,6 +63,9 @@ module.exports = {
           let LANG_MARKER_PREFIX = '<!-- __LANG=%';
           let LANG_MARKER_SUFFIX = '%__ -->';
           let modifiedMd = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + LANG_MARKER_PREFIX + '$2' + LANG_MARKER_SUFFIX + '$3');
+
+          // FUTURE: implement a way of skipping non-markdown files, such as pngs (maybe here, but prbly just make it built-in)
+
           return proceed(undefined, modifiedMd);
         },
         afterConvert: (html, proceed)=>{// This function is applied to each template after the markdown is converted to markup
