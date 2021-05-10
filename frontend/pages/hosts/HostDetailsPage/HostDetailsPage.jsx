@@ -385,6 +385,17 @@ export class HostDetailsPage extends Component {
     const data = [titleData, aboutData, osqueryData];
     data.forEach((object) => {
       Object.keys(object).forEach((key) => {
+        const secondsToHms = (d) => {
+          const h = Math.floor(d / 3600);
+          const m = Math.floor((d % 3600) / 60);
+          const s = Math.floor((d % 3600) % 60);
+
+          const hDisplay = h > 0 ? h + (h === 1 ? " hr " : " hrs ") : "";
+          const mDisplay = m > 0 ? m + (m === 1 ? " min " : " mins ") : "";
+          const sDisplay = s > 0 ? s + (s === 1 ? " sec " : " secs ") : "";
+          return hDisplay + mDisplay + sDisplay;
+        };
+
         if (object[key] === "") {
           object[key] = "--";
         } else if (
@@ -392,7 +403,7 @@ export class HostDetailsPage extends Component {
           key === "config_tls_refresh" ||
           key === "distributed_interval"
         ) {
-          object[key] = `${object[key]} sec`;
+          object[key] = secondsToHms(object[key]);
         }
       });
     });
