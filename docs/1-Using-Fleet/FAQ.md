@@ -110,4 +110,4 @@ It’s possible in Fleet to retrieve each host’s kernel version, using the Fle
 
 You can do this by setting the `targets` field in the [YAML configuration file](./2-fleetctl-CLI.md#query-packs) that manages the packs that are added to your Fleet instance. 
 
-The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of labels specified, upon enrolling to Fleet, will automatically become targets of the given pack.
+The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of the specified labels, upon enrolling to Fleet, will automatically become targets of the given pack.
