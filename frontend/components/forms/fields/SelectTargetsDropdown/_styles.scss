@@ -35,7 +35,7 @@
       height: 16px;
       width: 16px;
       margin-top: 6px;
-      margin-left: -4px;
+      margin-left: 6px;
       border: none;
 
       &:hover {
@@ -49,7 +49,7 @@
         height: 16px;
         width: 16px;
         margin-top: 11px;
-        margin-left: -3px;
+        margin-left: 6px;
         border: none;
 
         &:hover {
@@ -85,7 +85,7 @@
     }
 
     .Select-arrow-zone {
-      padding-right: 19px;
+      padding-right: 30px;
     }
 
     &.Select--multi {
@@ -163,8 +163,8 @@
         content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
         transform: scale(0.5);
         border-radius: 0px;
-        margin-left: -16px;
         margin-top: -15px;
+        margin-left: -15px;
       }
 
       &:hover {
@@ -189,7 +189,7 @@
     width: 16px;
     height: 16px;
     border-radius: 0px;
-    margin-left: -14px;
+    margin-left: -4px;
     margin-top: 6px;
 
     &:hover {
@@ -200,8 +200,17 @@
     }
   }
 
+  .Select-clear-zone {
+    width: 30px;
+  }
+
+  .Select-arrow-zone {
+    width: 30px;
+    margin-right: 5px;
+  }
+
   .Select-loading-zone {
-    padding-right: 10px;
+    margin-right: 10px;
   }
 
   &.is-empty {
