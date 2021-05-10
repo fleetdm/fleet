@@ -41,7 +41,7 @@ fleetctl apply -f fleet/handbook/queries/import-queries.yml
 
 Want to add your own query? 
 
-Please submit a pull request to the [import-queries.yml](./import-queries.yml) file that includes your query.
+Please submit a pull request with your query to the [import-queries.yml](./import-queries.yml) file.
 
 ### Additional resources
 
