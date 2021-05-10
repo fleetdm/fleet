@@ -30,12 +30,18 @@ Fleet's standard query library includes a growing collection of useful queries f
 - [Get system uptime](./get-system-uptime.md) (macOS, Linux, Windows, FreeBSD)
 - [Get crashes](./get-crashes.md) (macOS)
 
+### Importing the queries in Fleet
+
+#### After cloning the fleetdm/fleet repo, import the queries using fleetctl
+```
+fleetctl apply -f fleet/handbook/queries/import-queries.yml
+```
 
 ### Contributors
 
 Want to add your own query? 
 
-Please submit a pull request using the [Fleet standard query library template](./standard-query-library-template.md).
+Please submit a pull request to the [import-queries.yml](./import-queries.yml) file that includes your query.
 
 ### Additional resources
 

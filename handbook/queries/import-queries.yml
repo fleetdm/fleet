@@ -1,0 +1,44 @@
+# This file includes Fleet's standard query library in YAML format.
+# Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery.
+
+# For instructions on how to import these queries to your Fleet instance, check out the documentation here: https://github.com/fleetdm/fleet/blob/58445ede82550cb574775a83ae4cf5433f325a7e/handbook/queries/README.md#importing-the-queries-in-Fleet
+
+# Want to contribute your own queries?
+# The comments section below is for those contributing to the standard query library.
+
+# 1. Please copy and paste the commented YAML section (lines 14-23) at the end of this file.
+# 2. Next, uncomment the section, replace each field, and submit a pull request to the fleetdm/fleet GitHub repository.
+
+# For instructions on submitting pull requests to Fleet, see the documentation here: https://github.com/fleetdm/fleet/blob/58445ede82550cb574775a83ae4cf5433f325a7e/docs/4-Contribution/4-Committing-Changes.md#committing-changes
+
+# ---
+# apiVersion: v1
+# kind: query
+# spec:
+#   name: What is your query called? Please use a human readable query name.
+#   platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
+#   description: Describe your query. What does information does your query reveal?
+#   query: Insert query here
+#   purpose: What is the goal of running your query? Ex. Detection
+#   remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
+
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect machines with Gatekeeper disabled
+  platforms: macOS
+  description: Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  query: SELECT * FROM gatekeeper WHERE assessments_enabled = 0;
+  purpose: Detection
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect presence of authorized SSH keys
+  platforms: macOS, Linux
+  description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
+  query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
+  purpose: Detection
+  remediation: N/A
