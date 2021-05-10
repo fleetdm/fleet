@@ -32,6 +32,24 @@
     @include clearfix;
     margin: 0 0 30px;
 
+    .upcarat {
+      content: url("../assets/images/icon-collapse-black-16x16@2x.png");
+      width: 16px;
+      height: 16px;
+      border-radius: 0px;
+      top: 5px;
+      margin: 4px;
+    }
+
+    .downcarat {
+      content: url("../assets/images/icon-chevron-black-16x16@2x.png");
+      width: 16px;
+      height: 16px;
+      border-radius: 0px;
+      top: 5px;
+      margin: 4px;
+    }
+
     h2 {
       a {
         color: $core-fleet-black;
