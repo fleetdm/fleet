@@ -137,4 +137,4 @@ lib-cov
 # HTML files compiled from markdown in build.
 ################################################
 
-partials/compiled-from-markdown/
+partials/built-from-markdown/

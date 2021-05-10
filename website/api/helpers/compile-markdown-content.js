@@ -45,7 +45,7 @@ module.exports = {
     sails.log.info('Compiling `%s` docs from the `%s` branch of `%s`...', repoPath, repoBranch, repoUrl);
 
     // Relative path within this app where output will be written.
-    let htmlOutputPath = path.join('views/partials/compiled-from-markdown/', _.kebabCase(repoPath));
+    let htmlOutputPath = path.join('views/partials/built-from-markdown/', _.kebabCase(repoPath));
 
     // Relative path within this app where temporary menu data will be written.
     // (This is consumed later in this file.)

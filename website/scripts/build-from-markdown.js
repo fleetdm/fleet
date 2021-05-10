@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Compile markdown content',
+  friendlyName: 'Build from markdown content',
 
 
   description: '',
@@ -33,10 +33,10 @@ module.exports = {
     // TODO
 
     // Now take the compiled menu file and inject it into the .sailsrc file so it
-    // can be accessed for the purposes of config using `sails.config.compiledFromMarkdown`.
+    // can be accessed for the purposes of config using `sails.config.builtFromMarkdown`.
     let sailsrcPath = path.resolve(sails.config.appPath, '.sailsrc');
     let sailsrcContent = await sails.helpers.fs.readJson(sailsrcPath);
-    sailsrcContent.compiledFromMarkdown = filesGeneratedBySection;
+    sailsrcContent.builtFromMarkdown = filesGeneratedBySection;
     await sails.helpers.fs.writeJson(sailsrcPath, sailsrcContent, true);
 
   }
