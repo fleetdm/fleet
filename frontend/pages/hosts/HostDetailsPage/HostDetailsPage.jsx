@@ -180,35 +180,36 @@ export class HostDetailsPage extends Component {
 
     const isOnline = host.status === "online";
     const isOffline = host.status === "offline";
-
-    return (
-      <div className={`${baseClass}__action-button-container`}>
-        <div data-tip data-for="query" data-tip-disable={isOnline}>
-          <Button
-            onClick={toggleQueryHostModal()}
-            variant="inverse"
-            disabled={isOffline}
-            className={`${baseClass}__query-button`}
+    if (isOffline) {
+      return (
+        <div className={`${baseClass}__action-button-container`}>
+          <div data-tip data-for="query" data-tip-disable={isOnline}>
+            <Button
+              onClick={toggleQueryHostModal()}
+              variant="inverse"
+              disabled={isOffline}
+              className={`${baseClass}__query-button`}
+            >
+              Query
+            </Button>
+          </div>
+          <ReactTooltip
+            place="bottom"
+            type="dark"
+            effect="solid"
+            id="query"
+            backgroundColor="#3e4771"
           >
-            Query
+            <span className={`${baseClass}__tooltip-text`}>
+              You can’t query <br /> a offline host.
+            </span>
+          </ReactTooltip>
+          <Button onClick={toggleDeleteHostModal()} variant="active">
+            Delete
           </Button>
         </div>
-        <ReactTooltip
-          place="bottom"
-          type="dark"
-          effect="solid"
-          id="query"
-          backgroundColor="#3e4771"
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            You can’t <br /> query an <br /> offline host.
-          </span>
-        </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="active">
-          Delete
-        </Button>
-      </div>
-    );
+      );
+    }
   };
 
   renderLabels = () => {
@@ -350,6 +351,39 @@ export class HostDetailsPage extends Component {
     );
   };
 
+  renderRefetch = () => {
+    const { host } = this.props;
+
+    const isOnline = host.status === "online";
+    const isOffline = host.status === "offline";
+
+    if (isOffline) {
+      return (
+        <>
+          <span
+            className="offline-refetch"
+            data-tip
+            data-for="refetch"
+            data-tip-disable={isOnline}
+          >
+            Refetch
+          </span>
+          <ReactTooltip
+            place="bottom"
+            type="dark"
+            effect="solid"
+            id="refetch"
+            backgroundColor="#3e4771"
+          >
+            <span className={`${baseClass}__tooltip-text`}>
+              You can’t fetch data from <br /> an offline host.
+            </span>
+          </ReactTooltip>
+        </>
+      );
+    }
+  };
+
   render() {
     const { host, isLoadingHost, dispatch, queries, queryErrors } = this.props;
     const { showQueryHostModal } = this.state;
@@ -360,6 +394,7 @@ export class HostDetailsPage extends Component {
       renderLabels,
       renderSoftware,
       renderPacks,
+      renderRefetch,
     } = this;
 
     const titleData = pick(host, [
@@ -416,9 +451,12 @@ export class HostDetailsPage extends Component {
           <div className="title__inner">
             <div className="hostname-container">
               <h1 className="hostname">{host.hostname}</h1>
-              <p className="last-fetched">{`Last fetched ${humanHostDetailUpdated(
-                titleData.detail_updated_at
-              )}`}</p>
+              <p className="last-fetched">
+                {`Last fetched ${humanHostDetailUpdated(
+                  titleData.detail_updated_at
+                )}`}{" "}
+                {renderRefetch()}
+              </p>
             </div>
             <div className="info">
               <div className="info__item info__item--title">

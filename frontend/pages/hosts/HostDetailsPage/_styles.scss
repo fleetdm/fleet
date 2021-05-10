@@ -108,6 +108,22 @@ a {
       color: $core-fleet-black;
       margin: 0;
       padding-left: $pad-small;
+
+      .offline-refetch {
+        color: $ui-fleet-blue-15;
+        cursor: default;
+
+        &::before {
+          display: inline-block;
+          content: url(../assets/images/icon-offline-refresh-12x12@2x.png);
+          transform: scale(0.5);
+          vertical-align: bottom;
+          opacity: 25%;
+          height: 20px;
+          width: 20px;
+          margin: 0px 2px;
+        }
+      }
     }
   }
 
