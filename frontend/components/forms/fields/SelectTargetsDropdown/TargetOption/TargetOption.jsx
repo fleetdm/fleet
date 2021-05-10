@@ -68,9 +68,7 @@ class TargetOption extends Component {
         <button
           className={`button button--unstyled ${baseClass}__add-btn`}
           onClick={handleSelect}
-        >
-          <KolideIcon name="add-button" />
-        </button>
+        />
       </div>
     );
   }
