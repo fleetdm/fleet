@@ -44,9 +44,12 @@ module.exports = {
 
     sails.log.info('Compiling `%s` docs from the `%s` branch of `%s`...', repoPath, repoBranch, repoUrl);
 
-    // Relative paths within this app where output will be written.
+    // Relative path within this app where output will be written.
     let htmlOutputPath = path.join('views/partials/compiled-from-markdown/', _.kebabCase(repoPath));
-    let jsMenuOutputPath = path.join('.tmp/doc-templater/menus/', `${_.kebabCase(repoPath)}.menu.json`);// fka "the .jsmenu file"
+
+    // Relative path within this app where temporary menu data will be written.
+    // (This is consumed later in this file.)
+    let jsMenuOutputPath = path.join('.tmp/doc-templater/menus/', `${_.kebabCase(repoPath)}.tmp-menu.json`);// fka "the .jsmenu file"
 
     // Delete existing output from previous runs, if any.
     await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, htmlOutputPath));
