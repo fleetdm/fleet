@@ -4,7 +4,7 @@
 
 # Want to contribute your own queries?
 
-# 1. Please copy the commented YAML section (lines 14-23) and paste it at the end of this file.
+# 1. Please copy the commented YAML section (lines 12-21) and paste it at the end of this file.
 # 2. Uncomment the section, replace each field, and submit a pull request to the fleetdm/fleet GitHub repository.
 
 # Instructions on submitting pull requests to Fleet: https://github.com/fleetdm/fleet/blob/58445ede82550cb574775a83ae4cf5433f325a7e/docs/4-Contribution/4-Committing-Changes.md#committing-changes
