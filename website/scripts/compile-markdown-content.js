@@ -11,7 +11,14 @@ module.exports = {
 
     sails.log('Running custom shell script... (`sails run compile-markdown-content`)');
 
-    throw new Error('TODO');
+    await sails.helpers.flow.simultaneously([
+      async()=>{
+        await sails.helpers.compileMarkdownContent('docs/');
+      },
+      async()=>{
+        await sails.helpers.compileMarkdownContent('handbook/queries/');
+      },
+    ]);
 
   }
 
