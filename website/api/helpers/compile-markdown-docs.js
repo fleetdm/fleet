@@ -12,7 +12,7 @@ module.exports = {
     repoPath: {
       description: 'The path of the subdirectory in the Git repo to compile from.',
       type: 'string',
-      example: 'anatomy',
+      example: 'docs/',
       required: true
     },
 
