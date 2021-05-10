@@ -1,4 +1,4 @@
-# Get system crashes
+# Get crashes
 
 Retrieve application, system, and mobile app crash logs.
 
