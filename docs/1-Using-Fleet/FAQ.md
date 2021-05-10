@@ -11,6 +11,7 @@
 - [Where are my query results?](#where-are-my-query-results)
 - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
 - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
+- [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
@@ -104,3 +105,9 @@ The ability to view each host’s installed software was released behind a featu
 Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./3-REST-API.md#get-host).
 
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options yaml file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts`  endpoint. [Check out an example configuration file with the additional_queries field](./2-fleetctl-CLI.md#fleet-configuration-options).
+
+## How do I automatically add hosts to packs when the hosts enroll to Fleet?
+
+You can do this by setting the `targets` field in the [YAML configuration file](./2-fleetctl-CLI.md#query-packs) that manages the packs that are added to your Fleet instance. 
+
+The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of the specified labels, upon enrolling to Fleet, will automatically become targets of the given pack.
