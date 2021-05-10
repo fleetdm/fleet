@@ -1,6 +1,9 @@
 import React from "react";
 
 import { IHost } from "interfaces/host";
+// ignore TS error for now until these are rewritten in ts.
+// @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
@@ -18,6 +21,8 @@ interface IHeaderProps {
     title: string;
     isSortedDesc: boolean;
   };
+  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  toggleAllRowsSelected: () => void;
 }
 
 interface ICellProps {
@@ -26,14 +31,17 @@ interface ICellProps {
   };
   row: {
     original: IHost;
+    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    toggleRowSelected: () => void;
   };
 }
 
 interface IHostDataColumn {
-  title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
   Cell: (props: ICellProps) => JSX.Element;
+  id?: string;
+  title?: string;
+  accessor?: string;
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
@@ -46,6 +54,27 @@ const lastSeenTime = (status: string, seenTime: string): string => {
 };
 
 const hostTableHeaders: IHostDataColumn[] = [
+  {
+    id: "selection",
+    Header: (cellProps) => {
+      const props = cellProps.getToggleAllRowsSelectedProps();
+      const checkboxProps = {
+        value: props.checked,
+        indeterminate: props.indeterminate,
+        onChange: (value: boolean) => cellProps.toggleAllRowsSelected(),
+      };
+      return <Checkbox {...checkboxProps} />;
+    },
+    Cell: (cellProps) => {
+      const props = cellProps.row.getToggleRowSelectedProps();
+      const checkboxProps = {
+        value: props.checked,
+        onChange: (value: boolean) => cellProps.row.toggleRowSelected(),
+      };
+      return <Checkbox {...checkboxProps} />;
+    },
+    disableHidden: true,
+  },
   {
     title: "Hostname",
     Header: (cellProps) => (
@@ -226,9 +255,11 @@ const defaultHiddenColumns = [
   "hardware_serial",
 ];
 
-const generateVisibleHostColumns = (hiddenColumns: string[]) => {
+const generateVisibleHostColumns = (
+  hiddenColumns: string[]
+): IHostDataColumn[] => {
   return hostTableHeaders.filter((column) => {
-    return !hiddenColumns.includes(column.accessor);
+    return !hiddenColumns.includes(column.accessor as string);
   });
 };
 

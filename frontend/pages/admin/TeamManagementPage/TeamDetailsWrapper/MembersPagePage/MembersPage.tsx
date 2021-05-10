@@ -138,7 +138,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
         });
       toggleAddUserModal();
     },
-    [dispatch, teamId, toggleAddUserModal]
+    [dispatch, teamId, toggleAddUserModal, team.name]
   );
 
   const onEditMemberSubmit = useCallback(

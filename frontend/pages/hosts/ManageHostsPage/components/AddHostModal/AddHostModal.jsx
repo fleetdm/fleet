@@ -9,8 +9,8 @@ import teamInterface from "interfaces/team";
 import enrollSecretInterface from "interfaces/enroll_secret";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
 import KolideIcon from "components/icons/KolideIcon";
+import Dropdown from "components/forms/fields/Dropdown";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
-import Dropdown from "../../../../../components/forms/fields/Dropdown";
 
 const baseClass = "add-host-modal";
 

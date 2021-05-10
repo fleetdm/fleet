@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import classnames from "classnames";
 import { useAsyncDebounce } from "react-table";
-
 import Button from "components/buttons/Button";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
@@ -15,7 +14,6 @@ import scrollToTop from "utilities/scroll_to_top";
 
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
-
 import TableContainerUtils from "./TableContainerUtils";
 
 interface ITableQueryData {
@@ -35,8 +33,8 @@ interface ITableContainerProps<T, U> {
   onActionButtonClick: () => void;
   actionButtonText: string;
   onQueryChange: (queryData: ITableQueryData) => void;
+  onSelectActionClick?: () => void;
   inputPlaceHolder: string;
-  includesTableActionButton?: boolean; // will be used later to conditionally show button
   disableActionButton?: boolean;
   resultsTitle?: string;
   additionalQueries?: string;
@@ -68,6 +66,7 @@ const TableContainer = <T, U>(
     className,
     disableActionButton,
     actionButtonText,
+    onSelectActionClick,
   } = props;
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -156,6 +155,8 @@ const TableContainer = <T, U>(
     pageIndex,
     additionalQueries,
     onQueryChange,
+    debounceOnQueryChange,
+    prevSearchQuery,
   ]);
 
   return (
@@ -207,6 +208,7 @@ const TableContainer = <T, U>(
               sortHeader={sortHeader}
               sortDirection={sortDirection}
               onSort={onSortChange}
+              onSelectActionClick={onSelectActionClick}
             />
             <Pagination
               resultsOnCurrentPage={data.length}

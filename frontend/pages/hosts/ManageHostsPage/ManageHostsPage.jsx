@@ -37,6 +37,7 @@ import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
+import TransferHostModal from "./components/TransferHostModal";
 
 const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
@@ -62,6 +63,7 @@ export class ManageHostsPage extends PureComponent {
     loadingHosts: PropTypes.bool,
     canAddNewHosts: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
+    isGlobalAdmin: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -72,7 +74,8 @@ export class ManageHostsPage extends PureComponent {
   constructor(props) {
     super(props);
 
-    // For now we persist using localstorage. May do server side persistence later.
+    // For now we persist hidden columns using localstorage. May do server side
+    // persistence later.
     const storedHiddenColumns = JSON.parse(
       localStorage.getItem("hostHiddenColumns")
     );
@@ -83,6 +86,7 @@ export class ManageHostsPage extends PureComponent {
       selectedHost: null,
       showDeleteLabelModal: false,
       showEditColumnsModal: false,
+      showTransferHostModal: false,
       hiddenColumns:
         storedHiddenColumns !== null
           ? storedHiddenColumns
@@ -100,26 +104,18 @@ export class ManageHostsPage extends PureComponent {
 
   componentWillUnmount() {
     this.clearHostUpdates();
-    return false;
   }
 
   onAddLabelClick = (evt) => {
     evt.preventDefault();
-
     const { dispatch, selectedFilter } = this.props;
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${NEW_LABEL_HASH}`));
-
-    return false;
   };
 
   onEditLabelClick = (evt) => {
     evt.preventDefault();
-
     const { dispatch, selectedFilter } = this.props;
-    console.log(selectedFilter);
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${EDIT_LABEL_HASH}`));
-
-    return false;
   };
 
   onEditColumnsClick = () => {
@@ -242,6 +238,11 @@ export class ManageHostsPage extends PureComponent {
     });
   };
 
+  onTransferHostSubmit = (team) => {
+    const { toggleTransferHostModal } = this;
+    toggleTransferHostModal();
+  };
+
   clearHostUpdates() {
     if (this.timeout) {
       global.window.clearTimeout(this.timeout);
@@ -252,14 +253,16 @@ export class ManageHostsPage extends PureComponent {
   toggleAddHostModal = () => {
     const { showAddHostModal } = this.state;
     this.setState({ showAddHostModal: !showAddHostModal });
-    return false;
   };
 
   toggleDeleteLabelModal = () => {
     const { showDeleteLabelModal } = this.state;
-
     this.setState({ showDeleteLabelModal: !showDeleteLabelModal });
-    return false;
+  };
+
+  toggleTransferHostModal = () => {
+    const { showTransferHostModal } = this.state;
+    this.setState({ showTransferHostModal: !showTransferHostModal });
   };
 
   renderEditColumnsModal = () => {
@@ -332,6 +335,23 @@ export class ManageHostsPage extends PureComponent {
           </Button>
         </div>
       </Modal>
+    );
+  };
+
+  renderTransferHostModal = () => {
+    const { toggleTransferHostModal, onTransferHostSubmit } = this;
+    const { teams, isGlobalAdmin } = this.props;
+    const { showTransferHostModal } = this.state;
+
+    if (!showTransferHostModal) return null;
+
+    return (
+      <TransferHostModal
+        isGlobalAdmin={isGlobalAdmin}
+        teams={teams}
+        onSubmit={onTransferHostSubmit}
+        onCancel={toggleTransferHostModal}
+      />
     );
   };
 
@@ -501,7 +521,11 @@ export class ManageHostsPage extends PureComponent {
   renderTable = () => {
     const { selectedFilter, selectedLabel, hosts, loadingHosts } = this.props;
     const { hiddenColumns } = this.state;
-    const { onTableQueryChange, onEditColumnsClick } = this;
+    const {
+      onTableQueryChange,
+      onEditColumnsClick,
+      toggleTransferHostModal,
+    } = this;
 
     // The data has not been fetched yet.
     if (selectedFilter === undefined || selectedLabel === undefined)
@@ -523,6 +547,7 @@ export class ManageHostsPage extends PureComponent {
         additionalQueries={JSON.stringify([selectedFilter])}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
+        onSelectActionClick={toggleTransferHostModal}
         onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
         emptyComponent={EmptyHosts}
@@ -540,6 +565,7 @@ export class ManageHostsPage extends PureComponent {
       renderQuery,
       renderTable,
       renderEditColumnsModal,
+      renderTransferHostModal,
       onAddHostClick,
     } = this;
     const {
@@ -553,7 +579,6 @@ export class ManageHostsPage extends PureComponent {
     return (
       <div className="has-sidebar">
         {renderForm()}
-
         {!isAddLabel && !isEditLabel && (
           <div className={`${baseClass} body-wrap`}>
             <div className="header-wrap">
@@ -575,6 +600,7 @@ export class ManageHostsPage extends PureComponent {
         {renderAddHostModal()}
         {renderEditColumnsModal()}
         {renderDeleteLabelModal()}
+        {renderTransferHostModal()}
       </div>
     );
   }
@@ -609,6 +635,7 @@ const mapStateToProps = (state, { location, params }) => {
   const canAddNewHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
+  const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
 
   const teams = memoizedGetEntity(state.entities.teams.data);
 
@@ -627,6 +654,7 @@ const mapStateToProps = (state, { location, params }) => {
     hosts,
     loadingHosts,
     canAddNewHosts,
+    isGlobalAdmin,
     teams,
   };
 };
