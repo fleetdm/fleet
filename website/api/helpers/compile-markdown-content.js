@@ -31,6 +31,11 @@ module.exports = {
   },
 
 
+  exits: {
+    success: { outputDescription: 'A list of metadata about all generated HTML files.', outputType: [{}] }
+  },
+
+
   fn: async function ({repoPath, repoBranch, repoUrl}) {
 
     let path = require('path');
@@ -47,8 +52,8 @@ module.exports = {
     await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, htmlOutputPath));
     await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, jsMenuOutputPath));
 
-    // Compile the markdown into HTML templates and menu files.
-    // (Note that "lastModified" in the resulting jsmenu files can be misleading)
+    // Compile the markdown into HTML files and a JSON file (aka "jsmenu") representing
+    // the manifest of all compiled HTML files and their hierarchy.
     await new Promise((resolve, reject)=>{
       DocTemplater().build([{
         remote: repoUrl,
@@ -157,6 +162,23 @@ module.exports = {
         }
       });//_∏_
     });
+
+    // Return the menu data, to provide a nicer way of programmatically working with it.
+    let filesGenerated = await sails.helpers.fs.readJson(jsMenuOutputPath);
+    // Since the format from the doc-templater package can be a little bit misleading,
+    // we'll also munge the resulting data a little bit.
+    for (let fileInfo of filesGenerated) {
+
+      fileInfo.path = fileInfo.fullPathAndFileName;// « for clarity (it's not technically the full path)
+      delete fileInfo.fullPathAndFileName;
+
+      fileInfo.fallbackTitle = sails.helpers.toSentenceCase(path.basename(fileInfo.templateTitle, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
+      delete fileInfo.templateTitle;
+
+      delete fileInfo.data.lastModified;// « for clarity (this isn't the timestamp you're expecting, so we delete it)
+    }//∞
+
+    return filesGenerated;
 
   }
 
