@@ -1,17 +1,15 @@
 module.exports = {
 
 
-  friendlyName: 'Build from markdown content',
+  friendlyName: 'Build from markdown',
 
 
-  description: '',
+  description: 'Generate HTML partials from markdown content in fleetdm/fleet repo, and configure metadata about the generate files so it is available in `sails.config.builtFromMarkdown`.',
 
 
   fn: async function () {
 
     let path = require('path');
-
-    // sails.log('Running custom shell script... (`sails run compile-markdown-content`)');
 
     let filesGeneratedBySection = {
       documentation: await sails.helpers.compileMarkdownContent('docs/'),
