@@ -100,20 +100,56 @@
   }
 
   .Select-arrow {
-    border-top-color: $core-fleet-black;
+    content: url("../assets/images/icon-chevron-black-16x16@2x.png");
+    height: 16px;
+    width: 16px;
+    margin-top: 6px;
+    margin-left: -4px;
+    border: none;
+
+    &:hover {
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+    }
   }
 
-  &.is-focused {
-    .Select-control {
-      border: 1px solid $core-vibrant-blue;
+  &.is-open {
+    .Select-arrow {
+      content: url("../assets/images/icon-collapse-black-16x16@2x.png");
+      height: 16px;
+      width: 16px;
+      margin-top: 11px;
+      margin-left: -3px;
+      border: none;
+
+      &:hover {
+        content: url("../assets/images/icon-collapse-blue-16x16@2x.png");
+      }
     }
 
-    &:not(.is-open) {
-      .Select-control {
-        box-shadow: none;
+    .Select-arrow-zone {
+      &:hover {
+        .Select-arrow {
+          border-top-color: transparent;
+        }
       }
     }
   }
+
+  // .Select-arrow {
+  //   border-top-color: $core-vibrant-blue;
+  // }
+
+  // &.is-focused {
+  //   .Select-control {
+  //     border: 1px solid $core-vibrant-blue;
+  //   }
+
+  //   &:not(.is-open) {
+  //     .Select-control {
+  //       box-shadow: none;
+  //     }
+  //   }
+  // }
 
   &.has-value {
     > .Select-control,
