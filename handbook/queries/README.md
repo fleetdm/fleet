@@ -8,7 +8,7 @@ Fleet's standard query library includes a growing collection of useful queries f
 - [Detect presence of authorized SSH keys](./detect-presence-of-authorized-ssh-keys.md) (macOS, Linux)
 - [Detect hosts with the firewall disabled](./detect-hosts-with-the-firewall-disabled.md) (macOS)
 - [Detect Linux hosts with high severity vulnerable versions of OpenSSL](./detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md) (Linux)
-- [Detect Unecnrypted SSH Key](./get-ssh-key-unencrypted.md) (Linux, macOS)
+- [Detect Unecnrypted SSH Key](./detect-ssh-key-unencrypted.md) (Linux, macOS)
 - [Get installed Chrome extensions](./get-installed-chrome-extensions.md) (macOS, Linux, Windows, FreeBSD)
 - [Get installed FreeBSD software](./get-installed-freebsd-software.md) (FreeBSD)
 - [Get installed Homebrew packages](./get-installed-homebrew-packages.md) (macOS)
