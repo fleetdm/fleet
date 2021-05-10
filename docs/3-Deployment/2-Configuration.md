@@ -420,6 +420,21 @@ Note that some other configurations may need to be changed when modifying the UR
   	url_prefix: /apps/fleet
   ```
 
+###### `server_keepalive`
+
+Controls the server side http keep alive property.
+
+Turning off keepalives has helped reduce outstanding TCP connections in some deployments.
+
+- Default value: true
+- Environment variable: `FLEET_SERVER_KEEPALIVE`
+- Config file format:
+
+  ```
+  server:
+  	keepalive: true
+  ```
+
 ##### Auth
 
 ###### `auth_jwt_key`
@@ -1161,6 +1176,28 @@ The identifier of the pubsub topic that osquery status logs will be published to
 
 - Default value: none
 - Environment variable: `FLEET_PUBSUB_STATUS_TOPIC`
+- Config file format:
+
+  ```
+  pubsub:
+    status_topic: osquery_status
+  ```
+
+###### `pubsub_add_attributes`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+
+Add Pub/Sub attributes to messages.  When enabled, the plugin parses the osquery result
+messages, and adds the following Pub/Sub message attributes:
+
+- `name` - the `name` attribute from the message body
+- `timestamp` - the `unixTime` attribute from the message body, converted to rfc3339 format
+- Each decoration from the message
+
+This feature is useful when combined with [subscription filters](https://cloud.google.com/pubsub/docs/filtering).
+
+- Default value: false
+- Environment variable: `FLEET_PUBSUB_ADD_ATTRIBUTES`
 - Config file format:
 
   ```

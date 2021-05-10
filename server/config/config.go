@@ -55,6 +55,7 @@ type ServerConfig struct {
 	TLS        bool
 	TLSProfile string // TODO #271 set `yaml:"tls_compatibility"`
 	URLPrefix  string `yaml:"url_prefix"`
+	Keepalive  bool   `yaml:"keepalive"`
 }
 
 // AuthConfig defines configs related to user authorization
@@ -139,9 +140,10 @@ type S3Config struct {
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
-	Project     string
-	StatusTopic string `yaml:"status_topic"`
-	ResultTopic string `yaml:"result_topic"`
+	Project       string
+	StatusTopic   string `yaml:"status_topic"`
+	ResultTopic   string `yaml:"result_topic"`
+	AddAttributes bool   `yaml:"add_attributes"`
 }
 
 // FilesystemConfig defines configs for the Filesystem logging plugin
@@ -226,6 +228,8 @@ func (man Manager) addConfigs() {
 			TLSProfileModern, TLSProfileIntermediate))
 	man.addConfigString("server.url_prefix", "",
 		"URL prefix used on server and frontend endpoints")
+	man.addConfigBool("server.keepalive", true,
+		"Controls wether HTTP keep-alives are enabled.")
 
 	// Auth
 	man.addConfigString("auth.jwt_key", "",
@@ -325,6 +329,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
 	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
 	man.addConfigString("pubsub.result_topic", "", "PubSub topic for result logs")
+	man.addConfigBool("pubsub.add_attributes", false, "Add PubSub attributes in addition to the message body")
 
 	// Filesystem
 	man.addConfigString("filesystem.status_log_file", "/tmp/osquery_status",
@@ -395,6 +400,7 @@ func (man Manager) LoadConfig() KolideConfig {
 			TLS:        man.getConfigBool("server.tls"),
 			TLSProfile: man.getConfigTLSProfile(),
 			URLPrefix:  man.getConfigString("server.url_prefix"),
+			Keepalive:  man.getConfigBool("server.keepalive"),
 		},
 		Auth: AuthConfig{
 			JwtKey:      man.getConfigString("auth.jwt_key"),
@@ -459,9 +465,10 @@ func (man Manager) LoadConfig() KolideConfig {
 			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
 		},
 		PubSub: PubSubConfig{
-			Project:     man.getConfigString("pubsub.project"),
-			StatusTopic: man.getConfigString("pubsub.status_topic"),
-			ResultTopic: man.getConfigString("pubsub.result_topic"),
+			Project:       man.getConfigString("pubsub.project"),
+			StatusTopic:   man.getConfigString("pubsub.status_topic"),
+			ResultTopic:   man.getConfigString("pubsub.result_topic"),
+			AddAttributes: man.getConfigBool("pubsub.add_attributes"),
 		},
 		Filesystem: FilesystemConfig{
 			StatusLogFile:        man.getConfigString("filesystem.status_log_file"),
