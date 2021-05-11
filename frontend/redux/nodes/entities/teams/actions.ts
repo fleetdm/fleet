@@ -80,9 +80,26 @@ export const transferHosts = (teamId: number, hostIds: number[]): any => {
   };
 };
 
+export const getEnrolSecrets = (teamId: number): any => {
+  return (dispatch: any) => {
+    // dispatch(loadRequest()); // TODO: figure out better way to do this. This causes page flash
+    return Kolide.teams
+      .getEnrolSecrets(teamId)
+      .then((res: { team: ITeam }) => {
+        return dispatch(successAction(res.team, updateSuccess)); // TODO: come back and figure out updating team entity.
+      })
+      .catch((res: any) => {
+        const errorsObject = formatErrorResponse(res);
+        dispatch(addMembersFailure(errorsObject));
+        throw errorsObject;
+      });
+  };
+};
+
 export default {
   ...actions,
   addMembers,
   removeMembers,
   transferHosts,
+  getEnrolSecrets,
 };

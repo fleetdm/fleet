@@ -17,6 +17,7 @@ const baseClass = "add-host-modal";
 class AddHostModal extends Component {
   static propTypes = {
     teams: PropTypes.arrayOf(teamInterface),
+    onChangeTeam: PropTypes.func,
     onReturnToApp: PropTypes.func,
     enrollSecret: enrollSecretInterface,
     config: configInterface,
@@ -57,8 +58,9 @@ class AddHostModal extends Component {
   };
 
   onChangeSelectTeam = (teamId) => {
-    const { teams } = this.props;
+    const { teams, onChangeTeam } = this.props;
     const selectedTeam = teams.find((team) => team.id === teamId);
+    onChangeTeam(selectedTeam);
     this.setState({ selectedTeam });
   };
 

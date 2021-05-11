@@ -1,6 +1,7 @@
 import endpoints from "kolide/endpoints";
 import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
+import { getEnrolSecrets } from "../../redux/nodes/entities/teams/actions";
 
 interface ILoadAllTeamsResponse {
   teams: ITeam[];
@@ -8,6 +9,10 @@ interface ILoadAllTeamsResponse {
 
 interface ILoadTeamResponse {
   team: ITeam;
+}
+
+interface IGetTeamSecretsResponse {
+  secrets: any[]; // TODO: fill this out when API is defined
 }
 
 interface ITeamSearchOptions {
@@ -95,6 +100,13 @@ export default (client: any) => {
           JSON.stringify({ id: hostIds })
         )
         .then((response: ITeam) => response);
+    },
+    getEnrolSecrets: (teamId: number) => {
+      const { TEAMS_ENROL_SECRETS } = endpoints;
+      const endpoint = client._endpoint(TEAMS_ENROL_SECRETS(teamId));
+      return client
+        .authenticatedGet(endpoint)
+        .then((response: IGetTeamSecretsResponse) => response.secrets);
     },
   };
 };

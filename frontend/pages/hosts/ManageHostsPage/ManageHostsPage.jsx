@@ -20,7 +20,9 @@ import enrollSecretInterface from "interfaces/enroll_secret";
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
-import teamActions from "redux/nodes/entities/teams/actions";
+import teamActions, {
+  getEnrolSecrets,
+} from "redux/nodes/entities/teams/actions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
 import {
   getLabels,
@@ -142,27 +144,24 @@ export class ManageHostsPage extends PureComponent {
 
   onCancelAddLabel = () => {
     const { dispatch, selectedFilter } = this.props;
-
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
-
-    return false;
   };
 
   onCancelEditLabel = () => {
     const { dispatch, selectedFilter } = this.props;
-
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
-
-    return false;
   };
 
   onAddHostClick = (evt) => {
     evt.preventDefault();
-
     const { toggleAddHostModal } = this;
     toggleAddHostModal();
+  };
 
-    return false;
+  onChangeTeam = (team) => {
+    const { dispatch } = this.props;
+    console.log(team);
+    dispatch(teamActions.getEnrolSecrets(team.id));
   };
 
   // NOTE: this is called once on the initial rendering. The initial render of
@@ -247,7 +246,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onTransferHostSubmit = (team) => {
-    const { toggleTransferHostModal, setState } = this;
+    const { toggleTransferHostModal } = this;
     const { dispatch } = this.props;
     const { selectedHostIds } = this.state;
     dispatch(teamActions.transferHosts(team.id, selectedHostIds))
@@ -265,7 +264,7 @@ export class ManageHostsPage extends PureComponent {
         );
       });
     toggleTransferHostModal();
-    setState({ selectedHostIds: [] });
+    this.setState({ selectedHostIds: [] });
   };
 
   clearHostUpdates() {
@@ -312,7 +311,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderAddHostModal = () => {
-    const { toggleAddHostModal } = this;
+    const { toggleAddHostModal, onChangeTeam } = this;
     const { showAddHostModal } = this.state;
     const { enrollSecret, config, canAddNewHosts, teams } = this.props;
 
@@ -328,6 +327,7 @@ export class ManageHostsPage extends PureComponent {
       >
         <AddHostModal
           teams={teams}
+          onChangeTeam={onChangeTeam}
           onReturnToApp={toggleAddHostModal}
           enrollSecret={enrollSecret}
           config={config}
