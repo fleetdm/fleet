@@ -34,6 +34,7 @@ import {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  secondsToHms,
 } from "kolide/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
@@ -246,10 +247,6 @@ export class HostDetailsPage extends Component {
     const { packs = [], pack_stats = [] } = host;
     const wrapperClassName = `${baseClass}__table`;
 
-    if (pack_stats === null || pack_stats.length === 0) {
-      return <p>There are no packs for this host.</p>;
-    }
-
     const packsAccordion = pack_stats.map((pack) => {
       return (
         <AccordionItem key={pack.pack_id}>
@@ -288,7 +285,7 @@ export class HostDetailsPage extends Component {
         </AccordionItem>
       );
     });
-
+    console.log("packs:", packs);
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
@@ -303,7 +300,6 @@ export class HostDetailsPage extends Component {
     );
   };
 
-  //          <ul className="list">{packItems}</ul>
   renderSoftware = () => {
     const { host } = this.props;
     const wrapperClassName = `${baseClass}__table`;
@@ -311,7 +307,7 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
-        {host.software.length === 0 ? (
+        {!host.software ? (
           <div className="results">
             <p className="results__header">
               No installed software detected on this host.
@@ -385,17 +381,6 @@ export class HostDetailsPage extends Component {
     const data = [titleData, aboutData, osqueryData];
     data.forEach((object) => {
       Object.keys(object).forEach((key) => {
-        const secondsToHms = (d) => {
-          const h = Math.floor(d / 3600);
-          const m = Math.floor((d % 3600) / 60);
-          const s = Math.floor((d % 3600) % 60);
-
-          const hDisplay = h > 0 ? h + (h === 1 ? " hr " : " hrs ") : "";
-          const mDisplay = m > 0 ? m + (m === 1 ? " min " : " mins ") : "";
-          const sDisplay = s > 0 ? s + (s === 1 ? " sec " : " secs ") : "";
-          return hDisplay + mDisplay + sDisplay;
-        };
-
         if (object[key] === "") {
           object[key] = "--";
         } else if (
@@ -513,7 +498,7 @@ export class HostDetailsPage extends Component {
         </div>
         {renderLabels()}
         {renderPacks()}
-        {host.software && renderSoftware()}
+        {renderSoftware()}
         {renderDeleteHostModal()}
         {showQueryHostModal && (
           <SelectQueryModal
