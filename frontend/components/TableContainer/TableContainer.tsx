@@ -33,7 +33,7 @@ interface ITableContainerProps<T, U> {
   onActionButtonClick: () => void;
   actionButtonText: string;
   onQueryChange: (queryData: ITableQueryData) => void;
-  onSelectActionClick?: () => void;
+  onSelectActionClick?: (selectedItemIds: number[]) => void;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
   resultsTitle?: string;

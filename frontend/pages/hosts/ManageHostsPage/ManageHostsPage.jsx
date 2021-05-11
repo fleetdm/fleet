@@ -18,6 +18,7 @@ import osqueryTableInterface from "interfaces/osquery_table";
 import statusLabelsInterface from "interfaces/status_labels";
 import enrollSecretInterface from "interfaces/enroll_secret";
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
+import { renderFlash } from "redux/nodes/notifications/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
@@ -91,6 +92,7 @@ export class ManageHostsPage extends PureComponent {
         storedHiddenColumns !== null
           ? storedHiddenColumns
           : defaultHiddenColumns,
+      selectedHostIds: [],
     };
   }
 
@@ -238,10 +240,32 @@ export class ManageHostsPage extends PureComponent {
     });
   };
 
-  onTransferHostSubmit = (team) => {
+  onTransferToTeamClick = (selectedHostIds) => {
     const { toggleTransferHostModal } = this;
-    console.log(team);
     toggleTransferHostModal();
+    this.setState({ selectedHostIds });
+  };
+
+  onTransferHostSubmit = (team) => {
+    const { toggleTransferHostModal, setState } = this;
+    const { dispatch } = this.props;
+    const { selectedHostIds } = this.state;
+    dispatch(teamActions.transferHosts(team.id, selectedHostIds))
+      .then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            `Hosts successfully transferred to  ${team.name}.`
+          )
+        ); // TODO: update team name
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", "Could not transfer hosts. Please try again.")
+        );
+      });
+    toggleTransferHostModal();
+    setState({ selectedHostIds: [] });
   };
 
   clearHostUpdates() {
@@ -525,7 +549,7 @@ export class ManageHostsPage extends PureComponent {
     const {
       onTableQueryChange,
       onEditColumnsClick,
-      toggleTransferHostModal,
+      onTransferToTeamClick,
     } = this;
 
     // The data has not been fetched yet.
@@ -548,7 +572,7 @@ export class ManageHostsPage extends PureComponent {
         additionalQueries={JSON.stringify([selectedFilter])}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
-        onSelectActionClick={toggleTransferHostModal}
+        onSelectActionClick={onTransferToTeamClick}
         onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
         emptyComponent={EmptyHosts}

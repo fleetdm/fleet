@@ -79,9 +79,6 @@ export default (client: any) => {
         )
         .then((response: ITeam) => response);
     },
-    transferHost: (teamId: number) => {
-      const { TEAMS_MEMBERS } = endpoints;
-    },
     removeMembers: (teamId: number, removeMembers: IRemoveMembersBody) => {
       const { TEAMS_MEMBERS } = endpoints;
       return client.authenticatedDelete(
@@ -89,6 +86,15 @@ export default (client: any) => {
         {},
         JSON.stringify(removeMembers)
       );
+    },
+    transferHosts: (teamId: number, hostIds: number[]) => {
+      const { TEAMS_TRANSFER_HOSTS } = endpoints;
+      return client
+        .authenticatedPatch(
+          client._endpoint(TEAMS_TRANSFER_HOSTS(teamId)),
+          JSON.stringify({ id: hostIds })
+        )
+        .then((response: ITeam) => response);
     },
   };
 };

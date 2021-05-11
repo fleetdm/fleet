@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
 
@@ -68,6 +68,11 @@ const DataTable = (props) => {
     }
   }, [sortBy, sortHeader, onSort, sortDirection]);
 
+  const onSelectActionButtonClick = useCallback(() => {
+    const entityIds = selectedFlatRows.map((row) => row.original.id);
+    onSelectActionClick(entityIds);
+  }, [onSelectActionClick, selectedFlatRows]);
+
   return (
     <div className={baseClass}>
       <div className={"data-table data-table__wrapper"}>
@@ -90,7 +95,7 @@ const DataTable = (props) => {
                 </th>
                 <div>
                   <p>test here</p>
-                  <Button onClick={onSelectActionClick}>
+                  <Button onClick={onSelectActionButtonClick}>
                     Transfer to team
                   </Button>
                 </div>
