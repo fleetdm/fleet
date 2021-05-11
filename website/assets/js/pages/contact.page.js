@@ -18,7 +18,7 @@ parasails.registerPage('contact', {
       emailAddress: {isEmail: true, required: true},
       fullName: {required: true},
       topic: {required: true},
-      message: {required: true},
+      message: {required: false},
     },
 
     // Server error state for the form

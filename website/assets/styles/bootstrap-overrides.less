@@ -12,6 +12,7 @@
 
 body {
   font-family: @main-font;
+  color: @core-fleet-black;
 }
 
 img {
@@ -49,6 +50,14 @@ p {
 footer {
   font-size: 14px;
   line-height: 24px;
+}
+
+.text-danger {
+  color: @core-vibrant-red !important; //lesshint-disable-line importantRule
+}
+
+a.text-danger:hover, a.text-danger:focus {
+  color: darken(@core-vibrant-red, 20%) !important; //lesshint-disable-line importantRule
 }
 
 .btn {
@@ -132,3 +141,21 @@ footer {
   pointer-events: none;
   font-weight: @bold;
 }
+
+.invalid-feedback {
+  color: @core-vibrant-red;
+}
+
+.was-validated .form-control:invalid, .form-control.is-invalid, .was-validated
+.custom-select:invalid,
+.custom-select.is-invalid {
+  border-color: @core-vibrant-red;
+}
+
+.was-validated .form-control:invalid:focus, .form-control.is-invalid:focus, .was-validated
+.custom-select:invalid:focus,
+.custom-select.is-invalid:focus {
+  border-color: @core-vibrant-red;
+  box-shadow: 0 0 0 0.2rem darken(@core-vibrant-red, 20%) 0.25;
+}
+
