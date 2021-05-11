@@ -16,6 +16,12 @@ export const destroyHost = (dispatch, host) => {
   });
 };
 
+export const refetchHost = (dispatch, host) => {
+  return dispatch(hostActions.refetch(host)).then(() => {
+    dispatch(push(PATHS.HOST_DETAILS(host)));
+  });
+};
+
 export const queryHostCustom = (dispatch, host) => {
   return dispatch(
     push({

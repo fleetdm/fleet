@@ -100,6 +100,22 @@ export class HostDetailsPage extends Component {
     return false;
   };
 
+  onRefetchHost = () => {
+    const { dispatch, host } = this.props;
+    // const { destroyHost } = helpers;
+
+    destroyHost(dispatch, host).then(() => {
+      dispatch(
+        renderFlash(
+          "success",
+          `Host "${host.hostname}" was successfully deleted`
+        )
+      );
+    });
+
+    return false;
+  };
+
   onPackClick = (pack) => {
     const { dispatch } = this.props;
 
@@ -357,31 +373,38 @@ export class HostDetailsPage extends Component {
     const isOnline = host.status === "online";
     const isOffline = host.status === "offline";
 
-    if (isOffline) {
-      return (
-        <>
-          <span
-            className="offline-refetch"
-            data-tip
-            data-for="refetch"
-            data-tip-disable={isOnline}
+    console.log("isOffline:", isOffline);
+    console.log("isOnline:", isOnline);
+    return (
+      <>
+        <div
+          id="refetch"
+          data-tip
+          data-for="refetch-tooltip"
+          data-tip-disable={isOnline}
+        >
+          <Button
+            className={`button button--unstyled refetch-btn ${
+              isOffline ? "refetch-offline" : "refetch-online"
+            }`}
+            onClick={() => onRefetchHost()}
           >
             Refetch
+          </Button>
+        </div>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="refetch-tooltip"
+          backgroundColor="#3e4771"
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            You can’t fetch data from <br /> an offline host.
           </span>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            id="refetch"
-            backgroundColor="#3e4771"
-          >
-            <span className={`${baseClass}__tooltip-text`}>
-              You can’t fetch data from <br /> an offline host.
-            </span>
-          </ReactTooltip>
-        </>
-      );
-    }
+        </ReactTooltip>
+      </>
+    );
   };
 
   render() {
@@ -455,8 +478,8 @@ export class HostDetailsPage extends Component {
                 {`Last fetched ${humanHostDetailUpdated(
                   titleData.detail_updated_at
                 )}`}{" "}
-                {renderRefetch()}
               </p>
+              {renderRefetch()}
             </div>
             <div className="info">
               <div className="info__item info__item--title">
