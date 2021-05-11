@@ -289,8 +289,10 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        {packs.length === 0 ? (
-          <p className="info__item">No packs have this host as a target.</p>
+        {pack_stats.length === 0 ? (
+          <p className="info__item">
+            No packs with scheduled queries have this host as a target.
+          </p>
         ) : (
           <Accordion allowMultipleExpanded="true" allowZeroExpanded="true">
             {packsAccordion}
