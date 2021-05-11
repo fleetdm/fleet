@@ -101,14 +101,12 @@ a.text-danger:hover, a.text-danger:focus {
       background-color: darken(#ff5c83, 10%), 0.25;
       border-color: darken(#ff5c83, 10%), 0.25;
     }
-    &:not(:disabled):not(.disabled):active, &:not(:disabled):not(.disabled).active,
-    .show > &.dropdown-toggle {
+    &:not(:disabled):not(.disabled):active, &:not(:disabled):not(.disabled).active, .show > &.dropdown-toggle {
       color: #fff;
       background-color: darken(#ff5c83, 10%), 0.25;
       border-color: darken(#ff5c83, 10%), 0.25;
     }
-    &:not(:disabled):not(.disabled):active:focus, &:not(:disabled):not(.disabled).active:focus,
-    .show > &.dropdown-toggle:focus {
+    &:not(:disabled):not(.disabled):active:focus, &:not(:disabled):not(.disabled).active:focus, .show > &.dropdown-toggle:focus {
       box-shadow: 0 0 0.25rem 0.2rem darken(#ff5c83, 10%);
     }
   }
@@ -166,14 +164,12 @@ a.text-danger:hover, a.text-danger:focus {
 }
 
 .was-validated .form-control:invalid, .form-control.is-invalid, .was-validated
-.custom-select:invalid,
-.custom-select.is-invalid {
+.custom-select:invalid, .custom-select.is-invalid {
   border-color: @core-vibrant-red;
 }
 
 .was-validated .form-control:invalid:focus, .form-control.is-invalid:focus, .was-validated
-.custom-select:invalid:focus,
-.custom-select.is-invalid:focus {
+.custom-select:invalid:focus, .custom-select.is-invalid:focus {
   border-color: @core-vibrant-red;
   box-shadow: 0 0 0 0.2rem darken(@core-vibrant-red, 20%) 0.25;
 }
