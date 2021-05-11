@@ -254,7 +254,7 @@ export class HostDetailsPage extends Component {
             <AccordionItemButton>{pack.pack_name}</AccordionItemButton>
           </AccordionItemHeading>
           <AccordionItemPanel>
-            {!pack.query_stats.length ? (
+            {pack.query_stats.length === 0 ? (
               <div>There are no schedule queries for this pack.</div>
             ) : (
               <div className={`${baseClass}__wrapper`}>
@@ -285,7 +285,7 @@ export class HostDetailsPage extends Component {
         </AccordionItem>
       );
     });
-    console.log("packs:", packs);
+
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
