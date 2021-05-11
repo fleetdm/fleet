@@ -50,10 +50,10 @@ module.exports = {
 
   fn: async function({emailAddress, topic, fullName, message}) {
 
-    // await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-    //   text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
-    //   `Name: ${fullName}, Email: ${emailAddress}, Topic: ${topic}, Message: ${message}`
-    // });
+    await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
+      text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
+      `Name: ${fullName}, Email: ${emailAddress}, Topic: ${topic}, Message: ${message}`
+    });
 
   }
 
