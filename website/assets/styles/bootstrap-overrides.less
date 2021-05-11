@@ -93,7 +93,26 @@ a.text-danger:hover, a.text-danger:focus {
       background-color: darken(#ff5c83, 10%);
       border-color: darken(#ff5c83, 10%);
     }
+    &:focus, &.focus {
+      box-shadow: 0 0 0.25rem 0.2rem darken(#ff5c83, 10%);
+    }
+    &.disabled, &:disabled {
+      color: #fff;
+      background-color: darken(#ff5c83, 10%), 0.25;
+      border-color: darken(#ff5c83, 10%), 0.25;
+    }
+    &:not(:disabled):not(.disabled):active, &:not(:disabled):not(.disabled).active,
+    .show > &.dropdown-toggle {
+      color: #fff;
+      background-color: darken(#ff5c83, 10%), 0.25;
+      border-color: darken(#ff5c83, 10%), 0.25;
+    }
+    &:not(:disabled):not(.disabled):active:focus, &:not(:disabled):not(.disabled).active:focus,
+    .show > &.dropdown-toggle:focus {
+      box-shadow: 0 0 0.25rem 0.2rem darken(#ff5c83, 10%);
+    }
   }
+
   &.btn-info {
     background-color: #6b6cfa;
     border-color: #6b6cfa;
