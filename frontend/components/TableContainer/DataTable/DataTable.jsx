@@ -68,8 +68,6 @@ const DataTable = (props) => {
     }
   }, [sortBy, sortHeader, onSort, sortDirection]);
 
-  const onSelectActionClick = () => {};
-
   return (
     <div className={baseClass}>
       <div className={"data-table data-table__wrapper"}>

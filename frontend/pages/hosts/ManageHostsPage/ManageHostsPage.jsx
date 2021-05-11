@@ -240,6 +240,7 @@ export class ManageHostsPage extends PureComponent {
 
   onTransferHostSubmit = (team) => {
     const { toggleTransferHostModal } = this;
+    console.log(team);
     toggleTransferHostModal();
   };
 

@@ -79,6 +79,9 @@ export default (client: any) => {
         )
         .then((response: ITeam) => response);
     },
+    transferHost: (teamId: number) => {
+      const { TEAMS_MEMBERS } = endpoints;
+    },
     removeMembers: (teamId: number, removeMembers: IRemoveMembersBody) => {
       const { TEAMS_MEMBERS } = endpoints;
       return client.authenticatedDelete(
