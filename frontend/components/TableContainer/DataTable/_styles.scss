@@ -3,14 +3,15 @@
 
   .data-table {
     &__wrapper {
+      position: relative;
       border: solid 1px $ui-fleet-blue-15;
       border-radius: 6px;
       margin-top: $pad-small;
-      overflow: scroll;
       box-shadow: inset -8px 0 17px -10px #e8edf4;
     }
 
     &__table {
+      position: relative;
       width: 100%;
       border-collapse: collapse;
       color: $core-fleet-black;
@@ -47,6 +48,35 @@
 
         &:last-child {
           border-right: none;
+        }
+      }
+    }
+
+    .active-selection {
+      position: absolute;
+      top: -1px;
+      width: 100%;
+      border: 0;
+
+      &__container {
+        padding: 0 27px;
+      }
+
+      &__inner {
+        display: flex;
+        align-items: center;
+
+        p {
+          margin: 0 $pad-medium 0 0;
+          font-weight: $regular;
+
+          span {
+            font-weight: $bold;
+          }
+        }
+
+        button {
+          margin-right: $pad-medium;
         }
       }
     }

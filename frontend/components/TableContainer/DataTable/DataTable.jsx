@@ -87,8 +87,8 @@ const DataTable = (props) => {
           </div>
         )}
         <table className={"data-table__table"}>
-          {Object.keys(selectedRowIds).length !== 0 ? (
-            <thead>
+          {Object.keys(selectedRowIds).length !== 0 && (
+            <thead className={"active-selection"}>
               <tr {...headerGroups[0].getHeaderGroupProps()}>
                 <th
                   {...headerGroups[0].headers[0].getHeaderProps(
@@ -97,32 +97,36 @@ const DataTable = (props) => {
                 >
                   {headerGroups[0].headers[0].render("Header")}
                 </th>
-                <div>
-                  <p>{selectedFlatRows.length} selected</p>
-                  <Button onClick={onClearSelectionClick}>
-                    Clear selection
-                  </Button>
-                  <Button onClick={onSelectActionButtonClick}>
-                    Transfer to team
-                  </Button>
-                </div>
+                <th className={"active-selection__container"}>
+                  <div className={"active-selection__inner"}>
+                    <p>
+                      <span>{selectedFlatRows.length}</span> selected
+                    </p>
+                    <Button
+                      onClick={onClearSelectionClick}
+                      variant={"text-link"}
+                    >
+                      Clear selection
+                    </Button>
+                    <Button onClick={onSelectActionButtonClick}>
+                      Transfer to team
+                    </Button>
+                  </div>
+                </th>
               </tr>
             </thead>
-          ) : (
-            <thead>
-              {headerGroups.map((headerGroup) => (
-                <tr {...headerGroup.getHeaderGroupProps()}>
-                  {headerGroup.headers.map((column) => (
-                    <th
-                      {...column.getHeaderProps(column.getSortByToggleProps())}
-                    >
-                      {column.render("Header")}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
           )}
+          <thead>
+            {headerGroups.map((headerGroup) => (
+              <tr {...headerGroup.getHeaderGroupProps()}>
+                {headerGroup.headers.map((column) => (
+                  <th {...column.getHeaderProps(column.getSortByToggleProps())}>
+                    {column.render("Header")}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
           <tbody>
             {rows.map((row) => {
               prepareRow(row);
