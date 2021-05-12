@@ -34,6 +34,7 @@ import {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  secondsToHms,
 } from "kolide/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
@@ -243,57 +244,58 @@ export class HostDetailsPage extends Component {
 
   renderPacks = () => {
     const { host } = this.props;
-    const { packs = [], pack_stats = [] } = host;
+    const { pack_stats } = host;
     const wrapperClassName = `${baseClass}__table`;
 
-    if (pack_stats === null || pack_stats.length === 0) {
-      return <p>There are no packs for this host.</p>;
+    let packsAccordion;
+    if (pack_stats) {
+      packsAccordion = pack_stats.map((pack) => {
+        return (
+          <AccordionItem key={pack.pack_id}>
+            <AccordionItemHeading>
+              <AccordionItemButton>{pack.pack_name}</AccordionItemButton>
+            </AccordionItemHeading>
+            <AccordionItemPanel>
+              {pack.query_stats.length === 0 ? (
+                <div>There are no schedule queries for this pack.</div>
+              ) : (
+                <div className={`${baseClass}__wrapper`}>
+                  <table className={wrapperClassName}>
+                    <thead>
+                      <tr>
+                        <th>Query Name</th>
+                        <th>Description</th>
+                        <th>Frequency</th>
+                        <th>Last Run</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!!pack.query_stats.length &&
+                        pack.query_stats.map((query) => {
+                          return (
+                            <PackQueriesListRow
+                              key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
+                              query={query}
+                            />
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </AccordionItemPanel>
+          </AccordionItem>
+        );
+      });
     }
-
-    const packsAccordion = pack_stats.map((pack) => {
-      return (
-        <AccordionItem key={pack.pack_id}>
-          <AccordionItemHeading>
-            <AccordionItemButton>{pack.pack_name}</AccordionItemButton>
-          </AccordionItemHeading>
-          <AccordionItemPanel>
-            {!pack.query_stats.length ? (
-              <div>There are no schedule queries for this pack.</div>
-            ) : (
-              <div className={`${baseClass}__wrapper`}>
-                <table className={wrapperClassName}>
-                  <thead>
-                    <tr>
-                      <th>Query Name</th>
-                      <th>Description</th>
-                      <th>Frequency</th>
-                      <th>Last Run</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {!!pack.query_stats.length &&
-                      pack.query_stats.map((query) => {
-                        return (
-                          <PackQueriesListRow
-                            key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
-                            query={query}
-                          />
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </AccordionItemPanel>
-        </AccordionItem>
-      );
-    });
 
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        {packs.length === 0 ? (
-          <p className="info__item">No packs have this host as a target.</p>
+        {!pack_stats ? (
+          <p className="info__item">
+            No packs with scheduled queries have this host as a target.
+          </p>
         ) : (
           <Accordion allowMultipleExpanded="true" allowZeroExpanded="true">
             {packsAccordion}
@@ -303,7 +305,6 @@ export class HostDetailsPage extends Component {
     );
   };
 
-  //          <ul className="list">{packItems}</ul>
   renderSoftware = () => {
     const { host } = this.props;
     const wrapperClassName = `${baseClass}__table`;
@@ -311,7 +312,7 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
-        {host.software.length === 0 ? (
+        {!host.software ? (
           <div className="results">
             <p className="results__header">
               No installed software detected on this host.
@@ -392,7 +393,7 @@ export class HostDetailsPage extends Component {
           key === "config_tls_refresh" ||
           key === "distributed_interval"
         ) {
-          object[key] = `${object[key]} sec`;
+          object[key] = secondsToHms(object[key]);
         }
       });
     });
@@ -502,7 +503,7 @@ export class HostDetailsPage extends Component {
         </div>
         {renderLabels()}
         {renderPacks()}
-        {host.software && renderSoftware()}
+        {renderSoftware()}
         {renderDeleteHostModal()}
         {showQueryHostModal && (
           <SelectQueryModal

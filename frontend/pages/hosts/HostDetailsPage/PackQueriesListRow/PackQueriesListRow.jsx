@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { humanQueryLastRun } from "kolide/helpers";
+import { humanQueryLastRun, secondsToHms } from "kolide/helpers";
 
 import queryInterface from "interfaces/query";
 
@@ -19,11 +19,13 @@ class PackQueriesListRow extends Component {
       last_executed,
     } = query;
 
+    const frequency = secondsToHms(interval);
+
     return (
       <tr>
         <td className={`${baseClass}__name`}>{scheduled_query_name}</td>
         <td className={`${baseClass}__description`}>{description}</td>
-        <td className={`${baseClass}__frequency`}>{interval} seconds</td>
+        <td className={`${baseClass}__frequency`}>{frequency}</td>
         <td className={`${baseClass}__last-run`}>
           {humanQueryLastRun(last_executed)}
         </td>
