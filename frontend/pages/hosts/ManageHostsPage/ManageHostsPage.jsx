@@ -4,7 +4,6 @@ import AceEditor from "react-ace";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
 
-import AddHostModal from "components/hosts/AddHostModal";
 import Button from "components/buttons/Button";
 import configInterface from "interfaces/config";
 import HostSidePanel from "components/side_panels/HostSidePanel";
@@ -14,24 +13,27 @@ import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import labelInterface from "interfaces/label";
 import hostInterface from "interfaces/host";
+import teamInterface from "interfaces/team";
 import osqueryTableInterface from "interfaces/osquery_table";
 import statusLabelsInterface from "interfaces/status_labels";
 import enrollSecretInterface from "interfaces/enroll_secret";
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
-import entityGetter from "redux/utilities/entityGetter";
+import teamActions from "redux/nodes/entities/teams/actions";
+import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
 import {
   getLabels,
   getHosts,
 } from "redux/nodes/components/ManageHostsPage/actions";
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
-
+import permissionUtils from "utilities/permissions";
 import {
   defaultHiddenColumns,
   hostTableHeaders,
   generateVisibleHostColumns,
 } from "./HostTableConfig";
+import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
@@ -58,6 +60,8 @@ export class ManageHostsPage extends PureComponent {
     statusLabels: statusLabelsInterface,
     hosts: PropTypes.arrayOf(hostInterface),
     loadingHosts: PropTypes.bool,
+    canAddNewHosts: PropTypes.bool,
+    teams: PropTypes.arrayOf(teamInterface),
   };
 
   static defaultProps = {
@@ -87,7 +91,10 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentDidMount() {
-    const { dispatch } = this.props;
+    const { dispatch, canAddNewHosts } = this.props;
+    if (canAddNewHosts) {
+      dispatch(teamActions.loadAll({}));
+    }
     dispatch(getLabels());
   }
 
@@ -279,10 +286,10 @@ export class ManageHostsPage extends PureComponent {
   renderAddHostModal = () => {
     const { toggleAddHostModal } = this;
     const { showAddHostModal } = this.state;
-    const { enrollSecret, config } = this.props;
+    const { enrollSecret, config, canAddNewHosts, teams } = this.props;
 
-    if (!showAddHostModal) {
-      return false;
+    if (!canAddNewHosts || !showAddHostModal) {
+      return null;
     }
 
     return (
@@ -292,6 +299,7 @@ export class ManageHostsPage extends PureComponent {
         className={`${baseClass}__invite-modal`}
       >
         <AddHostModal
+          teams={teams}
           onReturnToApp={toggleAddHostModal}
           enrollSecret={enrollSecret}
           config={config}
@@ -539,7 +547,7 @@ export class ManageHostsPage extends PureComponent {
       isEditLabel,
       loadingLabels,
       selectedLabel,
-      selectedFilter,
+      canAddNewHosts,
     } = this.props;
 
     return (
@@ -550,12 +558,14 @@ export class ManageHostsPage extends PureComponent {
           <div className={`${baseClass} body-wrap`}>
             <div className="header-wrap">
               {renderHeader()}
-              <Button
-                onClick={onAddHostClick}
-                className={`${baseClass}__add-hosts button button--brand`}
-              >
-                <span>Add new host</span>
-              </Button>
+              {canAddNewHosts ? (
+                <Button
+                  onClick={onAddHostClick}
+                  className={`${baseClass}__add-hosts button button--brand`}
+                >
+                  <span>Add new host</span>
+                </Button>
+              ) : null}
             </div>
             {selectedLabel && renderQuery()}
             {renderTable()}
@@ -595,6 +605,13 @@ const mapStateToProps = (state, { location, params }) => {
 
   const { loading: loadingHosts } = state.entities.hosts;
 
+  const currentUser = state.auth.user;
+  const canAddNewHosts =
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser);
+
+  const teams = memoizedGetEntity(state.entities.teams.data);
+
   return {
     selectedFilter,
     isAddLabel,
@@ -609,6 +626,8 @@ const mapStateToProps = (state, { location, params }) => {
     config,
     hosts,
     loadingHosts,
+    canAddNewHosts,
+    teams,
   };
 };
 

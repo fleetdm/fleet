@@ -127,7 +127,7 @@ class EnrollSecretTable extends Component {
     const { secrets } = this.props;
     const activeSecrets = secrets.filter((s) => s.active);
 
-    let enrollSecrectsClass = baseClass;
+    let enrollSecretsClass = baseClass;
     if (activeSecrets.length === 0) {
       return (
         <div className={baseClass}>
@@ -135,10 +135,10 @@ class EnrollSecretTable extends Component {
         </div>
       );
     } else if (activeSecrets.length > 1)
-      enrollSecrectsClass += ` ${baseClass}--multiple-secrets`;
+      enrollSecretsClass += ` ${baseClass}--multiple-secrets`;
 
     return (
-      <div className={enrollSecrectsClass}>
+      <div className={enrollSecretsClass}>
         {activeSecrets.map(({ name, secret }) => (
           <EnrollSecretRow key={name} name={name} secret={secret} />
         ))}

@@ -23,7 +23,11 @@ class Dropdown extends Component {
     onChange: PropTypes.func,
     options: PropTypes.arrayOf(dropdownOptionInterface).isRequired,
     placeholder: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
-    value: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    value: PropTypes.oneOfType([
+      PropTypes.array,
+      PropTypes.string,
+      PropTypes.number,
+    ]),
     wrapperClassName: PropTypes.string,
   };
 
