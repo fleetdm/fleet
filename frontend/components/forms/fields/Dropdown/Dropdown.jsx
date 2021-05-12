@@ -42,7 +42,11 @@ class Dropdown extends Component {
   };
 
   handleChange = (selected) => {
-    const { multi, onChange } = this.props;
+    const { multi, onChange, clearable } = this.props;
+
+    if (clearable && selected === null) {
+      onChange(null);
+    }
 
     if (multi) {
       return onChange(selected.map((obj) => obj.value).join(","));

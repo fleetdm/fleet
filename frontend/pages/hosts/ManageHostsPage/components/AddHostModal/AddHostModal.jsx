@@ -168,6 +168,7 @@ class AddHostModal extends Component {
                   onChange={onChangeSelectTeam}
                   placeholder={"No team"}
                   searchable={false}
+                  clearable
                 />
                 <EnrollSecretTable secrets={enrollSecret} />
               </div>
