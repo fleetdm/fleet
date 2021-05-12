@@ -120,24 +120,6 @@ func printPack(c *cli.Context, pack *kolide.PackSpec) error {
 	return err
 }
 
-func printOption(c *cli.Context, option *kolide.OptionsSpec) error {
-	spec := specGeneric{
-		Kind:    kolide.OptionsKind,
-		Version: kolide.ApiVersion,
-		Spec:    option,
-	}
-
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
-}
-
 func printSecret(c *cli.Context, secret *kolide.EnrollSecretSpec) error {
 	spec := specGeneric{
 		Kind:    kolide.EnrollSecretKind,
@@ -209,7 +191,6 @@ func getCommand() *cli.Command {
 			getQueriesCommand(),
 			getPacksCommand(),
 			getLabelsCommand(),
-			getOptionsCommand(),
 			getHostsCommand(),
 			getEnrollSecretCommand(),
 			getAppConfigCommand(),
@@ -480,38 +461,6 @@ func getLabelsCommand() *cli.Command {
 			printLabel(c, label)
 			return nil
 
-		},
-	}
-}
-
-func getOptionsCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "options",
-		Usage: "Retrieve the osquery configuration",
-		Flags: []cli.Flag{
-			jsonFlag(),
-			yamlFlag(),
-			configFlag(),
-			contextFlag(),
-			debugFlag(),
-		},
-		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
-			if err != nil {
-				return err
-			}
-
-			options, err := fleet.GetOptions()
-			if err != nil {
-				return err
-			}
-
-			err = printOption(c, options)
-			if err != nil {
-				return err
-			}
-
-			return nil
 		},
 	}
 }

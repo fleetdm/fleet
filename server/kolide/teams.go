@@ -9,14 +9,14 @@ import (
 type TeamStore interface {
 	// NewTeam creates a new Team object in the store.
 	NewTeam(team *Team) (*Team, error)
+	// SaveTeam saves any changes to the team.
+	SaveTeam(team *Team) (*Team, error)
 	// Team retrieves the Team by ID.
 	Team(tid uint) (*Team, error)
 	// Team deletes the Team by ID.
 	DeleteTeam(tid uint) error
 	// TeamByName retrieves the Team by Name.
 	TeamByName(name string) (*Team, error)
-	// SaveTeam saves any changes to the team.
-	SaveTeam(team *Team) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided
 	// options.
 	ListTeams(opt ListOptions) ([]*Team, error)
