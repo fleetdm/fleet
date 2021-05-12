@@ -102,13 +102,16 @@ export class HostDetailsPage extends Component {
 
   onRefetchHost = () => {
     const { dispatch, host } = this.props;
-    // const { destroyHost } = helpers;
+    const { refetchHost } = helpers;
 
-    destroyHost(dispatch, host).then(() => {
+    refetchHost(dispatch, host).then(() => {
+      // what do we do when the data returns on success?
+      // we throw errors if errored out instead of return
+      // see redux/nodes/entities/host/actions.js
       dispatch(
         renderFlash(
           "success",
-          `Host "${host.hostname}" was successfully deleted`
+          `Host "${host.hostname}" refetch successfully started`
         )
       );
     });

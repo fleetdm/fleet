@@ -17,9 +17,7 @@ export const destroyHost = (dispatch, host) => {
 };
 
 export const refetchHost = (dispatch, host) => {
-  return dispatch(hostActions.refetch(host)).then(() => {
-    dispatch(push(PATHS.HOST_DETAILS(host)));
-  });
+  return dispatch(hostActions.refetchHostStart(host));
 };
 
 export const queryHostCustom = (dispatch, host) => {
