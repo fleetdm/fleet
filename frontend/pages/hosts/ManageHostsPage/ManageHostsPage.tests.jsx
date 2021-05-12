@@ -48,6 +48,9 @@ const customLabel = {
 };
 const mockStore = reduxMockStore({
   app: { enrollSecret: [], config: {} },
+  auth: {
+    user: { global_role: "admin" },
+  },
   components: {
     ManageHostsPage: {
       display: "Grid",
@@ -91,6 +94,14 @@ const mockStore = reduxMockStore({
         },
         5: offlineHostsLabel,
         6: customLabel,
+      },
+    },
+    teams: {
+      data: {
+        1: {
+          id: 1,
+          name: "Test team",
+        },
       },
     },
   },
