@@ -378,7 +378,7 @@ export class HostDetailsPage extends Component {
     return (
       <>
         <div
-          id="refetch"
+          className="refetch"
           data-tip
           data-for="refetch-tooltip"
           data-tip-disable={isOnline}

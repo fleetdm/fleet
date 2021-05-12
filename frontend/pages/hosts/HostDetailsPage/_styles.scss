@@ -110,35 +110,42 @@ a {
       padding-left: $pad-small;
     }
 
-    .refetch-btn {
-      color: $core-vibrant-blue;
-      cursor: default;
-      font-size: $x-small;
-      display: inline;
-    }
+    .refetch {
+      display: flex;
 
-    .refetch-offline {
-      opacity: 25%;
-
-      &::before {
-        display: inline-block;
-        content: url(../assets/images/icon-refetch-12x12@2x.png);
-        transform: scale(0.5);
-        vertical-align: bottom;
-        height: 20px;
-        width: 20px;
-        margin: 0px 2px;
+      .refetch-btn {
+        color: $core-vibrant-blue;
+        cursor: default;
+        font-size: $x-small;
+        display: inline;
       }
-    }
-    .refetch-online {
-      &::before {
-        display: inline-block;
-        content: url(../assets/images/icon-refetch-12x12@2x.png);
-        transform: scale(0.5);
-        vertical-align: bottom;
-        height: 20px;
-        width: 20px;
-        margin: 0px 2px;
+
+      .refetch-offline {
+        opacity: 25%;
+
+        &::before {
+          display: inline-block;
+          content: url(../assets/images/icon-refetch-12x12@2x.png);
+          transform: scale(0.5);
+          vertical-align: bottom;
+          height: 20px;
+          width: 20px;
+          margin: 0px 2px;
+        }
+      }
+      .refetch-online {
+        &::before {
+          display: inline-block;
+          content: url(../assets/images/icon-refetch-12x12@2x.png);
+          transform: scale(0.5);
+          vertical-align: bottom;
+          height: 20px;
+          width: 20px;
+          margin: 0px 2px;
+        }
+        &:hover {
+          cursor: pointer;
+        }
       }
     }
   }
