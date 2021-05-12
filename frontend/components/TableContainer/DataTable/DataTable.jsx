@@ -34,6 +34,7 @@ const DataTable = (props) => {
     rows,
     prepareRow,
     selectedFlatRows,
+    toggleAllRowsSelected,
     state: tableState,
   } = useTable(
     {
@@ -73,6 +74,10 @@ const DataTable = (props) => {
     onSelectActionClick(entityIds);
   }, [onSelectActionClick, selectedFlatRows]);
 
+  const onClearSelectionClick = useCallback(() => {
+    toggleAllRowsSelected(false);
+  }, [toggleAllRowsSelected]);
+
   return (
     <div className={baseClass}>
       <div className={"data-table data-table__wrapper"}>
@@ -81,7 +86,6 @@ const DataTable = (props) => {
             <Spinner />
           </div>
         )}
-        {/* TODO: can this be memoized? seems performance heavy */}
         <table className={"data-table__table"}>
           {Object.keys(selectedRowIds).length !== 0 ? (
             <thead>
@@ -94,7 +98,10 @@ const DataTable = (props) => {
                   {headerGroups[0].headers[0].render("Header")}
                 </th>
                 <div>
-                  <p>test here</p>
+                  <p>{selectedFlatRows.length} selected</p>
+                  <Button onClick={onClearSelectionClick}>
+                    Clear selection
+                  </Button>
                   <Button onClick={onSelectActionButtonClick}>
                     Transfer to team
                   </Button>
