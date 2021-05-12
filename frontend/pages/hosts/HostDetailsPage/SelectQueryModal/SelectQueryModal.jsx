@@ -90,6 +90,18 @@ const SelectQueryModal = (props) => {
       );
     }
 
+    if (!queriesFilter && queriesCount === 0) {
+      return (
+        <div className={`${baseClass}__no-query-results`}>
+          <span className="info__header">You have no saved queries.</span>
+          <span className="info__data">
+            Expecting to see queries? Try again in a few seconds as the system
+            catches up.
+          </span>
+        </div>
+      );
+    }
+
     if (queriesCount > 0) {
       const queryList = queriesFiltered.map((query) => {
         return (
@@ -132,29 +144,29 @@ const SelectQueryModal = (props) => {
       );
     }
 
-    if (!queriesFilter && queriesCount === 0) {
-      return (
-        <div className={`${baseClass}__no-query-results`}>
-          <span className="info__header">You have no saved queries.</span>
-          <span className="info__data">
-            Expecting to see queries? Try again in a few seconds as the system
-            catches up.
-          </span>
-        </div>
-      );
-    }
-
     if (queriesFilter && queriesCount === 0) {
       return (
         <div>
-          <div className={`${baseClass}__filter-queries`}>
-            <InputField
-              name="query-filter"
-              onChange={onFilterQueries}
-              placeholder="Filter queries"
-              value={queriesFilter}
-            />
-            <KolideIcon name="search" />
+          <div className={`${baseClass}__query-modal`}>
+            <div className={`${baseClass}__filter-queries`}>
+              <InputField
+                name="query-filter"
+                onChange={onFilterQueries}
+                placeholder="Filter queries"
+                value={queriesFilter}
+              />
+              <KolideIcon name="search" />
+            </div>
+            <div className={`${baseClass}__create-query`}>
+              <span>OR</span>
+              <Button
+                onClick={() => onQueryHostCustom(host, dispatch)}
+                variant="brand"
+                className={`${baseClass}__custom-query-button`}
+              >
+                Create custom query
+              </Button>
+            </div>
           </div>
           <div className={`${baseClass}__no-query-results`}>
             <span className="info__header">
