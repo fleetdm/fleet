@@ -46,6 +46,7 @@ class Checkbox extends Component {
 
     const checkBoxTickClass = classnames(`${checkBoxClass}__tick`, {
       [`${checkBoxClass}__tick--disabled`]: disabled,
+      [`${checkBoxClass}__tick--indeterminate`]: indeterminate,
     });
 
     return (
