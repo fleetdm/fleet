@@ -244,52 +244,55 @@ export class HostDetailsPage extends Component {
 
   renderPacks = () => {
     const { host } = this.props;
-    const { packs = [], pack_stats = [] } = host;
+    const { pack_stats } = host;
     const wrapperClassName = `${baseClass}__table`;
 
-    const packsAccordion = pack_stats.map((pack) => {
-      return (
-        <AccordionItem key={pack.pack_id}>
-          <AccordionItemHeading>
-            <AccordionItemButton>{pack.pack_name}</AccordionItemButton>
-          </AccordionItemHeading>
-          <AccordionItemPanel>
-            {pack.query_stats.length === 0 ? (
-              <div>There are no schedule queries for this pack.</div>
-            ) : (
-              <div className={`${baseClass}__wrapper`}>
-                <table className={wrapperClassName}>
-                  <thead>
-                    <tr>
-                      <th>Query Name</th>
-                      <th>Description</th>
-                      <th>Frequency</th>
-                      <th>Last Run</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {!!pack.query_stats.length &&
-                      pack.query_stats.map((query) => {
-                        return (
-                          <PackQueriesListRow
-                            key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
-                            query={query}
-                          />
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </AccordionItemPanel>
-        </AccordionItem>
-      );
-    });
+    let packsAccordion;
+    if (pack_stats) {
+      packsAccordion = pack_stats.map((pack) => {
+        return (
+          <AccordionItem key={pack.pack_id}>
+            <AccordionItemHeading>
+              <AccordionItemButton>{pack.pack_name}</AccordionItemButton>
+            </AccordionItemHeading>
+            <AccordionItemPanel>
+              {pack.query_stats.length === 0 ? (
+                <div>There are no schedule queries for this pack.</div>
+              ) : (
+                <div className={`${baseClass}__wrapper`}>
+                  <table className={wrapperClassName}>
+                    <thead>
+                      <tr>
+                        <th>Query Name</th>
+                        <th>Description</th>
+                        <th>Frequency</th>
+                        <th>Last Run</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!!pack.query_stats.length &&
+                        pack.query_stats.map((query) => {
+                          return (
+                            <PackQueriesListRow
+                              key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
+                              query={query}
+                            />
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </AccordionItemPanel>
+          </AccordionItem>
+        );
+      });
+    }
 
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        {pack_stats.length === 0 ? (
+        {!pack_stats ? (
           <p className="info__item">
             No packs with scheduled queries have this host as a target.
           </p>
