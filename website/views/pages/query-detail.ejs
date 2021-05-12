@@ -3,5 +3,70 @@
 
   <%- partial('../partials/built-from-markdown/handbook-queries/rachel-and-sarahs.ejs') %>
 
+  <!--<h2 id="get-installed-macos-software">Get installed macOS software</h1>
+<p>Get all software installed on a macOS computer, including apps, browser plugins, and installed packages.</p>
+<blockquote class="blockquote border-left border-primary p-4 my-5">
+<p class="m-0"><i class="fa fa-lightbulb-o fa-lg"></i>This does not included other running processes in the <code>processes</code> table.</p>
+</blockquote>
+<section>
+<h3 id="query" permalink="query">Query</h4>
+<pre><code class="sql">SELECT
+  name AS name,
+  bundle_short_version AS version,
+  &apos;Application (macOS)&apos; AS type,
+  &apos;apps&apos; AS source
+FROM apps
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  &apos;Package (Python)&apos; AS type,
+  &apos;python_packages&apos; AS source
+FROM python_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  &apos;Browser plugin (Chrome)&apos; AS type,
+  &apos;chrome_extensions&apos; AS source
+FROM chrome_extensions
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  &apos;Browser plugin (Firefox)&apos; AS type,
+  &apos;firefox_addons&apos; AS source
+FROM firefox_addons
+UNION
+SELECT
+  name As name,
+  version AS version,
+  &apos;Browser plugin (Safari)&apos; AS type,
+  &apos;safari_extensions&apos; AS source
+FROM safari_extensions
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  &apos;Package (Homebrew)&apos; AS type,
+  &apos;homebrew_packages&apos; AS source
+FROM homebrew_packages;
+</code></pre></section>
+<section><h3>Tables of vulnerable SSL versions</h2>
+<p>The table below includes the high severity vulberabilities reported by OpenSSL.</p>
+</section></div><div class="col-2 mx-5">
+<h4 id="support" permalink="support">Platforms</h4>
+<p><i class="fa fa-apple fa-lg mr-1" alt="Mac"></i>
+  <i class="fa fa-windows fa-lg mr-1" alt="Windows"></i>
+  <i class="fa fa-linux fa-lg mr-1" alt="Linux"></i>
+</p>
+<h4 id="purpose" permalink="purpose">Purpose</h4>
+<p>Informational</p>
+<h4 id="remediation" permalink="remediation">Contribute to this page</h4>
+<a href="http://www.github.com/fleetdm/fleet">Contribute to this source</a>
+</div>
+-->
+
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
+
