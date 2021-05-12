@@ -97,8 +97,6 @@ type KolideEndpoints struct {
 	ListHosts                             endpoint.Endpoint
 	GetHostSummary                        endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
-	ApplyOsqueryOptionsSpec               endpoint.Endpoint
-	GetOsqueryOptionsSpec                 endpoint.Endpoint
 	GetCertificate                        endpoint.Endpoint
 	ChangeEmail                           endpoint.Endpoint
 	InitiateSSO                           endpoint.Endpoint
@@ -211,8 +209,6 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		GetLabelSpecs:                         authenticatedUser(jwtKey, svc, makeGetLabelSpecsEndpoint(svc)),
 		GetLabelSpec:                          authenticatedUser(jwtKey, svc, makeGetLabelSpecEndpoint(svc)),
 		SearchTargets:                         authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
-		ApplyOsqueryOptionsSpec:               authenticatedUser(jwtKey, svc, makeApplyOsqueryOptionsSpecEndpoint(svc)),
-		GetOsqueryOptionsSpec:                 authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
 		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
@@ -323,8 +319,6 @@ type kolideHandlers struct {
 	ListHosts                             http.Handler
 	GetHostSummary                        http.Handler
 	SearchTargets                         http.Handler
-	ApplyOsqueryOptionsSpec               http.Handler
-	GetOsqueryOptionsSpec                 http.Handler
 	GetCertificate                        http.Handler
 	ChangeEmail                           http.Handler
 	InitiateSSO                           http.Handler
@@ -426,8 +420,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ListHosts:                             newServer(e.ListHosts, decodeListHostsRequest),
 		GetHostSummary:                        newServer(e.GetHostSummary, decodeNoParamsRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		ApplyOsqueryOptionsSpec:               newServer(e.ApplyOsqueryOptionsSpec, decodeApplyOsqueryOptionsSpecRequest),
-		GetOsqueryOptionsSpec:                 newServer(e.GetOsqueryOptionsSpec, decodeNoParamsRequest),
 		GetCertificate:                        newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                           newServer(e.ChangeEmail, decodeChangeEmailRequest),
 		InitiateSSO:                           newServer(e.InitiateSSO, decodeInitiateSSORequest),
@@ -643,9 +635,6 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/hosts/{id}", h.GetHost).Methods("GET").Name("get_host")
 	r.Handle("/api/v1/fleet/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
 	r.Handle("/api/v1/fleet/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
-
-	r.Handle("/api/v1/fleet/spec/osquery_options", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")
-	r.Handle("/api/v1/fleet/spec/osquery_options", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
 
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 

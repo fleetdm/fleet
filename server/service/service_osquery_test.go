@@ -433,30 +433,8 @@ func TestGetClientConfig(t *testing.T) {
 			return []*kolide.ScheduledQuery{}, nil
 		}
 	}
-	ds.OptionsForPlatformFunc = func(platform string) (json.RawMessage, error) {
-		return json.RawMessage(`
-{
-  "options":{
-    "distributed_interval":11,
-    "logger_tls_period":33
-  },
-  "decorators":{
-    "load":[
-      "SELECT version FROM osquery_info;",
-      "SELECT uuid AS host_uuid FROM system_info;"
-    ],
-    "always":[
-      "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1;"
-    ],
-    "interval":{
-      "3600":[
-        "SELECT total_seconds AS uptime FROM uptime;"
-      ]
-    }
-  },
-  "foo": "bar"
-}
-`), nil
+	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		return &kolide.AppConfig{AgentOptions: json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`)}, nil
 	}
 	ds.SaveHostFunc = func(host *kolide.Host) error {
 		return nil
@@ -469,27 +447,11 @@ func TestGetClientConfig(t *testing.T) {
 	ctx2 := hostctx.NewContext(context.Background(), kolide.Host{ID: 2})
 
 	expectedOptions := map[string]interface{}{
-		"distributed_interval": float64(11),
-		"logger_tls_period":    float64(33),
-	}
-
-	expectedDecorators := map[string]interface{}{
-		"load": []interface{}{
-			"SELECT version FROM osquery_info;",
-			"SELECT uuid AS host_uuid FROM system_info;",
-		},
-		"always": []interface{}{
-			"SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1;",
-		},
-		"interval": map[string]interface{}{
-			"3600": []interface{}{"SELECT total_seconds AS uptime FROM uptime;"},
-		},
+		"baz": "bar",
 	}
 
 	expectedConfig := map[string]interface{}{
-		"options":    expectedOptions,
-		"decorators": expectedDecorators,
-		"foo":        "bar",
+		"options": expectedOptions,
 	}
 
 	// No packs loaded yet
@@ -1517,8 +1479,8 @@ func TestUpdateHostIntervals(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			ctx := hostctx.NewContext(context.Background(), tt.initHost)
 
-			ds.OptionsForPlatformFunc = func(platform string) (json.RawMessage, error) {
-				return tt.configOptions, nil
+			ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+				return &kolide.AppConfig{AgentOptions: json.RawMessage(`{"config":` + string(tt.configOptions) + `}`)}, nil
 			}
 
 			saveHostCalled := false

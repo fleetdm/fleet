@@ -167,6 +167,9 @@ type AppConfig struct {
 	// AdditionalQueries is the set of additional queries that should be run
 	// when collecting details from hosts.
 	AdditionalQueries *json.RawMessage `db:"additional_queries"`
+
+	// AgentOptions is the global agent options, including overrides.
+	AgentOptions json.RawMessage `db:"agent_options"`
 }
 
 const (

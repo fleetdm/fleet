@@ -14,7 +14,6 @@ type Datastore interface {
 	AppConfigStore
 	InviteStore
 	ScheduledQueryStore
-	OsqueryOptionsStore
 	CarveStore
 	TeamStore
 	SoftwareStore
