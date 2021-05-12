@@ -6,7 +6,6 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/pkg/errors"
-	"gopkg.in/guregu/null.v3"
 )
 
 type setupRequest struct {
@@ -64,7 +63,8 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return setupResponse{Err: err}, nil
 		}
 		// Make the user an admin
-		adminPayload.GlobalRole = null.StringFrom("admin")
+		adminStr := "admin"
+		adminPayload.GlobalRole = &adminStr
 		admin, err = svc.CreateUser(ctx, adminPayload)
 		if err != nil {
 			return setupResponse{Err: err}, nil
