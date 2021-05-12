@@ -160,7 +160,9 @@ export class ManageHostsPage extends PureComponent {
 
   onChangeTeam = (team) => {
     const { dispatch } = this.props;
-    dispatch(teamActions.getEnrolSecrets(team.id)); // TODO: ensure works when API is implemented
+    if (team !== null) {
+      dispatch(teamActions.getEnrolSecrets(team.id)); // TODO: ensure works when API is implemented
+    }
   };
 
   // NOTE: this is called once on the initial rendering. The initial render of

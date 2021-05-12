@@ -59,9 +59,14 @@ class AddHostModal extends Component {
 
   onChangeSelectTeam = (teamId) => {
     const { teams, onChangeTeam } = this.props;
-    const selectedTeam = teams.find((team) => team.id === teamId);
-    onChangeTeam(selectedTeam);
-    this.setState({ selectedTeam });
+    if (teamId === null) {
+      onChangeTeam(null);
+      this.setState({ selectedTeam: null });
+    } else {
+      const selectedTeam = teams.find((team) => team.id === teamId);
+      onChangeTeam(selectedTeam);
+      this.setState({ selectedTeam });
+    }
   };
 
   createTeamDropdownOptions = (teams) => {

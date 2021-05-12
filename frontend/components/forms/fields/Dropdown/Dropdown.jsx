@@ -46,13 +46,11 @@ class Dropdown extends Component {
 
     if (clearable && selected === null) {
       onChange(null);
+    } else if (multi) {
+      onChange(selected.map((obj) => obj.value).join(","));
+    } else {
+      onChange(selected.value);
     }
-
-    if (multi) {
-      return onChange(selected.map((obj) => obj.value).join(","));
-    }
-
-    return onChange(selected.value);
   };
 
   renderLabel = () => {
