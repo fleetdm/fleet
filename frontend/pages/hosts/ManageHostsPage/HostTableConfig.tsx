@@ -1,3 +1,6 @@
+/* eslint-disable react/prop-types */
+// disable this rule as it was throwing an error in Header and Cell component
+// definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 
 import { IHost } from "interfaces/host";
@@ -54,22 +57,25 @@ const lastSeenTime = (status: string, seenTime: string): string => {
 };
 
 const hostTableHeaders: IHostDataColumn[] = [
+  // We are using React Table useRowSelect functionality for the selection header.
+  // More information on its API can be found here
+  // https://react-table.tanstack.com/docs/api/useRowSelect
   {
     id: "selection",
-    Header: (cellProps) => {
+    Header: (cellProps: IHeaderProps): JSX.Element => {
       const props = cellProps.getToggleAllRowsSelectedProps();
       const checkboxProps = {
         value: props.checked,
         indeterminate: props.indeterminate,
-        onChange: (value: boolean) => cellProps.toggleAllRowsSelected(),
+        onChange: () => cellProps.toggleAllRowsSelected(),
       };
       return <Checkbox {...checkboxProps} />;
     },
-    Cell: (cellProps) => {
+    Cell: (cellProps: ICellProps): JSX.Element => {
       const props = cellProps.row.getToggleRowSelectedProps();
       const checkboxProps = {
         value: props.checked,
-        onChange: (value: boolean) => cellProps.row.toggleRowSelected(),
+        onChange: () => cellProps.row.toggleRowSelected(),
       };
       return <Checkbox {...checkboxProps} />;
     },

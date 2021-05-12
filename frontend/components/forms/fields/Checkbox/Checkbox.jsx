@@ -63,9 +63,9 @@ class Checkbox extends Component {
             name={name}
             onChange={handleChange}
             type="checkbox"
-            ref={(element) =>
-              element && (element.indeterminate = indeterminate)
-            }
+            ref={(element) => {
+              element && (element.indeterminate = indeterminate);
+            }}
           />
           <span className={checkBoxTickClass} />
           <span className={`${checkBoxClass}__label`}>{children}</span>
