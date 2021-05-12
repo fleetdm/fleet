@@ -44,6 +44,13 @@ In brief, this means that as a Fleet team member, you may:
 
 For more detailed information about __spending guidelines and limits__, please read [GitLab's expense policy](https://about.gitlab.com/handbook/spending-company-money/)
 
+### Fleet website
+
+### When can I merge a change to the website?
+When merging a PR to master, bear in mind that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), then please do not merge.
+
+Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and level of quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width. 
+
 
 ### About the handbook
 #### Why bother?
