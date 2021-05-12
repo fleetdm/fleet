@@ -19,13 +19,26 @@ func decodeModifyTeamRequest(ctx context.Context, r *http.Request) (interface{},
 	if err != nil {
 		return nil, err
 	}
-	var resp modifyTeamRequest
-	err = json.NewDecoder(r.Body).Decode(&resp.payload)
+	req := modifyTeamRequest{ID: id}
+	err = json.NewDecoder(r.Body).Decode(&req.payload)
 	if err != nil {
 		return nil, err
 	}
-	resp.ID = id
-	return resp, nil
+	req.ID = id
+	return req, nil
+}
+
+func decodeModifyTeamAgentOptionsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	req := modifyTeamAgentOptionsRequest{ID: id}
+	err = json.NewDecoder(r.Body).Decode(&req.options)
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 func decodeListTeamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -61,11 +74,10 @@ func decodeModifyTeamUsersRequest(ctx context.Context, r *http.Request) (interfa
 	if err != nil {
 		return nil, err
 	}
-	var req modifyTeamUsersRequest
+	req := modifyTeamUsersRequest{TeamID: id}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return nil, err
 	}
-	req.TeamID = id
 	return req, nil
 }

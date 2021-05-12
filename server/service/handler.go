@@ -110,6 +110,7 @@ type KolideEndpoints struct {
 	Version                               endpoint.Endpoint
 	CreateTeam                            endpoint.Endpoint
 	ModifyTeam                            endpoint.Endpoint
+	ModifyTeamAgentOptions                endpoint.Endpoint
 	DeleteTeam                            endpoint.Endpoint
 	ListTeams                             endpoint.Endpoint
 	ListTeamUsers                         endpoint.Endpoint
@@ -216,13 +217,14 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
 		Version:                               authenticatedUser(jwtKey, svc, makeVersionEndpoint(svc)),
 		// TODO permissions for teams endpoints
-		CreateTeam:      authenticatedUser(jwtKey, svc, makeCreateTeamEndpoint(svc)),
-		ModifyTeam:      authenticatedUser(jwtKey, svc, makeModifyTeamEndpoint(svc)),
-		DeleteTeam:      authenticatedUser(jwtKey, svc, makeDeleteTeamEndpoint(svc)),
-		ListTeams:       authenticatedUser(jwtKey, svc, makeListTeamsEndpoint(svc)),
-		ListTeamUsers:   authenticatedUser(jwtKey, svc, makeListTeamUsersEndpoint(svc)),
-		AddTeamUsers:    authenticatedUser(jwtKey, svc, makeAddTeamUsersEndpoint(svc)),
-		DeleteTeamUsers: authenticatedUser(jwtKey, svc, makeDeleteTeamUsersEndpoint(svc)),
+		CreateTeam:             authenticatedUser(jwtKey, svc, makeCreateTeamEndpoint(svc)),
+		ModifyTeam:             authenticatedUser(jwtKey, svc, makeModifyTeamEndpoint(svc)),
+		ModifyTeamAgentOptions: authenticatedUser(jwtKey, svc, makeModifyTeamAgentOptionsEndpoint(svc)),
+		DeleteTeam:             authenticatedUser(jwtKey, svc, makeDeleteTeamEndpoint(svc)),
+		ListTeams:              authenticatedUser(jwtKey, svc, makeListTeamsEndpoint(svc)),
+		ListTeamUsers:          authenticatedUser(jwtKey, svc, makeListTeamUsersEndpoint(svc)),
+		AddTeamUsers:           authenticatedUser(jwtKey, svc, makeAddTeamUsersEndpoint(svc)),
+		DeleteTeamUsers:        authenticatedUser(jwtKey, svc, makeDeleteTeamUsersEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
@@ -332,6 +334,7 @@ type kolideHandlers struct {
 	Version                               http.Handler
 	CreateTeam                            http.Handler
 	ModifyTeam                            http.Handler
+	ModifyTeamAgentOptions                http.Handler
 	DeleteTeam                            http.Handler
 	ListTeams                             http.Handler
 	ListTeamUsers                         http.Handler
@@ -433,6 +436,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		Version:                               newServer(e.Version, decodeNoParamsRequest),
 		CreateTeam:                            newServer(e.CreateTeam, decodeCreateTeamRequest),
 		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
+		ModifyTeamAgentOptions:                newServer(e.ModifyTeamAgentOptions, decodeModifyTeamAgentOptionsRequest),
 		DeleteTeam:                            newServer(e.DeleteTeam, decodeDeleteTeamRequest),
 		ListTeams:                             newServer(e.ListTeams, decodeListTeamsRequest),
 		ListTeamUsers:                         newServer(e.ListTeamUsers, decodeListTeamUsersRequest),
@@ -651,6 +655,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
 	r.Handle("/api/v1/fleet/teams/{id}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
 	r.Handle("/api/v1/fleet/teams/{id}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
+	r.Handle("/api/v1/fleet/teams/{id}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
 	r.Handle("/api/v1/fleet/teams/{id}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
 	r.Handle("/api/v1/fleet/teams/{id}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
 	r.Handle("/api/v1/fleet/teams/{id}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")

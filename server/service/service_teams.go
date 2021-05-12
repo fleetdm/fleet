@@ -2,13 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
 func (svc service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.Team, error) {
-	team := &kolide.Team{AgentOptions: p.AgentOptions}
+	team := &kolide.Team{}
 
 	if p.Name == nil {
 		return nil, newInvalidArgumentError("name", "missing required argument")
@@ -43,8 +44,20 @@ func (svc service) ModifyTeam(ctx context.Context, id uint, payload kolide.TeamP
 	if payload.Description != nil {
 		team.Description = *payload.Description
 	}
-	if payload.AgentOptions != nil {
-		team.AgentOptions = payload.AgentOptions
+
+	return svc.ds.SaveTeam(team)
+}
+
+func (svc service) ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*kolide.Team, error) {
+	team, err := svc.ds.Team(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if options != nil {
+		team.AgentOptions = &options
+	} else {
+		team.AgentOptions = nil
 	}
 
 	return svc.ds.SaveTeam(team)

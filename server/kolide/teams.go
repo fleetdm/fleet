@@ -25,8 +25,10 @@ type TeamStore interface {
 type TeamService interface {
 	// NewTeam creates a new team.
 	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
-	// ModifyTeam modifies an existing team.
+	// ModifyTeam modifies an existing team (besides agent options).
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
+	// ModifyTeam modifies agent options for a team.
+	ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*Team, error)
 	// AddTeamUsers adds users to an existing team.
 	AddTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
 	// DeleteTeamUsers deletes users from an existing team.
@@ -41,9 +43,9 @@ type TeamService interface {
 }
 
 type TeamPayload struct {
-	Name         *string          `json:"name"`
-	Description  *string          `json:"description"`
-	AgentOptions *json.RawMessage `json:"agent_options"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	// Note AgentOptions must be set by a separate endpoint.
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
