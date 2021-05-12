@@ -1,1 +1,1 @@
-export { default } from "./AddHostsModal";
+export { default } from "./AddHostsRedirectModal";

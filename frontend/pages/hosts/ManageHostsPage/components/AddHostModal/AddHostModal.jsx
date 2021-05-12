@@ -168,7 +168,7 @@ class AddHostModal extends Component {
                   searchable={false}
                 />
                 <EnrollSecretTable secrets={enrollSecret} />
-                {/*<EnrollSecretTable secrets={selectedTeam.enrollSecrets} />*/}
+                {/* <EnrollSecretTable secrets={selectedTeam.enrollSecrets} /> */}
               </div>
             </li>
             <li>
