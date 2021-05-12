@@ -2,20 +2,30 @@
   <div class="container-fluid pt-5 pb-5">
     <div style="max-width:  650px;" class="mx-auto" v-if="!cloudSuccess">
       <h2 style="max-width: 650px;" class="mx-auto">Contact our team</h2>
-      <p>We're here to answer your questions, and familiarize you with Fleet.</p>
+      <p class="pb-4">We're here to answer your questions, and familiarize you with Fleet.</p>
       <ajax-form action="deliverContactFormMessage" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedForm()">
         <div class="form-group">
-          <label for="full-name">Full name<span style="font-weight: 400; color: #FF5C83"> *</span></label>
-          <input class="form-control" id="full-name" name="full-name" type="text" :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName" autocomplete="name" focus-first>
-          <div class="invalid-feedback" v-if="formErrors.fullName">Please let us know what to call you.</div>
+          <div class="row">
+            <div class="col">
+              <label for="first-name">First name<span style="font-weight: 400; color: #FF5C83"> *</span></label>
+              <input class="form-control" id="first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name" focus-first>
+              <div class="invalid-feedback" v-if="formErrors.firstName">Please let us know what to call you.</div>
+            </div>
+            <div class="col">
+              <label for="last-name">Last name<span style="font-weight: 400; color: #FF5C83"> *</span></label>
+              <input class="form-control" id="last-name" name="last-name" type="text" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="family-name">
+              <div class="invalid-feedback" v-if="formErrors.lastName">Please let us know what to call you.</div>
+            </div>
+          </div>
         </div>
         <div class="form-group">
-          <label for="email-address">Email address<span style="font-weight: 400; color: #FF5C83"> *</span></label>
+          <label for="email-address">Email<span style="font-weight: 400; color: #FF5C83"> *</span></label>
           <input class="form-control" id="email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email">
           <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid email address.</div>
         </div>
         <div class="form-group">
           <label for="topic">How can we help you?</label>
+          <div class="selectbox">
           <select class="form-control" id="topic" name="topic" :class="[formErrors.topic ? 'is-invalid' : '']" v-model="formData.topic">
             <option disabled hidden value="undefined">Please select one</option>
             <option value="I want to evaluate Fleet Basic for my organization">I want to evaluate Fleet Basic for my organization</option>
@@ -23,7 +33,8 @@
             <option value="I have a product question">I have a product question</option>
             <option value="Something else">Something else</option>
           </select>
-          <div class="invalid-feedback" v-if="formErrors.topic">Please choose a topic for your message.</div>
+          </div>
+          <div class="d-block invalid-feedback" v-if="formErrors.topic">Please choose a topic for your message.</div>
         </div>
         <div class="form-group">
           <label for="message">Message</label>
