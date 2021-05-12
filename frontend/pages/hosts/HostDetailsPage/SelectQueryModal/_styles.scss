@@ -72,14 +72,9 @@
       margin: 15px;
       font-weight: bold;
     }
+  }
 
-    &__custom-query-button {
-      font-size: $x-small;
-      font-weight: $bold;
-      float: right;
-      margin: 0;
-      position: absolute;
-      top: 50%;
-    }
+  &__custom-query-button {
+    font-size: $x-small;
   }
 }
