@@ -46,8 +46,12 @@
     }
   }
 
+  &__query-modal {
+    display: flex;
+  }
+
   &__filter-queries {
-    flex-grow: 1;
+    flex-grow: 3;
     position: relative;
 
     .input-field {
@@ -63,9 +67,19 @@
     }
   }
 
-  &__custom-query-button {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
+  &__create-query {
+    span {
+      margin: 15px;
+      font-weight: bold;
+    }
+
+    &__custom-query-button {
+      font-size: $x-small;
+      font-weight: $bold;
+      float: right;
+      margin: 0;
+      position: absolute;
+      top: 50%;
+    }
   }
 }

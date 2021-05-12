@@ -106,14 +106,26 @@ const SelectQueryModal = (props) => {
       });
       return (
         <div>
-          <div className={`${baseClass}__filter-queries`}>
-            <InputField
-              name="query-filter"
-              onChange={onFilterQueries}
-              placeholder="Filter queries"
-              value={queriesFilter}
-            />
-            <KolideIcon name="search" />
+          <div className={`${baseClass}__query-modal`}>
+            <div className={`${baseClass}__filter-queries`}>
+              <InputField
+                name="query-filter"
+                onChange={onFilterQueries}
+                placeholder="Filter queries"
+                value={queriesFilter}
+              />
+              <KolideIcon name="search" />
+            </div>
+            <div className={`${baseClass}__create-query`}>
+              <span>OR</span>
+              <Button
+                onClick={() => onQueryHostCustom(host, dispatch)}
+                variant="brand"
+                className={`${baseClass}__custom-query-button`}
+              >
+                Create custom query
+              </Button>
+            </div>
           </div>
           <div>{queryList}</div>
         </div>
@@ -165,15 +177,6 @@ const SelectQueryModal = (props) => {
       className={`${baseClass}__modal`}
     >
       {results()}
-      <p>
-        <Button
-          onClick={() => onQueryHostCustom(host, dispatch)}
-          variant="unstyled"
-          className={`${baseClass}__custom-query-button`}
-        >
-          Create custom query
-        </Button>
-      </p>
     </Modal>
   );
 };
