@@ -64,6 +64,7 @@ export class HostDetailsPage extends Component {
     this.state = {
       showDeleteHostModal: false,
       showQueryHostModal: false,
+      showRefetchLoadingSpinner: false,
     };
   }
 
@@ -104,17 +105,21 @@ export class HostDetailsPage extends Component {
     const { dispatch, host } = this.props;
     const { refetchHost } = helpers;
 
-    refetchHost(dispatch, host).then(() => {
-      // what do we do when the data returns on success?
-      // we throw errors if errored out instead of return
-      // see redux/nodes/entities/host/actions.js
-      dispatch(
-        renderFlash(
-          "success",
-          `Host "${host.hostname}" refetch successfully started`
-        )
-      );
-    });
+    this.setState({ showRefetchLoadingSpinner: true });
+
+    refetchHost(dispatch, host)
+      .then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            `Host ${host.hostname} refetch successfully started, try reloading the page in a few seconds`
+          )
+        );
+      })
+      .catch(() => {
+        this.setState({ showRefetchLoadingSpinner: false });
+        dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+      });
 
     return false;
   };
@@ -182,7 +187,7 @@ export class HostDetailsPage extends Component {
           revoke the host&apos;s enroll secret.
         </p>
         <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={() => onDestroyHost()} variant="alert">
+          <Button onClick={onDestroyHost} variant="alert">
             Delete
           </Button>
           <Button onClick={toggleDeleteHostModal(null)} variant="inverse">
@@ -371,13 +376,13 @@ export class HostDetailsPage extends Component {
   };
 
   renderRefetch = () => {
+    const { onRefetchHost } = this;
     const { host } = this.props;
+    const { showRefetchLoadingSpinner } = this.state;
 
     const isOnline = host.status === "online";
     const isOffline = host.status === "offline";
 
-    console.log("isOffline:", isOffline);
-    console.log("isOnline:", isOnline);
     return (
       <>
         <div
@@ -387,12 +392,17 @@ export class HostDetailsPage extends Component {
           data-tip-disable={isOnline}
         >
           <Button
-            className={`button button--unstyled refetch-btn ${
-              isOffline ? "refetch-offline" : "refetch-online"
-            }`}
-            onClick={() => onRefetchHost()}
+            className={`
+              button
+              button--unstyled
+              ${isOffline ? "refetch-offline" : ""} 
+              ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
+            `}
+            onClick={onRefetchHost}
           >
-            Refetch
+            {showRefetchLoadingSpinner
+              ? "Fetching, try refreshing this page in just a moment."
+              : "Refetch"}
           </Button>
         </div>
         <ReactTooltip

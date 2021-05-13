@@ -38,4 +38,10 @@ export const queryHostSaved = (dispatch, host, selectedQuery) => {
   );
 };
 
-export default { fetchHost, destroyHost, queryHostCustom, queryHostSaved };
+export default {
+  fetchHost,
+  destroyHost,
+  queryHostCustom,
+  queryHostSaved,
+  refetchHost,
+};

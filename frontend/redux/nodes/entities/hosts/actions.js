@@ -27,9 +27,9 @@ export const refetchHostFailure = (errors) => {
 };
 
 export const refetchHostStart = (host) => {
-  // ask gabe
   return (dispatch) => {
-    dispatch({ type: REFETCH_HOST_START, payload: { host } })
+    return Kolide.hosts
+      .refetch(host)
       .then((data) => {
         dispatch(refetchHostSuccess(data));
         return data;
