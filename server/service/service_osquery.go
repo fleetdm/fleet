@@ -861,7 +861,7 @@ func ingestSoftware(logger log.Logger, host *kolide.Host, rows []map[string]stri
 // osqueryd to fill in the host details
 func (svc service) hostDetailQueries(host kolide.Host) (map[string]string, error) {
 	queries := make(map[string]string)
-	if host.DetailUpdateTime.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) {
+	if host.DetailUpdateTime.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) && !host.RefetchRequested {
 		// No need to update already fresh details
 		return queries, nil
 	}
@@ -958,6 +958,9 @@ func (svc service) ingestDetailQuery(host *kolide.Host, name string, rows []map[
 			message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
 		}
 	}
+
+	// Refetch is no longer needed after ingesting details.
+	host.RefetchRequested = false
 
 	return nil
 }
