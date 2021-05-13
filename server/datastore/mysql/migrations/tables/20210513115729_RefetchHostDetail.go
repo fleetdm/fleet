@@ -12,9 +12,9 @@ func init() {
 
 func Up_20210513115729(tx *sql.Tx) error {
 	sql := `
-ALTER TABLE hosts
-ADD COLUMN refetch_requested TINYINT(1) NOT NULL DEFAULT 0
-`
+		ALTER TABLE hosts
+		ADD COLUMN refetch_requested TINYINT(1) NOT NULL DEFAULT 0
+	`
 	if _, err := tx.Exec(sql); err != nil {
 		return errors.Wrap(err, "add column refetch_requested")
 	}
