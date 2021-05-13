@@ -83,7 +83,7 @@ export const transferHosts = (teamId: number, hostIds: number[]): any => {
 export const getEnrollSecrets = (teamId: number): any => {
   return (dispatch: any) => {
     return Kolide.teams
-      .getEnrolSecrets(teamId)
+      .getEnrollSecrets(teamId)
       .then((res: { team: ITeam }) => {
         return dispatch(successAction(res.team, updateSuccess));
       })
@@ -100,5 +100,5 @@ export default {
   addMembers,
   removeMembers,
   transferHosts,
-  getEnrolSecrets: getEnrollSecrets,
+  getEnrollSecrets,
 };
