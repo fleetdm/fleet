@@ -8,7 +8,7 @@ export default PropTypes.shape({
   members: PropTypes.number,
   role: PropTypes.string,
   // eslint-disable-next-line react/forbid-prop-types
-  agent_options: PropTypes.object,
+  agent_options: PropTypes.string,
 });
 
 /**

@@ -1,7 +1,6 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { size } from "lodash";
-import { useSelector } from "react-redux";
 
 import Button from "components/buttons/Button";
 import Form from "components/forms/Form";
