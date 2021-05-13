@@ -188,3 +188,28 @@ func makeDeleteHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return deleteHostResponse{}, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Refetch Host
+////////////////////////////////////////////////////////////////////////////////
+
+type refetchHostRequest struct {
+	ID uint `json:"id"`
+}
+
+type refetchHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r refetchHostResponse) error() error { return r.Err }
+
+func makeRefetchHostEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(refetchHostRequest)
+		err := svc.RefetchHost(ctx, req.ID)
+		if err != nil {
+			return refetchHostResponse{Err: err}, nil
+		}
+		return refetchHostResponse{}, nil
+	}
+}
