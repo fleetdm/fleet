@@ -109,12 +109,7 @@ export class HostDetailsPage extends Component {
 
     refetchHost(dispatch, host)
       .then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `Host ${host.hostname} refetch successfully started, try reloading the page in a few seconds`
-          )
-        );
+        dispatch();
       })
       .catch(() => {
         this.setState({ showRefetchLoadingSpinner: false });
