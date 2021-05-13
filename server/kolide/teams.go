@@ -20,6 +20,9 @@ type TeamStore interface {
 	// ListTeams lists teams with the ordering and filters in the provided
 	// options.
 	ListTeams(opt ListOptions) ([]*Team, error)
+	// AddHostsToTeam adds hosts to an existing team, clearing their team
+	// settings if teamID is nil.
+	AddHostsToTeam(teamID *uint, hostIDs []uint) error
 }
 
 type TeamService interface {
@@ -40,6 +43,9 @@ type TeamService interface {
 	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
 	// ListTeams lists users on the team with the provided list options.
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
+	// AddHostsToTeam adds hosts to an existing team, clearing their team
+	// settings if teamID is nil.
+	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 }
 
 type TeamPayload struct {
