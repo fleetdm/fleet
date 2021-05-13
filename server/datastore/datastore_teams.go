@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -111,7 +112,7 @@ func testTeamAddHostsToTeam(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
-		test.NewHost(t, ds, string(i), "", "key"+string(i), "uuid"+string(i), time.Now())
+		test.NewHost(t, ds, fmt.Sprint(i), "", "key"+fmt.Sprint(i), "uuid"+fmt.Sprint(i), time.Now())
 	}
 
 	for i := 1; i <= 10; i++ {

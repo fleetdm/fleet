@@ -20,6 +20,8 @@ type TeamByNameFunc func(name string) (*kolide.Team, error)
 
 type ListTeamsFunc func(opt kolide.ListOptions) ([]*kolide.Team, error)
 
+type AddHostsToTeamFunc func(teamID *uint, hostIDs []uint) error
+
 type TeamStore struct {
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
@@ -38,6 +40,9 @@ type TeamStore struct {
 
 	ListTeamsFunc        ListTeamsFunc
 	ListTeamsFuncInvoked bool
+
+	AddHostsToTeamFunc        AddHostsToTeamFunc
+	AddHostsToTeamFuncInvoked bool
 }
 
 func (s *TeamStore) NewTeam(team *kolide.Team) (*kolide.Team, error) {
@@ -68,4 +73,9 @@ func (s *TeamStore) TeamByName(identifier string) (*kolide.Team, error) {
 func (s *TeamStore) ListTeams(opt kolide.ListOptions) ([]*kolide.Team, error) {
 	s.ListTeamsFuncInvoked = true
 	return s.ListTeamsFunc(opt)
+}
+
+func (s *TeamStore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
+	s.AddHostsToTeamFuncInvoked = true
+	return s.AddHostsToTeamFunc(teamID, hostIDs)
 }
