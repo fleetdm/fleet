@@ -61,13 +61,14 @@ func TestInmem(t *testing.T) {
 
 func setupRedis(t *testing.T) (store *redisQueryResults, teardown func()) {
 	var (
-		addr     = "127.0.0.1:6379"
-		password = ""
-		database = 0
-		useTLS   = false
+		addr       = "127.0.0.1:6379"
+		password   = ""
+		database   = 0
+		useTLS     = false
+		DupResults = false
 	)
 
-	store = NewRedisQueryResults(NewRedisPool(addr, password, database, useTLS))
+	store = NewRedisQueryResults(NewRedisPool(addr, password, database, useTLS), DupResults)
 
 	_, err := store.pool.Get().Do("PING")
 	require.Nil(t, err)
