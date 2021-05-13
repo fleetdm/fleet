@@ -35,10 +35,11 @@ type MysqlConfig struct {
 
 // RedisConfig defines configs related to Redis
 type RedisConfig struct {
-	Address  string
-	Password string
-	Database int
-	UseTLS   bool `yaml:"use_tls"`
+	Address          string
+	Password         string
+	Database         int
+	UseTLS           bool `yaml:"use_tls"`
+	DuplicateResults bool `yaml:"duplicate_results"`
 }
 
 const (
@@ -213,6 +214,7 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("redis.database", 0,
 		"Redis server database number")
 	man.addConfigBool("redis.use_tls", false, "Redis server enable TLS")
+	man.addConfigBool("redis.duplicate_results", false, "Duplicate Live Query results to another Redis channel")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -388,10 +390,11 @@ func (man Manager) LoadConfig() KolideConfig {
 			ConnMaxLifetime: man.getConfigInt("mysql.conn_max_lifetime"),
 		},
 		Redis: RedisConfig{
-			Address:  man.getConfigString("redis.address"),
-			Password: man.getConfigString("redis.password"),
-			Database: man.getConfigInt("redis.database"),
-			UseTLS:   man.getConfigBool("redis.use_tls"),
+			Address:          man.getConfigString("redis.address"),
+			Password:         man.getConfigString("redis.password"),
+			Database:         man.getConfigInt("redis.database"),
+			UseTLS:           man.getConfigBool("redis.use_tls"),
+			DuplicateResults: man.getConfigBool("redis.duplicate_results"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),

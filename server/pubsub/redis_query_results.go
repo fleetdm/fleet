@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gomodule/redigo/redis"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
 )
 
 type redisQueryResults struct {
 	// connection pool
-	pool *redis.Pool
+	pool             *redis.Pool
+	duplicateResults bool
 }
 
 var _ kolide.QueryResultStore = &redisQueryResults{}
@@ -49,8 +50,8 @@ func NewRedisPool(server, password string, database int, useTLS bool) *redis.Poo
 
 // NewRedisQueryResults creats a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisQueryResults(pool *redis.Pool) *redisQueryResults {
-	return &redisQueryResults{pool: pool}
+func NewRedisQueryResults(pool *redis.Pool, duplicateResults bool) *redisQueryResults {
+	return &redisQueryResults{pool: pool, duplicateResults: duplicateResults}
 }
 
 func pubSubForID(id uint) string {
@@ -69,6 +70,11 @@ func (r *redisQueryResults) WriteResult(result kolide.DistributedQueryResult) er
 	}
 
 	n, err := redis.Int(conn.Do("PUBLISH", channelName, string(jsonVal)))
+
+	if n != 0 && r.duplicateResults {
+		redis.Int(conn.Do("PUBLISH", "LQDuplicate", string(jsonVal)))
+	}
+
 	if err != nil {
 		return errors.Wrap(err, "PUBLISH failed to channel "+channelName)
 	}

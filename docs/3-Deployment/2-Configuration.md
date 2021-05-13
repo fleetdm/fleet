@@ -333,6 +333,19 @@ The database to use when connecting to the Redis instance.
   redis:
     database: 14
   ```
+  
+###### `redis_duplicate_results`
+
+Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario that would involve shipping the Live Query results outside of Fleet, near-realtime.
+
+- Default value: `false`
+- Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
+- Config file format:
+
+  ```
+  redis:
+    duplicate_results: true
+  ```
 
 ##### Server
 
