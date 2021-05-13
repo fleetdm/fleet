@@ -41,8 +41,6 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
     return state.entities.teams.data[teamId];
   });
 
-  console.log("This is my team data", team);
-
   const formData = {
     options: yaml.dump(team.agent_options),
   };

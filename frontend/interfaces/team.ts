@@ -23,7 +23,7 @@ export interface ITeam {
   // role value is included when the team is in the context of a user.
   role?: string;
   // eslint-disable-next-line @typescript-eslint/ban-types
-  agent_options?: object;
+  agent_options?: string;
 }
 
 /**
