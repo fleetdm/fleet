@@ -58,7 +58,7 @@ module.exports = {
   fn: async function({emailAddress, topic, firstName, lastName, message}) {
 
     if (!sails.config.custom.slackWebhookUrlForContactForm) {
-      sails.log.warn(
+      throw new Error(
         'Message not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered message: ' +
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Topic: ${topic}, Message: ${message ? message : 'No message.'}`
       );
