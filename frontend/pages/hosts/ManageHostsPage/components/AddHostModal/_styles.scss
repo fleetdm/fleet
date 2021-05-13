@@ -121,6 +121,12 @@
     }
   }
 
+  &__team-dropdown-wrapper {
+    .form-field__label {
+      font-weight: $bold;
+    }
+  }
+
   pre,
   code {
     background-color: $ui-off-white;

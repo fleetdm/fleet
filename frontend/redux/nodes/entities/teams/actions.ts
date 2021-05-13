@@ -50,11 +50,11 @@ export const removeMembers = (
   removedMembers: IRemoveMembersBody
 ) => {
   return (dispatch: any) => {
-    dispatch(loadRequest()); // TODO: figure out better way to do this. This causes page flash
+    dispatch(loadRequest()); // TODO: ensure works when API is implemented
     return Kolide.teams
       .removeMembers(teamId, removedMembers)
       .then((res: { team: ITeam }) => {
-        return dispatch(successAction(res.team, updateSuccess)); // TODO: come back and figure out updating team entity.
+        return dispatch(successAction(res.team, updateSuccess));
       })
       .catch((res: any) => {
         const errorsObject = formatErrorResponse(res);
@@ -64,8 +64,41 @@ export const removeMembers = (
   };
 };
 
+export const transferHosts = (teamId: number, hostIds: number[]): any => {
+  return (dispatch: any) => {
+    dispatch(loadRequest()); // TODO: ensure works when API is implemented
+    return Kolide.teams
+      .transferHosts(teamId, hostIds)
+      .then((res: { team: ITeam }) => {
+        return dispatch(successAction(res.team, updateSuccess));
+      })
+      .catch((res: any) => {
+        const errorsObject = formatErrorResponse(res);
+        dispatch(addMembersFailure(errorsObject));
+        throw errorsObject;
+      });
+  };
+};
+
+export const getEnrollSecrets = (teamId: number): any => {
+  return (dispatch: any) => {
+    return Kolide.teams
+      .getEnrolSecrets(teamId)
+      .then((res: { team: ITeam }) => {
+        return dispatch(successAction(res.team, updateSuccess));
+      })
+      .catch((res: any) => {
+        const errorsObject = formatErrorResponse(res);
+        dispatch(addMembersFailure(errorsObject));
+        throw errorsObject;
+      });
+  };
+};
+
 export default {
   ...actions,
   addMembers,
   removeMembers,
+  transferHosts,
+  getEnrolSecrets: getEnrollSecrets,
 };

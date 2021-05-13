@@ -9,14 +9,20 @@ import teamInterface from "interfaces/team";
 import enrollSecretInterface from "interfaces/enroll_secret";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
 import KolideIcon from "components/icons/KolideIcon";
+import Dropdown from "components/forms/fields/Dropdown";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
-import Dropdown from "../../../../../components/forms/fields/Dropdown";
 
 const baseClass = "add-host-modal";
+
+const NO_TEAM_OPTION = {
+  value: "no-team",
+  label: "No team",
+};
 
 class AddHostModal extends Component {
   static propTypes = {
     teams: PropTypes.arrayOf(teamInterface),
+    onChangeTeam: PropTypes.func,
     onReturnToApp: PropTypes.func,
     enrollSecret: enrollSecretInterface,
     config: configInterface,
@@ -57,18 +63,25 @@ class AddHostModal extends Component {
   };
 
   onChangeSelectTeam = (teamId) => {
-    const { teams } = this.props;
-    const selectedTeam = teams.find((team) => team.id === teamId);
-    this.setState({ selectedTeam });
+    const { teams, onChangeTeam } = this.props;
+    if (teamId === "no-team") {
+      onChangeTeam(null);
+      this.setState({ selectedTeam: { id: NO_TEAM_OPTION.value } });
+    } else {
+      const selectedTeam = teams.find((team) => team.id === teamId);
+      onChangeTeam(selectedTeam);
+      this.setState({ selectedTeam });
+    }
   };
 
   createTeamDropdownOptions = (teams) => {
-    return teams.map((team) => {
+    const teamOptions = teams.map((team) => {
       return {
         value: team.id,
         label: team.name,
       };
     });
+    return [NO_TEAM_OPTION, ...teamOptions];
   };
 
   render() {
@@ -164,11 +177,10 @@ class AddHostModal extends Component {
                   value={selectedTeam && selectedTeam.id}
                   options={createTeamDropdownOptions(teams)}
                   onChange={onChangeSelectTeam}
-                  placeholder={"No team"}
+                  placeholder={"Select a team"}
                   searchable={false}
                 />
                 <EnrollSecretTable secrets={enrollSecret} />
-                {/* <EnrollSecretTable secrets={selectedTeam.enrollSecrets} /> */}
               </div>
             </li>
             <li>

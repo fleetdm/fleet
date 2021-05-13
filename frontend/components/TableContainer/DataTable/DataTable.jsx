@@ -1,8 +1,9 @@
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import { useTable, useSortBy } from "react-table";
+import { useTable, useSortBy, useRowSelect } from "react-table";
 
 import Spinner from "components/loaders/Spinner";
+import Button from "../../buttons/Button";
 
 const baseClass = "data-table-container";
 
@@ -16,6 +17,7 @@ const DataTable = (props) => {
     sortHeader,
     sortDirection,
     onSort,
+    onSelectActionClick,
   } = props;
 
   const columns = useMemo(() => {
@@ -27,7 +29,14 @@ const DataTable = (props) => {
     return tableData;
   }, [tableData]);
 
-  const { headerGroups, rows, prepareRow, state: tableState } = useTable(
+  const {
+    headerGroups,
+    rows,
+    prepareRow,
+    selectedFlatRows,
+    toggleAllRowsSelected,
+    state: tableState,
+  } = useTable(
     {
       columns,
       data,
@@ -38,11 +47,14 @@ const DataTable = (props) => {
       },
       disableMultiSort: true,
     },
-    useSortBy
+    useSortBy,
+    useRowSelect
   );
 
-  const { sortBy } = tableState;
+  const { sortBy, selectedRowIds } = tableState;
 
+  // This is used to listen for changes to sort. If there is a change
+  // Then the sortHandler change is fired.
   useEffect(() => {
     const column = sortBy[0];
     if (column !== undefined) {
@@ -55,7 +67,16 @@ const DataTable = (props) => {
     } else {
       onSort(undefined);
     }
-  }, [sortBy, sortHeader, sortDirection]);
+  }, [sortBy, sortHeader, onSort, sortDirection]);
+
+  const onSelectActionButtonClick = useCallback(() => {
+    const entityIds = selectedFlatRows.map((row) => row.original.id);
+    onSelectActionClick(entityIds);
+  }, [onSelectActionClick, selectedFlatRows]);
+
+  const onClearSelectionClick = useCallback(() => {
+    toggleAllRowsSelected(false);
+  }, [toggleAllRowsSelected]);
 
   return (
     <div className={baseClass}>
@@ -65,8 +86,36 @@ const DataTable = (props) => {
             <Spinner />
           </div>
         )}
-        {/* TODO: can this be memoized? seems performance heavy */}
         <table className={"data-table__table"}>
+          {Object.keys(selectedRowIds).length !== 0 && (
+            <thead className={"active-selection"}>
+              <tr {...headerGroups[0].getHeaderGroupProps()}>
+                <th
+                  {...headerGroups[0].headers[0].getHeaderProps(
+                    headerGroups[0].headers[0].getSortByToggleProps()
+                  )}
+                >
+                  {headerGroups[0].headers[0].render("Header")}
+                </th>
+                <th className={"active-selection__container"}>
+                  <div className={"active-selection__inner"}>
+                    <p>
+                      <span>{selectedFlatRows.length}</span> selected
+                    </p>
+                    <Button
+                      onClick={onClearSelectionClick}
+                      variant={"text-link"}
+                    >
+                      Clear selection
+                    </Button>
+                    <Button onClick={onSelectActionButtonClick}>
+                      Transfer to team
+                    </Button>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+          )}
           <thead>
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
@@ -105,6 +154,7 @@ DataTable.propTypes = {
   sortHeader: PropTypes.string,
   sortDirection: PropTypes.string,
   onSort: PropTypes.func,
+  onSelectActionClick: PropTypes.func,
 };
 
 export default DataTable;
