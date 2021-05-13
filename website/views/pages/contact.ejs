@@ -2,16 +2,16 @@
   <div class="container-fluid pt-5 pb-5">
     <div style="max-width:  650px;" class="mx-auto" v-if="!cloudSuccess">
       <h2 style="max-width: 650px;" class="mx-auto">Contact our team</h2>
-      <p class="pb-4">We're here to answer your questions, and familiarize you with Fleet.</p>
+      <p>We're here to answer your questions, and familiarize you with Fleet.</p>
       <ajax-form action="deliverContactFormMessage" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedForm()">
         <div class="form-group">
           <div class="row">
-            <div class="col">
+            <div class="col-sm pt-4">
               <label for="first-name">First name<span style="font-weight: 400; color: #FF5C83"> *</span></label>
               <input class="form-control" id="first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name" focus-first>
               <div class="invalid-feedback" v-if="formErrors.firstName">Please let us know what to call you.</div>
             </div>
-            <div class="col">
+            <div class="col-sm pt-4">
               <label for="last-name">Last name<span style="font-weight: 400; color: #FF5C83"> *</span></label>
               <input class="form-control" id="last-name" name="last-name" type="text" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="family-name">
               <div class="invalid-feedback" v-if="formErrors.lastName">Please let us know what to call you.</div>
@@ -43,7 +43,7 @@
         </div>
         <p style="color: #FF5C83">Fields marked with an asterisk (*) are required.</p>
         <cloud-error v-if="cloudError"></cloud-error>
-        <div class="form-group">
+        <div class="form-group btn-container">
           <ajax-button type="submit" :syncing="syncing" class="btn btn-primary btn-sm">Submit</ajax-button>
         </div>
       </ajax-form>
