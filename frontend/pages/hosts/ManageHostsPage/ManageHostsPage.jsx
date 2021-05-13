@@ -20,9 +20,7 @@ import enrollSecretInterface from "interfaces/enroll_secret";
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
-import teamActions, {
-  getEnrolSecrets,
-} from "redux/nodes/entities/teams/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
 import {
   getLabels,
@@ -161,7 +159,7 @@ export class ManageHostsPage extends PureComponent {
   onChangeTeam = (team) => {
     const { dispatch } = this.props;
     if (team !== null) {
-      dispatch(teamActions.getEnrolSecrets(team.id)); // TODO: ensure works when API is implemented
+      dispatch(teamActions.getEnrollSecrets(team.id)); // TODO: ensure works when API is implemented
     }
   };
 
