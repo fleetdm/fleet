@@ -116,6 +116,7 @@ type KolideEndpoints struct {
 	ListTeamUsers                         endpoint.Endpoint
 	AddTeamUsers                          endpoint.Endpoint
 	DeleteTeamUsers                       endpoint.Endpoint
+	AddHostsToTeam                        endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -225,6 +226,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		ListTeamUsers:          authenticatedUser(jwtKey, svc, makeListTeamUsersEndpoint(svc)),
 		AddTeamUsers:           authenticatedUser(jwtKey, svc, makeAddTeamUsersEndpoint(svc)),
 		DeleteTeamUsers:        authenticatedUser(jwtKey, svc, makeDeleteTeamUsersEndpoint(svc)),
+		AddHostsToTeam:         authenticatedUser(jwtKey, svc, makeAddHostsToTeamEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
@@ -340,6 +342,7 @@ type kolideHandlers struct {
 	ListTeamUsers                         http.Handler
 	AddTeamUsers                          http.Handler
 	DeleteTeamUsers                       http.Handler
+	AddHostsToTeam                        http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -442,6 +445,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ListTeamUsers:                         newServer(e.ListTeamUsers, decodeListTeamUsersRequest),
 		AddTeamUsers:                          newServer(e.AddTeamUsers, decodeModifyTeamUsersRequest),
 		DeleteTeamUsers:                       newServer(e.DeleteTeamUsers, decodeModifyTeamUsersRequest),
+		AddHostsToTeam:                        newServer(e.AddHostsToTeam, decodeAddHostsToTeamRequest),
 	}
 }
 
@@ -659,6 +663,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/teams/{id}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
 	r.Handle("/api/v1/fleet/teams/{id}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
 	r.Handle("/api/v1/fleet/teams/{id}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")
+	r.Handle("/api/v1/fleet/teams/{id}/hosts", h.AddHostsToTeam).Methods("POST").Name("add_hosts_to_team")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
