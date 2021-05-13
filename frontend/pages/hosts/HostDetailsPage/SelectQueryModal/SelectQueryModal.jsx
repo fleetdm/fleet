@@ -98,7 +98,7 @@ const SelectQueryModal = (props) => {
               <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
             </a>
           </span>
-          <div>{customQueryButton()}</div>
+          {customQueryButton()}
         </div>
       );
     }
@@ -111,7 +111,7 @@ const SelectQueryModal = (props) => {
             Expecting to see queries? Try again in a few seconds as the system
             catches up.
           </span>
-          <div>{customQueryButton()}</div>
+          {customQueryButton()}
         </div>
       );
     }

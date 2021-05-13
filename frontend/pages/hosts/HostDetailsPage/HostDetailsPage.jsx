@@ -263,10 +263,10 @@ export class HostDetailsPage extends Component {
                   <table className={wrapperClassName}>
                     <thead>
                       <tr>
-                        <th>Query Name</th>
+                        <th>Query name</th>
                         <th>Description</th>
                         <th>Frequency</th>
-                        <th>Last Run</th>
+                        <th>Last run</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -293,7 +293,7 @@ export class HostDetailsPage extends Component {
       <div className="section section--packs">
         <p className="section__header">Packs</p>
         {!pack_stats ? (
-          <p className="info__item">
+          <p className="results__data">
             No packs with scheduled queries have this host as a target.
           </p>
         ) : (
@@ -483,7 +483,7 @@ export class HostDetailsPage extends Component {
           </div>
         </div>
         <div className="section osquery col-25">
-          <p className="section__header">Agent Options</p>
+          <p className="section__header">Agent options</p>
           <div className="info__item info__item--about">
             <div className="info__block">
               <span className="info__header">Config TLS refresh</span>
