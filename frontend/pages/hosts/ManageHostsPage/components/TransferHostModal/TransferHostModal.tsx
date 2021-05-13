@@ -15,17 +15,30 @@ interface ITransferHostModal {
   onCancel: () => void;
 }
 
+interface INoTeamOption {
+  id: string;
+}
+
 const baseClass = "transfer-host-modal";
+
+const NO_TEAM_OPTION = {
+  value: "no-team",
+  label: "No team",
+};
 
 const TransferHostModal = (props: ITransferHostModal): JSX.Element => {
   const { onCancel, onSubmit, teams, isGlobalAdmin } = props;
 
-  const [selectedTeam, setSelectedTeam] = useState<ITeam>();
+  const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 
   const onChangeSelectTeam = useCallback(
-    (teamId: number) => {
-      const teamWithId = teams.find((team) => team.id === teamId);
-      setSelectedTeam(teamWithId as ITeam);
+    (teamId: number | string) => {
+      if (teamId === "no-team") {
+        setSelectedTeam({ id: NO_TEAM_OPTION.value });
+      } else {
+        const teamWithId = teams.find((team) => team.id === teamId);
+        setSelectedTeam(teamWithId as ITeam);
+      }
     },
     [teams, setSelectedTeam]
   );
@@ -35,25 +48,25 @@ const TransferHostModal = (props: ITransferHostModal): JSX.Element => {
   }, [onSubmit, selectedTeam]);
 
   const createTeamDropdownOptions = () => {
-    return teams.map((team) => {
+    const teamOptions = teams.map((team) => {
       return {
         value: team.id,
         label: team.name,
       };
     });
+    return [NO_TEAM_OPTION, ...teamOptions];
   };
 
   return (
     <Modal onExit={onCancel} title={"Transfer hosts"} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <Dropdown
-          clearable
           wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
           label={"Transfer selected hosts to:"}
           value={selectedTeam && selectedTeam.id}
           options={createTeamDropdownOptions()}
           onChange={onChangeSelectTeam}
-          placeholder={"No team"}
+          placeholder={"Select a team"}
           searchable={false}
         />
         {isGlobalAdmin ? (
