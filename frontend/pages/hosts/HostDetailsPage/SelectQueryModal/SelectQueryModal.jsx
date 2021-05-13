@@ -57,6 +57,18 @@ const SelectQueryModal = (props) => {
     });
   };
 
+  const customQueryButton = () => {
+    return (
+      <Button
+        onClick={() => onQueryHostCustom(host, dispatch)}
+        variant="brand"
+        className={`${baseClass}__custom-query-button`}
+      >
+        Create custom query
+      </Button>
+    );
+  };
+
   const onFilterQueries = (event) => {
     setQueriesFilter(event);
     return false;
@@ -86,6 +98,7 @@ const SelectQueryModal = (props) => {
               <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
             </a>
           </span>
+          <div>{customQueryButton()}</div>
         </div>
       );
     }
@@ -98,6 +111,7 @@ const SelectQueryModal = (props) => {
             Expecting to see queries? Try again in a few seconds as the system
             catches up.
           </span>
+          <div>{customQueryButton()}</div>
         </div>
       );
     }
@@ -130,13 +144,7 @@ const SelectQueryModal = (props) => {
             </div>
             <div className={`${baseClass}__create-query`}>
               <span>OR</span>
-              <Button
-                onClick={() => onQueryHostCustom(host, dispatch)}
-                variant="brand"
-                className={`${baseClass}__custom-query-button`}
-              >
-                Create custom query
-              </Button>
+              {customQueryButton()}
             </div>
           </div>
           <div>{queryList}</div>
@@ -159,13 +167,7 @@ const SelectQueryModal = (props) => {
             </div>
             <div className={`${baseClass}__create-query`}>
               <span>OR</span>
-              <Button
-                onClick={() => onQueryHostCustom(host, dispatch)}
-                variant="brand"
-                className={`${baseClass}__custom-query-button`}
-              >
-                Create custom query
-              </Button>
+              {customQueryButton()}
             </div>
           </div>
           <div className={`${baseClass}__no-query-results`}>
