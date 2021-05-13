@@ -42,7 +42,7 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
   });
 
   const formData = {
-    options: yaml.dump(team.agent_options),
+    osquery_options: yaml.dump(team.agent_options),
   };
 
   const onSaveOsqueryOptionsFormSubmit = (updatedForm: any) => {
@@ -54,6 +54,7 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
     dispatch(osqueryOptionsActions.updateOsqueryOptions(updatedForm, teamId))
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
+        window.scrollTo(0, 0);
       })
       .catch((errors: { [key: string]: any }) => {
         dispatch(renderFlash("error", errors.stack));
