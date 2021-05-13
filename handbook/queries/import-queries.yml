@@ -1,25 +1,23 @@
-# This file includes Fleet's standard query library in YAML format.
-
-# Instructions on how to import these queries to your Fleet instance: https://github.com/fleetdm/fleet/blob/58445ede82550cb574775a83ae4cf5433f325a7e/handbook/queries/README.md#importing-the-queries-in-Fleet
-
-# Want to contribute your own queries?
-
-# 1. Please copy the commented YAML section (lines 12-21) and paste it at the end of this file.
-# 2. Uncomment the section, replace each field, and submit a pull request to the fleetdm/fleet GitHub repository.
-
-# Instructions on submitting pull requests to Fleet: https://github.com/fleetdm/fleet/blob/58445ede82550cb574775a83ae4cf5433f325a7e/docs/4-Contribution/4-Committing-Changes.md#committing-changes
-
-# ---
-# apiVersion: v1
-# kind: query
-# spec:
-#   name: What is your query called? Please use a human readable query name.
-#   platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
-#   description: Describe your query. What does information does your query reveal?
-#   query: Insert query here
-#   purpose: What is the goal of running your query? Ex. Detection
-#   remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
-
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Count Apple applications installed
+  platforms: macOS
+  description: Count the number of Apple applications installed on the machine.
+  query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect Linux hosts with high severity vulnerable versions of OpenSSL
+  platforms: Linux
+  description: Retrieves the OpenSSL version.
+  query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
+  purpose: Detection
+  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -39,4 +37,214 @@ spec:
   description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
   query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
   purpose: Detection
+  remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get authorized keys
+  platforms: macOS, Linux
+  description: List authorized_keys for each user on the system.
+  query: SELECT * FROM users CROSS JOIN authorized_keys USING (uid);
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get crashes
+  platforms: macOS
+  description: Retrieve application, system, and mobile app crash logs.
+  query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Chrome Extensions
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: List installed Chrome Extensions for all users.
+  query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed FreeBSD software
+  platforms: FreeBSD
+  description: Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
+  query: SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Homebrew Packages
+  platforms: macOS
+  description: Get the installed homebrew package database.
+  query: SELECT * FROM homebrew_packages;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Linux software
+  platforms: Linux
+  description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
+  query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed macOS software
+  platforms: macOS
+  description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
+  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Safari extensions
+  platforms: macOS
+  description: Retrieves the list of installed Safari Extensions for all users in the target system.
+  query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Windows software
+  platforms: Windows
+  description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
+  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get laptops with failing batteries
+  platforms: macOS
+  description:
+  query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get macOS disk free space percentage
+  platforms: macOS
+  description: Displays the percentage of free space available on the primary disk partition.
+  query: SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get macOS disk free space percentage
+  platforms: macOS
+  description: Displays the percentage of free space available on the primary disk partition.
+  query: SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get mounts
+  platforms: macOS, Linux
+  description: Shows system mounted devices and filesystems (not process specific).
+  query: SELECT device, device_alias, path, type, blocks_size FROM mounts;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get the version of the resident operating system
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: Shows system mounted devices and filesystems (not process specific).
+  query: SELECT * FROM os_version;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get platform info
+  platforms: macOS
+  description: Shows information about the host platform
+  query: SELECT vendor, version, date, revision from platform_info;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get startup items
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: Shows applications and binaries set as user/login startup items.
+  query: SELECT * FROM startup_items;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get system logins and logouts
+  platforms: macOS
+  description: Get a list of system logins and logouts.
+  query: SELECT * FROM last;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get system uptime
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: Shows the system uptime.
+  query: SELECT * FROM uptime;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get USB devices
+  platforms: macOS, Linux
+  description: Shows all USB devices that are actively plugged into the host system.
+  query: SELECT * FROM usb_devices;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get wifi status
+  platforms: macOS
+  description: Shows information about the wifi network that a host is currently connected to.
+  query: SELECT * FROM wifi_status;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Windows machines with unencrypted hard disks
+  platforms: Windows
+  description:
+  query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
+  purpose: Informational
   remediation: N/A

@@ -32,16 +32,31 @@ Fleet's standard query library includes a growing collection of useful queries f
 
 ### Importing the queries in Fleet
 
-#### After cloning the fleetdm/fleet repo, import the queries using fleetctl
+#### After cloning the fleetdm/fleet repo, import the queries using fleetctl:
 ```
 fleetctl apply -f fleet/handbook/queries/import-queries.yml
 ```
 
 ### Contributors
 
-Want to add your own query? 
+Want to add your own query?
 
-Please submit a pull request with your query to the [import-queries.yml](./import-queries.yml) file.
+1. Please copy the following YAML section and paste it at the bottom of the [import-queries.yml](./import-queries.yml) file.
+```yaml
+---
+apiVersion: v1
+kind: query
+spec:
+  name: What is your query called? Please use a human readable query name.
+  platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
+  description: Describe your query. What does information does your query reveal?
+  query: Insert query here
+  purpose: What is the goal of running your query? Ex. Detection
+  remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
+```
+2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
+
+For instructions on submitting pull requests to Fleet check out [the Committing Changes section](https://github.com/fleetdm/fleet/blob/58445ede82550cb574775a83ae4cf5433f325a7e/docs/4-Contribution/4-Committing-Changes.md#committing-changes) in the Contributors documentation.
 
 ### Additional resources
 
