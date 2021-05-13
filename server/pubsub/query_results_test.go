@@ -65,10 +65,10 @@ func setupRedis(t *testing.T) (store *redisQueryResults, teardown func()) {
 		password   = ""
 		database   = 0
 		useTLS     = false
-		DupResults = false
+		dupResults = false
 	)
 
-	store = NewRedisQueryResults(NewRedisPool(addr, password, database, useTLS), DupResults)
+	store = NewRedisQueryResults(NewRedisPool(addr, password, database, useTLS), dupResults)
 
 	_, err := store.pool.Get().Do("PING")
 	require.Nil(t, err)
