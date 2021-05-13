@@ -14,6 +14,11 @@ import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x
 
 const baseClass = "add-host-modal";
 
+const NO_TEAM_OPTION = {
+  value: "no-team",
+  label: "No team",
+};
+
 class AddHostModal extends Component {
   static propTypes = {
     teams: PropTypes.arrayOf(teamInterface),
@@ -59,9 +64,9 @@ class AddHostModal extends Component {
 
   onChangeSelectTeam = (teamId) => {
     const { teams, onChangeTeam } = this.props;
-    if (teamId === null) {
+    if (teamId === "no-team") {
       onChangeTeam(null);
-      this.setState({ selectedTeam: null });
+      this.setState({ selectedTeam: { id: NO_TEAM_OPTION.value } });
     } else {
       const selectedTeam = teams.find((team) => team.id === teamId);
       onChangeTeam(selectedTeam);
@@ -70,12 +75,13 @@ class AddHostModal extends Component {
   };
 
   createTeamDropdownOptions = (teams) => {
-    return teams.map((team) => {
+    const teamOptions = teams.map((team) => {
       return {
         value: team.id,
         label: team.name,
       };
     });
+    return [NO_TEAM_OPTION, ...teamOptions];
   };
 
   render() {
@@ -171,9 +177,8 @@ class AddHostModal extends Component {
                   value={selectedTeam && selectedTeam.id}
                   options={createTeamDropdownOptions(teams)}
                   onChange={onChangeSelectTeam}
-                  placeholder={"No team"}
+                  placeholder={"Select a team"}
                   searchable={false}
-                  clearable
                 />
                 <EnrollSecretTable secrets={enrollSecret} />
               </div>
