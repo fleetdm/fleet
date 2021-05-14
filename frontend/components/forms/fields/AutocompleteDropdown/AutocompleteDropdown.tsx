@@ -7,16 +7,18 @@ import classnames from "classnames";
 import local from "utilities/local";
 // @ts-ignore
 import debounce from "utilities/debounce";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ITeam } from "../../../../interfaces/team";
+import { IUser } from "../../../../interfaces/user";
 
 const baseClass = "autocomplete-dropdown";
 
-interface IAutocompleteDropdown {
+interface IAutocompleteDropdownProps {
   id: string;
+  team: ITeam;
   placeholder: string;
   onChange: OnChangeHandler;
   resourceUrl: string;
-  valueKey: string;
-  labelKey: string;
   value: Option[];
   disabledOptions: number[];
   disabled?: boolean;
@@ -33,7 +35,25 @@ const createUrl = (baseUrl: string, input: string) => {
   return `/api${baseUrl}?query=${input}`;
 };
 
-const AutocompleteDropdown = (props: IAutocompleteDropdown): JSX.Element => {
+const generateOptionLabel = (user: IUser, team: ITeam): string => {
+  const userTeamIds = user.teams.map((currentTeam) => currentTeam.id);
+  // User is on the global team
+  if (user.global_role !== null) {
+    return `${user.name} - Global user`;
+    // User is already in this team
+  } else if (userTeamIds.includes(team.id)) {
+    const teamName = user.teams.find(
+      (currentTeam) => currentTeam.id === team.id
+    )?.name;
+    return `${user.name} - Already a member of ${teamName}`;
+  }
+
+  return user.name;
+};
+
+const AutocompleteDropdown = (
+  props: IAutocompleteDropdownProps
+): JSX.Element => {
   const {
     className,
     disabled,
@@ -42,9 +62,8 @@ const AutocompleteDropdown = (props: IAutocompleteDropdown): JSX.Element => {
     onChange,
     id,
     resourceUrl,
-    valueKey,
-    labelKey,
     value,
+    team,
   } = props;
 
   const wrapperClass = classnames(baseClass, className);
@@ -54,6 +73,17 @@ const AutocompleteDropdown = (props: IAutocompleteDropdown): JSX.Element => {
   const filterOptions = useCallback((options) => {
     return options;
   }, []);
+
+  const createDropdownOptions = (users: IUser[]): IDropdownOption[] => {
+    return users.map((user) => {
+      return {
+        value: user.id,
+        label: generateOptionLabel(user, team),
+        disabled:
+          disabledOptions.includes(user.id) || user.global_role !== null,
+      };
+    });
+  };
 
   // NOTE: It seems react-select v1 Async component does not work well with
   // returning results from promises in its loadOptions handler. That is why
@@ -74,13 +104,7 @@ const AutocompleteDropdown = (props: IAutocompleteDropdown): JSX.Element => {
         return res.json();
       })
       .then((json) => {
-        // TODO: make more generic.
-        const optionsData = json.users.map((user: any) => {
-          if (disabledOptions.includes(user.id) || user.global_role !== null) {
-            user.disabled = true;
-          }
-          return user;
-        });
+        const optionsData = createDropdownOptions(json.users);
         callback(null, { options: optionsData });
       })
       .catch((err) => {
@@ -99,9 +123,7 @@ const AutocompleteDropdown = (props: IAutocompleteDropdown): JSX.Element => {
         disabled={disabled}
         placeholder={placeholder}
         onChange={onChange}
-        valueKey={valueKey}
         value={value}
-        labelKey={labelKey}
         filterOptions={filterOptions}
         multi
         searchable

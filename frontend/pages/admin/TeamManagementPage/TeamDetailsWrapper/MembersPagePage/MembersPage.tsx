@@ -220,6 +220,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       />
       {showAddMemberModal ? (
         <AddMemberModal
+          team={team}
           disabledMembers={memberIds}
           onCancel={toggleAddUserModal}
           onSubmit={onAddMemberSubmit}

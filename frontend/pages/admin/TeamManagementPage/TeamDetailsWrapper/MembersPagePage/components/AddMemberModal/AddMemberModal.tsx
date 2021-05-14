@@ -1,22 +1,23 @@
 import React, { useCallback, useState } from "react";
 
-import { IUser } from "interfaces/user";
-import { INewMembersBody } from "interfaces/team";
+import { INewMembersBody, ITeam } from "interfaces/team";
 import endpoints from "kolide/endpoints";
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
 import AutocompleteDropdown from "components/forms/fields/AutocompleteDropdown";
+import { IDropdownOption } from "../../../../../../../interfaces/dropdownOption";
 
 const baseClass = "add-member-modal";
 
 interface IAddMemberModal {
+  team: ITeam;
   disabledMembers: number[];
   onCancel: () => void;
   onSubmit: (userIds: INewMembersBody) => void;
 }
 
 const AddMemberModal = (props: IAddMemberModal): JSX.Element => {
-  const { disabledMembers, onCancel, onSubmit } = props;
+  const { disabledMembers, onCancel, onSubmit, team } = props;
 
   const [selectedMembers, setSelectedMembers] = useState([]);
 
@@ -28,24 +29,23 @@ const AddMemberModal = (props: IAddMemberModal): JSX.Element => {
   );
 
   const onFormSubmit = useCallback(() => {
-    const userIds = selectedMembers.map((member: IUser) => {
-      return { id: member.id, role: "observer" };
+    const newMembers = selectedMembers.map((member: IDropdownOption) => {
+      return { id: member.value as number, role: "observer" };
     });
-    onSubmit({ users: userIds });
+    onSubmit({ users: newMembers });
   }, [selectedMembers, onSubmit]);
 
   return (
     <Modal onExit={onCancel} title={"Add Members"} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <AutocompleteDropdown
+          team={team}
           id={"member-autocomplete"}
           resourceUrl={endpoints.USERS}
           onChange={onChangeDropdown}
           placeholder={"Search users by name"}
           disabledOptions={disabledMembers}
           value={selectedMembers}
-          valueKey={"id"}
-          labelKey={"name"}
         />
         <div className={`${baseClass}__btn-wrap`}>
           <Button
