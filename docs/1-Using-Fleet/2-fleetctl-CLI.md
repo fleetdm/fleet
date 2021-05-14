@@ -223,17 +223,18 @@ When you reason about how to manage these config files, consider following the [
 
 - When defining configurations, specify the latest stable API version.
 - Configuration files should be stored in version control before being pushed to the cluster. This allows quick roll-back of a configuration if needed. It also aids with cluster re-creation and restoration if necessary.
-- Group related objects into a single file whenever it makes sense. One file is often easier to manage than several. See the [config-single-file.yml](../../examples/config-single-file.yml) file as an example of this syntax.
+- Group related objects into a single file whenever it makes sense. One file is often easier to manage than several. See the [single-file-configuration.yml](./configuration-files/single-file-configuration.yml) file as an example of this syntax.
 - Don’t specify default values unnecessarily – simple and minimal configs will reduce errors.
 
-All of these files can be concatenated together into [one file](../../examples/config-single-file.yml) (separated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
+All of these files can be concatenated together into [one file](./configuration-files/single-file-configuration.yml) (separated by `---`), or they can be in [individual files with a directory structure](./configuration-files/multi-file-configuration) like the following:
 
 ```
-|-- config.yml
-|-- labels.yml
 |-- packs
 |   `-- osquery-monitoring.yml
-`-- queries.yml
+|-- agent-options.yml
+|-- enroll-secrets.yml
+|-- labels.yml
+|-- queries.yml
 ```
 
 ### Convert osquery JSON
