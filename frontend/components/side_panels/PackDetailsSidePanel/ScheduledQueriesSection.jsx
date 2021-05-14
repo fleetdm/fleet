@@ -2,6 +2,8 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router";
 
+import PATHS from "router/paths";
+
 import scheduledQueryInterface from "interfaces/scheduled_query";
 
 const baseClass = "pack-details-side-panel";
@@ -23,7 +25,7 @@ class ScheduledQueriesSection extends Component {
             return (
               <li key={`scheduled-query-${scheduledQuery.id}`}>
                 <Link
-                  to={`/queries/${scheduledQuery.query_id}`}
+                  to={PATHS.EDIT_QUERY(scheduledQuery)}
                   className={`${baseClass}__query-name`}
                 >
                   {scheduledQuery.name}

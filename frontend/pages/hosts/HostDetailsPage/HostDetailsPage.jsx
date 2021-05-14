@@ -407,7 +407,7 @@ export class HostDetailsPage extends Component {
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
-          <Link to="/hosts/manage">
+          <Link to={PATHS.MANAGE_HOSTS}>
             <img src={BackChevron} alt="back chevron" id="back-chevron" />
             Back to Hosts
           </Link>
