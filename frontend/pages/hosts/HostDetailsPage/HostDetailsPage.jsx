@@ -64,7 +64,7 @@ export class HostDetailsPage extends Component {
     this.state = {
       showDeleteHostModal: false,
       showQueryHostModal: false,
-      showRefetchLoadingSpinner: false,
+      showRefetchLoadingSpinner: props.host.refetch_requested,
     };
   }
 
@@ -108,11 +108,10 @@ export class HostDetailsPage extends Component {
     this.setState({ showRefetchLoadingSpinner: true });
 
     refetchHost(dispatch, host)
-      .then(() => {
-        dispatch();
-      })
-      .catch(() => {
+      .then()
+      .catch((error) => {
         this.setState({ showRefetchLoadingSpinner: false });
+        console.log(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
       });
 
