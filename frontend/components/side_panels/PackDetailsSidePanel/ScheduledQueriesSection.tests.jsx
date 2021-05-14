@@ -1,5 +1,6 @@
 import React from "react";
 import { mount } from "enzyme";
+import PATHS from "router/paths";
 
 import ScheduledQueriesSection from "components/side_panels/PackDetailsSidePanel/ScheduledQueriesSection";
 import { scheduledQueryStub } from "test/stubs";
@@ -11,7 +12,8 @@ describe("ScheduledQueriesSection - component", () => {
       <ScheduledQueriesSection scheduledQueries={[scheduledQuery]} />
     );
     const Link = Component.find("Link");
+    const path = `${PATHS.EDIT_QUERY(scheduledQuery)}`;
 
-    expect(Link.prop("to")).toEqual(`/queries/${scheduledQuery.query_id}`);
+    expect(Link.prop("to")).toEqual(path);
   });
 });
