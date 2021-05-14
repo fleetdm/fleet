@@ -7,7 +7,6 @@ export default PropTypes.shape({
   hosts: PropTypes.number,
   members: PropTypes.number,
   role: PropTypes.string,
-  // eslint-disable-next-line react/forbid-prop-types
   agent_options: PropTypes.string,
 });
 
@@ -22,7 +21,6 @@ export interface ITeam {
   user_count: number;
   // role value is included when the team is in the context of a user.
   role?: string;
-  // eslint-disable-next-line @typescript-eslint/ban-types
   agent_options?: string;
 }
 
