@@ -7,6 +7,7 @@ import classnames from "classnames";
 import local from "utilities/local";
 // @ts-ignore
 import debounce from "utilities/debounce";
+import permissionUtils from "utilities/permissions";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { ITeam } from "../../../../interfaces/team";
 import { IUser } from "../../../../interfaces/user";
@@ -37,8 +38,7 @@ const createUrl = (baseUrl: string, input: string) => {
 
 const generateOptionLabel = (user: IUser, team: ITeam): string => {
   const userTeamIds = user.teams.map((currentTeam) => currentTeam.id);
-  // User is on the global team
-  if (user.global_role !== null) {
+  if (permissionUtils.isOnGlobalTeam(user)) {
     return `${user.name} - Global user`;
     // User is already in this team
   } else if (userTeamIds.includes(team.id)) {

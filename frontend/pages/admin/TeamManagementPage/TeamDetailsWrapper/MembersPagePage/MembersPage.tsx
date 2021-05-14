@@ -129,7 +129,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
               "success",
               `${newMembers.users.length} members successfully added to ${team.name}.`
             )
-          ); // TODO: update team name
+          );
         })
         .catch(() => {
           dispatch(
