@@ -34,11 +34,11 @@ export const getOsqueryOptions = () => {
   };
 };
 
-export const updateOsqueryOptions = (osqueryOptionsData) => {
+export const updateOsqueryOptions = (osqueryOptionsData, teamId) => {
   return (dispatch) => {
     dispatch(loadOsqueryOptions);
     return Kolide.osqueryOptions
-      .update(osqueryOptionsData)
+      .update(osqueryOptionsData, teamId)
       .then((osqueryOptions) => {
         const yamlOptions = yaml.safeLoad(osqueryOptionsData.osquery_options);
         dispatch(osqueryOptionsSuccess(yamlOptions));
