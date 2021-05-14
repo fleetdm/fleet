@@ -229,12 +229,12 @@ When you reason about how to manage these config files, consider following the [
 All of these files can be concatenated together into [one file](./configuration-files/single-file-configuration.yml) (separated by `---`), or they can be in [individual files with a directory structure](./configuration-files/multi-file-configuration) like the following:
 
 ```
-|-- packs
-|   `-- osquery-monitoring.yml
-|-- agent-options.yml
-|-- enroll-secrets.yml
-|-- labels.yml
-|-- queries.yml
+├─ packs
+├   └─ osquery-monitoring.yml
+├─ agent-options.yml
+├─ enroll-secrets.yml
+├─ labels.yml
+├─ queries.yml
 ```
 
 ### Convert osquery JSON
