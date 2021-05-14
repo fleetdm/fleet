@@ -138,6 +138,7 @@
     "@testing-library/cypress": "^7.0.4",
     "@testing-library/jest-dom": "^5.11.9",
     "@testing-library/react": "^11.2.5",
+    "@testing-library/user-event": "^13.1.9",
     "@tsconfig/recommended": "^1.0.1",
     "@types/classnames": "0.0.32",
     "@types/cypress": "^1.1.3",
