@@ -25,7 +25,7 @@ class ScheduledQueriesSection extends Component {
             return (
               <li key={`scheduled-query-${scheduledQuery.id}`}>
                 <Link
-                  to={PATHS.EDIT_QUERY(scheduledQuery)}
+                  to={PATHS.EDIT_QUERY({ id: scheduledQuery.query_id })}
                   className={`${baseClass}__query-name`}
                 >
                   {scheduledQuery.name}

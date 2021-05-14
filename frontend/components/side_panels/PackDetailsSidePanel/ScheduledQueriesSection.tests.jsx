@@ -12,7 +12,7 @@ describe("ScheduledQueriesSection - component", () => {
       <ScheduledQueriesSection scheduledQueries={[scheduledQuery]} />
     );
     const Link = Component.find("Link");
-    const path = `${PATHS.EDIT_QUERY(scheduledQuery)}`;
+    const path = `${PATHS.EDIT_QUERY({ id: scheduledQuery.query_id })}`;
 
     expect(Link.prop("to")).toEqual(path);
   });
