@@ -1,6 +1,6 @@
 # Get installed Safari Extensions
 
-Retreives the list of installed Safari Extensions for all users in the target system.
+Retrieves the list of installed Safari Extensions for all users in the target system.
 
 ### Support
 macOS
