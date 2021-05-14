@@ -4,7 +4,7 @@ import { INewMembersBody, ITeam } from "interfaces/team";
 import endpoints from "kolide/endpoints";
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
-import AutocompleteDropdown from "components/forms/fields/AutocompleteDropdown";
+import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPagePage/components/AutocompleteDropdown";
 import { IDropdownOption } from "../../../../../../../interfaces/dropdownOption";
 
 const baseClass = "add-member-modal";

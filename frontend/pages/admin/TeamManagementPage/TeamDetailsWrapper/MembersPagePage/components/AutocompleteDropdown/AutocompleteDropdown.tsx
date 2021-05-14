@@ -1,3 +1,8 @@
+/**
+ * NOTE: for now this component is tied to the add member to team functionality
+ * When we need another autocomplete dropdown we should come back and refactor
+ * this to be more generic.
+ */
 import React, { useCallback } from "react";
 import { Async, OnChangeHandler, Option } from "react-select";
 import classnames from "classnames";
@@ -9,8 +14,8 @@ import local from "utilities/local";
 import debounce from "utilities/debounce";
 import permissionUtils from "utilities/permissions";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { ITeam } from "../../../../interfaces/team";
-import { IUser } from "../../../../interfaces/user";
+import { ITeam } from "../../../../../../../interfaces/team";
+import { IUser } from "../../../../../../../interfaces/user";
 
 const baseClass = "autocomplete-dropdown";
 
