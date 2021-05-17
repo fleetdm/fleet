@@ -10,6 +10,24 @@
     width: 100%;
   }
 
+  &__query-observer-can-run {
+    font-size: $x-small;
+    font-weight: $bold;
+    font-style: normal;
+
+    &__label {
+      margin-left: $pad-small;
+    }
+  }
+
+  &__query-observer-can-run-wrapper {
+    margin-bottom: $pad-xsmall;
+  }
+
+  &__query-observer-can-run-checkbox {
+    font-size: $x-small;
+  }
+
   &__button-wrap {
     text-align: right;
 

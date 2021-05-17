@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { size } from "lodash";
 
+import Checkbox from "components/forms/fields/Checkbox";
 import DropdownButton from "components/buttons/DropdownButton";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
@@ -39,6 +40,7 @@ class QueryForm extends Component {
       description: formFieldInterface.isRequired,
       name: formFieldInterface.isRequired,
       query: formFieldInterface.isRequired,
+      observerCanRun: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     formData: queryInterface,
@@ -85,6 +87,7 @@ class QueryForm extends Component {
       description: fields.description.value,
       name: fields.name.value,
       query: fields.query.value,
+      observerCanRun: fields.observerCanRun.value,
     };
 
     const { valid, errors } = validate(formData);
@@ -174,6 +177,17 @@ class QueryForm extends Component {
           label="Description"
           type="textarea"
         />
+        <div className={`${baseClass}__query-observer-can-run-checkbox`}>
+          <Checkbox
+            {...fields.observerCanRun}
+            className={`${baseClass}__query-observer-can-run`}
+            wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+          >
+            Observers can run
+          </Checkbox>
+          Users with the Observer role will be able to run this query on hosts
+          where they have access.
+        </div>
         {renderButtons()}
       </form>
     );
@@ -181,6 +195,6 @@ class QueryForm extends Component {
 }
 
 export default Form(QueryForm, {
-  fields: ["description", "name", "query"],
+  fields: ["description", "name", "query", "observerCanRun"],
   validate,
 });
