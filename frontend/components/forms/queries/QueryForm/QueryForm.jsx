@@ -40,6 +40,7 @@ class QueryForm extends Component {
       description: formFieldInterface.isRequired,
       name: formFieldInterface.isRequired,
       query: formFieldInterface.isRequired,
+      // added 5/17
       observerCanRun: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
@@ -49,6 +50,8 @@ class QueryForm extends Component {
     onUpdate: PropTypes.func.isRequired,
     queryIsRunning: PropTypes.bool,
     title: PropTypes.string,
+    // added 5/17 unneeded
+    // observerCanRunConfigured: PropTypes.bool.isRequired,
   };
 
   static defaultProps = {
