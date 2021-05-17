@@ -3,6 +3,7 @@
 - [End-to-end tests](#end-to-end-tests)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
+- [Teams seed data](#teams-seed-data)
 - [MySQL shell](#mysql-shell)
 - [Testing SSO](#testing-sso)
 
@@ -169,6 +170,29 @@ Restore:
 ```
 
 Note that a "restore" will replace the state of the development database with the state from the backup.
+
+## Teams seed data
+
+When developing on both the `master` and `teams` branches, it may be useful to create seed data that includes users and teams. This can be achieved with the following steps:
+
+First, create a `env` file with the following contents:
+```
+export SERVER_URL=https://localhost:8080 # your fleet server url and port
+export CURL_FLAGS='-k -s' # set insecure flag
+export TOKEN=eyJhbGciOi... # your login token
+```
+
+Next, set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scripts in the `fleet/` folder source the env file.
+
+```
+export FLEET_ENV_PATH=/Users/victor/fleet_env
+```
+
+Finally run the `teams/create` bash script located in the [/tools/api](../../tools/api/README.md) directory. This script will create 3 teams and 12 users with various roles.
+
+```
+./tools/api/fleet/teams/create
+```
 
 ## MySQL shell
 
