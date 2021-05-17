@@ -53,4 +53,5 @@ export default {
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/agent_options`;
   },
+  HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
 };

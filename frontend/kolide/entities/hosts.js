@@ -78,5 +78,12 @@ export default (client) => {
           return response.hosts;
         });
     },
+    transfer: () => {
+      const { HOST_TRANSFER } = endpoints;
+      const endpoint = client._endpoint(HOST_TRANSFER);
+      return client
+        .authenticatedGet(endpoint)
+        .then((response: any) => response.secrets);
+    },
   };
 };
