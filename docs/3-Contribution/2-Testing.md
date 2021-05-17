@@ -3,7 +3,7 @@
 - [End-to-end tests](#end-to-end-tests)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
-- [Teams development](#teams-development)
+- [Teams seed data](#teams-seed-data)
 - [MySQL shell](#mysql-shell)
 - [Testing SSO](#testing-sso)
 
@@ -171,7 +171,7 @@ Restore:
 
 Note that a "restore" will replace the state of the development database with the state from the backup.
 
-## Teams development
+## Teams seed data
 
 When developing on both the `master` and `teams` branches, it may be useful to create seed data that includes users and teams. This can be achieved with the following steps:
 
