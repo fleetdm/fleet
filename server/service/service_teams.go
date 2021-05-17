@@ -133,7 +133,3 @@ func (svc service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*ko
 func (svc service) DeleteTeam(ctx context.Context, tid uint) error {
 	return svc.ds.DeleteTeam(tid)
 }
-
-func (svc service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
-	return svc.ds.AddHostsToTeam(teamID, hostIDs)
-}

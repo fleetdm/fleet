@@ -54,6 +54,7 @@ var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testListPacksForHost,
 	testHostIDsByName,
 	testHostByIdentifier,
+	testAddHostsToTeam,
 	testListPacks,
 	testDistributedQueryCampaign,
 	testCleanupDistributedQueryCampaigns,
@@ -98,6 +99,5 @@ var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testTeamUsers,
 	testUserTeams,
 	testUserCreateWithTeams,
-	testTeamAddHostsToTeam,
 	testSaveHostSoftware,
 }

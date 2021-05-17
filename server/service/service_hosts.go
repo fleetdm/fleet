@@ -75,3 +75,7 @@ func (svc *service) FlushSeenHosts(ctx context.Context) error {
 	hostIDs := svc.seenHostSet.getAndClearHostIDs()
 	return svc.ds.MarkHostsSeen(hostIDs, svc.clock.Now())
 }
+
+func (svc service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	return svc.ds.AddHostsToTeam(teamID, hostIDs)
+}

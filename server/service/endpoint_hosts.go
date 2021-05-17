@@ -188,3 +188,28 @@ func makeDeleteHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return deleteHostResponse{}, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Add Hosts to Team
+////////////////////////////////////////////////////////////////////////////////
+
+type addHostsToTeamRequest struct {
+	TeamID  uint   `json:"team_id"`
+	HostIDs []uint `json:"hosts"`
+}
+
+type addHostsToTeamResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func makeAddHostsToTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(addHostsToTeamRequest)
+		err := svc.AddHostsToTeam(ctx, &req.TeamID, req.HostIDs)
+		if err != nil {
+			return addHostsToTeamResponse{Err: err}, nil
+		}
+
+		return addHostsToTeamResponse{}, err
+	}
+}
