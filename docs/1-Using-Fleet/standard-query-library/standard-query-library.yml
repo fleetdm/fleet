@@ -55,7 +55,7 @@ spec:
   name: Get authorized keys for Domain Joined Accounts
   platforms: macOS, Linux
   description: List authorized_keys for each user on the system.
-  query: SELECT * FROM users CROSS JOIN authorized_keys USING (uid) and username in (SELECT distinct(username) FROM last);
+  query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
   purpose: Informational
   remediation: N/A
 ---
@@ -272,7 +272,7 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get Disk encryption status
+  name: Get disk encryption status
   platforms: macOS, Linux
   description: Disk encryption status and information.
   query: SELECT * FROM disk_encryption;
@@ -282,31 +282,31 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect Unencrypted SSH Keys for Local Accounts
+  name: Detect unencrypted SSH keys for local accounts
   platforms: macOS, Linux, Windows, FreeBSD
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM user_ssh_keys cross join users using (uid) WHERE encrypted=0;
   purpose: Detection
   remediation:
-    - User Awareness about the impact of SSH Keys
+    - User awareness about the impact of SSH Keys
     - Rotate the identified Keys
 ---
 apiVersion: v1
 kind: query
 spec:
-  name: Detect Unencrypted SSH Keys for Domain Joined Accounts
+  name: Detect unencrypted SSH keys for domain joined accounts
   platforms: macOS, Linux, Windows, FreeBSD
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM user_ssh_keys cross join users using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   purpose: Detection
   remediation:
-    - User Awareness about the impact of SSH Keys
+    - User awareness about the impact of SSH Keys
     - Rotate the identified Keys
 ---
 apiVersion: v1
 kind: query
 spec:
-  name: Get Crontab jobs
+  name: Get crontab jobs
   platforms: macOS, Linux
   description: Line parsed values from system and user cron/tab.
   query: SELECT * FROM crontab;
@@ -326,9 +326,9 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect Dynamic Linker Hijacking (MITRE. T1574.006)
+  name: Detect dynamic linker hijacking (MITRE. T1574.006)
   platforms: macOS, Linux
-  description: Detect Any processes that run with an LD_PRELOAD or DYLD_INSERT_LIBRARIES environment variable
+  description: Detect any processes that run with an LD_PRELOAD or DYLD_INSERT_LIBRARIES environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key IN ('LD_PRELOAD', 'DYLD_INSERT_LIBRARIES');
   purpose: Detection
   remediation:
@@ -348,7 +348,7 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get Network Interfaces
+  name: Get network interfaces
   platforms: macOS, Linux, Windows, FreeBSD
   description: Network interfaces MAC address
   query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
@@ -358,7 +358,7 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get Local User Accounts
+  name: Get local user accounts
   platforms: macOS, Linux, Windows, FreeBSD
   description: Local user accounts (including domain accounts that have logged on locally (Windows)).
   query: SELECT uid, gid, username, description,directory, shell FROM users;
@@ -378,9 +378,9 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect Nmap Scanner
+  name: Detect Nmap scanner
   platforms: macOS, Linux, Windows, FreeBSD
-  description: Detect Nmap Scanner process, identify the user, parent, process details.
+  description: Detect Nmap scanner process, identify the user, parent, process details.
   query: SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent,
     (SELECT name FROM processes WHERE pid=p.parent) AS parent_name,
     (SELECT username FROM users WHERE uid=p.uid) AS username
