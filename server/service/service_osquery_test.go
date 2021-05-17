@@ -289,7 +289,7 @@ func TestHostDetailQueries(t *testing.T) {
 	queries, err = svc.hostDetailQueries(host)
 	assert.Nil(t, err)
 	assert.Len(t, queries, expectedDetailQueries+2)
-	for name, _ := range queries {
+	for name := range queries {
 		assert.True(t,
 			strings.HasPrefix(name, hostDetailQueryPrefix) || strings.HasPrefix(name, hostAdditionalQueryPrefix),
 		)

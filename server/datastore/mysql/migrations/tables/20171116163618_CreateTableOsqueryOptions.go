@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
-	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

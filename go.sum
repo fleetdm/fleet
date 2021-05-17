@@ -53,8 +53,6 @@ github.com/elazarl/go-bindata-assetfs v1.0.0 h1:G/bYguwHIzWq9ZoyUQqrjTmJbbYn3j3C
 github.com/elazarl/go-bindata-assetfs v1.0.0/go.mod h1:v+YaWX3bdea5J/mo8dSETolEo7R71Vk1u8bnjau5yw4=
 github.com/fatih/color v1.7.0 h1:DkWD4oS2D8LGGgTQ6IvwJJXSL5Vp2ffcQg58nFV38Ys=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
-github.com/fleetdm/goose v0.0.0-20210205022138-27718647ba5b h1:Ybt9lIr16BghU3nK0jpeRC4B6JguVLtdubUEcRBPdzQ=
-github.com/fleetdm/goose v0.0.0-20210205022138-27718647ba5b/go.mod h1:d7Q+0eCENnKQUhkfAUVLfGnD4QcgJMF/uB9WRTN9TDI=
 github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb h1:p02npmJlTo+Px1s0VptKOJOJqH/rGlGBEVvLJRtzY3A=
 github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb/go.mod h1:d7Q+0eCENnKQUhkfAUVLfGnD4QcgJMF/uB9WRTN9TDI=
 github.com/flynn/go-docopt v0.0.0-20140912013429-f6dd2ebbb31e/go.mod h1:HyVoz1Mz5Co8TFO8EupIdlcpwShBmY98dkT2xeHkvEI=

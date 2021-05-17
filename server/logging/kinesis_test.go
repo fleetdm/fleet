@@ -12,8 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
-	"github.com/go-kit/kit/log"
 	"github.com/fleetdm/fleet/server/logging/mock"
+	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 )
 
