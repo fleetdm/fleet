@@ -25,8 +25,8 @@ func Up_20210506095025(tx *sql.Tx) error {
 			user_time int,
 			wall_time int,
 			PRIMARY KEY (host_id, scheduled_query_id),
-			FOREIGN KEY (host_id) REFERENCES hosts (id),
-			FOREIGN KEY (scheduled_query_id) REFERENCES scheduled_queries (id)
+			FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE ON UPDATE CASCADE,
+			FOREIGN KEY (scheduled_query_id) REFERENCES scheduled_queries (id) ON DELETE CASCADE ON UPDATE CASCADE
 		)
 	`
 	if _, err := tx.Exec(sql); err != nil {
