@@ -107,13 +107,11 @@ export class HostDetailsPage extends Component {
 
     this.setState({ showRefetchLoadingSpinner: true });
 
-    refetchHost(dispatch, host)
-      .then()
-      .catch((error) => {
-        this.setState({ showRefetchLoadingSpinner: false });
-        console.log(error);
-        dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
-      });
+    refetchHost(dispatch, host).catch((error) => {
+      this.setState({ showRefetchLoadingSpinner: false });
+      console.log(error);
+      dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+    });
 
     return false;
   };
@@ -198,36 +196,35 @@ export class HostDetailsPage extends Component {
 
     const isOnline = host.status === "online";
     const isOffline = host.status === "offline";
-    if (isOffline) {
-      return (
-        <div className={`${baseClass}__action-button-container`}>
-          <div data-tip data-for="query" data-tip-disable={isOnline}>
-            <Button
-              onClick={toggleQueryHostModal()}
-              variant="inverse"
-              disabled={isOffline}
-              className={`${baseClass}__query-button`}
-            >
-              Query
-            </Button>
-          </div>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            id="query"
-            backgroundColor="#3e4771"
+
+    return (
+      <div className={`${baseClass}__action-button-container`}>
+        <div data-tip data-for="query" data-tip-disable={isOnline}>
+          <Button
+            onClick={toggleQueryHostModal()}
+            variant="inverse"
+            disabled={isOffline}
+            className={`${baseClass}__query-button`}
           >
-            <span className={`${baseClass}__tooltip-text`}>
-              You can’t query <br /> a offline host.
-            </span>
-          </ReactTooltip>
-          <Button onClick={toggleDeleteHostModal()} variant="active">
-            Delete
+            Query
           </Button>
         </div>
-      );
-    }
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="query"
+          backgroundColor="#3e4771"
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            You can’t query <br /> a offline host.
+          </span>
+        </ReactTooltip>
+        <Button onClick={toggleDeleteHostModal()} variant="active">
+          Delete
+        </Button>
+      </div>
+    );
   };
 
   renderLabels = () => {
