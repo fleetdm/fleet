@@ -21,6 +21,23 @@ describe("Teams flow", () => {
     // TODO this might represent a bug in the React code.
     cy.wait(100); // eslint-disable-line cypress/no-unnecessary-waiting
 
+    cy.contains("Valor").click();
+
+    cy.findByText(/agent options/i).click();
+
+    cy.get(".ace_content")
+      .click()
+      .type("{selectall}{backspace}apiVersion: v1{enter}kind: options");
+
+    cy.findByRole("button", { name: /save/i }).click();
+
+    cy.visit("/settings/teams/1/options");
+
+    cy.contains(/apiVersion: v1/i).should("be.visible");
+    cy.contains(/kind: options/i).should("be.visible");
+
+    cy.visit("/settings/teams");
+
     cy.contains("Valor").get(".Select-arrow-zone").click();
 
     // need force:true for dropdown
