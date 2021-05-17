@@ -17,7 +17,7 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 	groob := test.NewUser(t, ds, "Victor", "groob", "victor@kolide.co", true)
 	expectedQueries := []*kolide.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", ObserverCanRun: true},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
 
@@ -34,6 +34,7 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 		assert.Equal(t, comp.Description, q.Description)
 		assert.Equal(t, comp.Query, q.Query)
 		assert.Equal(t, &zwass.ID, q.AuthorID)
+		assert.Equal(t, comp.ObserverCanRun, q.ObserverCanRun)
 	}
 
 	// Victor modifies a query (but also pushes the same version of the
@@ -160,6 +161,7 @@ func testSaveQuery(t *testing.T, ds kolide.Datastore) {
 	assert.NotEqual(t, 0, query.ID)
 
 	query.Query = "baz"
+	query.ObserverCanRun = true
 	err = ds.SaveQuery(query)
 
 	require.Nil(t, err)
@@ -169,6 +171,7 @@ func testSaveQuery(t *testing.T, ds kolide.Datastore) {
 	require.NotNil(t, queryVerify)
 	assert.Equal(t, "baz", queryVerify.Query)
 	assert.Equal(t, "Zach", queryVerify.AuthorName)
+	assert.True(t, queryVerify.ObserverCanRun)
 }
 
 func testListQuery(t *testing.T, ds kolide.Datastore) {

@@ -34,14 +34,16 @@ func (d *Datastore) ApplyQueries(authorID uint, queries []*kolide.Query) (err er
 			description,
 			query,
 			author_id,
-			saved
-		) VALUES ( ?, ?, ?, ?, true )
+			saved,
+			observer_can_run
+		) VALUES ( ?, ?, ?, ?, true, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
 			query = VALUES(query),
 			author_id = VALUES(author_id),
-			saved = VALUES(saved)
+			saved = VALUES(saved),
+			observer_can_run = VALUES(observer_can_run)
 	`
 	stmt, err := tx.Prepare(sql)
 	if err != nil {
@@ -52,7 +54,7 @@ func (d *Datastore) ApplyQueries(authorID uint, queries []*kolide.Query) (err er
 		if q.Name == "" {
 			return errors.New("query name must not be empty")
 		}
-		_, err := stmt.Exec(q.Name, q.Description, q.Query, authorID)
+		_, err := stmt.Exec(q.Name, q.Description, q.Query, authorID, q.ObserverCanRun)
 		if err != nil {
 			return errors.Wrap(err, "exec ApplyQueries insert")
 		}
@@ -95,10 +97,11 @@ func (d *Datastore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*
 			description,
 			query,
 			saved,
-			author_id
-		) VALUES ( ?, ?, ?, ?, ? )
+			author_id,
+			observer_can_run
+		) VALUES ( ?, ?, ?, ?, ?, ? )
 	`
-	result, err := db.Exec(sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID)
+	result, err := db.Exec(sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
 
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Query", 0)
@@ -116,10 +119,10 @@ func (d *Datastore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*
 func (d *Datastore) SaveQuery(q *kolide.Query) error {
 	sql := `
 		UPDATE queries
-			SET name = ?, description = ?, query = ?, author_id = ?, saved = ?
+			SET name = ?, description = ?, query = ?, author_id = ?, saved = ?, observer_can_run = ?
 			WHERE id = ?
 	`
-	result, err := d.db.Exec(sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ID)
+	result, err := d.db.Exec(sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating query")
 	}
