@@ -188,7 +188,7 @@ Next, set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scr
 export FLEET_ENV_PATH=/Users/victor/fleet_env
 ```
 
-Finally run the bash script located in the [/tools/api](../../tools/api/README.md) directory. This script will create 3 teams and 12 users with various roles.
+Finally run the `teams/create` bash script located in the [/tools/api](../../tools/api/README.md) directory. This script will create 3 teams and 12 users with various roles.
 
 ```
 ./tools/api/fleet/teams/create
