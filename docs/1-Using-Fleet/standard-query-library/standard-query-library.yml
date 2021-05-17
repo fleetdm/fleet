@@ -387,3 +387,33 @@ spec:
     FROM processes as p WHERE cmdline like 'nmap%';
   purpose: Detection
   remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get docker images on a system
+  platforms: macOS, Linux
+  description: Docker images information, can be used on normal system or a kubenode.
+  query: SELECT * FROM docker_images;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get docker running containers on a system
+  platforms: macOS, Linux
+  description: Docker containers information, can be used on normal system or a kubenode.
+  query: SELECT * FROM docker_containers;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get docker running process on a system
+  platforms: macOS, Linux
+  description: Docker containers Processes, can be used on normal system or a kubenode.
+  query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
+  purpose: Informational
+  remediation: N/A
