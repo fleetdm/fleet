@@ -78,29 +78,33 @@ func testAdditionalQueries(t *testing.T, ds kolide.Datastore) {
 }
 
 func testEnrollSecrets(t *testing.T, ds kolide.Datastore) {
-	name, err := ds.VerifyEnrollSecret("missing")
+	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	secret, err := ds.VerifyEnrollSecret("missing")
 	assert.Error(t, err)
-	assert.Empty(t, name)
+	assert.Nil(t, secret)
 
 	err = ds.ApplyEnrollSecretSpec(
 		&kolide.EnrollSecretSpec{
 			Secrets: []kolide.EnrollSecret{
-				kolide.EnrollSecret{Name: "one", Secret: "one_secret", Active: true},
+				kolide.EnrollSecret{Name: "one", Secret: "one_secret", Active: true, TeamID: &team1.ID},
 				kolide.EnrollSecret{Name: "two", Secret: "two_secret", Active: false},
 			},
 		},
 	)
 	assert.NoError(t, err)
 
-	name, err = ds.VerifyEnrollSecret("one")
+	secret, err = ds.VerifyEnrollSecret("one")
 	assert.Error(t, err, "secret should not match")
-	assert.Empty(t, name, "secret name should be empty")
-	name, err = ds.VerifyEnrollSecret("one_secret")
+	assert.Nil(t, secret, "secret should be nil")
+	secret, err = ds.VerifyEnrollSecret("one_secret")
 	assert.NoError(t, err)
-	assert.Equal(t, "one", name)
-	name, err = ds.VerifyEnrollSecret("two_secret")
+	assert.Equal(t, "one", secret.Name)
+	assert.Equal(t, &team1.ID, secret.TeamID)
+	secret, err = ds.VerifyEnrollSecret("two_secret")
 	assert.Error(t, err)
-	assert.Equal(t, "", name)
+	assert.Nil(t, secret)
 
 	err = ds.ApplyEnrollSecretSpec(
 		&kolide.EnrollSecretSpec{
@@ -112,21 +116,21 @@ func testEnrollSecrets(t *testing.T, ds kolide.Datastore) {
 	)
 	assert.NoError(t, err)
 
-	name, err = ds.VerifyEnrollSecret("one_secret")
+	secret, err = ds.VerifyEnrollSecret("one_secret")
 	assert.Error(t, err)
-	assert.Equal(t, "", name)
-	name, err = ds.VerifyEnrollSecret("two_secret")
+	assert.Nil(t, secret)
+	secret, err = ds.VerifyEnrollSecret("two_secret")
 	assert.NoError(t, err)
-	assert.Equal(t, "two", name)
+	assert.Equal(t, "two", secret.Name)
+	assert.Equal(t, (*uint)(nil), secret.TeamID)
 }
 
 func testEnrollSecretsCaseSensitive(t *testing.T, ds kolide.Datastore) {
-	err := ds.ApplyEnrollSecretSpec(
-		&kolide.EnrollSecretSpec{
-			Secrets: []kolide.EnrollSecret{
-				kolide.EnrollSecret{Name: "one", Secret: "one_secret", Active: true},
-				kolide.EnrollSecret{Name: "two", Secret: "two_secret", Active: false},
-			},
+	err := ds.SaveEnrollSecrets(
+		nil,
+		[]kolide.EnrollSecret{
+			{Name: "one", Secret: "one_secret", Active: true},
+			{Name: "two", Secret: "two_secret", Active: false},
 		},
 	)
 	require.NoError(t, err)
@@ -138,30 +142,33 @@ func testEnrollSecretsCaseSensitive(t *testing.T, ds kolide.Datastore) {
 }
 
 func testEnrollSecretRoundtrip(t *testing.T, ds kolide.Datastore) {
-	spec, err := ds.GetEnrollSecretSpec()
+	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
 	require.NoError(t, err)
-	assert.Len(t, spec.Secrets, 0)
 
-	expectedSpec := kolide.EnrollSecretSpec{
-		Secrets: []kolide.EnrollSecret{
-			kolide.EnrollSecret{Name: "one", Secret: "one_secret", Active: false},
-			kolide.EnrollSecret{Name: "two", Secret: "two_secret", Active: true},
-		},
+	// TODO test with non-nil team
+	secrets, err := ds.GetEnrollSecrets(nil)
+	require.NoError(t, err)
+	assert.Len(t, secrets, 0)
+
+	expectedSpec := []kolide.EnrollSecret{
+		kolide.EnrollSecret{Name: "one", Secret: "one_secret", Active: false},
+		kolide.EnrollSecret{Name: "two", Secret: "two_secret", Active: true},
 	}
-	err = ds.ApplyEnrollSecretSpec(&expectedSpec)
+	err = ds.ApplyEnrollSecrets(nil, expectedSpec)
 	require.NoError(t, err)
 
-	spec, err = ds.GetEnrollSecretSpec()
+	secrets, err = ds.GetEnrollSecrets(nil)
 	require.NoError(t, err)
-	require.Len(t, spec.Secrets, 2)
+	require.Len(t, secrets, 2)
 	// sort secrets before equality checks to ensure proper order
-	sort.Slice(spec.Secrets, func(i, j int) bool { return spec.Secrets[i].Name < spec.Secrets[j].Name })
+	sort.Slice(secrets, func(i, j int) bool { return secrets[i].Name < secrets[j].Name })
 
-	assert.Equal(t, "one", spec.Secrets[0].Name)
-	assert.Equal(t, "one_secret", spec.Secrets[0].Secret)
-	assert.Equal(t, false, spec.Secrets[0].Active)
+	assert.Equal(t, "one", secrets[0].Name)
+	assert.Equal(t, "one_secret", secrets[0].Secret)
+	assert.Equal(t, false, secrets[0].Active)
+	assert.Equal(t, &team1.ID, secrets[0].TeamID)
 
-	assert.Equal(t, "two", spec.Secrets[1].Name)
-	assert.Equal(t, "two_secret", spec.Secrets[1].Secret)
-	assert.Equal(t, true, spec.Secrets[1].Active)
+	assert.Equal(t, "two", secrets[1].Name)
+	assert.Equal(t, "two_secret", secrets[1].Secret)
+	assert.Equal(t, true, secrets[1].Active)
 }

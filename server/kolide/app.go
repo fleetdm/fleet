@@ -16,14 +16,13 @@ type AppConfigStore interface {
 	SaveAppConfig(info *AppConfig) error
 
 	// VerifyEnrollSecret checks that the provided secret matches an active
-	// enroll secret. If it is successfully matched, the name of the secret is
-	// returned. Otherwise an error is returned.
-	VerifyEnrollSecret(secret string) (string, error)
-	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in
-	// the spec.
-	ApplyEnrollSecretSpec(spec *EnrollSecretSpec) error
-	// GetEnrollSecretSpec gets the spec for the current enroll secrets.
-	GetEnrollSecretSpec() (*EnrollSecretSpec, error)
+	// enroll secret. If it is successfully matched, that secret is returned.
+	// Otherwise an error is returned.
+	VerifyEnrollSecret(secret string) (*EnrollSecret, error)
+	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).
+	GetEnrollSecrets(teamID *uint) ([]EnrollSecret, error)
+	// ApplyEnrollSecrets replaces the current enroll secrets for a team with the provided secrets.
+	ApplyEnrollSecrets(teamID *uint, secrets []EnrollSecret) error
 }
 
 // AppConfigService provides methods for configuring
@@ -325,6 +324,9 @@ type EnrollSecret struct {
 	Active bool `json:"active" db:"active"`
 	// CreatedAt is the time this enroll secret was first added.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// TeamID is the ID for the associated team. If no ID is set, then this is a
+	// global enroll secret.
+	TeamID *uint `json:"team_id" db:"team_id"`
 }
 
 const (
