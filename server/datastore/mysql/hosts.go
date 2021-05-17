@@ -326,7 +326,7 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 		sql += `JSON_OBJECT(
 			`
 		for _, field := range opt.AdditionalFilters {
-			sql += fmt.Sprintf(`?, JSON_EXTRACT(additional, ?), `)
+			sql += `?, JSON_EXTRACT(additional, ?), `
 			params = append(params, field, fmt.Sprintf(`$."%s"`, field))
 		}
 		sql = sql[:len(sql)-2]

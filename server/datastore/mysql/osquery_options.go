@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/go-kit/kit/log/level"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 )
 

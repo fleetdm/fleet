@@ -1052,7 +1052,7 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 	// Check for label queries and if so, load host additional. If we don't do
 	// this, we will end up unintentionally dropping any existing host
 	// additional info.
-	for query, _ := range results {
+	for query := range results {
 		if strings.HasPrefix(query, hostLabelQueryPrefix) {
 			fullHost, err := svc.ds.Host(host.ID)
 			if err != nil {

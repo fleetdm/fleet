@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/WatchBeam/clock"
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 )
 
