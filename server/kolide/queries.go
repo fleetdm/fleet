@@ -73,7 +73,10 @@ type Query struct {
 	Description string `json:"description"`
 	Query       string `json:"query"`
 	Saved       bool   `json:"saved"`
-	AuthorID    *uint  `json:"author_id" db:"author_id"`
+	// ObserverCanRun indicates whether users with Observer role can run this as
+	// a live query.
+	ObserverCanRun bool  `json:"observer_can_run" db:"observer_can_run"`
+	AuthorID       *uint `json:"author_id" db:"author_id"`
 	// AuthorName is retrieved with a join to the users table in the MySQL
 	// backend (using AuthorID)
 	AuthorName string `json:"author_name" db:"author_name"`
