@@ -193,28 +193,3 @@ func makeDeleteTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return teamResponse{Team: team}, err
 	}
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Add Hosts to Team
-////////////////////////////////////////////////////////////////////////////////
-
-type addHostsToTeamRequest struct {
-	TeamID  uint   // From request path
-	HostIDs []uint `json:"hosts"`
-}
-
-type addHostsToTeamResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func makeAddHostsToTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(addHostsToTeamRequest)
-		err := svc.AddHostsToTeam(ctx, &req.TeamID, req.HostIDs)
-		if err != nil {
-			return addHostsToTeamResponse{Err: err}, nil
-		}
-
-		return addHostsToTeamResponse{}, err
-	}
-}

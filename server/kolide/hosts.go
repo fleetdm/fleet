@@ -75,6 +75,9 @@ type HostStore interface {
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
 	// hostname.
 	HostByIdentifier(identifier string) (*Host, error)
+	// AddHostsToTeam adds hosts to an existing team, clearing their team
+	// settings if teamID is nil.
+	AddHostsToTeam(teamID *uint, hostIDs []uint) error
 }
 
 type HostService interface {
@@ -86,8 +89,10 @@ type HostService interface {
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
 	// hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*HostDetail, error)
-
 	FlushSeenHosts(ctx context.Context) error
+	// AddHostsToTeam adds hosts to an existing team, clearing their team
+	// settings if teamID is nil.
+	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 }
 
 type HostListOptions struct {

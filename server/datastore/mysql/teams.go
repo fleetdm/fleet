@@ -165,24 +165,3 @@ func (d *Datastore) ListTeams(opt kolide.ListOptions) ([]*kolide.Team, error) {
 	return teams, nil
 
 }
-
-func (d *Datastore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	sql := `
-		UPDATE hosts SET team_id = ?
-		WHERE id IN (?)
-	`
-	sql, args, err := sqlx.In(sql, teamID, hostIDs)
-	if err != nil {
-		return errors.Wrap(err, "sqlx.In AddHostsToTeam")
-	}
-
-	if _, err := d.db.Exec(sql, args...); err != nil {
-		return errors.Wrap(err, "exec AddHostsToTeam")
-	}
-
-	return nil
-}
