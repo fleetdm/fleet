@@ -97,8 +97,6 @@ type KolideEndpoints struct {
 	ListHosts                             endpoint.Endpoint
 	GetHostSummary                        endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
-	ApplyOsqueryOptionsSpec               endpoint.Endpoint
-	GetOsqueryOptionsSpec                 endpoint.Endpoint
 	GetCertificate                        endpoint.Endpoint
 	ChangeEmail                           endpoint.Endpoint
 	InitiateSSO                           endpoint.Endpoint
@@ -112,11 +110,13 @@ type KolideEndpoints struct {
 	Version                               endpoint.Endpoint
 	CreateTeam                            endpoint.Endpoint
 	ModifyTeam                            endpoint.Endpoint
+	ModifyTeamAgentOptions                endpoint.Endpoint
 	DeleteTeam                            endpoint.Endpoint
 	ListTeams                             endpoint.Endpoint
 	ListTeamUsers                         endpoint.Endpoint
 	AddTeamUsers                          endpoint.Endpoint
 	DeleteTeamUsers                       endpoint.Endpoint
+	AddHostsToTeam                        endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -211,8 +211,6 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		GetLabelSpecs:                         authenticatedUser(jwtKey, svc, makeGetLabelSpecsEndpoint(svc)),
 		GetLabelSpec:                          authenticatedUser(jwtKey, svc, makeGetLabelSpecEndpoint(svc)),
 		SearchTargets:                         authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
-		ApplyOsqueryOptionsSpec:               authenticatedUser(jwtKey, svc, makeApplyOsqueryOptionsSpecEndpoint(svc)),
-		GetOsqueryOptionsSpec:                 authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
 		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
@@ -220,13 +218,15 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
 		Version:                               authenticatedUser(jwtKey, svc, makeVersionEndpoint(svc)),
 		// TODO permissions for teams endpoints
-		CreateTeam:      authenticatedUser(jwtKey, svc, makeCreateTeamEndpoint(svc)),
-		ModifyTeam:      authenticatedUser(jwtKey, svc, makeModifyTeamEndpoint(svc)),
-		DeleteTeam:      authenticatedUser(jwtKey, svc, makeDeleteTeamEndpoint(svc)),
-		ListTeams:       authenticatedUser(jwtKey, svc, makeListTeamsEndpoint(svc)),
-		ListTeamUsers:   authenticatedUser(jwtKey, svc, makeListTeamUsersEndpoint(svc)),
-		AddTeamUsers:    authenticatedUser(jwtKey, svc, makeAddTeamUsersEndpoint(svc)),
-		DeleteTeamUsers: authenticatedUser(jwtKey, svc, makeDeleteTeamUsersEndpoint(svc)),
+		CreateTeam:             authenticatedUser(jwtKey, svc, makeCreateTeamEndpoint(svc)),
+		ModifyTeam:             authenticatedUser(jwtKey, svc, makeModifyTeamEndpoint(svc)),
+		ModifyTeamAgentOptions: authenticatedUser(jwtKey, svc, makeModifyTeamAgentOptionsEndpoint(svc)),
+		DeleteTeam:             authenticatedUser(jwtKey, svc, makeDeleteTeamEndpoint(svc)),
+		ListTeams:              authenticatedUser(jwtKey, svc, makeListTeamsEndpoint(svc)),
+		ListTeamUsers:          authenticatedUser(jwtKey, svc, makeListTeamUsersEndpoint(svc)),
+		AddTeamUsers:           authenticatedUser(jwtKey, svc, makeAddTeamUsersEndpoint(svc)),
+		DeleteTeamUsers:        authenticatedUser(jwtKey, svc, makeDeleteTeamUsersEndpoint(svc)),
+		AddHostsToTeam:         authenticatedUser(jwtKey, svc, makeAddHostsToTeamEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
@@ -323,8 +323,6 @@ type kolideHandlers struct {
 	ListHosts                             http.Handler
 	GetHostSummary                        http.Handler
 	SearchTargets                         http.Handler
-	ApplyOsqueryOptionsSpec               http.Handler
-	GetOsqueryOptionsSpec                 http.Handler
 	GetCertificate                        http.Handler
 	ChangeEmail                           http.Handler
 	InitiateSSO                           http.Handler
@@ -338,11 +336,13 @@ type kolideHandlers struct {
 	Version                               http.Handler
 	CreateTeam                            http.Handler
 	ModifyTeam                            http.Handler
+	ModifyTeamAgentOptions                http.Handler
 	DeleteTeam                            http.Handler
 	ListTeams                             http.Handler
 	ListTeamUsers                         http.Handler
 	AddTeamUsers                          http.Handler
 	DeleteTeamUsers                       http.Handler
+	AddHostsToTeam                        http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -426,8 +426,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ListHosts:                             newServer(e.ListHosts, decodeListHostsRequest),
 		GetHostSummary:                        newServer(e.GetHostSummary, decodeNoParamsRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		ApplyOsqueryOptionsSpec:               newServer(e.ApplyOsqueryOptionsSpec, decodeApplyOsqueryOptionsSpecRequest),
-		GetOsqueryOptionsSpec:                 newServer(e.GetOsqueryOptionsSpec, decodeNoParamsRequest),
 		GetCertificate:                        newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                           newServer(e.ChangeEmail, decodeChangeEmailRequest),
 		InitiateSSO:                           newServer(e.InitiateSSO, decodeInitiateSSORequest),
@@ -441,11 +439,13 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		Version:                               newServer(e.Version, decodeNoParamsRequest),
 		CreateTeam:                            newServer(e.CreateTeam, decodeCreateTeamRequest),
 		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
+		ModifyTeamAgentOptions:                newServer(e.ModifyTeamAgentOptions, decodeModifyTeamAgentOptionsRequest),
 		DeleteTeam:                            newServer(e.DeleteTeam, decodeDeleteTeamRequest),
 		ListTeams:                             newServer(e.ListTeams, decodeListTeamsRequest),
 		ListTeamUsers:                         newServer(e.ListTeamUsers, decodeListTeamUsersRequest),
 		AddTeamUsers:                          newServer(e.AddTeamUsers, decodeModifyTeamUsersRequest),
 		DeleteTeamUsers:                       newServer(e.DeleteTeamUsers, decodeModifyTeamUsersRequest),
+		AddHostsToTeam:                        newServer(e.AddHostsToTeam, decodeAddHostsToTeamRequest),
 	}
 }
 
@@ -644,9 +644,6 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
 	r.Handle("/api/v1/fleet/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
 
-	r.Handle("/api/v1/fleet/spec/osquery_options", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")
-	r.Handle("/api/v1/fleet/spec/osquery_options", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
-
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
 	r.Handle("/api/v1/fleet/version", h.Version).Methods("GET").Name("version")
@@ -662,9 +659,11 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
 	r.Handle("/api/v1/fleet/teams/{id}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
 	r.Handle("/api/v1/fleet/teams/{id}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
+	r.Handle("/api/v1/fleet/teams/{id}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
 	r.Handle("/api/v1/fleet/teams/{id}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
 	r.Handle("/api/v1/fleet/teams/{id}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
 	r.Handle("/api/v1/fleet/teams/{id}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")
+	r.Handle("/api/v1/fleet/teams/{id}/hosts", h.AddHostsToTeam).Methods("POST").Name("add_hosts_to_team")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")

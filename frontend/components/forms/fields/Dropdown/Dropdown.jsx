@@ -23,7 +23,11 @@ class Dropdown extends Component {
     onChange: PropTypes.func,
     options: PropTypes.arrayOf(dropdownOptionInterface).isRequired,
     placeholder: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
-    value: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    value: PropTypes.oneOfType([
+      PropTypes.array,
+      PropTypes.string,
+      PropTypes.number,
+    ]),
     wrapperClassName: PropTypes.string,
   };
 
@@ -38,13 +42,15 @@ class Dropdown extends Component {
   };
 
   handleChange = (selected) => {
-    const { multi, onChange } = this.props;
+    const { multi, onChange, clearable } = this.props;
 
-    if (multi) {
-      return onChange(selected.map((obj) => obj.value).join(","));
+    if (clearable && selected === null) {
+      onChange(null);
+    } else if (multi) {
+      onChange(selected.map((obj) => obj.value).join(","));
+    } else {
+      onChange(selected.value);
     }
-
-    return onChange(selected.value);
   };
 
   renderLabel = () => {

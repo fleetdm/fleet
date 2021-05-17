@@ -1,11 +1,13 @@
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
+  description: PropTypes.string,
   name: PropTypes.string,
   id: PropTypes.number,
   hosts: PropTypes.number,
   members: PropTypes.number,
   role: PropTypes.string,
+  agent_options: PropTypes.string,
 });
 
 /**
@@ -19,6 +21,7 @@ export interface ITeam {
   user_count: number;
   // role value is included when the team is in the context of a user.
   role?: string;
+  agent_options?: string;
 }
 
 /**

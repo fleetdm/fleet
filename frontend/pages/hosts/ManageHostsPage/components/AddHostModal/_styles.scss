@@ -112,7 +112,19 @@
 
   &__secret-wrapper {
     position: relative;
-    margin: 0 0 0 44px;
+    margin: $pad-medium 0 0 44px;
+  }
+
+  &__team-dropdown-wrapper {
+    .form-field__label {
+      font-weight: $bold;
+    }
+  }
+
+  &__team-dropdown-wrapper {
+    .form-field__label {
+      font-weight: $bold;
+    }
   }
 
   pre,

@@ -15,6 +15,7 @@ import Button from "components/buttons/Button";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
+import AddHostsRedirectModal from "./components/AddHostsModal/AddHostsRedirectModal";
 
 import PencilIcon from "../../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../../assets/images/icon-trash-14x14@2x.png";
@@ -88,6 +89,9 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
     return state.entities.teams.data[team_id];
   });
 
+  const [showAddHostsRedirectModal, setShowAddHostsRedirectModal] = useState(
+    false
+  );
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
@@ -102,6 +106,10 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
     dispatch(teamActions.loadAll({ perPage: 500 }));
   }, [dispatch]);
 
+  const toggleAddHostsRedirectModal = useCallback(() => {
+    setShowAddHostsRedirectModal(!showAddHostsRedirectModal);
+  }, [showAddHostsRedirectModal, setShowAddHostsRedirectModal]);
+
   const toggleDeleteTeamModal = useCallback(() => {
     setShowDeleteTeamModal(!showDeleteTeamModal);
   }, [showDeleteTeamModal, setShowDeleteTeamModal]);
@@ -109,6 +117,10 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
   const toggleEditTeamModal = useCallback(() => {
     setShowEditTeamModal(!showEditTeamModal);
   }, [showEditTeamModal, setShowEditTeamModal]);
+
+  const onAddHostsRedirectClick = useCallback(() => {
+    dispatch(push(PATHS.MANAGE_HOSTS));
+  }, [dispatch]);
 
   const onDeleteSubmit = useCallback(() => {
     dispatch(teamActions.destroy(team?.id))
@@ -160,7 +172,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
             <span className={`${baseClass}__host-count`}>0 hosts</span>
           </div>
           <div className={`${baseClass}__team-actions`}>
-            <Button onClick={() => console.log("click")}>Add hosts</Button>
+            <Button onClick={toggleAddHostsRedirectModal}>Add hosts</Button>
             <Button onClick={toggleEditTeamModal} variant={"text-icon"}>
               <>
                 <img src={PencilIcon} alt="Edit team icon" />
@@ -192,6 +204,12 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
           </TabList>
         </Tabs>
       </div>
+      {showAddHostsRedirectModal ? (
+        <AddHostsRedirectModal
+          onCancel={toggleAddHostsRedirectModal}
+          onSubmit={onAddHostsRedirectClick}
+        />
+      ) : null}
       {showDeleteTeamModal ? (
         <DeleteTeamModal
           onCancel={toggleDeleteTeamModal}

@@ -81,6 +81,14 @@
     }
   }
 
+  .data-table-container {
+    .data-table {
+      &__wrapper {
+        overflow-x: scroll;
+      }
+    }
+  }
+
   &__modal-buttons {
     width: 100%;
     display: flex;

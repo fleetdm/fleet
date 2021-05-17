@@ -16,6 +16,7 @@ class Checkbox extends Component {
     onChange: PropTypes.func,
     value: PropTypes.bool,
     wrapperClassName: PropTypes.string,
+    indeterminate: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -38,12 +39,14 @@ class Checkbox extends Component {
       name,
       value,
       wrapperClassName,
+      indeterminate,
     } = this.props;
     const checkBoxClass = classnames(baseClass, className);
     const formFieldProps = pick(this.props, ["hint", "label", "error", "name"]);
 
     const checkBoxTickClass = classnames(`${checkBoxClass}__tick`, {
       [`${checkBoxClass}__tick--disabled`]: disabled,
+      [`${checkBoxClass}__tick--indeterminate`]: indeterminate,
     });
 
     return (
@@ -61,6 +64,9 @@ class Checkbox extends Component {
             name={name}
             onChange={handleChange}
             type="checkbox"
+            ref={(element) => {
+              element && (element.indeterminate = indeterminate);
+            }}
           />
           <span className={checkBoxTickClass} />
           <span className={`${checkBoxClass}__label`}>{children}</span>

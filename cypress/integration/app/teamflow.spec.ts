@@ -17,8 +17,11 @@ describe("Teams flow", () => {
     cy.findByRole("button", { name: /^create$/i }).click();
 
     cy.visit("/settings/teams");
+    // Allow rendering to settle
+    // TODO this might represent a bug in the React code.
+    cy.wait(100); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    cy.get(".Select-arrow-zone").click();
+    cy.contains("Valor").get(".Select-arrow-zone").click();
 
     // need force:true for dropdown
     cy.findByText(/edit/i).click({ force: true });
@@ -30,8 +33,11 @@ describe("Teams flow", () => {
     cy.findByRole("button", { name: /save/i }).click();
 
     cy.visit("/settings/teams");
+    // Allow rendering to settle
+    // TODO this might represent a bug in the React code.
+    cy.wait(100); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    cy.get(".Select-arrow-zone").click();
+    cy.contains("Mystic").get(".Select-arrow-zone").click();
 
     cy.findByText(/delete/i).click({ force: true });
 

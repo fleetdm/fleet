@@ -79,9 +79,6 @@ var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testCountHostsInTargets,
 	testHostStatus,
 	testHostIDsInTargets,
-	testApplyOsqueryOptions,
-	testApplyOsqueryOptionsNoOverrides,
-	testOsqueryOptionsForHost,
 	testApplyQueries,
 	testApplyPackSpecRoundtrip,
 	testApplyPackSpecMissingQueries,
@@ -101,5 +98,6 @@ var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testTeamUsers,
 	testUserTeams,
 	testUserCreateWithTeams,
+	testTeamAddHostsToTeam,
 	testSaveHostSoftware,
 }

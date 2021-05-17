@@ -9,7 +9,7 @@ type Service interface {
 	QueryService
 	CampaignService
 	OsqueryService
-	OsqueryOptionsService
+	AgentOptionsService
 	HostService
 	AppConfigService
 	InviteService

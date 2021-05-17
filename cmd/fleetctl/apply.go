@@ -27,7 +27,6 @@ type specGroup struct {
 	Queries      []*kolide.QuerySpec
 	Packs        []*kolide.PackSpec
 	Labels       []*kolide.LabelSpec
-	Options      *kolide.OptionsSpec
 	AppConfig    *kolide.AppConfigPayload
 	EnrollSecret *kolide.EnrollSecretSpec
 }
@@ -72,17 +71,6 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
 			specs.Labels = append(specs.Labels, labelSpec)
-
-		case kolide.OptionsKind:
-			if specs.Options != nil {
-				return nil, errors.New("options defined twice in the same file")
-			}
-
-			var optionSpec *kolide.OptionsSpec
-			if err := yaml.Unmarshal(s.Spec, &optionSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
-			}
-			specs.Options = optionSpec
 
 		case kolide.AppConfigKind:
 			if specs.AppConfig != nil {
@@ -173,13 +161,6 @@ func applyCommand() *cli.Command {
 					return errors.Wrap(err, "applying packs")
 				}
 				fmt.Printf("[+] applied %d packs\n", len(specs.Packs))
-			}
-
-			if specs.Options != nil {
-				if err := fleet.ApplyOptions(specs.Options); err != nil {
-					return errors.Wrap(err, "applying options")
-				}
-				fmt.Printf("[+] applied options\n")
 			}
 
 			if specs.AppConfig != nil {

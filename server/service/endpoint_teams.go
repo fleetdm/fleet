@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/go-kit/kit/endpoint"
@@ -15,12 +16,12 @@ type createTeamRequest struct {
 	payload kolide.TeamPayload
 }
 
-type createTeamResponse struct {
+type teamResponse struct {
 	Team *kolide.Team `json:"team,omitempty"`
 	Err  error        `json:"error,omitempty"`
 }
 
-func (r createTeamResponse) error() error { return r.Err }
+func (r teamResponse) error() error { return r.Err }
 
 func makeCreateTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
@@ -28,10 +29,10 @@ func makeCreateTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		team, err := svc.NewTeam(ctx, req.payload)
 		if err != nil {
-			return createTeamResponse{Err: err}, nil
+			return teamResponse{Err: err}, nil
 		}
 
-		return createTeamResponse{Team: team}, nil
+		return teamResponse{Team: team}, nil
 	}
 }
 
@@ -44,22 +45,36 @@ type modifyTeamRequest struct {
 	payload kolide.TeamPayload
 }
 
-type modifyTeamResponse struct {
-	Team *kolide.Team `json:"team,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r modifyTeamResponse) error() error { return r.Err }
-
 func makeModifyTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyTeamRequest)
 		team, err := svc.ModifyTeam(ctx, req.ID, req.payload)
 		if err != nil {
-			return modifyTeamResponse{Err: err}, nil
+			return teamResponse{Err: err}, nil
 		}
 
-		return modifyTeamResponse{Team: team}, err
+		return teamResponse{Team: team}, err
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Modify Team Agent Options
+////////////////////////////////////////////////////////////////////////////////
+
+type modifyTeamAgentOptionsRequest struct {
+	ID      uint
+	options json.RawMessage
+}
+
+func makeModifyTeamAgentOptionsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(modifyTeamAgentOptionsRequest)
+		team, err := svc.ModifyTeamAgentOptions(ctx, req.ID, req.options)
+		if err != nil {
+			return teamResponse{Err: err}, nil
+		}
+
+		return teamResponse{Team: team}, err
 	}
 }
 
@@ -160,10 +175,10 @@ func makeAddTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 		req := request.(modifyTeamUsersRequest)
 		team, err := svc.AddTeamUsers(ctx, req.TeamID, req.Users)
 		if err != nil {
-			return modifyTeamResponse{Err: err}, nil
+			return teamResponse{Err: err}, nil
 		}
 
-		return modifyTeamResponse{Team: team}, err
+		return teamResponse{Team: team}, err
 	}
 }
 
@@ -172,9 +187,34 @@ func makeDeleteTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 		req := request.(modifyTeamUsersRequest)
 		team, err := svc.DeleteTeamUsers(ctx, req.TeamID, req.Users)
 		if err != nil {
-			return modifyTeamResponse{Err: err}, nil
+			return teamResponse{Err: err}, nil
 		}
 
-		return modifyTeamResponse{Team: team}, err
+		return teamResponse{Team: team}, err
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Add Hosts to Team
+////////////////////////////////////////////////////////////////////////////////
+
+type addHostsToTeamRequest struct {
+	TeamID  uint   // From request path
+	HostIDs []uint `json:"hosts"`
+}
+
+type addHostsToTeamResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func makeAddHostsToTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(addHostsToTeamRequest)
+		err := svc.AddHostsToTeam(ctx, &req.TeamID, req.HostIDs)
+		if err != nil {
+			return addHostsToTeamResponse{Err: err}, nil
+		}
+
+		return addHostsToTeamResponse{}, err
 	}
 }

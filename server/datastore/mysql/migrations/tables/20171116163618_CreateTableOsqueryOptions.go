@@ -8,7 +8,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
-	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 
@@ -153,7 +152,7 @@ func migrateOptions(tx *sql.Tx) error {
 			override_type, override_identifier, options
 		) VALUES (?, ?, ?)
 	`
-	if _, err = txx.Exec(query, kolide.OptionOverrideTypeDefault, "", string(confJSON)); err != nil {
+	if _, err = txx.Exec(query, 0, "", string(confJSON)); err != nil {
 		return errors.Wrap(err, "saving converted options")
 	}
 

@@ -20,7 +20,6 @@ interface IAutocompleteDropdown {
   value: Option[];
   disabledOptions: number[];
   disabled?: boolean;
-  optionComponent?: JSX.Element;
   className?: string;
 }
 

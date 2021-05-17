@@ -135,7 +135,7 @@ type UserPayload struct {
 	InviteToken              *string     `json:"invite_token,omitempty"`
 	SSOInvite                *bool       `json:"sso_invite,omitempty"`
 	SSOEnabled               *bool       `json:"sso_enabled,omitempty"`
-	GlobalRole               null.String `json:"global_role,omitempty"`
+	GlobalRole               *string     `json:"global_role,omitempty"`
 	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
 	Teams                    *[]UserTeam `json:"teams,omitempty"`
 }
@@ -143,10 +143,9 @@ type UserPayload struct {
 // User creates a user from payload.
 func (p UserPayload) User(keySize, cost int) (*User, error) {
 	user := &User{
-		Username:   *p.Username,
-		Email:      *p.Email,
-		Teams:      []UserTeam{},
-		GlobalRole: p.GlobalRole,
+		Username: *p.Username,
+		Email:    *p.Email,
+		Teams:    []UserTeam{},
 	}
 	if err := user.SetPassword(*p.Password, keySize, cost); err != nil {
 		return nil, err
@@ -170,6 +169,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.Teams != nil {
 		user.Teams = *p.Teams
+	}
+	if p.GlobalRole != nil {
+		user.GlobalRole = null.StringFrom(*p.GlobalRole)
 	}
 
 	return user, nil

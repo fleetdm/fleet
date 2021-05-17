@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/fleetdm/fleet/server/kolide"
@@ -42,6 +43,21 @@ func (svc service) ModifyTeam(ctx context.Context, id uint, payload kolide.TeamP
 	}
 	if payload.Description != nil {
 		team.Description = *payload.Description
+	}
+
+	return svc.ds.SaveTeam(team)
+}
+
+func (svc service) ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*kolide.Team, error) {
+	team, err := svc.ds.Team(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if options != nil {
+		team.AgentOptions = &options
+	} else {
+		team.AgentOptions = nil
 	}
 
 	return svc.ds.SaveTeam(team)
@@ -116,4 +132,8 @@ func (svc service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*ko
 
 func (svc service) DeleteTeam(ctx context.Context, tid uint) error {
 	return svc.ds.DeleteTeam(tid)
+}
+
+func (svc service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	return svc.ds.AddHostsToTeam(teamID, hostIDs)
 }

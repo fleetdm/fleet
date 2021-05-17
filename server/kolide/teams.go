@@ -2,30 +2,36 @@ package kolide
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 )
 
 type TeamStore interface {
 	// NewTeam creates a new Team object in the store.
 	NewTeam(team *Team) (*Team, error)
+	// SaveTeam saves any changes to the team.
+	SaveTeam(team *Team) (*Team, error)
 	// Team retrieves the Team by ID.
 	Team(tid uint) (*Team, error)
 	// Team deletes the Team by ID.
 	DeleteTeam(tid uint) error
 	// TeamByName retrieves the Team by Name.
 	TeamByName(name string) (*Team, error)
-	// SaveTeam saves any changes to the team.
-	SaveTeam(team *Team) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided
 	// options.
 	ListTeams(opt ListOptions) ([]*Team, error)
+	// AddHostsToTeam adds hosts to an existing team, clearing their team
+	// settings if teamID is nil.
+	AddHostsToTeam(teamID *uint, hostIDs []uint) error
 }
 
 type TeamService interface {
 	// NewTeam creates a new team.
 	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
-	// ModifyTeam modifies an existing team.
+	// ModifyTeam modifies an existing team (besides agent options).
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
+	// ModifyTeam modifies agent options for a team.
+	ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*Team, error)
 	// AddTeamUsers adds users to an existing team.
 	AddTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
 	// DeleteTeamUsers deletes users from an existing team.
@@ -37,11 +43,15 @@ type TeamService interface {
 	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
 	// ListTeams lists users on the team with the provided list options.
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
+	// AddHostsToTeam adds hosts to an existing team, clearing their team
+	// settings if teamID is nil.
+	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 }
 
 type TeamPayload struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
+	// Note AgentOptions must be set by a separate endpoint.
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -57,6 +67,8 @@ type Team struct {
 	Name string `json:"name" db:"name"`
 	// Description is an optional description for the team.
 	Description string `json:"description" db:"description"`
+	// AgentOptions is the options for osquery and Orbit.
+	AgentOptions *json.RawMessage `json:"agent_options" db:"agent_options"`
 
 	// Derived from JOINs
 

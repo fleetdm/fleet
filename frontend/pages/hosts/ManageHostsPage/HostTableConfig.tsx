@@ -1,6 +1,12 @@
+/* eslint-disable react/prop-types */
+// disable this rule as it was throwing an error in Header and Cell component
+// definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 
 import { IHost } from "interfaces/host";
+// ignore TS error for now until these are rewritten in ts.
+// @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
@@ -18,6 +24,8 @@ interface IHeaderProps {
     title: string;
     isSortedDesc: boolean;
   };
+  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  toggleAllRowsSelected: () => void;
 }
 
 interface ICellProps {
@@ -26,14 +34,17 @@ interface ICellProps {
   };
   row: {
     original: IHost;
+    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    toggleRowSelected: () => void;
   };
 }
 
 interface IHostDataColumn {
-  title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
   Cell: (props: ICellProps) => JSX.Element;
+  id?: string;
+  title?: string;
+  accessor?: string;
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
@@ -46,6 +57,30 @@ const lastSeenTime = (status: string, seenTime: string): string => {
 };
 
 const hostTableHeaders: IHostDataColumn[] = [
+  // We are using React Table useRowSelect functionality for the selection header.
+  // More information on its API can be found here
+  // https://react-table.tanstack.com/docs/api/useRowSelect
+  {
+    id: "selection",
+    Header: (cellProps: IHeaderProps): JSX.Element => {
+      const props = cellProps.getToggleAllRowsSelectedProps();
+      const checkboxProps = {
+        value: props.checked,
+        indeterminate: props.indeterminate,
+        onChange: () => cellProps.toggleAllRowsSelected(),
+      };
+      return <Checkbox {...checkboxProps} />;
+    },
+    Cell: (cellProps: ICellProps): JSX.Element => {
+      const props = cellProps.row.getToggleRowSelectedProps();
+      const checkboxProps = {
+        value: props.checked,
+        onChange: () => cellProps.row.toggleRowSelected(),
+      };
+      return <Checkbox {...checkboxProps} />;
+    },
+    disableHidden: true,
+  },
   {
     title: "Hostname",
     Header: (cellProps) => (
@@ -226,9 +261,11 @@ const defaultHiddenColumns = [
   "hardware_serial",
 ];
 
-const generateVisibleHostColumns = (hiddenColumns: string[]) => {
+const generateVisibleHostColumns = (
+  hiddenColumns: string[]
+): IHostDataColumn[] => {
   return hostTableHeaders.filter((column) => {
-    return !hiddenColumns.includes(column.accessor);
+    return !hiddenColumns.includes(column.accessor as string);
   });
 };
 

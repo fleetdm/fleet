@@ -197,7 +197,7 @@ func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{},
 		return nil, osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	baseConfig, err := svc.ds.OptionsForPlatform(host.Platform)
+	baseConfig, err := svc.AgentOptionsForHost(ctx, &host)
 	if err != nil {
 		return nil, osqueryError{message: "internal error: fetching base config: " + err.Error()}
 	}

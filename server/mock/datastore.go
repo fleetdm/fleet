@@ -21,12 +21,11 @@ var _ kolide.Datastore = (*Store)(nil)
 
 type Store struct {
 	kolide.PasswordResetStore
-	kolide.TeamStore
+	TeamStore
 	TargetStore
 	SessionStore
 	CampaignStore
 	ScheduledQueryStore
-	OsqueryOptionsStore
 	AppConfigStore
 	HostStore
 	InviteStore

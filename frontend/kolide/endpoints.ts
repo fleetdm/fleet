@@ -41,7 +41,16 @@ export default {
   STATUS_LIVE_QUERY: "/v1/fleet/status/live_query",
   STATUS_RESULT_STORE: "/v1/fleet/status/result_store",
   TEAMS: "/v1/fleet/teams",
-  TEAMS_MEMBERS: (teamId: number) => {
+  TEAMS_MEMBERS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/users`;
+  },
+  TEAMS_TRANSFER_HOSTS: (teamId: number) => {
+    return `/v1/fleet/teams/${teamId}/hosts`;
+  },
+  TEAMS_ENROLL_SECRETS: (teamId: number) => {
+    return `/v1/fleet/teams/${teamId}/secrets`;
+  },
+  TEAMS_AGENT_OPTIONS: (teamId: number): string => {
+    return `/v1/fleet/teams/${teamId}/agent_options`;
   },
 };
