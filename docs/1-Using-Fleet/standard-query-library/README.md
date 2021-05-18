@@ -25,6 +25,7 @@ spec:
   query: Insert query here
   purpose: What is the goal of running your query? Ex. Detection
   remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
+  contributors: zwass,mike-j-thomas
 ```
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
 
