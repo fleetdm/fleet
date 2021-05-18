@@ -81,12 +81,16 @@ export default (client: any) => {
           return response.hosts;
         });
     },
-    transfer: (teamId: number, hostIds: number[]) => {
+    transferToTeam: (teamId: number | null, hostIds: number[]) => {
       const { HOSTS_TRANSFER } = endpoints;
       const endpoint = client._endpoint(HOSTS_TRANSFER);
-      return client
-        .authenticatedPost(endpoint)
-        .then((response: {}) => response);
+      return client.authenticatedPost(
+        endpoint,
+        JSON.stringify({
+          team_id: teamId,
+          hosts: hostIds,
+        })
+      );
     },
   };
 };
