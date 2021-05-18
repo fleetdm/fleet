@@ -13,6 +13,7 @@ export default {
   },
   FORGOT_PASSWORD: "/v1/fleet/forgot_password",
   HOSTS: "/v1/fleet/hosts",
+  HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
   INVITES: "/v1/fleet/invites",
   LABELS: "/v1/fleet/labels",
   LABEL_HOSTS: (id: number): string => {
@@ -53,5 +54,4 @@ export default {
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/agent_options`;
   },
-  HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
 };

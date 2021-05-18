@@ -1,38 +1,41 @@
 import endpoints from "kolide/endpoints";
+import { IHost } from "interfaces/host";
 
-export default (client) => {
+interface ISortOption {
+  id: number;
+  direction: string;
+}
+
+export default (client: any) => {
   return {
-    destroy: (host) => {
+    destroy: (host: IHost) => {
       const { HOSTS } = endpoints;
       const endpoint = client._endpoint(`${HOSTS}/${host.id}`);
 
       return client.authenticatedDelete(endpoint);
     },
-
-    refetch: (host) => {
+    refetch: (host: IHost) => {
       const { HOSTS } = endpoints;
       const endpoint = client._endpoint(`${HOSTS}/${host.id}/refetch`);
 
       return client
         .authenticatedPost(endpoint)
-        .then((response) => response.host);
+        .then((response: any) => response.host);
     },
-
-    load: (hostID) => {
+    load: (hostID: number) => {
       const { HOSTS } = endpoints;
       const endpoint = client._endpoint(`${HOSTS}/${hostID}`);
 
       return client
         .authenticatedGet(endpoint)
-        .then((response) => response.host);
+        .then((response: any) => response.host);
     },
-
     loadAll: (
       page = 0,
       perPage = 100,
       selected = "",
       globalFilter = "",
-      sortBy = []
+      sortBy: ISortOption[] = []
     ) => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
 
@@ -57,7 +60,7 @@ export default (client) => {
       if (selected.startsWith(labelPrefix)) {
         const lid = selected.substr(labelPrefix.length);
         endpoint = `${LABEL_HOSTS(
-          lid
+          parseInt(lid, 10)
         )}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
       } else {
         let selectedFilter = "";
@@ -74,16 +77,16 @@ export default (client) => {
 
       return client
         .authenticatedGet(client._endpoint(endpoint))
-        .then((response) => {
+        .then((response: any) => {
           return response.hosts;
         });
     },
-    transfer: () => {
-      const { HOST_TRANSFER } = endpoints;
-      const endpoint = client._endpoint(HOST_TRANSFER);
+    transfer: (teamId: number, hostIds: number[]) => {
+      const { HOSTS_TRANSFER } = endpoints;
+      const endpoint = client._endpoint(HOSTS_TRANSFER);
       return client
-        .authenticatedGet(endpoint)
-        .then((response: any) => response.secrets);
+        .authenticatedPost(endpoint)
+        .then((response: {}) => response);
     },
   };
 };
