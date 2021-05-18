@@ -19,4 +19,27 @@ export default PropTypes.shape({
   server: PropTypes.string,
   user_name: PropTypes.string,
   verify_sll_certs: PropTypes.bool,
+  tier: PropTypes.string,
 });
+
+export interface IConfig {
+  live_query_disabled: boolean;
+  authentication_method: string;
+  authentication_type: string;
+  configured: boolean;
+  domain: string;
+  enable_ssl_tls: boolean;
+  enable_start_tls: boolean;
+  host_expiry_enabled: boolean;
+  host_expiry_window: number;
+  kolide_server_url: string;
+  org_logo_url: string;
+  org_name: string;
+  password: string;
+  port: number;
+  sender_address: string;
+  server: string;
+  user_name: string;
+  verify_sll_certs: boolean;
+  tier: string;
+}
