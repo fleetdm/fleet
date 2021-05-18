@@ -4,6 +4,8 @@ import { connect } from "react-redux";
 import { push } from "react-router-redux";
 import { noop } from "lodash";
 
+import PATHS from "router/paths";
+
 import {
   clearForgotPasswordErrors,
   forgotPasswordAction,
@@ -84,7 +86,7 @@ export class ForgotPasswordPage extends Component {
     return (
       <StackedWhiteBoxes
         leadText={leadText}
-        previousLocation="/login"
+        previousLocation={PATHS.LOGIN}
         className="forgot-password"
         onLeave={handleLeave}
       >

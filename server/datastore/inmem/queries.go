@@ -86,7 +86,7 @@ func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error)
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range d.queries {
+	for k := range d.queries {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)

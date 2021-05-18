@@ -121,7 +121,7 @@ func (m *seenHostSet) getAndClearHostIDs() []uint {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	var ids []uint
-	for id, _ := range m.hostIDs {
+	for id := range m.hostIDs {
 		ids = append(ids, id)
 	}
 	m.hostIDs = make(map[uint]bool)

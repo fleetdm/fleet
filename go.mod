@@ -14,7 +14,7 @@ require (
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
@@ -24,7 +24,7 @@ require (
 	github.com/go-kit/kit v0.9.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gomodule/redigo v2.0.0+incompatible
-	github.com/google/go-cmp v0.5.5 // indirect
+	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/websocket v1.4.2
@@ -72,3 +72,10 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v2 v2.2.7
 )
+
+// This replace directive needed until
+// https://github.com/throttled/throttled/issues/86 is resolved and we can
+// upgrade to redigo v1.8.4 above. Note there was also some confusion in the
+// Redigo migration that means version 2.0.0+incompatible is actually older than
+// 1.8.4. See https://github.com/gomodule/redigo/issues/366.
+replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.4

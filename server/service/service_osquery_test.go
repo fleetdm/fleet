@@ -274,7 +274,14 @@ func TestHostDetailQueries(t *testing.T) {
 
 	queries, err := svc.hostDetailQueries(host)
 	assert.Nil(t, err)
-	assert.Empty(t, queries, 0)
+	assert.Empty(t, queries)
+
+	// With refetch requested queries should be returned
+	host.RefetchRequested = true
+	queries, err = svc.hostDetailQueries(host)
+	assert.Nil(t, err)
+	assert.NotEmpty(t, queries)
+	host.RefetchRequested = false
 
 	// Advance the time
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
@@ -282,7 +289,7 @@ func TestHostDetailQueries(t *testing.T) {
 	queries, err = svc.hostDetailQueries(host)
 	assert.Nil(t, err)
 	assert.Len(t, queries, expectedDetailQueries+2)
-	for name, _ := range queries {
+	for name := range queries {
 		assert.True(t,
 			strings.HasPrefix(name, hostDetailQueryPrefix) || strings.HasPrefix(name, hostAdditionalQueryPrefix),
 		)

@@ -25,8 +25,9 @@ module.exports.routes = {
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /company/contact':    { action:   'view-contact' },
   'GET /apply': 'https://fleet-device-management.breezy.hr',
-  'GET /get-started': 'https://github.com/fleetdm/fleet/blob/master/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
-  'GET /pricing':    { action:   'view-pricing' },
+
+  'GET /get-started':    { action:   'view-pricing' },
+  'GET /install': 'https://github.com/fleetdm/fleet/blob/master/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
   '/documentation': 'https://github.com/fleetdm/fleet/tree/master/docs',
   '/contribute': 'https://github.com/fleetdm/fleet/tree/master/docs/4-Contribution',
   '/hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
@@ -56,6 +57,7 @@ module.exports.routes = {
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
 
   // Convenience
+  '/pricing':                    '/get-started',
   '/company':                    '/company/about',
   '/support':                    '/company/contact',
   '/contact':                    '/company/contact',

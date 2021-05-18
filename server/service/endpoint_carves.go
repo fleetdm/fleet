@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/go-kit/kit/endpoint"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/endpoint"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -84,7 +84,6 @@ func makeCarveBlockEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return carveBlockResponse{Err: err}, nil
 		}
 
-
 		return carveBlockResponse{Success: true}, nil
 	}
 }
@@ -99,7 +98,7 @@ type getCarveRequest struct {
 
 type getCarveResponse struct {
 	Carve kolide.CarveMetadata `json:"carve"`
-	Err    error           `json:"error,omitempty"`
+	Err   error                `json:"error,omitempty"`
 }
 
 func (r getCarveResponse) error() error { return r.Err }
@@ -112,7 +111,7 @@ func makeGetCarveEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getCarveResponse{Err: err}, nil
 		}
 
-		return getCarveResponse{Carve:*carve}, nil
+		return getCarveResponse{Carve: *carve}, nil
 
 	}
 }
@@ -127,7 +126,7 @@ type listCarvesRequest struct {
 
 type listCarvesResponse struct {
 	Carves []kolide.CarveMetadata `json:"carves"`
-	Err    error           `json:"error,omitempty"`
+	Err    error                  `json:"error,omitempty"`
 }
 
 func (r listCarvesResponse) error() error { return r.Err }
@@ -153,13 +152,13 @@ func makeListCarvesEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getCarveBlockRequest struct {
-	ID int64
+	ID      int64
 	BlockId int64
 }
 
 type getCarveBlockResponse struct {
 	Data []byte `json:"data"`
-	Err    error     `json:"error,omitempty"`
+	Err  error  `json:"error,omitempty"`
 }
 
 func (r getCarveBlockResponse) error() error { return r.Err }

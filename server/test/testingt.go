@@ -13,5 +13,4 @@ func Quiet(t *testing.T) *quiet {
 
 func (q *quiet) Logf(format string, args ...interface{}) {
 	// No logging
-	return
 }

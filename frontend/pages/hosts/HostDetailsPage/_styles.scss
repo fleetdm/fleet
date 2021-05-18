@@ -1,10 +1,3 @@
-a {
-  font-size: $x-small;
-  color: $core-vibrant-blue;
-  font-weight: $bold;
-  text-decoration: none;
-}
-
 .host-details {
   display: flex;
   flex-wrap: wrap;
@@ -28,7 +21,7 @@ a {
     &__header {
       font-size: $medium;
       font-weight: bold;
-      margin: 0 0 $pad-medium 0;
+      margin: 0 0 $pad-large 0;
     }
 
     .info {
@@ -67,16 +60,18 @@ a {
     }
 
     .results {
-      margin: auto;
+      margin: 0;
       width: 350px;
 
       &__header {
+        margin: 0 0 $pad-medium 0;
         font-size: $small;
         color: $core-fleet-black;
         font-weight: $bold;
       }
 
       &__data {
+        margin: 0;
         font-size: $x-small;
       }
     }
@@ -108,6 +103,71 @@ a {
       color: $core-fleet-black;
       margin: 0;
       padding-left: $pad-small;
+    }
+
+    .refetch {
+      display: flex;
+
+      .refetch-btn {
+        color: $core-vibrant-blue;
+        cursor: default;
+        font-size: $x-small;
+        display: inline;
+        margin: 9px 0 0 0; // aligns with spinner
+
+        &::before {
+          display: inline-block;
+          position: relative;
+          padding: 5px 0 0 0; // centers spin
+          content: url(../assets/images/icon-refetch-12x12@2x.png);
+          transform: scale(0.5);
+          vertical-align: bottom;
+          height: 20px;
+        }
+
+        &:hover {
+          cursor: pointer;
+        }
+      }
+
+      .refetch-offline {
+        opacity: 25%;
+
+        &:hover {
+          cursor: default;
+        }
+      }
+
+      .refetch-spinner {
+        color: $core-vibrant-blue;
+        cursor: default;
+        font-size: $x-small;
+        display: inline;
+        opacity: 50%;
+        filter: saturate(100%);
+
+        &::before {
+          display: inline-block;
+          position: relative;
+          top: 7px; // aligns with text
+          padding: 5px 0 0 0; // centers spin
+          display: inline-block;
+          content: url(../assets/images/icon-refetch-12x12@2x.png);
+          transform: scale(0.5);
+          animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+          0% {
+            transform: scale(0.5) rotate(0deg);
+            transform-origin: center center;
+          }
+          100% {
+            transform: scale(0.5) rotate(360deg);
+            transform-origin: center center;
+          }
+        }
+      }
     }
   }
 
@@ -248,6 +308,16 @@ a {
       padding: 12px 27px;
       white-space: nowrap;
     }
+  }
+
+  &__back-link {
+    display: flex;
+    align-items: center;
+    height: 16px;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
   }
 
   #back-chevron {

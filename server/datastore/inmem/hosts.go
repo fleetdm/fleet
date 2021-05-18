@@ -43,9 +43,7 @@ func (d *Datastore) DeleteHost(hid uint) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	if _, ok := d.hosts[hid]; ok {
-		delete(d.hosts, hid)
-	}
+	delete(d.hosts, hid)
 
 	return nil
 }
@@ -68,7 +66,7 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range d.hosts {
+	for k := range d.hosts {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)

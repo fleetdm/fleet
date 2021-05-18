@@ -100,3 +100,21 @@ func TestHostDetails(t *testing.T) {
 	assert.Equal(t, expectedLabels, hostDetail.Labels)
 	assert.Equal(t, expectedPacks, hostDetail.Packs)
 }
+
+func TestRefetchHost(t *testing.T) {
+	ds := new(mock.Store)
+	svc := service{ds: ds}
+
+	host := &kolide.Host{ID: 3}
+	ctx := context.Background()
+
+	ds.HostFunc = func(hid uint) (*kolide.Host, error) {
+		return host, nil
+	}
+	ds.SaveHostFunc = func(host *kolide.Host) error {
+		assert.True(t, host.RefetchRequested)
+		return nil
+	}
+
+	require.NoError(t, svc.RefetchHost(ctx, host.ID))
+}

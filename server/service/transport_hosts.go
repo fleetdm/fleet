@@ -29,6 +29,14 @@ func decodeDeleteHostRequest(ctx context.Context, r *http.Request) (interface{},
 	return deleteHostRequest{ID: id}, nil
 }
 
+func decodeRefetchHostRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	return refetchHostRequest{ID: id}, nil
+}
+
 func decodeListHostsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	hopt, err := hostListOptionsFromRequest(r)
 	if err != nil {

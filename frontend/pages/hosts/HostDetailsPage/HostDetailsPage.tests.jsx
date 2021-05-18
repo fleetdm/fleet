@@ -40,7 +40,7 @@ describe("HostDetailsPage - component", () => {
       const dispatch = () => Promise.resolve();
       const props = { ...propsWithOfflineHost, dispatch };
       const page = mount(<HostDetailsPage {...props} />);
-      const deleteBtn = page.find("Button").at(1);
+      const deleteBtn = page.find("Button").at(2);
       expect(deleteBtn.text()).toBe("Delete");
 
       jest.spyOn(hostActions, "destroy").mockImplementation(() => () => {
@@ -66,7 +66,7 @@ describe("HostDetailsPage - component", () => {
       const dispatch = () => Promise.resolve();
       const props = { ...propsWithOnlineHost, dispatch };
       const page = mount(<HostDetailsPage {...props} />);
-      const deleteBtn = page.find("Button").at(1);
+      const deleteBtn = page.find("Button").at(2);
       expect(deleteBtn.text()).toBe("Delete");
 
       jest.spyOn(hostActions, "destroy").mockImplementation(() => () => {
@@ -93,7 +93,7 @@ describe("HostDetailsPage - component", () => {
     const dispatch = () => Promise.resolve();
     const props = { ...propsWithOnlineHost, dispatch };
     const page = mount(<HostDetailsPage {...props} />);
-    const queryBtn = page.find("Button").at(0);
+    const queryBtn = page.find("Button").at(1);
     expect(queryBtn.text()).toBe("Query");
 
     expect(page.find("Modal").length).toEqual(0);
