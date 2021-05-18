@@ -32,6 +32,8 @@ interface ITableContainerProps<T, U> {
   defaultSortDirection: string;
   onActionButtonClick: () => void;
   actionButtonText: string;
+  actionButtonIcon?: string;
+  actionButtonVariant: string;
   onQueryChange: (queryData: ITableQueryData) => void;
   onSelectActionClick?: (selectedItemIds: number[]) => void;
   inputPlaceHolder: string;
@@ -66,6 +68,8 @@ const TableContainer = <T, U>(
     className,
     disableActionButton,
     actionButtonText,
+    actionButtonIcon,
+    actionButtonVariant,
     onSelectActionClick,
   } = props;
 
@@ -178,10 +182,15 @@ const TableContainer = <T, U>(
           <Button
             disabled={disableActionButton}
             onClick={onActionButtonClick}
-            variant="unstyled"
+            variant={actionButtonVariant}
             className={`${baseClass}__table-action-button`}
           >
-            {actionButtonText}
+            <>
+              {actionButtonIcon && (
+                <img src={actionButtonIcon} alt={`${actionButtonText} icon`} />
+              )}
+              {actionButtonText}
+            </>
           </Button>
           <div className={`${baseClass}__search-input`}>
             <InputField

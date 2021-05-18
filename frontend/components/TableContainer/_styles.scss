@@ -18,18 +18,6 @@
     align-items: center;
   }
 
-  &__table-action-button {
-    display: flex;
-    align-items: center;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-
-    img {
-      width: 20px;
-      margin-right: $pad-small;
-    }
-  }
-
   &__edit-columns-button:hover {
     cursor: pointer;
     text-decoration: underline;

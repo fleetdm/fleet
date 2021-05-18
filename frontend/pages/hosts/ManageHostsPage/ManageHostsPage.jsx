@@ -28,6 +28,7 @@ import {
 } from "redux/nodes/components/ManageHostsPage/actions";
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
+
 import permissionUtils from "utilities/permissions";
 import {
   defaultHiddenColumns,
@@ -39,6 +40,8 @@ import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
+
+import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
 
 const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
@@ -568,6 +571,8 @@ export class ManageHostsPage extends PureComponent {
         defaultSortHeader={"hostname"}
         defaultSortDirection={"desc"}
         actionButtonText={"Edit columns"}
+        actionButtonIcon={EditColumnsIcon}
+        actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify([selectedFilter])}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}

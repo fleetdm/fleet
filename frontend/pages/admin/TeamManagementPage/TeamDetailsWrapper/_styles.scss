@@ -44,8 +44,10 @@
   }
 
   &__team-actions {
+    display: flex;
+
     button {
-      margin-left: $pad-medium;
+      margin-left: $pad-small;
     }
   }
 
