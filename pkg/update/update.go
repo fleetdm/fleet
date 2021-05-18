@@ -142,6 +142,13 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 // Get returns the local path to the specified target. The target is downloaded
 // if it does not yet exist locally or the hash does not match.
 func (u *Updater) Get(target, channel string) (string, error) {
+	if target == "" {
+		return "", errors.New("target is required")
+	}
+	if channel == "" {
+		return "", errors.New("channel is required")
+	}
+
 	localPath := u.LocalPath(target, channel)
 	repoPath := u.RepoPath(target, channel)
 	stat, err := os.Stat(localPath)

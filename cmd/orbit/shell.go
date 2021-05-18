@@ -60,7 +60,7 @@ var shellCommand = &cli.Command{
 		if err := updater.UpdateMetadata(); err != nil {
 			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-		osquerydPath, err := updater.Get("osqueryd", c.String("osquery-channel"))
+		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-channel"))
 		if err != nil {
 			return err
 		}
