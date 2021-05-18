@@ -289,7 +289,7 @@ spec:
   name: Detect unencrypted SSH keys for local accounts
   platforms: macOS, Linux, Windows, FreeBSD
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
-  query: SELECT uid, username, description, path, encrypted FROM user_ssh_keys cross join users using (uid) WHERE encrypted=0;
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
   purpose: Detection
   remediation:
     - User awareness about the impact of SSH Keys
@@ -302,7 +302,7 @@ spec:
   name: Detect unencrypted SSH keys for domain joined accounts
   platforms: macOS, Linux, Windows, FreeBSD
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
-  query: SELECT uid, username, description, path, encrypted FROM user_ssh_keys cross join users using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   purpose: Detection
   remediation:
     - User awareness about the impact of SSH Keys
@@ -336,7 +336,7 @@ spec:
   name: Detect dynamic linker hijacking (MITRE. T1574.006)
   platforms: macOS, Linux
   description: Detect any processes that run with an LD_PRELOAD or DYLD_INSERT_LIBRARIES environment variable
-  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key IN ('LD_PRELOAD', 'DYLD_INSERT_LIBRARIES');
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key IN ('LD_PRELOAD', 'DYLD_INSERT_LIBRARIES') AND env.value != '/Applications/Firefox.app/Contents/MacOS/libplugin_child_interpose.dylib';
   purpose: Detection
   remediation:
     - Identify the process/binary detected
