@@ -471,7 +471,7 @@ export class HostDetailsPage extends Component {
         <div>
           <Link to={PATHS.MANAGE_HOSTS} className={`${baseClass}__back-link`}>
             <img src={BackChevron} alt="back chevron" id="back-chevron" />
-            <span>Back to hosts</span>
+            <span>Back to all hosts</span>
           </Link>
         </div>
         <div className="section title">
