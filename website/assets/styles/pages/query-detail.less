@@ -1,5 +1,12 @@
 // .class represents the class that would have been applied
 // to the element if access to modify the partial's html
+@font-face {
+  font-family: 'FontAwesome';
+  src: url('/fonts/fontawesome-webfont.eot?v=4.7.0');
+  src: url('/fonts/fontawesome-webfont.eot?#iefix&v=4.7.0') format('embedded-opentype'), url('/fonts/fontawesome-webfont.woff2?v=4.7.0') format('woff2'), url('/fonts/fontawesome-webfont.woff?v=4.7.0') format('woff'), url('/fonts/fontawesome-webfont.ttf?v=4.7.0') format('truetype'), url('/fonts/fontawesome-webfont.svg?v=4.7.0#fontawesomeregular') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
 
 #query-detail {
 
@@ -11,6 +18,8 @@
 
   h3 {
     font-size: 18px;
+    // .pt-4
+    padding-top: 1.5rem !important;
   }
 
   blockquote {
@@ -29,14 +38,24 @@
     margin-top: 3rem !important;
     margin-bottom: 3rem !important;
 
+    p::before {
+      content: "\f0eb";
+      display: inline-block;
+      font: normal normal normal 14px/1 FontAwesome;
+      font-size: 1.33333em;
+      text-rendering: auto;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      color: @core-vibrant-blue;
+      margin: 16px;
+      margin-left: 8px;
+    }
+
     p {
       // .m-0
       margin: 0 !important;
       // .p-0
       padding: 0 !important;
-      :before {
-        content: "<i class="fa fa-lightbulb-o fa-lg"></i>";
-      }
     }
   }
 
@@ -50,11 +69,5 @@
     .sql {
     color: #C5C7D1;
     }
-  }
-
-  .fa-lightbulb-o {
-    color: @core-vibrant-blue;
-    margin: 16px;
-    margin-left: 8px;
   }
 }
