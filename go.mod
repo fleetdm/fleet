@@ -72,3 +72,5 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v2 v2.2.7
 )
+
+replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.4
