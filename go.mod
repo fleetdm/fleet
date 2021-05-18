@@ -73,4 +73,7 @@ require (
 	gopkg.in/yaml.v2 v2.2.7
 )
 
+// This replace directive needed until
+// https://github.com/throttled/throttled/issues/86 is resolved and we can
+// upgrade to redigo v1.8.4 above.
 replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.4
