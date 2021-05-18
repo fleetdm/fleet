@@ -2,15 +2,15 @@
 
 Users have different abilities depending on the access level they have.
 
-Global users with the Admin role receive all permissions.
+Users with the Admin role receive all permissions.
 
-## Global user permissions
+## User permissions
 
 ```
-ℹ️  In Fleet 4.0, the Admin, Maintainer, and Observer roles were introduced.
+ℹ️  In Fleet 4.0, the Observer, Maintainer, and Admin roles were introduced.
 ```
 
-The following table depicts various permissions levels at the global level.
+The following table depicts various permissions levels for each role.
 
 | Action                                               | Observer | Maintainer | Admin |
 | ---------------------------------------------------- | -------- | ---------- | ----- |
@@ -43,17 +43,21 @@ The following table depicts various permissions levels at the global level.
 | Edit teams \*                                        |          |            | ✅    |
 | Add members to teams \*                              |          |            | ✅    |
 
-\*Available with Fleet Basic
+\*Applies only to Fleet Basic
 
 ## Team member permissions
 
-`Applies to Fleet Basic`
+`Applies only to Fleet Basic`
 
 ```
-ℹ️  In Fleet 4.0, Teams were introduced.
+ℹ️  In Fleet 4.0, the Teams feature was introduced.
 ```
 
-Global users with the Admin role receive all permissions.
+Users either have global access to Fleet or team access to Fleet. Check out [the user permissions table](#user-permissions) above for global user permissions.
+
+Users can be a member of multiple teams in Fleet.
+
+Users that are members of multiple teams can be assigned different roles for each team. For example, a user can be given access to the "Workstations" team and assigned the "Observer" role. This same user can be given access to the "Servers" team and assigned the "Maintainer" role.
 
 The following table depicts various permissions levels in a team.
 
