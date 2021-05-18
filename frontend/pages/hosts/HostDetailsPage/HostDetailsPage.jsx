@@ -218,7 +218,7 @@ export class HostDetailsPage extends Component {
           backgroundColor="#3e4771"
         >
           <span className={`${baseClass}__tooltip-text`}>
-            You can’t query <br /> a offline host.
+            You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
         <Button onClick={toggleDeleteHostModal()} variant="active">
@@ -380,7 +380,7 @@ export class HostDetailsPage extends Component {
           className="refetch"
           data-tip
           data-for="refetch-tooltip"
-          data-tip-disable={isOnline}
+          data-tip-disable={isOnline || showRefetchLoadingSpinner}
         >
           <Button
             className={`
@@ -389,6 +389,7 @@ export class HostDetailsPage extends Component {
               ${isOffline ? "refetch-offline" : ""} 
               ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
+            disabled={isOffline}
             onClick={onRefetchHost}
           >
             {showRefetchLoadingSpinner
@@ -527,7 +528,7 @@ export class HostDetailsPage extends Component {
                 </span>
                 <span className="info__header">Updated at</span>
                 <span className="info__data">
-                  {humanHostLastSeen(aboutData.seen_time)}
+                  {humanHostLastSeen(titleData.detail_updated_at)}
                 </span>
                 <span className="info__header">Uptime</span>
                 <span className="info__data">
