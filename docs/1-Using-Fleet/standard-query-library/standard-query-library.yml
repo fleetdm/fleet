@@ -333,10 +333,23 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect dynamic linker hijacking (MITRE. T1574.006)
-  platforms: macOS, Linux
-  description: Detect any processes that run with an LD_PRELOAD or DYLD_INSERT_LIBRARIES environment variable
-  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key IN ('LD_PRELOAD', 'DYLD_INSERT_LIBRARIES') AND env.value != '/Applications/Firefox.app/Contents/MacOS/libplugin_child_interpose.dylib';
+  name: Detect dynamic linker hijacking on Linux (MITRE. T1574.006)
+  platforms: Linux
+  description: Detect any processes that run with LD_PRELOAD environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
+  purpose: Detection
+  remediation:
+    - Identify the process/binary detected
+    - Confirm with system owner
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect dynamic linker hijacking on macOS (MITRE. T1574.006)
+  platforms: macOS
+  description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES' AND env.value != '/Applications/Firefox.app/Contents/MacOS/libplugin_child_interpose.dylib';
   purpose: Detection
   remediation:
     - Identify the process/binary detected
