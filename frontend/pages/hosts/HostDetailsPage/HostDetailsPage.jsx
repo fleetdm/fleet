@@ -64,7 +64,7 @@ export class HostDetailsPage extends Component {
     this.state = {
       showDeleteHostModal: false,
       showQueryHostModal: false,
-      showRefetchLoadingSpinner: props.host.refetch_requested,
+      showRefetchLoadingSpinner: false,
     };
   }
 
@@ -80,8 +80,9 @@ export class HostDetailsPage extends Component {
     const { dispatch, hostID } = this.props;
     const { fetchHost } = helpers;
 
-    fetchHost(dispatch, hostID);
-
+    fetchHost(dispatch, hostID).then((host) =>
+      this.setState({ showRefetchLoadingSpinner: host.refetch_requested })
+    );
     return false;
   }
 
@@ -328,7 +329,7 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
-        {!host.software ? (
+        {host.software.length === 0 ? (
           <div className="results">
             <p className="results__header">
               No installed software detected on this host.
@@ -373,7 +374,6 @@ export class HostDetailsPage extends Component {
 
     const isOnline = host.status === "online";
     const isOffline = host.status === "offline";
-
     return (
       <>
         <div
@@ -469,9 +469,9 @@ export class HostDetailsPage extends Component {
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
-          <Link to={PATHS.MANAGE_HOSTS}>
+          <Link to={PATHS.MANAGE_HOSTS} className={`${baseClass}__back-link`}>
             <img src={BackChevron} alt="back chevron" id="back-chevron" />
-            Back to Hosts
+            <span>Back to hosts</span>
           </Link>
         </div>
         <div className="section title">
@@ -568,7 +568,9 @@ export class HostDetailsPage extends Component {
         </div>
         {renderLabels()}
         {renderPacks()}
-        {renderSoftware()}
+        {/* The Software inventory feature is behind a feature flag
+        so we only render the sofware section if the feature is enabled */}
+        {host.software && renderSoftware()}
         {renderDeleteHostModal()}
         {showQueryHostModal && (
           <SelectQueryModal

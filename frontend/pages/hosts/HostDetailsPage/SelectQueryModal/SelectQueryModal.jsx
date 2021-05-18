@@ -81,7 +81,7 @@ const SelectQueryModal = (props) => {
   const results = () => {
     if (queryErrors) {
       return (
-        <div className={`${baseClass}__no-query-results`}>
+        <div className={`${baseClass}__no-queries`}>
           <span className="info__header">
             <img src={ErrorIcon} alt="error icon" id="error-icon" />
             Something&apos;s gone wrong.
@@ -105,7 +105,7 @@ const SelectQueryModal = (props) => {
 
     if (!queriesFilter && queriesCount === 0) {
       return (
-        <div className={`${baseClass}__no-query-results`}>
+        <div className={`${baseClass}__no-queries`}>
           <span className="info__header">You have no saved queries.</span>
           <span className="info__data">
             Expecting to see queries? Try again in a few seconds as the system

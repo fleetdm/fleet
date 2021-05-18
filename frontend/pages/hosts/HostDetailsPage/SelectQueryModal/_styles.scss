@@ -46,10 +46,10 @@
     }
   }
 
-  &__no-query-results {
+  &__no-queries {
     .info {
       &__header {
-        margin: 0 0 $pad-medium 0;
+        margin: $pad-medium 0 $pad-medium 0;
       }
       &__data {
         margin: 0 0 $pad-large 0;
