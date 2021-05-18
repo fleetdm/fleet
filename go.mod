@@ -23,7 +23,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/gomodule/redigo v2.0.0+incompatible
+	github.com/gomodule/redigo v1.8.4
 	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c
 	github.com/gorilla/mux v1.6.2
@@ -59,7 +59,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/theupdateframework/go-tuf v0.0.0-20201230183259-aee6270feb55
 	github.com/throttled/throttled v2.2.5+incompatible
-	github.com/throttled/throttled/v2 v2.7.1
+	github.com/throttled/throttled/v2 v2.7.2
 	github.com/urfave/cli/v2 v2.3.0
 	go.opencensus.io v0.20.2 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
@@ -72,10 +72,3 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v2 v2.2.7
 )
-
-// This replace directive needed until
-// https://github.com/throttled/throttled/issues/86 is resolved and we can
-// upgrade to redigo v1.8.4 above. Note there was also some confusion in the
-// Redigo migration that means version 2.0.0+incompatible is actually older than
-// 1.8.4. See https://github.com/gomodule/redigo/issues/366.
-replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.4
