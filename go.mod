@@ -72,3 +72,10 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v2 v2.2.7
 )
+
+// This replace directive needed until
+// https://github.com/throttled/throttled/issues/86 is resolved and we can
+// upgrade to redigo v1.8.4 above. Note there was also some confusion in the
+// Redigo migration that means version 2.0.0+incompatible is actually older than
+// 1.8.4. See https://github.com/gomodule/redigo/issues/366.
+replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.4
