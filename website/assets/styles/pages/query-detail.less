@@ -1,17 +1,55 @@
+// .class represents the class that would have been applied
+// to the element if access to modify the partial's html
+
 #query-detail {
 
   border-color: @core-vibrant-blue;
   
-  h3 {
+  h1 {
     font-size: 28px;
   }
 
-  h4 {
+  h3 {
     font-size: 18px;
   }
 
   blockquote {
     background-color: @ui-off-white;
+    // .blockquote
+    border: 1px solid #adb5bd;
+    page-break-inside: avoid;
+    // .border-left;
+    border: 0;
+    border-left: 0.3em solid transparent;
+    // .border-primary override color 
+    border-color: #6b6cfa !important;
+    // .p-4
+    padding: 1.5rem !important;
+    // .my-5
+    margin-top: 3rem !important;
+    margin-bottom: 3rem !important;
+
+    p {
+      // .m-0
+      margin: 0 !important;
+      // .p-0
+      padding: 0 !important;
+      :before {
+        content: "<i class="fa fa-lightbulb-o fa-lg"></i>";
+      }
+    }
+  }
+
+  pre {
+    background-color: #24273A;
+    // .rounded (bootstrap only 0.25rem option)
+    border-radius: 1rem !important;
+    // .p-5
+    padding: 3rem !important;
+
+    .sql {
+    color: #C5C7D1;
+    }
   }
 
   .fa-lightbulb-o {
