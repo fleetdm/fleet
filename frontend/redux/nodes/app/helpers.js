@@ -5,6 +5,7 @@ export const frontendFormattedConfig = (config) => {
     smtp_settings: smtpSettings,
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
+    license,
   } = config;
 
   return {
@@ -13,6 +14,7 @@ export const frontendFormattedConfig = (config) => {
     ...smtpSettings,
     ...ssoSettings,
     ...hostExpirySettings,
+    ...license,
   };
 };
 
