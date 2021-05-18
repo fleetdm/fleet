@@ -51,6 +51,11 @@ When merging a PR to master, bear in mind that whatever you merge to master gets
 
 Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and level of quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width. 
 
+### The Deploy Fleet Website GitHub action failed
+If the action fails, please complete the following steps:
+1. Head to the fleetdm-website app in the [Heroku dashboard](https://heroku.com) and select the "Activity" tab.
+2. Select "Roll back to here" on the second to most recent deploy.
+3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
 ### About the handbook
 #### Why bother?
