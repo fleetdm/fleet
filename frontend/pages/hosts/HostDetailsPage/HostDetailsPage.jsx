@@ -528,7 +528,7 @@ export class HostDetailsPage extends Component {
                 </span>
                 <span className="info__header">Updated at</span>
                 <span className="info__data">
-                  {humanHostLastSeen(aboutData.seen_time)}
+                  {humanHostLastSeen(titleData.detail_updated_at)}
                 </span>
                 <span className="info__header">Uptime</span>
                 <span className="info__data">
