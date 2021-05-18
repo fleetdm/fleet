@@ -380,7 +380,7 @@ export class HostDetailsPage extends Component {
           className="refetch"
           data-tip
           data-for="refetch-tooltip"
-          data-tip-disable={isOnline}
+          data-tip-disable={isOnline || showRefetchLoadingSpinner}
         >
           <Button
             className={`
@@ -389,6 +389,7 @@ export class HostDetailsPage extends Component {
               ${isOffline ? "refetch-offline" : ""} 
               ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
+            disabled={isOffline}
             onClick={onRefetchHost}
           >
             {showRefetchLoadingSpinner
