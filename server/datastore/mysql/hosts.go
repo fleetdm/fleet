@@ -142,8 +142,9 @@ func (d *Datastore) DeleteHost(hid uint) error {
 
 func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	sqlStatement := `
-		SELECT * FROM hosts
-		WHERE id = ? LIMIT 1
+		SELECT h.*, t.name AS team_name
+		FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		WHERE h.id = ? LIMIT 1
 	`
 	host := &kolide.Host{}
 	err := d.db.Get(host, sqlStatement, id)
@@ -155,41 +156,44 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 }
 
 func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	sql := `SELECT id,
-        osquery_host_id, 
-        created_at, 
-        updated_at, 
-        detail_update_time, 
-        node_key, 
-        host_name, 
-        uuid, 
-        platform, 
-        osquery_version, 
-        os_version, 
-        build, 
-        platform_like, 
-        code_name, 
-        uptime, 
-        physical_memory, 
-        cpu_type, 
-        cpu_subtype, 
-        cpu_brand, 
-        cpu_physical_cores, 
-        cpu_logical_cores, 
-        hardware_vendor, 
-        hardware_model, 
-        hardware_version, 
-        hardware_serial, 
-        computer_name, 
-        primary_ip_id, 
-        seen_time, 
-        distributed_interval, 
-        logger_tls_period, 
-        config_tls_refresh, 
-        primary_ip, 
-        primary_mac, 
-        label_update_time, 
-        enroll_secret_name,
+	sql := `SELECT
+		h.id,
+		h.osquery_host_id,
+		h.created_at,
+		h.updated_at,
+		h.detail_update_time,
+		h.node_key,
+		h.host_name,
+		h.uuid,
+		h.platform,
+		h.osquery_version,
+		h.os_version,
+		h.build,
+		h.platform_like,
+		h.code_name,
+		h.uptime,
+		h.physical_memory,
+		h.cpu_type,
+		h.cpu_subtype,
+		h.cpu_brand,
+		h.cpu_physical_cores,
+		h.cpu_logical_cores,
+		h.hardware_vendor,
+		h.hardware_model,
+		h.hardware_version,
+		h.hardware_serial,
+		h.computer_name,
+		h.primary_ip_id,
+		h.seen_time,
+		h.distributed_interval,
+		h.logger_tls_period,
+		h.config_tls_refresh,
+		h.primary_ip,
+		h.primary_mac,
+		h.label_update_time,
+		h.enroll_secret_name,
+		h.team_id,
+		t.name AS team_name,
 		`
 
 	var params []interface{}
@@ -212,21 +216,21 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 		`
 	}
 
-	sql += `FROM hosts
+	sql += `FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
 WHERE TRUE
     `
 	switch opt.StatusFilter {
 	case "new":
-		sql += "AND DATE_ADD(created_at, INTERVAL 1 DAY) >= ?"
+		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
 		params = append(params, time.Now())
 	case "online":
-		sql += fmt.Sprintf("AND DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ?", kolide.OnlineIntervalBuffer)
+		sql += fmt.Sprintf("AND DATE_ADD(h.seen_time, INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?", kolide.OnlineIntervalBuffer)
 		params = append(params, time.Now())
 	case "offline":
-		sql += fmt.Sprintf("AND DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ?", kolide.OnlineIntervalBuffer)
+		sql += fmt.Sprintf("AND DATE_ADD(h.seen_time, INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(h.seen_time, INTERVAL 30 DAY) >= ?", kolide.OnlineIntervalBuffer)
 		params = append(params, time.Now(), time.Now())
 	case "mia":
-		sql += "AND DATE_ADD(seen_time, INTERVAL 30 DAY) <= ?"
+		sql += "AND DATE_ADD(h.seen_time, INTERVAL 30 DAY) <= ?"
 		params = append(params, time.Now())
 	}
 
