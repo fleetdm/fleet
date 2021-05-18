@@ -1,10 +1,3 @@
-a {
-  font-size: $x-small;
-  color: $core-vibrant-blue;
-  font-weight: $bold;
-  text-decoration: none;
-}
-
 .host-details {
   display: flex;
   flex-wrap: wrap;
@@ -28,7 +21,7 @@ a {
     &__header {
       font-size: $medium;
       font-weight: bold;
-      margin: 0 0 $pad-medium 0;
+      margin: 0 0 $pad-large 0;
     }
 
     .info {
@@ -67,16 +60,18 @@ a {
     }
 
     .results {
-      margin: auto;
+      margin: 0;
       width: 350px;
 
       &__header {
+        margin: 0 0 $pad-medium 0;
         font-size: $small;
         color: $core-fleet-black;
         font-weight: $bold;
       }
 
       &__data {
+        margin: 0;
         font-size: $x-small;
       }
     }
@@ -313,6 +308,16 @@ a {
       padding: 12px 27px;
       white-space: nowrap;
     }
+  }
+
+  &__back-link {
+    display: flex;
+    align-items: center;
+    height: 16px;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
   }
 
   #back-chevron {

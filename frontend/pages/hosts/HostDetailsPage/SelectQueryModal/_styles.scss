@@ -46,6 +46,17 @@
     }
   }
 
+  &__no-queries {
+    .info {
+      &__header {
+        margin: $pad-medium 0 $pad-medium 0;
+      }
+      &__data {
+        margin: 0 0 $pad-large 0;
+      }
+    }
+  }
+
   &__query-modal {
     display: flex;
   }
