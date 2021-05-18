@@ -152,6 +152,8 @@ type Host struct {
 	EnrollSecretName          string              `json:"enroll_secret_name" db:"enroll_secret_name"`
 
 	TeamID null.Int `json:"team_id" db:"team_id"`
+	// TeamName is the name of the team, loaded by JOIN to the teams table.
+	TeamName *string `json:"team_name,omitempty" db:"team_name"`
 }
 
 // HostDetail provides the full host metadata along with associated labels and
