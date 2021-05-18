@@ -43,7 +43,7 @@ func (d *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range d.users {
+	for k := range d.users {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)

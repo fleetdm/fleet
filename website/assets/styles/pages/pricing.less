@@ -2,27 +2,12 @@
   h1, p {
     color: #192147;
   }
-  section {
+  section {// TODO remove this in favor of making HTML match homepage.ejs w/ bootstrap row classes and such
     max-width: 800px;
   }
-  .btn {
-    font-family: @header-font;
-    font-weight: 700;
-    padding-top: 18px;
-    padding-bottom: 18px;
-    font-size: 20px;
-    line-height: 23px;
-    border-radius: 10px;
-    &.btn-white {
-      position: relative;
-      padding-right: 20px;
-      color: #192147;
-      background-color: #fff;
-      border-color: #fff;
-    }
-  }
 
-  #arrow {
+  // TODO: dedupe animated-arrow-button (see homepage.less)
+  [purpose='animated-arrow-button'] {
     padding-right: 45px;
     cursor: pointer;
     position: relative;
@@ -37,7 +22,7 @@
     -webkit-transition: 0.2s ease-in-out;
   }
 
-  #arrow:before {
+  [purpose='animated-arrow-button']:before {
     content: url('/images/arrow-right-16x16@2x.png');
     transform: scale(0.5);
     position: absolute;
@@ -51,7 +36,7 @@
     /*   opacity: 0; */
   }
 
-  #arrow:hover:before {
+  [purpose='animated-arrow-button']:hover:before {
     left: 82%; // <--- here
     transition: 0.2s ease-in-out;
     -o-transition: 0.2s ease-in-out;

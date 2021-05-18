@@ -23,6 +23,9 @@
         },
         {
             "pattern": "github.com/fleetdm/confidential"
+        },
+        {
+            "pattern": "osquery.io/schema"
         }
     ],
     "retryOn429": true,

@@ -36,7 +36,7 @@ func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range d.invites {
+	for k := range d.invites {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)

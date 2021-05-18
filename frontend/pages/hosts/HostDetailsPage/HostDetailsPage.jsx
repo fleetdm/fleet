@@ -64,6 +64,7 @@ export class HostDetailsPage extends Component {
     this.state = {
       showDeleteHostModal: false,
       showQueryHostModal: false,
+      showRefetchLoadingSpinner: props.host.refetch_requested,
     };
   }
 
@@ -95,6 +96,21 @@ export class HostDetailsPage extends Component {
           `Host "${host.hostname}" was successfully deleted`
         )
       );
+    });
+
+    return false;
+  };
+
+  onRefetchHost = () => {
+    const { dispatch, host } = this.props;
+    const { refetchHost } = helpers;
+
+    this.setState({ showRefetchLoadingSpinner: true });
+
+    refetchHost(dispatch, host).catch((error) => {
+      this.setState({ showRefetchLoadingSpinner: false });
+      console.log(error);
+      dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
     });
 
     return false;
@@ -163,7 +179,7 @@ export class HostDetailsPage extends Component {
           revoke the host&apos;s enroll secret.
         </p>
         <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={() => onDestroyHost()} variant="alert">
+          <Button onClick={onDestroyHost} variant="alert">
             Delete
           </Button>
           <Button onClick={toggleDeleteHostModal(null)} variant="inverse">
@@ -201,7 +217,7 @@ export class HostDetailsPage extends Component {
           backgroundColor="#3e4771"
         >
           <span className={`${baseClass}__tooltip-text`}>
-            You can’t <br /> query an <br /> offline host.
+            You can’t query <br /> a offline host.
           </span>
         </ReactTooltip>
         <Button onClick={toggleDeleteHostModal()} variant="active">
@@ -350,6 +366,51 @@ export class HostDetailsPage extends Component {
     );
   };
 
+  renderRefetch = () => {
+    const { onRefetchHost } = this;
+    const { host } = this.props;
+    const { showRefetchLoadingSpinner } = this.state;
+
+    const isOnline = host.status === "online";
+    const isOffline = host.status === "offline";
+
+    return (
+      <>
+        <div
+          className="refetch"
+          data-tip
+          data-for="refetch-tooltip"
+          data-tip-disable={isOnline}
+        >
+          <Button
+            className={`
+              button
+              button--unstyled
+              ${isOffline ? "refetch-offline" : ""} 
+              ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
+            `}
+            onClick={onRefetchHost}
+          >
+            {showRefetchLoadingSpinner
+              ? "Fetching, try refreshing this page in just a moment."
+              : "Refetch"}
+          </Button>
+        </div>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="refetch-tooltip"
+          backgroundColor="#3e4771"
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            You can’t fetch data from <br /> an offline host.
+          </span>
+        </ReactTooltip>
+      </>
+    );
+  };
+
   render() {
     const { host, isLoadingHost, dispatch, queries, queryErrors } = this.props;
     const { showQueryHostModal } = this.state;
@@ -360,6 +421,7 @@ export class HostDetailsPage extends Component {
       renderLabels,
       renderSoftware,
       renderPacks,
+      renderRefetch,
     } = this;
 
     const titleData = pick(host, [
@@ -407,7 +469,7 @@ export class HostDetailsPage extends Component {
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
-          <Link to="/hosts/manage">
+          <Link to={PATHS.MANAGE_HOSTS}>
             <img src={BackChevron} alt="back chevron" id="back-chevron" />
             Back to Hosts
           </Link>
@@ -416,9 +478,12 @@ export class HostDetailsPage extends Component {
           <div className="title__inner">
             <div className="hostname-container">
               <h1 className="hostname">{host.hostname}</h1>
-              <p className="last-fetched">{`Last fetched ${humanHostDetailUpdated(
-                titleData.detail_updated_at
-              )}`}</p>
+              <p className="last-fetched">
+                {`Last fetched ${humanHostDetailUpdated(
+                  titleData.detail_updated_at
+                )}`}{" "}
+              </p>
+              {renderRefetch()}
             </div>
             <div className="info">
               <div className="info__item info__item--title">

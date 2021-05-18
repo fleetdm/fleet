@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/pkg/errors"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/pkg/errors"
 )
 
 func decodeCarveBeginRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -68,4 +68,3 @@ func decodeGetCarveBlockRequest(ctx context.Context, r *http.Request) (interface
 	}
 	return getCarveBlockRequest{ID: int64(id), BlockId: int64(blockId)}, nil
 }
-

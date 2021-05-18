@@ -196,7 +196,7 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	// Log response
-	took := time.Now().Sub(start).Truncate(time.Millisecond)
+	took := time.Since(start).Truncate(time.Millisecond)
 	fmt.Fprintf(os.Stderr, "%s %s %s (%s)\n", res.Request.Method, res.Request.URL, res.Status, took)
 
 	resBody := &bytes.Buffer{}

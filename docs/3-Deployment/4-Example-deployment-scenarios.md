@@ -447,14 +447,14 @@ We will use this address when we configure the Kubernetes deployment and databas
 The last step is to run the Fleet database migrations on your new MySQL server. To do this, run the following:
 
 ```
-kubectl create -f ./examples/kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
 ```
 
 In Kubernetes, you can only run a job once. If you'd like to run it again (i.e.: you'd like to run the migrations again using the same file), you must delete the job before re-creating it. To delete the job and re-run it, you can run the following commands:
 
 ```
-kubectl delete -f ./examples/kubernetes/fleet-migrations.yml
-kubectl create -f ./examples/kubernetes/fleet-migrations.yml
+kubectl delete -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
 ```
 
 #### Redis
@@ -523,7 +523,7 @@ kubectl create secret generic fleet-server-auth-key --from-file=./build/fleet-se
 First we must deploy the instances of the Fleet webserver. The Fleet webserver is described using a Kubernetes deployment object. To create this deployment, run the following:
 
 ```
-kubectl apply -f ./examples/kubernetes/fleet-deployment.yml
+kubectl apply -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-deployment.yml
 ```
 
 You should be able to get an instance of the webserver running via `kubectl get pods` and you should see the following logs:
@@ -539,7 +539,7 @@ ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listen
 Now that the Fleet server is running on our cluster, we have to expose the Fleet webservers to the internet via a load balancer. To create a Kubernetes `Service` of type `LoadBalancer`, run the following:
 
 ```
-kubectl apply -f ./examples/kubernetes/fleet-service.yml
+kubectl apply -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-service.yml
 ```
 
 #### Configure DNS

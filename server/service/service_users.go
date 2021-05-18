@@ -347,7 +347,7 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 		UserID:    user.ID,
 		Token:     token,
 	}
-	request, err = svc.ds.NewPasswordResetRequest(request)
+	_, err = svc.ds.NewPasswordResetRequest(request)
 	if err != nil {
 		return err
 	}

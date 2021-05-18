@@ -89,7 +89,8 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			additional = COALESCE(?, additional),
 			enroll_secret_name = ?,
 			primary_ip = ?,
-			primary_mac = ?
+			primary_mac = ?,
+			refetch_requested = ?
 		WHERE id = ?
 	`
 	_, err := d.db.Exec(sqlStatement,
@@ -124,6 +125,7 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		host.EnrollSecretName,
 		host.PrimaryIP,
 		host.PrimaryMac,
+		host.RefetchRequested,
 		host.ID,
 	)
 	if err != nil {
@@ -314,7 +316,8 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
         primary_mac, 
         label_update_time, 
         enroll_secret_name,
-		`
+		refetch_requested,
+	`
 
 	var params []interface{}
 
@@ -323,7 +326,7 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 		sql += `JSON_OBJECT(
 			`
 		for _, field := range opt.AdditionalFilters {
-			sql += fmt.Sprintf(`?, JSON_EXTRACT(additional, ?), `)
+			sql += `?, JSON_EXTRACT(additional, ?), `
 			params = append(params, field, fmt.Sprintf(`$."%s"`, field))
 		}
 		sql = sql[:len(sql)-2]
@@ -531,7 +534,8 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 			config_tls_refresh,
 			primary_ip,
 			primary_mac,
-			enroll_secret_name
+			enroll_secret_name,
+			refetch_requested
 		FROM hosts
 		WHERE node_key = ?
 		LIMIT 1
