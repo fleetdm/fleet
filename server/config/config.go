@@ -155,6 +155,11 @@ type FilesystemConfig struct {
 	EnableLogCompression bool   `yaml:"enable_log_compression"`
 }
 
+// LicenseConfig defines configs related to licensing Fleet.
+type LicenseConfig struct {
+	Key string `yaml:"key"`
+}
+
 // KolideConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -174,6 +179,7 @@ type KolideConfig struct {
 	S3         S3Config
 	PubSub     PubSubConfig
 	Filesystem FilesystemConfig
+	License    LicenseConfig
 }
 
 // addConfigs adds the configuration keys and default values that will be
@@ -342,6 +348,9 @@ func (man Manager) addConfigs() {
 		"Enable automatic rotation for osquery log files")
 	man.addConfigBool("filesystem.enable_log_compression", false,
 		"Enable compression for the rotated osquery log files")
+
+	// License
+	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Basic features)")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -478,6 +487,9 @@ func (man Manager) LoadConfig() KolideConfig {
 			ResultLogFile:        man.getConfigString("filesystem.result_log_file"),
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
+		},
+		License: LicenseConfig{
+			Key: man.getConfigString("license.key"),
 		},
 	}
 }

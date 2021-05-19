@@ -16,6 +16,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
+	"github.com/fleetdm/fleet/ee/licensing"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
 	"github.com/fleetdm/fleet/server/datastore/s3"
@@ -69,6 +70,14 @@ the way that the Fleet server works.
 
 			if dev {
 				applyDevFlags(&config)
+			}
+
+			license, err := licensing.LoadLicense(config.License.Key)
+			if err != nil {
+				initFatal(
+					err,
+					"failed to load license",
+				)
 			}
 
 			var logger kitlog.Logger
@@ -137,7 +146,6 @@ the way that the Fleet server works.
 
 			var ds kolide.Datastore
 			var carveStore kolide.CarveStore
-			var err error
 			mailService := mail.NewService()
 
 			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger))
@@ -220,7 +228,7 @@ the way that the Fleet server works.
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore)
+			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

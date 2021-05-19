@@ -22,7 +22,8 @@ import (
 // NewService creates a new service from the config struct
 func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 	logger kitlog.Logger, config config.KolideConfig, mailService kolide.MailService,
-	c clock.Clock, sso sso.SessionStore, lq kolide.LiveQueryStore, carveStore kolide.CarveStore) (kolide.Service, error) {
+	c clock.Clock, sso sso.SessionStore, lq kolide.LiveQueryStore, carveStore kolide.CarveStore,
+	license kolide.LicenseInfo) (kolide.Service, error) {
 	var svc kolide.Service
 
 	osqueryLogger, err := logging.New(config, logger)
@@ -45,6 +46,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 		metaDataClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
+		license: license,
 	}
 	svc = validationMiddleware{svc, ds, sso}
 	return svc, nil
@@ -66,6 +68,8 @@ type service struct {
 	metaDataClient  *http.Client
 
 	seenHostSet *seenHostSet
+
+	license kolide.LicenseInfo
 }
 
 func (s service) SendEmail(mail kolide.Email) error {

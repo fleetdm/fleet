@@ -13,12 +13,14 @@ import (
 
 func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore) (kolide.Service, error) {
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds)
+	license := kolide.LicenseInfo{Tier: "core"}
+	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
 }
 
 func newTestServiceWithClock(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore, c clock.Clock) (kolide.Service, error) {
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c, nil, lq, ds)
+	license := kolide.LicenseInfo{Tier: "core"}
+	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c, nil, lq, ds, license)
 }
 
 func createTestAppConfig(t *testing.T, ds kolide.Datastore) *kolide.AppConfig {
