@@ -6,6 +6,7 @@ import FileSaver from "file-saver";
 import { clone, filter, includes, isEqual, merge } from "lodash";
 import moment from "moment";
 import { push } from "react-router-redux";
+import { Link } from "react-router";
 
 import Kolide from "kolide";
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
@@ -33,6 +34,7 @@ import {
 import targetInterface from "interfaces/target";
 import validateQuery from "components/forms/validators/validate_query";
 import PATHS from "router/paths";
+import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "query-page";
 const DEFAULT_CAMPAIGN = {
@@ -642,10 +644,46 @@ export class QueryPage extends Component {
       return false;
     }
 
+    const globalObserver = true;
+
+    if (globalObserver) {
+      return (
+        <div className={`${baseClass}__content`}>
+          <div className={`${baseClass}__observer-query-view body-wrap`}>
+            <div>
+              <Link
+                to={PATHS.MANAGE_QUERIES}
+                className={`${baseClass}__back-link`}
+              >
+                <img src={BackChevron} alt="back chevron" id="back-chevron" />
+                <span>Back to queries</span>
+              </Link>
+            </div>
+            <div className={`${baseClass}__observer-query-details`}>
+              <h1>{query.name}</h1>
+              <p>{query.description}</p>
+            </div>
+            {renderLiveQueryWarning()}
+            {renderTargetsInput()}
+            {renderResultsTable()}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__form body-wrap`}>
+            <div>
+              <Link
+                to={PATHS.MANAGE_QUERIES}
+                className={`${baseClass}__back-link`}
+              >
+                <img src={BackChevron} alt="back chevron" id="back-chevron" />
+                <span>Back to queries</span>
+              </Link>
+            </div>
             <QueryForm
               formData={query}
               handleSubmit={onSaveQueryFormSubmit}
