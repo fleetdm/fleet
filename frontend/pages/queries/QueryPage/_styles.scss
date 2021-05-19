@@ -26,6 +26,7 @@
 
   &__observer-query-view {
     width: 90%;
+    max-width: 1060px;
     margin: 0 auto;
     color: $core-fleet-black;
 
@@ -40,6 +41,19 @@
   &__observer-query-details {
     margin-top: 40px;
     padding: 0 2rem;
+
+    .sql-button {
+      color: $core-vibrant-blue;
+      font-weight: normal;
+    }
+  }
+
+  &__query-preview {
+    margin-top: 15px;
+
+    .kolide-ace__label {
+      display: none;
+    }
   }
 
   &__back-link {

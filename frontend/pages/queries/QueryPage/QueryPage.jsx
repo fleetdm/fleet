@@ -17,6 +17,8 @@ import entityGetter from "redux/utilities/entityGetter";
 import { formatSelectedTargetsForApi } from "kolide/helpers";
 import helpers from "pages/queries/QueryPage/helpers";
 import hostInterface from "interfaces/host";
+import Button from "components/buttons/Button";
+import KolideAce from "components/KolideAce";
 import WarningBanner from "components/WarningBanner";
 import QueryForm from "components/forms/queries/QueryForm";
 import osqueryTableInterface from "interfaces/osquery_table";
@@ -85,6 +87,7 @@ export class QueryPage extends Component {
       queryResultsToggle: null,
       queryPosition: {},
       selectRelatedHostTarget: true,
+      observerShowSql: false,
     };
 
     this.csvQueryName = "Query Results";
@@ -644,9 +647,46 @@ export class QueryPage extends Component {
       return false;
     }
 
-    const globalObserver = true;
+    // THIS IS THE SQL SHOW HIDE COMPONENT STUFF
+    const QuerySql = () => (
+      <div id="results" className="search-results">
+        <KolideAce
+          fontSize={12}
+          name="query-details"
+          readOnly
+          showGutter={true}
+          value={query.query}
+          wrapperClassName={`${baseClass}__query-preview`}
+          wrapEnabled
+        />
+      </div>
+    );
 
-    if (globalObserver) {
+    const observerSql = () => {
+      const toggleObserverShowSql = () =>
+        this.setState((prevState) => ({
+          observerShowSql: !prevState.observerShowSql,
+        }));
+      return (
+        <div>
+          <Button
+            variant="unstyled"
+            className="sql-button"
+            onClick={toggleObserverShowSql}
+          >
+            {this.state.observerShowSql ? "Hide SQL" : "Show SQL"}
+          </Button>
+          {this.state.observerShowSql ? <QuerySql /> : null}
+        </div>
+      );
+    };
+    // END
+
+    // hardcoded in pseudocode
+    const globalObserver = true;
+    const queryDOTobserver_can_run = true;
+
+    if (globalObserver && queryDOTobserver_can_run) {
       return (
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__observer-query-view body-wrap`}>
@@ -662,6 +702,7 @@ export class QueryPage extends Component {
             <div className={`${baseClass}__observer-query-details`}>
               <h1>{query.name}</h1>
               <p>{query.description}</p>
+              {observerSql()}
             </div>
             {renderLiveQueryWarning()}
             {renderTargetsInput()}
