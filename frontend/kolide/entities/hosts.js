@@ -8,6 +8,16 @@ export default (client) => {
 
       return client.authenticatedDelete(endpoint);
     },
+
+    refetch: (host) => {
+      const { HOSTS } = endpoints;
+      const endpoint = client._endpoint(`${HOSTS}/${host.id}/refetch`);
+
+      return client
+        .authenticatedPost(endpoint)
+        .then((response) => response.host);
+    },
+
     load: (hostID) => {
       const { HOSTS } = endpoints;
       const endpoint = client._endpoint(`${HOSTS}/${hostID}`);

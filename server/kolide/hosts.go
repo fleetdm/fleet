@@ -89,6 +89,9 @@ type HostService interface {
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
 	// hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*HostDetail, error)
+	// RefetchHost requests a refetch of host details for the provided host.
+	RefetchHost(ctx context.Context, id uint) (err error)
+
 	FlushSeenHosts(ctx context.Context) error
 	// AddHostsToTeam adds hosts to an existing team, clearing their team
 	// settings if teamID is nil.
@@ -117,6 +120,7 @@ type Host struct {
 	LabelUpdateTime  time.Time     `json:"label_updated_at" db:"label_update_time"`   // Time that the host details were last updated
 	LastEnrollTime   time.Time     `json:"last_enrolled_at" db:"last_enroll_time"`    // Time that the host last enrolled
 	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                  // Time that the host was last "seen"
+	RefetchRequested bool          `json:"refetch_requested" db:"refetch_requested"`
 	NodeKey          string        `json:"-" db:"node_key"`
 	HostName         string        `json:"hostname" db:"host_name"` // there is a fulltext index on this field
 	UUID             string        `json:"uuid" db:"uuid"`          // there is a fulltext index on this field
@@ -154,6 +158,8 @@ type Host struct {
 	TeamID null.Int `json:"team_id" db:"team_id"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
 	TeamName *string `json:"team_name,omitempty" db:"team_name"`
+	// Loaded via JOIN in DB
+	PackStats []PackStats `json:"pack_stats"`
 }
 
 // HostDetail provides the full host metadata along with associated labels and

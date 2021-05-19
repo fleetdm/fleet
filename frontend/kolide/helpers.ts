@@ -301,6 +301,26 @@ export const humanHostDetailUpdated = (detailUpdated: string): string => {
   return moment(detailUpdated).fromNow();
 };
 
+export const humanQueryLastRun = (lastRun: string): string => {
+  // Handles the case when a query has never been ran.
+  // July 28, 2016 is the date of the initial commit to kolide/fleet.
+  if (lastRun < "2016-07-28T00:00:00Z") {
+    return "Never";
+  }
+
+  return moment(lastRun).fromNow();
+};
+
+export const secondsToHms = (d: number): string => {
+  const h = Math.floor(d / 3600);
+  const m = Math.floor((d % 3600) / 60);
+  const s = Math.floor((d % 3600) % 60);
+
+  const hDisplay = h > 0 ? h + (h === 1 ? " hr " : " hrs ") : "";
+  const mDisplay = m > 0 ? m + (m === 1 ? " min " : " mins ") : "";
+  const sDisplay = s > 0 ? s + (s === 1 ? " sec " : " secs ") : "";
+  return hDisplay + mDisplay + sDisplay;
+};
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -313,6 +333,8 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  humanQueryLastRun,
+  secondsToHms,
   labelSlug,
   setupData,
 };

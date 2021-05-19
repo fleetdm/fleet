@@ -79,3 +79,17 @@ func (svc *service) FlushSeenHosts(ctx context.Context) error {
 func (svc service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	return svc.ds.AddHostsToTeam(teamID, hostIDs)
 }
+
+func (svc *service) RefetchHost(ctx context.Context, id uint) error {
+	host, err := svc.ds.Host(id)
+	if err != nil {
+		return errors.Wrap(err, "find host for refetch")
+	}
+
+	host.RefetchRequested = true
+	if err := svc.ds.SaveHost(host); err != nil {
+		return errors.Wrap(err, "save host")
+	}
+
+	return nil
+}

@@ -34,7 +34,7 @@ This guide illustrates:
 
 ### Running Fleet
 
-For the sake of this tutorial, I will be using the local development Docker Compose infrastructure to run Fleet locally. This is documented in some detail in the [developer documentation](../3-Contribution/1-Building-Fleet.md#development-infrastructure), but the following are the minimal set of commands that you can run from the root of the repository (assuming that you have a working Go/JavaScript toolchain installed along with Docker Compose):
+For the sake of this tutorial, I will be using the local development Docker Compose infrastructure to run Fleet locally. This is documented in some detail in the [developer documentation](../4-Contribution/1-Building-Fleet.md#development-infrastructure), but the following are the minimal set of commands that you can run from the root of the repository (assuming that you have a working Go/JavaScript toolchain installed along with Docker Compose):
 
 ```
 docker-compose up -d
@@ -80,7 +80,7 @@ It's possible to specify the password via the `--password` flag or the `$PASSWOR
 
 ### Connecting a host
 
-For the sake of this tutorial, I'm going to be using Kolide's osquery launcher to start osquery locally and connect it to Fleet. To learn more about connecting osquery to Fleet, see the [Adding Hosts to Fleet](../2-Deployment/3-Adding-hosts.md) documentation.
+For the sake of this tutorial, I'm going to be using Kolide's osquery launcher to start osquery locally and connect it to Fleet. To learn more about connecting osquery to Fleet, see the [Adding Hosts to Fleet](../3-Deployment/3-Adding-hosts.md) documentation.
 
 To get your osquery enroll secret, run the following:
 
@@ -211,30 +211,7 @@ Note the token can also be set with `fleetctl config set --token`, but this may 
 
 ## Using fleetctl for configuration
 
-A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. Each message can live in it's own file or multiple in one file, each separated by `---`. Each file/message contains a few required top-level keys:
-
-- `apiVersion` - the API version of the file/request
-- `spec` - the "data" of the request
-- `kind ` - the type of file/object (i.e.: pack, query, config)
-
-The file may optionally also include some `metadata` for more complex data types (i.e.: packs).
-
-When you reason about how to manage these config files, consider following the [General Config Tips](https://kubernetes.io/docs/concepts/configuration/overview/#general-config-tips) published by the Kubernetes project. Some of the especially relevant tips are included here as well:
-
-- When defining configurations, specify the latest stable API version.
-- Configuration files should be stored in version control before being pushed to the cluster. This allows quick roll-back of a configuration if needed. It also aids with cluster re-creation and restoration if necessary.
-- Group related objects into a single file whenever it makes sense. One file is often easier to manage than several. See the [config-single-file.yml](../../examples/config-single-file.yml) file as an example of this syntax.
-- Don’t specify default values unnecessarily – simple and minimal configs will reduce errors.
-
-All of these files can be concatenated together into [one file](../../examples/config-single-file.yml) (separated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
-
-```
-|-- config.yml
-|-- labels.yml
-|-- packs
-|   `-- osquery-monitoring.yml
-`-- queries.yml
-```
+A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. Check out the [configuration files](./configuration-files/README.md) section of the documentation for example yaml files.
 
 ### Convert osquery JSON
 
@@ -577,7 +554,7 @@ spec:
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
-File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](../2-Deployment/2-Configuration.md#s3-file-carving-backend).
+File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#s3-file-carving-backend).
 
 ### Configuration
 

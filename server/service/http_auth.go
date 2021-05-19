@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/fleetdm/fleet/server/contexts/token"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
+	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 // setRequestsContexts updates the request with necessary context values for a request

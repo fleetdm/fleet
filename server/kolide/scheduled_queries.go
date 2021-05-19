@@ -2,6 +2,7 @@ package kolide
 
 import (
 	"context"
+	"time"
 
 	"gopkg.in/guregu/null.v3"
 )
@@ -50,4 +51,27 @@ type ScheduledQueryPayload struct {
 	Version  *string   `json:"version"`
 	Shard    *null.Int `json:"shard"`
 	Denylist *bool     `json:"denylist"`
+}
+
+type ScheduledQueryStats struct {
+	ScheduledQueryName string `json:"scheduled_query_name,omitempty" db:"scheduled_query_name"`
+	ScheduledQueryID   uint   `json:"scheduled_query_id,omitempty" db:"scheduled_query_id"`
+
+	QueryName   string `json:"query_name,omitempty" db:"query_name"`
+	Description string `json:"description,omitempty" db:"description"`
+
+	PackName string `json:"pack_name,omitempty" db:"pack_name"`
+	PackID   uint   `json:"pack_id,omitempty" db:"pack_id"`
+
+	// From osquery directly
+	AverageMemory int  `json:"average_memory" db:"average_memory"`
+	Denylisted    bool `json:"denylisted" db:"denylisted"`
+	Executions    int  `json:"executions" db:"executions"`
+	// Note schedule_interval is used for DB since "interval" is a reserved word in MySQL
+	Interval     int       `json:"interval" db:"schedule_interval"`
+	LastExecuted time.Time `json:"last_executed" db:"last_executed"`
+	OutputSize   int       `json:"output_size" db:"output_size"`
+	SystemTime   int       `json:"system_time" db:"system_time"`
+	UserTime     int       `json:"user_time" db:"user_time"`
+	WallTime     int       `json:"wall_time" db:"wall_time"`
 }

@@ -94,6 +94,7 @@ type KolideEndpoints struct {
 	GetHost                               endpoint.Endpoint
 	HostByIdentifier                      endpoint.Endpoint
 	DeleteHost                            endpoint.Endpoint
+	RefetchHost                           endpoint.Endpoint
 	ListHosts                             endpoint.Endpoint
 	GetHostSummary                        endpoint.Endpoint
 	AddHostsToTeam                        endpoint.Endpoint
@@ -201,6 +202,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		GetHostSummary:                        authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
 		DeleteHost:                            authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
 		AddHostsToTeam:                        authenticatedUser(jwtKey, svc, makeAddHostsToTeamEndpoint(svc)),
+		RefetchHost:                           authenticatedUser(jwtKey, svc, makeRefetchHostEndpoint(svc)),
 		CreateLabel:                           authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
 		ModifyLabel:                           authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
 		GetLabel:                              authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
@@ -320,6 +322,7 @@ type kolideHandlers struct {
 	GetHost                               http.Handler
 	HostByIdentifier                      http.Handler
 	DeleteHost                            http.Handler
+	RefetchHost                           http.Handler
 	ListHosts                             http.Handler
 	GetHostSummary                        http.Handler
 	AddHostsToTeam                        http.Handler
@@ -423,6 +426,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetHost:                               newServer(e.GetHost, decodeGetHostRequest),
 		HostByIdentifier:                      newServer(e.HostByIdentifier, decodeHostByIdentifierRequest),
 		DeleteHost:                            newServer(e.DeleteHost, decodeDeleteHostRequest),
+		RefetchHost:                           newServer(e.RefetchHost, decodeRefetchHostRequest),
 		ListHosts:                             newServer(e.ListHosts, decodeListHostsRequest),
 		GetHostSummary:                        newServer(e.GetHostSummary, decodeNoParamsRequest),
 		AddHostsToTeam:                        newServer(e.AddHostsToTeam, decodeAddHostsToTeamRequest),
@@ -644,6 +648,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
 	r.Handle("/api/v1/fleet/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
 	r.Handle("/api/v1/fleet/hosts/transfer", h.AddHostsToTeam).Methods("POST").Name("add_hosts_to_team")
+	r.Handle("/api/v1/fleet/hosts/{id}/refetch", h.RefetchHost).Methods("POST").Name("refetch_host")
 
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 

@@ -46,8 +46,23 @@
     }
   }
 
+  &__no-queries {
+    .info {
+      &__header {
+        margin: $pad-medium 0 $pad-medium 0;
+      }
+      &__data {
+        margin: 0 0 $pad-large 0;
+      }
+    }
+  }
+
+  &__query-modal {
+    display: flex;
+  }
+
   &__filter-queries {
-    flex-grow: 1;
+    flex-grow: 3;
     position: relative;
 
     .input-field {
@@ -63,9 +78,14 @@
     }
   }
 
+  &__create-query {
+    span {
+      margin: 15px;
+      font-weight: bold;
+    }
+  }
+
   &__custom-query-button {
     font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
   }
 }

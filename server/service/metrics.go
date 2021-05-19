@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/go-kit/kit/metrics"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/metrics"
 )
 
 type metricsMiddleware struct {

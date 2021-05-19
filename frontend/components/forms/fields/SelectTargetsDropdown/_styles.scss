@@ -31,12 +31,30 @@
     }
 
     .Select-arrow {
-      border-width: 8px 8px 2.5px;
+      content: url("../assets/images/icon-chevron-black-16x16@2x.png");
+      height: 16px;
+      width: 16px;
+      margin-top: 6px;
+      margin-left: 6px;
+      border: none;
+
+      &:hover {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      }
     }
 
     &.is-open {
       .Select-arrow {
-        border-width: 2.5px 8px 8px;
+        content: url("../assets/images/icon-collapse-black-16x16@2x.png");
+        height: 16px;
+        width: 16px;
+        margin-top: 11px;
+        margin-left: 6px;
+        border: none;
+
+        &:hover {
+          content: url("../assets/images/icon-collapse-blue-16x16@2x.png");
+        }
       }
 
       .Select-arrow-zone {
@@ -67,7 +85,7 @@
     }
 
     .Select-arrow-zone {
-      padding-right: 19px;
+      padding-right: 30px;
     }
 
     &.Select--multi {
@@ -139,32 +157,20 @@
     border: solid 1px $ui-fleet-blue-15;
 
     .Select-value-icon {
-      border: 0;
-      float: right;
-      position: relative;
-      line-height: 34px;
-      width: 25px;
-      padding: 0;
-      margin: 0 5px;
-      text-indent: -999em;
+      height: 100%;
 
       &::after {
-        @extend %kolidecon;
-        transition: color 150ms ease-in-out;
-        transform: translate(-50%, -50%);
-        content: "\2715"; // hex code for multiplication cross
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        visibility: visible;
-        color: $core-fleet-black;
-        display: block;
-        text-indent: 0;
+        content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
+        transform: scale(0.5);
+        border-radius: 0px;
+        margin-top: -15px;
+        margin-left: -15px;
       }
 
       &:hover {
         &::after {
-          color: $ui-error;
+          content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+          transform: scale(0.5);
         }
       }
     }
@@ -179,17 +185,32 @@
   }
 
   .Select-clear {
-    font-size: $x-large;
-    margin-right: 10px;
-    color: $core-fleet-black;
+    content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
+    width: 16px;
+    height: 16px;
+    border-radius: 0px;
+    margin-left: -4px;
+    margin-top: 6px;
 
     &:hover {
-      color: $ui-error;
+      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+      width: 16px;
+      height: 16px;
+      border-radius: 0px;
     }
   }
 
+  .Select-clear-zone {
+    width: 30px;
+  }
+
+  .Select-arrow-zone {
+    width: 30px;
+    margin-right: 5px;
+  }
+
   .Select-loading-zone {
-    padding-right: 10px;
+    margin-right: 10px;
   }
 
   &.is-empty {

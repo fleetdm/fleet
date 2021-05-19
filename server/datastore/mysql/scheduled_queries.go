@@ -87,7 +87,7 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.
 	}
 
 	sq.Query = metadata[0].Query
-	sq.Name = metadata[0].Name
+	sq.QueryName = metadata[0].Name
 
 	return sq, nil
 }

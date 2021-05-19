@@ -216,7 +216,7 @@ the way that the Fleet server works.
 			}
 
 			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password, config.Redis.Database, config.Redis.UseTLS)
-			resultStore := pubsub.NewRedisQueryResults(redisPool)
+			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
@@ -368,6 +368,7 @@ the way that the Fleet server works.
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
 			}
+			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 			errs := make(chan error, 2)
 			go func() {
 				if !config.Server.TLS {

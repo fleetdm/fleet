@@ -4,7 +4,7 @@
       <div style="max-width: 1260px; padding-top: 167px;" class="prop-statement container-fluid px-4 px-sm-5">
         <div style="max-width: 500px" class="prop-statement__container mx-auto mx-sm-0">
           <h1 class="prop-statement__header mb-4">Open source<br/><span class="d-sm-none">&nbsp;</span>endpoint visibility.</h1>
-          <p class="prop-statement__paragraph mb-4">Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS.  Quickly deploy <a style="color:#fff; font-weight:bold;" target="_blank" href="https://osquery.io/">osquery</a> and scale your fleet to 50,000+ devices on top of a stable core technology.</p>
+          <p class="prop-statement__paragraph mb-4">Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS.  Quickly deploy <a style="color:#fff; font-weight:bold;" target="_blank" href="https://osquery.io/">osquery</a> and scale your fleet to 100,000+ devices on top of a stable core technology.</p>
           <div class="mb-4">
             <div class="d-inline-block mr-3 mr-lg-4">
               <img title="macOS" alt="apple logo" src="/images/os-macos-31x35@2x.png" style="width: 31px;" class="d-block mx-auto h-100"/>
@@ -22,7 +22,7 @@
               <img title="Other Linux distros, like Debian" alt="linux logo" src="/images/os-linux-32x36@2x.png" style="width: 32px;" class="d-block mx-auto h-100"/>
             </div>
           </div>
-          <a target="_blank" href="https://github.com/fleetdm/fleet/blob/master/README.md" class="btn btn-block btn-lg btn-primary mb-5">Get started with Fleet</a>
+          <a class="btn btn-block btn-lg btn-primary mb-5" href="/get-started">Get started with Fleet</a>
         </div>
       </div>
     </div>
@@ -47,23 +47,13 @@
     </div>
   </div>
 
-  <div style="max-width: 1260px;" class="container-fluid pb-5 px-4 px-sm-5 mx-auto">
-    <div style="max-width: 800px" class="pb-5 mx-auto">
-      <div style="max-width: 800px; text-align: center;" class="position-relative mx-auto">
-        <p>"Fleet is hands down the best osquery platform out there. Zach and I created Fleet as a natural extension to our original vision for osquery and this has manifested in the ease-of-use, flexibility, and adoption it has today. Look to Fleet for the future of open-source endpoint monitoring."</p>
-        <p style="color: #676A7A" class="mb-4">- Mike Arpaia, Co-creator of osquery</p>
-        <img alt="osquery logo" src="/images/logo-osquery-89x24@2x.png" style="height: 40px; width: 137px;" class="mb-3 mx-auto"/>
-      </div>
-    </div>
-  </div>
-
   <div style="background-color: #F2F7F9;">
     <div style="max-width: 1260px;" class="container-fluid py-5 px-4 px-sm-5 mx-auto">
       <div class="text-center py-5">
         <h2 class="mb-5">Send device data to any log destination.</h2>
         <p style="max-width: 866px;" class="mx-auto">Fleet makes it easier to query and track your servers, containers, and laptops.  It extends <a style="color:#6a67fe; text-decoration: underline;" target="_blank" href="https://osquery.io/">osquery</a> to answer questions about multiple devices at the same time and provides log streams that enable automated threat detection.</p>
       </div>
-      <div class="log-destinations-container pb-5"> 
+      <div class="log-destinations-container pb-5">
         <div class="log-destination-card">
           <img alt="filesystem log destination" src="/images/log-destination-filesystem@2x.png" style="width: 80px; height: 80px;"/>
           <h6>Filesystem</h6>
@@ -124,81 +114,96 @@
       </div>
     </div>
   </div>
-  <div style="max-width: 1260px;" class="container-fluid py-5 px-4 px-sm-5 mx-auto">
+  <div style="max-width: 1260px;" class="container-fluid pt-5 pb-4 px-4 px-sm-5 mx-auto">
     <div style="max-width: 800px" class="py-5 mx-auto">
       <div style="max-width: 760px; padding-left: 38px" class="position-relative mx-auto">
-        <span style="font-size: 48px; line-height: 60px; left: 0; top: 0;" class="quote-mark position-absolute">“</span>
-        <p style="font-size: 24px;">I've been using Fleet to manage thousands of hosts running osquery. Fleet itself is pretty low-maintenance; mostly I don't have to worry about Fleet uptime and instead focus on what matters: deploying osquery, developing better queries, and getting the most out of osquery logs.</p>
-        <p style="color: #676A7A" class="mb-4">- Brendan Shaklovitz, Senior Site Reliability Engineer, Security Team @ Atlassian</p>
-        <img alt="Atlassian logo" src="/images/logo-atlassian-194x24@2x.png" style="height: 24px; width: 194px;" class="mt-5"/>
+        <!-- <span style="font-size: 48px; line-height: 60px; left: 0; top: 0;" class="quote-mark position-absolute">“</span> -->
+        <p style="font-size: 24px;" class="text-center">&ldquo;I've been using Fleet to manage thousands of hosts running osquery: deploying, developing better queries, and getting the most out of osquery logs.&rdquo;</p>
+        <p style="color: #676A7A" class="mb-4 text-center">Brendan Shaklovitz, Site Reliability Engineer</p>
+        <img style="height: 24px; width: 194px;" class="mt-4 d-block ml-auto mr-auto" alt="Atlassian logo" src="/images/logo-atlassian-194x24@2x.png" />
       </div>
     </div>
-  </div>
-  <div class="footer-fade pb-5">
-    <div style="max-width: 1260px;" class="container-fluid pt-5 px-4 px-sm-5 mx-auto">
-      <% /*
-      <div style="max-width: 800px; color: #fff;" class="py-5 mx-auto">
-        <h2 class="text-center mb-4">FAQ</h2>
-        <div class="mb-5">
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question1" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer1" class="collapse" aria-labelledby="faq__question1">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question2" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer2" aria-controls="faq__answer2">
-              Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer2" class="collapse" aria-labelledby="faq__question2">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question3" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer3" aria-controls="faq__answer3">
-              Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer3" class="collapse" aria-labelledby="faq__question3">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question4" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer4" aria-controls="faq__answer4">
-              Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question5" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer5" aria-controls="faq__answer5">
-              Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer5" class="collapse" aria-labelledby="faq__question5">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question6" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer6" aria-controls="faq__answer6">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer6" class="collapse" aria-labelledby="faq__question6">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-        </div>
-        <h2 class="text-center pt-3 mb-4">Still got questions? Get in touch.</h2>
-        <button style="max-width: 242px;" class="btn btn-block btn-lg btn-info my-3 mb-4 mx-auto" @click="clickChatButton()">Contact us</button>
-      </div> */ %>
+    <div class="btn-toolbar justify-content-center pt-1">
+      <a
+        style="max-width: 250px"
+        class="btn btn-block btn-md btn-primary my-3 mx-2"
+        href="/get-started"
+      >
+        Get started
+      </a>
+      <a
+        style="max-width: 250px"
+        class="btn btn-block btn-lg btn-white my-3 mx-2"
+        purpose="animated-arrow-button"
+        target="_blank"
+        href="https://calendly.com/fleetdm/demo"
+        >Schedule a demo
+      </a>
     </div>
+  </div>
+  <div style="max-width: 1260px;" class="container-fluid pt-5 px-4 px-sm-5 mx-auto">
+    <% /*
+    <div style="max-width: 800px; color: #fff;" class="py-5 mx-auto">
+      <h2 class="text-center mb-4">FAQ</h2>
+      <div class="mb-5">
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question1" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer1" class="collapse" aria-labelledby="faq__question1">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question2" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer2" aria-controls="faq__answer2">
+            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer2" class="collapse" aria-labelledby="faq__question2">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question3" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer3" aria-controls="faq__answer3">
+            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer3" class="collapse" aria-labelledby="faq__question3">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question4" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer4" aria-controls="faq__answer4">
+            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question5" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer5" aria-controls="faq__answer5">
+            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer5" class="collapse" aria-labelledby="faq__question5">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question6" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer6" aria-controls="faq__answer6">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer6" class="collapse" aria-labelledby="faq__question6">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+      </div>
+      <h2 class="text-center pt-3 mb-4">Still got questions? Get in touch.</h2>
+      <button style="max-width: 242px;" class="btn btn-block btn-lg btn-info my-3 mb-4 mx-auto" @click="clickChatButton()">Contact us</button>
+    </div> */ %>
   </div>
 </div>
 

@@ -21,14 +21,17 @@
     text-decoration: none;
 
     .button {
-      @include size(30px);
-      line-height: 30px;
-      color: $core-fleet-black;
-      font-size: $x-large;
+      content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
+      width: 17px;
+      height: 17px;
+      border-radius: 0px;
+    }
 
-      &:hover {
-        color: $ui-error;
-      }
+    .button:hover {
+      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+      width: 17px;
+      height: 17px;
+      border-radius: 0px;
     }
   }
 

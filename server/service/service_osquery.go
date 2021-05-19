@@ -747,6 +747,80 @@ FROM python_packages;
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestSoftware,
 	},
+	"scheduled_query_stats": {
+		Query: `
+			SELECT *,
+				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+			FROM osquery_schedule
+`,
+		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+			packs := map[string][]kolide.ScheduledQueryStats{}
+
+			for _, row := range rows {
+				providedName := row["name"]
+				if providedName == "" {
+					level.Debug(logger).Log(
+						"msg", "host reported scheduled query with empty name",
+						"host", host.HostName,
+					)
+					continue
+				}
+				delimiter := row["delimiter"]
+				if delimiter == "" {
+					level.Debug(logger).Log(
+						"msg", "host reported scheduled query with empty delimiter",
+						"host", host.HostName,
+					)
+					continue
+				}
+
+				// Split with a limit of 2 in case query name includes the
+				// delimiter. Not much we can do if pack name includes the
+				// delimiter.
+				trimmedName := strings.TrimPrefix(providedName, "pack"+delimiter)
+				parts := strings.SplitN(trimmedName, delimiter, 2)
+				if len(parts) != 2 {
+					level.Debug(logger).Log(
+						"msg", "could not split pack and query names",
+						"host", host.HostName,
+						"name", providedName,
+						"delimiter", delimiter,
+					)
+					continue
+				}
+				packName, scheduledName := parts[0], parts[1]
+
+				stats := kolide.ScheduledQueryStats{
+					ScheduledQueryName: scheduledName,
+					PackName:           packName,
+					AverageMemory:      cast.ToInt(row["average_memory"]),
+					Denylisted:         cast.ToBool(row["denylisted"]),
+					Executions:         cast.ToInt(row["executions"]),
+					Interval:           cast.ToInt(row["interval"]),
+					// Cast to int first to allow cast.ToTime to interpret the unix timestamp.
+					LastExecuted: time.Unix(cast.ToInt64(row["last_executed"]), 0).UTC(),
+					OutputSize:   cast.ToInt(row["output_size"]),
+					SystemTime:   cast.ToInt(row["system_time"]),
+					UserTime:     cast.ToInt(row["user_time"]),
+					WallTime:     cast.ToInt(row["wall_time"]),
+				}
+				packs[packName] = append(packs[packName], stats)
+			}
+
+			host.PackStats = []kolide.PackStats{}
+			for packName, stats := range packs {
+				host.PackStats = append(
+					host.PackStats,
+					kolide.PackStats{
+						PackName:   packName,
+						QueryStats: stats,
+					},
+				)
+			}
+
+			return nil
+		},
+	},
 }
 
 func ingestSoftware(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
@@ -787,7 +861,7 @@ func ingestSoftware(logger log.Logger, host *kolide.Host, rows []map[string]stri
 // osqueryd to fill in the host details
 func (svc service) hostDetailQueries(host kolide.Host) (map[string]string, error) {
 	queries := make(map[string]string)
-	if host.DetailUpdateTime.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) {
+	if host.DetailUpdateTime.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) && !host.RefetchRequested {
 		// No need to update already fresh details
 		return queries, nil
 	}
@@ -885,6 +959,9 @@ func (svc service) ingestDetailQuery(host *kolide.Host, name string, rows []map[
 		}
 	}
 
+	// Refetch is no longer needed after ingesting details.
+	host.RefetchRequested = false
+
 	return nil
 }
 
@@ -975,7 +1052,7 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 	// Check for label queries and if so, load host additional. If we don't do
 	// this, we will end up unintentionally dropping any existing host
 	// additional info.
-	for query, _ := range results {
+	for query := range results {
 		if strings.HasPrefix(query, hostLabelQueryPrefix) {
 			fullHost, err := svc.ds.Host(host.ID)
 			if err != nil {

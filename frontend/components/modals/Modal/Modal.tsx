@@ -1,10 +1,6 @@
 import React, { Component } from "react";
 import classnames from "classnames";
 
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import KolideIcon from "components/icons/KolideIcon";
-
 const baseClass = "modal";
 
 interface IModalProps {
@@ -28,9 +24,7 @@ class Modal extends Component<IModalProps> {
           <div className={`${baseClass}__header`}>
             <span>{title}</span>
             <div className={`${baseClass}__ex`}>
-              <button className="button button--unstyled" onClick={onExit}>
-                <KolideIcon name="x" />
-              </button>
+              <button className="button button--unstyled" onClick={onExit} />
             </div>
           </div>
           <div className={`${baseClass}__content`}>{children}</div>

@@ -26,10 +26,11 @@
   }
 
   &__add-btn {
-    transition: color 0ms;
-    color: $core-vibrant-blue;
-
-    font-size: $medium;
+    content: url("../assets/images/icon-plus-circle-16x16@2x.png");
+    height: 16px;
+    width: 16px;
+    margin-top: 8px;
+    border: none;
   }
 
   &__target-content {

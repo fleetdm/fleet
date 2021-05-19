@@ -5,6 +5,8 @@ export default PropTypes.shape({
   name: PropTypes.string,
   query: PropTypes.string,
   id: PropTypes.number,
+  interval: PropTypes.number,
+  last_excuted: PropTypes.string,
 });
 
 export interface IQuery {
@@ -12,4 +14,6 @@ export interface IQuery {
   name: string;
   query: string;
   id: number;
+  interval: number;
+  last_excuted: string;
 }

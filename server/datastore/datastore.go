@@ -45,6 +45,7 @@ var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testListHostsInLabel,
 	testListUniqueHostsInLabels,
 	testSaveHosts,
+	testSaveHostPackStats,
 	testDeleteHost,
 	testListHosts,
 	testListHostsFilterAdditional,
