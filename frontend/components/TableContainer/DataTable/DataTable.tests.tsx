@@ -102,7 +102,7 @@ describe("DataTable - component", () => {
       },
     ];
 
-    // 'name' attribute is how we want to sort the data
+    // testing 'desc' data
     const { rerender } = render(
       <DataTable
         columns={columns}
@@ -120,7 +120,7 @@ describe("DataTable - component", () => {
     expect(firstNameInTableCell).toHaveTextContent("foo user");
     expect(secondNameInTableCell).toHaveTextContent("bar user");
 
-    // now want to sort on 'address' attribute
+    // testing 'asc' data
     rerender(
       <DataTable
         columns={columns}
