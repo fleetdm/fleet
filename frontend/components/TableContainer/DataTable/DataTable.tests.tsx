@@ -1,6 +1,5 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
@@ -34,7 +33,7 @@ describe("DataTable - component", () => {
     expect(nameDataCell).toBeInTheDocument();
   });
 
-  it("renders correctly given the sort header and direction", () => {
+  it("renders correctly given a sort header and direction", () => {
     const columns = [
       {
         title: "Name",
@@ -50,12 +49,14 @@ describe("DataTable - component", () => {
       },
     ];
 
-    const data = [{ name: "Foo User" }, { name: "Bar User" }];
-
-    render(
+    // 'name' attribute is how we want to sort the data
+    const { rerender } = render(
       <DataTable
         columns={columns}
-        data={data}
+        data={[
+          { name: "foo user", address: "biz address" },
+          { name: "bar user", address: "daz address" },
+        ]}
         sortHeader={"name"}
         sortDirection={"desc"}
         isLoading={false}
@@ -63,7 +64,78 @@ describe("DataTable - component", () => {
       />
     );
 
-    const nameHeader = screen.queryByRole("cell");
-    expect(nameHeader).toBeInTheDocument();
+    let dataCells = screen.getAllByRole("cell");
+    let firstNameInTableCell = dataCells[0];
+    let secondNameInTableCell = dataCells[2];
+    expect(firstNameInTableCell).toHaveTextContent("foo user");
+    expect(secondNameInTableCell).toHaveTextContent("bar user");
+
+    // now want to sort on 'address' attribute
+    rerender(
+      <DataTable
+        columns={columns}
+        data={[
+          { name: "foo user", address: "biz address" },
+          { name: "bar user", address: "daz address" },
+        ]}
+        sortHeader={"address"}
+        sortDirection={"desc"}
+        isLoading={false}
+        onSort={noop}
+      />
+    );
+
+    dataCells = screen.getAllByRole("cell");
+    firstNameInTableCell = dataCells[1];
+    secondNameInTableCell = dataCells[3];
+    expect(firstNameInTableCell).toHaveTextContent("daz address");
+    expect(secondNameInTableCell).toHaveTextContent("biz address");
+  });
+
+  it("renders correctly given a sortDirection", () => {
+    const columns = [
+      {
+        title: "Name",
+        Header: "Name",
+        accessor: "name",
+        disableHidden: false,
+      },
+    ];
+
+    // 'name' attribute is how we want to sort the data
+    const { rerender } = render(
+      <DataTable
+        columns={columns}
+        data={[{ name: "foo user" }, { name: "bar user" }]}
+        sortHeader={"name"}
+        sortDirection={"desc"}
+        isLoading={false}
+        onSort={noop}
+      />
+    );
+
+    let dataCells = screen.getAllByRole("cell");
+    let firstNameInTableCell = dataCells[0];
+    let secondNameInTableCell = dataCells[1];
+    expect(firstNameInTableCell).toHaveTextContent("foo user");
+    expect(secondNameInTableCell).toHaveTextContent("bar user");
+
+    // now want to sort on 'address' attribute
+    rerender(
+      <DataTable
+        columns={columns}
+        data={[{ name: "foo user" }, { name: "bar user" }]}
+        sortHeader={"name"}
+        sortDirection={"asc"}
+        isLoading={false}
+        onSort={noop}
+      />
+    );
+
+    dataCells = screen.getAllByRole("cell");
+    firstNameInTableCell = dataCells[0];
+    secondNameInTableCell = dataCells[1];
+    expect(firstNameInTableCell).toHaveTextContent("bar user");
+    expect(secondNameInTableCell).toHaveTextContent("foo user");
   });
 });
