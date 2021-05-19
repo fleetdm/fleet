@@ -467,6 +467,20 @@ export class HostDetailsPage extends Component {
       return <Spinner />;
     }
 
+    // API only has team_id and not team_name, need to convert
+    console.log(host);
+    // hardcoded in basic tier
+    const isBasicTier = true;
+    const hostTeam = () => {
+      return (
+        <div className="info__item info__item--title">
+          <span className="info__header">Team</span>
+          <span className={`info__data`}>
+            {host.team_id ? `${host.team_id}` : "No team"}
+          </span>
+        </div>
+      );
+    };
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
@@ -484,7 +498,7 @@ export class HostDetailsPage extends Component {
                   titleData.detail_updated_at
                 )}`}{" "}
               </p>
-              {renderRefetch()}
+              {isBasicTier ? renderRefetch() : null}
             </div>
             <div className="info">
               <div className="info__item info__item--title">
@@ -493,6 +507,7 @@ export class HostDetailsPage extends Component {
                   {titleData.status}
                 </span>
               </div>
+              {hostTeam()}
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
                 <span className="info__data">
