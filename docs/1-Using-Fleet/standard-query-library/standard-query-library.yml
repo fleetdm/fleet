@@ -349,7 +349,7 @@ spec:
   name: Detect dynamic linker hijacking on macOS (MITRE. T1574.006)
   platforms: macOS
   description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
-  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES' AND env.value != '/Applications/Firefox.app/Contents/MacOS/libplugin_child_interpose.dylib';
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
   purpose: Detection
   remediation:
     - Identify the process/binary detected
