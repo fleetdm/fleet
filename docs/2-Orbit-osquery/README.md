@@ -2,7 +2,7 @@
 
 Orbit is an [osquery](https://github.com/osquery/osquery) runtime and autoupdater. With Orbit, it's easy to deploy osquery, manage configurations, and stay up to date. Orbit eases the deployment of osquery connected with a [Fleet server](https://github.com/fleetdm/fleet), and is a (near) drop-in replacement for osquery in a variety of deployment scenarios.
 
-Orbit is the recommended agent for Fleet.  But Orbit can be used with or without Fleet, and Fleet can be used with or without Orbit.
+Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can be used with or without Orbit.
 
 ## Usage
 
@@ -10,7 +10,7 @@ General information and flag documentation can be accessed by running `orbit --h
 
 ### Permissions
 
-Orbit generally expects root permissions to be able to create and access it's working files. 
+Orbit generally expects root permissions to be able to create and access it's working files.
 
 To get root level permissions:
 
@@ -32,20 +32,20 @@ Use the `--fleet-url` and `--enroll-secret` flags to connect to a Fleet server.
 
 For example:
 
-``` sh
-orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value 
+```sh
+orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value
 ```
 
 Use `--fleet_certificate` to provide a path to a certificate bundle when necessary for osquery to verify the authenticity of the Fleet server (typically when using a Windows client or self-signed certificates):
 
-``` sh
-orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value --fleet-certificate=cert.pem 
+```sh
+orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value --fleet-certificate=cert.pem
 ```
 
 Add the `--insecure` flag for connections using otherwise invalid certificates:
 
-``` sh
-orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value --insecure 
+```sh
+orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value --insecure
 ```
 
 ### Osquery flags
@@ -54,7 +54,7 @@ Orbit can be used as near drop-in replacement for `osqueryd`, enhancing standard
 
 For example, the following would be a typical drop-in usage of Orbit:
 
-``` sh
+```sh
 orbit -- --flagfile=flags.txt
 ```
 
@@ -62,27 +62,33 @@ orbit -- --flagfile=flags.txt
 
 Orbit, like standalone osquery, is typically deployed via OS-specific packages. Tooling is provided with this repository to generate installation packages.
 
+### Dependencies
+
+Orbit currently supports building packages on macOS and Linux.
+
+Before building packages, clone or download this repository and [install Go](https://golang.org/doc/install).
+
+Building Windows packages requires Docker to be installed.
+
 ### Packaging support
 
 - **macOS** - `.pkg` package generation with (optional) [Notarization](https://developer.apple.com/documentation/xcode/notarizing_macos_software_before_distribution) and codesigning - Persistence via `launchd`.
 
 - **Linux** - `.deb` (Debian, Ubuntu, etc.) & `.rpm` (RHEL, CentOS, etc.) package generation - Persistence via `systemd`.
 
-- **Windows** (coming soon) - `.msi` package generation - Persistence via Services.
+- **Windows** - `.msi` package generation - Persistence via Services.
 
 ### Building packages
 
-Before building packages, clone or download this repository and [install Go](https://golang.org/doc/install).
-
 Use `go run ./cmd/package` from this directory to run the packaging tools.
 
-The only required parameter is `--type`, use one of `deb`, `rpm`, or `pkg` (`msi` coming soon).
+The only required parameter is `--type`, use one of `deb`, `rpm`, `pkg`, or `msi`.
 
 Configure osquery to connect to a Fleet (or other TLS) server with the `--fleet-url` and `--enroll-secret` flags.
 
 A minimal invocation for communicating with Fleet:
 
-``` sh
+```sh
 go run ./cmd/package --type deb --fleet-url=fleet.example.com --enroll-secret=notsosecret
 ```
 
@@ -98,11 +104,11 @@ Orbit uses the concept of "update channels" to determine the version of Orbit, o
 
 Configure update channels for Orbit and osqueryd with the `--orbit-channel` and `--osqueryd-channel` flags when packaging.
 
-| Channel                              | Versions |
-| ------------------------------------ | ------   |
-| `4`                                  | 4.x.x    |
-| `4.6`                                | 4.6.x    |
-| `4.6.0`                              | 4.6.0    |
+| Channel | Versions |
+| ------- | -------- |
+| `4`     | 4.x.x    |
+| `4.6`   | 4.6.x    |
+| `4.6.0` | 4.6.0    |
 
 Additionally `stable` and `edge` are special channel names. `stable` will always return the version Fleet deems to be stable, while `edge` will provide newer releases for beta testing.
 
@@ -116,13 +122,13 @@ For Notarization, valid App Store Connect credentials must be available on the b
 
 Build a signed and notarized macOS package with an invocation like the following:
 
-``` sh
+```sh
 AC_USERNAME=zach@fleetdm.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/package --type=pkg --fleet-url=fleet.example.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
 ```
 
 This process may take several minutes to complete as the Notarization process completes on Apple's servers.
 
-After successful notarization, the generated "ticket" is automatically stapled to the package. 
+After successful notarization, the generated "ticket" is automatically stapled to the package.
 
 ## FAQs
 
