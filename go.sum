@@ -239,8 +239,8 @@ github.com/theupdateframework/go-tuf v0.0.0-20201230183259-aee6270feb55 h1:Zn+mA
 github.com/theupdateframework/go-tuf v0.0.0-20201230183259-aee6270feb55/go.mod h1:L+uU/NRFK/7h0NYAnsmvsX9EghDB5QVCcHCIrK2h5nw=
 github.com/throttled/throttled v2.2.5+incompatible h1:65UB52X0qNTYiT0Sohp8qLYVFwZQPDw85uSa65OljjQ=
 github.com/throttled/throttled v2.2.5+incompatible/go.mod h1:0BjlrEGQmvxps+HuXLsyRdqpSRvJpq0PNIsOtqP9Nos=
-github.com/throttled/throttled/v2 v2.7.1 h1:FnBysDX4Sok55bvfDMI0l2Y71V1vM2wi7O79OW7fNtw=
-github.com/throttled/throttled/v2 v2.7.1/go.mod h1:fuOeyK9fmnA+LQnsBbfT/mmPHjmkdogRBQxaD8YsgZ8=
+github.com/throttled/throttled/v2 v2.7.2 h1:UHk0GmVH5Zk1YiY2Di/C8WdtJ9E0wjjfkEiuS/e0pns=
+github.com/throttled/throttled/v2 v2.7.2/go.mod h1:q1QyZVQXxb2NUfJ+Hjucmlrsrz9s/jt2ilMwSMo7a2I=
 github.com/urfave/cli/v2 v2.3.0 h1:qph92Y649prgesehzOrQjdWyxFOp/QVM+6imKHad91M=
 github.com/urfave/cli/v2 v2.3.0 h1:qph92Y649prgesehzOrQjdWyxFOp/QVM+6imKHad91M=
 github.com/urfave/cli/v2 v2.3.0/go.mod h1:LJmUH05zAU44vOAcrfzZQKsZbVcdbOG8rtL3/XcUArI=
@@ -300,9 +300,9 @@ golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f h1:+Nyd8tzPX9R7BWHguqsrbFdRx
 golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
-golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
-golang.org/x/text v0.3.3 h1:cokOdA+Jmi5PJGXLlLllQSgYigAEfHXJAERHVMaCc2k=
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+golang.org/x/text v0.3.6 h1:aRYxNxv6iGQlyVaZmk6ZgYEDa+Jg18DxebPSrd6bg1M=
+golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/time v0.0.0-20181108054448-85acf8d2951c/go.mod h1:tRJNPiyCQ0inRvYxbN9jk5I+vvW/OXSQhTDSoE431IQ=
 golang.org/x/tools v0.0.0-20180828015842-6cd1fcedba52/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
 golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
