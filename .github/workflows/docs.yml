@@ -1,4 +1,4 @@
-name: Check Documentation
+name: Check for bad links in documentation
 
 on: [push, pull_request]
 
