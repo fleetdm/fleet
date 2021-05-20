@@ -27,6 +27,8 @@ Your Fleet server's two main purposes are:
 
 The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connention configurations.
 
+> Fleet does not support Redis Cluster. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
+
 Since Fleet is a web application, when you run Fleet there are some other configurations that are worth defining, such as:
 
 - The TLS certificates that Fleet should use to terminate TLS.
