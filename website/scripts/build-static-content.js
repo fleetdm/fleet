@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Build from markdown',
+  friendlyName: 'Build static content',
 
 
-  description: 'Generate HTML partials from markdown content in fleetdm/fleet repo, and configure metadata about the generate files so it is available in `sails.config.builtFromMarkdown`.',
+  description: 'Generate HTML partials from source files in fleetdm/fleet repo (e.g. docs in markdown, or queries in YAML), and configure metadata about the generated files so it is available in `sails.config.builtFromMarkdown`.',
 
 
   fn: async function () {
