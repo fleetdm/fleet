@@ -40,10 +40,6 @@ module.exports = {
         let yaml = await sails.helpers.fs.read(path.join(repoCachePath, 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml'));
         builtStaticContent.queries = YAML.parseAllDocuments(yaml).map((yamlDocument) => yamlDocument.toJSON().spec );
       },
-      async()=>{// Legacy: Compile stuff we won't actually use for much longer
-        // Legacy:  (TODO: remove this later on, once in-progress frontend work is done)
-        await sails.helpers.compileMarkdownContent('handbook/queries/'); // TODO: pair w/ rachel and swap how page is built now that this part will work differently
-      },
       async()=>{// Compile HTML from markdown docs.
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // FUTURE: Make this work in parallel as shown here by improving doctemplater to avoid the alreadyExists error
@@ -58,6 +54,10 @@ module.exports = {
         // ```
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         builtStaticContent.documentationTree = await sails.helpers.compileMarkdownContent('docs/');
+
+        // Legacy: Compile stuff we won't actually use for much longer
+        // Legacy:  (TODO: remove this later on, once in-progress frontend work is done)
+        await sails.helpers.compileMarkdownContent('handbook/queries/'); // TODO: pair w/ rachel and swap how page is built now that this part will work differently
       },
       async()=>{// Compile and generate XML sitemap
         // TODO (see "refresh" action in sailsjs.com repo for example)
