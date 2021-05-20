@@ -498,7 +498,7 @@ export class HostDetailsPage extends Component {
                   titleData.detail_updated_at
                 )}`}{" "}
               </p>
-              {isBasicTier ? renderRefetch() : null}
+              {renderRefetch()}
             </div>
             <div className="info">
               <div className="info__item info__item--title">
@@ -507,7 +507,7 @@ export class HostDetailsPage extends Component {
                   {titleData.status}
                 </span>
               </div>
-              {hostTeam()}
+              {isBasicTier ? hostTeam() : null}
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
                 <span className="info__data">
