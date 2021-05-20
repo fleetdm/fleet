@@ -52,7 +52,7 @@ class EditPackForm extends Component {
         />
         <SelectTargetsDropdown
           {...fields.targets}
-          label="select pack targets"
+          label="Select pack targets"
           name="selected-pack-targets"
           onFetchTargets={onFetchTargets}
           onSelect={fields.targets.onChange}
