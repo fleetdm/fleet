@@ -43,7 +43,7 @@ jobs:
     # > delete the top level .eslintrc file too.
     - run: rm -f .eslintrc.js
 
-    # Get dependencies (including dev deps)
+    # Download dependencies (including dev deps)
     - run: cd website/ && npm install
 
     # Run sanity checks

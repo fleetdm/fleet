@@ -24,5 +24,7 @@ module.exports.policies = {
   'legal/view-privacy': true,
   'deliver-contact-form-message': true,
   'view-query-detail': true,
+  'view-query-library': true,
+  'docs/*': true,
 
 };
