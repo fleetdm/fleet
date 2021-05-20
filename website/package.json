@@ -13,7 +13,8 @@
     "sails-hook-organics": "^2.0.0",
     "sails-hook-orm": "^2.1.1",
     "sails-hook-sockets": "^2.0.0",
-    "sails-postgresql": "^1.0.2"
+    "sails-postgresql": "^1.0.2",
+    "yaml": "1.10.2"
   },
   "devDependencies": {
     "cheerio": "0.18.0",
