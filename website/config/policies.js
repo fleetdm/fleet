@@ -25,5 +25,6 @@ module.exports.policies = {
   'deliver-contact-form-message': true,
   'view-query-detail': true,
   'view-query-library': true,
+  'docs/*': true,
 
 };
