@@ -157,7 +157,7 @@ type Host struct {
 
 	TeamID null.Int `json:"team_id" db:"team_id"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
-	TeamName *string `json:"team_name,omitempty" db:"team_name"`
+	TeamName *string `json:"team_name" db:"team_name"`
 	// Loaded via JOIN in DB
 	PackStats []PackStats `json:"pack_stats"`
 }
