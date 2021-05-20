@@ -61,9 +61,10 @@ type QueryService interface {
 }
 
 type QueryPayload struct {
-	Name        *string
-	Description *string
-	Query       *string
+	Name           *string
+	Description    *string
+	Query          *string
+	ObserverCanRun *bool `json:"observer_can_run"`
 }
 
 type Query struct {

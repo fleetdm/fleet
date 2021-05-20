@@ -89,6 +89,10 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 		query.Query = *p.Query
 	}
 
+	if p.ObserverCanRun != nil {
+		query.ObserverCanRun = *p.ObserverCanRun
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
 		query.AuthorID = uintPtr(vc.UserID())
@@ -123,6 +127,10 @@ func (svc service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPaylo
 
 	if p.Query != nil {
 		query.Query = *p.Query
+	}
+
+	if p.ObserverCanRun != nil {
+		query.ObserverCanRun = *p.ObserverCanRun
 	}
 
 	if err := query.ValidateSQL(); err != nil {
