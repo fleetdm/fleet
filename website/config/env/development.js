@@ -18,6 +18,7 @@ module.exports = {
   // e.g. http://localhost:2024/sandbox/example-query
   routes: {
     'GET /sandbox/example-query': { action: 'view-query-detail' },
+    'GET /sandbox/queries': { action: 'view-query-library' },
   },
 
 };
