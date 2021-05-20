@@ -476,7 +476,11 @@ export class HostDetailsPage extends Component {
         <div className="info__item info__item--title">
           <span className="info__header">Team</span>
           <span className={`info__data`}>
-            {host.team_id ? `${host.team_id}` : "No team"}
+            {host.team_id ? (
+              `${host.team_id}`
+            ) : (
+              <span className="info__no-team">No team</span>
+            )}
           </span>
         </div>
       );
