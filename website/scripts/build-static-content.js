@@ -34,6 +34,8 @@ module.exports = {
         let repoCachePath = path.join(topLvlCachePath, `cloned-repo-${Date.now()}-${Math.round(Math.random()*100)}`);
         await sails.helpers.process.executeCommand(`git clone git://github.com/fleetdm/fleet.git ${repoCachePath}`);
 
+        // TODO: why even clone?  Just grab it from repo (doesn't need to be this flexible since we're all in one repo)
+
         // Parse YAML query library
         let yaml = await sails.helpers.fs.read(path.join(repoCachePath, 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml'));
         builtStaticContent.queries = YAML.parseAllDocuments(yaml).map((yamlDocument) => yamlDocument.toJSON().spec );
