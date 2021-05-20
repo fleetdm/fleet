@@ -21,6 +21,7 @@ type appConfigResponse struct {
 	SSOSettings        *kolide.SSOSettingsPayload  `json:"sso_settings,omitempty"`
 	HostExpirySettings *kolide.HostExpirySettings  `json:"host_expiry_settings,omitempty"`
 	HostSettings       *kolide.HostSettings        `json:"host_settings,omitempty"`
+	License            *kolide.LicenseInfo         `json:"license,omitempty"`
 	Err                error                       `json:"error,omitempty"`
 }
 
@@ -33,6 +34,10 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return nil, errors.New("could not fetch user")
 		}
 		config, err := svc.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		license, err := svc.License(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -75,6 +80,7 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 			HostSettings: &kolide.HostSettings{
 				AdditionalQueries: config.AdditionalQueries,
 			},
+			License: license,
 		}
 		return response, nil
 	}

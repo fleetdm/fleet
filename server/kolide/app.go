@@ -47,6 +47,9 @@ type AppConfigService interface {
 
 	// Version returns version and build information.
 	Version(ctx context.Context) (*version.Info, error)
+
+	// License returns the licensing information.
+	License(ctx context.Context) (*LicenseInfo, error)
 }
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -327,4 +330,16 @@ const (
 type EnrollSecretSpec struct {
 	// Secrets is the list of enroll secrets.
 	Secrets []EnrollSecret `json:"secrets"`
+}
+
+// LicenseInfo contains information about the Fleet license.
+type LicenseInfo struct {
+	// Tier is the license tier (currently "core" or "basic")
+	Tier string `json:"tier"`
+	// Organization is the name of the licensed organization.
+	Organization string `json:"organization,omitempty"`
+	// DeviceCount is the number of licensed devices.
+	DeviceCount int `json:"device_count,omitempty"`
+	// Expiration is when the license expires.
+	Expiration *time.Time `json:"expiration,omitempty"`
 }

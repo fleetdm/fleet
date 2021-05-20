@@ -265,3 +265,7 @@ func (svc service) Version(ctx context.Context) (*version.Info, error) {
 	info := version.Version()
 	return &info, nil
 }
+
+func (svc service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
+	return &svc.license, nil
+}
