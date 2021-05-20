@@ -13,6 +13,7 @@ import Modal from "components/modals/Modal";
 import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 
+import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
@@ -51,6 +52,7 @@ export class HostDetailsPage extends Component {
     isLoadingHost: PropTypes.bool,
     queries: PropTypes.arrayOf(queryInterface),
     queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -413,7 +415,14 @@ export class HostDetailsPage extends Component {
   };
 
   render() {
-    const { host, isLoadingHost, dispatch, queries, queryErrors } = this.props;
+    const {
+      host,
+      isLoadingHost,
+      dispatch,
+      queries,
+      queryErrors,
+      isBasicTier,
+    } = this.props;
     const { showQueryHostModal } = this.state;
     const {
       toggleQueryHostModal,
@@ -467,17 +476,13 @@ export class HostDetailsPage extends Component {
       return <Spinner />;
     }
 
-    // API only has team_id and not team_name, need to convert
-    console.log(host);
-    // hardcoded in basic tier
-    const isBasicTier = true;
     const hostTeam = () => {
       return (
         <div className="info__item info__item--title">
           <span className="info__header">Team</span>
           <span className={`info__data`}>
-            {host.team_id ? (
-              `${host.team_id}`
+            {host.team_name ? (
+              `${host.team_name}`
             ) : (
               <span className="info__no-team">No team</span>
             )}
@@ -612,12 +617,16 @@ const mapStateToProps = (state, ownProps) => {
   const { host_id: hostID } = ownProps.params;
   const host = entityGetter(state).get("hosts").findBy({ id: hostID });
   const { loading: isLoadingHost } = state.entities.hosts;
+  const config = state.app.config;
+  const isBasicTier = permissionUtils.isBasicTier(config);
+
   return {
     host,
     hostID,
     isLoadingHost,
     queries,
     queryErrors,
+    isBasicTier,
   };
 };
 
