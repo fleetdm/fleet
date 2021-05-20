@@ -34,10 +34,14 @@ module.exports = {
     // can be accessed for the purposes of config using `sails.config.builtStaticContent`.
     let sailsrcPath = path.resolve(sails.config.appPath, '.sailsrc');
     let oldSailsrcJson = await sails.helpers.fs.readJson(sailsrcPath);
-    await sails.helpers.fs.writeJson(sailsrcPath, {
-      ...oldSailsrcJson,
-      builtStaticContent: filesGeneratedBySection,
-    }, true);
+    await sails.helpers.fs.writeJson.with({
+      force: true,
+      destination: sailsrcPath,
+      json: {
+        ...oldSailsrcJson,
+        builtStaticContent: filesGeneratedBySection,
+      }
+    });
 
   }
 
