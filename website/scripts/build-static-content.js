@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Build static content',
 
 
-  description: 'Generate HTML partials from source files in fleetdm/fleet repo (e.g. docs in markdown, or queries in YAML), and configure metadata about the generated files so it is available in `sails.config.builtFromMarkdown`.',
+  description: 'Generate HTML partials from source files in fleetdm/fleet repo (e.g. docs in markdown, or queries in YAML), and configure metadata about the generated files so it is available in `sails.config.builtStaticContent`.',
 
 
   fn: async function () {
@@ -31,11 +31,13 @@ module.exports = {
     // TODO
 
     // Now take the compiled menu file and inject it into the .sailsrc file so it
-    // can be accessed for the purposes of config using `sails.config.builtFromMarkdown`.
+    // can be accessed for the purposes of config using `sails.config.builtStaticContent`.
     let sailsrcPath = path.resolve(sails.config.appPath, '.sailsrc');
-    let sailsrcContent = await sails.helpers.fs.readJson(sailsrcPath);
-    sailsrcContent.builtFromMarkdown = filesGeneratedBySection;
-    await sails.helpers.fs.writeJson(sailsrcPath, sailsrcContent, true);
+    let oldSailsrcJson = await sails.helpers.fs.readJson(sailsrcPath);
+    await sails.helpers.fs.writeJson(sailsrcPath, {
+      ...oldSailsrcJson,
+      builtStaticContent: filesGeneratedBySection,
+    }, true);
 
   }
 
