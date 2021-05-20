@@ -229,15 +229,13 @@ class QueryResultsTable extends Component {
         {hasErrors && (
           <div className={`${baseClass}__error-table-container`}>
             <header className={`${baseClass}__button-wrap`}>
-              <div>
-                <Button
-                  className={`${baseClass}__export-btn`}
-                  onClick={onExportErrorsResults}
-                  variant="inverse"
-                >
-                  Export errors
-                </Button>
-              </div>
+              <Button
+                className={`${baseClass}__export-btn`}
+                onClick={onExportErrorsResults}
+                variant="inverse"
+              >
+                Export errors
+              </Button>
             </header>
             <span className={`${baseClass}__table-title`}>Errors</span>
             <div className={`${baseClass}__error-table-wrapper`}>

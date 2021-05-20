@@ -39,7 +39,7 @@
     border-radius: 3px;
     overflow: scroll;
     margin-top: $pad-xsmall;
-    min-height: 200px;
+    min-height: 100px;
     max-height: 400px;
     width: 100%;
 
@@ -57,18 +57,19 @@
 
   &__error-table-container {
     margin-top: $pad-large;
+    overflow: scroll;
   }
 
   &__error-table-wrapper {
     display: flex;
     border: solid 1px $ui-fleet-blue-15;
     border-radius: 3px;
-    overflow: scroll;
     margin-bottom: $pad-xxlarge;
     margin-top: $pad-xsmall;
     min-height: 200px;
     max-height: 400px;
     width: 100%;
+    box-sizing: border-box;
   }
 
   &__table {
