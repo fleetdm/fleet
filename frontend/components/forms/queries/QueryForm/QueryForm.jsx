@@ -41,7 +41,7 @@ class QueryForm extends Component {
       name: formFieldInterface.isRequired,
       query: formFieldInterface.isRequired,
       // added 5/17
-      observerCanRun: formFieldInterface.isRequired,
+      observer_can_run: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     formData: queryInterface,
@@ -90,7 +90,7 @@ class QueryForm extends Component {
       description: fields.description.value,
       name: fields.name.value,
       query: fields.query.value,
-      observerCanRun: fields.observerCanRun.value,
+      observer_can_run: fields.observer_can_run.value,
     };
 
     const { valid, errors } = validate(formData);
@@ -182,7 +182,7 @@ class QueryForm extends Component {
         />
         <div className={`${baseClass}__query-observer-can-run-checkbox`}>
           <Checkbox
-            {...fields.observerCanRun}
+            {...fields.observer_can_run}
             className={`${baseClass}__query-observer-can-run`}
             wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
           >
@@ -198,6 +198,6 @@ class QueryForm extends Component {
 }
 
 export default Form(QueryForm, {
-  fields: ["description", "name", "query", "observerCanRun"],
+  fields: ["description", "name", "query", "observer_can_run"],
   validate,
 });

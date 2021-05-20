@@ -36,6 +36,7 @@ import {
 import targetInterface from "interfaces/target";
 import validateQuery from "components/forms/validators/validate_query";
 import PATHS from "router/paths";
+import permissionUtils from "utilities/permissions";
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "query-page";
@@ -67,6 +68,7 @@ export class QueryPage extends Component {
     title: PropTypes.string,
     requestHost: PropTypes.bool,
     hostId: PropTypes.string,
+    userCanEditDisabled: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -641,20 +643,20 @@ export class QueryPage extends Component {
       query,
       selectedOsqueryTable,
       title,
+      userCanEditDisabled,
     } = this.props;
 
     if (loadingQueries) {
       return false;
     }
 
-    // THIS IS THE SQL SHOW HIDE COMPONENT STUFF
     const QuerySql = () => (
       <div id="results" className="search-results">
         <KolideAce
           fontSize={12}
           name="query-details"
           readOnly
-          showGutter={true}
+          showGutter
           value={query.query}
           wrapperClassName={`${baseClass}__query-preview`}
           wrapEnabled
@@ -662,31 +664,22 @@ export class QueryPage extends Component {
       </div>
     );
 
-    const observerSql = () => {
-      const toggleObserverShowSql = () =>
+    const editDisabledSql = () => {
+      const toggleSql = () =>
         this.setState((prevState) => ({
           observerShowSql: !prevState.observerShowSql,
         }));
       return (
         <div>
-          <Button
-            variant="unstyled"
-            className="sql-button"
-            onClick={toggleObserverShowSql}
-          >
+          <Button variant="unstyled" className="sql-button" onClick={toggleSql}>
             {this.state.observerShowSql ? "Hide SQL" : "Show SQL"}
           </Button>
           {this.state.observerShowSql ? <QuerySql /> : null}
         </div>
       );
     };
-    // END
 
-    // hardcoded in pseudocode
-    const globalObserver = true;
-    const queryDOTobserver_can_run = true;
-
-    if (globalObserver && queryDOTobserver_can_run) {
+    if (userCanEditDisabled) {
       return (
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__observer-query-view body-wrap`}>
@@ -702,7 +695,7 @@ export class QueryPage extends Component {
             <div className={`${baseClass}__observer-query-details`}>
               <h1>{query.name}</h1>
               <p>{query.description}</p>
-              {observerSql()}
+              {editDisabledSql()}
             </div>
             {renderLiveQueryWarning()}
             {renderTargetsInput()}
@@ -781,6 +774,9 @@ const mapStateToProps = (state, ownProps) => {
     .get("hosts")
     .findBy({ id: parseInt(hostId, 10) });
   const requestHost = hostId !== undefined && relatedHost === undefined;
+  const currentUser = state.auth.user;
+  const userCanEditDisabled =
+    query.observer_can_run && permissionUtils.isObserver(currentUser);
 
   return {
     errors,
@@ -792,6 +788,7 @@ const mapStateToProps = (state, ownProps) => {
     requestHost,
     hostId,
     title,
+    userCanEditDisabled,
   };
 };
 
