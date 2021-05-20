@@ -19,6 +19,23 @@ module.exports = {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // TODO
 
+    let needsToBeClonedForFirstTime;
+    await sails.helpers.process.executeCommand.with({
+      command: 'git status',
+      dir: path.resolve(sails.config.paths.tmp, 'built-static-content/cloned-repo')
+    })
+    .tolerate('noSuchDir', ()=>{
+      needsToBeClonedForFirstTime = true;
+    });
+
+
+    if (!needsToBeClonedForFirstTime) {
+
+    }
+
+    // ;
+    // path.resolve(sails.config.paths.tmp, 'built-static-content/cloned-repo')
+
     // Compile HTML from markdown.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // FUTURE: Make this work in parallel as shown here by improving doctemplater to avoid the alreadyExists error
