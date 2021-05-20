@@ -25,7 +25,7 @@ Your Fleet server's two main purposes are:
 - To serve as your [osquery TLS server](https://osquery.readthedocs.io/en/stable/deployment/remote/)
 - To serve the Fleet web UI, which allows you to manage osquery configuration, query hosts, etc.
 
-The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connention configurations.
+The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
 
 > Fleet does not support Redis Cluster. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
 
