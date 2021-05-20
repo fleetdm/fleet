@@ -318,6 +318,8 @@ spec:
       removed: false
 ```
 
+The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of the specified labels, upon enrolling to Fleet, will automatically become targets of the given pack.
+
 #### Moving queries and packs from one Fleet environment to another
 
 When managing multiple Fleet environments, you may want to move queries and/or packs from one "exporter" environment to a another "importer" environment.
