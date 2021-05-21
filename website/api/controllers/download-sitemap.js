@@ -14,6 +14,13 @@ module.exports = {
 
   fn: async function ({}) {
 
+    if (sails.config.environment === 'staging') {
+      // This explicit check for staging allows for the sitemap to still be developed/tested locally,
+      // and for the real thing to be served in production, while explicitly preventing the "whoops,
+      // i deployed staging and search engine crawlers got fixated on the wrong sitemap" dilemma.
+      throw new Error('Since this is the staging environment, prevented sitemap.xml from being served to avoid search engine accidents.');
+    }//•
+
     // Notes:
     // • sitemap building inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L112-L180 and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js
     // • Why escape XML?  See http://stackoverflow.com/questions/3431280/validation-problem-entityref-expecting-what-should-i-do and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L161-L172
