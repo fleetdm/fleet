@@ -30,7 +30,9 @@ module.exports = {
     let HAND_CODED_HTML_PAGES = [
       '/',
       '/get-started',
-      // TODO rest  (e.g. hand-coded HTML pages from routes.js -- see https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27)
+      '/company/contact',
+      // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
+      // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];
     for (let url of HAND_CODED_HTML_PAGES) {
       let trimmedRootRelativeUrl = _.trimRight(url,'/');
