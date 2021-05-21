@@ -55,12 +55,12 @@ module.exports = {
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         builtStaticContent.documentationTree = await sails.helpers.compileMarkdownContent('docs/');
 
+        // Compile and generate XML sitemap
+        // TODO (see "refresh" action in sailsjs.com repo for example)
+
         // Legacy: Compile stuff we won't actually use for much longer
         // Legacy:  (TODO: remove this later on, once in-progress frontend work is done)
         await sails.helpers.compileMarkdownContent('handbook/queries/'); // TODO: pair w/ rachel and swap how page is built now that this part will work differently
-      },
-      async()=>{// Compile and generate XML sitemap
-        // TODO (see "refresh" action in sailsjs.com repo for example)
       },
     ]);
 
@@ -69,7 +69,7 @@ module.exports = {
     // > This takes the compiled menu file from doc-templater and injects it into the .sailsrc file so it
     // > can be accessed for the purposes of config using `sails.config.builtStaticContent`.
     if (dry) {
-      console.log('Dry run: Would have folded the following onto .sailsrc as "builtStaticContent":', builtStaticContent);
+      sails.log('Dry run: Would have folded the following onto .sailsrc as "builtStaticContent":', builtStaticContent);
     } else {
       let sailsrcPath = path.resolve(sails.config.appPath, '.sailsrc');
       let oldSailsrcJson = await sails.helpers.fs.readJson(sailsrcPath);
