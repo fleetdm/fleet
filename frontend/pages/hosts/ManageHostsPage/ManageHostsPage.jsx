@@ -21,6 +21,7 @@ import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
+import hostActions from "redux/nodes/entities/hosts/actions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
 import {
   getLabels,
@@ -251,7 +252,8 @@ export class ManageHostsPage extends PureComponent {
     const { toggleTransferHostModal } = this;
     const { dispatch } = this.props;
     const { selectedHostIds } = this.state;
-    dispatch(teamActions.transferHosts(team.id, selectedHostIds))
+    const teamId = team.id === "no-team" ? null : team.id;
+    dispatch(hostActions.transferToTeam(teamId, selectedHostIds))
       .then(() => {
         dispatch(
           renderFlash(

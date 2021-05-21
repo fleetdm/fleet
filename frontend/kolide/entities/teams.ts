@@ -95,7 +95,7 @@ export default (client: any) => {
     transferHosts: (teamId: number, hostIds: number[]) => {
       const { TEAMS_TRANSFER_HOSTS } = endpoints;
       return client
-        .authenticatedPatch(
+        .authenticatedPost(
           client._endpoint(TEAMS_TRANSFER_HOSTS(teamId)),
           JSON.stringify({ id: hostIds })
         )

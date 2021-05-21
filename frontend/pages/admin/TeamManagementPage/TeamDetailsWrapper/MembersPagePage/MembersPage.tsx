@@ -129,7 +129,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
               "success",
               `${newMembers.users.length} members successfully added to ${team.name}.`
             )
-          ); // TODO: update team name
+          );
         })
         .catch(() => {
           dispatch(
@@ -220,6 +220,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       />
       {showAddMemberModal ? (
         <AddMemberModal
+          team={team}
           disabledMembers={memberIds}
           onCancel={toggleAddUserModal}
           onSubmit={onAddMemberSubmit}
