@@ -21,10 +21,22 @@ const isOnGlobalTeam = (user: IUser): boolean => {
   return user.global_role !== null;
 };
 
+const isTeamObserver = (user: IUser, teamId: number) => {
+  const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
+  return userTeamRole === "observer";
+};
+
+const isTeamMaintainer = (user: IUser, teamId: number) => {
+  const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
+  return userTeamRole === "maintainer";
+};
+
 export default {
   isCoreTier,
   isBasicTier,
   isGlobalAdmin,
   isGlobalMaintainer,
   isOnGlobalTeam,
+  isTeamObserver,
+  isTeamMaintainer,
 };
