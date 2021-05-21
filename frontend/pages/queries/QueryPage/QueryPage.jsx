@@ -236,6 +236,7 @@ export class QueryPage extends Component {
 
   onFetchTargets = (query, targetResponse) => {
     const { dispatch } = this.props;
+
     const { targets_count: targetsCount } = targetResponse;
 
     dispatch(setSelectedTargetsQuery(query));
@@ -681,7 +682,9 @@ export class QueryPage extends Component {
       );
     };
 
-    console.log(query);
+    // TODO: Modify observerCanQueryHostCount to reflect all hosts user can query
+    const observerCanQueryHostCount = 1;
+
     // Restricted UI for Global Observer or Team Maintainer or Team Observer
     if (
       permissionUtils.isGlobalObserver(currentUser) ||
@@ -704,29 +707,30 @@ export class QueryPage extends Component {
               <p>{query.description}</p>
               {editDisabledSql()}
             </div>
-            {renderLiveQueryWarning()}
-            {renderTargetsInput()}
-            {renderResultsTable()}
+            {observerCanQueryHostCount > 0 && (
+              <div>
+                {renderLiveQueryWarning()}
+                {renderTargetsInput()}
+                {renderResultsTable()}
+              </div>
+            )}
           </div>
         </div>
       );
     }
-    console.log(query);
 
     // UI for Global Admin and Global Maintainer
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__form body-wrap`}>
-            <div>
-              <Link
-                to={PATHS.MANAGE_QUERIES}
-                className={`${baseClass}__back-link`}
-              >
-                <img src={BackChevron} alt="back chevron" id="back-chevron" />
-                <span>Back to queries</span>
-              </Link>
-            </div>
+            <Link
+              to={PATHS.MANAGE_QUERIES}
+              className={`${baseClass}__back-link`}
+            >
+              <img src={BackChevron} alt="back chevron" id="back-chevron" />
+              <span>Back to queries</span>
+            </Link>
             <QueryForm
               formData={query}
               handleSubmit={onSaveQueryFormSubmit}
