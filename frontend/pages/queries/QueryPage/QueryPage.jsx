@@ -13,6 +13,7 @@ import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
 import convertToCSV from "utilities/convert_to_csv";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
+import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
 import { formatSelectedTargetsForApi } from "kolide/helpers";
 import helpers from "pages/queries/QueryPage/helpers";
@@ -37,11 +38,6 @@ import {
 import targetInterface from "interfaces/target";
 import validateQuery from "components/forms/validators/validate_query";
 import PATHS from "router/paths";
-import {
-  isOnGlobalTeam,
-  isGlobalObserver,
-  isOnlyObserver,
-} from "utilities/permissions";
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "query-page";
@@ -685,8 +681,12 @@ export class QueryPage extends Component {
       );
     };
 
+    console.log(query);
     // Restricted UI for Global Observer or Team Maintainer or Team Observer
-    if (isGlobalObserver(currentUser) || !isOnGlobalTeam(currentUser)) {
+    if (
+      permissionUtils.isGlobalObserver(currentUser) ||
+      !permissionUtils.isOnGlobalTeam(currentUser)
+    ) {
       return (
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__observer-query-view body-wrap`}>
