@@ -280,9 +280,16 @@ const generateAvailableTableHeaders = (
 ): IHostDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
-      if (
-        currentColumn.accessor === "team_name" &&
-        permissionUtils.isCoreTier(config)
+      // skip over column headers that are not shown in core tier
+
+      if (permissionUtils.isCoreTier(config) && permissionUtils.isGlobalAdmin(currentUser) ||
+        !permissionUtils.isGlobalMaintainer(currentUser)) {
+        return columns;
+      } else if (
+        !permissionUtils.isGlobalAdmin(currentUser) ||
+        !permissionUtils.isGlobalMaintainer(currentUser) &&
+          (currentColumn.accessor === "team_name" ||
+            currentColumn.id === "selection"))
       ) {
         return columns;
       }
