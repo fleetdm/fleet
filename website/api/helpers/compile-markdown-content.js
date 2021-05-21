@@ -189,7 +189,7 @@ module.exports = {
       fileInfo.path = fileInfo.fullPathAndFileName;// « for clarity (it's not technically the full path)
       delete fileInfo.fullPathAndFileName;
 
-      fileInfo.fallbackTitle = sails.helpers.toSentenceCase(path.basename(fileInfo.templateTitle, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
+      fileInfo.fallbackTitle = sails.helpers.strings.toSentenceCase(path.basename(fileInfo.templateTitle, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
       delete fileInfo.templateTitle;
 
       delete fileInfo.data.lastModified;// « for clarity (this isn't the timestamp you're expecting, so we delete it)
