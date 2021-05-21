@@ -18,8 +18,8 @@ module.exports = {
 
   fn: async function () {
 
-    if (!sails.config.builtStaticContent.queries) {
-      throw new Error('Missing `sails.config.builtStaticContent.queries`!  Try doing `sails run build-static-content`.');
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.queries)) {
+      throw new Error('Missing or invalid `sails.config.builtStaticContent.queries`!  Try doing `sails run build-static-content` and re-lift the server.');
     }
 
     // Respond with view.
