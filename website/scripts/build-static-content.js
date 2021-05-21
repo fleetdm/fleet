@@ -8,7 +8,7 @@ module.exports = {
 
 
   inputs: {
-    dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  Everything else still happens).' },
+    dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
   },
 
 
@@ -35,7 +35,7 @@ module.exports = {
         // • path maths inspired by inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // // Original way that works:  (versus new stuff below)
-        // builtStaticContent.allPages = await sails.helpers.compileMarkdownContent('docs/');
+        // builtStaticContent.allPages = await sails.helpers.compileMarkdownContent('docs/');  // TODO remove this and helper once everything works again
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         builtStaticContent.allPages = [];// « dir tree representation that will be injected into Sails app's configuration
@@ -58,9 +58,15 @@ module.exports = {
 
             // TODO: Skip this page, if appropriate
 
-            // TODO: Generate HTML file
+            // Generate HTML file
+            let htmlOutputPath = '';//TODO
+            if (dry) {
+              sails.log('Dry run: Would have generated file:', htmlOutputPath);
+            } else {
+              // TODO
+            }
 
-            // TODO: figure out what to do about linked images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.)
+            // FUTURE: Figure out what to do about linked images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
 
             // Append to Sails app configuration.
             builtStaticContent.allPages.push({
