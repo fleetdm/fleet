@@ -50,13 +50,26 @@ module.exports = {
           });
 
           for (let pageSourcePath of thinTree) {
-            let rootRelativeUrlPath = '/';// TODO: Perform path maths (determine this using sectionRepoPath, etc)
-            let lastModifiedAt = Date.now();// TODO: Check true modified date using git
+
+            // Perform path maths (determine this using sectionRepoPath, etc)
+            // > See https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
+            // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
+            let rootRelativeUrlPath = '/';// TODO
+
+            // Get last modified timestamp using git
+            // > See https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+            let lastModifiedAt = Date.now();// TODO
+
             let fallbackTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
 
-            // TODO: If markdown: Compile to HTML and parse docpage metadata
+            // If markdown: Compile to HTML and parse docpage metadata
+            // > Parsing docmeta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
+            // > Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+            // TODO
 
-            // TODO: Skip this page, if appropriate
+            // Skip this page, if appropriate
+            // > See https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
+            // TODO
 
             // Generate HTML file
             let htmlOutputPath = '';//TODO
@@ -66,7 +79,7 @@ module.exports = {
               // TODO
             }
 
-            // FUTURE: Figure out what to do about linked images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
+            // FUTURE: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
 
             // Append to Sails app configuration.
             builtStaticContent.allPages.push({
@@ -76,6 +89,17 @@ module.exports = {
             });
           }//∞ </each source file>
         }//∞ </each section repo path>
+
+        // Decorate allPages tree with easier-to-use properties related to metadata embedded in the markdown and parent/child relationships.
+        // > See https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js
+        // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/build-jsmenu.js
+        // TODO
+
+        // Sort siblings in the allPages tree so it's ready to use in menus.
+        // > Note: consider doing this on the frontend-- though there's a reason it was here. See:
+        // > • https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/compare-doc-page-metadatas.js
+        // > • https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js#L191-L208
+        // TODO
       },
     ]);
 
