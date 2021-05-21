@@ -22,6 +22,7 @@ module.exports = {
     'GET /sandbox/queries': { action: 'view-query-library' },// « to see it, check out /sandbox/queries
     'GET /sandbox/queries/:slug': { skipAssets: false, action: 'view-query-detail' },// « to see it, check out /sandbox/queries/adg
     'GET /sandbox/documentation/*': { skipAssets: false, action: 'docs/view-basic-documentation' },// « to see it, check out http://localhost:2024/sandbox/documentation/adsg
+    'GET /sandbox/handbook/*': { skipAssets: false, action: 'handbook/view-basic-handbook' },// « to see it, check out http://localhost:2024/sandbox/handbook/adsg
   },
 
 };

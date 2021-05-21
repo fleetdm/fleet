@@ -26,6 +26,7 @@ module.exports.policies = {
   'view-query-detail': true,
   'view-query-library': true,
   'docs/*': true,
+  'handbook/*': true,
   'download-sitemap': true,
 
 };
