@@ -5,5 +5,796 @@
   "_generatedWith": {
     "sails": "1.2.5",
     "sails-generate": "2.0.0"
+  },
+  "builtStaticContent": {
+    "allPages": [
+      {
+        "url": "/",
+        "title": "README.md",
+        "lastModifiedAt": 1621583682861
+      },
+      {
+        "url": "/",
+        "title": "README.md",
+        "lastModifiedAt": 1621583682861
+      },
+      {
+        "url": "/",
+        "title": "Fleet uI.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "Fleetctl cLI.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "REST aPI.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "Osquery logs.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "Security best practices.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "Monitoring fleet.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "Updating fleet.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "FAQ.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "README.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "Building fleet.md",
+        "lastModifiedAt": 1621583682862
+      },
+      {
+        "url": "/",
+        "title": "Migrations.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Testing.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Committing changes.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Releasing fleet.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "FAQ.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "README.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Installation.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Configuration.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Fleetctl agent updates.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Adding hosts.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Example deployment scenarios.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "FAQ.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "README.md",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Admin settings.png",
+        "lastModifiedAt": 1621583682863
+      },
+      {
+        "url": "/",
+        "title": "Add new host modal.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Edit pack targets.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Manage hosts grid.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Distributed new query with local filter.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Manage hosts list.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Distributed saved query with local filter.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Manage packs.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Manage packs with pack selected.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Manage osquery options.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Manage queries.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Manage users.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "My account page.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Okta idp setup.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Salesforce idp setup.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Schedule query sidebar.png",
+        "lastModifiedAt": 1621583682864
+      },
+      {
+        "url": "/",
+        "title": "Sso setup.png",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "README.md",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Single file configuration.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "README.md",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Standard query library.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Fleet deployment.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Agent options.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Fleet service.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Fleet migrations.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Labels.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Queries.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Enroll secrets.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "Osquery monitoring.yml",
+        "lastModifiedAt": 1621583682865
+      },
+      {
+        "url": "/",
+        "title": "README.md",
+        "lastModifiedAt": 1621583682866
+      },
+      {
+        "url": "/",
+        "title": "Benefits.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Manual qa.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "README.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Count apple applications installed.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Detect hosts with high severity vulnerable versions of openssl.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Detect machines with gatekeeper disabled.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Detect presence of authorized ssh keys.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Detect hosts with the firewall disabled.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Get installed chrome extensions.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Get installed freebsd software.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Get installed homebrew packages.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Get authorized keys.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Get crashes.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Get installed linux software.md",
+        "lastModifiedAt": 1621583682867
+      },
+      {
+        "url": "/",
+        "title": "Get installed macos software.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get installed windows software.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get installed safari extensions.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get laptops with failing batteries.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get macos disk free space percentage.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get mounts.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get os version.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get platform info.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get startup items.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get system logins and logouts.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get system uptime.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get usb devices.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get wifi status.md",
+        "lastModifiedAt": 1621583682868
+      },
+      {
+        "url": "/",
+        "title": "Get windows machines with unencrypted hard disks.md",
+        "lastModifiedAt": 1621583682869
+      },
+      {
+        "url": "/",
+        "title": "Standard query library template.md",
+        "lastModifiedAt": 1621583682869
+      }
+    ],
+    "queries": [
+      {
+        "name": "Count Apple applications installed",
+        "platforms": "macOS",
+        "description": "Count the number of Apple applications installed on the machine.",
+        "query": "SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Detect Linux hosts with high severity vulnerable versions of OpenSSL",
+        "platforms": "Linux",
+        "description": "Retrieves the OpenSSL version.",
+        "query": "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
+        "purpose": "Detection",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Detect machines with Gatekeeper disabled",
+        "platforms": "macOS",
+        "description": "Gatekeeper tries to ensure only trusted software is run on a mac machine.",
+        "query": "SELECT * FROM gatekeeper WHERE assessments_enabled = 0;",
+        "purpose": "Detection",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Detect presence of authorized SSH keys",
+        "platforms": "macOS, Linux",
+        "description": "Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.",
+        "query": "SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);",
+        "purpose": "Detection",
+        "remediation": "Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)"
+      },
+      {
+        "name": "Get authorized keys for Local Accounts",
+        "platforms": "macOS, Linux",
+        "description": "List authorized_keys for each user on the system.",
+        "query": "SELECT * FROM users CROSS JOIN authorized_keys USING (uid);",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get authorized keys for Domain Joined Accounts",
+        "platforms": "macOS, Linux",
+        "description": "List authorized_keys for each user on the system.",
+        "query": "SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get crashes",
+        "platforms": "macOS",
+        "description": "Retrieve application, system, and mobile app crash logs.",
+        "query": "SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed Chrome Extensions",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "List installed Chrome Extensions for all users.",
+        "query": "SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed FreeBSD software",
+        "platforms": "FreeBSD",
+        "description": "Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.",
+        "query": "SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get Homebrew Packages",
+        "platforms": "macOS",
+        "description": "Get the installed homebrew package database.",
+        "query": "SELECT * FROM homebrew_packages;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed Linux software",
+        "platforms": "Linux",
+        "description": "Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.",
+        "query": "SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed macOS software",
+        "platforms": "macOS",
+        "description": "Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.",
+        "query": "SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed Safari extensions",
+        "platforms": "macOS",
+        "description": "Retrieves the list of installed Safari Extensions for all users in the target system.",
+        "query": "SELECT safari_extensions.* FROM users join safari_extensions USING (uid);",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed Windows software",
+        "platforms": "Windows",
+        "description": "Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.",
+        "query": "SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get laptops with failing batteries",
+        "platforms": "macOS",
+        "description": null,
+        "query": "SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get macOS disk free space percentage",
+        "platforms": "macOS",
+        "description": "Displays the percentage of free space available on the primary disk partition.",
+        "query": "SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get macOS disk free space percentage",
+        "platforms": "macOS",
+        "description": "Displays the percentage of free space available on the primary disk partition.",
+        "query": "SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get mounts",
+        "platforms": "macOS, Linux",
+        "description": "Shows system mounted devices and filesystems (not process specific).",
+        "query": "SELECT device, device_alias, path, type, blocks_size FROM mounts;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get the version of the resident operating system",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Shows system mounted devices and filesystems (not process specific).",
+        "query": "SELECT * FROM os_version;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get platform info",
+        "platforms": "macOS",
+        "description": "Shows information about the host platform",
+        "query": "SELECT vendor, version, date, revision from platform_info;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get startup items",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Shows applications and binaries set as user/login startup items.",
+        "query": "SELECT * FROM startup_items;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get system logins and logouts",
+        "platforms": "macOS",
+        "description": "Get a list of system logins and logouts.",
+        "query": "SELECT * FROM last;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get current users with active shell/console on the system",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Get current users with active shell/console on the system and associated process",
+        "query": "SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get system uptime",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Shows the system uptime.",
+        "query": "SELECT * FROM uptime;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get USB devices",
+        "platforms": "macOS, Linux",
+        "description": "Shows all USB devices that are actively plugged into the host system.",
+        "query": "SELECT * FROM usb_devices;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get wifi status",
+        "platforms": "macOS",
+        "description": "Shows information about the wifi network that a host is currently connected to.",
+        "query": "SELECT * FROM wifi_status;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get Windows machines with unencrypted hard disks",
+        "platforms": "Windows",
+        "description": null,
+        "query": "SELECT * FROM bitlocker_info WHERE protection_status = 0;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get disk encryption status",
+        "platforms": "macOS, Linux",
+        "description": "Disk encryption status and information.",
+        "query": "SELECT * FROM disk_encryption;",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Detect unencrypted SSH keys for local accounts",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)",
+        "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;",
+        "purpose": "Detection",
+        "remediation": [
+          "User awareness about the impact of SSH Keys",
+          "Rotate the identified Keys"
+        ],
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Detect unencrypted SSH keys for domain joined accounts",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)",
+        "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);",
+        "purpose": "Detection",
+        "remediation": [
+          "User awareness about the impact of SSH Keys",
+          "Rotate the identified Keys"
+        ],
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get crontab jobs",
+        "platforms": "macOS, Linux",
+        "description": "Line parsed values from system and user cron/tab.",
+        "query": "SELECT * FROM crontab;",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get suid binaries",
+        "platforms": "macOS, Linux",
+        "description": "suid binaries in common locations.",
+        "query": "SELECT * FROM suid_bin;",
+        "purpose": "Informational",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Detect dynamic linker hijacking on Linux (MITRE. T1574.006)",
+        "platforms": "Linux",
+        "description": "Detect any processes that run with LD_PRELOAD environment variable",
+        "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';",
+        "purpose": "Detection",
+        "remediation": [
+          "Identify the process/binary detected",
+          "Confirm with system owner"
+        ],
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Detect dynamic linker hijacking on macOS (MITRE. T1574.006)",
+        "platforms": "macOS",
+        "description": "Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable",
+        "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';",
+        "purpose": "Detection",
+        "remediation": [
+          "Identify the process/binary detected",
+          "Confirm with system owner"
+        ],
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get etc hosts entries",
+        "platforms": "macOS, Linux",
+        "description": "Line-parsed /etc/hosts",
+        "query": "SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get network interfaces",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Network interfaces MAC address",
+        "query": "SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get local user accounts",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Local user accounts (including domain accounts that have logged on locally (Windows)).",
+        "query": "SELECT uid, gid, username, description,directory, shell FROM users;",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Detect active user accounts on servers",
+        "platforms": "Linux",
+        "description": "Domain Joined environment normally have root or other service account only and users are SSH-ing using their Domain Accounts.",
+        "query": "SELECT * FROM shadow WHERE password_status='active' and username!='root';",
+        "purpose": "Detection",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Detect Nmap scanner",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Detect Nmap scanner process, identify the user, parent, process details.",
+        "query": "SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent, (SELECT name FROM processes WHERE pid=p.parent) AS parent_name, (SELECT username FROM users WHERE uid=p.uid) AS username FROM processes as p WHERE cmdline like 'nmap%';",
+        "purpose": "Detection",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get docker images on a system",
+        "platforms": "macOS, Linux",
+        "description": "Docker images information, can be used on normal system or a kubenode.",
+        "query": "SELECT * FROM docker_images;",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get docker running containers on a system",
+        "platforms": "macOS, Linux",
+        "description": "Docker containers information, can be used on normal system or a kubenode.",
+        "query": "SELECT * FROM docker_containers;",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      },
+      {
+        "name": "Get docker running process on a system",
+        "platforms": "macOS, Linux",
+        "description": "Docker containers Processes, can be used on normal system or a kubenode.",
+        "query": "SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer"
+      }
+    ]
   }
 }

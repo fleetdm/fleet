@@ -68,6 +68,10 @@ module.exports.routes = {
   // Legacy (to avoid breaking links)
   '/try-fleet':                  '/get-started',
 
+  // Sitemap
+  'GET /sitemap.xml': { action: 'download-sitemap' },
+
+
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
   //  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
