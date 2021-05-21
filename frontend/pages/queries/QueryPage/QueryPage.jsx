@@ -24,6 +24,7 @@ import QueryForm from "components/forms/queries/QueryForm";
 import osqueryTableInterface from "interfaces/osquery_table";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
+import userInterface from "interfaces/user";
 import QueryPageSelectTargets from "components/queries/QueryPageSelectTargets";
 import QueryResultsTable from "components/queries/QueryResultsTable";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -36,7 +37,11 @@ import {
 import targetInterface from "interfaces/target";
 import validateQuery from "components/forms/validators/validate_query";
 import PATHS from "router/paths";
-import permissionUtils from "utilities/permissions";
+import {
+  isOnGlobalTeam,
+  isGlobalObserver,
+  isOnlyObserver,
+} from "utilities/permissions";
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "query-page";
@@ -68,7 +73,7 @@ export class QueryPage extends Component {
     title: PropTypes.string,
     requestHost: PropTypes.bool,
     hostId: PropTypes.string,
-    userCanEditDisabled: PropTypes.bool,
+    currentUser: userInterface,
   };
 
   static defaultProps = {
@@ -643,7 +648,7 @@ export class QueryPage extends Component {
       query,
       selectedOsqueryTable,
       title,
-      userCanEditDisabled,
+      currentUser,
     } = this.props;
 
     if (loadingQueries) {
@@ -664,6 +669,7 @@ export class QueryPage extends Component {
       </div>
     );
 
+    // Shows and hides SQL for Restricted UI
     const editDisabledSql = () => {
       const toggleSql = () =>
         this.setState((prevState) => ({
@@ -679,7 +685,8 @@ export class QueryPage extends Component {
       );
     };
 
-    if (userCanEditDisabled) {
+    // Restricted UI for Global Observer or Team Maintainer or Team Observer
+    if (isGlobalObserver(currentUser) || !isOnGlobalTeam(currentUser)) {
       return (
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__observer-query-view body-wrap`}>
@@ -704,7 +711,9 @@ export class QueryPage extends Component {
         </div>
       );
     }
+    console.log(query);
 
+    // UI for Global Admin and Global Maintainer
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__content`}>
@@ -775,8 +784,6 @@ const mapStateToProps = (state, ownProps) => {
     .findBy({ id: parseInt(hostId, 10) });
   const requestHost = hostId !== undefined && relatedHost === undefined;
   const currentUser = state.auth.user;
-  const userCanEditDisabled =
-    query.observer_can_run && permissionUtils.isObserver(currentUser);
 
   return {
     errors,
@@ -788,7 +795,7 @@ const mapStateToProps = (state, ownProps) => {
     requestHost,
     hostId,
     title,
-    userCanEditDisabled,
+    currentUser,
   };
 };
 
