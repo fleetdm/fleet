@@ -5,6 +5,7 @@ import { filter, get, includes, pull } from "lodash";
 import { push } from "react-router-redux";
 
 import Button from "components/buttons/Button";
+import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/modals/Modal";
@@ -15,6 +16,7 @@ import QueryDetailsSidePanel from "components/side_panels/QueryDetailsSidePanel"
 import QueriesList from "components/queries/QueriesList";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
+import userInterface from "interfaces/user";
 import { renderFlash } from "redux/nodes/notifications/actions";
 
 const baseClass = "manage-queries-page";
@@ -25,6 +27,7 @@ export class ManageQueriesPage extends Component {
     loadingQueries: PropTypes.bool.isRequired,
     queries: PropTypes.arrayOf(queryInterface),
     selectedQuery: queryInterface,
+    currentUser: userInterface,
   };
 
   static defaultProps = {
@@ -183,6 +186,8 @@ export class ManageQueriesPage extends Component {
 
   renderCTAs = () => {
     const { goToNewQueryPage, onToggleModal } = this;
+    const { currentUser } = this.props;
+
     const btnClass = `${baseClass}__delete-queries-btn`;
     const checkedQueryCount = this.state.checkedQueryIDs.length;
 
@@ -201,11 +206,14 @@ export class ManageQueriesPage extends Component {
       );
     }
 
-    return (
-      <Button variant="brand" onClick={goToNewQueryPage}>
-        Create new query
-      </Button>
-    );
+    // Render option to create new query only for maintainers and admin
+    if (!permissionUtils.isOnlyObserver(currentUser)) {
+      return (
+        <Button variant="brand" onClick={goToNewQueryPage}>
+          Create new query
+        </Button>
+      );
+    }
   };
 
   renderModal = () => {
@@ -323,8 +331,9 @@ const mapStateToProps = (state, { location }) => {
   const selectedQuery =
     selectedQueryID && queryEntities.findBy({ id: selectedQueryID });
   const { loading: loadingQueries } = state.entities.queries;
+  const currentUser = state.auth.user;
 
-  return { loadingQueries, queries, selectedQuery };
+  return { loadingQueries, queries, selectedQuery, currentUser };
 };
 
 export default connect(mapStateToProps)(ManageQueriesPage);
