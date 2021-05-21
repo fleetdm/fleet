@@ -50,7 +50,10 @@ module.exports = {
 
     let path = require('path');
     let cheerio = require('cheerio');
-    let DocTemplater = require('doc-templater');
+    let DocTemplater = {};// require('doc-templater');
+    if (true) {
+      throw new Error('This helper has been retired.  TODO: delete it.');
+    }
 
     sails.log.info('Compiling `%s` docs from the `%s` branch of `%s`...', repoPath, repoBranch, repoUrl);
 
