@@ -30,8 +30,55 @@ module.exports = {
         builtStaticContent.queries = YAML.parseAllDocuments(yaml).map((yamlDocument) => yamlDocument.toJSON().spec );
       },
       async()=>{// Parse documentation, compile HTML/sitemap.xml, and bake documentation's directory tree into the Sails app's configuration.
-        builtStaticContent.documentationTree = await sails.helpers.compileMarkdownContent('docs/');
-        // TODO: Generate XML sitemap (see "refresh" action in sailsjs.com repo for example)
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // // Original way that works:  (versus new stuff below)
+        // builtStaticContent.documentationTree = await sails.helpers.compileMarkdownContent('docs/');
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+        let thinTree = await sails.helpers.fs.ls.with({
+          dir: path.join(topLvlRepoPath, 'docs/'),
+          depth: 100,
+          includeDirs: false,
+          includeSymlinks: false,
+        });
+
+        // Build directory tree to be injected into Sails app's configuration.
+        let thickTree = thinTree.map((pageSourcePath)=>{
+          return {
+            path: pageSourcePath,// TODO remove this prbly for clarity
+            url: pageSourcePath,// TODO: root relative URL path
+            fallbackTitle: sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, '.ejs')),// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
+            lastModifiedAt: Date.now()// «TODO
+          };
+        });
+        builtStaticContent.documentationTree = thickTree;
+
+        // Loop over doc pages building sitemap.xml data and generating HTML files.
+        // > • path maths inspired by inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
+        // > • sitemap building inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L112-L180 and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js
+        // > • Why escape XML?  See http://stackoverflow.com/questions/3431280/validation-problem-entityref-expecting-what-should-i-do and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L161-L172
+        let sitemapXml = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+        [// Start with root relative URLs of other webpages that aren't being generated from markdown
+          '/',
+          '/get-started',
+          // TODO rest  (e.g. hand-coded HTML pages from routes.js -- see https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27)
+        ].forEach((url)=>{
+          sitemapXml += `<url><loc>${_.escape(`https://fleetdm.com${url}`)}</loc></url>`;// note we omit lastmod. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+        });
+        for (let pageInfo of thickTree) {
+          // TODO: If markdown: Compile to HTML and parse docpage metadata
+          // TODO: Skip this page, if appropriate
+          // TODO: Perform path maths
+          // TODO: Generate HTML file
+          sitemapXml +=`<url><loc>${_.escape(`https://fleetdm.com${pageInfo.url}`)}</loc><lastmod>${pageInfo.lastModifiedAt}</lastmod></url>`;
+        }//∞
+
+        // Generate sitemap.xml file
+        sitemapXml += '</urlset>';
+        console.log(sitemapXml);
+        // TODO
+        // TODO: make sure this gets checked in in GH actions workflow
+
       },
     ]);
 
@@ -57,4 +104,3 @@ module.exports = {
 
 
 };
-
