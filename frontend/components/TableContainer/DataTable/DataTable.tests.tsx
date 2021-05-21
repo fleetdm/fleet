@@ -33,7 +33,7 @@ describe("DataTable - component", () => {
     expect(nameDataCell).toBeInTheDocument();
   });
 
-  it("renders correctly given a sort header and direction", () => {
+  it("renders correctly given a sort header", () => {
     const columns = [
       {
         title: "Name",
