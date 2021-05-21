@@ -14,6 +14,7 @@ import TableContainer from "components/TableContainer";
 import labelInterface from "interfaces/label";
 import hostInterface from "interfaces/host";
 import teamInterface from "interfaces/team";
+import userInterface from "interfaces/user";
 import osqueryTableInterface from "interfaces/osquery_table";
 import statusLabelsInterface from "interfaces/status_labels";
 import enrollSecretInterface from "interfaces/enroll_secret";
@@ -33,8 +34,8 @@ import deepDifference from "utilities/deep_difference";
 import permissionUtils from "utilities/permissions";
 import {
   defaultHiddenColumns,
-  hostTableHeaders,
-  generateVisibleHostColumns,
+  generateVisibleTableColumns,
+  generateAvailableTableHeaders,
 } from "./HostTableConfig";
 import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
@@ -69,6 +70,7 @@ export class ManageHostsPage extends PureComponent {
     canAddNewHosts: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
+    currentUser: userInterface,
   };
 
   static defaultProps = {
@@ -168,7 +170,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   // NOTE: this is called once on the initial rendering. The initial render of
-  // the TableContainer child component.
+  // the TableContainer child component will call this handler.
   onTableQueryChange = (queryData) => {
     const { selectedFilter, dispatch } = this.props;
     const {
@@ -260,7 +262,7 @@ export class ManageHostsPage extends PureComponent {
             "success",
             `Hosts successfully transferred to  ${team.name}.`
           )
-        ); // TODO: update team name
+        );
       })
       .catch(() => {
         dispatch(
@@ -294,6 +296,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderEditColumnsModal = () => {
+    const { config, currentUser } = this.props;
     const { showEditColumnsModal, hiddenColumns } = this.state;
 
     if (!showEditColumnsModal) return null;
@@ -305,7 +308,7 @@ export class ManageHostsPage extends PureComponent {
         className={`${baseClass}__invite-modal`}
       >
         <EditColumnsModal
-          columns={hostTableHeaders}
+          columns={generateAvailableTableHeaders(config, currentUser)}
           hiddenColumns={hiddenColumns}
           onSaveColumns={this.onSaveColumns}
           onCancelColumns={this.onCancelColumns}
@@ -548,7 +551,14 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderTable = () => {
-    const { selectedFilter, selectedLabel, hosts, loadingHosts } = this.props;
+    const {
+      config,
+      currentUser,
+      selectedFilter,
+      selectedLabel,
+      hosts,
+      loadingHosts,
+    } = this.props;
     const { hiddenColumns } = this.state;
     const {
       onTableQueryChange,
@@ -567,7 +577,11 @@ export class ManageHostsPage extends PureComponent {
 
     return (
       <TableContainer
-        columns={generateVisibleHostColumns(hiddenColumns)}
+        columns={generateVisibleTableColumns(
+          hiddenColumns,
+          config,
+          currentUser
+        )}
         data={hosts}
         isLoading={loadingHosts}
         defaultSortHeader={"hostname"}
@@ -667,7 +681,6 @@ const mapStateToProps = (state, { location, params }) => {
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
-
   const teams = memoizedGetEntity(state.entities.teams.data);
 
   return {
@@ -682,6 +695,7 @@ const mapStateToProps = (state, { location, params }) => {
     selectedOsqueryTable,
     statusLabels,
     config,
+    currentUser,
     hosts,
     loadingHosts,
     canAddNewHosts,
