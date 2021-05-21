@@ -6,6 +6,15 @@ module.exports = {
 
   // TODO: Make this explanation better or refactor, because actually this does a lot more than just that, including cloning the source git repo
   description: 'Compile documentation templates from markdown.',
+  // Also, FUTURE: dissect some of the code from here https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L16-L22
+  // and use those building blocks directly instead of depending on doctemplater later and thus unnecessarily duplicating work.  Also the other related code in sailsjs docs mentioned in https://github.com/fleetdm/fleet/issues/706
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // Clone repo
+  // let topLvlCachePath = path.resolve(sails.config.paths.tmp, `built-static-content/`);
+  // await sails.helpers.fs.rmrf(topLvlCachePath);
+  // let repoCachePath = path.join(topLvlCachePath, `cloned-repo-${Date.now()}-${Math.round(Math.random()*100)}`);
+  // await sails.helpers.process.executeCommand(`git clone git://github.com/fleetdm/fleet.git ${repoCachePath}`);
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
   inputs: {
