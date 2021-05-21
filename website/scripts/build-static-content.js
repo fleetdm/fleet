@@ -90,6 +90,7 @@ module.exports = {
         // Generate sitemap.xml file
         // + TODO: make sure that gets checked in, in GH actions workflow
         sitemapXml += '</urlset>';
+        // + TODO: add route to serve sitemap (and... err maybe just do the XML building above in there?  i.e. just build in https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/config/routes.js#L13-L27)
         console.log(sitemapXml);// TODO: actually generate
       },
     ]);
