@@ -164,16 +164,6 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get macOS disk free space percentage
-  platforms: macOS
-  description: Displays the percentage of free space available on the primary disk partition.
-  query: SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';
-  purpose: Informational
-  remediation: N/A
----
-apiVersion: v1
-kind: query
-spec:
   name: Get mounts
   platforms: macOS, Linux
   description: Shows system mounted devices and filesystems (not process specific).
