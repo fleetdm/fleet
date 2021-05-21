@@ -29,59 +29,78 @@ module.exports = {
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml'));
         builtStaticContent.queries = YAML.parseAllDocuments(yaml).map((yamlDocument) => yamlDocument.toJSON().spec );
       },
-      async()=>{// Parse documentation, compile HTML/sitemap.xml, and bake documentation's directory tree into the Sails app's configuration.
+      async()=>{// Parse markdown pages, compile & generate sitemap.xml + HTML files, and bake documentation's directory tree into the Sails app's configuration.
+
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // // Original way that works:  (versus new stuff below)
-        // builtStaticContent.documentationTree = await sails.helpers.compileMarkdownContent('docs/');
+        // builtStaticContent.allPages = await sails.helpers.compileMarkdownContent('docs/');
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        let thinTree = await sails.helpers.fs.ls.with({
-          dir: path.join(topLvlRepoPath, 'docs/'),
-          depth: 100,
-          includeDirs: false,
-          includeSymlinks: false,
-        });
+        // Note:
+        // • path maths inspired by inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
+        // • sitemap building inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L112-L180 and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js
+        // • Why escape XML?  See http://stackoverflow.com/questions/3431280/validation-problem-entityref-expecting-what-should-i-do and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L161-L172
 
-        // Build directory tree to be injected into Sails app's configuration.
-        let thickTree = thinTree.map((pageSourcePath)=>{
-          return {
-            path: pageSourcePath,// TODO remove this prbly for clarity
-            url: pageSourcePath,// TODO: root relative URL path
-            fallbackTitle: sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, '.ejs')),// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
-            lastModifiedAt: Date.now()// «TODO
-          };
-        });
-        builtStaticContent.documentationTree = thickTree;
-
-        // Loop over doc pages building sitemap.xml data and generating HTML files.
-        // > • path maths inspired by inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
-        // > • sitemap building inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L112-L180 and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js
-        // > • Why escape XML?  See http://stackoverflow.com/questions/3431280/validation-problem-entityref-expecting-what-should-i-do and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L161-L172
+        // Start with sitemap.xml preamble + the root relative URLs of other webpages that aren't being generated from markdown
         let sitemapXml = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
-        [// Start with root relative URLs of other webpages that aren't being generated from markdown
+        let HAND_CODED_HTML_PAGES = [
           '/',
           '/get-started',
           // TODO rest  (e.g. hand-coded HTML pages from routes.js -- see https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27)
-        ].forEach((url)=>{
+        ];
+        for (let url of HAND_CODED_HTML_PAGES) {
           sitemapXml += `<url><loc>${_.escape(`https://fleetdm.com${url}`)}</loc></url>`;// note we omit lastmod. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
-        });
-        for (let pageInfo of thickTree) {
-          // TODO: If markdown: Compile to HTML and parse docpage metadata
-          // TODO: Skip this page, if appropriate
-          // TODO: Perform path maths
-          // TODO: Generate HTML file
-          sitemapXml +=`<url><loc>${_.escape(`https://fleetdm.com${pageInfo.url}`)}</loc><lastmod>${pageInfo.lastModifiedAt}</lastmod></url>`;
         }//∞
 
-        // Generate sitemap.xml file
-        sitemapXml += '</urlset>';
-        console.log(sitemapXml);
-        // TODO
-        // TODO: make sure this gets checked in in GH actions workflow
+        // Set up directory tree representation to be injected into Sails app's configuration.
+        builtStaticContent.allPages = [];
 
+        let SECTION_REPO_PATHS = ['docs/', 'handbook/'];
+        for (let sectionRepoPath of SECTION_REPO_PATHS) {
+          let thinTree = await sails.helpers.fs.ls.with({
+            dir: path.join(topLvlRepoPath, sectionRepoPath),
+            depth: 100,
+            includeDirs: false,
+            includeSymlinks: false,
+          });
+
+          for (let pageSourcePath of thinTree) {
+            let rootRelativeUrlPath = '/';// TODO: Perform path maths (determine this using sectionRepoPath, etc)
+            let lastModifiedAt = Date.now();// TODO: Check true modified date using git
+            let fallbackTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
+
+            // TODO: If markdown: Compile to HTML and parse docpage metadata
+
+            // TODO: Skip this page, if appropriate
+
+            // TODO: Generate HTML file
+
+            // TODO: figure out what to do about linked images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.)
+
+            // Append for sitemap.xml and for Sails app configuration.
+            sitemapXml +=`<url><loc>${_.escape(`https://fleetdm.com${rootRelativeUrlPath}`)}</loc><lastmod>${_.escape(lastModifiedAt)}</lastmod></url>`;
+            builtStaticContent.allPages.push({
+              url: rootRelativeUrlPath,
+              title: '' || fallbackTitle,// TODO use metadata title if available
+              lastModifiedAt: lastModifiedAt
+            });
+          }//∞ </each source file>
+        }//∞ </each section repo path>
+
+        // Generate sitemap.xml file
+        // + TODO: make sure that gets checked in, in GH actions workflow
+        sitemapXml += '</urlset>';
+        console.log(sitemapXml);// TODO: actually generate
       },
     ]);
 
+    //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
+    //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗
+    //  ██████╔╝█████╗  ██████╔╝██║     ███████║██║     █████╗         ███████╗███████║██║██║     ███████╗██████╔╝██║     ╚═╝
+    //  ██╔══██╗██╔══╝  ██╔═══╝ ██║     ██╔══██║██║     ██╔══╝         ╚════██║██╔══██║██║██║     ╚════██║██╔══██╗██║     ██╗
+    //  ██║  ██║███████╗██║     ███████╗██║  ██║╚██████╗███████╗    ██╗███████║██║  ██║██║███████╗███████║██║  ██║╚██████╗╚═╝
+    //  ╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝ ╚═════╝╚══════╝    ╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝
+    //
     // Replace .sailsrc file.
     // > This takes the compiled menu file from doc-templater and injects it into the .sailsrc file so it
     // > can be accessed for the purposes of config using `sails.config.builtStaticContent`.
