@@ -5,7 +5,19 @@
 
   <p>This paragraph, and the content above it, are just here for reference.  The HTML generated from markdown is below.</p>
 
-  <%- partial('../partials/built-from-markdown/handbook-queries/get-installed-macos-software.ejs') %>
+  <code>{{query}}</code>
+  <% /*
+  e.g.
+  {
+    "name": "Get docker images on a system",
+    "platforms": "macOS, Linux",
+    "description": "Docker images information, can be used on normal system or a kubenode.",
+    "query": "SELECT * FROM docker_images;",
+    "purpose": "Informational",
+    "remediation": "N/A",
+    "contributors": "anelshaer"
+  },
+  */ %>
 
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -34,12 +34,7 @@ module.exports = {
         });
         // Assert uniqueness of slugs.
         if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
-          // console.log('dupes',_.difference(_.pluck(queries, 'slug'), _.uniq(_.pluck(queries, 'slug'))));
-          // console.log('nonuniqed',_.pluck(queries,'slug').sort().length, _.pluck(queries,'slug').sort());
-          // console.log('uniqed:', _.uniq(_.pluck(queries,'slug')).sort().length, _.uniq(_.pluck(queries,'slug')).sort());
-          // console.log('no slugs:', queries.filter((q)=> !q.slug));
-          // console.log(queries.length,'vs',_.uniq(_.pluck(queries, 'slug')).length);
-          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Here are the duplicates: '+(_.difference(_.pluck(queries, 'slug'), _.uniq(_.pluck(queries, 'slug'))).sort()));
+          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
         }//•
         // Attach to Sails app configuration.
         builtStaticContent.queries = queries;
@@ -64,12 +59,19 @@ module.exports = {
             includeSymlinks: false,
           });
 
+          let rootRelativeUrlPathsSeen = [];
           for (let pageSourcePath of thinTree) {
 
             // Perform path maths (determine this using sectionRepoPath, etc)
             // > See https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
             // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
-            let rootRelativeUrlPath = '/';// TODO
+            let rootRelativeUrlPath = '/'+Math.floor(Math.random()*10000000);// TODO
+
+            // Assert uniqueness of URL paths.
+            if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
+              throw new Error('Failed compiling markdown content: Files as currently named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ' + rootRelativeUrlPath);
+            }//•
+            rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
 
             // Get last modified timestamp using git
             // > See https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
