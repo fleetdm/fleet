@@ -27,7 +27,22 @@ module.exports = {
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse query library from YAML and bake them into the Sails app's configuration.
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml'));
-        builtStaticContent.queries = YAML.parseAllDocuments(yaml).map((yamlDocument) => yamlDocument.toJSON().spec );
+        let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
+          let query = yamlDocument.toJSON().spec;
+          query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
+          return query;
+        });
+        // Assert uniqueness of slugs.
+        if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
+          // console.log('dupes',_.difference(_.pluck(queries, 'slug'), _.uniq(_.pluck(queries, 'slug'))));
+          // console.log('nonuniqed',_.pluck(queries,'slug').sort().length, _.pluck(queries,'slug').sort());
+          // console.log('uniqed:', _.uniq(_.pluck(queries,'slug')).sort().length, _.uniq(_.pluck(queries,'slug')).sort());
+          // console.log('no slugs:', queries.filter((q)=> !q.slug));
+          // console.log(queries.length,'vs',_.uniq(_.pluck(queries, 'slug')).length);
+          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Here are the duplicates: '+(_.difference(_.pluck(queries, 'slug'), _.uniq(_.pluck(queries, 'slug'))).sort()));
+        }//•
+        // Attach to Sails app configuration.
+        builtStaticContent.queries = queries;
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and bake documentation's directory tree into the Sails app's configuration.
 
@@ -91,6 +106,7 @@ module.exports = {
         }//∞ </each section repo path>
 
         // Decorate allPages tree with easier-to-use properties related to metadata embedded in the markdown and parent/child relationships.
+        // Note: Maybe skip the parent/child relationships.
         // > See https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js
         // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/build-jsmenu.js
         // TODO
