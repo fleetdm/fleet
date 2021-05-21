@@ -38,7 +38,6 @@ import {
 import targetInterface from "interfaces/target";
 import validateQuery from "components/forms/validators/validate_query";
 import PATHS from "router/paths";
-import permissionUtils from "utilities/permissions";
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "query-page";
@@ -70,11 +69,7 @@ export class QueryPage extends Component {
     title: PropTypes.string,
     requestHost: PropTypes.bool,
     hostId: PropTypes.string,
-<<<<<<< HEAD
     currentUser: userInterface,
-=======
-    userCanEditDisabled: PropTypes.bool,
->>>>>>> d848e21d (Permissions determine query view)
   };
 
   static defaultProps = {
@@ -723,6 +718,7 @@ export class QueryPage extends Component {
         </div>
       );
     }
+    console.log(query);
 
     // UI for Global Admin and Global Maintainer
     return (
