@@ -25,7 +25,7 @@ module.exports = {
     }
 
     // Serve appropriate content for query.
-    // > See https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
+    // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
     let query = _.find(sails.config.builtStaticContent.queries, { slug: slug });
     if (!query) {
       throw 'notFound';

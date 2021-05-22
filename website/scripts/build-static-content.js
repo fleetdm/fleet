@@ -18,7 +18,7 @@ module.exports = {
     let YAML = require('yaml');
 
     // Rather than involving git, we'll just use the current repo to get the source files we need.
-    // (See git history for examples of another strategy if we need source files from other places.)
+    // (See git history of this file for an example of a different strategy we can use in the future, if we need to gather source files from other places or branches, etc.)
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
@@ -42,7 +42,7 @@ module.exports = {
       async()=>{// Parse markdown pages, compile & generate HTML files, and bake documentation's directory tree into the Sails app's configuration.
 
         // Note:
-        // • path maths inspired by inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
+        // • path maths inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // // Original way that works:  (versus new stuff below)
         // builtStaticContent.allPages = await sails.helpers.compileMarkdownContent('docs/');  // TODO remove this and helper once everything works again
@@ -63,7 +63,7 @@ module.exports = {
           for (let pageSourcePath of thinTree) {
 
             // Perform path maths (determine this using sectionRepoPath, etc)
-            // > See https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
+            // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
             // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
             let rootRelativeUrlPath = '/'+Math.floor(Math.random()*10000000);// TODO
 
@@ -74,7 +74,7 @@ module.exports = {
             rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
 
             // Get last modified timestamp using git
-            // > See https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+            // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
             let lastModifiedAt = Date.now();// TODO
 
             let fallbackTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
@@ -85,7 +85,7 @@ module.exports = {
             // TODO
 
             // Skip this page, if appropriate
-            // > See https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
+            // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
             // TODO
 
             // Generate HTML file
@@ -109,7 +109,7 @@ module.exports = {
 
         // Decorate allPages tree with easier-to-use properties related to metadata embedded in the markdown and parent/child relationships.
         // Note: Maybe skip the parent/child relationships.
-        // > See https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js
+        // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js
         // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/build-jsmenu.js
         // TODO
 
