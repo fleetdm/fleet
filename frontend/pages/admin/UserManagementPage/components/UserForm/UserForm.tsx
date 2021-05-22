@@ -319,8 +319,11 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             disabled={!this.props.canUseSSO}
             wrapperClassName={`${baseClass}__invite-admin`}
           >
-            Enable Single Sign On
+            Enable single sign on
           </Checkbox>
+          <p className={`${baseClass}__sso-input sublabel`}>
+            Password authentication will be disabled for this user.
+          </p>
         </div>
 
         <div className={`${baseClass}__selected-teams-container`}>

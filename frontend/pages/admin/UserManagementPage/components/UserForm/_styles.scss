@@ -1,6 +1,7 @@
 .create-user-form {
   &__sso-input {
     margin-top: $pad-large;
+    margin-bottom: $pad-large;
 
     .kolide-checkbox {
       margin-top: 5px;
@@ -9,7 +10,7 @@
         font-size: $x-small;
         font-weight: $bold;
         color: $core-fleet-black;
-        padding-left: $pad-xlarge;
+        padding-left: 12px;
       }
     }
   }
@@ -60,4 +61,13 @@
   &__btn {
     margin-left: 12px;
   }
+
+  &__invite-admin {
+    margin-bottom: 8px;
+  }
+  
+  .sublabel {
+    margin: 0px;   
+  }
+
 }
