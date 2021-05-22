@@ -17,8 +17,7 @@ module.exports = {
     let path = require('path');
     let YAML = require('yaml');
 
-    // Rather than involving git, we'll just use the current repo to get the source files we need.
-    // (See git history of this file for an example of a different strategy we can use in the future, if we need to gather source files from other places or branches, etc.)
+    // FUTURE: If we ever need to gather source files from other places or branches, etc, see git history of this file circa 2021-05-19 for an example of a different strategy we might use to do that.
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
