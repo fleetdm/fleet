@@ -40,7 +40,7 @@
     &::after {
       @include size(20px);
       transition: border 75ms ease-in-out, background 75ms ease-in-out;
-      border-radius: 4px;
+      border-radius: $border-radius;
       border: solid 2px $ui-fleet-black-25;
       content: "";
       box-sizing: border-box;
@@ -57,11 +57,7 @@
   }
 
   &__label {
-    font-size: 13px;
-    font-weight: $regular;
-    line-height: 20px;
-    letter-spacing: 0.5px;
-    color: $core-fleet-black;
-    padding-left: 25px;
+    font-size: $x-small;
+    padding-left: $pad-small;
   }
 }
