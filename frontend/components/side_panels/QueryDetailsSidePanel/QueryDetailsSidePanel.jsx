@@ -62,7 +62,6 @@ class QueryDetailsSidePanel extends Component {
   render() {
     const { query, currentUser } = this.props;
     const { handleEditQueryClick, renderPacks } = this;
-    console.log(query);
     const { description, name, query: queryText, observer_can_run } = query;
 
     const renderCTA = () => {
@@ -73,7 +72,7 @@ class QueryDetailsSidePanel extends Component {
         return "Edit or run query";
       }
       if (
-        permissionUtils.isTeamMaintainer(currentUser) ||
+        permissionUtils.isAnyTeamMaintainer(currentUser) ||
         (permissionUtils.isOnlyObserver(currentUser) && observer_can_run)
       ) {
         return "Run query";

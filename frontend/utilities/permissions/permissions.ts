@@ -30,9 +30,19 @@ const isTeamObserver = (user: IUser, teamId: number): boolean => {
   return userTeamRole === "observer";
 };
 
+// This checks against a specific team
 const isTeamMaintainer = (user: IUser, teamId: number): boolean => {
   const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "maintainer";
+};
+
+// This checks against all teams
+const isAnyTeamMaintainer = (user: IUser): boolean => {
+  if (!isOnGlobalTeam(user)) {
+    return user.teams.some((team) => team?.role === "maintainer");
+  }
+
+  return false;
 };
 
 const isOnlyObserver = (user: IUser): boolean => {
@@ -56,5 +66,6 @@ export default {
   isOnGlobalTeam,
   isTeamObserver,
   isTeamMaintainer,
+  isAnyTeamMaintainer,
   isOnlyObserver,
 };
