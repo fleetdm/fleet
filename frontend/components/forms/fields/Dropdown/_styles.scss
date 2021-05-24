@@ -58,22 +58,19 @@
       border: 0;
       float: right;
       position: relative;
-      line-height: 25px;
-      width: 25px;
+      line-height: 28px;
+      width: 20px;
       padding: 0;
       margin: 0 5px;
       text-indent: -999em;
 
       &::after {
-        // content: url(/assets/images/icon-close-dark-blue-grey-16x16@2x.png);
-        // transform: scale(0.5);
-        @extend %kolidecon;
         transition: color 150ms ease-in-out;
-        transform: translate(-50%, -50%);
-        content: "\f036";
+        content: url(../assets/images/icon-close-dark-blue-grey-16x16@2x.png);
+        transform: scale(0.5);
         position: absolute;
-        top: 50%;
-        left: 50%;
+        top: -5px;
+        left: -5px;
         visibility: visible;
         font-size: $small;
         color: $ui-gray;
