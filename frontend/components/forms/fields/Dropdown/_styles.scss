@@ -49,7 +49,7 @@
   }
 
   .Select-value {
-    font-size: $small;
+    font-size: $x-small;
     border-radius: 4px;
     background-color: $ui-off-white;
     border: solid 1px $core-dark-blue-grey;
@@ -58,13 +58,15 @@
       border: 0;
       float: right;
       position: relative;
-      line-height: 34px;
+      line-height: 25px;
       width: 25px;
       padding: 0;
       margin: 0 5px;
       text-indent: -999em;
 
       &::after {
+        // content: url(/assets/images/icon-close-dark-blue-grey-16x16@2x.png);
+        // transform: scale(0.5);
         @extend %kolidecon;
         transition: color 150ms ease-in-out;
         transform: translate(-50%, -50%);
@@ -80,9 +82,9 @@
     }
 
     .Select-value-label {
-      font-size: $small;
-      font-weight: $regular;
-      color: $core-fleet-black;
+      font-size: $x-small;
+      font-weight: $bold;
+      color: $core-dark-blue-grey;
       line-height: 28px;
     }
   }
@@ -152,8 +154,8 @@
     &.is-pseudo-focused > .Select-control {
       .Select-value {
         .Select-value-label {
-          color: $core-fleet-black;
-          font-size: $small;
+          color: $core-dark-blue-grey;
+          font-size: $x-small;
         }
       }
     }
@@ -238,12 +240,11 @@
     }
 
     .Select-value {
-      margin-top: 3px;
-      margin-bottom: 3px;
+      margin-top: 4px;
     }
 
     .Select-value-label {
-      padding: 0 0 0 1rem;
+      padding: 0 0 0 10px;
     }
   }
 }
