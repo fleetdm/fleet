@@ -281,18 +281,19 @@ const generateAvailableTableHeaders = (
   return allHostTableHeaders.reduce(
     (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
       // skip over column headers that are not shown in core tier
-
-      if (permissionUtils.isCoreTier(config) && permissionUtils.isGlobalAdmin(currentUser) ||
-        !permissionUtils.isGlobalMaintainer(currentUser)) {
-        return columns;
-      } else if (
-        !permissionUtils.isGlobalAdmin(currentUser) ||
-        !permissionUtils.isGlobalMaintainer(currentUser) &&
-          (currentColumn.accessor === "team_name" ||
-            currentColumn.id === "selection"))
+      if (
+        permissionUtils.isCoreTier(config) &&
+        (permissionUtils.isGlobalAdmin(currentUser) ||
+          permissionUtils.isGlobalMaintainer(currentUser))
       ) {
-        return columns;
+        if (
+          currentColumn.accessor === "team_name" ||
+          currentColumn.id === "selection"
+        ) {
+          return columns;
+        }
       }
+
       columns.push(currentColumn);
       return columns;
     },
