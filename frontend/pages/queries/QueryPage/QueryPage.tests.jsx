@@ -12,7 +12,7 @@ import queryActions from "redux/nodes/entities/queries/actions";
 import ConnectedQueryPage, {
   QueryPage,
 } from "pages/queries/QueryPage/QueryPage";
-import { hostStub, queryStub, labelStub } from "test/stubs";
+import { hostStub, queryStub, labelStub, userStub } from "test/stubs";
 
 const {
   connectedComponent,
@@ -52,6 +52,12 @@ describe("QueryPage - component", () => {
       },
       queries: { loading: false, data: {} },
       targets: {},
+    },
+    // THIS WAS ADDED 5/24, not sure if it's correct
+    auth: {
+      user: {
+        ...userStub,
+      },
     },
   };
   const mockStore = reduxMockStore(store);
@@ -261,6 +267,7 @@ describe("QueryPage - component", () => {
         query: { query: "select * from users" },
         selectedOsqueryTable: defaultSelectedOsqueryTable,
         selectedTargets: [hostStub],
+        // LOOK INTO ME 5/24 should we add a userStub here?
       };
       const Page = mount(<QueryPage {...props} />);
       const PageNode = Page.instance();
