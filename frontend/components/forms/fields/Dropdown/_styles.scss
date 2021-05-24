@@ -46,17 +46,13 @@
     background-color: $ui-light-grey;
     border-radius: 4px;
     height: 40px;
-
-    .Select-value {
-      border: 0;
-    }
   }
 
   .Select-value {
     font-size: $small;
     border-radius: 4px;
-    background-color: $ui-light-grey;
-    border: solid 1px $ui-fleet-blue-15;
+    background-color: $ui-off-white;
+    border: solid 1px $core-dark-blue-grey;
 
     .Select-value-icon {
       border: 0;
