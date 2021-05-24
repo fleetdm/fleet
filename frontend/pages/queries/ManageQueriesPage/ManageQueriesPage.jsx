@@ -277,12 +277,18 @@ export class ManageQueriesPage extends Component {
       renderModal,
       renderSidePanel,
     } = this;
-    const { loadingQueries, queries: allQueries, selectedQuery } = this.props;
+    const {
+      loadingQueries,
+      queries: allQueries,
+      selectedQuery,
+      currentUser,
+    } = this.props;
     const queries = getQueries();
     const queriesCount = queries.length;
     const queriesTotalDisplay =
       queriesCount === 1 ? "1 query" : `${queriesCount} queries`;
     const isQueriesAvailable = allQueries.length > 0;
+    const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
     if (loadingQueries) {
       return false;
@@ -316,6 +322,7 @@ export class ManageQueriesPage extends Component {
             onDblClickQuery={onDblClickQuery}
             queries={queries}
             selectedQuery={selectedQuery}
+            isOnlyObserver={isOnlyObserver}
           />
         </div>
         {renderSidePanel()}
