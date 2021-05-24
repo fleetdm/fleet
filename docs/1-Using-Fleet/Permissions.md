@@ -21,7 +21,7 @@ The following table depicts various permissions levels for each role.
 | Run custom queries as live queries against all hosts |          | ✅         | ✅    |
 | Enroll hosts                                         |          | ✅         | ✅    |
 | Delete hosts                                         |          | ✅         | ✅    |
-| Transfer hosts between teams                         |          | ✅         | ✅    |
+| Transfer hosts between teams\*                       |          | ✅         | ✅    |
 | Create saved queries                                 |          | ✅         | ✅    |
 | Edit saved queries                                   |          | ✅         | ✅    |
 | Delete saved queries                                 |          | ✅         | ✅    |
@@ -38,10 +38,10 @@ The following table depicts various permissions levels for each role.
 | Create enroll secrets                                |          |            | ✅    |
 | Edit enroll secrets                                  |          |            | ✅    |
 | Edit global level agent options                      |          |            | ✅    |
-| Edit team level agent options \*                     |          |            | ✅    |
-| Create teams \*                                      |          |            | ✅    |
-| Edit teams \*                                        |          |            | ✅    |
-| Add members to teams \*                              |          |            | ✅    |
+| Edit team level agent options\*                      |          |            | ✅    |
+| Create teams\*                                       |          |            | ✅    |
+| Edit teams\*                                         |          |            | ✅    |
+| Add members to teams\*                               |          |            | ✅    |
 
 \*Applies only to Fleet Basic
 
@@ -70,5 +70,3 @@ The following table depicts various permissions levels in a team.
 | Run custom queries as live queries on hosts assigned to team |          | ✅         |
 | Enroll hosts to member team                                  |          | ✅         |
 | Delete hosts belonging to member team                        |          | ✅         |
-| Create saved queries                                         |          | ✅         |
-| Edit saved queries                                           |          | ✅         |
