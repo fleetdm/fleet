@@ -241,7 +241,7 @@ export class ManageQueriesPage extends Component {
 
   renderSidePanel = () => {
     const { goToEditQueryPage } = this;
-    const { selectedQuery } = this.props;
+    const { selectedQuery, currentUser } = this.props;
 
     if (!selectedQuery) {
       // FIXME: Render QueryDetailsSidePanel when Fritz has completed the mock
@@ -259,6 +259,7 @@ export class ManageQueriesPage extends Component {
       <QueryDetailsSidePanel
         onEditQuery={goToEditQueryPage}
         query={selectedQuery}
+        currentUser={currentUser}
       />
     );
   };
