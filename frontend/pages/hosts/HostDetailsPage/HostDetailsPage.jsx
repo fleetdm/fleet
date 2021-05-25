@@ -5,7 +5,7 @@ import classnames from "classnames";
 
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
-import { noop, pick } from "lodash";
+import { isEmpty, noop, pick, reduce } from "lodash";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
@@ -434,41 +434,52 @@ export class HostDetailsPage extends Component {
       renderRefetch,
     } = this;
 
-    const titleData = pick(host, [
-      "status",
-      "memory",
-      "host_cpu",
-      "os_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-    ]);
-    const aboutData = pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-    ]);
-    const osqueryData = pick(host, [
-      "config_tls_refresh",
-      "logger_tls_period",
-      "distributed_interval",
-    ]);
-    const data = [titleData, aboutData, osqueryData];
-    data.forEach((object) => {
-      Object.keys(object).forEach((key) => {
-        if (object[key] === "") {
-          object[key] = "--";
-        } else if (
-          key === "logger_tls_period" ||
-          key === "config_tls_refresh" ||
-          key === "distributed_interval"
-        ) {
-          object[key] = secondsToHms(object[key]);
-        }
-      });
-    });
+    const normalizeEmptyValues = (hostData) => {
+      return reduce(
+        hostData,
+        (result, value, key) => {
+          if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+            Object.assign(result, { [key]: value });
+          } else {
+            Object.assign(result, { [key]: "---" });
+          }
+          return result;
+        },
+        {}
+      );
+    };
+
+    const wrapKolideHelper = (helperFn, value) => {
+      return value === "---" ? value : helperFn(value);
+    };
+
+    const titleData = normalizeEmptyValues(
+      pick(host, [
+        "status",
+        "memory",
+        "host_cpu",
+        "os_version",
+        "enroll_secret_name",
+        "detail_updated_at",
+      ])
+    );
+    const aboutData = normalizeEmptyValues(
+      pick(host, [
+        "seen_time",
+        "uptime",
+        "last_enrolled_at",
+        "hardware_model",
+        "hardware_serial",
+        "primary_ip",
+      ])
+    );
+    const osqueryData = normalizeEmptyValues(
+      pick(host, [
+        "config_tls_refresh",
+        "logger_tls_period",
+        "distributed_interval",
+      ])
+    );
 
     const statusClassName = classnames("status", `status--${host.status}`);
 
@@ -501,7 +512,9 @@ export class HostDetailsPage extends Component {
         <div className="section title">
           <div className="title__inner">
             <div className="hostname-container">
-              <h1 className="hostname">{host.hostname}</h1>
+              <h1 className="hostname">
+                {host.hostname ? host.hostname : "---"}
+              </h1>
               <p className="last-fetched">
                 {`Last fetched ${humanHostDetailUpdated(
                   titleData.detail_updated_at
@@ -520,7 +533,7 @@ export class HostDetailsPage extends Component {
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
                 <span className="info__data">
-                  {humanHostMemory(titleData.memory)}
+                  {wrapKolideHelper(humanHostMemory, titleData.memory)}
                 </span>
               </div>
               <div className="info__item info__item--title">
@@ -548,15 +561,21 @@ export class HostDetailsPage extends Component {
               <div className="info__block">
                 <span className="info__header">Created at</span>
                 <span className="info__data">
-                  {humanHostEnrolled(aboutData.last_enrolled_at)}
+                  {wrapKolideHelper(
+                    humanHostEnrolled,
+                    aboutData.last_enrolled_at
+                  )}
                 </span>
                 <span className="info__header">Updated at</span>
                 <span className="info__data">
-                  {humanHostLastSeen(titleData.detail_updated_at)}
+                  {wrapKolideHelper(
+                    humanHostLastSeen,
+                    titleData.detail_updated_at
+                  )}
                 </span>
                 <span className="info__header">Uptime</span>
                 <span className="info__data">
-                  {humanHostUptime(aboutData.uptime)}
+                  {wrapKolideHelper(humanHostUptime, aboutData.uptime)}
                 </span>
               </div>
             </div>
@@ -578,15 +597,18 @@ export class HostDetailsPage extends Component {
             <div className="info__block">
               <span className="info__header">Config TLS refresh</span>
               <span className="info__data">
-                {osqueryData.config_tls_refresh}
+                {wrapKolideHelper(secondsToHms, osqueryData.config_tls_refresh)}
               </span>
               <span className="info__header">Logger TLS period</span>
               <span className="info__data">
-                {osqueryData.logger_tls_period}
+                {wrapKolideHelper(secondsToHms, osqueryData.logger_tls_period)}
               </span>
               <span className="info__header">Distributed interval</span>
               <span className="info__data">
-                {osqueryData.distributed_interval}
+                {wrapKolideHelper(
+                  secondsToHms,
+                  osqueryData.distributed_interval
+                )}
               </span>
             </div>
           </div>
