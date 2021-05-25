@@ -1,7 +1,8 @@
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
+import permissionUtils from "utilities/permissions";
 
-export default (global_role) => {
+export default (currentUser) => {
   const adminNavItems = [
     {
       icon: "settings",
@@ -47,11 +48,11 @@ export default (global_role) => {
     },
   ];
 
-  if (global_role === "admin") {
+  if (permissionUtils.isGlobalAdmin(currentUser)) {
     return [...userNavItems, ...globalMaintainerNavItems, ...adminNavItems];
   }
 
-  if (global_role === "maintainer") {
+  if (permissionUtils.isGlobalMaintainer(currentUser)) {
     return [...userNavItems, ...globalMaintainerNavItems];
   }
 

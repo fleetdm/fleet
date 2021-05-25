@@ -23,11 +23,9 @@ class SiteNavSidePanel extends Component {
   constructor(props) {
     super(props);
 
-    const {
-      user: { global_role },
-    } = this.props;
+    const { user: currentUser } = this.props;
 
-    this.userNavItems = navItems(global_role);
+    this.userNavItems = navItems(currentUser);
   }
 
   renderNavItem = (navItem) => {
