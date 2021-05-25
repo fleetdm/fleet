@@ -11,7 +11,7 @@ import {
   reduxMockStore,
 } from "test/helpers";
 import queryActions from "redux/nodes/entities/queries/actions";
-import { queryStub } from "test/stubs";
+import { queryStub, userStub } from "test/stubs";
 
 const store = {
   entities: {
@@ -27,6 +27,9 @@ const store = {
       },
     },
   },
+  auth: {
+    user: userStub,
+  },
 };
 
 describe("ManageQueriesPage - component", () => {
@@ -40,6 +43,7 @@ describe("ManageQueriesPage - component", () => {
     it("does not render if queries are loading", () => {
       const loadingQueriesStore = {
         entities: { queries: { loading: true, data: {} } },
+        auth: { user: userStub },
       };
       const Component = connectedComponent(ConnectedManageQueriesPage, {
         mockStore: reduxMockStore(loadingQueriesStore),
@@ -50,6 +54,7 @@ describe("ManageQueriesPage - component", () => {
     });
 
     it("renders a QueriesList component", () => {
+      console.log(store);
       const Component = connectedComponent(ConnectedManageQueriesPage, {
         mockStore: reduxMockStore(store),
       });
@@ -76,6 +81,7 @@ describe("ManageQueriesPage - component", () => {
         dispatch: () => Promise.resolve(),
         loadingQueries: false,
         queries: [queryStub],
+        currentUser: userStub,
       };
       const page = mount(<ManageQueriesPage {...props} />);
 
@@ -97,6 +103,7 @@ describe("ManageQueriesPage - component", () => {
         dispatch: () => Promise.reject(),
         loadingQueries: false,
         queries: [queryStub],
+        currentUser: userStub,
       };
       const page = mount(<ManageQueriesPage {...props} />);
 
@@ -128,7 +135,9 @@ describe("ManageQueriesPage - component", () => {
   });
 
   it("updates checkedQueryIDs in state when the check all queries Checkbox is toggled", () => {
-    const page = mount(<ManageQueriesPage queries={[queryStub]} />);
+    const page = mount(
+      <ManageQueriesPage queries={[queryStub]} currentUser={userStub} />
+    );
     const selectAllQueries = page.find({ name: "check-all-queries" });
 
     expect(page.state("checkedQueryIDs")).toEqual([]);
@@ -143,7 +152,9 @@ describe("ManageQueriesPage - component", () => {
   });
 
   it("updates checkedQueryIDs in state when a query row Checkbox is toggled", () => {
-    const page = mount(<ManageQueriesPage queries={[queryStub]} />);
+    const page = mount(
+      <ManageQueriesPage queries={[queryStub]} currentUser={userStub} />
+    );
     const queryCheckbox = page.find({ name: `query-checkbox-${queryStub.id}` });
 
     expect(page.state("checkedQueryIDs")).toEqual([]);
@@ -207,7 +218,9 @@ describe("ManageQueriesPage - component", () => {
     const queries = [queryStub, { ...queryStub, id: 101, name: "alpha query" }];
 
     it("displays the delete action button when a query is checked", () => {
-      const page = mount(<ManageQueriesPage queries={queries} />);
+      const page = mount(
+        <ManageQueriesPage queries={queries} currentUser={userStub} />
+      );
       const checkAllQueries = page.find({ name: "check-all-queries" });
 
       checkAllQueries.hostNodes().simulate("change");

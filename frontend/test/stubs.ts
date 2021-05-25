@@ -137,6 +137,7 @@ export const queryStub = {
   snapshot: false,
   updated_at: "2016-10-17T07:06:00Z",
   version: "",
+  observer_can_run: true,
 };
 
 export const scheduledQueryStub = {

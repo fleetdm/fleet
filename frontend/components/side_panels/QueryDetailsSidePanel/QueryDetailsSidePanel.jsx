@@ -2,9 +2,11 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router";
 
+import permissionUtils from "utilities/permissions";
 import Button from "components/buttons/Button";
 import KolideAce from "components/KolideAce";
 import queryInterface from "interfaces/query";
+import userInterface from "interfaces/user";
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
 
 const baseClass = "query-details-side-panel";
@@ -13,6 +15,7 @@ class QueryDetailsSidePanel extends Component {
   static propTypes = {
     onEditQuery: PropTypes.func.isRequired,
     query: queryInterface.isRequired,
+    currentUser: userInterface,
   };
 
   handleEditQueryClick = (evt) => {
@@ -57,9 +60,27 @@ class QueryDetailsSidePanel extends Component {
   };
 
   render() {
-    const { query } = this.props;
+    const { query, currentUser } = this.props;
     const { handleEditQueryClick, renderPacks } = this;
-    const { description, name, query: queryText } = query;
+    const { description, name, query: queryText, observer_can_run } = query;
+
+    const renderCTA = () => {
+      if (
+        permissionUtils.isGlobalAdmin(currentUser) ||
+        permissionUtils.isGlobalMaintainer(currentUser)
+      ) {
+        return "Edit or run query";
+      }
+      if (
+        permissionUtils.isAnyTeamMaintainer(currentUser) ||
+        (permissionUtils.isOnlyObserver(currentUser) && observer_can_run)
+      ) {
+        return "Run query";
+      }
+      if (permissionUtils.isOnlyObserver(currentUser) && !observer_can_run) {
+        return "Show query";
+      }
+    };
 
     return (
       <SecondarySidePanelContainer className={baseClass}>
@@ -81,8 +102,8 @@ class QueryDetailsSidePanel extends Component {
         </p>
         <p className={`${baseClass}__label`}>Packs</p>
         {renderPacks()}
-        <Button onClick={handleEditQueryClick} variant="inverse">
-          Edit or run query
+        <Button onClick={handleEditQueryClick} variant="brand">
+          {renderCTA(currentUser)}
         </Button>
       </SecondarySidePanelContainer>
     );

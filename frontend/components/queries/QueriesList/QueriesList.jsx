@@ -19,6 +19,7 @@ class QueriesList extends Component {
     onDblClickQuery: PropTypes.func,
     queries: PropTypes.arrayOf(queryInterface).isRequired,
     selectedQuery: queryInterface,
+    isOnlyObserver: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -96,6 +97,7 @@ class QueriesList extends Component {
       onDblClickQuery,
       queries,
       selectedQuery,
+      isOnlyObserver,
     } = this.props;
     const { allQueriesChecked } = this.state;
     const { renderHelpText, handleCheckAll, handleCheckQuery } = this;
@@ -103,7 +105,6 @@ class QueriesList extends Component {
     const wrapperClassName = classnames(`${baseClass}__table`, {
       [`${baseClass}__table--query-selected`]: size(checkedQueryIDs),
     });
-
     return (
       <div className={baseClass}>
         <table className={wrapperClassName}>
@@ -118,6 +119,11 @@ class QueriesList extends Component {
               </th>
               <th>Query name</th>
               <th>Description</th>
+              {isOnlyObserver ? null : (
+                <th className={`${baseClass}__observers-can-run`}>
+                  Observers can run
+                </th>
+              )}
               <th className={`${baseClass}__author-name`}>Author</th>
               <th>Last modified</th>
             </tr>
@@ -134,6 +140,7 @@ class QueriesList extends Component {
                     onSelect={onSelectQuery}
                     onDoubleClick={onDblClickQuery}
                     query={query}
+                    isOnlyObserver={isOnlyObserver}
                     selected={
                       allQueriesChecked || selectedQuery.id === query.id
                     }
