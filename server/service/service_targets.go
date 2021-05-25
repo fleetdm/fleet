@@ -7,13 +7,13 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
-func (svc service) SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint) (*kolide.TargetSearchResults, error) {
+func (svc service) SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint, includeObserver bool) (*kolide.TargetSearchResults, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errNoContext
 	}
 
-	filter := kolide.TeamFilter{User: vc.User}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
 	results := &kolide.TargetSearchResults{}
 
@@ -35,13 +35,13 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 	return results, nil
 }
 
-func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (*kolide.TargetMetrics, error) {
+func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint, includeObserver bool) (*kolide.TargetMetrics, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errNoContext
 	}
 
-	filter := kolide.TeamFilter{User: vc.User}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
 	metrics, err := svc.ds.CountHostsInTargets(filter, hostIDs, labelIDs, svc.clock.Now())
 	if err != nil {

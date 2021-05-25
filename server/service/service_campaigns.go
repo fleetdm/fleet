@@ -186,7 +186,8 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	}
 
 	updateStatus := func() error {
-		metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs)
+		// TODO use appropriate includeObserver value
+		metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs, false)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
 				return errors.New("retrieve target counts")

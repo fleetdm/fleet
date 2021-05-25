@@ -35,11 +35,11 @@ type TargetService interface {
 	// SearchTargets will accept a search query, a slice of IDs of hosts to omit,
 	// and a slice of IDs of labels to omit, and it will return a set of targets
 	// (hosts and label) which match the supplied search query.
-	SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint) (*TargetSearchResults, error)
+	SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint, includeObserver bool) (*TargetSearchResults, error)
 
 	// CountHostsInTargets returns the metrics of the hosts in the provided
 	// label and explicit host IDs.
-	CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (*TargetMetrics, error)
+	CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint, includeObserver bool) (*TargetMetrics, error)
 }
 
 type TargetStore interface {
