@@ -40,7 +40,7 @@ class PackForm extends Component {
 
     return (
       <form className={packFormClass} onSubmit={handleSubmit}>
-        <h1>New Pack</h1>
+        <h1>New pack</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
         <InputField
           {...fields.name}
@@ -52,7 +52,7 @@ class PackForm extends Component {
           {...fields.description}
           inputWrapperClass={`${baseClass}__pack-description`}
           label="Query pack description"
-          placeholder="Add a description of your pack"
+          placeholder="Add a description of your query"
           type="textarea"
         />
         <div className={`${baseClass}__pack-targets`}>
