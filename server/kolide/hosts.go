@@ -57,7 +57,7 @@ type HostStore interface {
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
 	MarkHostsSeen(hostIDs []uint, t time.Time) error
-	SearchHosts(query string, omit ...uint) ([]*Host, error)
+	SearchHosts(filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never
 	// updated their status details. This clears dead "incoming hosts" that
 	// never complete their registration.

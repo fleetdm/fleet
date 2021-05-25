@@ -2,165 +2,68 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"testing"
-	"time"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/datastore/inmem"
+	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 )
 
 func TestSearchTargets(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-
+	ds := new(mock.Store)
 	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
-	ctx := context.Background()
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
-	h1, err := ds.NewHost(&kolide.Host{
-		HostName: "foo.local",
-	})
-	require.Nil(t, err)
+	hosts := []*kolide.Host{
+		{HostName: "foo.local"},
+	}
+	labels := []kolide.Label{
+		{
+			Name:  "label foo",
+			Query: "query foo",
+		},
+	}
 
-	l1, err := ds.NewLabel(&kolide.Label{
-		Name:  "label foo",
-		Query: "query foo",
-	})
-	require.Nil(t, err)
+	ds.SearchHostsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error) {
+		assert.Equal(t, user, filter.User)
+		return hosts, nil
+	}
+	ds.SearchLabelsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
+		assert.Equal(t, user, filter.User)
+		return labels, nil
+	}
 
-	results, err := svc.SearchTargets(ctx, "foo", nil, nil)
-	require.Nil(t, err)
-
-	require.Len(t, results.Hosts, 1)
-	assert.Equal(t, h1.HostName, results.Hosts[0].HostName)
-
-	require.Len(t, results.Labels, 1)
-	assert.Equal(t, l1.Name, results.Labels[0].Name)
+	results, err := svc.SearchTargets(ctx, "foo", nil, nil, false)
+	require.NoError(t, err)
+	assert.Equal(t, *hosts[0], results.Hosts[0])
+	assert.Equal(t, labels[0], results.Labels[0])
 }
 
 func TestSearchWithOmit(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-
+	ds := new(mock.Store)
 	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
-	ctx := context.Background()
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
-	h1, err := ds.NewHost(&kolide.Host{
-		HostName: "foo.local",
-		NodeKey:  "1",
-		UUID:     "1",
-	})
-	require.Nil(t, err)
-
-	h2, err := ds.NewHost(&kolide.Host{
-		HostName: "foobar.local",
-		NodeKey:  "2",
-		UUID:     "2",
-	})
-	require.Nil(t, err)
-
-	l1, err := ds.NewLabel(&kolide.Label{
-		Name:  "label foo",
-		Query: "query foo",
-	})
-	require.Nil(t, err)
-
-	{
-		results, err := svc.SearchTargets(ctx, "foo", nil, nil)
-		require.Nil(t, err)
-
-		require.Len(t, results.Hosts, 2)
-
-		require.Len(t, results.Labels, 1)
-		assert.Equal(t, l1.Name, results.Labels[0].Name)
+	ds.SearchHostsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error) {
+		assert.Equal(t, user, filter.User)
+		assert.Equal(t, []uint{1, 2}, omit)
+		return nil, nil
+	}
+	ds.SearchLabelsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
+		assert.Equal(t, user, filter.User)
+		assert.Equal(t, []uint{3, 4}, omit)
+		return nil, nil
 	}
 
-	{
-		results, err := svc.SearchTargets(ctx, "foo", []uint{h2.ID}, nil)
-		require.Nil(t, err)
-
-		require.Len(t, results.Hosts, 1)
-		assert.Equal(t, h1.HostName, results.Hosts[0].HostName)
-
-		require.Len(t, results.Labels, 1)
-		assert.Equal(t, l1.Name, results.Labels[0].Name)
-	}
-}
-
-func TestSearchHostsInLabels(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
+	_, err = svc.SearchTargets(ctx, "foo", []uint{1, 2}, []uint{3, 4}, false)
 	require.Nil(t, err)
-
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
-
-	ctx := context.Background()
-
-	h1, err := ds.NewHost(&kolide.Host{
-		HostName: "foo.local",
-		NodeKey:  "1",
-		UUID:     "1",
-	})
-	require.Nil(t, err)
-
-	h2, err := ds.NewHost(&kolide.Host{
-		HostName: "bar.local",
-		NodeKey:  "2",
-		UUID:     "2",
-	})
-	require.Nil(t, err)
-
-	h3, err := ds.NewHost(&kolide.Host{
-		HostName: "baz.local",
-		NodeKey:  "3",
-		UUID:     "3",
-	})
-	require.Nil(t, err)
-
-	l1, err := ds.NewLabel(&kolide.Label{
-		Name:  "label foo",
-		Query: "query foo",
-	})
-	require.Nil(t, err)
-	require.NotZero(t, l1.ID)
-
-	for _, h := range []*kolide.Host{h1, h2, h3} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
-		assert.Nil(t, err)
-	}
-
-	results, err := svc.SearchTargets(ctx, "baz", nil, nil)
-	require.Nil(t, err)
-
-	require.Len(t, results.Hosts, 1)
-	assert.Equal(t, h3.HostName, results.Hosts[0].HostName)
-}
-
-func TestSearchResultsLimit(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
-
-	ctx := context.Background()
-
-	for i := 0; i < 15; i++ {
-		_, err := ds.NewHost(&kolide.Host{
-			HostName: fmt.Sprintf("foo.%d.local", i),
-			NodeKey:  fmt.Sprintf("%d", i+1),
-			UUID:     fmt.Sprintf("%d", i+1),
-		})
-		require.Nil(t, err)
-	}
-	targets, err := svc.SearchTargets(ctx, "foo", nil, nil)
-	require.Nil(t, err)
-	assert.Len(t, targets.Hosts, 10)
 }

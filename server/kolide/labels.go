@@ -48,7 +48,7 @@ type LabelStore interface {
 	// it is in multiple of the provided labels.
 	ListUniqueHostsInLabels(labels []uint) ([]Host, error)
 
-	SearchLabels(query string, omit ...uint) ([]Label, error)
+	SearchLabels(filter TeamFilter, query string, omit ...uint) ([]Label, error)
 
 	// LabelIDsByName Retrieve the IDs associated with the given labels
 	LabelIDsByName(labels []string) ([]uint, error)

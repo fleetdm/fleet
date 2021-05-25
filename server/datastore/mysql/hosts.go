@@ -602,24 +602,24 @@ func (d *Datastore) MarkHostsSeen(hostIDs []uint, t time.Time) error {
 	return nil
 }
 
-func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.Host, error) {
+func (d *Datastore) searchHostsWithOmits(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error) {
 	hostQuery := transformQuery(query)
 	ipQuery := `"` + query + `"`
 
-	sqlStatement :=
-		`
-		SELECT DISTINCT *
-		FROM hosts
-		WHERE
-		(
-			MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
-			OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-		)
-		AND id NOT IN (?)
-		LIMIT 10
-	`
+	sql := fmt.Sprintf(`
+			SELECT DISTINCT *
+			FROM hosts
+			WHERE
+			(
+				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
+			)
+			AND id NOT IN (?) AND %s
+			LIMIT 10
+		`, d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostQuery, ipQuery, omit)
+	sql, args, err := sqlx.In(sql, hostQuery, ipQuery, omit)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching hosts")
 	}
@@ -635,13 +635,14 @@ func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.
 	return hosts, nil
 }
 
-func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
-	sqlStatement := `
-	SELECT * FROM hosts
-	WHERE id NOT in (?)
-	ORDER BY seen_time DESC
-	LIMIT 5
-	`
+func (d *Datastore) searchHostsDefault(filter kolide.TeamFilter, omit ...uint) ([]*kolide.Host, error) {
+	sql := fmt.Sprintf(`
+			SELECT * FROM hosts
+			WHERE id NOT in (?) AND %s
+			ORDER BY seen_time DESC
+			LIMIT 5
+		`, d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
 	var in interface{}
 	{
@@ -654,7 +655,7 @@ func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
 	}
 
 	var hosts []*kolide.Host
-	sql, args, err := sqlx.In(sqlStatement, in)
+	sql, args, err := sqlx.In(sql, in)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default hosts")
 	}
@@ -668,32 +669,32 @@ func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
 
 // SearchHosts find hosts by query containing an IP address, a host name or UUID.
 // Optionally pass a list of IDs to omit from the search
-func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {
+func (d *Datastore) SearchHosts(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error) {
 	hostQuery := transformQuery(query)
 	if !queryMinLength(hostQuery) {
-		return d.searchHostsDefault(omit...)
+		return d.searchHostsDefault(filter, omit...)
 	}
 	if len(omit) > 0 {
-		return d.searchHostsWithOmits(query, omit...)
+		return d.searchHostsWithOmits(filter, query, omit...)
 	}
 
 	// Needs quotes to avoid each . marking a word boundary
 	ipQuery := `"` + query + `"`
 
-	sqlStatement :=
-		`
-		SELECT DISTINCT *
-		FROM hosts
-		WHERE
-		(
-			MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
-			OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-		)
-		LIMIT 10
-	`
-	hosts := []*kolide.Host{}
+	sql := fmt.Sprintf(`
+			SELECT DISTINCT *
+			FROM hosts
+			WHERE
+			(
+				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
+			) AND %s
+			LIMIT 10
+		`, d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
-	if err := d.db.Select(&hosts, sqlStatement, hostQuery, ipQuery); err != nil {
+	hosts := []*kolide.Host{}
+	if err := d.db.Select(&hosts, sql, hostQuery, ipQuery); err != nil {
 		return nil, errors.Wrap(err, "searching hosts")
 	}
 

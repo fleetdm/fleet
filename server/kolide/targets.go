@@ -35,21 +35,21 @@ type TargetService interface {
 	// SearchTargets will accept a search query, a slice of IDs of hosts to omit,
 	// and a slice of IDs of labels to omit, and it will return a set of targets
 	// (hosts and label) which match the supplied search query.
-	SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint) (*TargetSearchResults, error)
+	SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint, includeObserver bool) (*TargetSearchResults, error)
 
 	// CountHostsInTargets returns the metrics of the hosts in the provided
 	// label and explicit host IDs.
-	CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (*TargetMetrics, error)
+	CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint, includeObserver bool) (*TargetMetrics, error)
 }
 
 type TargetStore interface {
 	// CountHostsInTargets returns the metrics of the hosts in the provided
 	// label and explicit host IDs.
-	CountHostsInTargets(hostIDs, labelIDs []uint, now time.Time) (TargetMetrics, error)
+	CountHostsInTargets(filter TeamFilter, hostIDs, labelIDs []uint, now time.Time) (TargetMetrics, error)
 	// HostIDsInTargets returns the host IDs of the hosts in the provided label
 	// and explicit host IDs. The returned host IDs should be sorted in
 	// ascending order.
-	HostIDsInTargets(hostIDs, labelIDs []uint) ([]uint, error)
+	HostIDsInTargets(filter TeamFilter, hostIDs, labelIDs []uint) ([]uint, error)
 }
 
 type TargetType int

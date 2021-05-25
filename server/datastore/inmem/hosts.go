@@ -214,7 +214,7 @@ func (d *Datastore) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	return nil
 }
 
-func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {
+func (d *Datastore) SearchHosts(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error) {
 	omitLookup := map[uint]bool{}
 	for _, o := range omit {
 		omitLookup[o] = true

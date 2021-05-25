@@ -18,6 +18,9 @@ type searchTargetsRequest struct {
 		Labels []uint `json:"labels"`
 		Hosts  []uint `json:"hosts"`
 	} `json:"selected"`
+	// IncludeObserver determines whether targets for which the user is only an
+	// observer should be included.
+	IncludeObserver bool `json:"include_observer"`
 }
 
 type hostSearchResult struct {
@@ -51,7 +54,7 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(searchTargetsRequest)
 
-		results, err := svc.SearchTargets(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels)
+		results, err := svc.SearchTargets(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels, req.IncludeObserver)
 		if err != nil {
 			return searchTargetsResponse{Err: err}, nil
 		}
@@ -83,7 +86,7 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			)
 		}
 
-		metrics, err := svc.CountHostsInTargets(ctx, req.Selected.Hosts, req.Selected.Labels)
+		metrics, err := svc.CountHostsInTargets(ctx, req.Selected.Hosts, req.Selected.Labels, req.IncludeObserver)
 		if err != nil {
 			return searchTargetsResponse{Err: err}, nil
 		}

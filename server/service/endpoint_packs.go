@@ -41,7 +41,7 @@ func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pa
 		return nil, err
 	}
 
-	hostMetrics, err := svc.CountHostsInTargets(ctx, hosts, labelIDs)
+	hostMetrics, err := svc.CountHostsInTargets(ctx, hosts, labelIDs, false)
 	if err != nil {
 		return nil, err
 	}

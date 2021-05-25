@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+const (
+	RoleAdmin      = "admin"
+	RoleMaintainer = "maintainer"
+	RoleObserver   = "observer"
+)
+
 type TeamStore interface {
 	// NewTeam creates a new Team object in the store.
 	NewTeam(team *Team) (*Team, error)
@@ -85,8 +91,8 @@ type TeamUser struct {
 }
 
 var teamRoles = map[string]bool{
-	"observer":   true,
-	"maintainer": true,
+	RoleObserver:   true,
+	RoleMaintainer: true,
 }
 
 // ValidTeamRole returns whether the role provided is valid for a team user.
@@ -97,16 +103,16 @@ func ValidTeamRole(role string) bool {
 // ValidTeamRoles returns the list of valid roles for a team user.
 func ValidTeamRoles() []string {
 	var roles []string
-	for role, _ := range teamRoles {
+	for role := range teamRoles {
 		roles = append(roles, role)
 	}
 	return roles
 }
 
 var globalRoles = map[string]bool{
-	"observer":   true,
-	"maintainer": true,
-	"admin":      true,
+	RoleObserver:   true,
+	RoleMaintainer: true,
+	RoleAdmin:      true,
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.
@@ -117,8 +123,17 @@ func ValidGlobalRole(role string) bool {
 // ValidGlobalRoles returns the list of valid roles for a global user.
 func ValidGlobalRoles() []string {
 	var roles []string
-	for role, _ := range globalRoles {
+	for role := range globalRoles {
 		roles = append(roles, role)
 	}
 	return roles
+}
+
+// TeamFilter is the filtering information passed to the datastore for queries
+// that may be filtered by team.
+type TeamFilter struct {
+	// User is the user to filter by.
+	User *User
+	// IncludeObserver determines whether to include teams the user is an observer on.
+	IncludeObserver bool
 }

@@ -1158,10 +1158,10 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		return target, nil
 	}
 
-	ds.CountHostsInTargetsFunc = func(hostIDs, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error) {
+	ds.CountHostsInTargetsFunc = func(filter kolide.TeamFilter, hostIDs, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error) {
 		return kolide.TargetMetrics{}, nil
 	}
-	ds.HostIDsInTargetsFunc = func(hostIDs, labelIDs []uint) ([]uint, error) {
+	ds.HostIDsInTargetsFunc = func(filter kolide.TeamFilter, hostIDs, labelIDs []uint) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
 	lq.On("RunQuery", "21", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)

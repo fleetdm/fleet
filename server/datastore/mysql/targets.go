@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) CountHostsInTargets(hostIDs []uint, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error) {
+func (d *Datastore) CountHostsInTargets(filter kolide.TeamFilter, hostIDs []uint, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and GenerateHostStatusStatistics
 
@@ -26,8 +26,8 @@ func (d *Datastore) CountHostsInTargets(hostIDs []uint, labelIDs []uint, now tim
 			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 			COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
-		WHERE (id IN (?) OR (id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))))
-`, kolide.OnlineIntervalBuffer, kolide.OnlineIntervalBuffer)
+		WHERE (id IN (?) OR (id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?)))) AND %s
+`, kolide.OnlineIntervalBuffer, kolide.OnlineIntervalBuffer, d.whereFilterHostsByTeams(filter, "h"))
 
 	// Using -1 in the ID slices for the IN clause allows us to include the
 	// IN clause even if we have no IDs to use. -1 will not match the
@@ -56,18 +56,20 @@ func (d *Datastore) CountHostsInTargets(hostIDs []uint, labelIDs []uint, now tim
 	return res, nil
 }
 
-func (d *Datastore) HostIDsInTargets(hostIDs []uint, labelIDs []uint) ([]uint, error) {
+func (d *Datastore) HostIDsInTargets(filter kolide.TeamFilter, hostIDs, labelIDs []uint) ([]uint, error) {
 	if len(hostIDs) == 0 && len(labelIDs) == 0 {
 		// No need to query if no targets selected
 		return []uint{}, nil
 	}
 
-	sql := `
-		SELECT DISTINCT id
-		FROM hosts
-		WHERE (id IN (?) OR (id IN (SELECT host_id FROM label_membership WHERE label_id IN (?))))
-		ORDER BY id ASC
-`
+	sql := fmt.Sprintf(`
+			SELECT DISTINCT id
+			FROM hosts
+			WHERE (id IN (?) OR (id IN (SELECT host_id FROM label_membership WHERE label_id IN (?)))) AND %s
+			ORDER BY id ASC
+		`,
+		d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
 	// Using -1 in the ID slices for the IN clause allows us to include the
 	// IN clause even if we have no IDs to use. -1 will not match the

@@ -27,6 +27,24 @@ func ElementsMatchSkipID(t assert.TestingT, listA, listB interface{}, msgAndArgs
 	return ElementsMatchWithOptions(t, listA, listB, []cmp.Option{opt}, msgAndArgs)
 }
 
+// ElementsMatchSkipTimestampsID asserts that the elements match, skipping any field with
+// name "ID", "CreatedAt", and "UpdatedAt". This is useful for comparing after DB insertion.
+func ElementsMatchSkipTimestampsID(t assert.TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
+	opt := cmp.FilterPath(func(p cmp.Path) bool {
+		for _, ps := range p {
+			switch ps := ps.(type) {
+			case cmp.StructField:
+				switch ps.Name() {
+				case "ID", "UpdateCreateTimestamps", "CreateTimestamp", "UpdateTimestamp", "CreatedAt", "UpdatedAt":
+					return true
+				}
+			}
+		}
+		return false
+	}, cmp.Ignore())
+	return ElementsMatchWithOptions(t, listA, listB, []cmp.Option{opt}, msgAndArgs)
+}
+
 // The below functions adapted from
 // https://github.com/stretchr/testify/blob/v1.7.0/assert/assertions.go#L895 by
 // utilizing the options provided in github.com/google/go-cmp/cmp
