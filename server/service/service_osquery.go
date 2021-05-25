@@ -1010,6 +1010,9 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 		// execute that query when we can't write to any subscriber
 		campaign, err := svc.ds.DistributedQueryCampaign(uint(campaignID))
 		if err != nil {
+			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaignID))); err != nil {
+				return osqueryError{message: "stop orphaned campaign after load failure: " + err.Error()}
+			}
 			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
 		}
 
