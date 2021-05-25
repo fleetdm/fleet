@@ -7,9 +7,9 @@ import (
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 )
 
 func TestSearchTargets(t *testing.T) {
@@ -17,7 +17,7 @@ func TestSearchTargets(t *testing.T) {
 	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
 	hosts := []*kolide.Host{
@@ -50,7 +50,7 @@ func TestSearchWithOmit(t *testing.T) {
 	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
 	ds.SearchHostsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error) {

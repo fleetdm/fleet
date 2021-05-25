@@ -6,13 +6,13 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 )
 
 func TestSanitizeColumn(t *testing.T) {
@@ -308,25 +308,25 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 		// Global role
 		{
 			filter: kolide.TeamFilter{
-				User: &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)},
+				User: &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)},
 			},
 			expected: "TRUE",
 		},
 		{
 			filter: kolide.TeamFilter{
-				User: &kolide.User{GlobalRole: null.StringFrom(kolide.RoleMaintainer)},
+				User: &kolide.User{GlobalRole: ptr.String(kolide.RoleMaintainer)},
 			},
 			expected: "TRUE",
 		},
 		{
 			filter: kolide.TeamFilter{
-				User: &kolide.User{GlobalRole: null.StringFrom(kolide.RoleObserver)},
+				User: &kolide.User{GlobalRole: ptr.String(kolide.RoleObserver)},
 			},
 			expected: "FALSE",
 		},
 		{
 			filter: kolide.TeamFilter{
-				User:            &kolide.User{GlobalRole: null.StringFrom(kolide.RoleObserver)},
+				User:            &kolide.User{GlobalRole: ptr.String(kolide.RoleObserver)},
 				IncludeObserver: true,
 			},
 			expected: "TRUE",

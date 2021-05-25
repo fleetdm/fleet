@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mail"
 	"github.com/pkg/errors"
-	"gopkg.in/guregu/null.v3"
 )
 
 func (svc service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
@@ -109,11 +108,11 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		}
 
 		user.Teams = *p.Teams
-		user.GlobalRole = null.StringFromPtr(nil)
+		user.GlobalRole = nil
 	}
 
 	if p.GlobalRole != nil {
-		user.GlobalRole = null.StringFrom(*p.GlobalRole)
+		user.GlobalRole = p.GlobalRole
 		user.Teams = []kolide.UserTeam{}
 	}
 

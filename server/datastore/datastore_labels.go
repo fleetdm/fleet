@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 )
 
 func testLabels(t *testing.T, db kolide.Datastore) {
@@ -240,7 +240,7 @@ func testSearchLabels(t *testing.T, db kolide.Datastore) {
 	l3, err := db.Label(specs[2].ID)
 	require.Nil(t, err)
 
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	filter := kolide.TeamFilter{User: user}
 
 	// We once threw errors when the search query was empty. Verify that we
@@ -285,7 +285,7 @@ func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
 		require.Nil(t, err)
 	}
 
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	filter := kolide.TeamFilter{User: user}
 
 	labels, err := db.SearchLabels(filter, "foo")
@@ -357,7 +357,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 func testBuiltInLabels(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, db.MigrateData())
 
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	filter := kolide.TeamFilter{User: user}
 
 	hits, err := db.SearchLabels(filter, "macOS")

@@ -353,20 +353,22 @@ func (d *Datastore) whereFilterHostsByTeams(filter kolide.TeamFilter, hostKey st
 		return "FALSE"
 	}
 
-	switch filter.User.GlobalRole.String {
+	if filter.User.GlobalRole != nil {
+		switch *filter.User.GlobalRole {
 
-	case kolide.RoleAdmin, kolide.RoleMaintainer:
-		return "TRUE"
-
-	case kolide.RoleObserver:
-		if filter.IncludeObserver {
+		case kolide.RoleAdmin, kolide.RoleMaintainer:
 			return "TRUE"
-		} else {
-			return "FALSE"
-		}
 
-	default:
-		// Fall through to specific teams
+		case kolide.RoleObserver:
+			if filter.IncludeObserver {
+				return "TRUE"
+			} else {
+				return "FALSE"
+			}
+
+		default:
+			// Fall through to specific teams
+		}
 	}
 
 	// Collect matching teams

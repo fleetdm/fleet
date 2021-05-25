@@ -11,10 +11,10 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 )
 
 var enrollTests = []struct {
@@ -495,7 +495,7 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	filter := kolide.TeamFilter{User: user}
 
 	// We once threw errors when the search query was empty. Verify that we
@@ -551,7 +551,7 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 }
 
 func testSearchHostsLimit(t *testing.T, ds kolide.Datastore) {
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	filter := kolide.TeamFilter{User: user}
 
 	for i := 0; i < 15; i++ {
