@@ -41,7 +41,6 @@ import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
-
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
 
 const NEW_LABEL_HASH = "#new_label";
@@ -67,6 +66,7 @@ export class ManageHostsPage extends PureComponent {
     hosts: PropTypes.arrayOf(hostInterface),
     loadingHosts: PropTypes.bool,
     canAddNewHosts: PropTypes.bool,
+    canAddNewLabels: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
   };
@@ -520,6 +520,7 @@ export class ManageHostsPage extends PureComponent {
       selectedFilter,
       selectedOsqueryTable,
       statusLabels,
+      canAddNewLabels,
     } = this.props;
     const { onAddLabelClick, onLabelClick, onOsqueryTableSelect } = this;
 
@@ -540,6 +541,7 @@ export class ManageHostsPage extends PureComponent {
           onLabelClick={onLabelClick}
           selectedFilter={selectedFilter}
           statusLabels={statusLabels}
+          canAddNewLabel={canAddNewLabels}
         />
       );
     }
@@ -666,6 +668,9 @@ const mapStateToProps = (state, { location, params }) => {
   const canAddNewHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
+  const canAddNewLabels =
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
 
   const teams = memoizedGetEntity(state.entities.teams.data);
@@ -685,6 +690,7 @@ const mapStateToProps = (state, { location, params }) => {
     hosts,
     loadingHosts,
     canAddNewHosts,
+    canAddNewLabels,
     isGlobalAdmin,
     teams,
   };

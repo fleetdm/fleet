@@ -19,6 +19,7 @@ class HostSidePanel extends Component {
     onLabelClick: PropTypes.func,
     selectedFilter: PropTypes.string,
     statusLabels: statusLabelsInterface,
+    canAddNewLabel: PropTypes.bool,
   };
 
   constructor(props) {
@@ -41,6 +42,7 @@ class HostSidePanel extends Component {
       onLabelClick,
       selectedFilter,
       statusLabels,
+      canAddNewLabel,
     } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
@@ -100,14 +102,15 @@ class HostSidePanel extends Component {
           selectedFilter={selectedFilter}
           type="label"
         />
-
-        <Button
-          variant="grey"
-          onClick={onAddLabelClick}
-          className={`${baseClass}__add-label-btn`}
-        >
-          Add new label
-        </Button>
+        {canAddNewLabel ? (
+          <Button
+            variant="grey"
+            onClick={onAddLabelClick}
+            className={`${baseClass}__add-label-btn`}
+          >
+            Add new label
+          </Button>
+        ) : null}
       </SecondarySidePanelContainer>
     );
   }
