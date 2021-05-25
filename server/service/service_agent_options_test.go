@@ -9,7 +9,6 @@ import (
 	"github.com/fleetdm/fleet/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 )
 
 func TestAgentOptionsForHost(t *testing.T) {
@@ -28,7 +27,7 @@ func TestAgentOptionsForHost(t *testing.T) {
 	}
 
 	host := &kolide.Host{
-		TeamID:   null.IntFrom(int64(teamID)),
+		TeamID:   &teamID,
 		Platform: "darwin",
 	}
 
@@ -42,7 +41,7 @@ func TestAgentOptionsForHost(t *testing.T) {
 	assert.JSONEq(t, `{"foo":"bar"}`, string(opt))
 
 	// Should take gobal option with no team
-	host.TeamID.Valid = false
+	host.TeamID = nil
 	opt, err = svc.AgentOptionsForHost(context.Background(), host)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"baz":"bar"}`, string(opt))

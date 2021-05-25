@@ -939,7 +939,7 @@ func testAddHostsToTeam(t *testing.T, ds kolide.Datastore) {
 	for i := 1; i <= 10; i++ {
 		host, err := ds.Host(uint(i))
 		require.NoError(t, err)
-		assert.Equal(t, null.Int{}, host.TeamID)
+		assert.Nil(t, host.TeamID)
 	}
 
 	require.NoError(t, ds.AddHostsToTeam(&team1.ID, []uint{1, 2, 3}))
@@ -948,12 +948,12 @@ func testAddHostsToTeam(t *testing.T, ds kolide.Datastore) {
 	for i := 1; i <= 10; i++ {
 		host, err := ds.Host(uint(i))
 		require.NoError(t, err)
-		expectedID := null.Int{}
+		var expectedID *uint
 		switch {
 		case i <= 2:
-			expectedID = null.IntFrom(int64(team1.ID))
+			expectedID = &team1.ID
 		case i <= 5:
-			expectedID = null.IntFrom(int64(team2.ID))
+			expectedID = &team2.ID
 		}
 		assert.Equal(t, expectedID, host.TeamID)
 	}
@@ -964,10 +964,10 @@ func testAddHostsToTeam(t *testing.T, ds kolide.Datastore) {
 	for i := 1; i <= 10; i++ {
 		host, err := ds.Host(uint(i))
 		require.NoError(t, err)
-		expectedID := null.Int{}
+		var expectedID *uint
 		switch {
 		case i >= 5:
-			expectedID = null.IntFrom(int64(team1.ID))
+			expectedID = &team1.ID
 		}
 		assert.Equal(t, expectedID, host.TeamID)
 	}
