@@ -5,6 +5,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -191,9 +192,6 @@ func setupPackSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.PackSpec {
 	err = ds.ApplyLabelSpecs(labels)
 	require.Nil(t, err)
 
-	boolPtr := func(b bool) *bool { return &b }
-	uintPtr := func(x uint) *uint { return &x }
-	stringPtr := func(s string) *string { return &s }
 	expectedSpecs := []*kolide.PackSpec{
 		&kolide.PackSpec{
 			ID:   1,
@@ -216,18 +214,18 @@ func setupPackSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.PackSpec {
 					QueryName: queries[0].Name,
 					Name:      "foo_snapshot",
 					Interval:  600,
-					Snapshot:  boolPtr(true),
-					Denylist:  boolPtr(false),
+					Snapshot:  ptr.Bool(true),
+					Denylist:  ptr.Bool(false),
 				},
 				kolide.PackSpecQuery{
 					Name:      "q2",
 					QueryName: queries[1].Name,
 					Interval:  600,
-					Removed:   boolPtr(false),
-					Shard:     uintPtr(73),
-					Platform:  stringPtr("foobar"),
-					Version:   stringPtr("0.0.0.0.0.1"),
-					Denylist:  boolPtr(true),
+					Removed:   ptr.Bool(false),
+					Shard:     ptr.Uint(73),
+					Platform:  ptr.String("foobar"),
+					Version:   ptr.String("0.0.0.0.0.1"),
+					Denylist:  ptr.Bool(true),
 				},
 			},
 		},
@@ -253,16 +251,16 @@ func setupPackSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.PackSpec {
 					QueryName: queries[0].Name,
 					Name:      "foo_snapshot",
 					Interval:  600,
-					Snapshot:  boolPtr(true),
+					Snapshot:  ptr.Bool(true),
 				},
 				kolide.PackSpecQuery{
 					Name:      "q2",
 					QueryName: queries[1].Name,
 					Interval:  600,
-					Removed:   boolPtr(false),
-					Shard:     uintPtr(73),
-					Platform:  stringPtr("foobar"),
-					Version:   stringPtr("0.0.0.0.0.1"),
+					Removed:   ptr.Bool(false),
+					Shard:     ptr.Uint(73),
+					Platform:  ptr.String("foobar"),
+					Version:   ptr.String("0.0.0.0.0.1"),
 				},
 			},
 		},

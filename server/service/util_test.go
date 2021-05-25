@@ -6,9 +6,9 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 )
 
 func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore) (kolide.Service, error) {
@@ -65,25 +65,25 @@ var testUsers = map[string]struct {
 	Username          string
 	Email             string
 	PlaintextPassword string
-	GlobalRole        null.String
+	GlobalRole        *string
 }{
 	"admin1": {
 		Username:          "admin1",
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "admin1@example.com",
-		GlobalRole:        null.StringFrom("admin"),
+		GlobalRole:        ptr.String(kolide.RoleAdmin),
 	},
 	"user1": {
 		Username:          "user1",
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "user1@example.com",
-		GlobalRole:        null.StringFrom("maintainer"),
+		GlobalRole:        ptr.String(kolide.RoleMaintainer),
 	},
 	"user2": {
 		Username:          "user2",
 		PlaintextPassword: "bazfoo1234!",
 		Email:             "user2@example.com",
-		GlobalRole:        null.StringFrom("maintainer"),
+		GlobalRole:        ptr.String(kolide.RoleObserver),
 	},
 }
 
@@ -95,12 +95,4 @@ type mockMailService struct {
 func (svc *mockMailService) SendEmail(e kolide.Email) error {
 	svc.Invoked = true
 	return svc.SendEmailFn(e)
-}
-
-func stringPtr(s string) *string {
-	return &s
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }

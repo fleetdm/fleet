@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,11 +20,11 @@ func testListScheduledQueriesInPack(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 
 	specs := []*kolide.PackSpec{
-		&kolide.PackSpec{
+		{
 			Name:    "baz",
 			Targets: kolide.PackSpecTargets{Labels: []string{}},
 			Queries: []kolide.PackSpecQuery{
-				kolide.PackSpecQuery{
+				{
 					QueryName:   queries[0].Name,
 					Description: "test_foo",
 					Interval:    60,
@@ -41,29 +42,28 @@ func testListScheduledQueriesInPack(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, "test_foo", gotQueries[0].Description)
 	assert.Equal(t, "select * from foo", gotQueries[0].Query)
 
-	boolPtr := func(b bool) *bool { return &b }
 	specs = []*kolide.PackSpec{
-		&kolide.PackSpec{
+		{
 			Name:    "baz",
 			Targets: kolide.PackSpecTargets{Labels: []string{}},
 			Queries: []kolide.PackSpecQuery{
-				kolide.PackSpecQuery{
+				{
 					QueryName:   queries[0].Name,
 					Description: "test_foo",
 					Interval:    60,
 				},
-				kolide.PackSpecQuery{
+				{
 					QueryName:   queries[1].Name,
 					Name:        "test bar",
 					Description: "test_bar",
 					Interval:    60,
 				},
-				kolide.PackSpecQuery{
+				{
 					QueryName:   queries[1].Name,
 					Name:        "test bar snapshot",
 					Description: "test_bar",
 					Interval:    60,
-					Snapshot:    boolPtr(true),
+					Snapshot:    ptr.Bool(true),
 				},
 			},
 		},
@@ -143,22 +143,22 @@ func testCascadingDeletionOfQueries(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 
 	specs := []*kolide.PackSpec{
-		&kolide.PackSpec{
+		{
 			Name:    "baz",
 			Targets: kolide.PackSpecTargets{Labels: []string{}},
 			Queries: []kolide.PackSpecQuery{
-				kolide.PackSpecQuery{
+				{
 					QueryName:   queries[0].Name,
 					Description: "test_foo",
 					Interval:    60,
 				},
-				kolide.PackSpecQuery{
+				{
 					QueryName:   queries[1].Name,
 					Name:        "test bar",
 					Description: "test_bar",
 					Interval:    60,
 				},
-				kolide.PackSpecQuery{
+				{
 					QueryName:   queries[1].Name,
 					Name:        "test bar snapshot",
 					Description: "test_bar",

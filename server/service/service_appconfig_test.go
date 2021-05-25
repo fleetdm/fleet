@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,12 +46,12 @@ func TestCreateAppConfig(t *testing.T) {
 		{
 			configPayload: kolide.AppConfigPayload{
 				OrgInfo: &kolide.OrgInfo{
-					OrgLogoURL: stringPtr("acme.co/images/logo.png"),
-					OrgName:    stringPtr("Acme"),
+					OrgLogoURL: ptr.String("acme.co/images/logo.png"),
+					OrgName:    ptr.String("Acme"),
 				},
 				ServerSettings: &kolide.ServerSettings{
-					KolideServerURL:   stringPtr("https://acme.co:8080/"),
-					LiveQueryDisabled: boolPtr(true),
+					KolideServerURL:   ptr.String("https://acme.co:8080/"),
+					LiveQueryDisabled: ptr.Bool(true),
 				},
 			},
 		},

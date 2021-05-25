@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/mock"
@@ -74,9 +75,9 @@ func TestModifyUserEmail(t *testing.T) {
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
-		Email:    stringPtr("zip@zap.com"),
-		Password: stringPtr("password"),
-		Position: stringPtr("minion"),
+		Email:    ptr.String("zip@zap.com"),
+		Password: ptr.String("password"),
+		Position: ptr.String("minion"),
 	}
 	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.Nil(t, err)
@@ -116,9 +117,9 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
-		Email: stringPtr("zip@zap.com"),
+		Email: ptr.String("zip@zap.com"),
 		// NO PASSWORD
-		//	Password: stringPtr("password"),
+		//	Password: ptr.String("password"),
 	}
 	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
@@ -162,9 +163,9 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
-		Email: stringPtr("zip@zap.com"),
+		Email: ptr.String("zip@zap.com"),
 		// NO PASSWORD
-		//	Password: stringPtr("password"),
+		//	Password: ptr.String("password"),
 	}
 	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
@@ -208,8 +209,8 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
-		Email:    stringPtr("zip@zap.com"),
-		Password: stringPtr("password"),
+		Email:    ptr.String("zip@zap.com"),
+		Password: ptr.String("password"),
 	}
 	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.Nil(t, err)
@@ -308,46 +309,46 @@ func TestCreateUserWithInvite(t *testing.T) {
 		wantErr            error
 	}{
 		{
-			Username:    stringPtr("admin2"),
-			Password:    stringPtr("foobarbaz1234!"),
+			Username:    ptr.String("admin2"),
+			Password:    ptr.String("foobarbaz1234!"),
 			InviteToken: &invites["admin2@example.com"].Token,
 			wantErr:     &invalidArgumentError{invalidArgument{name: "email", reason: "missing required argument"}},
 		},
 		{
-			Username: stringPtr("admin2"),
-			Password: stringPtr("foobarbaz1234!"),
-			Email:    stringPtr("admin2@example.com"),
+			Username: ptr.String("admin2"),
+			Password: ptr.String("foobarbaz1234!"),
+			Email:    ptr.String("admin2@example.com"),
 			wantErr:  &invalidArgumentError{invalidArgument{name: "invite_token", reason: "missing required argument"}},
 		},
 		{
-			Username:           stringPtr("admin2"),
-			Password:           stringPtr("foobarbaz1234!"),
-			Email:              stringPtr("admin2@example.com"),
-			NeedsPasswordReset: boolPtr(true),
+			Username:           ptr.String("admin2"),
+			Password:           ptr.String("foobarbaz1234!"),
+			Email:              ptr.String("admin2@example.com"),
+			NeedsPasswordReset: ptr.Bool(true),
 			InviteToken:        &invites["admin2@example.com"].Token,
 		},
 		{ // should return ErrNotFound because the invite is deleted
 			// after a user signs up
-			Username:           stringPtr("admin2"),
-			Password:           stringPtr("foobarbaz1234!"),
-			Email:              stringPtr("admin2@example.com"),
-			NeedsPasswordReset: boolPtr(true),
+			Username:           ptr.String("admin2"),
+			Password:           ptr.String("foobarbaz1234!"),
+			Email:              ptr.String("admin2@example.com"),
+			NeedsPasswordReset: ptr.Bool(true),
 			InviteToken:        &invites["admin2@example.com"].Token,
 			wantErr:            errors.New("Invite with token admin2@example.com was not found in the datastore"),
 		},
 		{
-			Username:           stringPtr("admin3"),
-			Password:           stringPtr("foobarbaz1234!"),
+			Username:           ptr.String("admin3"),
+			Password:           ptr.String("foobarbaz1234!"),
 			Email:              &invites["expired"].Email,
-			NeedsPasswordReset: boolPtr(true),
+			NeedsPasswordReset: ptr.Bool(true),
 			InviteToken:        &invites["expired"].Token,
 			wantErr:            &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}},
 		},
 		{
-			Username:           stringPtr("admin3@example.com"),
-			Password:           stringPtr("foobarbaz1234!"),
-			Email:              stringPtr("admin3@example.com"),
-			NeedsPasswordReset: boolPtr(true),
+			Username:           ptr.String("admin3@example.com"),
+			Password:           ptr.String("foobarbaz1234!"),
+			Email:              ptr.String("admin3@example.com"),
+			NeedsPasswordReset: ptr.Bool(true),
 			InviteToken:        &invites["admin3@example.com"].Token,
 		},
 	}
