@@ -18,6 +18,9 @@ const DataTable = (props) => {
     sortDirection,
     onSort,
     onSelectActionClick,
+    selectAllButtonText,
+    allSelectedText,
+    selectActionButtonText,
   } = props;
 
   const columns = useMemo(() => {
@@ -105,7 +108,7 @@ const DataTable = (props) => {
                 <th className={"active-selection__container"}>
                   <div className={"active-selection__inner"}>
                     {data.length === Object.keys(selectedRowIds).length ? (
-                      <p>All hosts on this page are selected</p>
+                      <p>{allSelectedText}</p>
                     ) : (
                       <p>
                         <span>{selectedFlatRows.length}</span> selected
@@ -116,7 +119,7 @@ const DataTable = (props) => {
                       onClick={onSelectAllClick}
                       variant={"text-link"}
                     >
-                      Select all matching hosts
+                      {selectAllButtonText}
                     </Button>
                     <Button
                       onClick={onClearSelectionClick}
@@ -125,7 +128,7 @@ const DataTable = (props) => {
                       Clear selection
                     </Button>
                     <Button onClick={onSelectActionButtonClick}>
-                      Transfer to team
+                      {selectActionButtonText}
                     </Button>
                   </div>
                 </th>
@@ -171,6 +174,9 @@ DataTable.propTypes = {
   sortDirection: PropTypes.string,
   onSort: PropTypes.func,
   onSelectActionClick: PropTypes.func,
+  selectAllButtonText: PropTypes.string,
+  allSelectedText: PropTypes.string,
+  selectActionButtonText: PropTypes.string,
 };
 
 export default DataTable;

@@ -35,6 +35,9 @@ interface ITableContainerProps<T, U> {
   onQueryChange: (queryData: ITableQueryData) => void;
   onSelectActionClick?: (selectedItemIds: number[]) => void;
   inputPlaceHolder: string;
+  allSelectedText?: string;
+  selectAllButtonText?: string;
+  selectActionButtonText?: string;
   disableActionButton?: boolean;
   resultsTitle?: string;
   additionalQueries?: string;
@@ -63,6 +66,9 @@ const TableContainer = <T, U>(
     onQueryChange,
     resultsTitle,
     emptyComponent,
+    selectAllButtonText,
+    allSelectedText,
+    selectActionButtonText,
     className,
     disableActionButton,
     actionButtonText,
@@ -213,6 +219,9 @@ const TableContainer = <T, U>(
               data={data}
               sortHeader={sortHeader}
               sortDirection={sortDirection}
+              selectAllButtonText={selectAllButtonText}
+              allSelectedText={allSelectedText}
+              selectActionButtonText={selectActionButtonText}
               onSort={onSortChange}
               onSelectActionClick={onSelectActionClick}
             />

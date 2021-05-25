@@ -592,6 +592,9 @@ export class ManageHostsPage extends PureComponent {
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify([selectedFilter])}
+        selectAllButtonText={"Select all matching hosts"}
+        allSelectedText={"All hosts on this page are selected"}
+        selectActionButtonText={"Transfer to team"}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
         onSelectActionClick={onTransferToTeamClick}
