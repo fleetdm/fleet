@@ -1361,11 +1361,11 @@ Returns a list of all enabled users
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| order_key               | string  | query | What to order results by. Can be any column in the users table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
-| query                  | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                   |
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the users table.                                                               |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| query           | string | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 
 #### Example
 
@@ -1743,14 +1743,13 @@ Delete the specified user from Fleet.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required.** The user's id.            |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required.** The user's id. |
 
 #### Example
 
 `DELETE /api/v1/fleet/users/3`
-
 
 ##### Default response
 
@@ -3750,14 +3749,17 @@ In Fleet, targets are used to run queries against specific hosts or groups of ho
 
 The search targets endpoint returns two lists. The first list includes the possible target hosts in Fleet given the search query provided and the hosts already selected as targets. The second list includes the possible target labels in Fleet given the search query provided and the labels already selected as targets.
 
+The returned lists are filtered based on the hosts the requesting user has access to.
+
 `POST /api/v1/fleet/targets`
 
 #### Parameters
 
-| Name     | Type   | In   | Description                                                                                                                                                        |
-| -------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| query    | string | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                           |
-| selected | object | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs and a `labels` property which contains a list of label IDs. |
+| Name             | Type    | In   | Description                                                                                                                                                        |
+| ---------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| query            | string  | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                           |
+| selected         | object  | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs and a `labels` property which contains a list of label IDs. |
+| include_observer | boolean | body | Whether to include hosts that the user only has `observer` permission on.                                                                                          |
 
 #### Example
 
@@ -3771,7 +3773,8 @@ The search targets endpoint returns two lists. The first list includes the possi
   "selected": {
     "hosts": [],
     "labels": [7]
-  }
+  },
+  "include_observer": true
 }
 ```
 
@@ -4181,12 +4184,12 @@ Modifies and/or creates the specified enroll secret(s).
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| admin   | boolean  | body | **Required.** Whether or not the invited user will be granted admin privileges.             |
-| email   | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.              |
-| name     | string  | body | **Required.** The name of the invited user.         |
-| sso_enabled     | boolean  | body | **Required.** Whether or not SSO will be enabled for the invited user.   |
+| Name        | Type    | In   | Description                                                                               |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------- |
+| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.           |
+| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link. |
+| name        | string  | body | **Required.** The name of the invited user.                                               |
+| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                    |
 
 #### Example
 
@@ -4230,11 +4233,11 @@ Returns a list of the active invitations in Fleet.
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| order_key               | string  | query | What to order results by. Can be any column in the invites table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
-| query                  | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                   |
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the invites table.                                                             |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| query           | string | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 
 #### Example
 
