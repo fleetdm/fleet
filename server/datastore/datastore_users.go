@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 )
 
 func testCreateUser(t *testing.T, ds kolide.Datastore) {
@@ -117,7 +117,7 @@ func testEmailAttribute(t *testing.T, ds kolide.Datastore, users []*kolide.User)
 
 func testUserGlobalRole(t *testing.T, ds kolide.Datastore, users []*kolide.User) {
 	for _, user := range users {
-		user.GlobalRole = null.StringFrom("admin")
+		user.GlobalRole = ptr.String("admin")
 		err := ds.SaveUser(user)
 		assert.Nil(t, err)
 

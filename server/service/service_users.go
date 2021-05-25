@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mail"
 	"github.com/pkg/errors"
-	"gopkg.in/guregu/null.v3"
 )
 
 func (svc service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
@@ -84,7 +83,7 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		user.Name = *p.Name
 	}
 
-	if p.Email != nil {
+	if p.Email != nil && *p.Email != user.Email {
 		err = svc.modifyEmailAddress(ctx, user, *p.Email, p.Password)
 		if err != nil {
 			return nil, err
@@ -103,18 +102,15 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		user.SSOEnabled = *p.SSOEnabled
 	}
 
-	if p.Teams != nil {
-		if p.GlobalRole != nil {
+	if p.GlobalRole != nil && *p.GlobalRole != "" {
+		if p.Teams != nil && len(*p.Teams) > 0 {
 			return nil, newInvalidArgumentError("teams", "may not be specified with global_role")
 		}
-
-		user.Teams = *p.Teams
-		user.GlobalRole = null.StringFromPtr(nil)
-	}
-
-	if p.GlobalRole != nil {
-		user.GlobalRole = null.StringFrom(*p.GlobalRole)
+		user.GlobalRole = p.GlobalRole
 		user.Teams = []kolide.UserTeam{}
+	} else if p.Teams != nil {
+		user.Teams = *p.Teams
+		user.GlobalRole = nil
 	}
 
 	err = svc.saveUser(user)

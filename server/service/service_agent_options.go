@@ -10,8 +10,8 @@ import (
 
 func (svc service) AgentOptionsForHost(ctx context.Context, host *kolide.Host) (json.RawMessage, error) {
 	// If host has a team and team has non-empty options, prioritize that.
-	if host.TeamID.Valid {
-		team, err := svc.ds.Team(uint(host.TeamID.Int64))
+	if host.TeamID != nil {
+		team, err := svc.ds.Team(*host.TeamID)
 		if err != nil {
 			return nil, errors.Wrap(err, "load team for host")
 		}

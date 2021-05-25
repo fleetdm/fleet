@@ -6,8 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"time"
-
-	"gopkg.in/guregu/null.v3"
 )
 
 type HostStatus string
@@ -155,7 +153,7 @@ type Host struct {
 	Additional                *json.RawMessage    `json:"additional,omitempty" db:"additional"`
 	EnrollSecretName          string              `json:"enroll_secret_name" db:"enroll_secret_name"`
 
-	TeamID null.Int `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" db:"team_id"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
 	TeamName *string `json:"team_name" db:"team_name"`
 	// Loaded via JOIN in DB

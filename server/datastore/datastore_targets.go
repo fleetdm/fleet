@@ -7,10 +7,10 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 )
 
 func testCountHostsInTargets(t *testing.T, ds kolide.Datastore) {
@@ -18,7 +18,7 @@ func testCountHostsInTargets(t *testing.T, ds kolide.Datastore) {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
 
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	filter := kolide.TeamFilter{User: user}
 
 	mockClock := clock.NewMockClock()
@@ -136,7 +136,7 @@ func testHostStatus(t *testing.T, ds kolide.Datastore) {
 	h, err := ds.EnrollHost("1", "key1", "default", 0)
 	require.Nil(t, err)
 
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	filter := kolide.TeamFilter{User: user}
 
 	// Make host no longer appear new
@@ -193,7 +193,7 @@ func testHostIDsInTargets(t *testing.T, ds kolide.Datastore) {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
 
-	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	filter := kolide.TeamFilter{User: user}
 
 	hostCount := 0

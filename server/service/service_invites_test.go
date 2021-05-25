@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +35,7 @@ func TestInviteNewUserMock(t *testing.T) {
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &kolide.User{ID: 3}})
 	payload := kolide.InvitePayload{
-		Email: stringPtr("user@acme.co"),
+		Email: ptr.String("user@acme.co"),
 	}
 
 	// happy path

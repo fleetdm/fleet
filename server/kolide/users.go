@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/guregu/null.v3"
 )
 
 // UserStore contains methods for managing users in a datastore
@@ -101,8 +100,8 @@ type User struct {
 	GravatarURL              string `json:"gravatar_url" db:"gravatar_url"`
 	Position                 string `json:"position,omitempty"` // job role
 	// SSOEnabled if true, the user may only log in via SSO
-	SSOEnabled bool        `json:"sso_enabled" db:"sso_enabled"`
-	GlobalRole null.String `json:"global_role" db:"global_role"`
+	SSOEnabled bool    `json:"sso_enabled" db:"sso_enabled"`
+	GlobalRole *string `json:"global_role" db:"global_role"`
 
 	// Teams is the teams this user has roles in.
 	Teams []UserTeam `json:"teams"`
@@ -171,7 +170,7 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 		user.Teams = *p.Teams
 	}
 	if p.GlobalRole != nil {
-		user.GlobalRole = null.StringFrom(*p.GlobalRole)
+		user.GlobalRole = p.GlobalRole
 	}
 
 	return user, nil
