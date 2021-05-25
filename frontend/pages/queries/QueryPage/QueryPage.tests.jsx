@@ -221,6 +221,9 @@ describe("QueryPage - component", () => {
           },
         },
       },
+      auth: {
+        user: userStub,
+      },
     });
     const page = mount(
       connectedComponent(ConnectedQueryPage, {
@@ -267,7 +270,7 @@ describe("QueryPage - component", () => {
         query: { query: "select * from users" },
         selectedOsqueryTable: defaultSelectedOsqueryTable,
         selectedTargets: [hostStub],
-        // LOOK INTO ME 5/24 should we add a userStub here?
+        currentUser: userStub,
       };
       const Page = mount(<QueryPage {...props} />);
       const PageNode = Page.instance();
@@ -308,6 +311,7 @@ describe("QueryPage - component", () => {
           dispatch={noop}
           query={queryStub}
           selectedOsqueryTable={defaultSelectedOsqueryTable}
+          currentUser={userStub}
         />
       );
       const filename = "query_results.csv";
@@ -349,6 +353,7 @@ describe("QueryPage - component", () => {
           dispatch={noop}
           query={queryStub}
           selectedOsqueryTable={defaultSelectedOsqueryTable}
+          currentUser={userStub}
         />
       );
       Page.setState({ campaign });
