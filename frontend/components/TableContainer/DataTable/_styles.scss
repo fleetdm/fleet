@@ -52,6 +52,10 @@
       }
     }
 
+    .select-all-button {
+      font-weight: $regular;
+    }
+
     .active-selection {
       position: absolute;
       top: -1px;

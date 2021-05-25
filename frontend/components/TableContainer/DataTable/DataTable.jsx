@@ -53,8 +53,8 @@ const DataTable = (props) => {
 
   const { sortBy, selectedRowIds } = tableState;
 
-  // This is used to listen for changes to sort. If there is a change
-  // Then the sortHandler change is fired.
+  // This is used to listen for changes to sort. If there is a change to these
+  // table properties then the sortHandler change is fired.
   useEffect(() => {
     const column = sortBy[0];
     if (column !== undefined) {
@@ -74,6 +74,10 @@ const DataTable = (props) => {
     onSelectActionClick(entityIds);
   }, [onSelectActionClick, selectedFlatRows]);
 
+  const onSelectAllClick = useCallback(() => {
+    toggleAllRowsSelected(true);
+  }, [toggleAllRowsSelected]);
+
   const onClearSelectionClick = useCallback(() => {
     toggleAllRowsSelected(false);
   }, [toggleAllRowsSelected]);
@@ -87,6 +91,7 @@ const DataTable = (props) => {
           </div>
         )}
         <table className={"data-table__table"}>
+          {/* only shows when there are selected rows. */}
           {Object.keys(selectedRowIds).length !== 0 && (
             <thead className={"active-selection"}>
               <tr {...headerGroups[0].getHeaderGroupProps()}>
@@ -99,9 +104,20 @@ const DataTable = (props) => {
                 </th>
                 <th className={"active-selection__container"}>
                   <div className={"active-selection__inner"}>
-                    <p>
-                      <span>{selectedFlatRows.length}</span> selected
-                    </p>
+                    {data.length === Object.keys(selectedRowIds).length ? (
+                      <p>All hosts on this page are selected</p>
+                    ) : (
+                      <p>
+                        <span>{selectedFlatRows.length}</span> selected
+                      </p>
+                    )}
+                    <Button
+                      className={"select-all-button"}
+                      onClick={onSelectAllClick}
+                      variant={"text-link"}
+                    >
+                      Select all matching hosts
+                    </Button>
                     <Button
                       onClick={onClearSelectionClick}
                       variant={"text-link"}
