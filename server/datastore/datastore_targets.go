@@ -10,12 +10,16 @@ import (
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 )
 
 func testCountHostsInTargets(t *testing.T, ds kolide.Datastore) {
 	if ds.Name() == "inmem" {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
+
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	filter := kolide.TeamFilter{User: user}
 
 	mockClock := clock.NewMockClock()
 
@@ -67,42 +71,42 @@ func testCountHostsInTargets(t *testing.T, ds kolide.Datastore) {
 		assert.Nil(t, err)
 	}
 
-	metrics, err := ds.CountHostsInTargets(nil, []uint{l1.ID, l2.ID}, mockClock.Now())
+	metrics, err := ds.CountHostsInTargets(filter, nil, []uint{l1.ID, l2.ID}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
 	assert.Equal(t, uint(2), metrics.OfflineHosts)
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets([]uint{h1.ID, h2.ID}, []uint{l1.ID, l2.ID}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(filter, []uint{h1.ID, h2.ID}, []uint{l1.ID, l2.ID}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
 	assert.Equal(t, uint(2), metrics.OfflineHosts)
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets([]uint{h1.ID, h2.ID}, nil, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(filter, []uint{h1.ID, h2.ID}, nil, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), metrics.TotalHosts)
 	assert.Equal(t, uint(1), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets([]uint{h1.ID}, []uint{l2.ID}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(filter, []uint{h1.ID}, []uint{l2.ID}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(4), metrics.TotalHosts)
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(nil, nil, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(filter, nil, nil, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(0), metrics.TotalHosts)
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
 	assert.Equal(t, uint(0), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets([]uint{}, []uint{}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(filter, []uint{}, []uint{}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(0), metrics.TotalHosts)
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
@@ -111,7 +115,7 @@ func testCountHostsInTargets(t *testing.T, ds kolide.Datastore) {
 
 	// Advance clock so all hosts are offline
 	mockClock.AddTime(2 * time.Minute)
-	metrics, err = ds.CountHostsInTargets(nil, []uint{l1.ID, l2.ID}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(filter, nil, []uint{l1.ID, l2.ID}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
@@ -131,6 +135,9 @@ func testHostStatus(t *testing.T, ds kolide.Datastore) {
 
 	h, err := ds.EnrollHost("1", "key1", "default", 0)
 	require.Nil(t, err)
+
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	filter := kolide.TeamFilter{User: user}
 
 	// Make host no longer appear new
 	mockClock.AddTime(36 * time.Hour)
@@ -174,7 +181,7 @@ func testHostStatus(t *testing.T, ds kolide.Datastore) {
 			require.Nil(t, ds.MarkHostSeen(h, tt.seenTime))
 
 			// Verify status
-			metrics, err := ds.CountHostsInTargets([]uint{h.ID}, []uint{}, mockClock.Now())
+			metrics, err := ds.CountHostsInTargets(filter, []uint{h.ID}, []uint{}, mockClock.Now())
 			require.Nil(t, err)
 			assert.Equal(t, tt.metrics, metrics)
 		})
@@ -185,6 +192,9 @@ func testHostIDsInTargets(t *testing.T, ds kolide.Datastore) {
 	if ds.Name() == "inmem" {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
+
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	filter := kolide.TeamFilter{User: user}
 
 	hostCount := 0
 	initHost := func() *kolide.Host {
@@ -230,31 +240,31 @@ func testHostIDsInTargets(t *testing.T, ds kolide.Datastore) {
 		assert.Nil(t, err)
 	}
 
-	ids, err := ds.HostIDsInTargets(nil, []uint{l1.ID, l2.ID})
+	ids, err := ds.HostIDsInTargets(filter, nil, []uint{l1.ID, l2.ID})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 2, 3, 4, 5, 6}, ids)
 
-	ids, err = ds.HostIDsInTargets([]uint{h1.ID}, nil)
+	ids, err = ds.HostIDsInTargets(filter, []uint{h1.ID}, nil)
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1}, ids)
 
-	ids, err = ds.HostIDsInTargets([]uint{h1.ID}, []uint{l1.ID})
+	ids, err = ds.HostIDsInTargets(filter, []uint{h1.ID}, []uint{l1.ID})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 2, 3, 6}, ids)
 
-	ids, err = ds.HostIDsInTargets([]uint{4}, []uint{l1.ID})
+	ids, err = ds.HostIDsInTargets(filter, []uint{4}, []uint{l1.ID})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 2, 3, 4, 6}, ids)
 
-	ids, err = ds.HostIDsInTargets([]uint{4}, []uint{l2.ID})
+	ids, err = ds.HostIDsInTargets(filter, []uint{4}, []uint{l2.ID})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{3, 4, 5}, ids)
 
-	ids, err = ds.HostIDsInTargets([]uint{}, []uint{l2.ID})
+	ids, err = ds.HostIDsInTargets(filter, []uint{}, []uint{l2.ID})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{3, 4, 5}, ids)
 
-	ids, err = ds.HostIDsInTargets([]uint{1, 6}, []uint{l2.ID})
+	ids, err = ds.HostIDsInTargets(filter, []uint{1, 6}, []uint{l2.ID})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 3, 4, 5, 6}, ids)
 }

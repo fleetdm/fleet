@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 )
 
 func TestSanitizeColumn(t *testing.T) {
@@ -281,4 +282,147 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
+}
+
+func TestWhereFilterHostsByTeams(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		filter   kolide.TeamFilter
+		expected string
+	}{
+		// No teams or global role
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{Teams: []kolide.UserTeam{}},
+			},
+			expected: "FALSE",
+		},
+
+		// Global role
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)},
+			},
+			expected: "TRUE",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{GlobalRole: null.StringFrom(kolide.RoleMaintainer)},
+			},
+			expected: "TRUE",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{GlobalRole: null.StringFrom(kolide.RoleObserver)},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User:            &kolide.User{GlobalRole: null.StringFrom(kolide.RoleObserver)},
+				IncludeObserver: true,
+			},
+			expected: "TRUE",
+		},
+
+		// Team roles
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{
+					Teams: []kolide.UserTeam{
+						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
+					},
+				},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{
+					Teams: []kolide.UserTeam{
+						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
+					},
+				},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id IN (1)",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{
+					Teams: []kolide.UserTeam{
+						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
+						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 2}},
+					},
+				},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{
+					Teams: []kolide.UserTeam{
+						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
+						{Role: kolide.RoleMaintainer, Team: kolide.Team{ID: 2}},
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2)",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{
+					Teams: []kolide.UserTeam{
+						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
+						{Role: kolide.RoleMaintainer, Team: kolide.Team{ID: 2}},
+					},
+				},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id IN (1,2)",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{
+					Teams: []kolide.UserTeam{
+						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
+						{Role: kolide.RoleMaintainer, Team: kolide.Team{ID: 2}},
+						// Invalid role should be ignored
+						{Role: "bad", Team: kolide.Team{ID: 37}},
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2)",
+		},
+		{
+			filter: kolide.TeamFilter{
+				User: &kolide.User{
+					Teams: []kolide.UserTeam{
+						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
+						{Role: kolide.RoleMaintainer, Team: kolide.Team{ID: 2}},
+						{Role: kolide.RoleAdmin, Team: kolide.Team{ID: 3}},
+						// Invalid role should be ignored
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2,3)",
+		},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			ds := &Datastore{logger: log.NewNopLogger()}
+			sql := ds.whereFilterHostsByTeams(tt.filter, "hosts")
+			assert.Equal(t, tt.expected, sql)
+		})
+	}
 }

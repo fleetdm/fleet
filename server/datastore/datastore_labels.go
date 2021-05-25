@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 )
 
 func testLabels(t *testing.T, db kolide.Datastore) {
@@ -239,23 +240,26 @@ func testSearchLabels(t *testing.T, db kolide.Datastore) {
 	l3, err := db.Label(specs[2].ID)
 	require.Nil(t, err)
 
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	filter := kolide.TeamFilter{User: user}
+
 	// We once threw errors when the search query was empty. Verify that we
 	// don't error.
-	labels, err := db.SearchLabels("")
+	labels, err := db.SearchLabels(filter, "")
 	require.Nil(t, err)
 	assert.Contains(t, labels, *all)
 
-	labels, err = db.SearchLabels("foo")
+	labels, err = db.SearchLabels(filter, "foo")
 	require.Nil(t, err)
 	assert.Len(t, labels, 3)
 	assert.Contains(t, labels, *all)
 
-	labels, err = db.SearchLabels("foo", all.ID, l3.ID)
+	labels, err = db.SearchLabels(filter, "foo", all.ID, l3.ID)
 	require.Nil(t, err)
 	assert.Len(t, labels, 1)
 	assert.Equal(t, "foo", labels[0].Name)
 
-	labels, err = db.SearchLabels("xxx")
+	labels, err = db.SearchLabels(filter, "xxx")
 	require.Nil(t, err)
 	assert.Len(t, labels, 1)
 	assert.Contains(t, labels, *all)
@@ -281,7 +285,10 @@ func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
 		require.Nil(t, err)
 	}
 
-	labels, err := db.SearchLabels("foo")
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	filter := kolide.TeamFilter{User: user}
+
+	labels, err := db.SearchLabels(filter, "foo")
 	require.Nil(t, err)
 	assert.Len(t, labels, 11)
 }
@@ -350,7 +357,10 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 func testBuiltInLabels(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, db.MigrateData())
 
-	hits, err := db.SearchLabels("macOS")
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	filter := kolide.TeamFilter{User: user}
+
+	hits, err := db.SearchLabels(filter, "macOS")
 	require.Nil(t, err)
 	// Should get Mac OS X and All Hosts
 	assert.Equal(t, 2, len(hits))

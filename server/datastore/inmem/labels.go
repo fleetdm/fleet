@@ -151,7 +151,7 @@ func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) 
 	return labels, nil
 }
 
-func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, error) {
+func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
 	omitLookup := map[uint]bool{}
 	for _, o := range omit {
 		omitLookup[o] = true

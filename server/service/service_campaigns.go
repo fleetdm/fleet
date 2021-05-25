@@ -88,7 +88,9 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		}
 	}
 
-	hostIDs, err := svc.ds.HostIDsInTargets(hosts, labels)
+	filter := kolide.TeamFilter{User: vc.User}
+
+	hostIDs, err := svc.ds.HostIDsInTargets(filter, hosts, labels)
 	if err != nil {
 		return nil, errors.Wrap(err, "get target IDs")
 	}
@@ -98,7 +100,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		return nil, errors.Wrap(err, "run query")
 	}
 
-	campaign.Metrics, err = svc.ds.CountHostsInTargets(hosts, labels, time.Now())
+	campaign.Metrics, err = svc.ds.CountHostsInTargets(filter, hosts, labels, time.Now())
 	if err != nil {
 		return nil, errors.Wrap(err, "counting hosts")
 	}

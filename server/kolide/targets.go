@@ -45,11 +45,11 @@ type TargetService interface {
 type TargetStore interface {
 	// CountHostsInTargets returns the metrics of the hosts in the provided
 	// label and explicit host IDs.
-	CountHostsInTargets(hostIDs, labelIDs []uint, now time.Time) (TargetMetrics, error)
+	CountHostsInTargets(filter TeamFilter, hostIDs, labelIDs []uint, now time.Time) (TargetMetrics, error)
 	// HostIDsInTargets returns the host IDs of the hosts in the provided label
 	// and explicit host IDs. The returned host IDs should be sorted in
 	// ascending order.
-	HostIDsInTargets(hostIDs, labelIDs []uint) ([]uint, error)
+	HostIDsInTargets(filter TeamFilter, hostIDs, labelIDs []uint) ([]uint, error)
 }
 
 type TargetType int

@@ -3,10 +3,18 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
 func (svc service) SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint) (*kolide.TargetSearchResults, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errNoContext
+	}
+
+	filter := kolide.TeamFilter{User: vc.User}
+
 	results := &kolide.TargetSearchResults{}
 
 	hosts, err := svc.ds.SearchHosts(query, selectedHostIDs...)
@@ -18,7 +26,7 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 		results.Hosts = append(results.Hosts, *h)
 	}
 
-	labels, err := svc.ds.SearchLabels(query, selectedLabelIDs...)
+	labels, err := svc.ds.SearchLabels(filter, query, selectedLabelIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +36,14 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 }
 
 func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (*kolide.TargetMetrics, error) {
-	metrics, err := svc.ds.CountHostsInTargets(hostIDs, labelIDs, svc.clock.Now())
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errNoContext
+	}
+
+	filter := kolide.TeamFilter{User: vc.User}
+
+	metrics, err := svc.ds.CountHostsInTargets(filter, hostIDs, labelIDs, svc.clock.Now())
 	if err != nil {
 		return nil, err
 	}
