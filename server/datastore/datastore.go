@@ -98,6 +98,7 @@ var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testCarveUpdateCarve,
 	testTeamGetSetDelete,
 	testTeamUsers,
+	testTeamListTeams,
 	testUserTeams,
 	testUserCreateWithTeams,
 	testSaveHostSoftware,
