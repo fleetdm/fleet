@@ -78,7 +78,7 @@ class QueryDetailsSidePanel extends Component {
         return "Run query";
       }
       if (permissionUtils.isOnlyObserver(currentUser) && !observer_can_run) {
-        return "View query";
+        return "Show query";
       }
     };
 
@@ -102,7 +102,7 @@ class QueryDetailsSidePanel extends Component {
         </p>
         <p className={`${baseClass}__label`}>Packs</p>
         {renderPacks()}
-        <Button onClick={handleEditQueryClick} variant="inverse">
+        <Button onClick={handleEditQueryClick} variant="brand">
           {renderCTA(currentUser)}
         </Button>
       </SecondarySidePanelContainer>
