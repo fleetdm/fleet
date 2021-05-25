@@ -1321,6 +1321,8 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 		return nil, fmt.Errorf("missing campaign")
 	}
 
+	lq.On("StopQuery", "42").Return(nil)
+
 	host := kolide.Host{ID: 1}
 
 	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
