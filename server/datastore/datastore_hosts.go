@@ -495,31 +495,34 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	filter := kolide.TeamFilter{User: user}
+
 	// We once threw errors when the search query was empty. Verify that we
 	// don't error.
-	_, err = ds.SearchHosts("")
+	_, err = ds.SearchHosts(filter, "")
 	require.Nil(t, err)
 
-	hosts, err := ds.SearchHosts("foo")
+	hosts, err := ds.SearchHosts(filter, "foo")
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 2)
 
-	host, err := ds.SearchHosts("foo", h3.ID)
+	host, err := ds.SearchHosts(filter, "foo", h3.ID)
 	require.Nil(t, err)
 	require.Len(t, host, 1)
 	assert.Equal(t, "foo.local", host[0].HostName)
 
-	host, err = ds.SearchHosts("foo", h3.ID, h2.ID)
+	host, err = ds.SearchHosts(filter, "foo", h3.ID, h2.ID)
 	require.Nil(t, err)
 	require.Len(t, host, 1)
 	assert.Equal(t, "foo.local", host[0].HostName)
 
-	host, err = ds.SearchHosts("abc")
+	host, err = ds.SearchHosts(filter, "abc")
 	require.Nil(t, err)
 	require.Len(t, host, 1)
 	assert.Equal(t, "abc-def-ghi", host[0].UUID)
 
-	none, err := ds.SearchHosts("xxx")
+	none, err := ds.SearchHosts(filter, "xxx")
 	assert.Nil(t, err)
 	assert.Len(t, none, 0)
 
@@ -528,26 +531,29 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	err = ds.SaveHost(h2)
 	require.Nil(t, err)
 
-	hits, err := ds.SearchHosts("99.100.101")
+	hits, err := ds.SearchHosts(filter, "99.100.101")
 	require.Nil(t, err)
 	require.Equal(t, 1, len(hits))
 
-	hits, err = ds.SearchHosts("99.100.111")
+	hits, err = ds.SearchHosts(filter, "99.100.111")
 	require.Nil(t, err)
 	assert.Equal(t, 0, len(hits))
 
 	h3.PrimaryIP = "99.100.101.104"
 	err = ds.SaveHost(h3)
 	require.Nil(t, err)
-	hits, err = ds.SearchHosts("99.100.101")
+	hits, err = ds.SearchHosts(filter, "99.100.101")
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(hits))
-	hits, err = ds.SearchHosts("99.100.101", h3.ID)
+	hits, err = ds.SearchHosts(filter, "99.100.101", h3.ID)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(hits))
 }
 
 func testSearchHostsLimit(t *testing.T, ds kolide.Datastore) {
+	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
+	filter := kolide.TeamFilter{User: user}
+
 	for i := 0; i < 15; i++ {
 		_, err := ds.NewHost(&kolide.Host{
 			DetailUpdateTime: time.Now(),
@@ -561,7 +567,7 @@ func testSearchHostsLimit(t *testing.T, ds kolide.Datastore) {
 		require.Nil(t, err)
 	}
 
-	hosts, err := ds.SearchHosts("foo")
+	hosts, err := ds.SearchHosts(filter, "foo")
 	require.Nil(t, err)
 	assert.Len(t, hosts, 10)
 }

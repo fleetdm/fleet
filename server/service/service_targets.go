@@ -17,7 +17,7 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 
 	results := &kolide.TargetSearchResults{}
 
-	hosts, err := svc.ds.SearchHosts(query, selectedHostIDs...)
+	hosts, err := svc.ds.SearchHosts(filter, query, selectedHostIDs...)
 	if err != nil {
 		return nil, err
 	}

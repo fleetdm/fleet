@@ -32,7 +32,7 @@ type MarkHostsSeenFunc func(hostIDs []uint, t time.Time) error
 
 type CleanupIncomingHostsFunc func(t time.Time) error
 
-type SearchHostsFunc func(query string, omit ...uint) ([]*kolide.Host, error)
+type SearchHostsFunc func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error)
 
 type GenerateHostStatusStatisticsFunc func(now time.Time) (online uint, offline uint, mia uint, new uint, err error)
 
@@ -147,9 +147,9 @@ func (s *HostStore) CleanupIncomingHosts(t time.Time) error {
 	return s.CleanupIncomingHostsFunc(t)
 }
 
-func (s *HostStore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {
+func (s *HostStore) SearchHosts(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error) {
 	s.SearchHostsFuncInvoked = true
-	return s.SearchHostsFunc(query, omit...)
+	return s.SearchHostsFunc(filter, query, omit...)
 }
 
 func (s *HostStore) GenerateHostStatusStatistics(now time.Time) (online uint, offline uint, mia uint, new uint, err error) {

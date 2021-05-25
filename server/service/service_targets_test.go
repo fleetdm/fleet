@@ -30,7 +30,8 @@ func TestSearchTargets(t *testing.T) {
 		},
 	}
 
-	ds.SearchHostsFunc = func(query string, omit ...uint) ([]*kolide.Host, error) {
+	ds.SearchHostsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error) {
+		assert.Equal(t, user, filter.User)
 		return hosts, nil
 	}
 	ds.SearchLabelsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
@@ -52,11 +53,13 @@ func TestSearchWithOmit(t *testing.T) {
 	user := &kolide.User{GlobalRole: null.StringFrom(kolide.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
-	ds.SearchHostsFunc = func(query string, omit ...uint) ([]*kolide.Host, error) {
+	ds.SearchHostsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error) {
+		assert.Equal(t, user, filter.User)
 		assert.Equal(t, []uint{1, 2}, omit)
 		return nil, nil
 	}
 	ds.SearchLabelsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
+		assert.Equal(t, user, filter.User)
 		assert.Equal(t, []uint{3, 4}, omit)
 		return nil, nil
 	}
