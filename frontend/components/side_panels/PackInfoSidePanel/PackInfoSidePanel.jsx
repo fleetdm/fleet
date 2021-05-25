@@ -1,7 +1,8 @@
 import React from "react";
 
-import KolideIcon from "components/icons/KolideIcon";
 import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
+import DifferentialIcon from "../../../../assets/images/icon-plus-minus-black-16x16@2x.png";
+import SnapshotIcon from "../../../../assets/images/icon-snapshot-black-16x14@2x.png";
 
 const baseClass = "pack-info-side-panel";
 
@@ -23,14 +24,14 @@ const PackInfoSidePanel = () => {
 
       <dl>
         <dt>
-          <KolideIcon name="plus-minus" /> <span>Differential</span>
+          <img src={DifferentialIcon} alt="plus-minus" />
+          <span>Differential</span>
         </dt>
-        <dd>Only record data that has changed.</dd>
 
         <dt>
-          <KolideIcon name="camera" /> <span>Snapshot</span>
+          <img src={SnapshotIcon} alt="snapshot" />
+          <span>Snapshot</span>
         </dt>
-        <dd>Record full query result each time.</dd>
       </dl>
 
       <h4 className={`${baseClass}__subtitle`}>Where do I find results?</h4>
@@ -40,9 +41,9 @@ const PackInfoSidePanel = () => {
       </p>
       <p>
         The results of queries run via query packs are stored in log files for
-        your convenience. We recommend forwarding this logs to a log aggregation
-        tool or other actionable tool for further analysis. These logs can be
-        found in the following locations:
+        your convenience. We recommend forwarding these logs to a log
+        aggregation tool or other actionable tool for further analysis. These
+        logs can be found in the following locations:
       </p>
       <ul>
         <li>

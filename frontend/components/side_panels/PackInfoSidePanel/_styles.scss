@@ -12,15 +12,13 @@
     color: $core-fleet-black;
     border-bottom: 1px solid $ui-fleet-blue-15;
     padding-bottom: 8px;
-    margin: 0 0 $pad-xsmall;
+    margin: 0 0 7px;
   }
 
   &__subtitle {
     font-size: $small;
-    font-weight: $regular;
+    font-weight: $bold;
     color: $core-fleet-black;
-    margin: 0 0 10px;
-    padding-top: 15px;
   }
 
   a {
@@ -32,6 +30,10 @@
   ul {
     font-size: $x-small;
     color: $core-fleet-black;
+  }
+
+  p {
+    margin: 24px 0 24px 0;
   }
 
   ul {
@@ -48,10 +50,12 @@
       font-weight: $bold;
       font-size: $x-small;
       color: $core-fleet-black;
+      margin-bottom: 24px;
 
-      .kolidecon {
-        font-size: $medium;
-        margin-right: 5px;
+      img {
+        height: 16px;
+        width: auto;
+        margin-right: 8px;
       }
 
       span {
@@ -59,10 +63,5 @@
       }
     }
 
-    dd {
-      font-size: 13px;
-      color: $core-fleet-black;
-      margin-left: 30px;
-    }
   }
 }
