@@ -98,7 +98,7 @@ module.exports = {
               // TODO
             }
 
-            // FUTURE: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
+            // TODO: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
 
             // Append to Sails app configuration.
             builtStaticContent.markdownPages.push({
