@@ -17,7 +17,10 @@ import {
   humanHostLastSeen,
   humanHostDetailUpdated,
 } from "kolide/helpers";
-import PATHS from "../../../router/paths";
+import { IConfig } from "interfaces/config";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import permissionUtils from "utilities/permissions";
 
 interface IHeaderProps {
   column: {
@@ -56,7 +59,7 @@ const lastSeenTime = (status: string, seenTime: string): string => {
   return "Online";
 };
 
-const hostTableHeaders: IHostDataColumn[] = [
+const allHostTableHeaders: IHostDataColumn[] = [
   // We are using React Table useRowSelect functionality for the selection header.
   // More information on its API can be found here
   // https://react-table.tanstack.com/docs/api/useRowSelect
@@ -101,6 +104,12 @@ const hostTableHeaders: IHostDataColumn[] = [
       />
     ),
     disableHidden: true,
+  },
+  {
+    title: "Team",
+    Header: "Team",
+    accessor: "team_name",
+    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Status",
@@ -261,12 +270,58 @@ const defaultHiddenColumns = [
   "hardware_serial",
 ];
 
-const generateVisibleHostColumns = (
-  hiddenColumns: string[]
+/**
+ * Will generate a host table column configuration based off of the current user
+ * permissions and license tier of fleet they are on.
+ */
+const generateAvailableTableHeaders = (
+  config: IConfig,
+  currentUser: IUser
 ): IHostDataColumn[] => {
-  return hostTableHeaders.filter((column) => {
+  return allHostTableHeaders.reduce(
+    (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
+      // skip over column headers that are not shown in core tier
+      if (permissionUtils.isCoreTier(config)) {
+        if (
+          currentColumn.accessor === "team_name" ||
+          currentColumn.id === "selection"
+        ) {
+          return columns;
+        }
+        // In base tier, we want to check user role to enable/disable select column
+      } else if (
+        !permissionUtils.isGlobalAdmin(currentUser) &&
+        !permissionUtils.isGlobalMaintainer(currentUser)
+      ) {
+        if (currentColumn.id === "selection") {
+          return columns;
+        }
+      }
+
+      columns.push(currentColumn);
+      return columns;
+    },
+    []
+  );
+};
+
+/**
+ * Will generate a host table column configuration that a user currently sees.
+ *
+ */
+const generateVisibleTableColumns = (
+  hiddenColumns: string[],
+  config: IConfig,
+  currentUser: IUser
+): IHostDataColumn[] => {
+  // remove columns set as hidden by the user.
+  return generateAvailableTableHeaders(config, currentUser).filter((column) => {
     return !hiddenColumns.includes(column.accessor as string);
   });
 };
 
-export { hostTableHeaders, defaultHiddenColumns, generateVisibleHostColumns };
+export {
+  defaultHiddenColumns,
+  generateAvailableTableHeaders,
+  generateVisibleTableColumns,
+};

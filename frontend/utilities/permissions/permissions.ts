@@ -1,5 +1,5 @@
 import { IUser } from "interfaces/user";
-import { IConfig } from "../../interfaces/config";
+import { IConfig } from "interfaces/config";
 
 const isCoreTier = (config: IConfig): boolean => {
   return config.tier === "core";
