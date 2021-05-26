@@ -165,9 +165,9 @@ type Host struct {
 type HostDetail struct {
 	Host
 	// Labels is the list of labels the host is a member of.
-	Labels []Label `json:"labels"`
+	Labels []*Label `json:"labels"`
 	// Packs is the list of packs the host is a member of.
-	Packs []Pack `json:"packs"`
+	Packs []*Pack `json:"packs"`
 }
 
 const (

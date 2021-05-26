@@ -28,16 +28,16 @@ func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*
 	return &newLabel, nil
 }
 
-func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
+func (d *Datastore) ListLabelsForHost(hid uint) ([]*kolide.Label, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	// First get IDs of label executions for the host
-	resLabels := []kolide.Label{}
+	resLabels := []*kolide.Label{}
 
 	for _, lqe := range d.labelQueryExecutions {
 		if lqe.HostID == hid && lqe.Matches {
 			if label := d.labels[lqe.LabelID]; label != nil {
-				resLabels = append(resLabels, *label)
+				resLabels = append(resLabels, label)
 			}
 		}
 	}
@@ -151,13 +151,13 @@ func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) 
 	return labels, nil
 }
 
-func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
+func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {
 	omitLookup := map[uint]bool{}
 	for _, o := range omit {
 		omitLookup[o] = true
 	}
 
-	var results []kolide.Label
+	var results []*kolide.Label
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -168,7 +168,7 @@ func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ..
 		}
 
 		if (strings.Contains(l.Name, query) || l.Name == "All Hosts") && !omitLookup[l.ID] {
-			results = append(results, *l)
+			results = append(results, l)
 			continue
 		}
 	}
@@ -177,23 +177,23 @@ func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ..
 	return results, nil
 }
 
-func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]kolide.Host, error) {
-	var hosts []kolide.Host
+func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+	var hosts []*kolide.Host
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
 	for _, lqe := range d.labelQueryExecutions {
 		if lqe.LabelID == lid && lqe.Matches {
-			hosts = append(hosts, *d.hosts[lqe.HostID])
+			hosts = append(hosts, d.hosts[lqe.HostID])
 		}
 	}
 
 	return hosts, nil
 }
 
-func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error) {
-	var hosts []kolide.Host
+func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]*kolide.Host, error) {
+	var hosts []*kolide.Host
 
 	labelSet := map[uint]bool{}
 	hostSet := map[uint]bool{}
@@ -208,7 +208,7 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error
 	for _, lqe := range d.labelQueryExecutions {
 		if labelSet[lqe.LabelID] && lqe.Matches {
 			if !hostSet[lqe.HostID] {
-				hosts = append(hosts, *d.hosts[lqe.HostID])
+				hosts = append(hosts, d.hosts[lqe.HostID])
 				hostSet[lqe.HostID] = true
 			}
 		}

@@ -90,11 +90,11 @@ func (svc service) DeleteLabelByID(ctx context.Context, id uint) error {
 	return svc.ds.DeleteLabel(label.Name)
 }
 
-func (svc service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.HostListOptions) ([]kolide.Host, error) {
+func (svc service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	return svc.ds.ListHostsInLabel(lid, opt)
 }
 
-func (svc service) ListLabelsForHost(ctx context.Context, hid uint) ([]kolide.Label, error) {
+func (svc service) ListLabelsForHost(ctx context.Context, hid uint) ([]*kolide.Label, error) {
 	return svc.ds.ListLabelsForHost(hid)
 }
 

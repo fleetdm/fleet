@@ -288,6 +288,11 @@ type OrderDirection int
 const (
 	OrderAscending OrderDirection = iota
 	OrderDescending
+
+	// PerPageUnlimited is the value to pass to PerPage when we want
+	// "unlimited". If we ever find this limit to be too low, congratulations on
+	// incredible growth of the product!
+	PerPageUnlimited uint = 9999999
 )
 
 // ListOptions defines options related to paging and ordering to be used when

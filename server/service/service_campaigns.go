@@ -190,8 +190,9 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs, false)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
-				return errors.New("retrieve target counts")
+				return errors.Wrap(err, "retrieve target counts, write failed")
 			}
+			return errors.Wrap(err, "retrieve target counts")
 		}
 
 		totals := targetTotals{

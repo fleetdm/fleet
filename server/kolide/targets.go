@@ -6,8 +6,8 @@ import (
 )
 
 type TargetSearchResults struct {
-	Hosts  []Host
-	Labels []Label
+	Hosts  []*Host
+	Labels []*Label
 }
 
 // TargetMetrics contains information about the online status of a set of

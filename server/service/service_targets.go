@@ -23,7 +23,7 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 	}
 
 	for _, h := range hosts {
-		results.Hosts = append(results.Hosts, *h)
+		results.Hosts = append(results.Hosts, h)
 	}
 
 	labels, err := svc.ds.SearchLabels(filter, query, selectedLabelIDs...)

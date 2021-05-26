@@ -133,6 +133,5 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc kolide.Service, jwtKey
 		}
 
 		svc.StreamCampaignResults(ctx, conn, info.CampaignID)
-
 	})
 }

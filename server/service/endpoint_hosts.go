@@ -12,7 +12,7 @@ import (
 // along with the host online status and the "display text" to be used when
 // rendering in the UI.
 type HostResponse struct {
-	kolide.Host
+	*kolide.Host
 	Status      kolide.HostStatus `json:"status"`
 	DisplayText string            `json:"display_text"`
 	Labels      []kolide.Label    `json:"labels,omitempty"`
@@ -20,7 +20,7 @@ type HostResponse struct {
 
 func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*HostResponse, error) {
 	return &HostResponse{
-		Host:        *host,
+		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.HostName,
 	}, nil

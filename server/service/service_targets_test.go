@@ -23,7 +23,7 @@ func TestSearchTargets(t *testing.T) {
 	hosts := []*kolide.Host{
 		{HostName: "foo.local"},
 	}
-	labels := []kolide.Label{
+	labels := []*kolide.Label{
 		{
 			Name:  "label foo",
 			Query: "query foo",
@@ -34,14 +34,14 @@ func TestSearchTargets(t *testing.T) {
 		assert.Equal(t, user, filter.User)
 		return hosts, nil
 	}
-	ds.SearchLabelsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
+	ds.SearchLabelsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {
 		assert.Equal(t, user, filter.User)
 		return labels, nil
 	}
 
 	results, err := svc.SearchTargets(ctx, "foo", nil, nil, false)
 	require.NoError(t, err)
-	assert.Equal(t, *hosts[0], results.Hosts[0])
+	assert.Equal(t, hosts[0], results.Hosts[0])
 	assert.Equal(t, labels[0], results.Labels[0])
 }
 
@@ -58,7 +58,7 @@ func TestSearchWithOmit(t *testing.T) {
 		assert.Equal(t, []uint{1, 2}, omit)
 		return nil, nil
 	}
-	ds.SearchLabelsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
+	ds.SearchLabelsFunc = func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {
 		assert.Equal(t, user, filter.User)
 		assert.Equal(t, []uint{3, 4}, omit)
 		return nil, nil

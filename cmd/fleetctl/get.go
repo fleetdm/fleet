@@ -563,7 +563,7 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
 					for _, host := range hosts {
-						err = printHost(c, &host.Host)
+						err = printHost(c, host.Host)
 						if err != nil {
 							return err
 						}

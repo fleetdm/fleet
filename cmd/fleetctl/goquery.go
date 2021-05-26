@@ -48,7 +48,7 @@ func (c *goqueryClient) CheckHost(query string) (gqhosts.Host, error) {
 	for _, h := range res.Hosts {
 		// We allow hosts to be looked up by hostname in addition to UUID
 		if query == h.UUID || query == h.HostName || query == h.ComputerName {
-			host = &h
+			host = h
 			break
 		}
 	}

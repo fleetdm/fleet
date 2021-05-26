@@ -29,7 +29,7 @@ type hostSearchResult struct {
 }
 
 type labelSearchResult struct {
-	kolide.Label
+	*kolide.Label
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
 }

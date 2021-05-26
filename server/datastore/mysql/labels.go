@@ -370,14 +370,14 @@ func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[ui
 }
 
 // ListLabelsForHost returns a list of kolide.Label for a given host id.
-func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
+func (d *Datastore) ListLabelsForHost(hid uint) ([]*kolide.Label, error) {
 	sqlStatement := `
 		SELECT labels.* from labels JOIN label_membership lm
 		WHERE lm.host_id = ?
 		AND lm.label_id = labels.id
 	`
 
-	labels := []kolide.Label{}
+	labels := []*kolide.Label{}
 	err := d.db.Select(&labels, sqlStatement, hid)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting host labels")
@@ -389,7 +389,7 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 
 // ListHostsInLabel returns a list of kolide.Host that are associated
 // with kolide.Label referened by Label ID
-func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]kolide.Host, error) {
+func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	sql := `
 		SELECT h.*
 		FROM label_membership lm
@@ -402,7 +402,7 @@ func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]ko
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
-	hosts := []kolide.Host{}
+	hosts := []*kolide.Host{}
 	err := d.db.Select(&hosts, sql, params...)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting label query executions")
@@ -410,9 +410,9 @@ func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]ko
 	return hosts, nil
 }
 
-func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error) {
+func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]*kolide.Host, error) {
 	if len(labels) == 0 {
-		return []kolide.Host{}, nil
+		return []*kolide.Host{}, nil
 	}
 
 	sqlStatement := `
@@ -428,7 +428,7 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error
 	}
 
 	query = d.db.Rebind(query)
-	hosts := []kolide.Host{}
+	hosts := []*kolide.Host{}
 	err = d.db.Select(&hosts, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing unique hosts in labels")
@@ -438,7 +438,7 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error
 
 }
 
-func (d *Datastore) searchLabelsWithOmits(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
+func (d *Datastore) searchLabelsWithOmits(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {
 	transformedQuery := transformQuery(query)
 
 	sqlStatement := fmt.Sprintf(`
@@ -464,7 +464,7 @@ func (d *Datastore) searchLabelsWithOmits(filter kolide.TeamFilter, query string
 
 	sql = d.db.Rebind(sql)
 
-	matches := []kolide.Label{}
+	matches := []*kolide.Label{}
 	err = d.db.Select(&matches, sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting labels with omits")
@@ -481,7 +481,7 @@ func (d *Datastore) searchLabelsWithOmits(filter kolide.TeamFilter, query string
 // When we search labels, we always want to make sure that the All Hosts label
 // is included in the results set. Sometimes it already is and we don't need to
 // add it, sometimes it's not so we explicitly add it.
-func (d *Datastore) addAllHostsLabelToList(filter kolide.TeamFilter, labels []kolide.Label, omit ...uint) ([]kolide.Label, error) {
+func (d *Datastore) addAllHostsLabelToList(filter kolide.TeamFilter, labels []*kolide.Label, omit ...uint) ([]*kolide.Label, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
 				(SELECT COUNT(1)
@@ -513,10 +513,10 @@ func (d *Datastore) addAllHostsLabelToList(filter kolide.TeamFilter, labels []ko
 		}
 	}
 
-	return append(labels, allHosts), nil
+	return append(labels, &allHosts), nil
 }
 
-func (d *Datastore) searchLabelsDefault(filter kolide.TeamFilter, omit ...uint) ([]kolide.Label, error) {
+func (d *Datastore) searchLabelsDefault(filter kolide.TeamFilter, omit ...uint) ([]*kolide.Label, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
 				(SELECT COUNT(1)
@@ -541,7 +541,7 @@ func (d *Datastore) searchLabelsDefault(filter kolide.TeamFilter, omit ...uint) 
 		}
 	}
 
-	var labels []kolide.Label
+	var labels []*kolide.Label
 	sql, args, err := sqlx.In(sql, in)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default labels")
@@ -560,7 +560,7 @@ func (d *Datastore) searchLabelsDefault(filter kolide.TeamFilter, omit ...uint) 
 }
 
 // SearchLabels performs wildcard searches on kolide.Label name
-func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ...uint) ([]kolide.Label, error) {
+func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {
 	transformedQuery := transformQuery(query)
 	if !queryMinLength(transformedQuery) {
 		return d.searchLabelsDefault(filter, omit...)
@@ -588,7 +588,7 @@ func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ..
 		`, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	matches := []kolide.Label{}
+	matches := []*kolide.Label{}
 	if err := d.db.Select(&matches, sql, transformedQuery); err != nil {
 		return nil, errors.Wrap(err, "selecting labels for search")
 	}

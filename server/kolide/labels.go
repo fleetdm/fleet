@@ -37,18 +37,18 @@ type LabelStore interface {
 	RecordLabelQueryExecutions(host *Host, results map[uint]bool, t time.Time) error
 
 	// LabelsForHost returns the labels that the given host is in.
-	ListLabelsForHost(hid uint) ([]Label, error)
+	ListLabelsForHost(hid uint) ([]*Label, error)
 
 	// ListHostsInLabel returns a slice of hosts in the label with the
 	// given ID.
-	ListHostsInLabel(lid uint, opt HostListOptions) ([]Host, error)
+	ListHostsInLabel(lid uint, opt HostListOptions) ([]*Host, error)
 
 	// ListUniqueHostsInLabels returns a slice of all of the hosts in the
 	// given label IDs. A host will only appear once in the results even if
 	// it is in multiple of the provided labels.
-	ListUniqueHostsInLabels(labels []uint) ([]Host, error)
+	ListUniqueHostsInLabels(labels []uint) ([]*Host, error)
 
-	SearchLabels(filter TeamFilter, query string, omit ...uint) ([]Label, error)
+	SearchLabels(filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
 	// LabelIDsByName Retrieve the IDs associated with the given labels
 	LabelIDsByName(labels []string) ([]uint, error)
@@ -74,10 +74,10 @@ type LabelService interface {
 
 	// ListHostsInLabel returns a slice of hosts in the label with the
 	// given ID.
-	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]Host, error)
+	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]*Host, error)
 
 	// LabelsForHost returns the labels that the given host is in.
-	ListLabelsForHost(ctx context.Context, hid uint) ([]Label, error)
+	ListLabelsForHost(ctx context.Context, hid uint) ([]*Label, error)
 
 	// HostIDsForLabel returns ids of hosts that belong to the label identified
 	// by lid
