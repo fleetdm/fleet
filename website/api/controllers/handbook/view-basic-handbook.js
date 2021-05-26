@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View basic documentation',
+  friendlyName: 'View basic handbook',
 
 
-  description: 'Display "Basic documentation" page.',
+  description: 'Display "Basic handbook" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/docs/basic-documentation'
+      viewTemplatePath: 'pages/handbook/basic-handbook'
     }
 
   },
@@ -18,7 +18,7 @@ module.exports = {
 
   fn: async function () {
 
-    // Serve appropriate doc page content.
+    // Serve appropriate handbook page content.
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
     // TODO
 

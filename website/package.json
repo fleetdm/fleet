@@ -13,17 +13,16 @@
     "sails-hook-organics": "^2.0.0",
     "sails-hook-orm": "^2.1.1",
     "sails-hook-sockets": "^2.0.0",
-    "sails-postgresql": "^1.0.2",
-    "yaml": "1.10.2"
+    "sails-postgresql": "^1.0.2"
   },
   "devDependencies": {
     "cheerio": "0.18.0",
-    "doc-templater": "^0.4.0",
     "eslint": "5.16.0",
     "grunt": "1.0.4",
     "htmlhint": "0.11.0",
     "lesshint": "6.3.6",
-    "sails-hook-grunt": "^4.0.0"
+    "sails-hook-grunt": "^4.0.0",
+    "yaml": "1.10.2"
   },
   "scripts": {
     "custom-tests": "echo \"(No other custom tests yet.)\" && echo",

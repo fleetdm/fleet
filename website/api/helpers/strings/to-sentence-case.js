@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'To sentence case',
+  friendlyName: 'To sentence case',// FUTURE: bring this into machinepack-strings at some point
 
 
   description: 'Make a best-effort conversion of the specified text into sentence case.',
@@ -21,6 +21,7 @@ module.exports = {
 
 
   fn: function ({ text }) {
+    // TODO: make this smarter about: "Fleet REST API" => "Fleet rEST aPI")
     return text
       .split(/[\s-_]+/)
       .filter((word, idx) => !(idx === 0 && word.match(/[0-9]+/))) // « strip off any leading numbers so first word is actually capitalized

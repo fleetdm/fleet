@@ -8,7 +8,7 @@ module.exports = {
 
 
   inputs: {
-    dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  Everything else still happens).' },
+    dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
   },
 
 
@@ -17,59 +17,125 @@ module.exports = {
     let path = require('path');
     let YAML = require('yaml');
 
+    // FUTURE: If we ever need to gather source files from other places or branches, etc, see git history of this file circa 2021-05-19 for an example of a different strategy we might use to do that.
+    let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
+
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
     let builtStaticContent = {};
 
     await sails.helpers.flow.simultaneously([
-      async()=>{// Compile queries from YAML to markdown.
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // FUTURE: Be smarter (faster) about how we get and compile this YAML.
-        // i.e. dissect some of the code from here https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L16-L22
-        // and use those building blocks directly instead of depending on doctemplater later and thus
-        // unnecessarily duplicating work.   i.e. the "clone repo" step can be pulled up ahead of the simultaneously, etc.
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // Clone repo
-        let topLvlCachePath = path.resolve(sails.config.paths.tmp, `built-static-content/`);
-        await sails.helpers.fs.rmrf(topLvlCachePath);
-        let repoCachePath = path.join(topLvlCachePath, `cloned-repo-${Date.now()}-${Math.round(Math.random()*100)}`);
-        await sails.helpers.process.executeCommand(`git clone git://github.com/fleetdm/fleet.git ${repoCachePath}`);
-
-        // TODO: why even clone?  Just grab it from repo (doesn't need to be this flexible since we're all in one repo)
-
-        // Parse YAML query library
-        let yaml = await sails.helpers.fs.read(path.join(repoCachePath, 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml'));
-        builtStaticContent.queries = YAML.parseAllDocuments(yaml).map((yamlDocument) => yamlDocument.toJSON().spec );
+      async()=>{// Parse query library from YAML and bake them into the Sails app's configuration.
+        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO));
+        let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
+          let query = yamlDocument.toJSON().spec;
+          query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
+          return query;
+        });
+        // Assert uniqueness of slugs.
+        if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
+          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
+        }//•
+        // Attach to Sails app configuration.
+        builtStaticContent.queries = queries;
+        builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
       },
-      async()=>{// Compile HTML from markdown docs.
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // FUTURE: Make this work in parallel as shown here by improving doctemplater to avoid the alreadyExists error
-        // (this actually only fails the very first time, but still, thinking is that it's not worth leaving a hack in
-        // here for a trivial build perf boost right now, especially since it only affects website deploys)
-        // ```
-        // let builtStaticContent = await sails.helpers.flow.simultaneously({
-        //   documentation: async() => await sails.helpers.compileMarkdownContent('docs/'),
-        //   queryLibrary: async() => await sails.helpers.compileMarkdownContent('handbook/queries/')
-        // });
-        // console.log(builtStaticContent);
-        // ```
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        builtStaticContent.documentationTree = await sails.helpers.compileMarkdownContent('docs/');
+      async()=>{// Parse markdown pages, compile & generate HTML files, and bake documentation's directory tree into the Sails app's configuration.
 
-        // Legacy: Compile stuff we won't actually use for much longer
-        // Legacy:  (TODO: remove this later on, once in-progress frontend work is done)
-        await sails.helpers.compileMarkdownContent('handbook/queries/'); // TODO: pair w/ rachel and swap how page is built now that this part will work differently
-      },
-      async()=>{// Compile and generate XML sitemap
-        // TODO (see "refresh" action in sailsjs.com repo for example)
+        // Note:
+        // • path maths inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // // Original way that works:  (versus new stuff below)
+        // builtStaticContent.markdownPages = await sails.helpers.compileMarkdownContent('docs/');  // TODO remove this and helper once everything works again
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+        builtStaticContent.markdownPages = [];// « dir tree representation that will be injected into Sails app's configuration
+
+        let SECTION_REPO_PATHS = ['docs/', 'handbook/'];
+        for (let sectionRepoPath of SECTION_REPO_PATHS) {
+          let thinTree = await sails.helpers.fs.ls.with({
+            dir: path.join(topLvlRepoPath, sectionRepoPath),
+            depth: 100,
+            includeDirs: false,
+            includeSymlinks: false,
+          });
+
+          let rootRelativeUrlPathsSeen = [];
+          for (let pageSourcePath of thinTree) {
+
+            // Perform path maths (determine this using sectionRepoPath, etc)
+            // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
+            // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
+            let rootRelativeUrlPath = `/todo-${_.trimRight(sectionRepoPath,'/')}-${pageSourcePath.slice(-30).replace(/[^a-z0-9\-]/ig,'')}-${Math.floor(Math.random()*10000000)}`;
+            sails.log.verbose(`Building page ${rootRelativeUrlPath} from ${pageSourcePath} (${sectionRepoPath})`);
+            // ^^TODO: replace that with the actual desired root relative URL path
+
+            // Assert uniqueness of URL paths.
+            if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
+              throw new Error('Failed compiling markdown content: Files as currently named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ' + rootRelativeUrlPath);
+            }//•
+            rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
+
+            // Get last modified timestamp using git
+            // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+            let lastModifiedAt = Date.now();// TODO
+
+            let fallbackTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
+
+            // If markdown: Compile to HTML and parse docpage metadata
+            // > Parsing docmeta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
+            // > Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+            // TODO
+
+            // Skip this page, if appropriate
+            // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
+            // TODO
+
+            // Generate HTML file
+            let htmlOutputPath = '';//TODO
+            if (dry) {
+              sails.log('Dry run: Would have generated file:', htmlOutputPath);
+            } else {
+              // TODO
+            }
+
+            // TODO: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
+
+            // Append to Sails app configuration.
+            builtStaticContent.markdownPages.push({
+              url: rootRelativeUrlPath,
+              title: '' || fallbackTitle,// TODO use metadata title if available
+              lastModifiedAt: lastModifiedAt
+            });
+          }//∞ </each source file>
+        }//∞ </each section repo path>
+
+        // Decorate markdownPages tree with easier-to-use properties related to metadata embedded in the markdown and parent/child relationships.
+        // Note: Maybe skip the parent/child relationships.
+        // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js
+        // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/build-jsmenu.js
+        // TODO
+
+        // Sort siblings in the markdownPages tree so it's ready to use in menus.
+        // > Note: consider doing this on the frontend-- though there's a reason it was here. See:
+        // > • https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/compare-doc-page-metadatas.js
+        // > • https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js#L191-L208
+        // TODO
       },
     ]);
 
-
+    //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
+    //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗
+    //  ██████╔╝█████╗  ██████╔╝██║     ███████║██║     █████╗         ███████╗███████║██║██║     ███████╗██████╔╝██║     ╚═╝
+    //  ██╔══██╗██╔══╝  ██╔═══╝ ██║     ██╔══██║██║     ██╔══╝         ╚════██║██╔══██║██║██║     ╚════██║██╔══██╗██║     ██╗
+    //  ██║  ██║███████╗██║     ███████╗██║  ██║╚██████╗███████╗    ██╗███████║██║  ██║██║███████╗███████║██║  ██║╚██████╗╚═╝
+    //  ╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝ ╚═════╝╚══════╝    ╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝
+    //
     // Replace .sailsrc file.
     // > This takes the compiled menu file from doc-templater and injects it into the .sailsrc file so it
     // > can be accessed for the purposes of config using `sails.config.builtStaticContent`.
     if (dry) {
-      console.log('Dry run: Would have folded the following onto .sailsrc as "builtStaticContent":', builtStaticContent);
+      sails.log('Dry run: Would have folded the following onto .sailsrc as "builtStaticContent":', builtStaticContent);
     } else {
       let sailsrcPath = path.resolve(sails.config.appPath, '.sailsrc');
       let oldSailsrcJson = await sails.helpers.fs.readJson(sailsrcPath);
@@ -87,4 +153,3 @@ module.exports = {
 
 
 };
-

@@ -6,6 +6,15 @@ module.exports = {
 
   // TODO: Make this explanation better or refactor, because actually this does a lot more than just that, including cloning the source git repo
   description: 'Compile documentation templates from markdown.',
+  // Also, FUTURE: dissect some of the code from here https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L16-L22
+  // and use those building blocks directly instead of depending on doctemplater later and thus unnecessarily duplicating work.  Also the other related code in sailsjs docs mentioned in https://github.com/fleetdm/fleet/issues/706
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // Clone repo
+  // let topLvlCachePath = path.resolve(sails.config.paths.tmp, `built-static-content/`);
+  // await sails.helpers.fs.rmrf(topLvlCachePath);
+  // let repoCachePath = path.join(topLvlCachePath, `cloned-repo-${Date.now()}-${Math.round(Math.random()*100)}`);
+  // await sails.helpers.process.executeCommand(`git clone git://github.com/fleetdm/fleet.git ${repoCachePath}`);
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
   inputs: {
@@ -41,7 +50,10 @@ module.exports = {
 
     let path = require('path');
     let cheerio = require('cheerio');
-    let DocTemplater = require('doc-templater');
+    let DocTemplater = {};// require('doc-templater');
+    if (true) {
+      throw new Error('This helper has been retired.  TODO: delete it.');
+    }
 
     sails.log.info('Compiling `%s` docs from the `%s` branch of `%s`...', repoPath, repoBranch, repoUrl);
 
@@ -180,7 +192,7 @@ module.exports = {
       fileInfo.path = fileInfo.fullPathAndFileName;// « for clarity (it's not technically the full path)
       delete fileInfo.fullPathAndFileName;
 
-      fileInfo.fallbackTitle = sails.helpers.toSentenceCase(path.basename(fileInfo.templateTitle, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
+      fileInfo.fallbackTitle = sails.helpers.strings.toSentenceCase(path.basename(fileInfo.templateTitle, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
       delete fileInfo.templateTitle;
 
       delete fileInfo.data.lastModified;// « for clarity (this isn't the timestamp you're expecting, so we delete it)
