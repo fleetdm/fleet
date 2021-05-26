@@ -107,10 +107,9 @@
 
   &__name {
     border-radius: $border-radius;
-    border: solid 1px $core-fleet-black;
-    padding: $pad-xsmall 10px;
-    box-sizing: border-box;
-    font-size: $xx-small;
+    padding: $pad-xsmall;
+    margin-right: $pad-small;
+    font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
   }
