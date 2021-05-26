@@ -199,7 +199,7 @@ describe("QueryForm - component", () => {
     expect(onSaveAsNewSpy).not.toHaveBeenCalled();
     expect(form.state()).toMatchObject({
       errors: {
-        name: "Title must be present",
+        name: "Query name must be present",
       },
     });
   });
