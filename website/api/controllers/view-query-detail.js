@@ -15,6 +15,7 @@ module.exports = {
   exits: {
     success: { viewTemplatePath: 'pages/query-detail' },
     notFound: { responseType: 'notFound' },
+    badConfig: { responseType: 'badConfig' },
   },
 
 
