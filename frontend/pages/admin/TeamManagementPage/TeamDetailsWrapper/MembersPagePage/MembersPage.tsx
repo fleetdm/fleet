@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // @ts-ignore
 import memoize from "memoize-one";
@@ -46,6 +46,12 @@ interface IRootState {
   };
 }
 
+interface IFetchParams {
+  pageIndex?: number;
+  pageSize?: number;
+  searchQuery?: string;
+}
+
 const getTeams = (data: { [id: string]: ITeam }) => {
   return Object.keys(data).map((teamId) => {
     return data[teamId];
@@ -53,6 +59,11 @@ const getTeams = (data: { [id: string]: ITeam }) => {
 };
 
 const memoizedGetTeams = memoize(getTeams);
+
+// This is used to cache the table query data and make a request for the
+// members data at a future time. Practically, this allows us to re-fetch the users
+// with the same table query params after we have made an edit to a user.
+let tableQueryData = {};
 
 const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const {
@@ -141,6 +152,21 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     [dispatch, teamId, toggleAddUserModal, team.name]
   );
 
+  const fetchUsers = useCallback(
+    (fetchParams: IFetchParams) => {
+      const { pageIndex, pageSize, searchQuery } = fetchParams;
+      dispatch(
+        userActions.loadAll({
+          page: pageIndex,
+          perPage: pageSize,
+          globalFilter: searchQuery,
+          teamId,
+        })
+      );
+    },
+    [dispatch, teamId]
+  );
+
   const onEditMemberSubmit = useCallback(
     (formData: IFormData) => {
       const updatedAttrs = userManagementHelpers.generateUpdateData(
@@ -152,6 +178,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       dispatch(userActions.update(userEditing, updatedAttrs))
         .then(() => {
           dispatch(renderFlash("success", `Successfully edited ${userName}.`));
+          fetchUsers(tableQueryData);
         })
         .catch(() => {
           dispatch(
@@ -163,7 +190,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
         });
       toggleEditMemberModal();
     },
-    [dispatch, toggleEditMemberModal, userEditing]
+    [dispatch, toggleEditMemberModal, userEditing, fetchUsers]
   );
 
   // NOTE: this will fire on initial render, so we use this to get the list of
@@ -171,17 +198,10 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   // changes.
   const onQueryChange = useCallback(
     (queryData) => {
-      const { pageIndex, pageSize, searchQuery } = queryData;
-      dispatch(
-        userActions.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-          teamId,
-        })
-      );
+      tableQueryData = { ...queryData, teamId };
+      fetchUsers(queryData);
     },
-    [dispatch, teamId]
+    [fetchUsers]
   );
 
   const onActionSelection = (action: string, user: IUser): void => {
