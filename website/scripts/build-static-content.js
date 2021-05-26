@@ -45,10 +45,10 @@ module.exports = {
         // • path maths inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // // Original way that works:  (versus new stuff below)
-        // builtStaticContent.allPages = await sails.helpers.compileMarkdownContent('docs/');  // TODO remove this and helper once everything works again
+        // builtStaticContent.markdownPages = await sails.helpers.compileMarkdownContent('docs/');  // TODO remove this and helper once everything works again
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        builtStaticContent.allPages = [];// « dir tree representation that will be injected into Sails app's configuration
+        builtStaticContent.markdownPages = [];// « dir tree representation that will be injected into Sails app's configuration
 
         let SECTION_REPO_PATHS = ['docs/', 'handbook/'];
         for (let sectionRepoPath of SECTION_REPO_PATHS) {
@@ -101,7 +101,7 @@ module.exports = {
             // FUTURE: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
 
             // Append to Sails app configuration.
-            builtStaticContent.allPages.push({
+            builtStaticContent.markdownPages.push({
               url: rootRelativeUrlPath,
               title: '' || fallbackTitle,// TODO use metadata title if available
               lastModifiedAt: lastModifiedAt
@@ -109,13 +109,13 @@ module.exports = {
           }//∞ </each source file>
         }//∞ </each section repo path>
 
-        // Decorate allPages tree with easier-to-use properties related to metadata embedded in the markdown and parent/child relationships.
+        // Decorate markdownPages tree with easier-to-use properties related to metadata embedded in the markdown and parent/child relationships.
         // Note: Maybe skip the parent/child relationships.
         // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js
         // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/build-jsmenu.js
         // TODO
 
-        // Sort siblings in the allPages tree so it's ready to use in menus.
+        // Sort siblings in the markdownPages tree so it's ready to use in menus.
         // > Note: consider doing this on the frontend-- though there's a reason it was here. See:
         // > • https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/compare-doc-page-metadatas.js
         // > • https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js#L191-L208

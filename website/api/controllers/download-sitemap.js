@@ -47,21 +47,20 @@ module.exports = {
     ];
     for (let url of HAND_CODED_HTML_PAGES) {
       let trimmedRootRelativeUrl = _.trimRight(url,'/');// « really only necessary for home page; run on everything as a failsafe against accidental dupes due to trailing slashes in the list above
-      sitemapXml += `<url><loc>${_.escape(sails.config.custom.baseUrl+trimmedRootRelativeUrl)}</loc></url>`;// note we omit lastmod. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+      sitemapXml += `<url><loc>${_.escape(sails.config.custom.baseUrl+trimmedRootRelativeUrl)}</loc></url>`;
     }//∞
     //  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╦═╗   ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╔═╗╔═╗╔═╗
     //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝║╣ ╠╦╝───║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝╠═╣║ ╦║╣ ╚═╗
     //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╚═╝╩╚═   ╚═╝╚╚═╝╚═╝╩╚═ ╩   ╩  ╩ ╩╚═╝╚═╝╚═╝
     for (let query of sails.config.builtStaticContent.queries) {
-      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/queries/${query.slug}`)}</loc></url>`;// note we omit lastmod here too.  It's fine for now.
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/queries/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
     //  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╦═╗╔═╗╔╦╗  ╔╦╗╔═╗╦═╗╦╔═╔╦╗╔═╗╦ ╦╔╗╔
     //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝╠═╣║ ╦║╣ ╚═╗  ╠╣ ╠╦╝║ ║║║║  ║║║╠═╣╠╦╝╠╩╗ ║║║ ║║║║║║║
     //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝  ╚  ╩╚═╚═╝╩ ╩  ╩ ╩╩ ╩╩╚═╩ ╩═╩╝╚═╝╚╩╝╝╚╝
     if (sails.config.environment === 'development') {
-      for (let pageInfo of sails.config.builtStaticContent.allPages) {
-        let trimmedRootRelativeUrl = _.trimRight(pageInfo.url,'/');
-        sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+trimmedRootRelativeUrl)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
+      for (let pageInfo of sails.config.builtStaticContent.markdownPages) {
+        sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+pageInfo.url)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
       }//∞
     }
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
