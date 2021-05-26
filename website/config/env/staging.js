@@ -46,7 +46,7 @@ module.exports = Object.assign({}, PRODUCTION_CONFIG, {
     // /\  Hard-code a staging-only override for allowed origins.
     // ||  (or set this array via JSON-encoded system env var)
     //     ```
-    //     sails_sockets__onlyAllowOrigins='["http://localhost:1337", "…"]'
+    //     sails_sockets__onlyAllowOrigins='["https://staging.example.com"]'
     //     ```
     //--------------------------------------------------------------------------
 
