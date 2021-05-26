@@ -4,11 +4,12 @@
     <div class="col-6 my-5">
       <h1>TODO: Implement this part.</h1>
       <p>(See also <em>assets/styles/pages/query-detail.less</em>, <em>assets/js/pages/query-detail.page.js</em>, and <em>api/controllers/view-query-detail.js</em>.)</p>
-      <code>{{query.sql}}</code>
+      <h2>sql:</h2>
+      <code>{{query.query}}</code>
       <% /*
       e.g. here's what all is available:
       {
-        "name": "Get docker images on a system",
+        "name": "Get Docker images on a system",
         "platforms": "macOS, Linux",
         "description": "Docker images information, can be used on normal system or a kubenode.",
         "query": "SELECT * FROM docker_images;",
@@ -17,6 +18,11 @@
         "contributors": "anelshaer,gillespi314"
       },
       */ %>
+      <h2>here's what all's available</h2>
+      <code>{{query}}</code>
+
+      <!-- note: only show remediation when v-if="query.purpose === 'Detection"-->
+
     </div>
     <div class="col-2 mx-5 my-5">
       <h4 permalink="support">Platforms</h4>
