@@ -247,12 +247,12 @@ func testSearchLabels(t *testing.T, db kolide.Datastore) {
 	// don't error.
 	labels, err := db.SearchLabels(filter, "")
 	require.Nil(t, err)
-	assert.Contains(t, labels, *all)
+	assert.Contains(t, labels, all)
 
 	labels, err = db.SearchLabels(filter, "foo")
 	require.Nil(t, err)
 	assert.Len(t, labels, 3)
-	assert.Contains(t, labels, *all)
+	assert.Contains(t, labels, all)
 
 	labels, err = db.SearchLabels(filter, "foo", all.ID, l3.ID)
 	require.Nil(t, err)
@@ -262,7 +262,7 @@ func testSearchLabels(t *testing.T, db kolide.Datastore) {
 	labels, err = db.SearchLabels(filter, "xxx")
 	require.Nil(t, err)
 	assert.Len(t, labels, 1)
-	assert.Contains(t, labels, *all)
+	assert.Contains(t, labels, all)
 }
 
 func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {

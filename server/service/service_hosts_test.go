@@ -65,16 +65,16 @@ func TestHostDetails(t *testing.T) {
 
 	host := &kolide.Host{ID: 3}
 	ctx := context.Background()
-	expectedLabels := []kolide.Label{
+	expectedLabels := []*kolide.Label{
 		{
 			Name:        "foobar",
 			Description: "the foobar label",
 		},
 	}
-	ds.ListLabelsForHostFunc = func(hid uint) ([]kolide.Label, error) {
+	ds.ListLabelsForHostFunc = func(hid uint) ([]*kolide.Label, error) {
 		return expectedLabels, nil
 	}
-	expectedPacks := []kolide.Pack{
+	expectedPacks := []*kolide.Pack{
 		{
 			Name: "pack1",
 		},
@@ -83,13 +83,7 @@ func TestHostDetails(t *testing.T) {
 		},
 	}
 	ds.ListPacksForHostFunc = func(hid uint) ([]*kolide.Pack, error) {
-		packs := []*kolide.Pack{}
-		for _, p := range expectedPacks {
-			// Make pointer in inner scope
-			p2 := p
-			packs = append(packs, &p2)
-		}
-		return packs, nil
+		return expectedPacks, nil
 	}
 	ds.LoadHostSoftwareFunc = func(host *kolide.Host) error {
 		return nil

@@ -45,12 +45,12 @@ func (c *Client) SearchTargets(query string, selectedHostIDs, selectedLabelIDs [
 		return nil, errors.Errorf("SearchTargets: %s", responseBody.Err)
 	}
 
-	hosts := make([]kolide.Host, len(responseBody.Targets.Hosts))
+	hosts := make([]*kolide.Host, len(responseBody.Targets.Hosts))
 	for i, h := range responseBody.Targets.Hosts {
 		hosts[i] = h.HostResponse.Host
 	}
 
-	labels := make([]kolide.Label, len(responseBody.Targets.Labels))
+	labels := make([]*kolide.Label, len(responseBody.Targets.Labels))
 	for i, h := range responseBody.Targets.Labels {
 		labels[i] = h.Label
 	}

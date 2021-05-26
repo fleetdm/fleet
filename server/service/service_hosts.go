@@ -39,16 +39,9 @@ func (svc service) getHostDetails(ctx context.Context, host *kolide.Host) (*koli
 		return nil, errors.Wrap(err, "get labels for host")
 	}
 
-	packPtrs, err := svc.ds.ListPacksForHost(host.ID)
+	packs, err := svc.ds.ListPacksForHost(host.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "get packs for host")
-	}
-
-	// TODO refactor List* APIs to be consistent so we don't have to do this
-	// transformation
-	packs := make([]kolide.Pack, 0, len(packPtrs))
-	for _, p := range packPtrs {
-		packs = append(packs, *p)
 	}
 
 	return &kolide.HostDetail{Host: *host, Labels: labels, Packs: packs}, nil
