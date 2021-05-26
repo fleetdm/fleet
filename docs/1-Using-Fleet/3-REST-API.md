@@ -93,7 +93,7 @@ Then, use that API token to authenticate all subsequent API requests by sending 
 Authorization: Bearer <your token>
 ```
 
-> For SSO users, username/password login is disabled. The API token can instead be retrieved from the "Settings" page in the UI.
+> For SSO users, username/password login is disabled. The API token can instead be retrieved from the "Account settings" page in the UI (/profile).  Choose "Get API token".
 
 ### Log in
 

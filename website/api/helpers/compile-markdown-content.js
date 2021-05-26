@@ -4,6 +4,7 @@ module.exports = {
   friendlyName: 'Compile markdown content',
 
 
+  // TODO: Make this explanation better or refactor, because actually this does a lot more than just that, including cloning the source git repo
   description: 'Compile documentation templates from markdown.',
 
 

@@ -25,7 +25,9 @@ Your Fleet server's two main purposes are:
 - To serve as your [osquery TLS server](https://osquery.readthedocs.io/en/stable/deployment/remote/)
 - To serve the Fleet web UI, which allows you to manage osquery configuration, query hosts, etc.
 
-The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connention configurations.
+The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
+
+> Fleet does not support Redis Cluster. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
 
 Since Fleet is a web application, when you run Fleet there are some other configurations that are worth defining, such as:
 
@@ -182,6 +184,7 @@ The password to use when connecting to the MySQL instance.
 File path to a file that contains the password to use when connecting to the MySQL instance.
 
 - Default value: `""`
+- Environment variable: `FLEET_MYSQL_PASSWORD_PATH`
 - Config file format:
 
   ```
@@ -333,7 +336,7 @@ The database to use when connecting to the Redis instance.
   redis:
     database: 14
   ```
-  
+
 ###### `redis_duplicate_results`
 
 Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario that would involve shipping the Live Query results outside of Fleet, near-realtime.
@@ -468,11 +471,12 @@ The [JWT](https://jwt.io/) key to use when signing and validating session keys. 
 File path to a file that contains the [JWT](https://jwt.io/) key to use when signing and validating session keys.
 
 - Default value: `""`
+- Environment variable: `FLEET_AUTH_JWT_KEY_PATH`
 - Config file format:
 
   ```
   auth:
-  	jwt_key_path: '/run/secrets/fleetdm-jwt-token
+  	jwt_key_path: '/run/secrets/fleetdm-jwt-token'
   ```
 
 ##### `auth_bcrypt_cost`
@@ -480,7 +484,7 @@ File path to a file that contains the [JWT](https://jwt.io/) key to use when sig
 The bcrypt cost to use when hashing user passwords.
 
 - Default value: `12`
-- Environment variable: `FLEET_AUTH_BCRYT_COST`
+- Environment variable: `FLEET_AUTH_BCRYPT_COST`
 - Config file format:
 
   ```
@@ -521,7 +525,7 @@ Size of generated app tokens.
 How long invite tokens should be valid for.
 
 - Default value: `5 days`
-- Environment variable: `FLEET_APP_TOKEN_VALIDITY_PERIOD`
+- Environment variable: `FLEET_APP_INVITE_TOKEN_VALIDITY_PERIOD`
 - Config file format:
 
   ```
@@ -598,7 +602,7 @@ The cooldown period for host enrollment. If a host (uniquely identified by the `
 This flag can be used to control load on the database in scenarios in which many hosts are using the same identifier. Often configuring `osquery_host_identifier` to `instance` may be a better solution.
 
 - Default value: `0` (off)
-- Environment variable: `FLEET_ENROLL_COOLDOWN`
+- Environment variable: `FLEET_OSQUERY_ENROLL_COOLDOWN`
 - Config file format:
 
   ```
@@ -1200,7 +1204,7 @@ The identifier of the pubsub topic that osquery status logs will be published to
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
-Add Pub/Sub attributes to messages.  When enabled, the plugin parses the osquery result
+Add Pub/Sub attributes to messages. When enabled, the plugin parses the osquery result
 messages, and adds the following Pub/Sub message attributes:
 
 - `name` - the `name` attribute from the message body

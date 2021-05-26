@@ -42,12 +42,24 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get authorized keys
+  name: Get authorized keys for Local Accounts
   platforms: macOS, Linux
   description: List authorized_keys for each user on the system.
   query: SELECT * FROM users CROSS JOIN authorized_keys USING (uid);
   purpose: Informational
   remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get authorized keys for Domain Joined Accounts
+  platforms: macOS, Linux
+  description: List authorized_keys for each user on the system.
+  query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
 ---
 apiVersion: v1
 kind: query
@@ -152,16 +164,6 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get macOS disk free space percentage
-  platforms: macOS
-  description: Displays the percentage of free space available on the primary disk partition.
-  query: SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';
-  purpose: Informational
-  remediation: N/A
----
-apiVersion: v1
-kind: query
-spec:
   name: Get mounts
   platforms: macOS, Linux
   description: Shows system mounted devices and filesystems (not process specific).
@@ -212,6 +214,17 @@ spec:
 apiVersion: v1
 kind: query
 spec:
+  name: Get current users with active shell/console on the system
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: Get current users with active shell/console on the system and associated process
+  query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
   name: Get system uptime
   platforms: macOS, Linux, Windows, FreeBSD
   description: Shows the system uptime.
@@ -248,3 +261,178 @@ spec:
   query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
   purpose: Informational
   remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get disk encryption status
+  platforms: macOS, Linux
+  description: Disk encryption status and information.
+  query: SELECT * FROM disk_encryption;
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect unencrypted SSH keys for local accounts
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
+  purpose: Detection
+  remediation:
+    - User awareness about the impact of SSH Keys
+    - Rotate the identified Keys
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect unencrypted SSH keys for domain joined accounts
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
+  purpose: Detection
+  remediation:
+    - User awareness about the impact of SSH Keys
+    - Rotate the identified Keys
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get crontab jobs
+  platforms: macOS, Linux
+  description: Line parsed values from system and user cron/tab.
+  query: SELECT * FROM crontab;
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get suid binaries
+  platforms: macOS, Linux
+  description: suid binaries in common locations.
+  query: SELECT * FROM suid_bin;
+  purpose: Informational
+  remediation: N/A
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect dynamic linker hijacking on Linux (MITRE. T1574.006)
+  platforms: Linux
+  description: Detect any processes that run with LD_PRELOAD environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
+  purpose: Detection
+  remediation:
+    - Identify the process/binary detected
+    - Confirm with system owner
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect dynamic linker hijacking on macOS (MITRE. T1574.006)
+  platforms: macOS
+  description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
+  purpose: Detection
+  remediation:
+    - Identify the process/binary detected
+    - Confirm with system owner
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get etc hosts entries
+  platforms: macOS, Linux
+  description: Line-parsed /etc/hosts
+  query: SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get network interfaces
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: Network interfaces MAC address
+  query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get local user accounts
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: Local user accounts (including domain accounts that have logged on locally (Windows)).
+  query: SELECT uid, gid, username, description,directory, shell FROM users;
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect active user accounts on servers
+  platforms: Linux
+  description: Domain Joined environment normally have root or other service account only and users are SSH-ing using their Domain Accounts.
+  query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
+  purpose: Detection
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect Nmap scanner
+  platforms: macOS, Linux, Windows, FreeBSD
+  description: Detect Nmap scanner process, identify the user, parent, process details.
+  query: SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent,
+    (SELECT name FROM processes WHERE pid=p.parent) AS parent_name,
+    (SELECT username FROM users WHERE uid=p.uid) AS username
+    FROM processes as p WHERE cmdline like 'nmap%';
+  purpose: Detection
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get docker images on a system
+  platforms: macOS, Linux
+  description: Docker images information, can be used on normal system or a kubenode.
+  query: SELECT * FROM docker_images;
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get docker running containers on a system
+  platforms: macOS, Linux
+  description: Docker containers information, can be used on normal system or a kubenode.
+  query: SELECT * FROM docker_containers;
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get docker running process on a system
+  platforms: macOS, Linux
+  description: Docker containers Processes, can be used on normal system or a kubenode.
+  query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
+  purpose: Informational
+  remediation: N/A
+  contributors: anelshaer
