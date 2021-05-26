@@ -40,18 +40,16 @@ class QueryForm extends Component {
       description: formFieldInterface.isRequired,
       name: formFieldInterface.isRequired,
       query: formFieldInterface.isRequired,
-      // added 5/17
       observer_can_run: formFieldInterface.isRequired,
     }).isRequired,
-    handleSubmit: PropTypes.func.isRequired,
+    handleSubmit: PropTypes.func,
     formData: queryInterface,
     onOsqueryTableSelect: PropTypes.func.isRequired,
     onRunQuery: PropTypes.func.isRequired,
     onUpdate: PropTypes.func.isRequired,
     queryIsRunning: PropTypes.bool,
     title: PropTypes.string,
-    // added 5/17 unneeded
-    // observerCanRunConfigured: PropTypes.bool.isRequired,
+    hasSavePermissions: PropTypes.bool.isRequired,
   };
 
   static defaultProps = {
@@ -150,6 +148,7 @@ class QueryForm extends Component {
       onRunQuery,
       queryIsRunning,
       title,
+      hasSavePermissions,
     } = this.props;
     const { errors } = this.state;
     const { onLoad, renderButtons } = this;
@@ -158,12 +157,14 @@ class QueryForm extends Component {
       <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
         <h1>{title}</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
-        <InputField
-          {...fields.name}
-          error={fields.name.error || errors.name}
-          inputClassName={`${baseClass}__query-name`}
-          label="Query name"
-        />
+        {hasSavePermissions && (
+          <InputField
+            {...fields.name}
+            error={fields.name.error || errors.name}
+            inputClassName={`${baseClass}__query-name`}
+            label="Query name"
+          />
+        )}
         <KolideAce
           {...fields.query}
           error={fields.query.error || errors.query}
@@ -174,21 +175,25 @@ class QueryForm extends Component {
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           handleSubmit={onRunQuery}
         />
-        <InputField
-          {...fields.description}
-          inputClassName={`${baseClass}__query-description`}
-          label="Description"
-          type="textarea"
-        />
-        <Checkbox
-          {...fields.observer_can_run}
-          wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
-        >
-          Observers can run
-        </Checkbox>
-        Users with the Observer role will be able to run this query on hosts
-        where they have access.
-        {renderButtons()}
+        {hasSavePermissions && (
+          <>
+            <InputField
+              {...fields.description}
+              inputClassName={`${baseClass}__query-description`}
+              label="Description"
+              type="textarea"
+            />
+            <Checkbox
+              {...fields.observer_can_run}
+              wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+            >
+              Observers can run
+            </Checkbox>
+            Users with the Observer role will be able to run this query on hosts
+            where they have access.
+            {renderButtons()}
+          </>
+        )}
       </form>
     );
   }

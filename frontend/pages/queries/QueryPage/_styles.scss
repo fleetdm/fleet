@@ -42,9 +42,14 @@
     margin-top: 40px;
     padding: 0 2rem;
 
+    h1 {
+      margin: $pad-large 0;
+    }
+
     .sql-button {
       color: $core-vibrant-blue;
       font-weight: $bold;
+      font-size: $x-small;
     }
   }
 
@@ -69,5 +74,9 @@
       width: 16px;
       margin-right: $pad-small;
     }
+  }
+
+  .ace_content {
+    min-height: 500px !important;
   }
 }

@@ -70,6 +70,7 @@ export class QueryPage extends Component {
     requestHost: PropTypes.bool,
     hostId: PropTypes.string,
     currentUser: userInterface,
+    queryID: PropTypes.number,
   };
 
   static defaultProps = {
@@ -646,6 +647,7 @@ export class QueryPage extends Component {
       selectedOsqueryTable,
       title,
       currentUser,
+      queryID,
     } = this.props;
 
     if (loadingQueries) {
@@ -682,18 +684,16 @@ export class QueryPage extends Component {
       );
     };
 
-    // TODO: Modify observerCanQueryHostCount to reflect all hosts user can query
-    const observerCanQueryHostCount = 1;
+    // If team maintainer, can create and run new query, but not save
+    const hasSavePermissions =
+      permissionUtils.isGlobalAdmin(currentUser) ||
+      permissionUtils.isGlobalMaintainer(currentUser);
 
-    // Restricted UI for Global Observer or Team Maintainer or Team Observer
-    if (
-      permissionUtils.isGlobalObserver(currentUser) ||
-      !permissionUtils.isOnGlobalTeam(currentUser)
-    ) {
+    if (permissionUtils.isAnyTeamMaintainer(currentUser) && !queryID) {
       return (
-        <div className={`${baseClass}__content`}>
-          <div className={`${baseClass}__observer-query-view body-wrap`}>
-            <div>
+        <div className={`${baseClass} has-sidebar`}>
+          <div className={`${baseClass}__content`}>
+            <div className={`${baseClass}__form body-wrap`}>
               <Link
                 to={PATHS.MANAGE_QUERIES}
                 className={`${baseClass}__back-link`}
@@ -701,8 +701,54 @@ export class QueryPage extends Component {
                 <img src={BackChevron} alt="back chevron" id="back-chevron" />
                 <span>Back to queries</span>
               </Link>
+              <QueryForm
+                formData={query}
+                handleSubmit={onSaveQueryFormSubmit}
+                onChangeFunc={onChangeQueryFormField}
+                onOsqueryTableSelect={onOsqueryTableSelect}
+                onRunQuery={onRunQuery}
+                onStopQuery={onStopQuery}
+                onUpdate={onUpdateQuery}
+                queryIsRunning={queryIsRunning}
+                serverErrors={errors}
+                selectedOsqueryTable={selectedOsqueryTable}
+                title={title}
+                hasSavePermissions={hasSavePermissions}
+              />
             </div>
+            {renderLiveQueryWarning()}
+            {renderTargetsInput()}
+            {renderResultsTable()}
+          </div>
+          <QuerySidePanel
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            onTextEditorInputChange={onTextEditorInputChange}
+            selectedOsqueryTable={selectedOsqueryTable}
+          />
+        </div>
+      );
+    }
+
+    // TODO: Modify observerCanQueryHostCount to reflect all hosts user can query
+    // This will depend on 5/26 API changes, if it comes back as 0, we will not render the dropdown for observers
+    const observerCanQueryHostCount = 1;
+
+    if (
+      permissionUtils.isGlobalObserver(currentUser) ||
+      !permissionUtils.isOnGlobalTeam(currentUser)
+    ) {
+      // Restricted UI for Global Observer or Team Maintainer or Team Observer
+      return (
+        <div className={`${baseClass}__content`}>
+          <div className={`${baseClass}__observer-query-view body-wrap`}>
             <div className={`${baseClass}__observer-query-details`}>
+              <Link
+                to={PATHS.MANAGE_QUERIES}
+                className={`${baseClass}__back-link`}
+              >
+                <img src={BackChevron} alt="back chevron" id="back-chevron" />
+                <span>Back to queries</span>
+              </Link>
               <h1>{query.name}</h1>
               <p>{query.description}</p>
               {editDisabledSql()}
@@ -744,6 +790,7 @@ export class QueryPage extends Component {
               serverErrors={errors}
               selectedOsqueryTable={selectedOsqueryTable}
               title={title}
+              hasSavePermissions={hasSavePermissions}
             />
           </div>
           {renderLiveQueryWarning()}
@@ -768,7 +815,7 @@ const mapStateToProps = (state, ownProps) => {
   const { errors, loading: loadingQueries } = state.entities.queries;
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
-  const title = queryID ? "Edit & run query" : "New query";
+  const title = queryID ? "Edit & run query" : "Custom query";
   let selectedHosts = [];
 
   if (((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {
