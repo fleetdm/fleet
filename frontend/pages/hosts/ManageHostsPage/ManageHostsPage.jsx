@@ -257,12 +257,12 @@ export class ManageHostsPage extends PureComponent {
     const teamId = team.id === "no-team" ? null : team.id;
     dispatch(hostActions.transferToTeam(teamId, selectedHostIds))
       .then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `Hosts successfully transferred to  ${team.name}.`
-          )
-        );
+        const successMessage =
+          teamId === null
+            ? `Hosts successfully removed from teams.`
+            : `Hosts successfully transferred to  ${team.name}.`;
+        dispatch(renderFlash("success", successMessage));
+        dispatch(getHosts());
       })
       .catch(() => {
         dispatch(
