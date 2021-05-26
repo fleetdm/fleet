@@ -25,7 +25,7 @@ const validate = (formData) => {
   }
 
   if (!formData.name) {
-    errors.name = "Title must be present";
+    errors.name = "Query name must be present";
   }
 
   const valid = !size(errors);
@@ -161,8 +161,8 @@ class QueryForm extends Component {
         <InputField
           {...fields.name}
           error={fields.name.error || errors.name}
-          inputClassName={`${baseClass}__query-title`}
-          label="Query title"
+          inputClassName={`${baseClass}__query-name`}
+          label="Query name"
         />
         <KolideAce
           {...fields.query}

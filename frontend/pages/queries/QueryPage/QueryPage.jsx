@@ -768,7 +768,7 @@ const mapStateToProps = (state, ownProps) => {
   const { errors, loading: loadingQueries } = state.entities.queries;
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
-  const title = queryID ? "Edit query" : "New query";
+  const title = queryID ? "Edit & run query" : "New query";
   let selectedHosts = [];
 
   if (((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {
