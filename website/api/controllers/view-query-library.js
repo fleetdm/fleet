@@ -8,18 +8,15 @@ module.exports = {
 
 
   exits: {
-
-    success: {
-      viewTemplatePath: 'pages/query-library'
-    }
-
+    success: { viewTemplatePath: 'pages/query-library' },
+    badConfig: { responseType: 'badConfig' },
   },
 
 
   fn: async function () {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.queries)) {
-      throw new Error('Missing or invalid `sails.config.builtStaticContent.queries`!  Try doing `sails run build-static-content` and re-lift the server.');
+      throw {badConfig: 'builtStaticContent.queries'};
     }
 
     // Respond with view.

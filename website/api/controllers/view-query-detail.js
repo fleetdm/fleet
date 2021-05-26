@@ -21,7 +21,7 @@ module.exports = {
   fn: async function ({ slug }) {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.queries)) {
-      throw new Error('Missing or invalid `sails.config.builtStaticContent.queries`!  Try doing `sails run build-static-content` and re-lift the server.');
+      throw {badConfig: 'builtStaticContent.queries'};
     }
 
     // Serve appropriate content for query.
