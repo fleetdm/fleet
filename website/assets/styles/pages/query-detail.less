@@ -25,10 +25,11 @@
   blockquote {
     background-color: @ui-off-white;
     // .blockquote
-    border: 1px solid #adb5bd;
     page-break-inside: avoid;
     // .border-left;
-    border: 0;
+    border: 1px solid #adb5bd;
+    border-top: 0;
+    border-bottom: 0;
     border-left: 0.3em solid transparent;
     // .border-primary override color
     border-color: #6b6cfa !important;
@@ -39,7 +40,7 @@
     margin-bottom: 3rem !important;
 
     p::before {
-      content: "\f0eb";
+      content: '\f0eb';
       display: inline-block;
       font: normal normal normal 14px/1 FontAwesome;
       font-size: 1.33333em;
