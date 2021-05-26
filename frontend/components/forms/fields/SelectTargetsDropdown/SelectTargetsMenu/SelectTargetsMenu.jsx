@@ -103,6 +103,7 @@ const SelectTargetsMenuWrapper = (
       <div className={baseClass}>
         <div className={`${baseClass}__options`}>
           {renderTargets("all")}
+          {renderTargets("teams")}
           {renderTargets("labels")}
           {renderTargets("hosts")}
         </div>
