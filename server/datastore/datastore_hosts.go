@@ -68,8 +68,8 @@ func testSaveHosts(t *testing.T, ds kolide.Datastore) {
 	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
 	host.Additional = &additionalJSON
 
-	err = ds.SaveHost(host)
-	require.Nil(t, err)
+	require.NoError(t, ds.SaveHost(host))
+	require.NoError(t, ds.SaveHostAdditional(host))
 
 	host, err = ds.Host(host.ID)
 	require.Nil(t, err)
@@ -290,26 +290,24 @@ func testListHostsFilterAdditional(t *testing.T, ds kolide.Datastore) {
 	// Add additional
 	additional := json.RawMessage(`{"field1": "v1", "field2": "v2"}`)
 	h.Additional = &additional
-	err = ds.SaveHost(h)
-	require.Nil(t, err)
+	require.NoError(t, ds.SaveHostAdditional(h))
 
-	additional = json.RawMessage(`{"field1": "v1", "field2": "v2"}`)
 	hosts, err := ds.ListHosts(kolide.HostListOptions{})
 	require.Nil(t, err)
-	assert.Equal(t, additional, *hosts[0].Additional)
+	assert.Nil(t, hosts[0].Additional)
 
 	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"field1", "field2"}})
 	require.Nil(t, err)
-	assert.Equal(t, additional, *hosts[0].Additional)
+	assert.Equal(t, &additional, hosts[0].Additional)
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{})
+	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"*"}})
 	require.Nil(t, err)
-	assert.Equal(t, additional, *hosts[0].Additional)
+	assert.Equal(t, &additional, hosts[0].Additional)
 
 	additional = json.RawMessage(`{"field1": "v1", "missing": null}`)
 	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"field1", "missing"}})
 	require.Nil(t, err)
-	assert.Equal(t, additional, *hosts[0].Additional)
+	assert.Equal(t, &additional, hosts[0].Additional)
 }
 
 func testListHostsStatus(t *testing.T, ds kolide.Datastore) {
@@ -835,9 +833,9 @@ func testHostAdditional(t *testing.T, ds kolide.Datastore) {
 	// Add additional
 	additional := json.RawMessage(`{"additional": "result"}`)
 	h.Additional = &additional
-	err = ds.SaveHost(h)
-	require.Nil(t, err)
+	require.NoError(t, ds.SaveHostAdditional(h))
 
+	// Additional should not be loaded for authenticatehost
 	h, err = ds.AuthenticateHost("nodekey")
 	require.Nil(t, err)
 	assert.Equal(t, "foobar.local", h.HostName)
@@ -845,7 +843,7 @@ func testHostAdditional(t *testing.T, ds kolide.Datastore) {
 
 	h, err = ds.Host(h.ID)
 	require.Nil(t, err)
-	assert.Equal(t, additional, *h.Additional)
+	assert.Equal(t, &additional, h.Additional)
 
 	// Update besides additional. Additional should be unchanged.
 	h, err = ds.AuthenticateHost("nodekey")
@@ -861,14 +859,14 @@ func testHostAdditional(t *testing.T, ds kolide.Datastore) {
 
 	h, err = ds.Host(h.ID)
 	require.Nil(t, err)
-	assert.Equal(t, additional, *h.Additional)
+	assert.Equal(t, &additional, h.Additional)
 
 	// Update additional
 	additional = json.RawMessage(`{"other": "additional"}`)
 	h, err = ds.AuthenticateHost("nodekey")
 	require.Nil(t, err)
 	h.Additional = &additional
-	err = ds.SaveHost(h)
+	err = ds.SaveHostAdditional(h)
 	require.Nil(t, err)
 
 	h, err = ds.AuthenticateHost("nodekey")
@@ -878,7 +876,7 @@ func testHostAdditional(t *testing.T, ds kolide.Datastore) {
 
 	h, err = ds.Host(h.ID)
 	require.Nil(t, err)
-	assert.Equal(t, additional, *h.Additional)
+	assert.Equal(t, &additional, h.Additional)
 }
 
 func testHostByIdentifier(t *testing.T, ds kolide.Datastore) {

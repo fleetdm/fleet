@@ -40,6 +40,8 @@ type DistributedQueriesForHostFunc func(host *kolide.Host) (map[uint]string, err
 
 type HostIDsByNameFunc func(hostnames []string) ([]uint, error)
 
+type SaveHostAdditionalFunc func(host *kolide.Host) error
+
 type HostStore struct {
 	NewHostFunc        NewHostFunc
 	NewHostFuncInvoked bool
@@ -85,6 +87,9 @@ type HostStore struct {
 
 	HostIDsByNameFunc        HostIDsByNameFunc
 	HostIDsByNameFuncInvoked bool
+
+	SaveHostAdditionalFunc        SaveHostAdditionalFunc
+	SaveHostAdditionalFuncInvoked bool
 }
 
 func (s *HostStore) NewHost(host *kolide.Host) (*kolide.Host, error) {
@@ -160,4 +165,9 @@ func (s *HostStore) DistributedQueriesForHost(host *kolide.Host) (map[uint]strin
 func (s *HostStore) HostIDsByName(hostnames []string) ([]uint, error) {
 	s.HostIDsByNameFuncInvoked = true
 	return s.HostIDsByNameFunc(hostnames)
+}
+
+func (s *HostStore) SaveHostAdditional(host *kolide.Host) error {
+	s.SaveHostAdditionalFuncInvoked = true
+	return s.SaveHostAdditionalFunc(host)
 }
