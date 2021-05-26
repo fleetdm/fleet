@@ -30,7 +30,7 @@ module.exports = {
     let query = _.find(sails.config.builtStaticContent.queries, { slug: slug });
     if (!query) {
       throw 'notFound';
-    }//•
+    }
 
     // Respond with view.
     return {
