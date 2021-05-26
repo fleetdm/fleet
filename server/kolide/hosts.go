@@ -94,6 +94,10 @@ type HostService interface {
 	// AddHostsToTeam adds hosts to an existing team, clearing their team
 	// settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
+	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their
+	// team settings if teamID is nil. Hosts are selected by the label and
+	// HostListOptions provided.
+	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 }
 
 type HostListOptions struct {

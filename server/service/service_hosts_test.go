@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -111,4 +112,69 @@ func TestRefetchHost(t *testing.T) {
 	}
 
 	require.NoError(t, svc.RefetchHost(ctx, host.ID))
+}
+
+func TestAddHostsToTeamByFilter(t *testing.T) {
+	ds := new(mock.Store)
+	svc := service{ds: ds}
+	ctx := context.Background()
+
+	expectedHostIDs := []uint{1, 2, 4}
+	expectedTeam := (*uint)(nil)
+
+	ds.ListHostsFunc = func(opt kolide.HostListOptions) ([]*kolide.Host, error) {
+		var hosts []*kolide.Host
+		for _, id := range expectedHostIDs {
+			hosts = append(hosts, &kolide.Host{ID: id})
+		}
+		return hosts, nil
+	}
+	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+		assert.Equal(t, expectedTeam, teamID)
+		assert.Equal(t, expectedHostIDs, hostIDs)
+		return nil
+	}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(ctx, expectedTeam, kolide.HostListOptions{}, nil))
+}
+
+func TestAddHostsToTeamByFilterLabel(t *testing.T) {
+	ds := new(mock.Store)
+	svc := service{ds: ds}
+	ctx := context.Background()
+
+	expectedHostIDs := []uint{6}
+	expectedTeam := ptr.Uint(1)
+	expectedLabel := ptr.Uint(2)
+
+	ds.ListHostsInLabelFunc = func(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+		assert.Equal(t, *expectedLabel, lid)
+		var hosts []*kolide.Host
+		for _, id := range expectedHostIDs {
+			hosts = append(hosts, &kolide.Host{ID: id})
+		}
+		return hosts, nil
+	}
+	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+		assert.Equal(t, expectedHostIDs, hostIDs)
+		return nil
+	}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(ctx, expectedTeam, kolide.HostListOptions{}, expectedLabel))
+}
+
+func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
+	ds := new(mock.Store)
+	svc := service{ds: ds}
+	ctx := context.Background()
+
+	ds.ListHostsFunc = func(opt kolide.HostListOptions) ([]*kolide.Host, error) {
+		return []*kolide.Host{}, nil
+	}
+	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+		t.Error("add hosts func should not have been called")
+		return nil
+	}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(ctx, nil, kolide.HostListOptions{}, nil))
 }
