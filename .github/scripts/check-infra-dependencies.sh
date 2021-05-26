@@ -33,7 +33,7 @@ for INFRA in ${INFRAS[@]}; do
         docker-compose exec -T redis bash -c "redis-cli ping"
         echo "redis is ready!"
     elif [ "$INFRA" == "mailhog" ]; then
-        date | mail -s "Test email" recipient@test.com
+        echo "TODO"
         echo "mailhog is ready!"
     elif [ "$INFRA" == "saml_idp" ]; then
         echo "TODO"
