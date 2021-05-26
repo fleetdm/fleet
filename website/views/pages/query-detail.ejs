@@ -1,19 +1,41 @@
-<div class="d-flex justify-content-center">
-  <div class="col-6 my-5">
-      <div id="query-detail" v-cloak>
-        <%- partial('../partials/built-from-markdown/handbook-queries/get-installed-macos-software.ejs') %>
-      </div>
+<div id="query-detail" v-cloak>
+
+  <div class="d-flex justify-content-center">
+    <div class="col-6 my-5">
+      <h1>TODO: Implement this part.</h1>
+      <p>(See also <em>assets/styles/pages/query-detail.less</em>, <em>assets/js/pages/query-detail.page.js</em>, and <em>api/controllers/view-query-detail.js</em>.)</p>
+      <h2>sql:</h2>
+      <code>{{query.query}}</code>
+      <% /*
+      e.g. here's what all is available:
+      {
+        "name": "Get Docker images on a system",
+        "platforms": "macOS, Linux",
+        "description": "Docker images information, can be used on normal system or a kubenode.",
+        "query": "SELECT * FROM docker_images;",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": "anelshaer,gillespi314"
+      },
+      */ %>
+      <h2>here's what all's available</h2>
+      <code>{{query}}</code>
+
+      <!-- note: only show remediation when v-if="query.purpose === 'Detection"-->
+
+    </div>
+    <div class="col-2 mx-5 my-5">
+      <h4 permalink="support">Platforms</h4>
+      <p><i class="fa fa-apple fa-lg mr-1" alt="Mac"></i>
+        <i class="fa fa-windows fa-lg mr-1" alt="Windows"></i>
+        <i class="fa fa-linux fa-lg mr" alt="Linux"></i>
+      </p>
+      <h4 permalink="purpose">Purpose</h4>
+      <p>Informational</p>
+      <h4 permalink="remediation">Contribute</h4>
+      <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">Edit this page</a>
+    </div>
   </div>
-  <div class="col-2 mx-5 my-5"><!-- __LANG=%%__ -->
-    <h4 id="support" permalink="support">Platforms</h4>
-    <p><i class="fa fa-apple fa-lg mr-1" alt="Mac"></i>
-      <i class="fa fa-windows fa-lg mr-1" alt="Windows"></i>
-      <i class="fa fa-linux fa-lg mr" alt="Linux"></i>
-    </p>
-    <h4 id="purpose-1" permalink="purpose">Purpose</h4>
-    <p>Informational</p>
-    <h4 id="remediation" permalink="remediation">Contribute to this page</h4>
-    <a href="http://www.github.com/fleetdm/fleet">Contribute to this source</a>
-  </div>
+
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
