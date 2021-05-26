@@ -478,6 +478,8 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Get host by identifier](#get-host-by-identifier)
 - [Delete host](#delete-host)
 - [Refetch host](#refetch-host)
+- [Add hosts to team](#add-hosts-to-team)
+- [Add hosts to team by filters](#add-hosts-to-team-by-filters)
 
 ### List hosts
 
@@ -796,6 +798,84 @@ Flags the host details to be refetched the next time the host checks in for live
 #### Example
 
 `POST /api/v1/fleet/hosts/121/refetch`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Add hosts to team
+
+Add the hosts to the specified team, clearing their team assignment if `team_id` is `null`.
+
+`POST /api/v1/fleet/hosts/transfer`
+
+#### Parameters
+
+| Name    | Type            | In   | Description                                              |
+| ------- | --------------- | ---- | -------------------------------------------------------- |
+| team_id | integer or null | body | The ID of the team to assign. Clears team if empty/null. |
+| hosts   | list            | body | List of host IDs to assign.                              |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/transfer`
+
+##### Request body
+
+```
+{
+  "team_id": 4,
+  "hosts": [ 1, 3, 4 ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Add hosts to team by filters
+
+Add the hosts to the specified team, clearing their team assignment if `team_id` is `null`. All hosts matching the provided filters are transferred.
+
+`POST /api/v1/fleet/hosts/transfer/filter`
+
+#### Parameters
+
+| Name             | Type            | In   | Description                                              |
+| ---------------- | --------------- | ---- | -------------------------------------------------------- |
+| team_id          | integer or null | body | The ID of the team to assign. Clears team if empty/null. |
+| filters          | object          | body | Filters to apply when retrieving hosts                   |
+| filters.label_id | integer         | body | Only transfer hosts in this label.                       |
+| filters.query    | string          | body | Only transfer hosts matching this query string.          |
+| filters.status   | string          | body | Only transfer hosts matching this status.                |
+
+See the [List hosts](#list-hosts) documentation for more on the filters.
+
+`status` and `label_id` may not be provided in the same request.
+
+#### Example
+
+`POST /api/v1/fleet/hosts/transfer/filter`
+
+##### Request body
+
+```
+{
+  "team_id": 4,
+  "filters": {
+    "label_id": 8,
+    "query": "foobar"
+  }
+}
+```
 
 ##### Default response
 

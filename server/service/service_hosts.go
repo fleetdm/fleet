@@ -73,6 +73,38 @@ func (svc service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []u
 	return svc.ds.AddHostsToTeam(teamID, hostIDs)
 }
 
+func (svc service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt kolide.HostListOptions, lid *uint) error {
+	if opt.StatusFilter != "" && lid != nil {
+		return newInvalidArgumentError("status", "may not be provided with label_id")
+	}
+
+	opt.PerPage = kolide.PerPageUnlimited
+
+	// Load hosts, either from label if provided or from all hosts.
+	var hosts []*kolide.Host
+	var err error
+	if lid != nil {
+		hosts, err = svc.ds.ListHostsInLabel(*lid, opt)
+	} else {
+		hosts, err = svc.ds.ListHosts(opt)
+	}
+	if err != nil {
+		return err
+	}
+
+	if len(hosts) == 0 {
+		return nil
+	}
+
+	hostIDs := make([]uint, 0, len(hosts))
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	// Apply the team to the selected hosts.
+	return svc.ds.AddHostsToTeam(teamID, hostIDs)
+}
+
 func (svc *service) RefetchHost(ctx context.Context, id uint) error {
 	host, err := svc.ds.Host(id)
 	if err != nil {
