@@ -7,8 +7,15 @@ module.exports = {
   description: 'Download sitemap file (returning a stream).',
 
 
+  extendedDescription: `Notes:
+  • Sitemap building inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L112-L180 and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js
+  • Why escape XML?  See http://stackoverflow.com/questions/3431280/validation-problem-entityref-expecting-what-should-i-do and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L161-L172
+  `,
+
+
   exits: {
     success: { outputFriendlyName: 'Sitemap (XML)', outputType: 'string' },
+    badConfig: { responseType: 'badConfig' },
     notFound: { responseType: 'notFound' }// « TODO: delete this and the code that calls it below when all pages are ready
   },
 
@@ -27,9 +34,13 @@ module.exports = {
       throw 'notFound';
     }
 
-    // Notes:
-    // • sitemap building inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L112-L180 and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js
-    // • Why escape XML?  See http://stackoverflow.com/questions/3431280/validation-problem-entityref-expecting-what-should-i-do and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L161-L172
+    if (!_.isObject(sails.config.builtStaticContent)) {
+      throw {badConfig: 'builtStaticContent'};
+    } else if (!_.isArray(sails.config.builtStaticContent.queries)) {
+      throw {badConfig: 'builtStaticContent.queries'};
+    } else if (!_.isArray(sails.config.builtStaticContent.markdownPages)) {
+      throw {badConfig: 'builtStaticContent.markdownPages'};
+    }
 
     // Start with sitemap.xml preamble + the root relative URLs of other webpages that aren't being generated from markdown
     let sitemapXml = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';

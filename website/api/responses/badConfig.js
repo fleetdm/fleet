@@ -41,7 +41,7 @@ module.exports = function badConfig(configKeyPath) {
   } else {
     explanation += ` (sails.config.${configKeyPath}).  Please `;
     // Now for an imperative mood phrase that comes after "Please ":
-    if (configKeyPath.match(/^builtStaticContent.queries/)) {
+    if (configKeyPath.match(/^builtStaticContent/)) {
       explanation += 'try doing `sails run build-static-content`, and then re-lifting the server.';
     } else {
       explanation += 'update this configuration, and then re-lift the server.\n [?] Unsure?  Check out: https://sailsjs.com/documentation/concepts/configuration';
