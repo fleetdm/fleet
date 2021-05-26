@@ -281,15 +281,19 @@ const generateAvailableTableHeaders = (
   return allHostTableHeaders.reduce(
     (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
       // skip over column headers that are not shown in core tier
-      if (
-        permissionUtils.isCoreTier(config) &&
-        (permissionUtils.isGlobalAdmin(currentUser) ||
-          permissionUtils.isGlobalMaintainer(currentUser))
-      ) {
+      if (permissionUtils.isCoreTier(config)) {
         if (
           currentColumn.accessor === "team_name" ||
           currentColumn.id === "selection"
         ) {
+          return columns;
+        }
+        // In base tier, we want to check user role to enable/disable select column
+      } else if (
+        !permissionUtils.isGlobalAdmin(currentUser) &&
+        !permissionUtils.isGlobalMaintainer(currentUser)
+      ) {
+        if (currentColumn.id === "selection") {
           return columns;
         }
       }
