@@ -23,6 +23,8 @@ module.exports = {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.queries)) {
       throw {badConfig: 'builtStaticContent.queries'};
+    } else if (!_.isString(sails.config.builtStaticContent.queryLibraryYmlRepoPath)) {
+      throw {badConfig: 'builtStaticContent.queryLibraryYmlRepoPath'};
     }
 
     // Serve appropriate content for query.
@@ -34,7 +36,8 @@ module.exports = {
 
     // Respond with view.
     return {
-      query
+      query,
+      queryLibraryYmlRepoPath: sails.config.builtStaticContent.queryLibraryYmlRepoPath
     };
 
   }

@@ -38,6 +38,7 @@ module.exports = {
         }//•
         // Attach to Sails app configuration.
         builtStaticContent.queries = queries;
+        builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and bake documentation's directory tree into the Sails app's configuration.
 
