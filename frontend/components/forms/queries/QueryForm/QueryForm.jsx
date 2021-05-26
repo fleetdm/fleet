@@ -180,17 +180,14 @@ class QueryForm extends Component {
           label="Description"
           type="textarea"
         />
-        <div className={`${baseClass}__query-observer-can-run-checkbox`}>
-          <Checkbox
-            {...fields.observer_can_run}
-            className={`${baseClass}__query-observer-can-run`}
-            wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
-          >
-            Observers can run
-          </Checkbox>
-          Users with the Observer role will be able to run this query on hosts
-          where they have access.
-        </div>
+        <Checkbox
+          {...fields.observer_can_run}
+          wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+        >
+          Observers can run
+        </Checkbox>
+        Users with the Observer role will be able to run this query on hosts
+        where they have access.
         {renderButtons()}
       </form>
     );

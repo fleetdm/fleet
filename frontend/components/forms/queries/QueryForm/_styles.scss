@@ -1,5 +1,7 @@
 .query-form {
   &__wrapper {
+    font-size: $x-small;
+
     h1 {
       margin: $pad-large 0;
     }
@@ -22,10 +24,7 @@
 
   &__query-observer-can-run-wrapper {
     margin-bottom: $pad-xsmall;
-  }
-
-  &__query-observer-can-run-checkbox {
-    font-size: $x-small;
+    font-weight: $bold !important; //override checkbox default
   }
 
   &__button-wrap {
