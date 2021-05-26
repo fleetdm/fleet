@@ -7,6 +7,10 @@ export const appendTargetTypeToTargets = (targets, targetType) => {
     if (targetType === "hosts") {
       return parseEntityFunc(target);
     }
+    // added 5/26 this is wrong, look into this
+    if (targetType === "teams") {
+      return parseEntityFunc(target);
+    }
 
     return {
       ...target,
