@@ -25,7 +25,8 @@ module.exports = {
 
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse query library from YAML and bake them into the Sails app's configuration.
-        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml'));
+        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO));
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
@@ -64,7 +65,9 @@ module.exports = {
             // Perform path maths (determine this using sectionRepoPath, etc)
             // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
             // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
-            let rootRelativeUrlPath = '/'+Math.floor(Math.random()*10000000);// TODO
+            let rootRelativeUrlPath = `/todo-${_.trimRight(sectionRepoPath,'/')}-${pageSourcePath.slice(-30).replace(/[^a-z0-9\-]/ig,'')}-${Math.floor(Math.random()*10000000)}`;
+            sails.log.verbose(`Building page ${rootRelativeUrlPath} from ${pageSourcePath} (${sectionRepoPath})`);
+            // ^^TODO: replace that with the actual desired root relative URL path
 
             // Assert uniqueness of URL paths.
             if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {

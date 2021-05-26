@@ -17,8 +17,6 @@ module.exports = {
   // Add any dev-only routes for local development of not-yet-released pages.
   // e.g. http://localhost:2024/sandbox/example-query
   routes: {
-    'GET /sandbox/example-query': { action: 'view-query-detail' },// « old, superceded by fancier version below (just leaving it here to avoid messing up other PR)
-
     'GET /sandbox/queries': { action: 'view-query-library' },// « to see it, check out /sandbox/queries
     'GET /sandbox/queries/:slug': { action: 'view-query-detail' },// « to see it, check out /sandbox/queries/adg
     'GET /sandbox/documentation/*': { skipAssets: false, action: 'docs/view-basic-documentation' },// « to see it, check out http://localhost:2024/sandbox/documentation/adsg

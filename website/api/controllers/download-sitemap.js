@@ -8,7 +8,8 @@ module.exports = {
 
 
   exits: {
-    success: { outputFriendlyName: 'Sitemap (sitemap.xml)' }
+    success: { outputFriendlyName: 'Sitemap (XML)', outputType: 'string' },
+    notFound: { responseType: 'notFound' }// « TODO: delete this and the code that calls it below when all pages are ready
   },
 
 
@@ -21,27 +22,49 @@ module.exports = {
       throw new Error('Since this is the staging environment, prevented sitemap.xml from being served to avoid search engine accidents.');
     }//•
 
+    if (sails.config.environment === 'production') {// TODO: Remove this once the pages are ready.
+      // Don't serve a sitemap until the pages actually work.
+      throw 'notFound';
+    }
+
     // Notes:
     // • sitemap building inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L112-L180 and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js
     // • Why escape XML?  See http://stackoverflow.com/questions/3431280/validation-problem-entityref-expecting-what-should-i-do and https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/refresh.js#L161-L172
 
     // Start with sitemap.xml preamble + the root relative URLs of other webpages that aren't being generated from markdown
     let sitemapXml = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    //  ╦ ╦╔═╗╔╗╔╔╦╗   ╔═╗╔═╗╔╦╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
+    //  ╠═╣╠═╣║║║ ║║───║  ║ ║ ║║║╣  ║║  ╠═╝╠═╣║ ╦║╣ ╚═╗
+    //  ╩ ╩╩ ╩╝╚╝═╩╝   ╚═╝╚═╝═╩╝╚═╝═╩╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
     let HAND_CODED_HTML_PAGES = [
       '/',
       '/get-started',
       '/company/contact',
+      '/queries',
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];
     for (let url of HAND_CODED_HTML_PAGES) {
-      let trimmedRootRelativeUrl = _.trimRight(url,'/');
+      let trimmedRootRelativeUrl = _.trimRight(url,'/');// « really only necessary for home page; run on everything as a failsafe against accidental dupes due to trailing slashes in the list above
       sitemapXml += `<url><loc>${_.escape(sails.config.custom.baseUrl+trimmedRootRelativeUrl)}</loc></url>`;// note we omit lastmod. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
-    for (let pageInfo of sails.config.builtStaticContent.allPages) {
-      let trimmedRootRelativeUrl = _.trimRight(pageInfo.url,'/');
-      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+trimmedRootRelativeUrl)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
+    //  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╦═╗   ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╔═╗╔═╗╔═╗
+    //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝║╣ ╠╦╝───║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝╠═╣║ ╦║╣ ╚═╗
+    //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╚═╝╩╚═   ╚═╝╚╚═╝╚═╝╩╚═ ╩   ╩  ╩ ╩╚═╝╚═╝╚═╝
+    for (let query of sails.config.builtStaticContent.queries) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/queries/${query.slug}`)}</loc></url>`;// note we omit lastmod here too.  It's fine for now.
     }//∞
+    //  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╦═╗╔═╗╔╦╗  ╔╦╗╔═╗╦═╗╦╔═╔╦╗╔═╗╦ ╦╔╗╔
+    //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝╠═╣║ ╦║╣ ╚═╗  ╠╣ ╠╦╝║ ║║║║  ║║║╠═╣╠╦╝╠╩╗ ║║║ ║║║║║║║
+    //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝  ╚  ╩╚═╚═╝╩ ╩  ╩ ╩╩ ╩╩╚═╩ ╩═╩╝╚═╝╚╩╝╝╚╝
+    if (sails.config.environment === 'development') {
+      for (let pageInfo of sails.config.builtStaticContent.allPages) {
+        let trimmedRootRelativeUrl = _.trimRight(pageInfo.url,'/');
+        sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+trimmedRootRelativeUrl)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
+      }//∞
+    }
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     sitemapXml += '</urlset>';
 
     // Set MIME type for content-type response header.
