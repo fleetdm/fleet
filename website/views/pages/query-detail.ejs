@@ -2,13 +2,11 @@
 
   <div class="d-flex justify-content-center">
     <div class="col-6 my-5">
-
       <h1>TODO: Implement this part.</h1>
       <p>(See also <em>assets/styles/pages/query-detail.less</em>, <em>assets/js/pages/query-detail.page.js</em>, and <em>api/controllers/view-query-detail.js</em>.)</p>
-
-      <code>{{query}}</code>
+      <code>{{query.sql}}</code>
       <% /*
-      e.g.
+      e.g. here's what all is available:
       {
         "name": "Get docker images on a system",
         "platforms": "macOS, Linux",
@@ -16,11 +14,11 @@
         "query": "SELECT * FROM docker_images;",
         "purpose": "Informational",
         "remediation": "N/A",
-        "contributors": "anelshaer"
+        "contributors": "anelshaer,gillespi314"
       },
       */ %>
     </div>
-    <div class="col-2 mx-5 my-5"><!-- __LANG=%%__ -->
+    <div class="col-2 mx-5 my-5">
       <h4 permalink="support">Platforms</h4>
       <p><i class="fa fa-apple fa-lg mr-1" alt="Mac"></i>
         <i class="fa fa-windows fa-lg mr-1" alt="Windows"></i>
@@ -29,7 +27,7 @@
       <h4 permalink="purpose">Purpose</h4>
       <p>Informational</p>
       <h4 permalink="remediation">Contribute</h4>
-      <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">Edit page</a>
+      <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">Edit this page</a>
     </div>
   </div>
 
