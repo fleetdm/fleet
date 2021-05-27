@@ -27,12 +27,12 @@ One week before the release date, the individual tasked with managing the releas
 
 The Changelog section of the release issue acts as a short term roadmap and will be used as the public facing Changelog included in the release.
 
-To construct the Changelog, first, head to the commit history for the fleetdm/fleet repo: https://github.com/fleetdm/fleet/commits/master. Next, navigate to the commit made to prepare for the previous release. This commit is usually titled something like “Prepare for `<release number>`.” Finally, traverse forwards through the commit history and add a bullet to the Changelog section for each commit according to the following:
+To construct the Changelog, first, head to the [commit history for fleetdm/fleet)[https://github.com/fleetdm/fleet/commits/master). Next, navigate to the commit made to prepare for the previous release. This commit is usually titled something like “Prepare for `<release number>`.” Finally, add a bullet point to the Changelog for each commit, according to the following:
 
 1. Only include changes that are relevant to Fleet users. This is because the Changelog serves as a tool to both inform and excite users of Fleet. This means that changes made to the development infrastructure, documentation, and contribution experience shouldn’t be included.
 2. Each bullet should start with a verb. For example, “Add,” or “Fix.”
 3. Each bullet should be a complete sentence.
-4. The bulleted list should be ordered from most exciting items on the top to least exciting items on the bottom. Generally new features and performance improvements live at the top of the list while bug fixes live at the bottom.
+4. The bulleted list should be ordered from most exciting items (on the top) to least exciting items (on the bottom). Generally new features and performance improvements live at the top of the list, while bug fixes live at the bottom.
 
 The number of the commits will largely outweigh the number of bullets included in the Changelog. This makes sense because as a Fleet user I want to see an informative collection of the changes I care about rather than a list of all the commits that have been made since the last release.
 
