@@ -21,7 +21,7 @@ describe("Teams flow", () => {
     // TODO this might represent a bug in the React code.
     cy.wait(100); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    cy.contains("Valor").click();
+    cy.contains("Valor").click({ force: true });
 
     cy.findByText(/agent options/i).click();
 
