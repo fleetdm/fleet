@@ -42,7 +42,7 @@ describe("QueryForm - component", () => {
         {...defaultProps}
         query={query}
         queryText={queryText}
-        hasSavePermissions={true}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -59,7 +59,7 @@ describe("QueryForm - component", () => {
         {...defaultProps}
         formData={{ ...query, query: queryText }}
         onUpdate={updateSpy}
-        hasSavePermissions={true}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -82,7 +82,7 @@ describe("QueryForm - component", () => {
         {...defaultProps}
         formData={{ ...query, query: queryText }}
         onUpdate={spy}
-        hasSavePermissions={true}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -107,7 +107,7 @@ describe("QueryForm - component", () => {
       <QueryForm
         {...defaultProps}
         formData={{ ...query, query: queryText }}
-        hasSavePermissions={true}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -138,7 +138,7 @@ describe("QueryForm - component", () => {
       <QueryForm
         {...defaultProps}
         formData={{ ...query, query: queryText }}
-        hasSavePermissions={true}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -170,7 +170,7 @@ describe("QueryForm - component", () => {
         {...defaultProps}
         formData={{ ...query, query: queryText }}
         handleSubmit={onSaveAsNewSpy}
-        hasSavePermissions={true}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -199,7 +199,7 @@ describe("QueryForm - component", () => {
         {...defaultProps}
         formData={{ ...query, query: queryText }}
         handleSubmit={onSaveAsNewSpy}
-        hasSavePermissions={true}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
