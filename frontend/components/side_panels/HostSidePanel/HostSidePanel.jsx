@@ -94,7 +94,6 @@ class HostSidePanel extends Component {
             value={labelFilter}
             inputWrapperClass={`${baseClass}__filter-labels`}
           />
-          <KolideIcon name="search" />
         </div>
         <PanelGroup
           groupItems={customLabels}

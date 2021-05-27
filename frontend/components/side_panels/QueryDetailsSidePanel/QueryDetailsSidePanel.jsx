@@ -33,7 +33,7 @@ class QueryDetailsSidePanel extends Component {
     if (!packs || (packs && !packs.length)) {
       return (
         <p className={`${baseClass}__description`}>
-          There are no packs associated with this query
+          There are no packs associated with this query.
         </p>
       );
     }
@@ -85,23 +85,31 @@ class QueryDetailsSidePanel extends Component {
     return (
       <SecondarySidePanelContainer className={baseClass}>
         <p className={`${baseClass}__label`}>Query</p>
-        <h1>{name}</h1>
-        <p className={`${baseClass}__label`}>SQL</p>
-        <KolideAce
-          fontSize={12}
-          name="query-details"
-          readOnly
-          showGutter={false}
-          value={queryText}
-          wrapperClassName={`${baseClass}__query-preview`}
-          wrapEnabled
-        />
+        <p className={`${baseClass}__description`}>{name}</p>
+        {!permissionUtils.isOnlyObserver(currentUser) && (
+          <>
+            <p className={`${baseClass}__label`}>SQL</p>
+            <KolideAce
+              fontSize={12}
+              name="query-details"
+              readOnly
+              showGutter={false}
+              value={queryText}
+              wrapperClassName={`${baseClass}__query-preview`}
+              wrapEnabled
+            />
+          </>
+        )}
         <p className={`${baseClass}__label`}>Description</p>
         <p className={`${baseClass}__description`}>
-          {description || <em>No description available</em>}
+          {description || <>No description available.</>}
         </p>
-        <p className={`${baseClass}__label`}>Packs</p>
-        {renderPacks()}
+        {!permissionUtils.isOnlyObserver(currentUser) && (
+          <>
+            <p className={`${baseClass}__label`}>Packs</p>
+            {renderPacks()}
+          </>
+        )}
         <Button onClick={handleEditQueryClick} variant="brand">
           {renderCTA(currentUser)}
         </Button>

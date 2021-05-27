@@ -6,8 +6,6 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
-import KolideIcon from "components/icons/KolideIcon";
-// @ts-ignore
 import Pagination from "components/Pagination";
 // @ts-ignore
 import scrollToTop from "utilities/scroll_to_top";
@@ -200,7 +198,6 @@ const TableContainer = <T, U>(
               value={searchQuery}
               inputWrapperClass={`${baseClass}__input-wrapper`}
             />
-            <KolideIcon name="search" />
           </div>
         </div>
       </div>
