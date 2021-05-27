@@ -98,7 +98,7 @@ class QueryDetailsSidePanel extends Component {
         />
         <p className={`${baseClass}__label`}>Description</p>
         <p className={`${baseClass}__description`}>
-          {description || <em>No description available</em>}
+          {description || <>No description available.</>}
         </p>
         <p className={`${baseClass}__label`}>Packs</p>
         {renderPacks()}
