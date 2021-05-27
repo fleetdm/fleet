@@ -37,13 +37,14 @@ type CampaignStore interface {
 // CampaignService defines the distributed query campaign related service
 // methods
 type CampaignService interface {
-	// NewDistributedQueryCampaign creates a new distributed query campaign
-	// with the provided query and host/label targets (specified by name).
-	NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, hosts []string, labels []string) (*DistributedQueryCampaign, error)
+	// NewDistributedQueryCampaign creates a new distributed query campaign with
+	// the provided query (or the query referenced by ID) and host/label targets
+	// (specified by name).
+	NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*DistributedQueryCampaign, error)
 
 	// NewDistributedQueryCampaign creates a new distributed query campaign
-	// with the provided query and host/label targets
-	NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*DistributedQueryCampaign, error)
+	// with the provided query (or the query referenced by ID) and host/label targets
+	NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, hosts []uint, labels []uint) (*DistributedQueryCampaign, error)
 
 	// StreamCampaignResults streams updates with query results and
 	// expected host totals over the provided websocket. Note that the type

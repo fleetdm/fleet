@@ -5,6 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/pkg/errors"
 )
 
@@ -95,7 +96,7 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		query.AuthorID = uintPtr(vc.UserID())
+		query.AuthorID = ptr.Uint(vc.UserID())
 		query.AuthorName = vc.FullName()
 	}
 

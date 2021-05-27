@@ -8,12 +8,13 @@ import (
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/websocket"
 	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/pkg/errors"
 )
 
-func (svc service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, hosts []string, labels []string) (*kolide.DistributedQueryCampaign, error) {
+func (svc service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*kolide.DistributedQueryCampaign, error) {
 	hostIDs, err := svc.ds.HostIDsByName(hosts)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding host IDs")
@@ -24,14 +25,10 @@ func (svc service) NewDistributedQueryCampaignByNames(ctx context.Context, query
 		return nil, errors.Wrap(err, "finding label IDs")
 	}
 
-	return svc.NewDistributedQueryCampaign(ctx, queryString, hostIDs, labelIDs)
+	return svc.NewDistributedQueryCampaign(ctx, queryString, queryID, hostIDs, labelIDs)
 }
 
-func uintPtr(n uint) *uint {
-	return &n
-}
-
-func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
+func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
 	if err := svc.StatusLiveQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -41,11 +38,24 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		return nil, errNoContext
 	}
 
-	query := &kolide.Query{
-		Name:     fmt.Sprintf("distributed_%s_%d", vc.Username(), time.Now().Unix()),
-		Query:    queryString,
-		Saved:    false,
-		AuthorID: uintPtr(vc.UserID()),
+	if queryID == nil && queryString == "" {
+		return nil, newInvalidArgumentError("query", "one of query or query_id must be specified")
+	}
+
+	var query *kolide.Query
+	if queryID != nil {
+		query, err := svc.ds.Query(*queryID)
+		if err != nil {
+			return nil, err
+		}
+		queryString = query.Query
+	} else {
+		query = &kolide.Query{
+			Name:     fmt.Sprintf("distributed_%s_%d", vc.Username(), time.Now().Unix()),
+			Query:    queryString,
+			Saved:    false,
+			AuthorID: ptr.Uint(vc.UserID()),
+		}
 	}
 	if err := query.ValidateSQL(); err != nil {
 		return nil, err
@@ -186,8 +196,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	}
 
 	updateStatus := func() error {
-		// TODO use appropriate includeObserver value
-		metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs, false)
+		metrics, err := svc.CountHostsInTargets(context.Background(), &campaign.QueryID, hostIDs, labelIDs)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
 				return errors.Wrap(err, "retrieve target counts, write failed")

@@ -61,7 +61,7 @@ func (h *LiveQueryResultsHandler) Status() *campaignStatus {
 // LiveQuery creates a new live query and begins streaming results.
 func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
 	req := createDistributedQueryCampaignByNamesRequest{
-		Query:    query,
+		QuerySQL: query,
 		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
 	}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/queries/run_by_names", "", req)

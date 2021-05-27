@@ -18,7 +18,8 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type createDistributedQueryCampaignRequest struct {
-	Query    string                          `json:"query"`
+	QuerySQL string                          `json:"query"`
+	QueryID  *uint                           `json:"query_id"`
 	Selected distributedQueryCampaignTargets `json:"selected"`
 }
 
@@ -37,7 +38,7 @@ func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
 func makeCreateDistributedQueryCampaignEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createDistributedQueryCampaignRequest)
-		campaign, err := svc.NewDistributedQueryCampaign(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels)
+		campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 		if err != nil {
 			return createDistributedQueryCampaignResponse{Err: err}, nil
 		}
@@ -50,7 +51,8 @@ func makeCreateDistributedQueryCampaignEndpoint(svc kolide.Service) endpoint.End
 ////////////////////////////////////////////////////////////////////////////////
 
 type createDistributedQueryCampaignByNamesRequest struct {
-	Query    string                                 `json:"query"`
+	QuerySQL string                                 `json:"query"`
+	QueryID  *uint                                  `json:"query_id"`
 	Selected distributedQueryCampaignTargetsByNames `json:"selected"`
 }
 
@@ -62,7 +64,7 @@ type distributedQueryCampaignTargetsByNames struct {
 func makeCreateDistributedQueryCampaignByNamesEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createDistributedQueryCampaignByNamesRequest)
-		campaign, err := svc.NewDistributedQueryCampaignByNames(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels)
+		campaign, err := svc.NewDistributedQueryCampaignByNames(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 		if err != nil {
 			return createDistributedQueryCampaignResponse{Err: err}, nil
 		}

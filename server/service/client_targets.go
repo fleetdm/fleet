@@ -11,7 +11,7 @@ import (
 // SearchTargets searches for the supplied targets in the Fleet instance.
 func (c *Client) SearchTargets(query string, selectedHostIDs, selectedLabelIDs []uint) (*kolide.TargetSearchResults, error) {
 	req := searchTargetsRequest{
-		Query: query,
+		MatchQuery: query,
 		Selected: struct {
 			Labels []uint `json:"labels"`
 			Hosts  []uint `json:"hosts"`
