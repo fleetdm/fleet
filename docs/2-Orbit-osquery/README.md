@@ -123,7 +123,7 @@ For Notarization, valid App Store Connect credentials must be available on the b
 Build a signed and notarized macOS package with an invocation like the following:
 
 ```sh
-AC_USERNAME=zach@fleetdm.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/package --type=pkg --fleet-url=fleet.example.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
+AC_USERNAME=zach@example.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/package --type=pkg --fleet-url=fleet.example.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
 ```
 
 This process may take several minutes to complete as the Notarization process completes on Apple's servers.

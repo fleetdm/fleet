@@ -59,7 +59,7 @@ Cypress.Commands.add("setupSMTP", () => {
       authentication_type: "authtype_none",
       enable_smtp: true,
       port: 1025,
-      sender_address: "gabriel+dev@fleetdm.com",
+      sender_address: "gabriel+dev@example.com",
       server: "localhost",
     },
   };

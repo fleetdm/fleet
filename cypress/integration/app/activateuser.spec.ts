@@ -14,7 +14,7 @@ describe("User invite and activation", () => {
 
     cy.findByLabelText(/name/i).click().type("Ash Ketchum");
 
-    cy.findByLabelText(/email/i).click().type("ash@fleetdm.com");
+    cy.findByLabelText(/email/i).click().type("ash@example.com");
 
     cy.findByRole("button", { name: /invite/i }).click();
 

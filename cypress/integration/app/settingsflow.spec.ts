@@ -48,7 +48,7 @@ describe("Settings flow", () => {
 
     cy.findByLabelText(/sender address/i)
       .click()
-      .type("rachel@fleetdm.com");
+      .type("rachel@example.com");
 
     cy.findByLabelText(/smtp server/i)
       .click()
@@ -121,7 +121,7 @@ describe("Settings flow", () => {
 
     cy.findByLabelText(/sender address/i).should(
       "have.value",
-      "rachel@fleetdm.com"
+      "rachel@example.com"
     );
 
     cy.findByLabelText(/smtp server/i).should("have.value", "localhost");

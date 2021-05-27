@@ -12,7 +12,7 @@ describe("SSO Sessions", () => {
     cy.contains(/forgot password/i);
 
     // Log in
-    cy.get("input").first().type("test@fleetdm.com");
+    cy.get("input").first().type("test@example.com");
     cy.get("input").last().type("admin123#");
     cy.contains("button", "Login").click();
 
