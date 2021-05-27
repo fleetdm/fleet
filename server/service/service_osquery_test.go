@@ -1171,7 +1171,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
-	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, []uint{2}, []uint{1})
+	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, []uint{2}, []uint{1})
 	require.Nil(t, err)
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
 	assert.Equal(t, []*kolide.DistributedQueryCampaignTarget{

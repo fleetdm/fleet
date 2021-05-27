@@ -9,7 +9,7 @@ import (
 	"github.com/fleetdm/fleet/server/websocket"
 )
 
-func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
+func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, querySQL string, queryID *uint, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
 	var (
 		loggedInUser = "unauthenticated"
 		campaign     *kolide.DistributedQueryCampaign
@@ -28,16 +28,17 @@ func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, que
 			"method", "NewDistributedQueryCampaign",
 			"err", err,
 			"user", loggedInUser,
-			"sql", queryString,
+			"sql", querySQL,
+			"query_id", queryID,
 			"numHosts", numHosts,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-	campaign, err = mw.Service.NewDistributedQueryCampaign(ctx, queryString, hosts, labels)
+	campaign, err = mw.Service.NewDistributedQueryCampaign(ctx, querySQL, queryID, hosts, labels)
 	return campaign, err
 }
 
-func (mw loggingMiddleware) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, hosts []string, labels []string) (*kolide.DistributedQueryCampaign, error) {
+func (mw loggingMiddleware) NewDistributedQueryCampaignByNames(ctx context.Context, querySQL string, queryID *uint, hosts []string, labels []string) (*kolide.DistributedQueryCampaign, error) {
 	var (
 		loggedInUser = "unauthenticated"
 		campaign     *kolide.DistributedQueryCampaign
@@ -56,11 +57,13 @@ func (mw loggingMiddleware) NewDistributedQueryCampaignByNames(ctx context.Conte
 			"method", "NewDistributedQueryCampaignByNames",
 			"err", err,
 			"user", loggedInUser,
+			"sql", querySQL,
+			"query_id", queryID,
 			"numHosts", numHosts,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-	campaign, err = mw.Service.NewDistributedQueryCampaignByNames(ctx, queryString, hosts, labels)
+	campaign, err = mw.Service.NewDistributedQueryCampaignByNames(ctx, querySQL, queryID, hosts, labels)
 	return campaign, err
 }
 

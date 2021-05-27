@@ -13,14 +13,15 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type searchTargetsRequest struct {
-	Query    string `json:"query"`
+	// MatchQuery is the query SQL
+	MatchQuery string `json:"query"`
+	// QueryID is the ID of a saved query to run (used to determine if this is a
+	// query that observers can run).
+	QueryID  *uint `json:"query_id"`
 	Selected struct {
 		Labels []uint `json:"labels"`
 		Hosts  []uint `json:"hosts"`
 	} `json:"selected"`
-	// IncludeObserver determines whether targets for which the user is only an
-	// observer should be included.
-	IncludeObserver bool `json:"include_observer"`
 }
 
 type hostSearchResult struct {
@@ -54,7 +55,7 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(searchTargetsRequest)
 
-		results, err := svc.SearchTargets(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels, req.IncludeObserver)
+		results, err := svc.SearchTargets(ctx, req.MatchQuery, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 		if err != nil {
 			return searchTargetsResponse{Err: err}, nil
 		}
@@ -86,7 +87,7 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			)
 		}
 
-		metrics, err := svc.CountHostsInTargets(ctx, req.Selected.Hosts, req.Selected.Labels, req.IncludeObserver)
+		metrics, err := svc.CountHostsInTargets(ctx, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 		if err != nil {
 			return searchTargetsResponse{Err: err}, nil
 		}

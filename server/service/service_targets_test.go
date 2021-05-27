@@ -39,7 +39,7 @@ func TestSearchTargets(t *testing.T) {
 		return labels, nil
 	}
 
-	results, err := svc.SearchTargets(ctx, "foo", nil, nil, false)
+	results, err := svc.SearchTargets(ctx, "foo", nil, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, hosts[0], results.Hosts[0])
 	assert.Equal(t, labels[0], results.Labels[0])
@@ -64,6 +64,6 @@ func TestSearchWithOmit(t *testing.T) {
 		return nil, nil
 	}
 
-	_, err = svc.SearchTargets(ctx, "foo", []uint{1, 2}, []uint{3, 4}, false)
+	_, err = svc.SearchTargets(ctx, "foo", nil, []uint{1, 2}, []uint{3, 4})
 	require.Nil(t, err)
 }

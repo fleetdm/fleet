@@ -7,17 +7,26 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
-func (svc service) SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint, includeObserver bool) (*kolide.TargetSearchResults, error) {
+func (svc service) SearchTargets(ctx context.Context, matchQuery string, queryID *uint, selectedHostIDs []uint, selectedLabelIDs []uint) (*kolide.TargetSearchResults, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errNoContext
+	}
+
+	includeObserver := false
+	if queryID != nil {
+		query, err := svc.ds.Query(*queryID)
+		if err != nil {
+			return nil, err
+		}
+		includeObserver = query.ObserverCanRun
 	}
 
 	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
 	results := &kolide.TargetSearchResults{}
 
-	hosts, err := svc.ds.SearchHosts(filter, query, selectedHostIDs...)
+	hosts, err := svc.ds.SearchHosts(filter, matchQuery, selectedHostIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +35,7 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 		results.Hosts = append(results.Hosts, h)
 	}
 
-	labels, err := svc.ds.SearchLabels(filter, query, selectedLabelIDs...)
+	labels, err := svc.ds.SearchLabels(filter, matchQuery, selectedLabelIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -35,10 +44,19 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 	return results, nil
 }
 
-func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint, includeObserver bool) (*kolide.TargetMetrics, error) {
+func (svc service) CountHostsInTargets(ctx context.Context, queryID *uint, hostIDs []uint, labelIDs []uint) (*kolide.TargetMetrics, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errNoContext
+	}
+
+	includeObserver := false
+	if queryID != nil {
+		query, err := svc.ds.Query(*queryID)
+		if err != nil {
+			return nil, err
+		}
+		includeObserver = query.ObserverCanRun
 	}
 
 	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
