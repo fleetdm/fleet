@@ -105,28 +105,33 @@ class QueriesList extends Component {
     const wrapperClassName = classnames(`${baseClass}__table`, {
       [`${baseClass}__table--query-selected`]: size(checkedQueryIDs),
     });
+    console.log(queries);
     return (
       <div className={baseClass}>
         <table className={wrapperClassName}>
           <thead>
-            <tr>
-              <th>
-                <Checkbox
-                  name="check-all-queries"
-                  onChange={handleCheckAll}
-                  value={allQueriesChecked}
-                />
-              </th>
-              <th>Query name</th>
-              <th>Description</th>
-              {isOnlyObserver ? null : (
-                <th className={`${baseClass}__observers-can-run`}>
-                  Observers can run
+            {queries.length ? (
+              <tr>
+                <th>
+                  <Checkbox
+                    name="check-all-queries"
+                    onChange={handleCheckAll}
+                    value={allQueriesChecked}
+                  />
                 </th>
-              )}
-              <th className={`${baseClass}__author-name`}>Author</th>
-              <th>Last modified</th>
-            </tr>
+                <th>Query name</th>
+                <th>Description</th>
+                {isOnlyObserver ? null : (
+                  <th className={`${baseClass}__observers-can-run`}>
+                    Observers can run
+                  </th>
+                )}
+                <th className={`${baseClass}__author-name`}>Author</th>
+                <th>Last modified</th>
+              </tr>
+            ) : (
+              <tr>Cool</tr>
+            )}
           </thead>
           <tbody>
             {renderHelpText()}

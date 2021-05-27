@@ -122,16 +122,23 @@
   }
 
   &__first-query {
-    padding: $pad-xlarge 15px 100px;
+    padding: 0 $pad-xxlarge 100px;
     text-align: left;
+
+    &-cta {
+      text-align: left;
+      font-size: $x-small;
+      font-weight: $bold;
+      color: $core-vibrant-blue;
+    }
 
     h1 {
       color: $core-fleet-black;
       font-size: $large;
       font-weight: $regular;
       line-height: 1.96;
-      letter-spacing: -0.5px;
       margin: 0;
+      margin-top: $pad-xxlarge;
     }
 
     h2 {
