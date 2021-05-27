@@ -608,7 +608,6 @@ export class QueryPage extends Component {
     } = this.state;
     const { selectedTargets } = this.props;
     const queryId = this.props.query.id;
-    console.log("queryId::::", queryId);
 
     return (
       <QueryPageSelectTargets
@@ -695,7 +694,7 @@ export class QueryPage extends Component {
     const hasSavePermissions =
       permissionUtils.isGlobalAdmin(currentUser) ||
       permissionUtils.isGlobalMaintainer(currentUser);
-    console.log("queryId", queryId);
+
     if (permissionUtils.isAnyTeamMaintainer(currentUser)) {
       return (
         <>
