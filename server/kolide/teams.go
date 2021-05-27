@@ -25,7 +25,10 @@ type TeamStore interface {
 	TeamByName(name string) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided
 	// options.
-	ListTeams(opt ListOptions) ([]*Team, error)
+	ListTeams(filter TeamFilter, opt ListOptions) ([]*Team, error)
+	// SearchTeams searches teams using the provided query and ommitting the
+	// provided existing selection.
+	SearchTeams(filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
 }
 
 type TeamService interface {

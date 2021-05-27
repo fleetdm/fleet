@@ -8,6 +8,7 @@ import (
 type TargetSearchResults struct {
 	Hosts  []*Host
 	Labels []*Label
+	Teams  []*Team
 }
 
 // TargetMetrics contains information about the online status of a set of
@@ -37,23 +38,35 @@ type TargetService interface {
 	// targets (hosts and label) which match the supplied search query. If the
 	// query ID is provided and the referenced query allows observers to run,
 	// targets will include hosts that the user has observer role for.
-	SearchTargets(ctx context.Context, searchQuery string, queryID *uint, selectedHostIDs []uint, selectedLabelIDs []uint) (*TargetSearchResults, error)
+	SearchTargets(ctx context.Context, searchQuery string, queryID *uint, targets HostTargets) (*TargetSearchResults, error)
 
 	// CountHostsInTargets returns the metrics of the hosts in the provided
 	// label and explicit host IDs. If the query ID is provided and the
 	// referenced query allows observers to run, targets will include hosts that
 	// the user has observer role for.
-	CountHostsInTargets(ctx context.Context, queryID *uint, hostIDs []uint, labelIDs []uint) (*TargetMetrics, error)
+	CountHostsInTargets(ctx context.Context, queryID *uint, targets HostTargets) (*TargetMetrics, error)
 }
 
 type TargetStore interface {
 	// CountHostsInTargets returns the metrics of the hosts in the provided
-	// label and explicit host IDs.
-	CountHostsInTargets(filter TeamFilter, hostIDs, labelIDs []uint, now time.Time) (TargetMetrics, error)
-	// HostIDsInTargets returns the host IDs of the hosts in the provided label
-	// and explicit host IDs. The returned host IDs should be sorted in
-	// ascending order.
-	HostIDsInTargets(filter TeamFilter, hostIDs, labelIDs []uint) ([]uint, error)
+	// labels, teams, and explicit host IDs.
+	CountHostsInTargets(filter TeamFilter, targets HostTargets, now time.Time) (TargetMetrics, error)
+	// HostIDsInTargets returns the host IDs of the hosts in the provided
+	// labels, teams, and explicit host IDs. The returned host IDs should be
+	// sorted in ascending order.
+	HostIDsInTargets(filter TeamFilter, targets HostTargets) ([]uint, error)
+}
+
+// HostTargets is the set of targets for a campaign (live query). These
+// targets are additive (include all hosts and all hosts in labels and all hosts
+// in teams).
+type HostTargets struct {
+	// HostIDs is the IDs of hosts to be targeted
+	HostIDs []uint `json:"hosts"`
+	// LabelIDs is the IDs of labels to be targeted
+	LabelIDs []uint `json:"labels"`
+	// TeamIDs is the IDs of teams to be targeted
+	TeamIDs []uint `json:"teams"`
 }
 
 type TargetType int
@@ -61,6 +74,7 @@ type TargetType int
 const (
 	TargetLabel TargetType = iota
 	TargetHost
+	TargetTeam
 )
 
 type Target struct {

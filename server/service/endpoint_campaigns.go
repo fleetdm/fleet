@@ -18,14 +18,9 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type createDistributedQueryCampaignRequest struct {
-	QuerySQL string                          `json:"query"`
-	QueryID  *uint                           `json:"query_id"`
-	Selected distributedQueryCampaignTargets `json:"selected"`
-}
-
-type distributedQueryCampaignTargets struct {
-	Labels []uint `json:"labels"`
-	Hosts  []uint `json:"hosts"`
+	QuerySQL string             `json:"query"`
+	QueryID  *uint              `json:"query_id"`
+	Selected kolide.HostTargets `json:"selected"`
 }
 
 type createDistributedQueryCampaignResponse struct {
@@ -38,7 +33,7 @@ func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
 func makeCreateDistributedQueryCampaignEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createDistributedQueryCampaignRequest)
-		campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
+		campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected)
 		if err != nil {
 			return createDistributedQueryCampaignResponse{Err: err}, nil
 		}

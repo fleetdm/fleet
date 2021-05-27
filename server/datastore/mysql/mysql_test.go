@@ -426,3 +426,39 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 		})
 	}
 }
+
+func TestWhereOmitIDs(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		omits    []uint
+		expected string
+	}{
+		{
+			omits:    nil,
+			expected: "TRUE",
+		},
+		{
+			omits:    []uint{},
+			expected: "TRUE",
+		},
+		{
+			omits:    []uint{1, 3, 4},
+			expected: "id NOT IN (1,3,4)",
+		},
+		{
+			omits:    []uint{42},
+			expected: "id NOT IN (42)",
+		},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			ds := &Datastore{logger: log.NewNopLogger()}
+			sql := ds.whereOmitIDs("id", tt.omits)
+			assert.Equal(t, tt.expected, sql)
+		})
+	}
+}

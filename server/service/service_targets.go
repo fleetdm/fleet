@@ -7,7 +7,7 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
-func (svc service) SearchTargets(ctx context.Context, matchQuery string, queryID *uint, selectedHostIDs []uint, selectedLabelIDs []uint) (*kolide.TargetSearchResults, error) {
+func (svc service) SearchTargets(ctx context.Context, matchQuery string, queryID *uint, targets kolide.HostTargets) (*kolide.TargetSearchResults, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errNoContext
@@ -26,7 +26,7 @@ func (svc service) SearchTargets(ctx context.Context, matchQuery string, queryID
 
 	results := &kolide.TargetSearchResults{}
 
-	hosts, err := svc.ds.SearchHosts(filter, matchQuery, selectedHostIDs...)
+	hosts, err := svc.ds.SearchHosts(filter, matchQuery, targets.HostIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -35,16 +35,22 @@ func (svc service) SearchTargets(ctx context.Context, matchQuery string, queryID
 		results.Hosts = append(results.Hosts, h)
 	}
 
-	labels, err := svc.ds.SearchLabels(filter, matchQuery, selectedLabelIDs...)
+	labels, err := svc.ds.SearchLabels(filter, matchQuery, targets.LabelIDs...)
 	if err != nil {
 		return nil, err
 	}
 	results.Labels = labels
 
+	teams, err := svc.ds.SearchTeams(filter, matchQuery, targets.TeamIDs...)
+	if err != nil {
+		return nil, err
+	}
+	results.Teams = teams
+
 	return results, nil
 }
 
-func (svc service) CountHostsInTargets(ctx context.Context, queryID *uint, hostIDs []uint, labelIDs []uint) (*kolide.TargetMetrics, error) {
+func (svc service) CountHostsInTargets(ctx context.Context, queryID *uint, targets kolide.HostTargets) (*kolide.TargetMetrics, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errNoContext
@@ -61,7 +67,7 @@ func (svc service) CountHostsInTargets(ctx context.Context, queryID *uint, hostI
 
 	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
-	metrics, err := svc.ds.CountHostsInTargets(filter, hostIDs, labelIDs, svc.clock.Now())
+	metrics, err := svc.ds.CountHostsInTargets(filter, targets, svc.clock.Now())
 	if err != nil {
 		return nil, err
 	}

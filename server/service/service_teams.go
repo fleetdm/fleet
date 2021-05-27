@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
@@ -127,7 +128,13 @@ func (svc service) ListTeamUsers(ctx context.Context, teamID uint, opt kolide.Li
 }
 
 func (svc service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Team, error) {
-	return svc.ds.ListTeams(opt)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errNoContext
+	}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	return svc.ds.ListTeams(filter, opt)
 }
 
 func (svc service) DeleteTeam(ctx context.Context, tid uint) error {

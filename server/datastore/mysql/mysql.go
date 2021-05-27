@@ -388,6 +388,70 @@ func (d *Datastore) whereFilterHostsByTeams(filter kolide.TeamFilter, hostKey st
 	return fmt.Sprintf("%s.team_id IN (%s)", hostKey, strings.Join(idStrs, ","))
 }
 
+// whereFilterTeams returns the appropriate condition to use in the WHERE
+// clause to render only the appropriate teams.
+//
+// filter provides the filtering parameters that should be used. hostKey is the
+// name/alias of the teams table to use in generating the SQL.
+func (d *Datastore) whereFilterTeams(filter kolide.TeamFilter, teamKey string) string {
+	if filter.User == nil {
+		// This is likely unintentional, however we would like to return no
+		// results rather than panicking or returning some other error. At least
+		// log.
+		level.Info(d.logger).Log("err", "team filter missing user")
+		return "FALSE"
+	}
+
+	if filter.User.GlobalRole != nil {
+		switch *filter.User.GlobalRole {
+
+		case kolide.RoleAdmin, kolide.RoleMaintainer:
+			return "TRUE"
+
+		case kolide.RoleObserver:
+			if filter.IncludeObserver {
+				return "TRUE"
+			} else {
+				return "FALSE"
+			}
+
+		default:
+			// Fall through to specific teams
+		}
+	}
+
+	// Collect matching teams
+	var idStrs []string
+	for _, team := range filter.User.Teams {
+		if team.Role == kolide.RoleAdmin || team.Role == kolide.RoleMaintainer ||
+			(team.Role == kolide.RoleObserver && filter.IncludeObserver) {
+			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+		}
+	}
+
+	if len(idStrs) == 0 {
+		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	return fmt.Sprintf("%s.id IN (%s)", teamKey, strings.Join(idStrs, ","))
+}
+
+// whereOmitIDs returns the appropriate condition to use in the WHERE
+// clause to omit the provided IDs from the selection.
+func (d *Datastore) whereOmitIDs(colName string, omit []uint) string {
+	if len(omit) == 0 {
+		return "TRUE"
+	}
+
+	var idStrs []string
+	for _, id := range omit {
+		idStrs = append(idStrs, strconv.Itoa(int(id)))
+	}
+
+	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
+}
+
 // registerTLS adds client certificate configuration to the mysql connection.
 func registerTLS(config config.MysqlConfig) error {
 	rootCertPool := x509.NewCertPool()

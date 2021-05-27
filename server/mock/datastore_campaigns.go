@@ -16,7 +16,7 @@ type DistributedQueryCampaignFunc func(id uint) (*kolide.DistributedQueryCampaig
 
 type SaveDistributedQueryCampaignFunc func(camp *kolide.DistributedQueryCampaign) error
 
-type DistributedQueryCampaignTargetIDsFunc func(id uint) (hostIDs []uint, labelIDs []uint, err error)
+type DistributedQueryCampaignTargetIDsFunc func(id uint) (targets *kolide.HostTargets, err error)
 
 type NewDistributedQueryCampaignTargetFunc func(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error)
 
@@ -57,7 +57,7 @@ func (s *CampaignStore) SaveDistributedQueryCampaign(camp *kolide.DistributedQue
 	return s.SaveDistributedQueryCampaignFunc(camp)
 }
 
-func (s *CampaignStore) DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint, labelIDs []uint, err error) {
+func (s *CampaignStore) DistributedQueryCampaignTargetIDs(id uint) (targets *kolide.HostTargets, err error) {
 	s.DistributedQueryCampaignTargetIDsFuncInvoked = true
 	return s.DistributedQueryCampaignTargetIDsFunc(id)
 }
