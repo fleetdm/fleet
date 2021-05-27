@@ -28,7 +28,7 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 ### Culture
 
 ### All remote
-Fleet is an all-remote conpany, with teammates spread across 3 continents and 5 time zones.
+Fleet is an all-remote company, with teammates spread across 3 continents and 5 time zones.
 
 ### Openness
 The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow.  We perform better with an audience, and our audience performs better with us.
