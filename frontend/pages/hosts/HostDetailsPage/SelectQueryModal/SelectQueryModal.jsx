@@ -5,7 +5,6 @@ import { filter, includes } from "lodash";
 
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
-import KolideIcon from "components/icons/KolideIcon";
 import InputField from "components/forms/fields/InputField";
 
 import queryInterface from "interfaces/query";
@@ -162,7 +161,6 @@ const SelectQueryModal = (props) => {
                 placeholder="Filter queries"
                 value={queriesFilter}
               />
-              <KolideIcon name="search" />
             </div>
             <div className={`${baseClass}__create-query`}>
               <span>OR</span>

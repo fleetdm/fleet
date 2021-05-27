@@ -9,7 +9,6 @@ import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/modals/Modal";
-import KolideIcon from "components/icons/KolideIcon";
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
 import PATHS from "router/paths";
 import QueryDetailsSidePanel from "components/side_panels/QueryDetailsSidePanel";

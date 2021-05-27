@@ -30,6 +30,17 @@
     width: 344px;
     margin-left: $pad-medium;
 
+    &::before {
+      display: inline-block;
+      position: absolute;
+      padding: 5px 0 0 0; // centers spin
+      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
+      transform: scale(0.5);
+      height: 20px;
+      top: 3px;
+      left: 8px;
+    }
+
     .table-container__input-wrapper {
       margin-bottom: 0;
     }
