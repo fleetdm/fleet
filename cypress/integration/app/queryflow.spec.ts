@@ -9,13 +9,13 @@ describe("Query flow", () => {
 
     cy.findByRole("button", { name: /create new query/i }).click();
 
-    cy.findByLabelText(/query title/i)
+    cy.findByLabelText(/query name/i)
       .click()
       .type("Query all window crashes");
 
     // Using class selector because third party element doesn't work with Cypress Testing Selector Library
-    cy.get(".ace_content")
-      .click()
+    cy.get(".ace_scroller")
+      .click({ force: true })
       .type("{selectall}{backspace}SELECT * FROM windows_crashes;");
 
     cy.findByLabelText(/description/i)
@@ -34,8 +34,8 @@ describe("Query flow", () => {
 
     cy.findByRole("button", { name: /edit or run query/i }).click();
 
-    cy.get(".ace_content")
-      .click()
+    cy.get(".ace_scroller")
+      .click({ force: true })
       .type(
         "{selectall}{backspace}SELECT datetime, username FROM windows_crashes;"
       );

@@ -12,7 +12,7 @@ import queryActions from "redux/nodes/entities/queries/actions";
 import ConnectedQueryPage, {
   QueryPage,
 } from "pages/queries/QueryPage/QueryPage";
-import { hostStub, queryStub, labelStub } from "test/stubs";
+import { hostStub, queryStub, labelStub, userStub } from "test/stubs";
 
 const {
   connectedComponent,
@@ -52,6 +52,12 @@ describe("QueryPage - component", () => {
       },
       queries: { loading: false, data: {} },
       targets: {},
+    },
+    // THIS WAS ADDED 5/24, not sure if it's correct
+    auth: {
+      user: {
+        ...userStub,
+      },
     },
   };
   const mockStore = reduxMockStore(store);
@@ -215,6 +221,9 @@ describe("QueryPage - component", () => {
           },
         },
       },
+      auth: {
+        user: userStub,
+      },
     });
     const page = mount(
       connectedComponent(ConnectedQueryPage, {
@@ -261,6 +270,7 @@ describe("QueryPage - component", () => {
         query: { query: "select * from users" },
         selectedOsqueryTable: defaultSelectedOsqueryTable,
         selectedTargets: [hostStub],
+        currentUser: userStub,
       };
       const Page = mount(<QueryPage {...props} />);
       const PageNode = Page.instance();
@@ -301,6 +311,7 @@ describe("QueryPage - component", () => {
           dispatch={noop}
           query={queryStub}
           selectedOsqueryTable={defaultSelectedOsqueryTable}
+          currentUser={userStub}
         />
       );
       const filename = "query_results.csv";
@@ -342,6 +353,7 @@ describe("QueryPage - component", () => {
           dispatch={noop}
           query={queryStub}
           selectedOsqueryTable={defaultSelectedOsqueryTable}
+          currentUser={userStub}
         />
       );
       Page.setState({ campaign });

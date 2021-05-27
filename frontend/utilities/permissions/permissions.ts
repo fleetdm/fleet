@@ -1,27 +1,27 @@
 import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
 
-const isCoreTier = (config: IConfig): boolean => {
+export const isCoreTier = (config: IConfig): boolean => {
   return config.tier === "core";
 };
 
-const isBasicTier = (config: IConfig): boolean => {
+export const isBasicTier = (config: IConfig): boolean => {
   return config.tier === "basic";
 };
 
-const isGlobalAdmin = (user: IUser): boolean => {
+export const isGlobalAdmin = (user: IUser): boolean => {
   return user.global_role === "admin";
 };
 
-const isGlobalMaintainer = (user: IUser): boolean => {
+export const isGlobalMaintainer = (user: IUser): boolean => {
   return user.global_role === "maintainer";
 };
 
-const isGlobalObserver = (user: IUser): boolean => {
+export const isGlobalObserver = (user: IUser): boolean => {
   return user.global_role === "observer";
 };
 
-const isOnGlobalTeam = (user: IUser): boolean => {
+export const isOnGlobalTeam = (user: IUser): boolean => {
   return user.global_role !== null;
 };
 
@@ -50,6 +50,7 @@ const isOnlyObserver = (user: IUser): boolean => {
     return true;
   }
 
+  // Return false if any role is team maintainer
   if (!isOnGlobalTeam(user)) {
     return !user.teams.some((team) => team?.role === "maintainer");
   }

@@ -2,13 +2,13 @@ import endpoints from "kolide/endpoints";
 
 export default (client) => {
   return {
-    create: ({ description, name, query }) => {
+    create: ({ description, name, query, observer_can_run }) => {
       const { QUERIES } = endpoints;
 
       return client
         .authenticatedPost(
           client._endpoint(QUERIES),
-          JSON.stringify({ description, name, query })
+          JSON.stringify({ description, name, query, observer_can_run })
         )
         .then((response) => response.query);
     },

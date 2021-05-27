@@ -17,12 +17,13 @@
 
   &__select-targets {
     float: left;
+    font-weight: $bold;
   }
 
   &__targets-count {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
-    color: $core-vibrant-blue;
+    color: $core-fleet-black;
   }
 
   &.Select {
