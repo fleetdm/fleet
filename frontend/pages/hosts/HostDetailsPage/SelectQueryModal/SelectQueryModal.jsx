@@ -140,7 +140,6 @@ const SelectQueryModal = (props) => {
                 placeholder="Filter queries"
                 value={queriesFilter}
               />
-              <KolideIcon name="search" />
             </div>
             <div className={`${baseClass}__create-query`}>
               <span>OR</span>

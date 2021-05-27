@@ -309,7 +309,6 @@ export class ManageQueriesPage extends Component {
                 placeholder="Filter queries"
                 value={queriesFilter}
               />
-              <KolideIcon name="search" />
             </div>
           </div>
           <p className={`${baseClass}__query-count`}>{queriesTotalDisplay}</p>
