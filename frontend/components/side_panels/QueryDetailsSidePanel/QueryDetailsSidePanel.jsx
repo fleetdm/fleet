@@ -85,7 +85,7 @@ class QueryDetailsSidePanel extends Component {
     return (
       <SecondarySidePanelContainer className={baseClass}>
         <p className={`${baseClass}__label`}>Query</p>
-        <h1>{name}</h1>
+        <p className={`${baseClass}__description`}>{name}</p>
         <p className={`${baseClass}__label`}>SQL</p>
         <KolideAce
           fontSize={12}

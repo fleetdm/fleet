@@ -73,16 +73,15 @@
   }
 
   &__empty-label {
-    font-size: $medium;
+    font-size: $x-small;
     font-weight: $bold;
-    padding: 20px 20px 0;
-    margin: $pad-large 0;
+    padding: $pad-xlarge $pad-large 0;
+    margin: $pad-small 0;
   }
 
   &__empty-description {
-    font-size: $small;
-    font-style: italic;
-    padding: 0 20px;
+    font-size: $x-small;
+    padding: 0 $pad-large;
     margin: 0;
   }
 }
