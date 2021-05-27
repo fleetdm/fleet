@@ -51,13 +51,4 @@ Please join us in the #fleet channel on [osquery Slack](https://osquery.slack.co
 
 Contributions are welcome, whether you answer questions on Slack/GitHub/StackOverflow/Twitter, improve the documentation or website, write a tutorial, give a talk, start a local osquery meetup, troubleshoot reported issues, or [submit a patch](https://github.com/fleetdm/fleet/blob/master/CONTRIBUTING.md).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/master/CODE_OF_CONDUCT.md).
 
-#### Community projects
-
-Below are some projects created by Fleet community members. Please submit a pull request if you'd like your project featured.
-
-- [Kolide Cloud ("K2")](https://kolide.com) is a cloud-hosted, user-driven security SaaS application.  To be clear: Kolide ≠ Fleet.
-- [davidrecordon/terraform-aws-kolide-fleet](https://github.com/davidrecordon/terraform-aws-kolide-fleet) - Deploy Fleet into AWS using Terraform.
-- [deeso/fleet-deployment](https://github.com/deeso/fleet-deployment) - Install Fleet on a Ubuntu box.
-- [gjyoung1974/kolide-fleet-chart](https://github.com/gjyoung1974/kolide-fleet-chart) - Kubernetes Helm chart for deploying Fleet.
-
 <a href="https://fleetdm.com"><img alt="Banner featuring a futuristic cloud city with the Fleet logo" src="https://user-images.githubusercontent.com/618009/98254443-eaf21100-1f41-11eb-9e2c-63a0545601f3.jpg"/></a>
