@@ -70,7 +70,6 @@ export class QueryPage extends Component {
     requestHost: PropTypes.bool,
     hostId: PropTypes.string,
     currentUser: userInterface,
-    queryID: PropTypes.number,
   };
 
   static defaultProps = {
@@ -650,8 +649,9 @@ export class QueryPage extends Component {
       selectedOsqueryTable,
       title,
       currentUser,
-      queryID,
     } = this.props;
+
+    const queryId = this.props.query.id;
 
     if (loadingQueries) {
       return false;
@@ -687,54 +687,71 @@ export class QueryPage extends Component {
       );
     };
 
+    // TODO: Modify observerCanQueryHostCount to reflect all hosts user can query
+    // This will depend on 5/26 API changes, if it comes back as 0, we will not render the dropdown for observers
+    const observerCanQueryHostCount = 1;
+
     // If team maintainer, can create and run new query, but not save
     const hasSavePermissions =
       permissionUtils.isGlobalAdmin(currentUser) ||
       permissionUtils.isGlobalMaintainer(currentUser);
-
-    if (permissionUtils.isAnyTeamMaintainer(currentUser) && !queryID) {
+    console.log("queryId", queryId);
+    if (permissionUtils.isAnyTeamMaintainer(currentUser)) {
       return (
-        <div className={`${baseClass} has-sidebar`}>
-          <div className={`${baseClass}__content`}>
-            <div className={`${baseClass}__form body-wrap`}>
-              <Link
-                to={PATHS.MANAGE_QUERIES}
-                className={`${baseClass}__back-link`}
-              >
-                <img src={BackChevron} alt="back chevron" id="back-chevron" />
-                <span>Back to queries</span>
-              </Link>
-              <QueryForm
-                formData={query}
-                handleSubmit={onSaveQueryFormSubmit}
-                onChangeFunc={onChangeQueryFormField}
-                onOsqueryTableSelect={onOsqueryTableSelect}
-                onRunQuery={onRunQuery}
-                onStopQuery={onStopQuery}
-                onUpdate={onUpdateQuery}
-                queryIsRunning={queryIsRunning}
-                serverErrors={errors}
-                selectedOsqueryTable={selectedOsqueryTable}
-                title={title}
-                hasSavePermissions={hasSavePermissions}
-              />
+        <>
+          <div className={`${baseClass} has-sidebar`}>
+            <div className={`${baseClass}__content`}>
+              <div className={`${baseClass}__form body-wrap`}>
+                <Link
+                  to={PATHS.MANAGE_QUERIES}
+                  className={`${baseClass}__back-link`}
+                >
+                  <img src={BackChevron} alt="back chevron" id="back-chevron" />
+                  <span>Back to queries</span>
+                </Link>
+                {queryId && (
+                  <>
+                    <h1>{query.name}</h1>
+                    <p>{query.description}</p>
+                    {editDisabledSql()}
+                  </>
+                )}
+                {!queryId && (
+                  <QueryForm
+                    formData={query}
+                    handleSubmit={onSaveQueryFormSubmit}
+                    onChangeFunc={onChangeQueryFormField}
+                    onOsqueryTableSelect={onOsqueryTableSelect}
+                    onRunQuery={onRunQuery}
+                    onStopQuery={onStopQuery}
+                    onUpdate={onUpdateQuery}
+                    queryIsRunning={queryIsRunning}
+                    serverErrors={errors}
+                    selectedOsqueryTable={selectedOsqueryTable}
+                    title={title}
+                    hasSavePermissions={hasSavePermissions}
+                  />
+                )}
+              </div>
+              {observerCanQueryHostCount > 0 && (
+                <>
+                  {renderLiveQueryWarning()}
+                  {renderTargetsInput()}
+                  {renderResultsTable()}
+                </>
+              )}
             </div>
-            {renderLiveQueryWarning()}
-            {renderTargetsInput()}
-            {renderResultsTable()}
+            {!queryId && (
+              <QuerySidePanel
+                onOsqueryTableSelect={onOsqueryTableSelect}
+                onTextEditorInputChange={onTextEditorInputChange}
+                selectedOsqueryTable={selectedOsqueryTable}
+              />
+            )}
           </div>
-          <QuerySidePanel
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            onTextEditorInputChange={onTextEditorInputChange}
-            selectedOsqueryTable={selectedOsqueryTable}
-          />
-        </div>
+        </>
       );
     }
-
-    // TODO: Modify observerCanQueryHostCount to reflect all hosts user can query
-    // This will depend on 5/26 API changes, if it comes back as 0, we will not render the dropdown for observers
-    const observerCanQueryHostCount = 1;
 
     if (
       permissionUtils.isGlobalObserver(currentUser) ||
@@ -811,13 +828,13 @@ export class QueryPage extends Component {
 
 const mapStateToProps = (state, ownProps) => {
   const stateEntities = entityGetter(state);
-  const { id: queryID } = ownProps.params;
-  const query = entityGetter(state).get("queries").findBy({ id: queryID });
+  const { id: queryId } = ownProps.params;
+  const query = entityGetter(state).get("queries").findBy({ id: queryId });
   const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors, loading: loadingQueries } = state.entities.queries;
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
-  const title = queryID ? "Edit & run query" : "Custom query";
+  const title = queryId ? "Edit & run query" : "Custom query";
   let selectedHosts = [];
 
   if (((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {
