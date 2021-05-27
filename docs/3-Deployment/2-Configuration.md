@@ -1436,4 +1436,4 @@ When enabled, Fleet will store a "software inventory" for hosts, updated along w
 
 This is currently feature flagged because we would like to evaluate the performance characteristics on larger deployments.
 
-To read more about the software inventory feature, [check out the Fleet 3.11.0 release blog post](https://medium.com/fleetdm/fleet-3-11-0-released-with-software-inventory-25d5a1ee19c).
+To read more about the software inventory feature, [check out the Fleet 3.11.0 release blog post](https://medium.com/fleetdm/fleet-3-11-0-released-with-software-inventory-25d5a1efe19c).
