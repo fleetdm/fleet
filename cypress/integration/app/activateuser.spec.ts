@@ -14,7 +14,7 @@ describe("User invite and activation", () => {
 
     cy.findByLabelText(/name/i).click().type("Ash Ketchum");
 
-    cy.findByLabelText(/email/i).click().type("ash@fleetdm.com");
+    cy.findByLabelText(/email/i).click().type("ash@example.com");
 
     cy.findByRole("button", { name: /invite/i }).click();
 
@@ -29,9 +29,9 @@ describe("User invite and activation", () => {
     cy.getEmails().then((response) => {
       expect(response.body.items[0].To[0]).to.have.property("Domain");
       expect(response.body.items[0].To[0].Mailbox).to.equal("ash");
-      expect(response.body.items[0].To[0].Domain).to.equal("fleetdm.com");
+      expect(response.body.items[0].To[0].Domain).to.equal("example.com");
       expect(response.body.items[0].From.Mailbox).to.equal("gabriel+dev");
-      expect(response.body.items[0].From.Domain).to.equal("fleetdm.com");
+      expect(response.body.items[0].From.Domain).to.equal("example.com");
       const match = response.body.items[0].Content.Body.match(regex);
       inviteLink.url = match[0];
     });

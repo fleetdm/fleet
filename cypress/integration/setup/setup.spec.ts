@@ -20,7 +20,7 @@ describe("Setup", () => {
       .last()
       .type("admin123#");
 
-    cy.findByPlaceholderText(/email/i).type("test@fleetdm.com");
+    cy.findByPlaceholderText(/email/i).type("test@example.com");
 
     cy.contains("button:enabled", /next/i).click();
 

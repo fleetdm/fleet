@@ -32,7 +32,7 @@ To open your browser's **network requests**, press Control Shift J (Windows, Lin
 ### Report a security vulnerability
 
 Sensitive security-related issues should be reported to
-[security@fleetdm.com](mailto:security@fleetdm.com) before a public issue is made.
+[fleetdm.com/contact](https://fleetdm.com/contact) before a public issue is made.
 
 ## Contributing to documentation
 

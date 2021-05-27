@@ -10,7 +10,7 @@ describe("Sessions", () => {
     cy.contains(/forgot password/i);
 
     // Log in
-    cy.get("input").first().type("test@fleetdm.com");
+    cy.get("input").first().type("test@example.com");
     cy.get("input").last().type("admin123#");
     cy.get("button").click();
 
@@ -27,7 +27,7 @@ describe("Sessions", () => {
 
   it("Fails login with invalid password", () => {
     cy.visit("/");
-    cy.get("input").first().type("test@fleetdm.com");
+    cy.get("input").first().type("test@example.com");
     cy.get("input").last().type("bad_password");
     cy.get(".button").click();
 
