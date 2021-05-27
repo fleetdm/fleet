@@ -8,13 +8,13 @@ const defaultSelected = {
 
 export default (client) => {
   return {
-    loadAll: (query, selected = defaultSelected) => {
+    loadAll: (query = "", queryId = null, selected = defaultSelected) => {
       const { TARGETS } = endpoints;
 
       return client
         .authenticatedPost(
           client._endpoint(TARGETS),
-          JSON.stringify({ query, selected })
+          JSON.stringify({ query, query_id: queryId, selected })
         )
         .then((response) => {
           const { targets } = response;

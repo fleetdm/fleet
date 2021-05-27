@@ -20,6 +20,7 @@ class SelectTargetsDropdown extends Component {
     onSelect: PropTypes.func.isRequired,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
+    queryId: PropTypes.number,
   };
 
   static defaultProps = {
@@ -118,7 +119,12 @@ class SelectTargetsDropdown extends Component {
     this.setState({ moreInfoTarget: null });
   };
 
-  fetchTargets = (query = "", selectedTargets = this.props.selectedTargets) => {
+  // TODO determine how to handle queryId; can it simply be a const that is passed as a prop? confirm how API handles "", null, undefined
+  fetchTargets = (
+    query = "",
+    queryId = this.props.queryId,
+    selectedTargets = this.props.selectedTargets
+  ) => {
     const { onFetchTargets } = this.props;
 
     if (!this.mounted) {
@@ -128,7 +134,7 @@ class SelectTargetsDropdown extends Component {
     this.setState({ isLoadingTargets: true, query });
 
     return Kolide.targets
-      .loadAll(query, formatSelectedTargetsForApi(selectedTargets))
+      .loadAll(query, queryId, formatSelectedTargetsForApi(selectedTargets))
       .then((response) => {
         const { targets } = response;
         const isEmpty = targets.length === 0;
@@ -142,7 +148,7 @@ class SelectTargetsDropdown extends Component {
           targets.push({});
         }
 
-        onFetchTargets(query, response);
+        onFetchTargets(query, response); // TODO trace how onFetch works with query and investigate how to refactor for query string vs. queryId; does this work if queryId is const based on this.props?
 
         this.setState({
           isEmpty,

@@ -27,7 +27,7 @@ class SelectTargetsInput extends Component {
 
     return difference(options, selectedTargets);
   };
-
+  // TODO see react-select docs for onInputChange; it specifies two parameters "string", {action} so how to handle queryId? Can this be solved with const queryId from this.props?
   handleInputChange = debounce(
     (query) => {
       const { onTargetSelectInputChange } = this.props;
