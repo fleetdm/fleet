@@ -9,7 +9,7 @@ describe("Query flow", () => {
 
     cy.findByRole("button", { name: /create new query/i }).click();
 
-    cy.findByLabelText(/query title/i)
+    cy.findByLabelText(/query name/i)
       .click()
       .type("Query all window crashes");
 

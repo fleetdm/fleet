@@ -764,7 +764,6 @@ export class QueryPage extends Component {
         </div>
       );
     }
-    console.log(query);
 
     // UI for Global Admin and Global Maintainer
     return (
