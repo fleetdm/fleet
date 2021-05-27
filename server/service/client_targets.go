@@ -9,15 +9,13 @@ import (
 )
 
 // SearchTargets searches for the supplied targets in the Fleet instance.
-func (c *Client) SearchTargets(query string, selectedHostIDs, selectedLabelIDs []uint) (*kolide.TargetSearchResults, error) {
+func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*kolide.TargetSearchResults, error) {
 	req := searchTargetsRequest{
 		MatchQuery: query,
-		Selected: struct {
-			Labels []uint `json:"labels"`
-			Hosts  []uint `json:"hosts"`
-		}{
-			Labels: selectedLabelIDs,
-			Hosts:  selectedHostIDs,
+		Selected: kolide.HostTargets{
+			LabelIDs: labelIDs,
+			HostIDs:  hostIDs,
+			// TODO handle TeamIDs
 		},
 	}
 

@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/server/kolide"
@@ -63,29 +62,30 @@ func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCa
 	return nil
 }
 
-func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint, labelIDs []uint, err error) {
+func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*kolide.HostTargets, error) {
 	sqlStatement := `
 		SELECT * FROM distributed_query_campaign_targets WHERE distributed_query_campaign_id = ?
 	`
 	targets := []kolide.DistributedQueryCampaignTarget{}
 
-	if err = d.db.Select(&targets, sqlStatement, id); err != nil {
-		return nil, nil, errors.Wrap(err, "selecting distributed campaign target")
+	if err := d.db.Select(&targets, sqlStatement, id); err != nil {
+		return nil, errors.Wrap(err, "select distributed campaign target")
 	}
 
-	hostIDs = []uint{}
-	labelIDs = []uint{}
+	hostIDs := []uint{}
+	labelIDs := []uint{}
+	teamIDs := []uint{}
 	for _, target := range targets {
 		if target.Type == kolide.TargetHost {
 			hostIDs = append(hostIDs, target.TargetID)
 		} else if target.Type == kolide.TargetLabel {
 			labelIDs = append(labelIDs, target.TargetID)
 		} else {
-			return []uint{}, []uint{}, fmt.Errorf("invalid target type: %d", target.Type)
+			return nil, errors.Errorf("invalid target type: %d", target.Type)
 		}
 	}
 
-	return hostIDs, labelIDs, nil
+	return &kolide.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs, TeamIDs: teamIDs}, nil
 }
 
 func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {

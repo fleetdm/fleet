@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/server/kolide"
@@ -148,14 +149,16 @@ func (d *Datastore) SaveTeam(team *kolide.Team) (*kolide.Team, error) {
 
 // ListTeams lists all teams with limit, sort and offset passed in with
 // kolide.ListOptions
-func (d *Datastore) ListTeams(opt kolide.ListOptions) ([]*kolide.Team, error) {
-	query := `
-		SELECT *,
-			(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
-			(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
-		FROM teams t
-		WHERE TRUE
-	`
+func (d *Datastore) ListTeams(filter kolide.TeamFilter, opt kolide.ListOptions) ([]*kolide.Team, error) {
+	query := fmt.Sprintf(`
+			SELECT *,
+				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
+				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
+			FROM teams t
+			WHERE %s
+		`,
+		d.whereFilterTeams(filter, "t"),
+	)
 	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
 	query = appendListOptionsToSQL(query, opt)
 	teams := []*kolide.Team{}
@@ -164,4 +167,23 @@ func (d *Datastore) ListTeams(opt kolide.ListOptions) ([]*kolide.Team, error) {
 	}
 	return teams, nil
 
+}
+
+func (d *Datastore) SearchTeams(filter kolide.TeamFilter, matchQuery string, omit ...uint) ([]*kolide.Team, error) {
+	sql := fmt.Sprintf(`
+			SELECT *,
+				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
+				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
+			FROM teams t
+			WHERE %s
+		`,
+		d.whereOmitIDs("t.id", omit),
+	)
+	sql, params := searchLike(sql, nil, matchQuery, teamSearchColumns...)
+	sql += "\nLIMIT 5"
+	teams := []*kolide.Team{}
+	if err := d.db.Select(&teams, sql, params...); err != nil {
+		return nil, errors.Wrap(err, "search teams")
+	}
+	return teams, nil
 }

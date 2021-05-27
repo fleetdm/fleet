@@ -41,12 +41,12 @@ func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCa
 	return nil
 }
 
-func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint, labelIDs []uint, err error) {
+func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*kolide.HostTargets, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	hostIDs = []uint{}
-	labelIDs = []uint{}
+	hostIDs := []uint{}
+	labelIDs := []uint{}
 	for _, target := range d.distributedQueryCampaignTargets {
 		if target.DistributedQueryCampaignID == id {
 			if target.Type == kolide.TargetHost {
@@ -54,12 +54,12 @@ func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint, 
 			} else if target.Type == kolide.TargetLabel {
 				labelIDs = append(labelIDs, target.TargetID)
 			} else {
-				return []uint{}, []uint{}, fmt.Errorf("invalid target type: %d", target.Type)
+				return nil, fmt.Errorf("invalid target type: %d", target.Type)
 			}
 		}
 	}
 
-	return hostIDs, labelIDs, nil
+	return &kolide.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}, nil
 }
 
 func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {

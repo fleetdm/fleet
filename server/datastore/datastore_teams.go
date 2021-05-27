@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,7 +106,7 @@ func testTeamUsers(t *testing.T, ds kolide.Datastore) {
 
 func testTeamListTeams(t *testing.T, ds kolide.Datastore) {
 	users := createTestUsers(t, ds)
-	user1 := kolide.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID}
+	user1 := kolide.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID, GlobalRole: ptr.String(kolide.RoleAdmin)}
 	user2 := kolide.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID}
 
 	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
@@ -113,7 +114,7 @@ func testTeamListTeams(t *testing.T, ds kolide.Datastore) {
 	team2, err := ds.NewTeam(&kolide.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	teams, err := ds.ListTeams(kolide.ListOptions{})
+	teams, err := ds.ListTeams(kolide.TeamFilter{User: &user1}, kolide.ListOptions{})
 	require.NoError(t, err)
 	sort.Slice(teams, func(i, j int) bool { return teams[i].Name < teams[j].Name })
 
@@ -144,7 +145,7 @@ func testTeamListTeams(t *testing.T, ds kolide.Datastore) {
 	team1, err = ds.SaveTeam(team2)
 	require.NoError(t, err)
 
-	teams, err = ds.ListTeams(kolide.ListOptions{})
+	teams, err = ds.ListTeams(kolide.TeamFilter{User: &user1}, kolide.ListOptions{})
 	require.NoError(t, err)
 	sort.Slice(teams, func(i, j int) bool { return teams[i].Name < teams[j].Name })
 
@@ -155,4 +156,40 @@ func testTeamListTeams(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, "team2", teams[1].Name)
 	assert.Equal(t, 2, teams[1].HostCount)
 	assert.Equal(t, 1, teams[1].UserCount)
+}
+
+func testTeamSearchTeams(t *testing.T, ds kolide.Datastore) {
+	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(&kolide.Team{Name: "team2"})
+	require.NoError(t, err)
+	team3, err := ds.NewTeam(&kolide.Team{Name: "foobar"})
+	require.NoError(t, err)
+	team4, err := ds.NewTeam(&kolide.Team{Name: "floobar"})
+	require.NoError(t, err)
+
+	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
+	filter := kolide.TeamFilter{User: user}
+
+	teams, err := ds.SearchTeams(filter, "")
+	require.NoError(t, err)
+	assert.Len(t, teams, 4)
+
+	teams, err = ds.SearchTeams(filter, "", team1.ID, team2.ID, team3.ID)
+	require.NoError(t, err)
+	assert.Len(t, teams, 1)
+	assert.Equal(t, team4.Name, teams[0].Name)
+
+	teams, err = ds.SearchTeams(filter, "oo", team1.ID, team2.ID, team3.ID)
+	require.NoError(t, err)
+	assert.Len(t, teams, 1)
+	assert.Equal(t, team4.Name, teams[0].Name)
+
+	teams, err = ds.SearchTeams(filter, "oo")
+	require.NoError(t, err)
+	assert.Len(t, teams, 2)
+
+	teams, err = ds.SearchTeams(filter, "none")
+	require.NoError(t, err)
+	assert.Len(t, teams, 0)
 }

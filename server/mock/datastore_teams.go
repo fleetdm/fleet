@@ -18,7 +18,9 @@ type TeamFunc func(id uint) (*kolide.Team, error)
 
 type TeamByNameFunc func(name string) (*kolide.Team, error)
 
-type ListTeamsFunc func(opt kolide.ListOptions) ([]*kolide.Team, error)
+type ListTeamsFunc func(filter kolide.TeamFilter, opt kolide.ListOptions) ([]*kolide.Team, error)
+
+type SearchTeamsFunc func(filter kolide.TeamFilter, matchQuery string, omit ...uint) ([]*kolide.Team, error)
 
 type TeamStore struct {
 	NewTeamFunc        NewTeamFunc
@@ -38,6 +40,9 @@ type TeamStore struct {
 
 	ListTeamsFunc        ListTeamsFunc
 	ListTeamsFuncInvoked bool
+
+	SearchTeamsFunc        SearchTeamsFunc
+	SearchTeamsFuncInvoked bool
 }
 
 func (s *TeamStore) NewTeam(team *kolide.Team) (*kolide.Team, error) {
@@ -65,7 +70,12 @@ func (s *TeamStore) TeamByName(identifier string) (*kolide.Team, error) {
 	return s.TeamByNameFunc(identifier)
 }
 
-func (s *TeamStore) ListTeams(opt kolide.ListOptions) ([]*kolide.Team, error) {
+func (s *TeamStore) ListTeams(filter kolide.TeamFilter, opt kolide.ListOptions) ([]*kolide.Team, error) {
 	s.ListTeamsFuncInvoked = true
-	return s.ListTeamsFunc(opt)
+	return s.ListTeamsFunc(filter, opt)
+}
+
+func (s *TeamStore) SearchTeams(filter kolide.TeamFilter, matchQuery string, omit ...uint) ([]*kolide.Team, error) {
+	s.SearchTeamsFuncInvoked = true
+	return s.SearchTeamsFunc(filter, matchQuery, omit...)
 }

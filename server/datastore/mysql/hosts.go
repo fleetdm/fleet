@@ -28,9 +28,10 @@ func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 		os_version,
 		uptime,
 		physical_memory,
-		seen_time
+		seen_time,
+		team_id
 	)
-	VALUES( ?,?,?,?,?,?,?,?,?,?,?,? )
+	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,? )
 	`
 	result, err := d.db.Exec(
 		sqlStatement,
@@ -46,6 +47,7 @@ func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 		host.Uptime,
 		host.PhysicalMemory,
 		host.SeenTime,
+		host.TeamID,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "new host")

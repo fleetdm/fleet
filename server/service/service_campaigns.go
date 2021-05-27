@@ -25,10 +25,13 @@ func (svc service) NewDistributedQueryCampaignByNames(ctx context.Context, query
 		return nil, errors.Wrap(err, "finding label IDs")
 	}
 
-	return svc.NewDistributedQueryCampaign(ctx, queryString, queryID, hostIDs, labelIDs)
+	// TODO handle teams
+
+	targets := kolide.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}
+	return svc.NewDistributedQueryCampaign(ctx, queryString, queryID, targets)
 }
 
-func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
+func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, targets kolide.HostTargets) (*kolide.DistributedQueryCampaign, error) {
 	if err := svc.StatusLiveQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -75,7 +78,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	}
 
 	// Add host targets
-	for _, hid := range hosts {
+	for _, hid := range targets.HostIDs {
 		_, err = svc.ds.NewDistributedQueryCampaignTarget(&kolide.DistributedQueryCampaignTarget{
 			Type:                       kolide.TargetHost,
 			DistributedQueryCampaignID: campaign.ID,
@@ -87,7 +90,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	}
 
 	// Add label targets
-	for _, lid := range labels {
+	for _, lid := range targets.LabelIDs {
 		_, err = svc.ds.NewDistributedQueryCampaignTarget(&kolide.DistributedQueryCampaignTarget{
 			Type:                       kolide.TargetLabel,
 			DistributedQueryCampaignID: campaign.ID,
@@ -98,9 +101,21 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		}
 	}
 
+	// Add team targets
+	for _, lid := range targets.TeamIDs {
+		_, err = svc.ds.NewDistributedQueryCampaignTarget(&kolide.DistributedQueryCampaignTarget{
+			Type:                       kolide.TargetTeam,
+			DistributedQueryCampaignID: campaign.ID,
+			TargetID:                   lid,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "adding team target")
+		}
+	}
+
 	filter := kolide.TeamFilter{User: vc.User}
 
-	hostIDs, err := svc.ds.HostIDsInTargets(filter, hosts, labels)
+	hostIDs, err := svc.ds.HostIDsInTargets(filter, targets)
 	if err != nil {
 		return nil, errors.Wrap(err, "get target IDs")
 	}
@@ -110,7 +125,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		return nil, errors.Wrap(err, "run query")
 	}
 
-	campaign.Metrics, err = svc.ds.CountHostsInTargets(filter, hosts, labels, time.Now())
+	campaign.Metrics, err = svc.ds.CountHostsInTargets(filter, targets, time.Now())
 	if err != nil {
 		return nil, errors.Wrap(err, "counting hosts")
 	}
@@ -189,14 +204,14 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		res.Rows = filteredRows
 	}
 
-	hostIDs, labelIDs, err := svc.ds.DistributedQueryCampaignTargetIDs(campaign.ID)
+	targets, err := svc.ds.DistributedQueryCampaignTargetIDs(campaign.ID)
 	if err != nil {
 		conn.WriteJSONError("error retrieving campaign targets: " + err.Error())
 		return
 	}
 
 	updateStatus := func() error {
-		metrics, err := svc.CountHostsInTargets(context.Background(), &campaign.QueryID, hostIDs, labelIDs)
+		metrics, err := svc.CountHostsInTargets(context.Background(), &campaign.QueryID, *targets)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
 				return errors.Wrap(err, "retrieve target counts, write failed")

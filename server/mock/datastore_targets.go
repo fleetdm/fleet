@@ -10,22 +10,24 @@ import (
 
 var _ kolide.TargetStore = (*TargetStore)(nil)
 
-type CountHostsInTargetsFunc func(filter kolide.TeamFilter, hostIDs, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error)
-type HostIDsInTargetsFunc func(filter kolide.TeamFilter, hostIDs, labelIDs []uint) ([]uint, error)
+type CountHostsInTargetsFunc func(filter kolide.TeamFilter, targets kolide.HostTargets, now time.Time) (kolide.TargetMetrics, error)
+
+type HostIDsInTargetsFunc func(filter kolide.TeamFilter, targets kolide.HostTargets) ([]uint, error)
 
 type TargetStore struct {
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
-	HostIDsInTargetsFunc           HostIDsInTargetsFunc
-	HostIDsInTargetsFuncInvoked    bool
+
+	HostIDsInTargetsFunc        HostIDsInTargetsFunc
+	HostIDsInTargetsFuncInvoked bool
 }
 
-func (s *TargetStore) CountHostsInTargets(filter kolide.TeamFilter, hostIDs, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error) {
+func (s *TargetStore) CountHostsInTargets(filter kolide.TeamFilter, targets kolide.HostTargets, now time.Time) (kolide.TargetMetrics, error) {
 	s.CountHostsInTargetsFuncInvoked = true
-	return s.CountHostsInTargetsFunc(filter, hostIDs, labelIDs, now)
+	return s.CountHostsInTargetsFunc(filter, targets, now)
 }
 
-func (s *TargetStore) HostIDsInTargets(filter kolide.TeamFilter, hostIDs, labelIDs []uint) ([]uint, error) {
+func (s *TargetStore) HostIDsInTargets(filter kolide.TeamFilter, targets kolide.HostTargets) ([]uint, error) {
 	s.HostIDsInTargetsFuncInvoked = true
-	return s.HostIDsInTargetsFunc(filter, hostIDs, labelIDs)
+	return s.HostIDsInTargetsFunc(filter, targets)
 }

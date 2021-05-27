@@ -19,7 +19,7 @@ type CampaignStore interface {
 	SaveDistributedQueryCampaign(camp *DistributedQueryCampaign) error
 	// DistributedQueryCampaignTargetIDs gets the IDs of the targets for
 	// the query campaign of the provided ID
-	DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint, labelIDs []uint, err error)
+	DistributedQueryCampaignTargetIDs(id uint) (targets *HostTargets, err error)
 
 	// NewDistributedQueryCampaignTarget adds a new target to an existing
 	// distributed query campaign
@@ -44,7 +44,7 @@ type CampaignService interface {
 
 	// NewDistributedQueryCampaign creates a new distributed query campaign
 	// with the provided query (or the query referenced by ID) and host/label targets
-	NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, hosts []uint, labels []uint) (*DistributedQueryCampaign, error)
+	NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, targets HostTargets) (*DistributedQueryCampaign, error)
 
 	// StreamCampaignResults streams updates with query results and
 	// expected host totals over the provided websocket. Note that the type

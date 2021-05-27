@@ -7,22 +7,16 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/test"
-	"github.com/patrickmn/sortutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func checkTargets(t *testing.T, ds kolide.Datastore, campaignID uint, expectedHostIDs []uint, expectedLabelIDs []uint) {
-	hostIDs, labelIDs, err := ds.DistributedQueryCampaignTargetIDs(campaignID)
+func checkTargets(t *testing.T, ds kolide.Datastore, campaignID uint, expectedTargets kolide.HostTargets) {
+	targets, err := ds.DistributedQueryCampaignTargetIDs(campaignID)
 	require.Nil(t, err)
-
-	sortutil.Asc(expectedHostIDs)
-	sortutil.Asc(hostIDs)
-	assert.Equal(t, expectedHostIDs, hostIDs)
-
-	sortutil.Asc(expectedLabelIDs)
-	sortutil.Asc(labelIDs)
-	assert.Equal(t, expectedLabelIDs, labelIDs)
+	assert.ElementsMatch(t, expectedTargets.HostIDs, targets.HostIDs)
+	assert.ElementsMatch(t, expectedTargets.LabelIDs, targets.LabelIDs)
+	assert.ElementsMatch(t, expectedTargets.TeamIDs, targets.TeamIDs)
 }
 
 func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
@@ -58,21 +52,21 @@ func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
 	err := ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
 
-	checkTargets(t, ds, campaign.ID, []uint{}, []uint{})
+	checkTargets(t, ds, campaign.ID, kolide.HostTargets{})
 
 	test.AddHostToCampaign(t, ds, campaign.ID, h1.ID)
-	checkTargets(t, ds, campaign.ID, []uint{h1.ID}, []uint{})
+	checkTargets(t, ds, campaign.ID, kolide.HostTargets{HostIDs: []uint{h1.ID}})
 
 	test.AddLabelToCampaign(t, ds, campaign.ID, l1.ID)
-	checkTargets(t, ds, campaign.ID, []uint{h1.ID}, []uint{l1.ID})
+	checkTargets(t, ds, campaign.ID, kolide.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l1.ID}})
 
 	test.AddLabelToCampaign(t, ds, campaign.ID, l2.ID)
-	checkTargets(t, ds, campaign.ID, []uint{h1.ID}, []uint{l1.ID, l2.ID})
+	checkTargets(t, ds, campaign.ID, kolide.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l1.ID, l2.ID}})
 
 	test.AddHostToCampaign(t, ds, campaign.ID, h2.ID)
 	test.AddHostToCampaign(t, ds, campaign.ID, h3.ID)
 
-	checkTargets(t, ds, campaign.ID, []uint{h1.ID, h2.ID, h3.ID}, []uint{l1.ID, l2.ID})
+	checkTargets(t, ds, campaign.ID, kolide.HostTargets{HostIDs: []uint{h1.ID, h2.ID, h3.ID}, LabelIDs: []uint{l1.ID, l2.ID}})
 
 }
 

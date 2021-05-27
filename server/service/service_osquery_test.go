@@ -1158,10 +1158,10 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		return target, nil
 	}
 
-	ds.CountHostsInTargetsFunc = func(filter kolide.TeamFilter, hostIDs, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error) {
+	ds.CountHostsInTargetsFunc = func(filter kolide.TeamFilter, targets kolide.HostTargets, now time.Time) (kolide.TargetMetrics, error) {
 		return kolide.TargetMetrics{}, nil
 	}
-	ds.HostIDsInTargetsFunc = func(filter kolide.TeamFilter, hostIDs, labelIDs []uint) ([]uint, error) {
+	ds.HostIDsInTargetsFunc = func(filter kolide.TeamFilter, targets kolide.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
 	lq.On("RunQuery", "21", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
@@ -1171,7 +1171,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
-	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, []uint{2}, []uint{1})
+	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, kolide.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.Nil(t, err)
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
 	assert.Equal(t, []*kolide.DistributedQueryCampaignTarget{
