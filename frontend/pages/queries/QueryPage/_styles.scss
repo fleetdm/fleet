@@ -39,11 +39,15 @@
   }
 
   &__observer-query-details {
-    margin-top: 40px;
     padding: 0 2rem;
 
     h1 {
       margin: $pad-large 0;
+      font-size: $large;
+    }
+
+    p {
+      margin-bottom: $pad-small;
     }
 
     .sql-button {
