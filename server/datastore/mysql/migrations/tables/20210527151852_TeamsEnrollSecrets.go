@@ -2,15 +2,13 @@ package tables
 
 import (
 	"database/sql"
-
-	"github.com/pkg/errors"
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20210513174845, Down_20210513174845)
+	MigrationClient.AddMigration(Up_20210527151852, Down_20210527151852)
 }
 
-func Up_20210513174845(tx *sql.Tx) error {
+func Up_20210527151852(tx *sql.Tx) error {
 	sql := `
 		ALTER TABLE enroll_secrets
 		ADD COLUMN team_id INT UNSIGNED,
@@ -23,6 +21,6 @@ func Up_20210513174845(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20210513174845(tx *sql.Tx) error {
+func Down_20210527151852(tx *sql.Tx) error {
 	return nil
 }
