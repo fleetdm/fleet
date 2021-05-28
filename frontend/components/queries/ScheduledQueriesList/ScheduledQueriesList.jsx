@@ -137,6 +137,7 @@ class ScheduledQueriesList extends Component {
       onCheckQuery,
       scheduledQueries,
       checkedScheduledQueryIDs,
+      isScheduledQueriesAvailable,
     } = this.props;
     const { allQueriesSelected, selectedQueryRowId } = this.state;
     const {
@@ -154,23 +155,27 @@ class ScheduledQueriesList extends Component {
       <div className={baseClass}>
         <table className={wrapperClassName}>
           <thead>
-            <tr>
-              <th>
-                <Checkbox
-                  name="select-all-scheduled-queries"
-                  onChange={handleSelectAllQueries}
-                  value={allQueriesSelected}
-                />
-              </th>
-              <th>Query name</th>
-              <th>Interval(s)</th>
-              <th>Platform</th>
-              <th>
-                <KolideIcon name="osquery" /> Ver.
-              </th>
-              <th>Shard</th>
-              <th>Logging</th>
-            </tr>
+            {scheduledQueries.length || isScheduledQueriesAvailable ? (
+              <tr>
+                <th>
+                  <Checkbox
+                    name="select-all-scheduled-queries"
+                    onChange={handleSelectAllQueries}
+                    value={allQueriesSelected}
+                  />
+                </th>
+                <th>Query name</th>
+                <th>Frequency</th>
+                <th>Platform</th>
+                <th>Osquery ver.</th>
+                <th>Shard</th>
+                <th>Logging</th>
+              </tr>
+            ) : (
+              <tr>
+                <th></th>
+              </tr>
+            )}
           </thead>
           <tbody>
             {renderHelpText()}

@@ -14,11 +14,15 @@
       background-color: $ui-off-white;
       border-bottom: 1px solid $ui-fleet-blue-15;
 
+      th + th {
+        border-left: 1px solid $ui-fleet-blue-15;
+      }
+
       th {
         font-size: $x-small;
         font-weight: $bold;
         text-align: left;
-        padding: 15px 10px;
+        padding: $pad-medium $pad-large;
 
         .form-field {
           margin: 0;
@@ -30,20 +34,19 @@
         }
 
         &:nth-child(2) {
-          width: calc(46% - 20px);
+          width: calc(49% - 20px);
         }
 
         &:nth-child(3) {
-          width: 18%;
+          width: 17%;
         }
 
         &:nth-child(4) {
-          width: 18%;
+          width: 17%;
         }
 
         &:nth-child(5) {
-          width: 18%;
-          text-align: center;
+          width: 17%;
         }
 
         &:last-child {
@@ -54,8 +57,12 @@
     }
 
     tbody {
+      p {
+        font-size: $x-small;
+      }
+
       td {
-        padding: 0 10px;
+        padding: 0 $pad-large;
         margin: 0;
 
         .form-field {
@@ -69,7 +76,7 @@
 
         &:nth-child(2) {
           font-size: $x-small;
-          font-weight: $bold;
+          font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
           text-align: left;
@@ -151,7 +158,7 @@
     }
 
     p {
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $regular;
       line-height: 2.5;
       color: $core-fleet-black;
@@ -166,7 +173,7 @@
 
     li {
       margin-left: 15px;
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $regular;
       line-height: 2.5;
       color: $core-fleet-black;

@@ -98,7 +98,7 @@
     content: url("../assets/images/icon-chevron-black-16x16@2x.png");
     height: 16px;
     width: 16px;
-    margin-top: 6px;
+    margin-top: 8px;
     margin-left: -4px;
     border: none;
 
@@ -112,7 +112,7 @@
       content: url("../assets/images/icon-collapse-black-16x16@2x.png");
       height: 16px;
       width: 16px;
-      margin-top: 6px;
+      margin-top: 14px;
       margin-left: -3px;
       border: none;
 
@@ -200,7 +200,8 @@
     color: $ui-gray;
   }
 
-  .Select-placeholder {
+  .Select-placeholder,
+  .Select-input {
     color: $core-fleet-blue;
     font-size: $small;
     line-height: 40px;

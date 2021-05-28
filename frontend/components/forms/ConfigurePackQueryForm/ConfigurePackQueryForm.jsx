@@ -137,13 +137,13 @@ export class ConfigurePackQueryForm extends Component {
 
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
-        <h2 className={`${baseClass}__title`}>configuration</h2>
+        <h2 className={`${baseClass}__title`}>Configuration</h2>
         <div className={`${baseClass}__fields`}>
           <InputField
             {...fields.interval}
-            inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--interval`}
+            inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
             placeholder="- - -"
-            label="Interval"
+            label="Frequency"
             hint="Seconds"
             type="number"
           />
