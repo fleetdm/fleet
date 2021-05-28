@@ -21,7 +21,6 @@ parasails.registerPage('query-detail', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     castRemediationArray: function (remediation) {
-      console.log(remediation);
       if (_.isArray(remediation) && remediation.length) {
         return remediation.filter((item) => _.isString(item) && item.length);
       }
