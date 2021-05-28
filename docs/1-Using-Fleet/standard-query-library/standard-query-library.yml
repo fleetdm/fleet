@@ -8,6 +8,7 @@ spec:
   query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
   purpose: Informational
   remediation: N/A
+  contributors: mike-j-thomas,noahtalerman,mikermcneil
 ---
 apiVersion: v1
 kind: query
