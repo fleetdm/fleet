@@ -8,9 +8,9 @@
   }
 
   &__section-label {
-    font-size: $medium;
+    font-size: $x-small;
     font-weight: $bold;
-    margin: $pad-large 0 $pad-medium;
+    margin: $pad-large 0 $pad-small;
   }
 
   &__edit-pack-link {
@@ -25,7 +25,7 @@
   &__pack-name {
     @include ellipsis(250px);
     color: $core-fleet-black;
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
     margin: 0;
   }
@@ -44,7 +44,7 @@
 
   &__query-name {
     @include ellipsis(240px);
-    font-size: $small;
+    font-size: $x-small;
     color: $core-vibrant-blue;
     text-decoration: none;
   }
