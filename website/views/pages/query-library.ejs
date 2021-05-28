@@ -5,31 +5,38 @@
       <h2 class="mb-3">Standard query library</h2>
       <h6 class="font-weight-light pb-3">Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery.</h6>
       <div class="filter-and-search-bar container">
-        <div class="row">
-          <div class="filter-purpose">
-            <span>Show
-              <select class="mr-1" v-model="selectedPurpose">
-                <option value="all" selected>all queries</option>
-                <option value="information">informational</option>
-                <option value="detection">detection</option>
-              </select>
-            </span>
+        <div class="row justify-content-between">
+          <div class="col-8 d-flex px-0">
+            <div class="filter-purpose">
+              <span>Show
+                <select class="mr-1" v-model="selectedPurpose">
+                  <option value="all" selected>all queries</option>
+                  <option value="information">informational</option>
+                  <option value="detection">detection</option>
+                </select>
+              </span>
+            </div>
+            <div class="filter-platform">
+              <span> compatible with
+                <select class="mr-1" v-model="selectedPlatform">
+                  <option value="all" selected>all platforms</option>
+                  <option value="macOS">macOS</option>
+                  <option value="Windows">Windows</option>
+                  <option value="Linux">Linux</option>
+                </select>
+              </span>
+            </div>
           </div>
-          <div class="filter-platform">
-            <span> compatible with
-              <select class="mr-1" v-model="selectedPlatform">
-                <option value="all" selected>all platforms</option>
-                <option value="macOS">macOS</option>
-                <option value="Windows">Windows</option>
-                <option value="Linux">Linux</option>
-              </select>
-            </span>
+          <div class="col-3 px-0 d-none d-lg-block justify-content-end">
+            <div class="search ">
+              <input v-model="inputTextValue" placeholder="Search" @keydown.self="delayInput(setSearchString, 1000, 'defaultTimer')()"/>
+            </div>
           </div>
         </div>
       </div>
       <div class="results">
         <div class="category__informational">
-          <div v-for="query of filteredQueries">
+          <div v-for="query of queriesList">
             <div class="card results" @click="clickCard(query.slug)">
               <div class="card-body">
                 <div class="row justify-content-between align-items-center">
