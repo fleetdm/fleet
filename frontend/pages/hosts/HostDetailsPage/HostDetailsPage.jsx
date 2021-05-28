@@ -11,6 +11,7 @@ import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
+import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 
 import entityGetter from "redux/utilities/entityGetter";
 import queryActions from "redux/nodes/entities/queries/actions";
@@ -18,6 +19,13 @@ import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionItemHeading,
+  AccordionItemButton,
+  AccordionItemPanel,
+} from "react-accessible-accordion";
 
 import hostInterface from "interfaces/host";
 import {
@@ -26,6 +34,7 @@ import {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  secondsToHms,
 } from "kolide/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
@@ -55,6 +64,7 @@ export class HostDetailsPage extends Component {
     this.state = {
       showDeleteHostModal: false,
       showQueryHostModal: false,
+      showRefetchLoadingSpinner: false,
     };
   }
 
@@ -70,8 +80,9 @@ export class HostDetailsPage extends Component {
     const { dispatch, hostID } = this.props;
     const { fetchHost } = helpers;
 
-    fetchHost(dispatch, hostID);
-
+    fetchHost(dispatch, hostID).then((host) =>
+      this.setState({ showRefetchLoadingSpinner: host.refetch_requested })
+    );
     return false;
   }
 
@@ -86,6 +97,21 @@ export class HostDetailsPage extends Component {
           `Host "${host.hostname}" was successfully deleted`
         )
       );
+    });
+
+    return false;
+  };
+
+  onRefetchHost = () => {
+    const { dispatch, host } = this.props;
+    const { refetchHost } = helpers;
+
+    this.setState({ showRefetchLoadingSpinner: true });
+
+    refetchHost(dispatch, host).catch((error) => {
+      this.setState({ showRefetchLoadingSpinner: false });
+      console.log(error);
+      dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
     });
 
     return false;
@@ -154,7 +180,7 @@ export class HostDetailsPage extends Component {
           revoke the host&apos;s enroll secret.
         </p>
         <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={() => onDestroyHost()} variant="alert">
+          <Button onClick={onDestroyHost} variant="alert">
             Delete
           </Button>
           <Button onClick={toggleDeleteHostModal(null)} variant="inverse">
@@ -192,7 +218,7 @@ export class HostDetailsPage extends Component {
           backgroundColor="#3e4771"
         >
           <span className={`${baseClass}__tooltip-text`}>
-            You can’t <br /> query an <br /> offline host.
+            You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
         <Button onClick={toggleDeleteHostModal()} variant="active">
@@ -234,31 +260,63 @@ export class HostDetailsPage extends Component {
   };
 
   renderPacks = () => {
-    const { onPackClick } = this;
     const { host } = this.props;
-    const { packs = [] } = host;
+    const { pack_stats } = host;
+    const wrapperClassName = `${baseClass}__table`;
 
-    const packItems = packs.map((pack) => {
-      return (
-        <li className="list__item" key={pack.id}>
-          <Button
-            onClick={() => onPackClick(pack)}
-            variant="text-link"
-            className="list__button"
-          >
-            {pack.name}
-          </Button>
-        </li>
-      );
-    });
+    let packsAccordion;
+    if (pack_stats) {
+      packsAccordion = pack_stats.map((pack) => {
+        return (
+          <AccordionItem key={pack.pack_id}>
+            <AccordionItemHeading>
+              <AccordionItemButton>{pack.pack_name}</AccordionItemButton>
+            </AccordionItemHeading>
+            <AccordionItemPanel>
+              {pack.query_stats.length === 0 ? (
+                <div>There are no schedule queries for this pack.</div>
+              ) : (
+                <div className={`${baseClass}__wrapper`}>
+                  <table className={wrapperClassName}>
+                    <thead>
+                      <tr>
+                        <th>Query name</th>
+                        <th>Description</th>
+                        <th>Frequency</th>
+                        <th>Last run</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!!pack.query_stats.length &&
+                        pack.query_stats.map((query) => {
+                          return (
+                            <PackQueriesListRow
+                              key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
+                              query={query}
+                            />
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </AccordionItemPanel>
+          </AccordionItem>
+        );
+      });
+    }
 
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        {packs.length === 0 ? (
-          <p className="info__item">No packs have this host as a target.</p>
+        {!pack_stats ? (
+          <p className="results__data">
+            No packs with scheduled queries have this host as a target.
+          </p>
         ) : (
-          <ul className="list">{packItems}</ul>
+          <Accordion allowMultipleExpanded="true" allowZeroExpanded="true">
+            {packsAccordion}
+          </Accordion>
         )}
       </div>
     );
@@ -309,6 +367,51 @@ export class HostDetailsPage extends Component {
     );
   };
 
+  renderRefetch = () => {
+    const { onRefetchHost } = this;
+    const { host } = this.props;
+    const { showRefetchLoadingSpinner } = this.state;
+
+    const isOnline = host.status === "online";
+    const isOffline = host.status === "offline";
+    return (
+      <>
+        <div
+          className="refetch"
+          data-tip
+          data-for="refetch-tooltip"
+          data-tip-disable={isOnline || showRefetchLoadingSpinner}
+        >
+          <Button
+            className={`
+              button
+              button--unstyled
+              ${isOffline ? "refetch-offline" : ""} 
+              ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
+            `}
+            disabled={isOffline}
+            onClick={onRefetchHost}
+          >
+            {showRefetchLoadingSpinner
+              ? "Fetching, try refreshing this page in just a moment."
+              : "Refetch"}
+          </Button>
+        </div>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="refetch-tooltip"
+          backgroundColor="#3e4771"
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            You can’t fetch data from <br /> an offline host.
+          </span>
+        </ReactTooltip>
+      </>
+    );
+  };
+
   render() {
     const { host, isLoadingHost, dispatch, queries, queryErrors } = this.props;
     const { showQueryHostModal } = this.state;
@@ -319,6 +422,7 @@ export class HostDetailsPage extends Component {
       renderLabels,
       renderSoftware,
       renderPacks,
+      renderRefetch,
     } = this;
 
     const titleData = pick(host, [
@@ -352,7 +456,7 @@ export class HostDetailsPage extends Component {
           key === "config_tls_refresh" ||
           key === "distributed_interval"
         ) {
-          object[key] = `${object[key]} sec`;
+          object[key] = secondsToHms(object[key]);
         }
       });
     });
@@ -366,18 +470,21 @@ export class HostDetailsPage extends Component {
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
-          <Link to="/hosts/manage">
+          <Link to={PATHS.MANAGE_HOSTS} className={`${baseClass}__back-link`}>
             <img src={BackChevron} alt="back chevron" id="back-chevron" />
-            Back to Hosts
+            <span>Back to all hosts</span>
           </Link>
         </div>
         <div className="section title">
           <div className="title__inner">
             <div className="hostname-container">
               <h1 className="hostname">{host.hostname}</h1>
-              <p className="last-fetched">{`Last fetched ${humanHostDetailUpdated(
-                titleData.detail_updated_at
-              )}`}</p>
+              <p className="last-fetched">
+                {`Last fetched ${humanHostDetailUpdated(
+                  titleData.detail_updated_at
+                )}`}{" "}
+              </p>
+              {renderRefetch()}
             </div>
             <div className="info">
               <div className="info__item info__item--title">
@@ -421,7 +528,7 @@ export class HostDetailsPage extends Component {
                 </span>
                 <span className="info__header">Updated at</span>
                 <span className="info__data">
-                  {humanHostLastSeen(aboutData.seen_time)}
+                  {humanHostLastSeen(titleData.detail_updated_at)}
                 </span>
                 <span className="info__header">Uptime</span>
                 <span className="info__data">
@@ -442,7 +549,7 @@ export class HostDetailsPage extends Component {
           </div>
         </div>
         <div className="section osquery col-25">
-          <p className="section__header">Agent Options</p>
+          <p className="section__header">Agent options</p>
           <div className="info__item info__item--about">
             <div className="info__block">
               <span className="info__header">Config TLS refresh</span>
@@ -462,6 +569,8 @@ export class HostDetailsPage extends Component {
         </div>
         {renderLabels()}
         {renderPacks()}
+        {/* The Software inventory feature is behind a feature flag
+        so we only render the sofware section if the feature is enabled */}
         {host.software && renderSoftware()}
         {renderDeleteHostModal()}
         {showQueryHostModal && (

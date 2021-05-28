@@ -211,30 +211,7 @@ Note the token can also be set with `fleetctl config set --token`, but this may 
 
 ## Using fleetctl for configuration
 
-A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. Each message can live in it's own file or multiple in one file, each separated by `---`. Each file/message contains a few required top-level keys:
-
-- `apiVersion` - the API version of the file/request
-- `spec` - the "data" of the request
-- `kind ` - the type of file/object (i.e.: pack, query, config)
-
-The file may optionally also include some `metadata` for more complex data types (i.e.: packs).
-
-When you reason about how to manage these config files, consider following the [General Config Tips](https://kubernetes.io/docs/concepts/configuration/overview/#general-config-tips) published by the Kubernetes project. Some of the especially relevant tips are included here as well:
-
-- When defining configurations, specify the latest stable API version.
-- Configuration files should be stored in version control before being pushed to the cluster. This allows quick roll-back of a configuration if needed. It also aids with cluster re-creation and restoration if necessary.
-- Group related objects into a single file whenever it makes sense. One file is often easier to manage than several. See the [config-single-file.yml](../../examples/config-single-file.yml) file as an example of this syntax.
-- Don’t specify default values unnecessarily – simple and minimal configs will reduce errors.
-
-All of these files can be concatenated together into [one file](../../examples/config-single-file.yml) (separated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
-
-```
-|-- config.yml
-|-- labels.yml
-|-- packs
-|   `-- osquery-monitoring.yml
-`-- queries.yml
-```
+A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. Check out the [configuration files](./configuration-files/README.md) section of the documentation for example yaml files.
 
 ### Convert osquery JSON
 
@@ -340,6 +317,8 @@ spec:
       interval: 600
       removed: false
 ```
+
+The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of the specified labels, upon enrolling to Fleet, will automatically become targets of the given pack.
 
 #### Moving queries and packs from one Fleet environment to another
 

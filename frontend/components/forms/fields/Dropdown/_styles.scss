@@ -46,53 +46,42 @@
     background-color: $ui-light-grey;
     border-radius: 4px;
     height: 40px;
-
-    .Select-value {
-      border: 0;
-    }
   }
 
   .Select-value {
-    font-size: $small;
+    font-size: $x-small;
     border-radius: 4px;
-    background-color: $ui-light-grey;
-    border: solid 1px $ui-fleet-blue-15;
+    background-color: $ui-off-white;
+    border: solid 1px $core-dark-blue-grey;
 
     .Select-value-icon {
       border: 0;
       float: right;
       position: relative;
       line-height: 28px;
-      width: 25px;
+      width: 20px;
       padding: 0;
       margin: 0 5px;
       text-indent: -999em;
 
       &::after {
-        @extend %kolidecon;
         transition: color 150ms ease-in-out;
-        transform: translate(-50%, -50%);
-        content: "\f036";
+        content: url(../assets/images/icon-close-dark-blue-grey-16x16@2x.png);
+        transform: scale(0.5);
         position: absolute;
-        top: 50%;
-        left: 50%;
+        top: -5px;
+        left: -5px;
         visibility: visible;
         font-size: $small;
         color: $ui-gray;
         text-indent: 0;
       }
-
-      &:hover {
-        &::after {
-          color: $core-fleet-blue;
-        }
-      }
     }
 
     .Select-value-label {
-      font-size: $small;
-      font-weight: $regular;
-      color: $core-fleet-black;
+      font-size: $x-small;
+      font-weight: $bold;
+      color: $core-dark-blue-grey;
       line-height: 28px;
     }
   }
@@ -106,28 +95,64 @@
   }
 
   .Select-arrow {
-    border-top-color: $core-fleet-black;
+    content: url("../assets/images/icon-chevron-black-16x16@2x.png");
+    height: 16px;
+    width: 16px;
+    margin-top: 6px;
+    margin-left: -4px;
+    border: none;
+
+    &:hover {
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+    }
   }
 
-  &.is-focused {
-    .Select-control {
-      border: 1px solid $core-vibrant-blue;
+  &.is-open {
+    .Select-arrow {
+      content: url("../assets/images/icon-collapse-black-16x16@2x.png");
+      height: 16px;
+      width: 16px;
+      margin-top: 11px;
+      margin-left: -3px;
+      border: none;
+
+      &:hover {
+        content: url("../assets/images/icon-collapse-blue-16x16@2x.png");
+      }
     }
 
-    &:not(.is-open) {
-      .Select-control {
-        box-shadow: none;
+    .Select-arrow-zone {
+      &:hover {
+        .Select-arrow {
+          border-top-color: transparent;
+        }
       }
     }
   }
+
+  // .Select-arrow {
+  //   border-top-color: $core-vibrant-blue;
+  // }
+
+  // &.is-focused {
+  //   .Select-control {
+  //     border: 1px solid $core-vibrant-blue;
+  //   }
+
+  //   &:not(.is-open) {
+  //     .Select-control {
+  //       box-shadow: none;
+  //     }
+  //   }
+  // }
 
   &.has-value {
     > .Select-control,
     &.is-pseudo-focused > .Select-control {
       .Select-value {
         .Select-value-label {
-          color: $core-fleet-black;
-          font-size: $small;
+          color: $core-dark-blue-grey;
+          font-size: $x-small;
         }
       }
     }
@@ -212,12 +237,11 @@
     }
 
     .Select-value {
-      margin-top: 3px;
-      margin-bottom: 3px;
+      margin-top: 4px;
     }
 
     .Select-value-label {
-      padding: 0 0 0 1rem;
+      padding: 0 0 0 10px;
     }
   }
 }

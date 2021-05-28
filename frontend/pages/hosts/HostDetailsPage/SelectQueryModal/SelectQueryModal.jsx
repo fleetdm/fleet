@@ -57,6 +57,18 @@ const SelectQueryModal = (props) => {
     });
   };
 
+  const customQueryButton = () => {
+    return (
+      <Button
+        onClick={() => onQueryHostCustom(host, dispatch)}
+        variant="brand"
+        className={`${baseClass}__custom-query-button`}
+      >
+        Create custom query
+      </Button>
+    );
+  };
+
   const onFilterQueries = (event) => {
     setQueriesFilter(event);
     return false;
@@ -69,7 +81,7 @@ const SelectQueryModal = (props) => {
   const results = () => {
     if (queryErrors) {
       return (
-        <div className={`${baseClass}__no-query-results`}>
+        <div className={`${baseClass}__no-queries`}>
           <span className="info__header">
             <img src={ErrorIcon} alt="error icon" id="error-icon" />
             Something&apos;s gone wrong.
@@ -86,6 +98,20 @@ const SelectQueryModal = (props) => {
               <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
             </a>
           </span>
+          {customQueryButton()}
+        </div>
+      );
+    }
+
+    if (!queriesFilter && queriesCount === 0) {
+      return (
+        <div className={`${baseClass}__no-queries`}>
+          <span className="info__header">You have no saved queries.</span>
+          <span className="info__data">
+            Expecting to see queries? Try again in a few seconds as the system
+            catches up.
+          </span>
+          {customQueryButton()}
         </div>
       );
     }
@@ -106,28 +132,22 @@ const SelectQueryModal = (props) => {
       });
       return (
         <div>
-          <div className={`${baseClass}__filter-queries`}>
-            <InputField
-              name="query-filter"
-              onChange={onFilterQueries}
-              placeholder="Filter queries"
-              value={queriesFilter}
-            />
-            <KolideIcon name="search" />
+          <div className={`${baseClass}__query-modal`}>
+            <div className={`${baseClass}__filter-queries`}>
+              <InputField
+                name="query-filter"
+                onChange={onFilterQueries}
+                placeholder="Filter queries"
+                value={queriesFilter}
+              />
+              <KolideIcon name="search" />
+            </div>
+            <div className={`${baseClass}__create-query`}>
+              <span>OR</span>
+              {customQueryButton()}
+            </div>
           </div>
           <div>{queryList}</div>
-        </div>
-      );
-    }
-
-    if (!queriesFilter && queriesCount === 0) {
-      return (
-        <div className={`${baseClass}__no-query-results`}>
-          <span className="info__header">You have no saved queries.</span>
-          <span className="info__data">
-            Expecting to see queries? Try again in a few seconds as the system
-            catches up.
-          </span>
         </div>
       );
     }
@@ -135,14 +155,20 @@ const SelectQueryModal = (props) => {
     if (queriesFilter && queriesCount === 0) {
       return (
         <div>
-          <div className={`${baseClass}__filter-queries`}>
-            <InputField
-              name="query-filter"
-              onChange={onFilterQueries}
-              placeholder="Filter queries"
-              value={queriesFilter}
-            />
-            <KolideIcon name="search" />
+          <div className={`${baseClass}__query-modal`}>
+            <div className={`${baseClass}__filter-queries`}>
+              <InputField
+                name="query-filter"
+                onChange={onFilterQueries}
+                placeholder="Filter queries"
+                value={queriesFilter}
+              />
+              <KolideIcon name="search" />
+            </div>
+            <div className={`${baseClass}__create-query`}>
+              <span>OR</span>
+              {customQueryButton()}
+            </div>
           </div>
           <div className={`${baseClass}__no-query-results`}>
             <span className="info__header">
@@ -165,15 +191,6 @@ const SelectQueryModal = (props) => {
       className={`${baseClass}__modal`}
     >
       {results()}
-      <p>
-        <Button
-          onClick={() => onQueryHostCustom(host, dispatch)}
-          variant="unstyled"
-          className={`${baseClass}__custom-query-button`}
-        >
-          Create custom query
-        </Button>
-      </p>
     </Modal>
   );
 };

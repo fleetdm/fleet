@@ -86,10 +86,10 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			distributed_interval = ?,
 			config_tls_refresh = ?,
 			logger_tls_period = ?,
-			additional = COALESCE(?, additional),
 			enroll_secret_name = ?,
 			primary_ip = ?,
-			primary_mac = ?
+			primary_mac = ?,
+			refetch_requested = ?
 		WHERE id = ?
 	`
 	_, err := d.db.Exec(sqlStatement,
@@ -120,10 +120,10 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		host.DistributedInterval,
 		host.ConfigTLSRefresh,
 		host.LoggerTLSPeriod,
-		host.Additional,
 		host.EnrollSecretName,
 		host.PrimaryIP,
 		host.PrimaryMac,
+		host.RefetchRequested,
 		host.ID,
 	)
 	if err != nil {
@@ -224,10 +224,12 @@ SELECT
 	sq.id AS scheduled_query_id,
 	sq.query_name AS query_name,
 	p.name AS pack_name,
-	p.id as pack_id
+	p.id as pack_id,
+	q.description
 FROM scheduled_query_stats sqs
 	JOIN scheduled_queries sq ON (sqs.scheduled_query_id = sq.id)
-	JOIN packs p ON (sq.pack_id = p.id)  
+	JOIN packs p ON (sq.pack_id = p.id)
+	JOIN queries q ON (sq.query_name = q.name)
 WHERE host_id = ?
 `
 	var stats []kolide.ScheduledQueryStats
@@ -261,8 +263,10 @@ func (d *Datastore) DeleteHost(hid uint) error {
 
 func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	sqlStatement := `
-		SELECT * FROM hosts
-		WHERE id = ? LIMIT 1
+		SELECT h.*, (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
+		FROM hosts h
+		WHERE h.id = ?
+		LIMIT 1
 	`
 	host := &kolide.Host{}
 	err := d.db.Get(host, sqlStatement, id)
@@ -277,64 +281,68 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 }
 
 func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	sql := `SELECT id,
-        osquery_host_id, 
-        created_at, 
-        updated_at, 
-        detail_update_time, 
-        node_key, 
-        host_name, 
-        uuid, 
-        platform, 
-        osquery_version, 
-        os_version, 
-        build, 
-        platform_like, 
-        code_name, 
-        uptime, 
-        physical_memory, 
-        cpu_type, 
-        cpu_subtype, 
-        cpu_brand, 
-        cpu_physical_cores, 
-        cpu_logical_cores, 
-        hardware_vendor, 
-        hardware_model, 
-        hardware_version, 
-        hardware_serial, 
-        computer_name, 
-        primary_ip_id, 
-        seen_time, 
-        distributed_interval, 
-        logger_tls_period, 
-        config_tls_refresh, 
-        primary_ip, 
-        primary_mac, 
-        label_update_time, 
-        enroll_secret_name,
+	sql := `SELECT
+		h.id,
+		h.osquery_host_id,
+		h.created_at,
+		h.updated_at,
+		h.detail_update_time,
+		h.node_key,
+		h.host_name,
+		h.uuid,
+		h.platform,
+		h.osquery_version,
+		h.os_version,
+		h.build,
+		h.platform_like,
+		h.code_name,
+		h.uptime,
+		h.physical_memory,
+		h.cpu_type,
+		h.cpu_subtype,
+		h.cpu_brand,
+		h.cpu_physical_cores,
+		h.cpu_logical_cores,
+		h.hardware_vendor,
+		h.hardware_model,
+		h.hardware_version,
+		h.hardware_serial,
+		h.computer_name,
+		h.primary_ip_id,
+		h.seen_time,
+		h.distributed_interval,
+		h.logger_tls_period,
+		h.config_tls_refresh,
+		h.primary_ip,
+		h.primary_mac,
+		h.label_update_time,
+		h.enroll_secret_name,
+		h.refetch_requested
 		`
 
 	var params []interface{}
 
-	// Filter additional info by extracting into a new json object.
-	if len(opt.AdditionalFilters) > 0 {
-		sql += `JSON_OBJECT(
+	// Only include "additional" if filter provided.
+	if len(opt.AdditionalFilters) == 1 && opt.AdditionalFilters[0] == "*" {
+		// All info requested.
+		sql += `
+		, (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
+		`
+	} else if len(opt.AdditionalFilters) > 0 {
+		// Filter specific columns.
+		sql += `, (SELECT JSON_OBJECT(
 			`
 		for _, field := range opt.AdditionalFilters {
-			sql += fmt.Sprintf(`?, JSON_EXTRACT(additional, ?), `)
+			sql += `?, JSON_EXTRACT(additional, ?), `
 			params = append(params, field, fmt.Sprintf(`$."%s"`, field))
 		}
 		sql = sql[:len(sql)-2]
 		sql += `
-		    ) AS additional
+		    ) FROM host_additional WHERE host_id = h.id) AS additional
 		    `
-	} else {
-		sql += `
-		additional
-		`
 	}
 
-	sql += `FROM hosts
+	sql += `FROM hosts h
 WHERE TRUE
     `
 	switch opt.StatusFilter {
@@ -529,7 +537,8 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 			config_tls_refresh,
 			primary_ip,
 			primary_mac,
-			enroll_secret_name
+			enroll_secret_name,
+			refetch_requested
 		FROM hosts
 		WHERE node_key = ?
 		LIMIT 1
@@ -732,4 +741,16 @@ func (d *Datastore) HostByIdentifier(identifier string) (*kolide.Host, error) {
 	}
 
 	return host, nil
+}
+
+func (d *Datastore) SaveHostAdditional(host *kolide.Host) error {
+	sql := `
+		INSERT INTO host_additional (host_id, additional)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE additional = VALUES(additional)
+	`
+	if _, err := d.db.Exec(sql, host.ID, host.Additional); err != nil {
+		return errors.Wrap(err, "insert additional")
+	}
+	return nil
 }

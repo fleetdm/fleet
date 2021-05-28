@@ -1,4 +1,5 @@
 # REST API
+
 - [Overview](#overview)
   - [fleetctl](#fleetctl)
   - [Current API](#current-api)
@@ -23,8 +24,8 @@ Fleet is powered by a Go API server which serves three types of endpoints:
 - All other endpoints are served by the React single page application bundle.
   The React app uses React Router to determine whether or not the URI is a valid
   route and what to do.
-  
-Note: We have deprecated `/api/v1/kolide/` routes and will remove them in the Fleet 4.0 release. Please migrate all routes to `/api/v1/fleet/`. 
+
+Note: We have deprecated `/api/v1/kolide/` routes and will remove them in the Fleet 4.0 release. Please migrate all routes to `/api/v1/fleet/`.
 
 ### fleetctl
 
@@ -50,8 +51,6 @@ Each set of objects follows a similar REST access pattern.
 Queries, packs, scheduled queries, labels, invites, users, sessions all behave this way. Some objects, like invites, have additional HTTP methods for additional functionality. Some objects, such as scheduled queries, are merely a relationship between two other objects (in this case, a query and a pack) with some details attached.
 
 All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/fleetdm/fleet/blob/master/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Fleet API is important to you right now, being familiar with Go Kit would definitely be helpful.
-
-
 
 ## Authentication
 
@@ -94,7 +93,7 @@ Then, use that API token to authenticate all subsequent API requests by sending 
 Authorization: Bearer <your token>
 ```
 
-> For SSO users, username/password login is disabled.  The API token can instead be retrieved from the "Settings" page in the UI.
+> For SSO users, username/password login is disabled. The API token can instead be retrieved from the "Account settings" page in the UI (/profile). Choose "Get API token".
 
 ### Log in
 
@@ -263,11 +262,11 @@ Resets a user's password. Which user is determined by the password reset token u
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| new_password   | string | body | **Required**. The new password. |
-| new_password_confirmation   | string | body | **Required**. Confirmation for the new password. |
-| password_reset_token   | string | body | **Required**. The token provided to the user in the password reset email. |
+| Name                      | Type   | In   | Description                                                               |
+| ------------------------- | ------ | ---- | ------------------------------------------------------------------------- |
+| new_password              | string | body | **Required**. The new password.                                           |
+| new_password_confirmation | string | body | **Required**. Confirmation for the new password.                          |
+| password_reset_token      | string | body | **Required**. The token provided to the user in the password reset email. |
 
 #### Example
 
@@ -401,8 +400,8 @@ Gets the current SSO configuration.
 
 #### Parameters
 
-| Name      | Type   | In   | Description                                                                |
-| --------- | ------ | ---- | -------------------------------------------------------------------------- |
+| Name      | Type   | In   | Description                                                                 |
+| --------- | ------ | ---- | --------------------------------------------------------------------------- |
 | relay_url | string | body | **Required**. The relative url to be navigated to after successful sign in. |
 
 #### Example
@@ -445,8 +444,8 @@ This is the callback endpoint that the identity provider will use to send securi
 
 #### Parameters
 
-| Name      | Type   | In   | Description                                                                |
-| --------- | ------ | ---- | -------------------------------------------------------------------------- |
+| Name         | Type   | In   | Description                                                 |
+| ------------ | ------ | ---- | ----------------------------------------------------------- |
 | SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
 
 #### Example
@@ -478,6 +477,7 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Get host](#get-host)
 - [Get host by identifier](#get-host-by-identifier)
 - [Delete host](#delete-host)
+- [Refetch host](#refetch-host)
 
 ### List hosts
 
@@ -485,15 +485,17 @@ This is the callback endpoint that the identity provider will use to send securi
 
 #### Parameters
 
-| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                    |
-| ----------------------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                           |
-| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                              |
-| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                 |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                               |
-| query                  | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                               |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. |
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                   |
+| ----------------------- | ------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                          |
+| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                             |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                               |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                                 |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                              |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                            |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
+
+If `additional_info_filters` is not specified, no `additional` information will be returned.
 
 #### Example
 
@@ -571,7 +573,6 @@ None.
 
 `GET /api/v1/fleet/host_summary`
 
-
 ##### Default response
 
 `Status: 200`
@@ -587,7 +588,7 @@ None.
 
 ### Get host
 
-Returns the information of the specified host. 
+Returns the information of the specified host.
 
 The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../3-Deployment/2-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
 
@@ -595,14 +596,13 @@ The endpoint returns the host's installed `software` if the software inventory f
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| id                 | integer | path | **Required**. The host's id.                    |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
 
 #### Example
 
 `GET /api/v1/fleet/hosts/121`
-
 
 ##### Default response
 
@@ -704,14 +704,13 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| identifier                 | integer or string | path | **Required**. The host's `uuid`, `osquery_host_id`, `hostname`, or `node_key`|
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| identifier | integer or string | path | **Required**. The host's `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
 
 #### Example
 
 `GET /api/v1/fleet/hosts/identifier/f01c4390-0000-0000-a1e5-14346a5724dc`
-
 
 ##### Default response
 
@@ -768,14 +767,37 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| id                 | integer | path | **Required**. The host's id.                    |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
 
 #### Example
 
 `DELETE /api/v1/fleet/hosts/121`
 
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Refetch host
+
+Flags the host details to be refetched the next time the host checks in for live queries. Note that we cannot be certain when the host will actually check in and update these details. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
+
+`POST /api/v1/fleet/hosts/{id}/refetch`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/121/refetch`
 
 ##### Default response
 
@@ -808,12 +830,12 @@ Creates a dynamic label.
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| name                 | string | body | **Required**. The label's name.                    |
-| description                 | string | body | The label's description.                    |
-| query                 | string | body | **Required**. The query in SQL syntax used to filter the hosts.                    |
-| platform                 | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string.|
+| Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
+| ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name        | string | body | **Required**. The label's name.                                                                                                                                                                                                              |
+| description | string | body | The label's description.                                                                                                                                                                                                                     |
+| query       | string | body | **Required**. The query in SQL syntax used to filter the hosts.                                                                                                                                                                              |
+| platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 #### Example
 
@@ -860,12 +882,12 @@ Modifies the specified label. Note: Label queries are immutable. To change the q
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| id                 | integer | path | **Required**. The label's id.                    |
-| name                 | string | body | The label's name.                    |
-| description                 | string | body | The label's description.                    |
-| platform                 | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string.|
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                  |
+| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id          | integer | path | **Required**. The label's id.                                                                                                                                                                                                                |
+| name        | string  | body | The label's name.                                                                                                                                                                                                                            |
+| description | string  | body | The label's description.                                                                                                                                                                                                                     |
+| platform    | string  | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 #### Example
 
@@ -912,9 +934,9 @@ Returns the specified label.
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| id                 | integer | path | **Required**. The label's id.                    |
+| Name | Type    | In   | Description                   |
+| ---- | ------- | ---- | ----------------------------- |
+| id   | integer | path | **Required**. The label's id. |
 
 #### Example
 
@@ -950,11 +972,11 @@ Returns a list of all the labels in Fleet.
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| id                 | integer | path | **Required**. The label's id.                    |
-| order_key               | string  | query | What to order results by. Can be any column in the labels table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| id              | integer | path  | **Required**. The label's id.                                                                                                 |
+| order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                              |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
 
@@ -1051,12 +1073,12 @@ Returns a list of the hosts that belong to the specified label.
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| id                 | integer | path | **Required**. The label's id.                    |
-| order_key          | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
-| order_direction   | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
-| query              | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. |                                                                        
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| id              | integer | path  | **Required**. The label's id.                                                                                                 |
+| order_key       | string  | query | What to order results by. Can be any column in the hosts table.                                                               |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
 
 #### Example
 
@@ -1119,9 +1141,9 @@ Deletes the label specified by name.
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| name                 | string | path | **Required**. The label's name.                    |
+| Name | Type   | In   | Description                     |
+| ---- | ------ | ---- | ------------------------------- |
+| name | string | path | **Required**. The label's name. |
 
 #### Example
 
@@ -1143,9 +1165,9 @@ Deletes the label specified by ID.
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| id                 | integer | path | **Required**. The label's id.                    |
+| Name | Type    | In   | Description                   |
+| ---- | ------- | ---- | ----------------------------- |
+| id   | integer | path | **Required**. The label's id. |
 
 #### Example
 
@@ -1171,9 +1193,9 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| specs                 | list | path | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties|
+| Name  | Type | In   | Description                                                                                                   |
+| ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| specs | list | path | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
 
 #### Example
 
@@ -1341,10 +1363,10 @@ Returns a list of all enabled users
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| order_key               | string  | query | What to order results by. Can be any column in the users table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the users table.                                                               |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
 
@@ -1402,14 +1424,14 @@ Creates a user account after an invited user provides registration information a
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| email                 | string | body | **Required**. The email address of the user.                    |
+| Name                  | Type   | In   | Description                                                       |
+| --------------------- | ------ | ---- | ----------------------------------------------------------------- |
+| email                 | string | body | **Required**. The email address of the user.                      |
 | invite_token          | string | body | **Required**. Token provided to the user in the invitation email. |
-| name                  | string | body | The name of the user.                                           |
-| username              | string | body | **Required**. The username chosen by the user                   |
-| password              | string | body | **Required**. The password chosen by the user.                  |
-| password_confirmation | string | body | **Required**. Confirmation of the password chosen by the user.  |
+| name                  | string | body | The name of the user.                                             |
+| username              | string | body | **Required**. The username chosen by the user                     |
+| password              | string | body | **Required**. The password chosen by the user.                    |
+| password_confirmation | string | body | **Required**. Confirmation of the password chosen by the user.    |
 
 #### Example
 
@@ -1508,12 +1530,12 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| username   | string  | body | **Required**. The user's username.               |
-| email      | string  | body | **Required**. The user's email address.          |
-| password   | string  | body | **Required**. The user's password.               |
-| invited_by | integer | body | **Required**. ID of the admin creating the user. |
+| Name       | Type    | In   | Description                                          |
+| ---------- | ------- | ---- | ---------------------------------------------------- |
+| username   | string  | body | **Required**. The user's username.                   |
+| email      | string  | body | **Required**. The user's email address.              |
+| password   | string  | body | **Required**. The user's password.                   |
+| invited_by | integer | body | **Required**. ID of the admin creating the user.     |
 | admin      | boolean | body | **Required**. Whether the user has admin privileges. |
 
 #### Example
@@ -1594,8 +1616,8 @@ Returns all information about a specific user.
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The user's id. |
 
 #### Example
@@ -1670,14 +1692,14 @@ Returns all information about a specific user.
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| id   | integer | path | **Required**. The user's id. |
-| name   | string | body | The user's name. |
-| username   | string | body | The user's username. |
-| position   | string | body | The user's position. |
-| email   | string | body | The user's email. |
-| sso_enabled   | boolean | body | Whether or not SSO is enabled for the user. |
+| Name        | Type    | In   | Description                                 |
+| ----------- | ------- | ---- | ------------------------------------------- |
+| id          | integer | path | **Required**. The user's id.                |
+| name        | string  | body | The user's name.                            |
+| username    | string  | body | The user's username.                        |
+| position    | string  | body | The user's position.                        |
+| email       | string  | body | The user's email.                           |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user. |
 
 #### Example
 
@@ -1723,10 +1745,10 @@ Revokes or renews the selected user's access to Fleet. Returns the user object.
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| id   | integer | path | **Required**. The user's id. |
-| enabled   | boolean | body | **Required**. Whether or not the user can access Fleet. |
+| Name    | Type    | In   | Description                                             |
+| ------- | ------- | ---- | ------------------------------------------------------- |
+| id      | integer | path | **Required**. The user's id.                            |
+| enabled | boolean | body | **Required**. Whether or not the user can access Fleet. |
 
 #### Example
 
@@ -1770,9 +1792,9 @@ Promotes or demotes the selected user's level of access as an admin in Fleet. Ad
 
 #### Parameters
 
-| Name  | Type    | In    | Description                  |
-| ----- | ------- | ----- | ---------------------------- |
-| id    | integer | path | **Required**. The user's id. |
+| Name  | Type    | In   | Description                                        |
+| ----- | ------- | ---- | -------------------------------------------------- |
+| id    | integer | path | **Required**. The user's id.                       |
 | admin | boolean | body | **Required**. Whether or not the user is an admin. |
 
 #### Example
@@ -1817,10 +1839,10 @@ The selected user is logged out of Fleet and required to reset their password du
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| id   | integer | path | **Required**. The user's id. |
-| reset   | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
+| Name  | Type    | In   | Description                                                                                    |
+| ----- | ------- | ---- | ---------------------------------------------------------------------------------------------- |
+| id    | integer | path | **Required**. The user's id.                                                                   |
+| reset | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
 
 #### Example
 
@@ -1904,9 +1926,9 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required**. The ID of the desired user.               |
+| Name | Type    | In   | Description                               |
+| ---- | ------- | ---- | ----------------------------------------- |
+| id   | integer | path | **Required**. The ID of the desired user. |
 
 #### Example
 
@@ -1923,6 +1945,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 ---
 
 ## Sessions
+
 - [Get session info](#get-session-info)
 - [Delete session](#delete-session)
 
@@ -1934,9 +1957,9 @@ Returns the session information for the session specified by ID.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required**. The ID of the desired session.               |
+| Name | Type    | In   | Description                                  |
+| ---- | ------- | ---- | -------------------------------------------- |
+| id   | integer | path | **Required**. The ID of the desired session. |
 
 #### Example
 
@@ -1962,14 +1985,13 @@ Deletes the session specified by ID. When the user associated with the session n
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required**. The id of the desired session.               |
+| Name | Type    | In   | Description                                  |
+| ---- | ------- | ---- | -------------------------------------------- |
+| id   | integer | path | **Required**. The id of the desired session. |
 
 #### Example
 
 `DELETE /api/v1/fleet/sessions/1`
-
 
 ##### Default response
 
@@ -2008,14 +2030,13 @@ Returns the query specified by ID.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required**. The id of the desired query.               |
+| Name | Type    | In   | Description                                |
+| ---- | ------- | ---- | ------------------------------------------ |
+| id   | integer | path | **Required**. The id of the desired query. |
 
 #### Example
 
 `GET /api/v1/fleet/queries/31`
-
 
 ##### Default response
 
@@ -2056,15 +2077,14 @@ Returns a list of all queries in the Fleet instance.
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| order_key               | string  | query | What to order results by. Can be any column in the queries table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the queries table.                                                             |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
 
 `GET /api/v1/fleet/queries`
-
 
 ##### Default response
 
@@ -2157,11 +2177,11 @@ Returns a list of all queries in the Fleet instance.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| name   | string  | body | **Required**. The name of the query.               |
-| query   | string  | body | **Required**. The query in SQL syntax.              |
-| description   | string  | body | The query's description.               |
+| Name        | Type   | In   | Description                            |
+| ----------- | ------ | ---- | -------------------------------------- |
+| name        | string | body | **Required**. The name of the query.   |
+| query       | string | body | **Required**. The query in SQL syntax. |
+| description | string | body | The query's description.               |
 
 #### Example
 
@@ -2206,12 +2226,12 @@ Returns the query specified by ID.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required.** The ID of the query.               |
-| name   | string  | body | The name of the query.               |
-| query   | string  | body | The query in SQL syntax.              |
-| description   | string  | body | The query's description.               |
+| Name        | Type    | In   | Description                        |
+| ----------- | ------- | ---- | ---------------------------------- |
+| id          | integer | path | **Required.** The ID of the query. |
+| name        | string  | body | The name of the query.             |
+| query       | string  | body | The query in SQL syntax.           |
+| description | string  | body | The query's description.           |
 
 #### Example
 
@@ -2254,9 +2274,9 @@ Deletes the query specified by name.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| name   | string  | path | **Required.** The name of the query.               |
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| name | string | path | **Required.** The name of the query. |
 
 #### Example
 
@@ -2278,9 +2298,9 @@ Deletes the query specified by ID.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required.** The ID of the query.               |
+| Name | Type    | In   | Description                        |
+| ---- | ------- | ---- | ---------------------------------- |
+| id   | integer | path | **Required.** The ID of the query. |
 
 #### Example
 
@@ -2302,9 +2322,9 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| ids   | list  | body | **Required.** The IDs of the queries.               |
+| Name | Type | In   | Description                           |
+| ---- | ---- | ---- | ------------------------------------- |
+| ids  | list | body | **Required.** The IDs of the queries. |
 
 #### Example
 
@@ -2378,9 +2398,9 @@ Returns the name, description, and SQL of the query specified by name.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| name   | string  | path | **Required.** The name of the query.               |
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| name | string | path | **Required.** The name of the query. |
 
 #### Example
 
@@ -2408,9 +2428,9 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| specs   | list  | body | **Required.** The list of the queries to be created or modified.               |
+| Name  | Type | In   | Description                                                      |
+| ----- | ---- | ---- | ---------------------------------------------------------------- |
+| specs | list | body | **Required.** The list of the queries to be created or modified. |
 
 #### Example
 
@@ -2500,10 +2520,10 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| query   | string  | body | **Required.** The SQL of the query.               |
-| selected   | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts` and/or `labels` properties. See examples below.     |
+| Name     | Type   | In   | Description                                                                                                                                      |
+| -------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| query    | string | body | **Required.** The SQL of the query.                                                                                                              |
+| selected | object | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts` and/or `labels` properties. See examples below. |
 
 #### Example with one host targeted by ID
 
@@ -2514,7 +2534,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 ```
 {
   "query": "select instance_id from system_info",
-  "selected": { 
+  "selected": {
     "hosts": [171]
   }
 }
@@ -2553,7 +2573,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 ```
 {
   "query": "select instance_id from system_info;",
-  "selected": { 
+  "selected": {
     "labels": [7]
   }
 }
@@ -2591,10 +2611,10 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| query   | string  | body | **Required.** The SQL of the query.              |
-| selected   | object  | body | **Required.** The desired targets for the query specified by name. This object can contain `hosts` and/or `labels` properties. See examples below.     |
+| Name     | Type   | In   | Description                                                                                                                                        |
+| -------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query    | string | body | **Required.** The SQL of the query.                                                                                                                |
+| selected | object | body | **Required.** The desired targets for the query specified by name. This object can contain `hosts` and/or `labels` properties. See examples below. |
 
 #### Example with one host targeted by hostname
 
@@ -2605,9 +2625,9 @@ Runs the specified query as a live query on the specified hosts or group of host
 ```
 {
   "query": "select instance_id from system_info",
-  "selected": { 
+  "selected": {
     "hosts": [
-      "macbook-pro.local", 
+      "macbook-pro.local",
     ]
   }
 }
@@ -2646,7 +2666,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 ```
 {
   "query": "select instance_id from system_info",
-  "selected": { 
+  "selected": {
     "labels": [
       "All Hosts"
     ]
@@ -2680,7 +2700,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 ### Retrieve live query results (standard WebSocket API)
 
-You can retrieve the results of a live query using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications). 
+You can retrieve the results of a live query using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
 
 Before you retrieve the live query results, you must create a live query campaign by running the live query. See the documentation for the [Run live query](#run-live-query) endpoint to create a live query campaign.
 
@@ -2688,10 +2708,10 @@ Before you retrieve the live query results, you must create a live query campaig
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| token  | string  |  | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID   | integer  |  | **Required.** The ID of the live query campaign. |
+| Name       | Type    | In  | Description                                                      |
+| ---------- | ------- | --- | ---------------------------------------------------------------- |
+| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
+| campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
 
 #### Example
 
@@ -2730,9 +2750,9 @@ o
 
 ```
 [
-  { 
-    "type": "auth", 
-    "data": { "token": <insert_token_here> } 
+  {
+    "type": "auth",
+    "data": { "token": <insert_token_here> }
   }
 ]
 ```
@@ -2740,7 +2760,7 @@ o
 ```
 [
   {
-    "type": "select_campaign", 
+    "type": "select_campaign",
     "data": { "campaign_id": 12 }
   }
 ]
@@ -2827,10 +2847,10 @@ You can also retrieve live query results with a [SockJS client](https://github.c
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| token  | string  |  | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID   | integer  |  | **Required.** The ID of the live query campaign. |
+| Name       | Type    | In  | Description                                                      |
+| ---------- | ------- | --- | ---------------------------------------------------------------- |
+| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
+| campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
 
 #### Example
 
@@ -2847,7 +2867,7 @@ socket.onopen = () => {
 socket.onmessage = ({ data }) => {
   console.log(data);
   const message = JSON.parse(data);
-  
+
   if (message.type === 'status' && message.data.status === 'finished') {
     socket.close();
   }
@@ -2870,9 +2890,9 @@ o
 
 ```
 [
-  { 
-    "type": "auth", 
-    "data": { "token": <insert_token_here> } 
+  {
+    "type": "auth",
+    "data": { "token": <insert_token_here> }
   }
 ]
 ```
@@ -2880,7 +2900,7 @@ o
 ```
 [
   {
-    "type": "select_campaign", 
+    "type": "select_campaign",
     "data": { "campaign_id": 12 }
   }
 ]
@@ -2984,12 +3004,12 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| name   | string | body | **Required**. The pack's name. |
-| description   | string | body | The pack's description. |
-| host_ids   | list | body | A list containing the targeted host IDs. |
-| label_ids   | list | body | A list containing the targeted label's IDs. |
+| Name        | Type   | In   | Description                                 |
+| ----------- | ------ | ---- | ------------------------------------------- |
+| name        | string | body | **Required**. The pack's name.              |
+| description | string | body | The pack's description.                     |
+| host_ids    | list   | body | A list containing the targeted host IDs.    |
+| label_ids   | list   | body | A list containing the targeted label's IDs. |
 
 #### Example
 
@@ -3034,13 +3054,13 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's id. |
-| name   | string | body | The pack's name. |
-| description   | string | body | The pack's description. |
-| host_ids   | list | body | A list containing the targeted host IDs. |
-| label_ids   | list | body | A list containing the targeted label's IDs. |
+| Name        | Type    | In   | Description                                 |
+| ----------- | ------- | ---- | ------------------------------------------- |
+| id          | integer | path | **Required.** The pack's id.                |
+| name        | string  | body | The pack's name.                            |
+| description | string  | body | The pack's description.                     |
+| host_ids    | list    | body | A list containing the targeted host IDs.    |
+| label_ids   | list    | body | A list containing the targeted label's IDs. |
 
 #### Example
 
@@ -3084,8 +3104,8 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required.** The pack's id. |
 
 #### Example
@@ -3120,10 +3140,10 @@ o
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| order_key               | string  | query | What to order results by. Can be any column in the packs table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the packs table.                                                               |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
 
@@ -3172,9 +3192,9 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| name   | string | path | **Required.** The pack's name. |
+| Name | Type   | In   | Description                    |
+| ---- | ------ | ---- | ------------------------------ |
+| name | string | path | **Required.** The pack's name. |
 
 #### Example
 
@@ -3194,8 +3214,8 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required.** The pack's ID. |
 
 #### Example
@@ -3216,8 +3236,8 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required.** The pack's ID. |
 
 #### Example
@@ -3283,22 +3303,22 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| pack_id   | integer | body | **Required.** The pack's ID. |
-| query_id   | integer | body | **Required.** The query's ID. |
-| interval   | integer | body | **Required.** The amount of time, in seconds, the query waits before running. |
-| snapshot   | boolean | body | **Required.** Whether the queries logs show everything in its current state. |
-| removed   | boolean | body | **Required.** Whether "removed" actions should be logged. |
-| platform   | string | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard   | integer | body | Restrict this query to a percentage (1-100) of target hosts. |
-| version   | string | body | The minimum required osqueryd version installed on a host. |
+| Name     | Type    | In   | Description                                                                                                   |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| pack_id  | integer | body | **Required.** The pack's ID.                                                                                  |
+| query_id | integer | body | **Required.** The query's ID.                                                                                 |
+| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                 |
+| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                  |
+| removed  | boolean | body | **Required.** Whether "removed" actions should be logged.                                                     |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
 
 #### Example
 
 `POST /api/v1/fleet/schedule`
 
-#### Request body 
+#### Request body
 
 ```
 {
@@ -3344,8 +3364,8 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
+| Name | Type    | In   | Description                             |
+| ---- | ------- | ---- | --------------------------------------- |
 | id   | integer | path | **Required.** The scheduled query's ID. |
 
 #### Example
@@ -3383,21 +3403,21 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| id   | integer | path | **Required.** The scheduled query's ID. |
-| interval   | integer | body | The amount of time, in seconds, the query waits before running. |
-| snapshot   | boolean | body | Whether the queries logs show everything in its current state. |
-| removed   | boolean | body | Whether "removed" actions should be logged. |
-| platform   | string | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard   | integer | body | Restrict this query to a percentage (1-100) of target hosts. |
-| version   | string | body | The minimum required osqueryd version installed on a host. |
+| Name     | Type    | In   | Description                                                                                                   |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| id       | integer | path | **Required.** The scheduled query's ID.                                                                       |
+| interval | integer | body | The amount of time, in seconds, the query waits before running.                                               |
+| snapshot | boolean | body | Whether the queries logs show everything in its current state.                                                |
+| removed  | boolean | body | Whether "removed" actions should be logged.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
 
 #### Example
 
 `PATCH /api/v1/fleet/schedule/56`
 
-#### Request body 
+#### Request body
 
 ```
 {
@@ -3436,8 +3456,8 @@ o
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
+| Name | Type    | In   | Description                             |
+| ---- | ------- | ---- | --------------------------------------- |
 | id   | integer | path | **Required.** The scheduled query's ID. |
 
 #### Example
@@ -3561,9 +3581,9 @@ Returns the specs for all packs in the Fleet instance.
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| specs   | list | body | **Required.** A list that includes the specs for each pack to be added to the Fleet instance. |
+| Name  | Type | In   | Description                                                                                   |
+| ----- | ---- | ---- | --------------------------------------------------------------------------------------------- |
+| specs | list | body | **Required.** A list that includes the specs for each pack to be added to the Fleet instance. |
 
 #### Example
 
@@ -3674,9 +3694,9 @@ Returns the spec for the specified pack by pack name.
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| name   | string | path | **Required.** The pack's name. |
+| Name | Type   | In   | Description                    |
+| ---- | ------ | ---- | ------------------------------ |
+| name | string | path | **Required.** The pack's name. |
 
 #### Example
 
@@ -3758,10 +3778,10 @@ The search targets endpoint returns two lists. The first list includes the possi
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| query   | string | body | The search query. Searchable items include a host's hostname or IPv4 address and labels. |
-| selected   | object | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs and a `labels` property which contains a list of label IDs.|
+| Name     | Type   | In   | Description                                                                                                                                                        |
+| -------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| query    | string | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                           |
+| selected | object | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs and a `labels` property which contains a list of label IDs. |
 
 #### Example
 
@@ -3773,7 +3793,7 @@ The search targets endpoint returns two lists. The first list includes the possi
 {
   "query": "172",
   "selected": {
-    "hosts": [], 
+    "hosts": [],
     "labels": [7]
   }
 }
@@ -3916,7 +3936,6 @@ None.
 
 `GET /api/v1/fleet/config/certificate`
 
-
 ##### Default response
 
 `Status: 200`
@@ -3940,7 +3959,6 @@ None.
 #### Example
 
 `GET /api/v1/fleet/config`
-
 
 ##### Default response
 
@@ -3998,33 +4016,33 @@ Modifies the Fleet's configuration with the supplied information.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| org_name   | string  | body | *Organization information*. The organization name.               |
-| org_logo_url      | string  | body | *Organization information*. The URL for the organization logo.          |
-| kolide_server_url   | string  | body | *Server settings*. The Fleet server URL.               |
-| live_query_disabled | boolean | body | *Server settings*. Whether the live query capabilities are disabled. |
-| enable_smtp      | boolean | body | *SMTP settings*. Whether SMTP is enabled for the Fleet app. |
-| sender_address      | string | body | *SMTP settings*. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address  |
-| server      | string | body | *SMTP settings*. The SMTP server for the Fleet app. |
-| port      | integer | body | *SMTP settings*. The SMTP port for the Fleet app. |
-| authentication_type | string | body | *SMTP settings*. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`|
-| username_name | string | body | *SMTP settings*. The username used to authenticate requests made to the SMTP server.|
-| password | string | body | *SMTP settings*. The password used to authenticate requests made to the SMTP server.|
-| enable_ssl_tls | boolean | body | *SMTP settings*. Whether or not SSL and TLS are enabled for the SMTP server.|
-| authentication_method | string | body | *SMTP settings*. The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`.|
-| domain | string | body | *SMTP settings*. The domain for the SMTP server.|
-| verify_ssl_certs | boolean | body | *SMTP settings*. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate. |
-| enabled_start_tls | boolean | body | *SMTP settings*. Detects if STARTTLS is enabled in your SMTP server and starts to use it.|
-| enabled_sso      | boolean | body | *SSO settings*. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.|
-| entity_id      | string | body | *SSO settings*. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider. |
-| issuer_uri      | string | body | *SSO settings*. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration. |
-| idp_image_url      | string | body | *SSO settings*. An optional link to an image such as a logo for the identity provider. |
-| metadata      | string | body | *SSO settings*. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided. |
-| metadata_url      | string | body | *SSO settings*. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. |
-| host_expiry_enabled      | boolean | body | *Host expiry settings*. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. |
-| host_expiry_window      | integer | body | *Host expiry settings*. If a host has not communicated with Fleet in the specified number of days, it will be removed. |
-| additional_queries      | boolean | body | Whether or not additional queries are enabled on hosts. |
+| Name                  | Type    | In   | Description                                                                                                                                                                            |
+| --------------------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| org_name              | string  | body | _Organization information_. The organization name.                                                                                                                                     |
+| org_logo_url          | string  | body | _Organization information_. The URL for the organization logo.                                                                                                                         |
+| kolide_server_url     | string  | body | _Server settings_. The Fleet server URL.                                                                                                                                               |
+| live_query_disabled   | boolean | body | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
+| enable_smtp           | boolean | body | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
+| sender_address        | string  | body | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
+| server                | string  | body | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
+| port                  | integer | body | _SMTP settings_. The SMTP port for the Fleet app.                                                                                                                                      |
+| authentication_type   | string  | body | _SMTP settings_. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`                                                       |
+| username_name         | string  | body | _SMTP settings_. The username used to authenticate requests made to the SMTP server.                                                                                                   |
+| password              | string  | body | _SMTP settings_. The password used to authenticate requests made to the SMTP server.                                                                                                   |
+| enable_ssl_tls        | boolean | body | _SMTP settings_. Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
+| authentication_method | string  | body | _SMTP settings_. The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
+| domain                | string  | body | _SMTP settings_. The domain for the SMTP server.                                                                                                                                       |
+| verify_ssl_certs      | boolean | body | _SMTP settings_. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
+| enabled_start_tls     | boolean | body | _SMTP settings_. Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
+| enabled_sso           | boolean | body | _SSO settings_. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
+| entity_id             | string  | body | _SSO settings_. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
+| issuer_uri            | string  | body | _SSO settings_. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
+| idp_image_url         | string  | body | _SSO settings_. An optional link to an image such as a logo for the identity provider.                                                                                                 |
+| metadata              | string  | body | _SSO settings_. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
+| metadata_url          | string  | body | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
+| host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
+| host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
+| additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
 
@@ -4045,7 +4063,6 @@ Modifies the Fleet's configuration with the supplied information.
   }
 }
 ```
-
 
 ##### Default response
 
@@ -4109,7 +4126,6 @@ None.
 
 `GET /api/v1/fleet/spec/enroll_secret`
 
-
 ##### Default response
 
 `Status: 200`
@@ -4149,11 +4165,11 @@ Modifies and/or creates the specified enroll secret(s).
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| name   | string  | body | **Required.** The name of the enroll secret              |
-| secret   | string  | body | **Required.** The plain text string used as the enroll secret.               |
-| active      | boolean  | body | Whether or not the enroll secret is active. Must be set to true for hosts to enroll using the enroll secret.          |
+| Name   | Type    | In   | Description                                                                                                  |
+| ------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------ |
+| name   | string  | body | **Required.** The name of the enroll secret                                                                  |
+| secret | string  | body | **Required.** The plain text string used as the enroll secret.                                               |
+| active | boolean | body | Whether or not the enroll secret is active. Must be set to true for hosts to enroll using the enroll secret. |
 
 #### Example
 
@@ -4175,7 +4191,6 @@ Modifies and/or creates the specified enroll secret(s).
 
 `POST /api/v1/fleet/spec/enroll_secret`
 
-
 ##### Default response
 
 `Status: 200`
@@ -4186,18 +4201,17 @@ Modifies and/or creates the specified enroll secret(s).
 
 ### Create invite
 
-
 `POST /api/v1/fleet/invites`
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| admin   | boolean  | body | **Required.** Whether or not the invited user will be granted admin privileges.             |
-| email   | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.              |
-| invited_by      | integer  | body | **Required.** The id of the user that is extending the invitation. See the [Get user information](#get-user-information) endpoint for how to retrieve a user's id.          |
-| name     | string  | body | **Required.** The name of the invited user.         |
-| sso_enabled     | boolean  | body | **Required.** Whether or not SSO will be enabled for the invited user.   |
+| Name        | Type    | In   | Description                                                                                                                                                        |
+| ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                                    |
+| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                                          |
+| invited_by  | integer | body | **Required.** The id of the user that is extending the invitation. See the [Get user information](#get-user-information) endpoint for how to retrieve a user's id. |
+| name        | string  | body | **Required.** The name of the invited user.                                                                                                                        |
+| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                             |
 
 #### Example
 
@@ -4214,7 +4228,6 @@ Modifies and/or creates the specified enroll secret(s).
 ```
 
 `POST /api/v1/fleet/invites`
-
 
 ##### Default response
 
@@ -4243,15 +4256,14 @@ Returns a list of the active invitations in Fleet.
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| order_key               | string  | query | What to order results by. Can be any column in the invites table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the invites table.                                                             |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
 
 `GET /api/v1/fleet/invites`
-
 
 ##### Default response
 
@@ -4292,14 +4304,13 @@ Delete the specified invite from Fleet.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required.** The user's id.            |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required.** The user's id. |
 
 #### Example
 
 `DELETE /api/v1/fleet/invites/{id}`
-
 
 ##### Default response
 
@@ -4317,14 +4328,13 @@ Verify the specified invite.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| token   | integer  | path | **Required.** Token provided to the user in the invitation email.|
+| Name  | Type    | In   | Description                                                       |
+| ----- | ------- | ---- | ----------------------------------------------------------------- |
+| token | integer | path | **Required.** Token provided to the user in the invitation email. |
 
 #### Example
 
 `GET /api/v1/fleet/invites/{token}`
-
 
 ##### Default response
 
@@ -4369,14 +4379,13 @@ Changes the email specified by token.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| token   | integer  | path | **Required.** The token provided to the user in the email change confirmation email.|
+| Name  | Type    | In   | Description                                                                          |
+| ----- | ------- | ---- | ------------------------------------------------------------------------------------ |
+| token | integer | path | **Required.** The token provided to the user in the email change confirmation email. |
 
 #### Example
 
 `GET /api/v1/fleet/invites/{token}`
-
 
 ##### Default response
 
@@ -4387,6 +4396,7 @@ Changes the email specified by token.
   "new_email": janedoe@example.com
 }
 ```
+
 ---
 
 ### Version
@@ -4417,6 +4427,7 @@ None.
   "build_user": "zwass"
 }
 ```
+
 ---
 
 ## Osquery options
@@ -4437,7 +4448,6 @@ None.
 #### Example
 
 `GET /api/v1/fleet/spec/osquery_options`
-
 
 ##### Default response
 
@@ -4477,9 +4487,9 @@ Modifies the osquery options configuration set in Fleet.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| spec   | JSON  | body | **Required.** The modified osquery spec.            |
+| Name | Type | In   | Description                              |
+| ---- | ---- | ---- | ---------------------------------------- |
+| spec | JSON | body | **Required.** The modified osquery spec. |
 
 #### Example
 
@@ -4513,7 +4523,6 @@ Modifies the osquery options configuration set in Fleet.
 }
 ```
 
-
 ##### Default response
 
 `Status: 200`
@@ -4532,7 +4541,7 @@ Modifies the osquery options configuration set in Fleet.
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
-To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table. 
+To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table.
 
 For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../1-Using-Fleet/2-fleetctl-CLI.md#file-carving-with-fleet).
 
@@ -4597,9 +4606,9 @@ Retrieves the specified carve.
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required.** The desired carve's ID.            |
+| Name | Type    | In   | Description                           |
+| ---- | ------- | ---- | ------------------------------------- |
+| id   | integer | path | **Required.** The desired carve's ID. |
 
 #### Example
 
@@ -4636,10 +4645,10 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | path | **Required.** The desired carve's ID.            |
-| block_id   | integer  | path | **Required.** The desired carve block's ID.            |
+| Name     | Type    | In   | Description                                 |
+| -------- | ------- | ---- | ------------------------------------------- |
+| id       | integer | path | **Required.** The desired carve's ID.       |
+| block_id | integer | path | **Required.** The desired carve block's ID. |
 
 #### Example
 

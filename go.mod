@@ -14,7 +14,7 @@ require (
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
@@ -23,8 +23,8 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/gomodule/redigo v2.0.0+incompatible
-	github.com/google/go-cmp v0.5.5 // indirect
+	github.com/gomodule/redigo v1.8.4
+	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/websocket v1.4.2
@@ -59,7 +59,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/theupdateframework/go-tuf v0.0.0-20201230183259-aee6270feb55
 	github.com/throttled/throttled v2.2.5+incompatible
-	github.com/throttled/throttled/v2 v2.7.1
+	github.com/throttled/throttled/v2 v2.7.2
 	github.com/urfave/cli/v2 v2.3.0
 	go.opencensus.io v0.20.2 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9

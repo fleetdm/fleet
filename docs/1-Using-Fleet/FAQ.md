@@ -1,5 +1,6 @@
 # Using Fleet FAQ
 
+- [What do I need to do to switch from Kolide Fleet to FleetDM Fleet?](#waht-do-i-need-to-do-to-switch-from-kolide-fleet-to-fleetdm-fleet)
 - [Has anyone stress tested Fleet? How many clients can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle)
 - [Can I target my hosts using their enroll secrets?](#can-I-target-my-hosts-using-their-enroll-secrets)
 - [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
@@ -11,6 +12,15 @@
 - [Where are my query results?](#where-are-my-query-results)
 - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
 - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
+- [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
+
+## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
+
+The upgrade from kolide/fleet to fleetdm/fleet works the same as any minor version upgrade has in the past.
+
+Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for FleetDM Fleet versions.
+
+To migrate from Kolide Fleet to FleetDM Fleet, please follow the steps outlined in the [Updating Fleet section](./7-Updating-Fleet.md) of the documentation.
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
@@ -104,3 +114,11 @@ The ability to view each host’s installed software was released behind a featu
 Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./3-REST-API.md#get-host).
 
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options yaml file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts`  endpoint. [Check out an example configuration file with the additional_queries field](./2-fleetctl-CLI.md#fleet-configuration-options).
+
+## How do I automatically add hosts to packs when the hosts enroll to Fleet?
+
+You can accomplish this by adding specific labels as targets of your pack. First, identify an already existing label or create a new label that will include the hosts you intend to enroll to Fleet. Next, add this label as a target of the pack in the Fleet UI.
+
+When your hosts enroll to Fleet, they will become a member of the label and, because the label is a target of your pack, these hosts will automatically become targets of the pack. 
+
+You can also do this by setting the `targets` field in the [YAML configuration file](./2-fleetctl-CLI.md#query-packs) that manages the packs that are added to your Fleet instance. 

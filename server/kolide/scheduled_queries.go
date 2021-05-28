@@ -57,7 +57,8 @@ type ScheduledQueryStats struct {
 	ScheduledQueryName string `json:"scheduled_query_name,omitempty" db:"scheduled_query_name"`
 	ScheduledQueryID   uint   `json:"scheduled_query_id,omitempty" db:"scheduled_query_id"`
 
-	QueryName string `json:"query_name,omitempty" db:"query_name"`
+	QueryName   string `json:"query_name,omitempty" db:"query_name"`
+	Description string `json:"description,omitempty" db:"description"`
 
 	PackName string `json:"pack_name,omitempty" db:"pack_name"`
 	PackID   uint   `json:"pack_id,omitempty" db:"pack_id"`

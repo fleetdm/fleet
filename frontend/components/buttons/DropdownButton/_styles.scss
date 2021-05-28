@@ -52,3 +52,15 @@
     }
   }
 }
+
+.downcarat {
+  &::after {
+    content: url("../assets/images/icon-chevron-white-16x16@2x.png");
+    transform: scale(0.5);
+    width: 16px;
+    border-radius: 0px;
+    padding: 0px;
+    padding-left: 2px;
+    margin-top: 2px;
+  }
+}

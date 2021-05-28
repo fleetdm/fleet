@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 

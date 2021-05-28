@@ -23,5 +23,10 @@ module.exports.policies = {
   'legal/view-terms': true,
   'legal/view-privacy': true,
   'deliver-contact-form-message': true,
+  'view-query-detail': true,
+  'view-query-library': true,
+  'docs/*': true,
+  'handbook/*': true,
+  'download-sitemap': true,
 
 };

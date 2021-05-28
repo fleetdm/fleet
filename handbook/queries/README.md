@@ -28,12 +28,7 @@ Fleet's standard query library includes a growing collection of useful queries f
 - [Get mounts](./get-mounts.md) (macOS, Linux)
 - [Get startup items](./get-startup-items.md) (macOS, Linux, Windows, FreeBSD)
 - [Get system uptime](./get-system-uptime.md) (macOS, Linux, Windows, FreeBSD)
-
-### Contributors
-
-Want to add your own query? 
-
-Please submit a pull request using the [Fleet standard query library template](./standard-query-library-template.md).
+- [Get crashes](./get-crashes.md) (macOS)
 
 ### Additional resources
 

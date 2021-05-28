@@ -67,7 +67,7 @@ func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range d.packs {
+	for k := range d.packs {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)

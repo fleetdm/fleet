@@ -187,7 +187,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
-				return errors.New("retrieve target counts")
+				return errors.Wrap(err, "retrieve target counts")
 			}
 		}
 
@@ -200,7 +200,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		if lastTotals != totals {
 			lastTotals = totals
 			if err = conn.WriteJSONMessage("totals", totals); err != nil {
-				return errors.New("write totals")
+				return errors.Wrap(err, "write totals")
 			}
 		}
 
@@ -212,7 +212,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		if lastStatus != status {
 			lastStatus = status
 			if err = conn.WriteJSONMessage("status", status); err != nil {
-				return errors.New("write status")
+				return errors.Wrap(err, "write status")
 			}
 		}
 

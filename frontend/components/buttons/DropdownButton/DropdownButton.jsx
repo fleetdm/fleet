@@ -93,7 +93,7 @@ export class DropdownButton extends Component {
     return (
       <div className={`${baseClass}__wrapper`} ref={setDOMNode}>
         <Button
-          className={buttonClass}
+          className={`${buttonClass} downcarat`}
           disabled={disabled}
           onClick={toggleDropdown}
           size={size}
@@ -102,7 +102,6 @@ export class DropdownButton extends Component {
           variant={variant}
         >
           {children}{" "}
-          <KolideIcon name="downcarat" className={`${baseClass}__carat`} />
         </Button>
 
         <ul className={optionsClass}>

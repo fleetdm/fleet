@@ -16,6 +16,10 @@ export const destroyHost = (dispatch, host) => {
   });
 };
 
+export const refetchHost = (dispatch, host) => {
+  return dispatch(hostActions.refetchHostStart(host));
+};
+
 export const queryHostCustom = (dispatch, host) => {
   return dispatch(
     push({
@@ -34,4 +38,10 @@ export const queryHostSaved = (dispatch, host, selectedQuery) => {
   );
 };
 
-export default { fetchHost, destroyHost, queryHostCustom, queryHostSaved };
+export default {
+  fetchHost,
+  destroyHost,
+  queryHostCustom,
+  queryHostSaved,
+  refetchHost,
+};

@@ -23,15 +23,22 @@ module.exports = {
       example: 'I want to buy stuff.'
     },
 
-    fullName: {
+    firstName: {
       required: true,
       type: 'string',
-      description: 'The full name of the human sending this message.',
-      example: 'Hermione Granger'
+      description: 'The first name of the human sending this message.',
+      example: 'Emma'
+    },
+
+    lastName: {
+      required: true,
+      type: 'string',
+      description: 'The last name of the human sending this message.',
+      example: 'Watson'
     },
 
     message: {
-      required: true,
+      required: false,
       type: 'string',
       description: 'The custom message, in plain text.'
     }
@@ -48,14 +55,19 @@ module.exports = {
   },
 
 
-  fn: async function({emailAddress, topic, fullName, message}) {
+  fn: async function({emailAddress, topic, firstName, lastName, message}) {
 
-    await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-      text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
-      `Name: ${fullName}, Email: ${emailAddress}, Topic: ${topic}, Message: ${message}`
-    });
-
+    if (!sails.config.custom.slackWebhookUrlForContactForm) {
+      throw new Error(
+        'Message not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered message: ' +
+        `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Topic: ${topic}, Message: ${message ? message : 'No message.'}`
+      );
+    } else {
+      await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
+        text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
+        `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Topic: ${topic}, Message: ${message ? message : 'No message.'}`
+      });
+    }
   }
-
 
 };

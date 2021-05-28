@@ -1,0 +1,14 @@
+<div id="query-library" v-cloak>
+
+  <h1>TODO: Implement this page.</h1>
+  <p>(See also <em>assets/styles/pages/query-library.less</em>, <em>assets/js/pages/query-library.page.js</em>, and <em>api/controllers/view-query-library.js</em>.)</p>
+
+  <h2>Queries \o/</h2>
+  <ul>
+    <li v-for="query of queries">
+      <code>{{query}}</code>
+    </li>
+  </ul>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
