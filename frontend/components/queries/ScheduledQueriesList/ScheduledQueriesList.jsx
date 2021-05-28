@@ -173,7 +173,7 @@ class ScheduledQueriesList extends Component {
               </tr>
             ) : (
               <tr>
-                <th></th>
+                <th/>
               </tr>
             )}
           </thead>

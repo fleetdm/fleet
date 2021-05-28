@@ -46,6 +46,13 @@
     background-color: $ui-light-grey;
     border-radius: $border-radius;
     height: 40px;
+
+    .Select-value {
+      font-size: $x-small;
+      border-radius: 4px;
+      background-color: $ui-off-white;
+      border: solid 1px $core-dark-blue-grey;
+    }
   }
 
   .Select-value {
@@ -90,6 +97,8 @@
     > .Select-control {
       .Select-value {
         line-height: 38px;
+        margin-top: 4px;
+        border: none;
       }
     }
   }
@@ -219,6 +228,7 @@
 
     .Select-multi-value-wrapper {
       flex-grow: 1;
+      padding: $pad-xsmall;
     }
 
     .Select-arrow-zone {

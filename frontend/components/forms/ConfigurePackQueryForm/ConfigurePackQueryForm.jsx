@@ -143,8 +143,8 @@ export class ConfigurePackQueryForm extends Component {
             {...fields.interval}
             inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
             placeholder="- - -"
-            label="Frequency"
-            hint="Seconds"
+            label="Frequency (seconds)"
+            // hint="Seconds"
             type="number"
           />
           <Dropdown
@@ -160,11 +160,7 @@ export class ConfigurePackQueryForm extends Component {
             {...fields.version}
             options={minOsqueryVersionOptions}
             placeholder="- - -"
-            label={[
-              "minimum ",
-              <KolideIcon name="osquery" key="min-osquery-vers" />,
-              " version",
-            ]}
+            label="Minimum osquery version"
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
           />
           <Dropdown
