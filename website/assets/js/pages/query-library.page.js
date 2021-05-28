@@ -72,7 +72,7 @@ parasails.registerPage('query-library', {
     },
 
     clickCard: function (querySlug) {
-      window.location = '/sandbox/queries/' + querySlug.toLowerCase(); // TODO remove sandbox from path before deploy to production
+      window.location = '/queries/' + querySlug;// we can trust the query slug is url-safe
     },
 
   }
