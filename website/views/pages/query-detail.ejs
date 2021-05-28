@@ -14,7 +14,7 @@
       <div v-if="query.purpose === 'Detection' && (query.remediation && query.remediation.length)">
         <h3 class="pt-5 pb-3">Remediation</h3> 
         <ul class="px-4">
-          <li v-for="item of query.remediation">
+          <li v-for="item of castRemediationArray(query.remediation)">
             {{item}}
           </li>
         </ul>
