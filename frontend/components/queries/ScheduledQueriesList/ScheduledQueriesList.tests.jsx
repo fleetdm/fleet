@@ -62,6 +62,6 @@ describe("ScheduledQueriesList - component", () => {
       />
     );
 
-    expect(component.text()).toContain("First let's add a query");
+    expect(component.text()).toContain("Your pack is empty");
   });
 });

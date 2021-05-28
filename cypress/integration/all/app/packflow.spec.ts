@@ -13,7 +13,7 @@ describe("Pack flow", () => {
       .click()
       .type("Errors and crashes");
 
-    cy.findByLabelText(/query pack description/i)
+    cy.findByLabelText(/description/i)
       .click()
       .type("See all user errors and window crashes.");
 
@@ -29,7 +29,7 @@ describe("Pack flow", () => {
       .click()
       .type("{selectall}{backspace}Server errors");
 
-    cy.findByLabelText(/query pack description/i)
+    cy.findByLabelText(/description/i)
       .click()
       .type("{selectall}{backspace}See all server errors.");
 
