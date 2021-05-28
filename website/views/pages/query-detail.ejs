@@ -5,14 +5,14 @@
       <h2 class="mb-3">{{query.name}}</h2>
       <h6 class="font-weight-light pb-3">{{query.description}}</h6>
       <div v-if="!!query.tip">
-        <div class="container query-tip d-flex align-items-center border-left border-primary p-4 my-5">        
+        <div class="container query-tip d-flex align-items-center border-left border-primary p-4 my-5">
           <img alt="lightbulb" class="lightbulb" src="/images/lightbulb-blue-24x24@2x.png"/><p class="d-flex m-0">{{query.tip}}</p>
         </div>
       </div>
-      <h3 class="py-3">Query</h3>   
+      <h3 class="py-3">Query</h3>
       <code class="pb-3">{{query.query}}</code>
       <div v-if="query.purpose === 'Detection' && (query.remediation && query.remediation.length)">
-        <h3 class="pt-5 pb-3">Remediation</h3> 
+        <h3 class="pt-5 pb-3">Remediation</h3>
         <ul class="px-4">
           <li v-for="item of castRemediationArray(query.remediation)">
             {{item}}
@@ -24,7 +24,7 @@
     <div class="col-3 mx-5 my-5 d-none d-md-block">
       <!-- TODO: refactor as page script to type-check and normalize"-->
       <div class="query-sidebar border-bottom mb-3">
-        <h5 permalink="support">Platforms</h5>
+        <h5>Platforms</h5>
         <p>
           <span v-if="query.platforms.includes('macOS')"><i class="fa fa-apple fa-lg mr-3" alt="Mac"></i></span>
           <span v-if="query.platforms.includes('Windows')"><i class="fa fa-windows fa-lg mr-3" alt="Windows"></i></span>
@@ -33,16 +33,16 @@
       </div>
 
       <div class="query-sidebar border-bottom mb-3">
-        <h5 permalink="purpose">Purpose</h5>
+        <h5>Purpose</h5>
         <p>{{query.purpose}}</p>
       </div>
-      
+
       <div class="query-sidebar border-bottom mb-3" v-if="query.contributors && query.contributors.length">
-        <h5 permalink="contributors">Contributors</h5>
+        <h5>Contributors</h5>
         <!-- TODO: display github avatars"-->
         <p>{{query.contributors}}</p>
       </div>
-      <h5 permalink="contribute">Contribute to this page</h5>
+      <h5>Contribute to this page</h5>
       <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">View source</a>
     </div>
   </div>
