@@ -34,6 +34,8 @@ Since Fleet is a web application, when you run Fleet there are some other config
 - The TLS certificates that Fleet should use to terminate TLS.
 - The [JWT](https://jwt.io/) Key which is used to sign and verify session tokens.
 
+When deploying Fleet, mitigate DoS attacks as you would when deploying any app.
+
 Since Fleet is an osquery TLS server, you are also able to define configurations that can customize your experience there, such as:
 
 - The destination of the osquery status and result logs on the local filesystem
