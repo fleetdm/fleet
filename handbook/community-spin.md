@@ -30,8 +30,9 @@ https://github.com/fleetdm/fleet/issues
 
 5. Reddit · https://www.reddit.com/search/?q=(Fleet%20osquery)%20OR%20(Zentral%20osquery)%20OR%20(Zeek%20osquery)%20OR%20(kolide%20osquery)%20OR%20osquery&sort=new
 
-6. The Hacker News · https://hn.algolia.com/?dateRange=pastYear&page=0&prefix=true&query=osquery&sort=byDate&type=all
- The Quora · https://www.quora.com/topic/osquery
+6. Hacker News · https://hn.algolia.com/?dateRange=pastYear&page=0&prefix=true&query=osquery&sort=byDate&type=all
+
+7. Quora · https://www.quora.com/topic/osquery
 
 The individual(s) tasked with performing the community support spin process should complete the following at a daily cadence:
 
