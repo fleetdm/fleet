@@ -11,12 +11,10 @@
       </div>
       <h3 class="py-3">Query</h3>
       <code class="pb-3">{{query.query}}</code>
-      <div v-if="query.purpose === 'Detection' && (query.remediation && query.remediation.length)">
+      <div v-if="query.purpose === 'Detection' && query.remediation">
         <h3 class="pt-5 pb-3">Remediation</h3>
         <ul class="px-4">
-          <li v-for="item of castRemediationArray(query.remediation)">
-            {{item}}
-          </li>
+          <li>{{query.remediation}}</li>
         </ul>
       </div>
     </div>
