@@ -12,11 +12,11 @@ type AppConfigFunc func() (*kolide.AppConfig, error)
 
 type SaveAppConfigFunc func(info *kolide.AppConfig) error
 
-type VerifyEnrollSecretFunc func(secret string) (string, error)
+type VerifyEnrollSecretFunc func(secret string) (*kolide.EnrollSecret, error)
 
-type ApplyEnrollSecretSpecFunc func(spec *kolide.EnrollSecretSpec) error
+type ApplyEnrollSecretsFunc func(treamID *uint, secrets []*kolide.EnrollSecret) error
 
-type GetEnrollSecretSpecFunc func() (*kolide.EnrollSecretSpec, error)
+type GetEnrollSecretsFunc func(teamID *uint) ([]*kolide.EnrollSecret, error)
 
 type AppConfigStore struct {
 	NewAppConfigFunc        NewAppConfigFunc
@@ -31,11 +31,11 @@ type AppConfigStore struct {
 	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
 	VerifyEnrollSecretFuncInvoked bool
 
-	ApplyEnrollSecretSpecFunc        ApplyEnrollSecretSpecFunc
-	ApplyEnrollSecretSpecFuncInvoked bool
+	ApplyEnrollSecretsFunc        ApplyEnrollSecretsFunc
+	ApplyEnrollSecretsFuncInvoked bool
 
-	GetEnrollSecretSpecFunc        GetEnrollSecretSpecFunc
-	GetEnrollSecretSpecFuncInvoked bool
+	GetEnrollSecretsFunc        GetEnrollSecretsFunc
+	GetEnrollSecretsFuncInvoked bool
 }
 
 func (s *AppConfigStore) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, error) {
@@ -53,17 +53,17 @@ func (s *AppConfigStore) SaveAppConfig(info *kolide.AppConfig) error {
 	return s.SaveAppConfigFunc(info)
 }
 
-func (s *AppConfigStore) VerifyEnrollSecret(secret string) (string, error) {
+func (s *AppConfigStore) VerifyEnrollSecret(secret string) (*kolide.EnrollSecret, error) {
 	s.VerifyEnrollSecretFuncInvoked = true
 	return s.VerifyEnrollSecretFunc(secret)
 }
 
-func (s *AppConfigStore) ApplyEnrollSecretSpec(spec *kolide.EnrollSecretSpec) error {
-	s.ApplyEnrollSecretSpecFuncInvoked = true
-	return s.ApplyEnrollSecretSpecFunc(spec)
+func (s *AppConfigStore) ApplyEnrollSecrets(teamID *uint, secrets []*kolide.EnrollSecret) error {
+	s.ApplyEnrollSecretsFuncInvoked = true
+	return s.ApplyEnrollSecretsFunc(teamID, secrets)
 }
 
-func (s *AppConfigStore) GetEnrollSecretSpec() (*kolide.EnrollSecretSpec, error) {
-	s.GetEnrollSecretSpecFuncInvoked = true
-	return s.GetEnrollSecretSpecFunc()
+func (s *AppConfigStore) GetEnrollSecrets(teamID *uint) ([]*kolide.EnrollSecret, error) {
+	s.GetEnrollSecretsFuncInvoked = true
+	return s.GetEnrollSecretsFunc(teamID)
 }

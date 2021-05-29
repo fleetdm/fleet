@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/server/live_query"
 	"github.com/fleetdm/fleet/server/logging"
 	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/pubsub"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
@@ -31,17 +32,18 @@ var expectedDetailQueries = len(detailQueries) - 3
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
-	ds.VerifyEnrollSecretFunc = func(secret string) (string, error) {
+	ds.VerifyEnrollSecretFunc = func(secret string) (*kolide.EnrollSecret, error) {
 		switch secret {
 		case "valid_secret":
-			return "valid", nil
+			return &kolide.EnrollSecret{Secret: "valid_secret", TeamID: ptr.Uint(3)}, nil
 		default:
-			return "", errors.New("not found")
+			return nil, errors.New("not found")
 		}
 	}
-	ds.EnrollHostFunc = func(osqueryHostId, nodeKey, secretName string, cooldown time.Duration) (*kolide.Host, error) {
+	ds.EnrollHostFunc = func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*kolide.Host, error) {
+		assert.Equal(t, ptr.Uint(3), teamID)
 		return &kolide.Host{
-			OsqueryHostID: osqueryHostId, NodeKey: nodeKey, EnrollSecretName: secretName,
+			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
 		}, nil
 	}
 
@@ -55,12 +57,12 @@ func TestEnrollAgent(t *testing.T) {
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	ds := new(mock.Store)
-	ds.VerifyEnrollSecretFunc = func(secret string) (string, error) {
+	ds.VerifyEnrollSecretFunc = func(secret string) (*kolide.EnrollSecret, error) {
 		switch secret {
 		case "valid_secret":
-			return "valid", nil
+			return &kolide.EnrollSecret{Secret: "valid_secret", TeamID: ptr.Uint(3)}, nil
 		default:
-			return "", errors.New("not found")
+			return nil, errors.New("not found")
 		}
 	}
 
@@ -74,12 +76,12 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 
 func TestEnrollAgentDetails(t *testing.T) {
 	ds := new(mock.Store)
-	ds.VerifyEnrollSecretFunc = func(secret string) (string, error) {
-		return "valid", nil
+	ds.VerifyEnrollSecretFunc = func(secret string) (*kolide.EnrollSecret, error) {
+		return &kolide.EnrollSecret{}, nil
 	}
-	ds.EnrollHostFunc = func(osqueryHostId, nodeKey, secretName string, cooldown time.Duration) (*kolide.Host, error) {
+	ds.EnrollHostFunc = func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*kolide.Host, error) {
 		return &kolide.Host{
-			OsqueryHostID: osqueryHostId, NodeKey: nodeKey, EnrollSecretName: secretName,
+			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
 		}, nil
 	}
 	var gotHost *kolide.Host
@@ -112,7 +114,6 @@ func TestEnrollAgentDetails(t *testing.T) {
 	assert.Equal(t, "2.12.0", gotHost.OsqueryVersion)
 	assert.Equal(t, "zwass.local", gotHost.HostName)
 	assert.Equal(t, "froobling_uuid", gotHost.UUID)
-	assert.Equal(t, "valid", gotHost.EnrollSecretName)
 }
 
 func TestAuthenticateHost(t *testing.T) {

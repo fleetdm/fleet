@@ -43,10 +43,10 @@ type HostStore interface {
 	DeleteHost(hid uint) error
 	Host(id uint) (*Host, error)
 	// EnrollHost will enroll a new host with the given identifier, setting the
-	// node key, and enroll secret used for the host. Implementations of this
-	// method should respect the provided host enrollment cooldown, by returning
-	// an error if the host has enrolled within the cooldown period.
-	EnrollHost(osqueryHostId, nodeKey, secretName string, cooldown time.Duration) (*Host, error)
+	// node key, and team. Implementations of this method should respect the
+	// provided host enrollment cooldown, by returning an error if the host has
+	// enrolled within the cooldown period.
+	EnrollHost(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 	ListHosts(opt HostListOptions) ([]*Host, error)
 	// AuthenticateHost authenticates and returns host metadata by node key.
 	// This method should not return the host "additional" information as this
@@ -155,7 +155,6 @@ type Host struct {
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
 	Additional                *json.RawMessage    `json:"additional,omitempty" db:"additional"`
-	EnrollSecretName          string              `json:"enroll_secret_name" db:"enroll_secret_name"`
 
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.

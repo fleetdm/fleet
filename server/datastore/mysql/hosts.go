@@ -89,7 +89,7 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			config_tls_refresh = ?,
 			logger_tls_period = ?,
 			additional = COALESCE(?, additional),
-			enroll_secret_name = ?,
+			team_id = ?,
 			primary_ip = ?,
 			primary_mac = ?,
 			refetch_requested = ?
@@ -124,7 +124,7 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		host.ConfigTLSRefresh,
 		host.LoggerTLSPeriod,
 		host.Additional,
-		host.EnrollSecretName,
+		host.TeamID,
 		host.PrimaryIP,
 		host.PrimaryMac,
 		host.RefetchRequested,
@@ -319,7 +319,6 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 		h.primary_ip,
 		h.primary_mac,
 		h.label_update_time,
-		h.enroll_secret_name,
 		h.team_id,
 		h.refetch_requested,
 		t.name AS team_name,
@@ -422,7 +421,7 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 }
 
 // EnrollHost enrolls a host
-func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string, cooldown time.Duration) (*kolide.Host, error) {
+func (d *Datastore) EnrollHost(osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*kolide.Host, error) {
 	if osqueryHostID == "" {
 		return nil, fmt.Errorf("missing osquery host identifier")
 	}
@@ -446,10 +445,10 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string, cooldo
 					osquery_host_id,
 					seen_time,
 					node_key,
-					enroll_secret_name
+					team_id
 				) VALUES (?, ?, ?, ?, ?, ?)
 			`
-			result, err := tx.Exec(sqlInsert, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, secretName)
+			result, err := tx.Exec(sqlInsert, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, teamID)
 
 			if err != nil {
 				return errors.Wrap(err, "insert host")
@@ -469,11 +468,11 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string, cooldo
 			sqlUpdate := `
 				UPDATE hosts
 				SET node_key = ?,
-				enroll_secret_name = ?,
+				team_id = ?,
 				last_enroll_time = NOW()
 				WHERE osquery_host_id = ?
 			`
-			_, err := tx.Exec(sqlUpdate, nodeKey, secretName, osqueryHostID)
+			_, err := tx.Exec(sqlUpdate, nodeKey, teamID, osqueryHostID)
 
 			if err != nil {
 				return errors.Wrap(err, "update host")
@@ -540,8 +539,8 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 			config_tls_refresh,
 			primary_ip,
 			primary_mac,
-			enroll_secret_name,
-			refetch_requested
+			refetch_requested,
+			team_id
 		FROM hosts
 		WHERE node_key = ?
 		LIMIT 1
@@ -553,7 +552,7 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 		case sql.ErrNoRows:
 			return nil, notFound("Host")
 		default:
-			return nil, errors.New("finding host")
+			return nil, errors.New("find host")
 		}
 	}
 

@@ -44,20 +44,16 @@ func (svc service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) 
 	}
 
 	// Set up a default enroll secret
-	secret, err := kolide.RandomText(24)
+	secret, err := kolide.RandomText(kolide.EnrollSecretDefaultLength)
 	if err != nil {
 		return nil, errors.Wrap(err, "generate enroll secret string")
 	}
-	spec := &kolide.EnrollSecretSpec{
-		Secrets: []kolide.EnrollSecret{
-			kolide.EnrollSecret{
-				Name:   "default",
-				Secret: secret,
-				Active: true,
-			},
+	secrets := []*kolide.EnrollSecret{
+		{
+			Secret: secret,
 		},
 	}
-	err = svc.ds.ApplyEnrollSecretSpec(spec)
+	err = svc.ds.ApplyEnrollSecrets(nil, secrets)
 	if err != nil {
 		return nil, errors.Wrap(err, "save enroll secret")
 	}
@@ -246,19 +242,20 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 
 func (svc service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.EnrollSecretSpec) error {
 	for _, s := range spec.Secrets {
-		if s.Name == "" {
-			return errors.New("enroll secret name must not be empty")
-		}
 		if s.Secret == "" {
 			return errors.New("enroll secret must not be empty")
 		}
 	}
 
-	return svc.ds.ApplyEnrollSecretSpec(spec)
+	return svc.ds.ApplyEnrollSecrets(nil, spec.Secrets)
 }
 
 func (svc service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecretSpec, error) {
-	return svc.ds.GetEnrollSecretSpec()
+	secrets, err := svc.ds.GetEnrollSecrets(nil)
+	if err != nil {
+		return nil, err
+	}
+	return &kolide.EnrollSecretSpec{Secrets: secrets}, nil
 }
 
 func (svc service) Version(ctx context.Context) (*version.Info, error) {

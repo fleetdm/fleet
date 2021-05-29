@@ -168,7 +168,7 @@ func testHostStatus(t *testing.T, ds kolide.Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	h, err := ds.EnrollHost("1", "key1", "default", 0)
+	h, err := ds.EnrollHost("1", "key1", nil, 0)
 	require.Nil(t, err)
 
 	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}

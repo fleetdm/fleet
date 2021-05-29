@@ -78,7 +78,7 @@ func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 }
 
 func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
-	secretName, err := svc.ds.VerifyEnrollSecret(enrollSecret)
+	secret, err := svc.ds.VerifyEnrollSecret(enrollSecret)
 	if err != nil {
 		return "", osqueryError{
 			message:     "enroll failed: " + err.Error(),
@@ -96,7 +96,7 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 
 	hostIdentifier = getHostIdentifier(svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 
-	host, err := svc.ds.EnrollHost(hostIdentifier, nodeKey, secretName, svc.config.Osquery.EnrollCooldown)
+	host, err := svc.ds.EnrollHost(hostIdentifier, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
 	if err != nil {
 		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
 	}

@@ -20,9 +20,9 @@ type AppConfigStore interface {
 	// Otherwise an error is returned.
 	VerifyEnrollSecret(secret string) (*EnrollSecret, error)
 	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).
-	GetEnrollSecrets(teamID *uint) ([]EnrollSecret, error)
+	GetEnrollSecrets(teamID *uint) ([]*EnrollSecret, error)
 	// ApplyEnrollSecrets replaces the current enroll secrets for a team with the provided secrets.
-	ApplyEnrollSecrets(teamID *uint, secrets []EnrollSecret) error
+	ApplyEnrollSecrets(teamID *uint, secrets []*EnrollSecret) error
 }
 
 // AppConfigService provides methods for configuring
@@ -315,13 +315,8 @@ type ListOptions struct {
 // EnrollSecret contains information about an enroll secret, name, and active
 // status. Enroll secrets are used for osquery authentication.
 type EnrollSecret struct {
-	// Name is the name assigned to the secret
-	Name string `json:"name" db:"name"`
 	// Secret is the actual secret key.
 	Secret string `json:"secret" db:"secret"`
-	// Active determines whether the secret is currently allowed to be used for
-	// authentication.
-	Active bool `json:"active" db:"active"`
 	// CreatedAt is the time this enroll secret was first added.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
@@ -330,13 +325,14 @@ type EnrollSecret struct {
 }
 
 const (
-	EnrollSecretKind = "enroll_secret"
+	EnrollSecretKind          = "enroll_secret"
+	EnrollSecretDefaultLength = 24
 )
 
 // EnrollSecretSpec is the fleetctl spec type for enroll secrets.
 type EnrollSecretSpec struct {
 	// Secrets is the list of enroll secrets.
-	Secrets []EnrollSecret `json:"secrets"`
+	Secrets []*EnrollSecret `json:"secrets"`
 }
 
 // LicenseInfo contains information about the Fleet license.
