@@ -107,6 +107,10 @@ type User struct {
 	Teams []UserTeam `json:"teams"`
 }
 
+func (u *User) AuthzType() string {
+	return "user"
+}
+
 type UserTeam struct {
 	// Team is the team object.
 	Team

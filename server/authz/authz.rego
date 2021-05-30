@@ -9,9 +9,9 @@ default allow = false
 
 # team_role gets the role that the subject has for the team, returning undefined
 # if the user has no explicit role for that team.
-team_role(subject, team) = role {
+team_role(subject, team_id) = role {
 	subject_team := subject.teams[_]
-	subject_team.id == team
+	subject_team.team_id == team_id
 	role := subject_team.role
 }
 
@@ -36,7 +36,7 @@ allow {
 allow {
 	object.type == "enroll_secret"
 	action == "read"
-	team_role(subject, object.team) == "maintainer"
+	team_role(subject, object.team_id) == "maintainer"
 }
 
 # (Observers are not granted read for enroll secrets)

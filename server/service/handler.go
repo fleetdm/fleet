@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
@@ -127,7 +128,8 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 	limiter := ratelimit.NewMiddleware(limitStore)
 
 	return KolideEndpoints{
-		Login: limiter.Limit(throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
+		Login: limiter.Limit(
+			throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
 			makeLoginEndpoint(svc),
 		),
 		Logout: makeLogoutEndpoint(svc),
@@ -356,6 +358,7 @@ type kolideHandlers struct {
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
 	newServer := func(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc) http.Handler {
+		e = authzcheck.NewMiddleware().AuthzCheck()(e)
 		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
 	return &kolideHandlers{
@@ -469,6 +472,10 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	// get the request path
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(kitlog.With(h.logger, "path", path))
+
+	if e, ok := err.(kolide.ErrWithInternal); ok {
+		logger = kitlog.With(logger, "err_internal", e.Internal())
+	}
 
 	switch e := err.(type) {
 	case ratelimit.Error:

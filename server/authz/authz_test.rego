@@ -2,11 +2,11 @@ package authz
 
 team_user := {"teams": [
 	{
-		"id": 4,
+		"team_id": 4,
 		"role": "observer",
 	},
 	{
-		"id": 5,
+		"team_id": 5,
 		"role": "maintainer",
 	},
 ]}
@@ -28,7 +28,7 @@ global_observer := {
 
 enroll_secret_team_4 := {
 	"type": "enroll_secret",
-	"team": 4,
+	"team_id": 4,
 }
 
 test_team_role {

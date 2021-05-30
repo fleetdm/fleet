@@ -17,6 +17,10 @@ import (
 )
 
 func (svc Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error) {
+	// skipauth: Basic SSO settings are available to unauthenticated users (so
+	// that they have the necessary information to initiate SSO).
+	svc.authz.SkipAuthorization(ctx)
+
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "SSOSettings getting app config")
@@ -30,6 +34,10 @@ func (svc Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error)
 }
 
 func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// initiate SSO.
+	svc.authz.SkipAuthorization(ctx)
+
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return "", errors.Wrap(err, "InitiateSSO getting app config")
@@ -86,6 +94,8 @@ func (svc *Service) getMetadata(config *kolide.AppConfig) (*sso.Metadata, error)
 }
 
 func (svc *Service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.SSOSession, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// hit the SSO callback.
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "get config for sso")
@@ -157,6 +167,9 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.
 }
 
 func (svc *Service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {
+	// skipauth: No user context available yet to authorize against.
+	svc.authz.SkipAuthorization(ctx)
+
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
 	// take ~1s and frustrate a timing attack.
@@ -227,7 +240,10 @@ func (svc *Service) makeSession(id uint) (string, error) {
 }
 
 func (svc *Service) Logout(ctx context.Context) error {
-	// this should not return an error if the user wasn't logged in
+	// skipauth: Any user can always log out of their own session.
+	svc.authz.SkipAuthorization(ctx)
+
+	// TODO: this should not return an error if the user wasn't logged in
 	return svc.DestroySession(ctx)
 }
 
