@@ -9,13 +9,8 @@ assignees: 'noahtalerman'
 
 ### Goal
 
-TODO (≤2 sentences)
-
-
-### Why?
-
-<!-- Thanks for filing an issue!  Please provide as much context as you can about your use case and motivations. -->
 TODO
+<!-- Thanks for filing an issue!  Please provide as much context as you can about your use case and motivations. -->
 
 
 ### How?
