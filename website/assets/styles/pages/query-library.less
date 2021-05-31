@@ -24,12 +24,26 @@
 
   select {
     color: @core-vibrant-blue;
-    border: none;
+    border: 0px;
+    &:focus {
+      border: 0px;
+    }
+    &.select-purpose {
+      width: 100px;
+    }
+    &.select-platform {
+      width: 118px;
+    }
   }
 
   input {
-    max-width: 176px;
+    height: 54px;
+    width: 250px;
+    border: 1px solid #C5C7D1;
+    border-radius: 8px;
+    padding: 15px;
   }
+
 
   .filter-and-search-bar {
     margin-left: 30px;

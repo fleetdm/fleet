@@ -9,7 +9,7 @@
           <div class="col-8 d-flex px-0">
             <div class="filter-purpose">
               <span>Show
-                <select class="mr-1" v-model="selectedPurpose">
+                <select class="mr-1 select-purpose" v-model="selectedPurpose">
                   <option value="all" selected>all queries</option>
                   <option value="information">informational</option>
                   <option value="detection">detection</option>
@@ -18,7 +18,7 @@
             </div>
             <div class="filter-platform">
               <span> compatible with
-                <select class="mr-1" v-model="selectedPlatform">
+                <select class="mr-1 select-platform" v-model="selectedPlatform">
                   <option value="all" selected>all platforms</option>
                   <option value="macOS">macOS</option>
                   <option value="Windows">Windows</option>
@@ -27,9 +27,9 @@
               </span>
             </div>
           </div>
-          <div class="col-3 px-0 d-none d-lg-block justify-content-end">
-            <div class="search ">
-              <input v-model="inputTextValue" placeholder="Search" @keydown.self="delayInput(setSearchString, 1000, 'defaultTimer')()"/>
+          <div class="col-4 px-0 d-none d-lg-block justify-content-end">
+            <div class="search d-flex justify-content-end">              
+              <input v-model="inputTextValue" placeholder="Search queries" @keydown.self="delayInput(setSearchString, 1000, 'defaultTimer')()"/>
             </div>
           </div>
         </div>

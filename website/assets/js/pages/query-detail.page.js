@@ -13,7 +13,9 @@ parasails.registerPage('query-detail', {
     //…
   },
   mounted: async function() {
-    this.contributors = await Promise.all(this.query.contributors.split(',').map(async (contributor) => this.getGitHubUserData(contributor)));
+    if (this.query && this.query.contributors) {
+      this.contributors = await Promise.all(this.query.contributors.split(',').map(async (contributor) => this.getGitHubUserData(contributor)));
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
