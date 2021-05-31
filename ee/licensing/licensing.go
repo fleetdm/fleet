@@ -75,8 +75,10 @@ type licenseClaims struct {
 }
 
 func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {
+	// token.IssuedAt, token.ExpiresAt, token.NotBefore already validated by JWT
+	// library.
 	if !token.Valid {
-		// ParseWithClaims should error anyway, but double-check here
+		// ParseWithClaims should have errored already, but double-check here
 		return nil, errors.New("token invalid")
 	}
 
@@ -105,9 +107,6 @@ func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {
 	if claims.Issuer != expectedIssuer {
 		return nil, errors.Errorf("unexpected issuer %s", claims.Issuer)
 	}
-
-	// We explicitly do not validate expiration at this time because we want to
-	// allow some flexibility for expired tokens.
 
 	return &kolide.LicenseInfo{
 		Tier:         claims.Tier,
