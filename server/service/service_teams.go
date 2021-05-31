@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/pkg/errors"
 )
 
 func (svc service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.Team, error) {
@@ -24,6 +25,16 @@ func (svc service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.T
 		team.Description = *p.Description
 	}
 
+	if p.Secrets != nil {
+		team.Secrets = p.Secrets
+	} else {
+		// Set up a default enroll secret
+		secret, err := kolide.RandomText(kolide.EnrollSecretDefaultLength)
+		if err != nil {
+			return nil, errors.Wrap(err, "generate enroll secret string")
+		}
+		team.Secrets = []*kolide.EnrollSecret{{Secret: secret}}
+	}
 	team, err := svc.ds.NewTeam(team)
 	if err != nil {
 		return nil, err
@@ -44,6 +55,9 @@ func (svc service) ModifyTeam(ctx context.Context, id uint, payload kolide.TeamP
 	}
 	if payload.Description != nil {
 		team.Description = *payload.Description
+	}
+	if payload.Secrets != nil {
+		team.Secrets = payload.Secrets
 	}
 
 	return svc.ds.SaveTeam(team)
@@ -139,4 +153,8 @@ func (svc service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*ko
 
 func (svc service) DeleteTeam(ctx context.Context, tid uint) error {
 	return svc.ds.DeleteTeam(tid)
+}
+
+func (svc service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*kolide.EnrollSecret, error) {
+	return svc.ds.TeamEnrollSecrets(teamID)
 }

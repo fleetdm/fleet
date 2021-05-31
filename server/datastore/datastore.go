@@ -15,6 +15,7 @@ var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testEnrollSecrets,
 	testEnrollSecretsCaseSensitive,
 	testEnrollSecretRoundtrip,
+	testEnrollSecretUniqueness,
 	testCreateInvite,
 	testInviteByEmail,
 	testInviteByToken,

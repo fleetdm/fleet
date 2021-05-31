@@ -29,6 +29,8 @@ type TeamStore interface {
 	// SearchTeams searches teams using the provided query and ommitting the
 	// provided existing selection.
 	SearchTeams(filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
+	// TeamEnrollSecrets lists the enroll secrets for the team.
+	TeamEnrollSecrets(teamID uint) ([]*EnrollSecret, error)
 }
 
 type TeamService interface {
@@ -49,11 +51,14 @@ type TeamService interface {
 	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
 	// ListTeams lists users on the team with the provided list options.
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
+	// TeamEnrollSecrets lists the enroll secrets for the team.
+	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
 }
 
 type TeamPayload struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
+	Name        *string         `json:"name"`
+	Description *string         `json:"description"`
+	Secrets     []*EnrollSecret `json:"secrets"`
 	// Note AgentOptions must be set by a separate endpoint.
 }
 
@@ -83,6 +88,8 @@ type Team struct {
 	HostCount int `json:"host_count" db:"host_count"`
 	// Hosts are the hosts assigned to the team.
 	Hosts []Host `json:"hosts,omitempty"`
+	// Secrets is the enroll secrets valid for this team.
+	Secrets []*EnrollSecret `json:"secrets,omitempty"`
 }
 
 // TeamUser is a user mapped to a team with a role.

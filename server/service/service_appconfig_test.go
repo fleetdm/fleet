@@ -64,9 +64,9 @@ func TestCreateAppConfig(t *testing.T) {
 			return config, nil
 		}
 
-		var gotSecretSpec *kolide.EnrollSecretSpec
-		ds.ApplyEnrollSecretSpecFunc = func(spec *kolide.EnrollSecretSpec) error {
-			gotSecretSpec = spec
+		var gotSecrets []*kolide.EnrollSecret
+		ds.ApplyEnrollSecretsFunc = func(teamID *uint, secrets []*kolide.EnrollSecret) error {
+			gotSecrets = secrets
 			return nil
 		}
 
@@ -80,9 +80,9 @@ func TestCreateAppConfig(t *testing.T) {
 		assert.Equal(t, *payload.ServerSettings.LiveQueryDisabled, result.LiveQueryDisabled)
 
 		// Ensure enroll secret was set
-		require.NotNil(t, gotSecretSpec)
-		require.Len(t, gotSecretSpec.Secrets, 1)
-		assert.Len(t, gotSecretSpec.Secrets[0].Secret, 32)
+		require.NotNil(t, gotSecrets)
+		require.Len(t, gotSecrets, 1)
+		assert.Len(t, gotSecrets[0].Secret, 32)
 	}
 }
 
@@ -91,7 +91,7 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
-	ds.ApplyEnrollSecretSpecFunc = func(spec *kolide.EnrollSecretSpec) error {
+	ds.ApplyEnrollSecretsFunc = func(teamID *uint, secrets []*kolide.EnrollSecret) error {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
@@ -101,27 +101,21 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	err = svc.ApplyEnrollSecretSpec(
 		context.Background(),
 		&kolide.EnrollSecretSpec{
-			Secrets: []kolide.EnrollSecret{{}},
+			Secrets: []*kolide.EnrollSecret{{}},
 		},
 	)
 	require.Error(t, err)
 
 	err = svc.ApplyEnrollSecretSpec(
 		context.Background(),
-		&kolide.EnrollSecretSpec{Secrets: []kolide.EnrollSecret{{Name: "foo"}}},
+		&kolide.EnrollSecretSpec{Secrets: []*kolide.EnrollSecret{{Secret: ""}}},
 	)
-	require.Error(t, err)
-
-	err = svc.ApplyEnrollSecretSpec(
-		context.Background(),
-		&kolide.EnrollSecretSpec{Secrets: []kolide.EnrollSecret{{Secret: "foo"}}},
-	)
-	require.Error(t, err)
+	require.Error(t, err, "empty secret should be disallowed")
 
 	err = svc.ApplyEnrollSecretSpec(
 		context.Background(),
 		&kolide.EnrollSecretSpec{
-			Secrets: []kolide.EnrollSecret{{Name: "foo", Secret: "foo"}},
+			Secrets: []*kolide.EnrollSecret{{Secret: "foo"}},
 		},
 	)
 	require.NoError(t, err)

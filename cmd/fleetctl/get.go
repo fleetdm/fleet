@@ -127,16 +127,6 @@ func printSecret(c *cli.Context, secret *kolide.EnrollSecretSpec) error {
 		Spec:    secret,
 	}
 
-	if name := c.Args().Get(0); name != "" {
-		for _, s := range secret.Secrets {
-			if s.Name == name {
-				fmt.Println(s.Secret)
-				return nil
-			}
-		}
-		return fmt.Errorf("Secret '%s' not found", name)
-	}
-
 	var err error
 
 	if c.Bool(jsonFlagName) {

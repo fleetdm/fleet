@@ -551,7 +551,6 @@ This is the callback endpoint that the identity provider will use to send securi
       "config_tls_refresh": 10,
       "logger_tls_period": 8,
       "additional": {},
-      "enroll_secret_name": "default",
       "status": "offline",
       "display_text": "2ceca32fe484"
     },
@@ -644,7 +643,6 @@ The endpoint returns the host's installed `software` if the software inventory f
         "config_tls_refresh": 10,
         "logger_tls_period": 10,
         "additional": {},
-        "enroll_secret_name": "bar",
         "status": "offline",
         "display_text": "259404d30eb6",
         "labels": [
@@ -752,7 +750,6 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "config_tls_refresh": 10,
         "logger_tls_period": 10,
         "additional": {},
-        "enroll_secret_name": "bar",
         "status": "offline",
         "display_text": "259404d30eb6"
     }
@@ -1203,7 +1200,6 @@ Returns a list of the hosts that belong to the specified label.
       "config_tls_refresh": 10,
       "logger_tls_period": 10,
       "additional": {},
-      "enroll_secret_name": "default",
       "status": "offline",
       "display_text": "e2e7f8d8983d"
     },
@@ -3904,7 +3900,6 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "config_tls_refresh": 10,
         "logger_tls_period": 10,
         "additional": {},
-        "enroll_secret_name": "default",
         "status": "offline",
         "display_text": "7a2f41482833"
       },
@@ -3942,7 +3937,6 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "config_tls_refresh": 10,
         "logger_tls_period": 10,
         "additional": {},
-        "enroll_secret_name": "default",
         "status": "offline",
         "display_text": "78c96e72746c"
       }
@@ -4190,9 +4184,9 @@ Modifies the Fleet's configuration with the supplied information.
 }
 ```
 
-### Get enroll secret(s)
+### Get global enroll secret(s)
 
-Returns all the enroll secrets used by the Fleet server.
+Returns the valid global enroll secrets.
 
 `GET /api/v1/fleet/spec/enroll_secret`
 
@@ -4213,23 +4207,13 @@ None.
   "specs": {
     "secrets": [
       {
-        "name": "bar",
         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        "active": true,
         "created_at": "2021-01-07T19:40:04Z"
       },
       {
-        "name": "default",
-        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        "active": true,
+        "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On",
         "created_at": "2021-01-04T21:18:07Z"
       },
-      {
-        "name": "foo",
-        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        "active": true,
-        "created_at": "2021-01-07T19:40:04Z"
-      }
     ]
   }
 }
@@ -4237,17 +4221,15 @@ None.
 
 ### Modify enroll secret(s)
 
-Modifies and/or creates the specified enroll secret(s).
+Replaces the active global enroll secrets with the secrets specified.
 
 `POST /api/v1/fleet/spec/enroll_secret`
 
 #### Parameters
 
-| Name   | Type    | In   | Description                                                                                                  |
-| ------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------ |
-| name   | string  | body | **Required.** The name of the enroll secret                                                                  |
-| secret | string  | body | **Required.** The plain text string used as the enroll secret.                                               |
-| active | boolean | body | Whether or not the enroll secret is active. Must be set to true for hosts to enroll using the enroll secret. |
+| Name   | Type   | In   | Description                                                    |
+| ------ | ------ | ---- | -------------------------------------------------------------- |
+| secret | string | body | **Required.** The plain text string used as the enroll secret. |
 
 #### Example
 
@@ -4258,7 +4240,6 @@ Modifies and/or creates the specified enroll secret(s).
   "spec": {
     "secrets": [
       {
-        "name": "bar",
         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
         "active": false,
       },

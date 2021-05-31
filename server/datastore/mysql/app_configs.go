@@ -189,30 +189,36 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
 	return err
 }
 
-func (d *Datastore) VerifyEnrollSecret(secret string) (string, error) {
+func (d *Datastore) VerifyEnrollSecret(secret string) (*kolide.EnrollSecret, error) {
 	var s kolide.EnrollSecret
-	err := d.db.Get(&s, "SELECT name, active FROM enroll_secrets WHERE secret = ?", secret)
+	err := d.db.Get(&s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
-		return "", errors.New("no matching secret found")
-	}
-	if !s.Active {
-		return "", errors.New("secret is inactive")
+		return nil, errors.New("no matching secret found")
 	}
 
-	return s.Name, nil
+	return &s, nil
 }
 
-func (d *Datastore) ApplyEnrollSecretSpec(spec *kolide.EnrollSecretSpec) error {
+func (d *Datastore) ApplyEnrollSecrets(teamID *uint, secrets []*kolide.EnrollSecret) error {
 	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		for _, secret := range spec.Secrets {
+		if teamID != nil {
+			sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
+			if _, err := tx.Exec(sql, teamID); err != nil {
+				return errors.Wrap(err, "clear before insert")
+			}
+		} else {
+			sql := `DELETE FROM enroll_secrets WHERE team_id IS NULL`
+			if _, err := tx.Exec(sql); err != nil {
+				return errors.Wrap(err, "clear before insert")
+			}
+		}
+
+		for _, secret := range secrets {
 			sql := `
-				INSERT INTO enroll_secrets (name, secret, active)
-				VALUES (?, ?, ?)
-				ON DUPLICATE KEY UPDATE
-					secret = VALUES(secret),
-					active = VALUES(active)
+				INSERT INTO enroll_secrets (secret, team_id)
+				VALUES ( ?, ? )
 			`
-			if _, err := tx.Exec(sql, secret.Name, secret.Secret, secret.Active); err != nil {
+			if _, err := tx.Exec(sql, secret.Secret, teamID); err != nil {
 				return errors.Wrap(err, "upsert secret")
 			}
 		}
@@ -222,11 +228,19 @@ func (d *Datastore) ApplyEnrollSecretSpec(spec *kolide.EnrollSecretSpec) error {
 	return err
 }
 
-func (d *Datastore) GetEnrollSecretSpec() (*kolide.EnrollSecretSpec, error) {
-	var spec kolide.EnrollSecretSpec
-	sql := `SELECT * FROM enroll_secrets`
-	if err := d.db.Select(&spec.Secrets, sql); err != nil {
+func (d *Datastore) GetEnrollSecrets(teamID *uint) ([]*kolide.EnrollSecret, error) {
+	var args []interface{}
+	sql := "SELECT * FROM enroll_secrets WHERE "
+	// MySQL requires comparing NULL with IS. NULL = NULL evaluates to FALSE.
+	if teamID == nil {
+		sql += "team_id IS NULL"
+	} else {
+		sql += "team_id = ?"
+		args = append(args, teamID)
+	}
+	var secrets []*kolide.EnrollSecret
+	if err := d.db.Select(&secrets, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "get secrets")
 	}
-	return &spec, nil
+	return secrets, nil
 }

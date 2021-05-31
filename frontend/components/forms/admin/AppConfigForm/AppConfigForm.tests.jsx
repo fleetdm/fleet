@@ -11,9 +11,9 @@ describe("AppConfigForm - form", () => {
     handleSubmit: noop,
     smtpConfigured: false,
     enrollSecret: [
-      { name: "foo", secret: "foo_secret", active: true },
-      { name: "bar", secret: "bar_secret", active: true },
-      { name: "inactive", secret: "inactive", active: false },
+      { secret: "foo_secret" },
+      { secret: "bar_secret" },
+      { secret: "baz_secret" },
     ],
   };
   const form = mount(<AppConfigForm {...defaultProps} />);

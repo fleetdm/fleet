@@ -193,3 +193,30 @@ func makeDeleteTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return teamResponse{Team: team}, err
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Get enroll secrets for team
+////////////////////////////////////////////////////////////////////////////////
+
+type teamEnrollSecretsRequest struct {
+	TeamID uint
+}
+
+type teamEnrollSecretsResponse struct {
+	Secrets []*kolide.EnrollSecret `json:"secrets"`
+	Err     error                  `json:"error,omitempty"`
+}
+
+func (r teamEnrollSecretsResponse) error() error { return r.Err }
+
+func makeTeamEnrollSecretsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(teamEnrollSecretsRequest)
+		secrets, err := svc.TeamEnrollSecrets(ctx, req.TeamID)
+		if err != nil {
+			return teamEnrollSecretsResponse{Err: err}, nil
+		}
+
+		return teamEnrollSecretsResponse{Secrets: secrets}, err
+	}
+}

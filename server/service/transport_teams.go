@@ -81,3 +81,12 @@ func decodeModifyTeamUsersRequest(ctx context.Context, r *http.Request) (interfa
 	}
 	return req, nil
 }
+
+func decodeTeamEnrollSecretsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	req := teamEnrollSecretsRequest{TeamID: id}
+	return req, nil
+}

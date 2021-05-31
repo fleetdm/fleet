@@ -413,21 +413,23 @@ func testListHostsQuery(t *testing.T, ds kolide.Datastore) {
 
 func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
-	enrollSecretName := "default"
+
+	team, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+	require.NoError(t, err)
+
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, enrollSecretName, 0)
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, &team.ID, 0)
 		require.Nil(t, err)
 
 		assert.Equal(t, tt.uuid, h.OsqueryHostID)
 		assert.Equal(t, tt.nodeKey, h.NodeKey)
-		assert.Equal(t, enrollSecretName, h.EnrollSecretName)
 
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
-		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", enrollSecretName+"new", 0)
+		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", nil, 0)
 		require.NoError(t, err)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
-		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", enrollSecretName+"new", 10*time.Second)
+		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", nil, 10*time.Second)
 		require.Error(t, err)
 	}
 }
@@ -435,25 +437,25 @@ func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 func testAuthenticateHost(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default", 0)
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, nil, 0)
 		require.Nil(t, err)
 
 		returned, err := ds.AuthenticateHost(h.NodeKey)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, h.NodeKey, returned.NodeKey)
 	}
 
 	_, err := ds.AuthenticateHost("7B1A9DC9-B042-489F-8D5A-EEC2412C95AA")
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	_, err = ds.AuthenticateHost("")
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 func testAuthenticateHostCaseSensitive(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default", 0)
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, nil, 0)
 		require.Nil(t, err)
 
 		_, err = ds.AuthenticateHost(strings.ToUpper(h.NodeKey))

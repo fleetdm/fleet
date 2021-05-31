@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/pkg/errors"
 )
@@ -63,8 +64,7 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return setupResponse{Err: err}, nil
 		}
 		// Make the user an admin
-		adminStr := "admin"
-		adminPayload.GlobalRole = &adminStr
+		adminPayload.GlobalRole = ptr.String(kolide.RoleAdmin)
 		admin, err = svc.CreateUser(ctx, adminPayload)
 		if err != nil {
 			return setupResponse{Err: err}, nil

@@ -167,7 +167,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error retrieving enroll secret")
 			}
 
-			if len(secrets.Secrets) != 1 || !secrets.Secrets[0].Active {
+			if len(secrets.Secrets) != 1 {
 				return errors.New("Expected 1 active enroll secret")
 			}
 

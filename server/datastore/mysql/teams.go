@@ -31,6 +31,11 @@ func (d *Datastore) NewTeam(team *kolide.Team) (*kolide.Team, error) {
 
 	id, _ := result.LastInsertId()
 	team.ID = uint(id)
+
+	if err := d.saveTeamSecrets(team); err != nil {
+		return nil, err
+	}
+
 	return team, nil
 }
 
@@ -49,7 +54,19 @@ func (d *Datastore) Team(tid uint) (*kolide.Team, error) {
 		return nil, err
 	}
 
+	if err := d.saveTeamSecrets(team); err != nil {
+		return nil, err
+	}
+
 	return team, nil
+}
+
+func (d *Datastore) saveTeamSecrets(team *kolide.Team) error {
+	if team.Secrets == nil {
+		return nil
+	}
+
+	return d.ApplyEnrollSecrets(&team.ID, team.Secrets)
 }
 
 func (d *Datastore) DeleteTeam(tid uint) error {
@@ -186,4 +203,15 @@ func (d *Datastore) SearchTeams(filter kolide.TeamFilter, matchQuery string, omi
 		return nil, errors.Wrap(err, "search teams")
 	}
 	return teams, nil
+}
+func (d *Datastore) TeamEnrollSecrets(teamID uint) ([]*kolide.EnrollSecret, error) {
+	sql := `
+		SELECT * FROM enroll_secrets
+		WHERE team_id = ?
+	`
+	var secrets []*kolide.EnrollSecret
+	if err := d.db.Select(&secrets, sql, teamID); err != nil {
+		return nil, errors.Wrap(err, "get secrets")
+	}
+	return secrets, nil
 }
