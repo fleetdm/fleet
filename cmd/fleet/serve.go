@@ -16,8 +16,8 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/ee/licensing"
-	eeservice "github.com/fleetdm/fleet/ee/service"
+	"github.com/fleetdm/fleet/ee/server/licensing"
+	eeservice "github.com/fleetdm/fleet/ee/server/service"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
 	"github.com/fleetdm/fleet/server/datastore/s3"
