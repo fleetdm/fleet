@@ -54,6 +54,8 @@ func createServeCmd(configManager config.Manager) *cobra.Command {
 	debug := false
 	// Whether to enable developer options
 	dev := false
+	// Whether to enable development Fleet Basic license
+	devLicense := false
 
 	serveCmd := &cobra.Command{
 		Use:   "serve",
@@ -71,6 +73,10 @@ the way that the Fleet server works.
 
 			if dev {
 				applyDevFlags(&config)
+			}
+
+			if devLicense {
+				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw"
 			}
 
 			license, err := licensing.LoadLicense(config.License.Key)
@@ -417,6 +423,7 @@ the way that the Fleet server works.
 
 	serveCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug endpoints")
 	serveCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	serveCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 
 	return serveCmd
 }
