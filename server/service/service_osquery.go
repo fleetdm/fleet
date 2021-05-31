@@ -1125,6 +1125,12 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 				return osqueryError{message: "failed to save host software: " + err.Error()}
 			}
 		}
+
+		if detailUpdated {
+			if err := svc.ds.SaveHostAdditional(&host); err != nil {
+				return osqueryError{message: "failed to save host additional: " + err.Error()}
+			}
+		}
 	}
 
 	return nil

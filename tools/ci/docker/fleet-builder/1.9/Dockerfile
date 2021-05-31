@@ -1,5 +1,5 @@
 FROM golang:1.9-alpine
-MAINTAINER Fleet Developers <engineering@fleetdm.com>
+MAINTAINER Fleet Developers <hello@fleetdm.com>
 
 ENV NPM_CONFIG_LOGLEVEL info
 ENV NODE_VERSION 8.7.0

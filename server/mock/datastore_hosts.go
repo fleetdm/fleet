@@ -42,6 +42,8 @@ type HostIDsByNameFunc func(hostnames []string) ([]uint, error)
 
 type AddHostsToTeamFunc func(teamID *uint, hostIDs []uint) error
 
+type SaveHostAdditionalFunc func(host *kolide.Host) error
+
 type HostStore struct {
 	NewHostFunc        NewHostFunc
 	NewHostFuncInvoked bool
@@ -90,6 +92,9 @@ type HostStore struct {
 
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
+
+	SaveHostAdditionalFunc        SaveHostAdditionalFunc
+	SaveHostAdditionalFuncInvoked bool
 }
 
 func (s *HostStore) NewHost(host *kolide.Host) (*kolide.Host, error) {
@@ -170,4 +175,9 @@ func (s *HostStore) HostIDsByName(hostnames []string) ([]uint, error) {
 func (s *HostStore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
 	s.AddHostsToTeamFuncInvoked = true
 	return s.AddHostsToTeamFunc(teamID, hostIDs)
+}
+
+func (s *HostStore) SaveHostAdditional(host *kolide.Host) error {
+	s.SaveHostAdditionalFuncInvoked = true
+	return s.SaveHostAdditionalFunc(host)
 }

@@ -1,0 +1,75 @@
+<div id="query-library" v-cloak>
+
+  <div class="d-flex justify-content-center">
+    <div class="col-8 my-5">
+      <h2 class="mb-3">Standard query library</h2>
+      <h6 class="font-weight-light pb-3">Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery.</h6>
+      <div class="filter-and-search-bar container">
+        <div class="row justify-content-between">
+          <div class="col-8 d-flex px-0">
+            <div class="filter-purpose">
+              <span>Show
+                <select class="mr-1" v-model="selectedPurpose">
+                  <option value="all" selected>all queries</option>
+                  <option value="information">informational</option>
+                  <option value="detection">detection</option>
+                </select>
+              </span>
+            </div>
+            <div class="filter-platform">
+              <span> compatible with
+                <select class="mr-1" v-model="selectedPlatform">
+                  <option value="all" selected>all platforms</option>
+                  <option value="macOS">macOS</option>
+                  <option value="Windows">Windows</option>
+                  <option value="Linux">Linux</option>
+                </select>
+              </span>
+            </div>
+          </div>
+          <div class="col-3 px-0 d-none d-lg-block justify-content-end">
+            <div class="search ">
+              <input v-model="inputTextValue" placeholder="Search" @keydown.self="delayInput(setSearchString, 1000, 'defaultTimer')()"/>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="results">
+        <div class="category__informational">
+          <div v-for="query of queriesList">
+            <div class="card results" @click="clickCard(query.slug)">
+              <div class="card-body">
+                <div class="row justify-content-between align-items-center">
+                  <div class="col-10">
+                    <h5 class="card-title m-0">{{query.name}}</h5>
+                    <h6 class="font-italic mb-1 p-0">{{query.description}}</h6>
+                    <div class="contributors" v-if="query.contributors && query.contributors.length">
+                      <p class="mb-0">contributed by {{query.contributors}}</p>
+                    </div>
+                  </div>
+                  <div class="col-2">
+                    <div class="text-right m-0">
+                      <span v-if="query.platforms.includes('macOS')"><i class="fa fa-apple fa-md ml-1" alt="Mac"></i></span>
+                      <span v-if="query.platforms.includes('Windows')"><i class="fa fa-windows fa-md ml-1" alt="Windows"></i></span>
+                      <span v-if="query.platforms.includes('Linux')"><i class="fa fa-linux fa-md ml-1" alt="Linux"></i></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>    
+    </div>
+  </div>
+  <div class="d-flex justify-content-center">
+    <div class="card call-to-action col-8">
+      <div class="card-body flex-fill">
+          <h3 class="mb-3">Contributors</h3>
+          <p><strong>Want to add your own query?</strong> Please submit a pull request <a href="https://github.com/fleetdm/fleet/tree/master/handbook/queries" >over on GitHub</a>.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

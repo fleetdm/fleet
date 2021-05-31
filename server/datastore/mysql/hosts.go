@@ -88,7 +88,6 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			distributed_interval = ?,
 			config_tls_refresh = ?,
 			logger_tls_period = ?,
-			additional = COALESCE(?, additional),
 			team_id = ?,
 			primary_ip = ?,
 			primary_mac = ?,
@@ -123,7 +122,6 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		host.DistributedInterval,
 		host.ConfigTLSRefresh,
 		host.LoggerTLSPeriod,
-		host.Additional,
 		host.TeamID,
 		host.PrimaryIP,
 		host.PrimaryMac,
@@ -267,9 +265,10 @@ func (d *Datastore) DeleteHost(hid uint) error {
 
 func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	sqlStatement := `
-		SELECT h.*, t.name AS team_name
+		SELECT h.*, t.name AS team_name, (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
 		FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
-		WHERE h.id = ? LIMIT 1
+		WHERE h.id = ?
+		LIMIT 1
 	`
 	host := &kolide.Host{}
 	err := d.db.Get(host, sqlStatement, id)
@@ -321,14 +320,20 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 		h.label_update_time,
 		h.team_id,
 		h.refetch_requested,
-		t.name AS team_name,
+		t.name AS team_name
 		`
 
 	var params []interface{}
 
-	// Filter additional info by extracting into a new json object.
-	if len(opt.AdditionalFilters) > 0 {
-		sql += `JSON_OBJECT(
+	// Only include "additional" if filter provided.
+	if len(opt.AdditionalFilters) == 1 && opt.AdditionalFilters[0] == "*" {
+		// All info requested.
+		sql += `
+		, (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
+		`
+	} else if len(opt.AdditionalFilters) > 0 {
+		// Filter specific columns.
+		sql += `, (SELECT JSON_OBJECT(
 			`
 		for _, field := range opt.AdditionalFilters {
 			sql += `?, JSON_EXTRACT(additional, ?), `
@@ -336,12 +341,8 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 		}
 		sql = sql[:len(sql)-2]
 		sql += `
-		    ) AS additional
+		    ) FROM host_additional WHERE host_id = h.id) AS additional
 		    `
-	} else {
-		sql += `
-		additional
-		`
 	}
 
 	sql += `FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
@@ -762,6 +763,19 @@ func (d *Datastore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
 
 	if _, err := d.db.Exec(sql, args...); err != nil {
 		return errors.Wrap(err, "exec AddHostsToTeam")
+	}
+
+	return nil
+}
+
+func (d *Datastore) SaveHostAdditional(host *kolide.Host) error {
+	sql := `
+		INSERT INTO host_additional (host_id, additional)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE additional = VALUES(additional)
+	`
+	if _, err := d.db.Exec(sql, host.ID, host.Additional); err != nil {
+		return errors.Wrap(err, "insert additional")
 	}
 
 	return nil

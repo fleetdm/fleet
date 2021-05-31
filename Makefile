@@ -224,10 +224,10 @@ e2e-reset-db:
 e2e-setup:
 	./build/fleetctl config set --context e2e --address https://localhost:8642
 	./build/fleetctl config set --context e2e --tls-skip-verify true
-	./build/fleetctl setup --context e2e --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
+	./build/fleetctl setup --context e2e --email=test@example.com --username=test --password=admin123# --org-name='Fleet Test'
 	./build/fleetctl user create --context e2e --username=user1 --email=user1@example.com --sso=true
-	./build/fleetctl user create --context e2e --email=test+1@fleetdm.com --username=test1 --password=admin123#
-	./build/fleetctl user create --context e2e --email=test+2@fleetdm.com --username=test2 --password=admin123#
+	./build/fleetctl user create --context e2e --email=test+1@example.com --username=test1 --password=admin123#
+	./build/fleetctl user create --context e2e --email=test+2@example.com --username=test2 --password=admin123#
 
 e2e-serve:
 	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e --server_address=localhost:8642

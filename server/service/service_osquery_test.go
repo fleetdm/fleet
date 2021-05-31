@@ -646,6 +646,11 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveHostAdditionalFunc = func(host *kolide.Host) error {
+		gotHost.Additional = host.Additional
+		return nil
+	}
+
 	// Verify that results are ingested properly
 	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{}, map[string]string{})
 
@@ -816,6 +821,12 @@ func TestDetailQueries(t *testing.T) {
 		gotHost = host
 		return nil
 	}
+
+	ds.SaveHostAdditionalFunc = func(host *kolide.Host) error {
+		gotHost.Additional = host.Additional
+		return nil
+	}
+
 	// Verify that results are ingested properly
 	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{}, map[string]string{})
 
@@ -1176,12 +1187,12 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
 	assert.Equal(t, []*kolide.DistributedQueryCampaignTarget{
-		&kolide.DistributedQueryCampaignTarget{
+		{
 			Type:                       kolide.TargetHost,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   2,
 		},
-		&kolide.DistributedQueryCampaignTarget{
+		{
 			Type:                       kolide.TargetLabel,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   1,

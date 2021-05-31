@@ -48,7 +48,7 @@ describe("Settings flow", () => {
 
     cy.findByLabelText(/sender address/i)
       .click()
-      .type("rachel@fleetdm.com");
+      .type("rachel@example.com");
 
     cy.findByLabelText(/smtp server/i)
       .click()
@@ -121,7 +121,7 @@ describe("Settings flow", () => {
 
     cy.findByLabelText(/sender address/i).should(
       "have.value",
-      "rachel@fleetdm.com"
+      "rachel@example.com"
     );
 
     cy.findByLabelText(/smtp server/i).should("have.value", "localhost");
@@ -140,9 +140,9 @@ describe("Settings flow", () => {
     cy.getEmails().then((response) => {
       expect(response.body.items[0].To[0]).to.have.property("Domain");
       expect(response.body.items[0].To[0].Mailbox).to.equal("test");
-      expect(response.body.items[0].To[0].Domain).to.equal("fleetdm.com");
+      expect(response.body.items[0].To[0].Domain).to.equal("example.com");
       expect(response.body.items[0].From.Mailbox).to.equal("rachel");
-      expect(response.body.items[0].From.Domain).to.equal("fleetdm.com");
+      expect(response.body.items[0].From.Domain).to.equal("example.com");
       expect(response.body.items[0].Content.Headers.Subject[0]).to.equal(
         "Hello from Fleet"
       );

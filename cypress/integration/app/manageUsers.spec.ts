@@ -16,17 +16,17 @@ describe("Manage Users", () => {
 
     cy.wait("@getUsers");
 
-    cy.findByText("test@fleetdm.com").should("exist");
-    cy.findByText("test+1@fleetdm.com").should("exist");
-    cy.findByText("test+2@fleetdm.com").should("exist");
+    cy.findByText("test@example.com").should("exist");
+    cy.findByText("test+1@example.com").should("exist");
+    cy.findByText("test+2@example.com").should("exist");
 
-    cy.findByPlaceholderText("Search").type("test@fleetdm.com");
+    cy.findByPlaceholderText("Search").type("test@example.com");
 
     cy.wait("@getUsers");
 
-    cy.findByText("test@fleetdm.com").should("exist");
-    cy.findByText("test+1@fleetdm.com").should("not.exist");
-    cy.findByText("test+2@fleetdm.com").should("not.exist");
+    cy.findByText("test@example.com").should("exist");
+    cy.findByText("test+1@example.com").should("not.exist");
+    cy.findByText("test+2@example.com").should("not.exist");
   });
 
   // it('Creating a user', () => {
@@ -40,7 +40,7 @@ describe("Manage Users", () => {
   //     .type('New User');
   //
   //   cy.findByPlaceholderText('Email')
-  //     .type('new-user@fleetdm.com');
+  //     .type('new-user@example.com');
   //
   //   cy.findByRole('checkbox', { name: 'Test Team' })
   //     .click({ force: true }); // we use `force` as the checkbox button is not fully accessible yet.

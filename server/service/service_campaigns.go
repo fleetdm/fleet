@@ -228,7 +228,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		if lastTotals != totals {
 			lastTotals = totals
 			if err = conn.WriteJSONMessage("totals", totals); err != nil {
-				return errors.New("write totals")
+				return errors.Wrap(err, "write totals")
 			}
 		}
 
@@ -240,7 +240,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		if lastStatus != status {
 			lastStatus = status
 			if err = conn.WriteJSONMessage("status", status); err != nil {
-				return errors.New("write status")
+				return errors.Wrap(err, "write status")
 			}
 		}
 

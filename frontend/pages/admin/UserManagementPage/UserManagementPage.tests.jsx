@@ -16,7 +16,7 @@ const currentUser = {
   global_role: "admin",
 };
 const invitedUser = {
-  email: "test+4@fleetdm.com",
+  email: "test+4@example.com",
   global_role: "observer",
   id: 6,
   invited_by: 1,
