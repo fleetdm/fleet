@@ -22,11 +22,6 @@ var pubKeyPEM []byte
 
 // loadPublicKey loads the public key from pubkey.pem.
 func loadPublicKey() (*ecdsa.PublicKey, error) {
-	// pub, err := jwt.ParseECPublicKeyFromPEM(pubKeyPEM)
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "parse public key")
-	// }
-	// return pub, nil
 	block, _ := pem.Decode(pubKeyPEM)
 	if block == nil {
 		return nil, errors.New("no key block found in pem")
@@ -84,7 +79,8 @@ func (c *licenseClaims) Valid() error {
 	// logic.
 	if err := c.StandardClaims.Valid(); err != nil {
 		// Skip only if the sole error is the expired error
-		if e, ok := err.(*jwt.ValidationError); ok && e.Errors == jwt.ValidationErrorExpired {
+		var validationError *jwt.ValidationError
+		if errors.As(err, &validationError) && validationError.Errors == jwt.ValidationErrorExpired {
 			return nil
 		}
 		return err
