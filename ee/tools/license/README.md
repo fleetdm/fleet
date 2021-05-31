@@ -23,7 +23,7 @@ nano passphrase.txt
 
 Run `./license.js generate` to generate a key. For example:
 
-````sh
+```sh
 ./license.js generate --private-key key.pem --key-passphrase passphrase.txt --expiration 2022-01-01 --customer test --devices 100 --note 'for development only'
 eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
 ```
@@ -48,7 +48,7 @@ The key generated above contains the following payload:
   "tier": "basic",
   "iat": 1622426586
 }
-````
+```
 
 - `devices` refers to the number of licensed devices.
 - `note` includes any additional note about the terms of the license.
