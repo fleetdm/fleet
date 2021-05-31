@@ -35,10 +35,15 @@
         <p>{{query.purpose}}</p>
       </div>
 
-      <div class="query-sidebar border-bottom mb-3" v-if="query.contributors && query.contributors.length">
+      <div class="query-sidebar" v-if="query.contributors && query.contributors.length">
         <h5>Contributors</h5>
-        <!-- TODO: display github avatars"-->
-        <p>{{query.contributors}}</p>
+        <div class="d-flex mb-3">
+          <div v-for="contributor in contributors">
+            <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
+              <img :alt="contributor.name" :src="contributor.avatar_url"/>
+            </div>
+          </div>
+        </div>
       </div>
       <h5>Contribute to this page</h5>
       <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">View source</a>
