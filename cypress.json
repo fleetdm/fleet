@@ -1,4 +1,5 @@
 {
   "baseUrl": "https://localhost:8642",
-  "fixturesFolder": false
+  "fixturesFolder": false,
+  "testFiles": "**/*.ts"
 }
