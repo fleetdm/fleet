@@ -352,4 +352,6 @@ type LicenseInfo struct {
 	DeviceCount int `json:"device_count,omitempty"`
 	// Expiration is when the license expires.
 	Expiration time.Time `json:"expiration,omitempty"`
+	// Note is any additional terms of license
+	Note string `json:"note,omitempty"`
 }

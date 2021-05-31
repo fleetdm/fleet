@@ -14,6 +14,7 @@ import (
 
 const (
 	expectedAlgorithm = "ES256"
+	expectedIssuer    = "Fleet Device Management Inc."
 )
 
 //go:embed pubkey.pem
@@ -74,7 +75,7 @@ type licenseClaims struct {
 	jwt.StandardClaims
 	Tier    string `json:"tier"`
 	Devices int    `json:"devices"`
-	Note    string `json:"notes"`
+	Note    string `json:"note"`
 }
 
 func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {
@@ -105,6 +106,10 @@ func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {
 		return nil, errors.Errorf("missing exp")
 	}
 
+	if claims.Issuer != expectedIssuer {
+		return nil, errors.Errorf("unexpected issuer %s", claims.Issuer)
+	}
+
 	// We explicitly do not validate expiration at this time because we want to
 	// allow some flexibility for expired tokens.
 
@@ -113,6 +118,7 @@ func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {
 		Organization: claims.Subject,
 		DeviceCount:  claims.Devices,
 		Expiration:   time.Unix(claims.ExpiresAt, 0),
+		Note:         claims.Note,
 	}, nil
 
 }
