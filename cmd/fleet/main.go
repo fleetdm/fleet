@@ -33,7 +33,7 @@ func main() {
 
 // initFatal prints an error message and exits with a non-zero status.
 func initFatal(err error, message string) {
-	fmt.Printf("Error %s: %v\n", message, err)
+	fmt.Printf("Failed to start: %s: %v\n", message, err)
 	os.Exit(1)
 }
 

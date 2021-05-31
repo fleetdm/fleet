@@ -1,5 +1,6 @@
 # Testing & Local Development
 
+- [License key](#license-key)
 - [Test suite](#test-suite)
 - [End-to-end tests](#end-to-end-tests)
 - [Email](#email)

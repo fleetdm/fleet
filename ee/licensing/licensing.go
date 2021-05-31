@@ -67,26 +67,11 @@ func LoadLicense(licenseKey string) (*kolide.LicenseInfo, error) {
 }
 
 type licenseClaims struct {
+	// jwt.StandardClaims includes validation for iat, nbf, and exp.
 	jwt.StandardClaims
 	Tier    string `json:"tier"`
 	Devices int    `json:"devices"`
 	Note    string `json:"note"`
-}
-
-func (c *licenseClaims) Valid() error {
-	// Call the jwt.StandardClaims validation, but skip the expiration
-	// check. We want to handle expirations differently in our business
-	// logic.
-	if err := c.StandardClaims.Valid(); err != nil {
-		// Skip only if the sole error is the expired error
-		var validationError *jwt.ValidationError
-		if errors.As(err, &validationError) && validationError.Errors == jwt.ValidationErrorExpired {
-			return nil
-		}
-		return err
-	}
-
-	return nil
 }
 
 func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {

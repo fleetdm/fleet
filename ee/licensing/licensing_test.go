@@ -39,21 +39,9 @@ func TestLoadLicense(t *testing.T) {
 func TestLoadLicenseExpired(t *testing.T) {
 	t.Parallel()
 
-	// License should still load successfully even when expired -- this allows
-	// us to handle that as a special case.
 	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjA5NDU5MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjQyLCJ0aWVyIjoiYmFzaWMiLCJpYXQiOjE2MjI0Mjk1MTB9.pvmgQ2_6GWbGcdlm3JbNTbxFF8V6-xs2pC6zO8P96TF806W0y1TjF5G2ZjzEWCkNMk3dydaRoMHIzE7WgCaK5w"
-	license, err := LoadLicense(key)
-	require.NoError(t, err)
-	assert.Equal(t,
-		&kolide.LicenseInfo{
-			Tier:         kolide.TierBasic,
-			Organization: "development",
-			DeviceCount:  42,
-			Expiration:   time.Unix(1609459200, 0),
-		},
-		license,
-	)
-	assert.Equal(t, kolide.TierBasic, license.Tier)
+	_, err := LoadLicense(key)
+	require.Error(t, err)
 }
 
 func TestLoadLicenseNotIssuedYet(t *testing.T) {
