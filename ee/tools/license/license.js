@@ -15,6 +15,7 @@ const generate = (argv) => {
     customer,
     devices,
     note,
+    tier,
   } = argv;
 
   const unixExpiration = Math.floor(expiration / 1000);
@@ -28,6 +29,7 @@ const generate = (argv) => {
     sub: customer,
     devices,
     note,
+    tier,
   };
   console.log(
     jwt.sign(
@@ -81,6 +83,11 @@ yargs(hideBin(process.argv))
         },
         note: {
           description: "Additional note to add to license",
+          type: "string",
+        },
+        tier: {
+          description: "License tier",
+          default: "basic",
           type: "string",
         },
       });
