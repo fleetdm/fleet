@@ -1,0 +1,15 @@
+{
+  "name": "fleet-license",
+  "description": "Generate license keys for Fleet.",
+  "version": "0.0.1",
+  "license": "See ../../LICENSE",
+  "main": "license.js",
+  "type": "module",
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {
+    "jsonwebtoken": "^8.5.1",
+    "yargs": "^17.0.1"
+  },
+  "private": true
+}
