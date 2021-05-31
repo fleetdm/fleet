@@ -188,4 +188,5 @@ jobs:
 
     - name: Run Go Linting
       run: |
+        export PATH="${GOROOT}/bin:${PATH}"
         make lint-go
