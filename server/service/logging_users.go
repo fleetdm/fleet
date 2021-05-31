@@ -160,7 +160,7 @@ func (mw loggingMiddleware) ModifyUser(ctx context.Context, userID uint, p kolid
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, kolide.ErrNoContext
 	}
 
 	defer func(begin time.Time) {

@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error) {
+func (svc Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error) {
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "SSOSettings getting app config")
@@ -29,7 +29,7 @@ func (svc service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error)
 	return settings, nil
 }
 
-func (svc service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
+func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return "", errors.Wrap(err, "InitiateSSO getting app config")
@@ -67,9 +67,9 @@ func (svc service) InitiateSSO(ctx context.Context, redirectURL string) (string,
 	return idpURL, nil
 }
 
-func (svc service) getMetadata(config *kolide.AppConfig) (*sso.Metadata, error) {
+func (svc *Service) getMetadata(config *kolide.AppConfig) (*sso.Metadata, error) {
 	if config.MetadataURL != "" {
-		metadata, err := sso.GetMetadata(config.MetadataURL, svc.metaDataClient)
+		metadata, err := sso.GetMetadata(config.MetadataURL)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +85,7 @@ func (svc service) getMetadata(config *kolide.AppConfig) (*sso.Metadata, error) 
 	return nil, errors.Errorf("missing metadata for idp %s", config.IDPName)
 }
 
-func (svc service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.SSOSession, error) {
+func (svc *Service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.SSOSession, error) {
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "get config for sso")
@@ -156,7 +156,7 @@ func (svc service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.S
 	return result, nil
 }
 
-func (svc service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {
+func (svc *Service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
 	// take ~1s and frustrate a timing attack.
@@ -169,29 +169,29 @@ func (svc service) Login(ctx context.Context, username, password string) (*kolid
 
 	user, err := svc.userByEmailOrUsername(username)
 	if _, ok := err.(kolide.NotFoundError); ok {
-		return nil, "", authFailedError{internal: "user not found"}
+		return nil, "", kolide.NewAuthFailedError("user not found")
 	}
 	if err != nil {
-		return nil, "", authFailedError{internal: err.Error()}
+		return nil, "", kolide.NewAuthFailedError(err.Error())
 	}
 
 	if err = user.ValidatePassword(password); err != nil {
-		return nil, "", authFailedError{internal: "invalid password"}
+		return nil, "", kolide.NewAuthFailedError("invalid password")
 	}
 
 	if user.SSOEnabled {
-		return nil, "", authFailedError{internal: "password login disabled for sso users"}
+		return nil, "", kolide.NewAuthFailedError("password login disabled for sso users")
 	}
 
 	token, err := svc.makeSession(user.ID)
 	if err != nil {
-		return nil, "", authFailedError{internal: err.Error()}
+		return nil, "", kolide.NewAuthFailedError(err.Error())
 	}
 
 	return user, token, nil
 }
 
-func (svc service) userByEmailOrUsername(username string) (*kolide.User, error) {
+func (svc *Service) userByEmailOrUsername(username string) (*kolide.User, error) {
 	if strings.Contains(username, "@") {
 		return svc.ds.UserByEmail(username)
 	}
@@ -199,7 +199,7 @@ func (svc service) userByEmailOrUsername(username string) (*kolide.User, error) 
 }
 
 // makeSession is a helper that creates a new session after authentication
-func (svc service) makeSession(id uint) (string, error) {
+func (svc *Service) makeSession(id uint) (string, error) {
 	sessionKeySize := svc.config.Session.KeySize
 	key := make([]byte, sessionKeySize)
 	_, err := rand.Read(key)
@@ -226,15 +226,15 @@ func (svc service) makeSession(id uint) (string, error) {
 	return tokenString, nil
 }
 
-func (svc service) Logout(ctx context.Context) error {
+func (svc *Service) Logout(ctx context.Context) error {
 	// this should not return an error if the user wasn't logged in
 	return svc.DestroySession(ctx)
 }
 
-func (svc service) DestroySession(ctx context.Context) error {
+func (svc *Service) DestroySession(ctx context.Context) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return errNoContext
+		return kolide.ErrNoContext
 	}
 
 	session, err := svc.ds.SessionByID(vc.SessionID())
@@ -245,7 +245,7 @@ func (svc service) DestroySession(ctx context.Context) error {
 	return svc.ds.DestroySession(session)
 }
 
-func (svc service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {
+func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {
 	var validatedSessions []*kolide.Session
 
 	sessions, err := svc.ds.ListSessionsForUser(id)
@@ -262,11 +262,11 @@ func (svc service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]
 	return validatedSessions, nil
 }
 
-func (svc service) DeleteSessionsForUser(ctx context.Context, id uint) error {
+func (svc *Service) DeleteSessionsForUser(ctx context.Context, id uint) error {
 	return svc.ds.DestroyAllSessionsForUser(id)
 }
 
-func (svc service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Session, error) {
+func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Session, error) {
 	session, err := svc.ds.SessionByID(id)
 	if err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func (svc service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Se
 	return session, nil
 }
 
-func (svc service) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
+func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
 	session, err := svc.ds.SessionByKey(key)
 	if err != nil {
 		return nil, err
@@ -294,7 +294,7 @@ func (svc service) GetSessionByKey(ctx context.Context, key string) (*kolide.Ses
 	return session, nil
 }
 
-func (svc service) DeleteSession(ctx context.Context, id uint) error {
+func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 	session, err := svc.ds.SessionByID(id)
 	if err != nil {
 		return err
@@ -302,9 +302,9 @@ func (svc service) DeleteSession(ctx context.Context, id uint) error {
 	return svc.ds.DestroySession(session)
 }
 
-func (svc service) validateSession(session *kolide.Session) error {
+func (svc *Service) validateSession(session *kolide.Session) error {
 	if session == nil {
-		return authRequiredError{internal: "active session not present"}
+		return kolide.NewAuthRequiredError("active session not present")
 	}
 
 	sessionDuration := svc.config.Session.Duration
@@ -314,7 +314,7 @@ func (svc service) validateSession(session *kolide.Session) error {
 		if err != nil {
 			return errors.Wrap(err, "destroying session")
 		}
-		return authRequiredError{internal: "expired session"}
+		return kolide.NewAuthRequiredError("expired session")
 	}
 
 	return svc.ds.MarkSessionAccessed(session)

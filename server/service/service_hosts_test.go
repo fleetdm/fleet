@@ -62,7 +62,7 @@ func TestDeleteHost(t *testing.T) {
 
 func TestHostDetails(t *testing.T) {
 	ds := new(mock.Store)
-	svc := service{ds: ds}
+	svc := &Service{ds: ds}
 
 	host := &kolide.Host{ID: 3}
 	ctx := context.Background()
@@ -98,7 +98,7 @@ func TestHostDetails(t *testing.T) {
 
 func TestRefetchHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := service{ds: ds}
+	svc := &Service{ds: ds}
 
 	host := &kolide.Host{ID: 3}
 	ctx := context.Background()
@@ -116,7 +116,7 @@ func TestRefetchHost(t *testing.T) {
 
 func TestAddHostsToTeamByFilter(t *testing.T) {
 	ds := new(mock.Store)
-	svc := service{ds: ds}
+	svc := &Service{ds: ds}
 	ctx := context.Background()
 
 	expectedHostIDs := []uint{1, 2, 4}
@@ -140,7 +140,7 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 
 func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	ds := new(mock.Store)
-	svc := service{ds: ds}
+	svc := &Service{ds: ds}
 	ctx := context.Background()
 
 	expectedHostIDs := []uint{6}
@@ -165,7 +165,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 
 func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds := new(mock.Store)
-	svc := service{ds: ds}
+	svc := &Service{ds: ds}
 	ctx := context.Background()
 
 	ds.ListHostsFunc = func(opt kolide.HostListOptions) ([]*kolide.Host, error) {

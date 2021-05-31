@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*kolide.DistributedQueryCampaign, error) {
+func (svc Service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*kolide.DistributedQueryCampaign, error) {
 	hostIDs, err := svc.ds.HostIDsByName(hosts)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding host IDs")
@@ -31,18 +31,18 @@ func (svc service) NewDistributedQueryCampaignByNames(ctx context.Context, query
 	return svc.NewDistributedQueryCampaign(ctx, queryString, queryID, targets)
 }
 
-func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, targets kolide.HostTargets) (*kolide.DistributedQueryCampaign, error) {
+func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, targets kolide.HostTargets) (*kolide.DistributedQueryCampaign, error) {
 	if err := svc.StatusLiveQuery(ctx); err != nil {
 		return nil, err
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, kolide.ErrNoContext
 	}
 
 	if queryID == nil && queryString == "" {
-		return nil, newInvalidArgumentError("query", "one of query or query_id must be specified")
+		return nil, kolide.NewInvalidArgumentError("query", "one of query or query_id must be specified")
 	}
 
 	var query *kolide.Query
@@ -150,7 +150,7 @@ type campaignStatus struct {
 	Status          string `json:"status"`
 }
 
-func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
+func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
 	// Find the campaign and ensure it is active
 	campaign, err := svc.ds.DistributedQueryCampaign(campaignID)
 	if err != nil {

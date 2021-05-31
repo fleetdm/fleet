@@ -7,15 +7,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
 	return svc.ds.ListScheduledQueriesInPack(id, opts)
 }
 
-func (svc service) GetScheduledQuery(ctx context.Context, id uint) (*kolide.ScheduledQuery, error) {
+func (svc *Service) GetScheduledQuery(ctx context.Context, id uint) (*kolide.ScheduledQuery, error) {
 	return svc.ds.ScheduledQuery(id)
 }
 
-func (svc service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+func (svc *Service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
 	// Fill in the name with query name if it is unset (because the UI
 	// doesn't provide a way to set it)
 	if sq.Name == "" {
@@ -52,7 +52,7 @@ func findNextNameForQuery(name string, scheduled []*kolide.ScheduledQuery) strin
 	return name
 }
 
-func (svc service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.ScheduledQueryPayload) (*kolide.ScheduledQuery, error) {
+func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.ScheduledQueryPayload) (*kolide.ScheduledQuery, error) {
 	sq, err := svc.GetScheduledQuery(ctx, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting scheduled query to modify")
@@ -98,6 +98,6 @@ func (svc service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.S
 	return svc.ds.SaveScheduledQuery(sq)
 }
 
-func (svc service) DeleteScheduledQuery(ctx context.Context, id uint) error {
+func (svc *Service) DeleteScheduledQuery(ctx context.Context, id uint) error {
 	return svc.ds.DeleteScheduledQuery(id)
 }

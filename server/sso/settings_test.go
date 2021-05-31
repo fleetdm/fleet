@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,10 +61,7 @@ func TestGetMetadata(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(metadata))
 	}))
-	client := &http.Client{
-		Timeout: 2 * time.Second,
-	}
-	settings, err := GetMetadata(ts.URL, client)
+	settings, err := GetMetadata(ts.URL)
 	require.Nil(t, err)
 	assert.Equal(t, "http://www.okta.com/exka4zkf6dxm8pF220h7", settings.EntityID)
 	assert.Len(t, settings.IDPSSODescriptor.NameIDFormats, 2)

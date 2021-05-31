@@ -20,7 +20,7 @@ func NewLoggingService(svc kolide.Service, logger kitlog.Logger) kolide.Service 
 // loggerDebug returns the the info level if there error is non-nil, otherwise defaulting to the debug level.
 func (mw loggingMiddleware) loggerDebug(err error) kitlog.Logger {
 	logger := mw.logger
-	if e, ok := err.(ErrWithInternal); ok {
+	if e, ok := err.(kolide.ErrWithInternal); ok {
 		logger = kitlog.With(logger, "err_internal", e.Internal())
 	}
 	if err != nil {
@@ -32,7 +32,7 @@ func (mw loggingMiddleware) loggerDebug(err error) kitlog.Logger {
 // loggerInfo returns the info level
 func (mw loggingMiddleware) loggerInfo(err error) kitlog.Logger {
 	logger := mw.logger
-	if e, ok := err.(ErrWithInternal); ok {
+	if e, ok := err.(kolide.ErrWithInternal); ok {
 		logger = kitlog.With(logger, "err_internal", e.Internal())
 	}
 	return level.Info(logger)

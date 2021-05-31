@@ -6,27 +6,27 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
-func (svc service) ApplyPackSpecs(ctx context.Context, specs []*kolide.PackSpec) error {
+func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*kolide.PackSpec) error {
 	return svc.ds.ApplyPackSpecs(specs)
 }
 
-func (svc service) GetPackSpecs(ctx context.Context) ([]*kolide.PackSpec, error) {
+func (svc *Service) GetPackSpecs(ctx context.Context) ([]*kolide.PackSpec, error) {
 	return svc.ds.GetPackSpecs()
 }
 
-func (svc service) GetPackSpec(ctx context.Context, name string) (*kolide.PackSpec, error) {
+func (svc *Service) GetPackSpec(ctx context.Context, name string) (*kolide.PackSpec, error) {
 	return svc.ds.GetPackSpec(name)
 }
 
-func (svc service) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {
+func (svc *Service) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	return svc.ds.ListPacks(opt)
 }
 
-func (svc service) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) {
+func (svc *Service) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) {
 	return svc.ds.Pack(id)
 }
 
-func (svc service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.Pack, error) {
+func (svc *Service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.Pack, error) {
 	var pack kolide.Pack
 
 	if p.Name != nil {
@@ -71,7 +71,7 @@ func (svc service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.P
 	return &pack, nil
 }
 
-func (svc service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload) (*kolide.Pack, error) {
+func (svc *Service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload) (*kolide.Pack, error) {
 	pack, err := svc.ds.Pack(id)
 	if err != nil {
 		return nil, err
@@ -197,11 +197,11 @@ func (svc service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload
 	return pack, err
 }
 
-func (svc service) DeletePack(ctx context.Context, name string) error {
+func (svc *Service) DeletePack(ctx context.Context, name string) error {
 	return svc.ds.DeletePack(name)
 }
 
-func (svc service) DeletePackByID(ctx context.Context, id uint) error {
+func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 	pack, err := svc.ds.Pack(id)
 	if err != nil {
 		return err
@@ -209,34 +209,34 @@ func (svc service) DeletePackByID(ctx context.Context, id uint) error {
 	return svc.ds.DeletePack(pack.Name)
 }
 
-func (svc service) AddLabelToPack(ctx context.Context, lid, pid uint) error {
+func (svc *Service) AddLabelToPack(ctx context.Context, lid, pid uint) error {
 	return svc.ds.AddLabelToPack(lid, pid)
 }
 
-func (svc service) RemoveLabelFromPack(ctx context.Context, lid, pid uint) error {
+func (svc *Service) RemoveLabelFromPack(ctx context.Context, lid, pid uint) error {
 	return svc.ds.RemoveLabelFromPack(lid, pid)
 }
 
-func (svc service) AddHostToPack(ctx context.Context, hid, pid uint) error {
+func (svc *Service) AddHostToPack(ctx context.Context, hid, pid uint) error {
 	return svc.ds.AddHostToPack(hid, pid)
 }
 
-func (svc service) RemoveHostFromPack(ctx context.Context, hid, pid uint) error {
+func (svc *Service) RemoveHostFromPack(ctx context.Context, hid, pid uint) error {
 	return svc.ds.RemoveHostFromPack(hid, pid)
 }
 
-func (svc service) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {
+func (svc *Service) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {
 	return svc.ds.ListLabelsForPack(pid)
 }
 
-func (svc service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
+func (svc *Service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
 	return svc.ds.ListHostsInPack(pid, opt)
 }
 
-func (svc service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
+func (svc *Service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
 	return svc.ds.ListExplicitHostsInPack(pid, opt)
 }
 
-func (svc service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pack, error) {
+func (svc *Service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pack, error) {
 	return svc.ds.ListPacksForHost(hid)
 }

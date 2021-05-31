@@ -17,6 +17,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/ee/licensing"
+	eeservice "github.com/fleetdm/fleet/ee/service"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
 	"github.com/fleetdm/fleet/server/datastore/s3"
@@ -231,6 +232,13 @@ the way that the Fleet server works.
 			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
+			}
+
+			if license.Tier == kolide.TierBasic {
+				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
+				if err != nil {
+					initFatal(err, "initial Fleet Basic service")
+				}
 			}
 
 			go func() {

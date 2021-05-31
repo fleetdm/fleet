@@ -9,7 +9,7 @@ import (
 )
 
 func TestSSONotPresent(t *testing.T) {
-	invalid := &invalidArgumentError{}
+	invalid := &kolide.InvalidArgumentError{}
 	var p kolide.AppConfigPayload
 	validateSSOSettings(p, &kolide.AppConfig{}, invalid)
 	assert.False(t, invalid.HasErrors())
@@ -17,7 +17,7 @@ func TestSSONotPresent(t *testing.T) {
 }
 
 func TestNeedFieldsPresent(t *testing.T) {
-	invalid := &invalidArgumentError{}
+	invalid := &kolide.InvalidArgumentError{}
 	config := kolide.AppConfig{
 		EnableSSO:   true,
 		EntityID:    "kolide",
@@ -31,7 +31,7 @@ func TestNeedFieldsPresent(t *testing.T) {
 }
 
 func TestMissingMetadata(t *testing.T) {
-	invalid := invalidArgumentError{}
+	invalid := &kolide.InvalidArgumentError{}
 	config := kolide.AppConfig{
 		EnableSSO: true,
 		EntityID:  "kolide",
@@ -39,9 +39,8 @@ func TestMissingMetadata(t *testing.T) {
 		IDPName:   "onelogin",
 	}
 	p := appConfigPayloadFromAppConfig(&config)
-	validateSSOSettings(*p, &kolide.AppConfig{}, &invalid)
+	validateSSOSettings(*p, &kolide.AppConfig{}, invalid)
 	require.True(t, invalid.HasErrors())
-	require.Len(t, invalid, 1)
-	assert.Equal(t, "metadata", invalid[0].name)
-	assert.Equal(t, "either metadata or metadata_url must be defined", invalid[0].reason)
+	assert.Contains(t, invalid.Error(), "metadata")
+	assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
 }

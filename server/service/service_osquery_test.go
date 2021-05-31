@@ -189,7 +189,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	require.Nil(t, err)
 
 	// Hack to get at the service internals and modify the writer
-	serv := ((svc.(validationMiddleware)).Service).(*service)
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
 
 	testLogger := &testJSONLogger{}
 	serv.osqueryLogWriter = &logging.OsqueryLogger{Status: testLogger}
@@ -218,7 +218,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	require.Nil(t, err)
 
 	// Hack to get at the service internals and modify the writer
-	serv := ((svc.(validationMiddleware)).Service).(*service)
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
 
 	testLogger := &testJSONLogger{}
 	serv.osqueryLogWriter = &logging.OsqueryLogger{Result: testLogger}
@@ -271,7 +271,7 @@ func TestHostDetailQueries(t *testing.T) {
 		UUID:             "test_uuid",
 	}
 
-	svc := service{clock: mockClock, config: config.TestConfig(), ds: ds}
+	svc := &Service{clock: mockClock, config: config.TestConfig(), ds: ds}
 
 	queries, err := svc.hostDetailQueries(host)
 	assert.Nil(t, err)
@@ -1302,7 +1302,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc := service{
+	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
@@ -1321,7 +1321,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc := service{
+	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
@@ -1347,7 +1347,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc := service{
+	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
@@ -1380,7 +1380,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc := service{
+	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
@@ -1416,7 +1416,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc := service{
+	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
@@ -1453,7 +1453,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc := service{
+	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
@@ -1490,7 +1490,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc := service{
+	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
@@ -1521,7 +1521,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc := service{
+	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,

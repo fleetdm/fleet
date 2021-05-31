@@ -25,7 +25,7 @@ func specFromQuery(query *kolide.Query) *kolide.QuerySpec {
 	}
 }
 
-func (svc service) ApplyQuerySpecs(ctx context.Context, specs []*kolide.QuerySpec) error {
+func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*kolide.QuerySpec) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return errors.New("user must be authenticated to apply queries")
@@ -46,7 +46,7 @@ func (svc service) ApplyQuerySpecs(ctx context.Context, specs []*kolide.QuerySpe
 	return errors.Wrap(err, "applying queries")
 }
 
-func (svc service) GetQuerySpecs(ctx context.Context) ([]*kolide.QuerySpec, error) {
+func (svc Service) GetQuerySpecs(ctx context.Context) ([]*kolide.QuerySpec, error) {
 	queries, err := svc.ds.ListQueries(kolide.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting queries")
@@ -59,7 +59,7 @@ func (svc service) GetQuerySpecs(ctx context.Context) ([]*kolide.QuerySpec, erro
 	return specs, nil
 }
 
-func (svc service) GetQuerySpec(ctx context.Context, name string) (*kolide.QuerySpec, error) {
+func (svc Service) GetQuerySpec(ctx context.Context, name string) (*kolide.QuerySpec, error) {
 	query, err := svc.ds.QueryByName(name)
 	if err != nil {
 		return nil, err
@@ -67,15 +67,15 @@ func (svc service) GetQuerySpec(ctx context.Context, name string) (*kolide.Query
 	return specFromQuery(query), nil
 }
 
-func (svc service) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Query, error) {
+func (svc Service) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Query, error) {
 	return svc.ds.ListQueries(opt)
 }
 
-func (svc service) GetQuery(ctx context.Context, id uint) (*kolide.Query, error) {
+func (svc *Service) GetQuery(ctx context.Context, id uint) (*kolide.Query, error) {
 	return svc.ds.Query(id)
 }
 
-func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide.Query, error) {
+func (svc *Service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide.Query, error) {
 	query := &kolide.Query{Saved: true}
 
 	if p.Name != nil {
@@ -112,7 +112,7 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 	return query, nil
 }
 
-func (svc service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPayload) (*kolide.Query, error) {
+func (svc *Service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPayload) (*kolide.Query, error) {
 	query, err := svc.ds.Query(id)
 	if err != nil {
 		return nil, err
@@ -145,11 +145,11 @@ func (svc service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPaylo
 	return query, nil
 }
 
-func (svc service) DeleteQuery(ctx context.Context, name string) error {
+func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 	return svc.ds.DeleteQuery(name)
 }
 
-func (svc service) DeleteQueryByID(ctx context.Context, id uint) error {
+func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	query, err := svc.ds.Query(id)
 	if err != nil {
 		return errors.Wrap(err, "lookup query by ID")
@@ -158,6 +158,6 @@ func (svc service) DeleteQueryByID(ctx context.Context, id uint) error {
 	return errors.Wrap(svc.ds.DeleteQuery(query.Name), "delete query")
 }
 
-func (svc service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
+func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
 	return svc.ds.DeleteQueries(ids)
 }

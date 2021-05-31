@@ -123,10 +123,9 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*invalidArgumentError)
+	invalid, ok := err.(*kolide.InvalidArgumentError)
 	require.True(t, ok)
 	require.Len(t, *invalid, 1)
-	assert.Equal(t, "cannot be empty if email is changed", (*invalid)[0].reason)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 
@@ -169,10 +168,9 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*invalidArgumentError)
+	invalid, ok := err.(*kolide.InvalidArgumentError)
 	require.True(t, ok)
 	require.Len(t, *invalid, 1)
-	assert.Equal(t, "cannot be empty if email is changed", (*invalid)[0].reason)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 
@@ -235,7 +233,7 @@ func TestRequestPasswordReset(t *testing.T) {
 	var errEmailFn = func(e kolide.Email) error {
 		return errors.New("test err")
 	}
-	svc := service{
+	svc := &Service{
 		ds:     ds,
 		config: config.TestConfig(),
 	}
@@ -312,13 +310,13 @@ func TestCreateUserWithInvite(t *testing.T) {
 			Username:    ptr.String("admin2"),
 			Password:    ptr.String("foobarbaz1234!"),
 			InviteToken: &invites["admin2@example.com"].Token,
-			wantErr:     &invalidArgumentError{invalidArgument{name: "email", reason: "missing required argument"}},
+			wantErr:     kolide.NewInvalidArgumentError("email", "missing required argument"),
 		},
 		{
 			Username: ptr.String("admin2"),
 			Password: ptr.String("foobarbaz1234!"),
 			Email:    ptr.String("admin2@example.com"),
-			wantErr:  &invalidArgumentError{invalidArgument{name: "invite_token", reason: "missing required argument"}},
+			wantErr:  kolide.NewInvalidArgumentError("invite_token", "missing required argument"),
 		},
 		{
 			Username:           ptr.String("admin2"),
@@ -342,7 +340,7 @@ func TestCreateUserWithInvite(t *testing.T) {
 			Email:              &invites["expired"].Email,
 			NeedsPasswordReset: ptr.Bool(true),
 			InviteToken:        &invites["expired"].Token,
-			wantErr:            &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}},
+			wantErr:            kolide.NewInvalidArgumentError("invite_token", "Invite token has expired."),
 		},
 		{
 			Username:           ptr.String("admin3@example.com"),
@@ -434,7 +432,7 @@ func TestChangePassword(t *testing.T) {
 			user:        users["admin1"],
 			oldPassword: "12345cat!",
 			newPassword: "foobarbaz1234!",
-			wantErr:     &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot reuse old password"}},
+			wantErr:     kolide.NewInvalidArgumentError("new_password", "cannot reuse old password"),
 		},
 		{ // all good
 			user:        users["user1"],
@@ -449,14 +447,7 @@ func TestChangePassword(t *testing.T) {
 		},
 		{ // missing old password
 			newPassword: "123cataaa!",
-			wantErr:     &invalidArgumentError{invalidArgument{name: "old_password", reason: "cannot be empty"}},
-		},
-		{ // missing new password
-			oldPassword: "abcd",
-			wantErr: &invalidArgumentError{
-				{name: "new_password", reason: "cannot be empty"},
-				{name: "new_password", reason: "password does not meet validation requirements"},
-			},
+			wantErr:     kolide.NewInvalidArgumentError("old_password", "cannot be empty"),
 		},
 	}
 
@@ -501,7 +492,7 @@ func TestResetPassword(t *testing.T) {
 		{ // prevent reuse
 			token:       "abcd",
 			newPassword: "123cat!",
-			wantErr:     &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot reuse old password"}},
+			wantErr:     kolide.NewInvalidArgumentError("new_password", "cannot reuse old password"),
 		},
 		{ // bad token
 			token:       "dcbaz",
@@ -510,14 +501,7 @@ func TestResetPassword(t *testing.T) {
 		},
 		{ // missing token
 			newPassword: "123cat!",
-			wantErr:     &invalidArgumentError{invalidArgument{name: "token", reason: "cannot be empty field"}},
-		},
-		{ // missing password
-			token: "abcd",
-			wantErr: &invalidArgumentError{
-				{name: "new_password", reason: "cannot be empty field"},
-				{name: "new_password", reason: "password does not meet validation requirements"},
-			},
+			wantErr:     kolide.NewInvalidArgumentError("token", "cannot be empty field"),
 		},
 	}
 

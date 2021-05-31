@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc service) AgentOptionsForHost(ctx context.Context, host *kolide.Host) (json.RawMessage, error) {
+func (svc *Service) AgentOptionsForHost(ctx context.Context, host *kolide.Host) (json.RawMessage, error) {
 	// If host has a team and team has non-empty options, prioritize that.
 	if host.TeamID != nil {
 		team, err := svc.ds.Team(*host.TeamID)

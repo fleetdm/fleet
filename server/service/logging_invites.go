@@ -16,7 +16,7 @@ func (mw loggingMiddleware) InviteNewUser(ctx context.Context, payload kolide.In
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, kolide.ErrNoContext
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
@@ -37,7 +37,7 @@ func (mw loggingMiddleware) DeleteInvite(ctx context.Context, id uint) error {
 	)
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return errNoContext
+		return kolide.ErrNoContext
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
@@ -58,7 +58,7 @@ func (mw loggingMiddleware) ListInvites(ctx context.Context, opt kolide.ListOpti
 	)
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, kolide.ErrNoContext
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(

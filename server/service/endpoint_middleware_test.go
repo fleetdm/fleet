@@ -64,15 +64,15 @@ import (
 // 	}{
 // 		{
 // 			endpoint: mustBeAdmin(e),
-// 			wantErr:  errNoContext,
+// 			wantErr:  kolide.ErrNoContext,
 // 		},
 // 		{
 // 			endpoint: canReadUser(e),
-// 			wantErr:  errNoContext,
+// 			wantErr:  kolide.ErrNoContext,
 // 		},
 // 		{
 // 			endpoint: canModifyUser(e),
-// 			wantErr:  errNoContext,
+// 			wantErr:  kolide.ErrNoContext,
 // 		},
 // 		{
 // 			endpoint: mustBeAdmin(e),
