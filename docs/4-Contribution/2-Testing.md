@@ -1,4 +1,6 @@
 # Testing & Local Development
+
+- [License key](#license-key)
 - [Test suite](#test-suite)
 - [End-to-end tests](#end-to-end-tests)
 - [Email](#email)
@@ -7,9 +9,31 @@
 - [MySQL shell](#mysql-shell)
 - [Testing SSO](#testing-sso)
 
+## License key
+
+Need to test Fleet Basic features locally?
+
+Use the following license key:
+
+```
+eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
+```
+
+For example:
+
+```
+FLEET_LICENSE_KEY=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw ./build/fleet serve --dev
+```
+
+or
+
+```
+./build/fleet serve --dev --license_key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
+```
+
 ## Test suite
 
-To execute the basic unit tests, run the following from the root of the repository:
+To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
 MYSQL_TEST=1 REDIS_TEST=1 make test
@@ -144,7 +168,6 @@ yarn cypress run
 
 Tests will run automatically and results are reported to the shell.
 
-
 ## Email
 
 #### Manually testing email with MailHog
@@ -158,6 +181,7 @@ When Fleet sends emails, the contents of the messages are available in the MailH
 In the course of development (particularly when crafting database migrations), it may be useful to backup and restore the MySQL database. This can be achieved with the following commands:
 
 Backup:
+
 ```
 ./tools/backup_db/backup.sh
 ```
@@ -165,6 +189,7 @@ Backup:
 The database dump is stored in `backup.sql.gz`.
 
 Restore:
+
 ```
 ./tools/backup_db/restore.sh
 ```
@@ -181,6 +206,7 @@ https://www.loom.com/share/1c41a1540e8f41328a7a6cfc56ad0a01
 For a text-based walkthrough, check out the following steps:
 
 First, create a `env` file with the following contents:
+
 ```
 export SERVER_URL=https://localhost:8080 # your fleet server url and port
 export CURL_FLAGS='-k -s' # set insecure flag

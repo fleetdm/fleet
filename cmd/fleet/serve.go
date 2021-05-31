@@ -76,7 +76,7 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(
 					err,
-					"failed to load license",
+					"failed to load license - for help use https://fleetdm.com/contact",
 				)
 			}
 
