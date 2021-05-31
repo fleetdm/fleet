@@ -5,11 +5,15 @@ import (
 	"crypto/x509"
 	_ "embed"
 	"encoding/pem"
-	"fmt"
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
+)
+
+const (
+	expectedAlgorithm = "ES256"
 )
 
 //go:embed pubkey.pem
@@ -39,15 +43,16 @@ func loadPublicKey() (*ecdsa.PublicKey, error) {
 	}
 }
 
+// LoadLicense loads and validates the license key.
 func LoadLicense(licenseKey string) (*kolide.LicenseInfo, error) {
 	// No license key
 	if licenseKey == "" {
-		return &kolide.LicenseInfo{Tier: "core"}, nil
+		return &kolide.LicenseInfo{Tier: kolide.TierCore}, nil
 	}
 
-	token, err := jwt.ParseWithClaims(
+	parsedToken, err := jwt.ParseWithClaims(
 		licenseKey,
-		&jwt.MapClaims{},
+		&licenseClaims{},
 		// Always use the same public key
 		func(*jwt.Token) (interface{}, error) {
 			return loadPublicKey()
@@ -57,7 +62,57 @@ func LoadLicense(licenseKey string) (*kolide.LicenseInfo, error) {
 		return nil, errors.Wrap(err, "parse license")
 	}
 
-	fmt.Println(token.Claims)
+	license, err := validate(parsedToken)
+	if err != nil {
+		return nil, errors.Wrap(err, "validate license")
+	}
 
-	return &kolide.LicenseInfo{Tier: "basic"}, nil
+	return license, nil
+}
+
+type licenseClaims struct {
+	jwt.StandardClaims
+	Tier    string `json:"tier"`
+	Devices int    `json:"devices"`
+	Note    string `json:"notes"`
+}
+
+func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {
+	if !token.Valid {
+		// ParseWithClaims should error anyway, but double-check here
+		return nil, errors.New("token invalid")
+	}
+
+	if token.Method.Alg() != expectedAlgorithm {
+		return nil, errors.Errorf("unexpected algorithm %s", token.Method.Alg())
+	}
+
+	var claims *licenseClaims
+	claims, ok := token.Claims.(*licenseClaims)
+	if !ok || claims == nil {
+		return nil, errors.Errorf("unexpected claims type %T", token.Claims)
+	}
+
+	if claims.Devices == 0 {
+		return nil, errors.Errorf("missing devices")
+	}
+
+	if claims.Tier == "" {
+		return nil, errors.Errorf("missing tier")
+	}
+
+	if claims.ExpiresAt == 0 {
+		return nil, errors.Errorf("missing exp")
+	}
+
+	// We explicitly do not validate expiration at this time because we want to
+	// allow some flexibility for expired tokens.
+
+	return &kolide.LicenseInfo{
+		Tier:         claims.Tier,
+		Organization: claims.Subject,
+		DeviceCount:  claims.Devices,
+		Expiration:   time.Unix(claims.ExpiresAt, 0),
+	}, nil
+
 }

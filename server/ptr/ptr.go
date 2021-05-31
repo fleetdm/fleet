@@ -1,6 +1,8 @@
 // Package ptr includes functions for creating pointers from values.
 package ptr
 
+import "time"
+
 // String returns a pointer to the provided string.
 func String(x string) *string {
 	return &x
@@ -18,5 +20,9 @@ func Uint(x uint) *uint {
 
 // Bool returns a pointer to the provided bool.
 func Bool(x bool) *bool {
+	return &x
+}
+
+func Time(x time.Time) *time.Time {
 	return &x
 }

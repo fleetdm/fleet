@@ -335,6 +335,13 @@ type EnrollSecretSpec struct {
 	Secrets []*EnrollSecret `json:"secrets"`
 }
 
+const (
+	// TierBasic is Fleet Basic aka the paid license.
+	TierBasic = "basic"
+	// TierCore is Fleet Core aka the free license.
+	TierCore = "core"
+)
+
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
 	// Tier is the license tier (currently "core" or "basic")
@@ -344,5 +351,5 @@ type LicenseInfo struct {
 	// DeviceCount is the number of licensed devices.
 	DeviceCount int `json:"device_count,omitempty"`
 	// Expiration is when the license expires.
-	Expiration *time.Time `json:"expiration,omitempty"`
+	Expiration time.Time `json:"expiration,omitempty"`
 }
