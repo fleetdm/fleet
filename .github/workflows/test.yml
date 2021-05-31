@@ -1,7 +1,7 @@
 on: [push, pull_request]
 name: Run Tests
 jobs:
-  test-e2e-core:
+  test-e2e:
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -69,9 +69,9 @@ jobs:
     - name: Run E2E Tests
       run: |
         make e2e-reset-db
-        make e2e-serve &
+        make e2e-serve-${{ matrix.fleet-tier }} &
         sleep 3
-        make e2e-setup-${{ matrix.fleet-tier }}
+        make e2e-setup
         CYPRESS_FLEET_TIER=${{ matrix.fleet-tier }} yarn cypress run --config video=false
 
 
