@@ -35,3 +35,50 @@ func TestLoadLicense(t *testing.T) {
 	)
 	assert.Equal(t, kolide.TierBasic, license.Tier)
 }
+
+func TestLoadLicenseExpired(t *testing.T) {
+	t.Parallel()
+
+	// License should still load successfully even when expired -- this allows
+	// us to handle that as a special case.
+	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjA5NDU5MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjQyLCJ0aWVyIjoiYmFzaWMiLCJpYXQiOjE2MjI0Mjk1MTB9.pvmgQ2_6GWbGcdlm3JbNTbxFF8V6-xs2pC6zO8P96TF806W0y1TjF5G2ZjzEWCkNMk3dydaRoMHIzE7WgCaK5w"
+	license, err := LoadLicense(key)
+	require.NoError(t, err)
+	assert.Equal(t,
+		&kolide.LicenseInfo{
+			Tier:         kolide.TierBasic,
+			Organization: "development",
+			DeviceCount:  42,
+			Expiration:   time.Unix(1609459200, 0),
+		},
+		license,
+	)
+	assert.Equal(t, kolide.TierBasic, license.Tier)
+}
+
+func TestLoadLicenseNotIssuedYet(t *testing.T) {
+	t.Parallel()
+
+	// iat (issued at) is in the year 2480
+	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjA5NDU5MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjQyLCJ0aWVyIjoiYmFzaWMiLCJpYXQiOjE2MDk0NTkyMDAwfQ.3UCxwT-kbm8OBIBylI9wXq4yStcVLaB3tYQvkmK8VNL7NQ-GrW4pjx8Ie3gS21Ub4iJtfFmessoC9lMKF5i5gw"
+	_, err := LoadLicense(key)
+	require.Error(t, err)
+}
+
+func TestLoadLicenseSignatureError(t *testing.T) {
+	t.Parallel()
+
+	// signature doesn't match
+	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjA5NDU5MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRmdmljZXMiOjQyLCJ0aWVyIjoiYmFzaWMiLCJpYXQiOjE2MjI0Mjk1MTB9.pvmgQ2_6GWbGcdlm3JbNTbxFF8V6-xs2pC6zO8P96TF806W0y1TjF5G2ZjzEWCkNMk3dydaRoMHIzE7WgCaK5w"
+	_, err := LoadLicense(key)
+	require.Error(t, err)
+}
+
+func TestLoadLicenseIncorrectAlgorithm(t *testing.T) {
+	t.Parallel()
+
+	// signature doesn't match
+	key := "eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjA5NDU5MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjQyLCJ0aWVyIjoiYmFzaWMiLCJpYXQiOjE2MDk0NTkyMDB9.AAAAAAAAAAAAAAAAAAAAAPi2EbMBWwhCQnCDGptBsE6E1wa4Ql42xOfuWKDzx7v-AAAAAAAAAAAAAAAAAAAAAHmQCJSjvujpV9QpY9d86v4-_OvaTnttE_ry3Xxeua84"
+	_, err := LoadLicense(key)
+	require.Error(t, err)
+}

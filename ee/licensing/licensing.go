@@ -78,6 +78,21 @@ type licenseClaims struct {
 	Note    string `json:"note"`
 }
 
+func (c *licenseClaims) Valid() error {
+	// Call the jwt.StandardClaims validation, but skip the expiration
+	// check. We want to handle expirations differently in our business
+	// logic.
+	if err := c.StandardClaims.Valid(); err != nil {
+		// Skip only if the sole error is the expired error
+		if e, ok := err.(*jwt.ValidationError); ok && e.Errors == jwt.ValidationErrorExpired {
+			return nil
+		}
+		return err
+	}
+
+	return nil
+}
+
 func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {
 	if !token.Valid {
 		// ParseWithClaims should error anyway, but double-check here
