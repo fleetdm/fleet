@@ -92,6 +92,10 @@ type Team struct {
 	Secrets []*EnrollSecret `json:"secrets,omitempty"`
 }
 
+func (t Team) AuthzType() string {
+	return "team"
+}
+
 // TeamUser is a user mapped to a team with a role.
 type TeamUser struct {
 	// User is the user object. At least ID must be specified for most uses.

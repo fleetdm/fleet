@@ -331,6 +331,10 @@ type EnrollSecret struct {
 	TeamID *uint `json:"team_id" db:"team_id"`
 }
 
+func (e *EnrollSecret) AuthzType() string {
+	return "enroll_secret"
+}
+
 const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24

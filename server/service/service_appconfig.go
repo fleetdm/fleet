@@ -253,6 +253,10 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 }
 
 func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.EnrollSecretSpec) error {
+	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, "write"); err != nil {
+		return err
+	}
+
 	for _, s := range spec.Secrets {
 		if s.Secret == "" {
 			return errors.New("enroll secret must not be empty")
@@ -263,6 +267,10 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.Enro
 }
 
 func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecretSpec, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, "read"); err != nil {
+		return nil, err
+	}
+
 	secrets, err := svc.ds.GetEnrollSecrets(nil)
 	if err != nil {
 		return nil, err

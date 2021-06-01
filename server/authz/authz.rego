@@ -11,7 +11,7 @@ default allow = false
 # if the user has no explicit role for that team.
 team_role(subject, team_id) = role {
 	subject_team := subject.teams[_]
-	subject_team.team_id == team_id
+	subject_team.id == team_id
 	role := subject_team.role
 }
 
@@ -29,6 +29,25 @@ allow {
 # Admin can write global config
 allow {
 	  object.type == "app_config"
+	  subject.global_role == "admin"
+	  action == "write"
+}
+
+##
+# Teams
+##
+
+# Any logged in user can read teams (service must filter appropriately based on
+# access).
+allow {
+	  object.type == "team"
+	  not is_null(subject)
+	  action == "read"
+}
+
+# Admin can write teams
+allow {
+	  object.type == "team"
 	  subject.global_role == "admin"
 	  action == "write"
 }
@@ -92,8 +111,8 @@ allow {
 # Team maintainers can read for appropriate teams
 allow {
 	object.type == "enroll_secret"
-	action == "read"
 	team_role(subject, object.team_id) == "maintainer"
+	action == "read"
 }
 
 # (Observers are not granted read for enroll secrets)
@@ -128,7 +147,7 @@ allow {
 	object.type == "host"
 	subject.global_role = "maintainer"
 	action == ["read", "write"][_]
-	team_role(subject, object.team) == "maintainer"
+	team_role(subject, object.team_id) == "maintainer"
 }
 
 ##
@@ -137,6 +156,7 @@ allow {
 
 # All users can read labels
 allow {
+  not is_null(subject)
 	object.type == "label"
 	action == "read"
 }
@@ -144,8 +164,13 @@ allow {
 # Only global admins and maintainers can write labels
 allow {
 	object.type == "label"
-	write_roles := {"admin", "maintainer"}
-	write_roles[subject.global_role]
+	subject.global_role == "admin"
+	action == ["read", "write"][_]
+}
+allow {
+	object.type == "label"
+	subject.global_role == "maintainer"
+	action == ["read", "write"][_]
 }
 
 ##

@@ -115,6 +115,104 @@ func TestAuthorizeUser(t *testing.T) {
 	})
 }
 
+func TestAuthorizeEnrollSecret(t *testing.T) {
+	t.Parallel()
+
+	teamMaintainer := &kolide.User{
+		Teams: []kolide.UserTeam{
+			{Team: kolide.Team{ID: 1}, Role: kolide.RoleMaintainer},
+		},
+	}
+	teamObserver := &kolide.User{
+		Teams: []kolide.UserTeam{
+			{Team: kolide.Team{ID: 1}, Role: kolide.RoleObserver},
+		},
+	}
+	globalSecret := &kolide.EnrollSecret{}
+	teamSecret := &kolide.EnrollSecret{TeamID: ptr.Uint(1)}
+	runTestCases(t, []authTestCase{
+		// No access
+		{user: nil, object: globalSecret, action: read, allow: false},
+		{user: nil, object: globalSecret, action: write, allow: false},
+		{user: nil, object: teamSecret, action: read, allow: false},
+		{user: nil, object: teamSecret, action: write, allow: false},
+		{user: test.UserNoRoles, object: globalSecret, action: read, allow: false},
+		{user: test.UserNoRoles, object: globalSecret, action: write, allow: false},
+		{user: test.UserNoRoles, object: teamSecret, action: read, allow: false},
+		{user: test.UserNoRoles, object: teamSecret, action: write, allow: false},
+		{user: test.UserObserver, object: globalSecret, action: read, allow: false},
+		{user: test.UserObserver, object: globalSecret, action: write, allow: false},
+		{user: test.UserObserver, object: teamSecret, action: read, allow: false},
+		{user: test.UserObserver, object: teamSecret, action: write, allow: false},
+		{user: teamObserver, object: globalSecret, action: read, allow: false},
+		{user: teamObserver, object: globalSecret, action: write, allow: false},
+		{user: teamObserver, object: teamSecret, action: read, allow: false},
+		{user: teamObserver, object: teamSecret, action: write, allow: false},
+
+		// Admin can read/write all
+		{user: test.UserAdmin, object: globalSecret, action: read, allow: true},
+		{user: test.UserAdmin, object: globalSecret, action: write, allow: true},
+		{user: test.UserAdmin, object: teamSecret, action: read, allow: true},
+		{user: test.UserAdmin, object: teamSecret, action: write, allow: true},
+
+		// Maintainer can read all
+		{user: test.UserMaintainer, object: globalSecret, action: read, allow: true},
+		{user: test.UserMaintainer, object: globalSecret, action: write, allow: false},
+		{user: test.UserMaintainer, object: teamSecret, action: read, allow: true},
+		{user: test.UserMaintainer, object: teamSecret, action: write, allow: false},
+
+		// Team maintainer can read team secret
+		{user: teamMaintainer, object: globalSecret, action: read, allow: false},
+		{user: teamMaintainer, object: globalSecret, action: write, allow: false},
+		{user: teamMaintainer, object: teamSecret, action: read, allow: true},
+		{user: teamMaintainer, object: teamSecret, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeTeam(t *testing.T) {
+	t.Parallel()
+
+	team := &kolide.Team{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: team, action: read, allow: false},
+		{user: nil, object: team, action: write, allow: false},
+
+		{user: test.UserNoRoles, object: team, action: read, allow: true},
+		{user: test.UserNoRoles, object: team, action: write, allow: false},
+
+		{user: test.UserAdmin, object: team, action: read, allow: true},
+		{user: test.UserAdmin, object: team, action: write, allow: true},
+
+		{user: test.UserMaintainer, object: team, action: read, allow: true},
+		{user: test.UserMaintainer, object: team, action: write, allow: false},
+
+		{user: test.UserObserver, object: team, action: read, allow: true},
+		{user: test.UserObserver, object: team, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeLabel(t *testing.T) {
+	t.Parallel()
+
+	label := &kolide.Label{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: label, action: read, allow: false},
+		{user: nil, object: label, action: write, allow: false},
+
+		{user: test.UserNoRoles, object: label, action: read, allow: true},
+		{user: test.UserNoRoles, object: label, action: write, allow: false},
+
+		{user: test.UserAdmin, object: label, action: read, allow: true},
+		{user: test.UserAdmin, object: label, action: write, allow: true},
+
+		{user: test.UserMaintainer, object: label, action: read, allow: true},
+		{user: test.UserMaintainer, object: label, action: write, allow: true},
+
+		{user: test.UserObserver, object: label, action: read, allow: true},
+		{user: test.UserObserver, object: label, action: write, allow: false},
+	})
+}
+
 func assertAuthorized(t *testing.T, user *kolide.User, object, action interface{}) {
 	t.Helper()
 
