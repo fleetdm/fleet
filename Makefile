@@ -229,9 +229,6 @@ e2e-setup:
 	./build/fleetctl user create --context e2e --email=test+1@example.com --username=test1 --password=admin123#
 	./build/fleetctl user create --context e2e --email=test+2@example.com --username=test2 --password=admin123#
 
-e2e-serve:
-	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e --server_address=localhost:8642
-
 e2e-serve-core:
 	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e --server_address=localhost:8642 
 

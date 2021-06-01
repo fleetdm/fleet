@@ -135,9 +135,18 @@ E2E tests are run using Docker and Cypress.
 
 Make sure dependencies are up to date and the [Fleet binaries are built locally](./1-Building-Fleet.md).
 
+For Fleet Core tests:
+
 ```
 make e2e-reset-db
-make e2e-serve
+make e2e-serve-core
+```
+
+For Fleet Basic tests:
+
+```
+make e2e-reset-db
+make e2e-serve-basic
 ```
 
 This will start a local Fleet server connected to the E2E database. Leave this server running for the duration of end-to-end testing.
@@ -154,16 +163,32 @@ Tests can be run in interactive mode, or from the command line.
 
 #### Interactive
 
+For Fleet Core tests:
+
 ```
-yarn cypress open
+CYPRESS_FLEET_TIER=core yarn cypress open
+```
+
+For Fleet Basic tests:
+
+```
+CYPRESS_FLEET_TIER=basic yarn cypress open
 ```
 
 Use the graphical UI controls to run and view tests.
 
 #### Command line
 
+For Fleet Core tests:
+
 ```
-yarn cypress run
+CYPRESS_FLEET_TIER=core yarn cypress run
+```
+
+For Fleet Basic tests:
+
+```
+CYPRESS_FLEET_TIER=basic yarn cypress run
 ```
 
 Tests will run automatically and results are reported to the shell.
