@@ -156,26 +156,25 @@ class ScheduledQueriesList extends Component {
         <table className={wrapperClassName}>
           <thead>
             <tr>
-              {scheduledQueries.length ||
-                (isScheduledQueriesAvailable ? (
-                  <>
-                    <th>
-                      <Checkbox
-                        name="select-all-scheduled-queries"
-                        onChange={handleSelectAllQueries}
-                        value={allQueriesSelected}
-                      />
-                    </th>
-                    <th>Query name</th>
-                    <th>Frequency</th>
-                    <th>Platform</th>
-                    <th>Osquery ver.</th>
-                    <th>Shard</th>
-                    <th>Logging</th>
-                  </>
-                ) : (
-                  <th />
-                ))}
+              {scheduledQueries.length || isScheduledQueriesAvailable ? (
+                <>
+                  <th>
+                    <Checkbox
+                      name="select-all-scheduled-queries"
+                      onChange={handleSelectAllQueries}
+                      value={allQueriesSelected}
+                    />
+                  </th>
+                  <th>Query name</th>
+                  <th>Frequency</th>
+                  <th>Platform</th>
+                  <th>Osquery ver.</th>
+                  <th>Shard</th>
+                  <th>Logging</th>
+                </>
+              ) : (
+                <th />
+              )}
             </tr>
           </thead>
           <tbody>

@@ -37,16 +37,14 @@
           width: calc(49% - 20px);
         }
 
-        &:nth-child(3) {
-          width: 17%;
+        &:nth-child(3),
+        &:nth-child(7) {
+          width: 8%;
         }
-
-        &:nth-child(4) {
-          width: 17%;
-        }
-
-        &:nth-child(5) {
-          width: 17%;
+        &:nth-child(4),
+        &:nth-child(5),
+        &:nth-child(6) {
+          width: 12%;
         }
 
         &:last-child {
