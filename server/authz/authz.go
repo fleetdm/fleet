@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	authz_ctx "github.com/fleetdm/fleet/server/contexts/authz"
+	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/pkg/errors"
@@ -52,16 +53,20 @@ func (a *Authorizer) SkipAuthorization(ctx context.Context) {
 	}
 }
 
-// Authorize checks authorization for the provided subject, object, and action.
+// Authorize checks authorization for the provided object, and action,
+// retrieving the subject from the context.
 //
-// Object and action types may be dynamic, while the subject must be a kolide.User.
-func (a *Authorizer) Authorize(ctx context.Context, subject *kolide.User, object interface{}, action string) error {
+// Object type may be dynamic. This method also marks the request authorization
+// context as checked, so that we don't return an error at the end of the
+// request.
+func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) error {
 	// Mark the authorization context as checked (otherwise middleware will
 	// error).
 	if authctx, ok := authz_ctx.FromContext(ctx); ok {
 		authctx.Checked = true
 	}
 
+	subject := userFromContext(ctx)
 	if subject == nil {
 		return ForbiddenWithInternal("nil subject always forbidden")
 	}
@@ -137,4 +142,14 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	}
 
 	return out, nil
+}
+
+// userFromContext retrieves a user from the viewer context, returning nil if
+// there is no user.
+func userFromContext(ctx context.Context) *kolide.User {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil
+	}
+	return vc.User
 }

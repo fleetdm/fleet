@@ -1,4 +1,4 @@
-package authz
+package kolide
 
 const (
 	ActionRead  = "read"

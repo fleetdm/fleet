@@ -24,14 +24,18 @@ func (e mailError) Error() string {
 
 func (e mailError) MailError() []map[string]string {
 	return []map[string]string{
-		map[string]string{
+		{
 			"name":   "base",
 			"reason": e.message,
 		},
 	}
 }
 
-func (svc Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (svc *Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "write"); err != nil {
+		return nil, err
+	}
+
 	config, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, err
@@ -62,10 +66,14 @@ func (svc Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) 
 }
 
 func (svc *Service) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "read"); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.AppConfig()
 }
 
-func (svc *Service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
+func (svc *Service) sendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return kolide.ErrNoContext
@@ -89,6 +97,10 @@ func (svc *Service) SendTestEmail(ctx context.Context, config *kolide.AppConfig)
 }
 
 func (svc *Service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "write"); err != nil {
+		return nil, err
+	}
+
 	oldAppConfig, err := svc.AppConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -98,7 +110,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPaylo
 	if p.SMTPSettings != nil {
 		enabled := p.SMTPSettings.SMTPEnabled
 		if (enabled == nil && oldAppConfig.SMTPConfigured) || (enabled != nil && *enabled) {
-			if err = svc.SendTestEmail(ctx, config); err != nil {
+			if err = svc.sendTestEmail(ctx, config); err != nil {
 				return nil, err
 			}
 			config.SMTPConfigured = true
@@ -265,4 +277,15 @@ func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
 
 func (svc *Service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
 	return &svc.license, nil
+}
+
+func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
+	users, err := svc.ds.ListUsers(kolide.UserListOptions{ListOptions: kolide.ListOptions{Page: 0, PerPage: 1}})
+	if err != nil {
+		return false, err
+	}
+	if len(users) == 0 {
+		return true, nil
+	}
+	return false, nil
 }

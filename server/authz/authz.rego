@@ -16,6 +16,63 @@ team_role(subject, team_id) = role {
 }
 
 ##
+# Global config
+##
+
+# Any logged in user can read global config
+allow {
+	  object.type == "app_config"
+	  not is_null(subject)
+	  action == "read"
+}
+
+# Admin can write global config
+allow {
+	  object.type == "app_config"
+	  subject.global_role == "admin"
+	  action == "write"
+}
+
+##
+# Users
+##
+
+# Any user can modify self
+allow {
+	  object.type == "user"
+	  object.id == subject.id
+}
+
+# Any user can read other users
+allow {
+	  object.type == "user"
+	  not is_null(subject)
+	  action == "read"
+}
+
+# Admins can write all users
+allow {
+	  object.type == "user"
+	  subject.global_role == "admin"
+}
+
+##
+# Sessions
+##
+
+# Any user can modify own session
+allow {
+	  object.type == "session"
+	  object.user_id == subject.id
+}
+
+# Admins can write all users
+allow {
+	  object.type == "session"
+	  subject.global_role == "admin"
+}
+
+##
 # Enroll Secrets
 ##
 

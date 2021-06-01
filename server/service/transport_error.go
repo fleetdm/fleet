@@ -49,20 +49,6 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
-	type authenticationError interface {
-		error
-		AuthError() string
-	}
-	if e, ok := err.(authenticationError); ok {
-		ae := jsonError{
-			Message: "Authentication Failed",
-			Errors:  baseError(e.AuthError()),
-		}
-		w.WriteHeader(http.StatusUnauthorized)
-		enc.Encode(ae)
-		return
-	}
-
 	type permissionError interface {
 		PermissionError() []map[string]string
 	}

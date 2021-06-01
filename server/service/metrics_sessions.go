@@ -120,20 +120,6 @@ func (mw metricsMiddleware) GetInfoAboutSession(ctx context.Context, id uint) (*
 	return session, err
 }
 
-func (mw metricsMiddleware) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
-	var (
-		session *kolide.Session
-		err     error
-	)
-	defer func(begin time.Time) {
-		lvs := []string{"method", "GetSessionByKey", "error", fmt.Sprint(err != nil)}
-		mw.requestCount.With(lvs...).Add(1)
-		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	session, err = mw.Service.GetSessionByKey(ctx, key)
-	return session, err
-}
-
 func (mw metricsMiddleware) DeleteSession(ctx context.Context, id uint) error {
 	var (
 		err error

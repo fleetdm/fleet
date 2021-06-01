@@ -80,6 +80,10 @@ type Session struct {
 	CreateTimestamp
 	ID         uint
 	AccessedAt time.Time `db:"accessed_at"`
-	UserID     uint      `db:"user_id"`
+	UserID     uint      `json:"user_id" db:"user_id"`
 	Key        string
+}
+
+func (s Session) AuthzType() string {
+	return "session"
 }

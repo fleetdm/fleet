@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error) {
+func (svc *Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error) {
 	// skipauth: Basic SSO settings are available to unauthenticated users (so
 	// that they have the necessary information to initiate SSO).
 	svc.authz.SkipAuthorization(ctx)
@@ -258,10 +258,18 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 		return err
 	}
 
+	if err := svc.authz.Authorize(ctx, session, "write"); err != nil {
+		return err
+	}
+
 	return svc.ds.DestroySession(session)
 }
 
 func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, "write"); err != nil {
+		return nil, err
+	}
+
 	var validatedSessions []*kolide.Session
 
 	sessions, err := svc.ds.ListSessionsForUser(id)
@@ -279,12 +287,20 @@ func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([
 }
 
 func (svc *Service) DeleteSessionsForUser(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, "write"); err != nil {
+		return err
+	}
+
 	return svc.ds.DestroyAllSessionsForUser(id)
 }
 
 func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Session, error) {
 	session, err := svc.ds.SessionByID(id)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, "read"); err != nil {
 		return nil, err
 	}
 
@@ -297,6 +313,12 @@ func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.S
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
+	// TODO this is currently incorrect
+	// REVIEW: Maybe this can be refactored differently?
+	// skipauth: This service method is called by authViewer when there is not
+	// yet a viewer context, so no subject to authorize.
+	svc.authz.SkipAuthorization(ctx)
+
 	session, err := svc.ds.SessionByKey(key)
 	if err != nil {
 		return nil, err
@@ -315,6 +337,11 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 	if err != nil {
 		return err
 	}
+
+	if err := svc.authz.Authorize(ctx, session, "write"); err != nil {
+		return err
+	}
+
 	return svc.ds.DestroySession(session)
 }
 

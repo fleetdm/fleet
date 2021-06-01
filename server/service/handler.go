@@ -712,7 +712,7 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 			next.ServeHTTP(w, r)
 			return
 		}
-		requireSetup, err := RequireSetup(svc)
+		requireSetup, err := svc.SetupRequired(context.Background())
 		if err != nil {
 			logger.Log("msg", "fetching setup info from db", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -740,7 +740,7 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
 		})
 
-		setupRequired, err := RequireSetup(svc)
+		setupRequired, err := svc.SetupRequired(context.Background())
 		if err != nil {
 			logger.Log("msg", "fetching setupinfo from db", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -752,19 +752,6 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 		}
 		RedirectSetupToLogin(svc, logger, next, urlPrefix).ServeHTTP(w, r)
 	}
-}
-
-// RequireSetup checks to see if the service has been setup.
-func RequireSetup(svc kolide.Service) (bool, error) {
-	ctx := context.Background()
-	users, err := svc.ListUsers(ctx, kolide.UserListOptions{ListOptions: kolide.ListOptions{Page: 0, PerPage: 1}})
-	if err != nil {
-		return false, err
-	}
-	if len(users) == 0 {
-		return true, nil
-	}
-	return false, nil
 }
 
 // RedirectSetupToLogin forces the /setup path to be redirected to login. This middleware is used after

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/server/authz"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
@@ -25,11 +26,15 @@ func TestInviteNewUserMock(t *testing.T) {
 		return i, nil
 	}
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
+	authz, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
 	svc := validationMiddleware{&Service{
 		ds:          ms,
 		config:      config.TestConfig(),
 		mailService: mailer,
 		clock:       clock.NewMockClock(),
+		authz:       authz,
 	}, ms, nil}
 
 	ctx := context.Background()

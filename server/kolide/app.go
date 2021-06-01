@@ -31,7 +31,6 @@ type AppConfigService interface {
 	NewAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
-	SendTestEmail(ctx context.Context, config *AppConfig) error
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in
 	// the spec.
@@ -43,6 +42,10 @@ type AppConfigService interface {
 	// For cases where the connection is self-signed, the server will attempt to
 	// connect using the InsecureSkipVerify option in tls.Config.
 	CertificateChain(ctx context.Context) (cert []byte, err error)
+
+	// SetupRequired returns whether the app config setup needs to be performed
+	// (only when first initializing a Fleet server).
+	SetupRequired(ctx context.Context) (bool, error)
 
 	// Version returns version and build information.
 	Version(ctx context.Context) (*version.Info, error)
@@ -172,6 +175,10 @@ type AppConfig struct {
 
 	// AgentOptions is the global agent options, including overrides.
 	AgentOptions json.RawMessage `db:"agent_options"`
+}
+
+func (c AppConfig) AuthzType() string {
+	return "app_config"
 }
 
 const (
