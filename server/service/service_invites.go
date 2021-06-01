@@ -11,11 +11,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
+func (svc Service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
 	// verify that the user with the given email does not already exist
 	_, err := svc.ds.UserByEmail(*payload.Email)
 	if err == nil {
-		return nil, newInvalidArgumentError("email", "a user with this account already exists")
+		return nil, kolide.NewInvalidArgumentError("email", "a user with this account already exists")
 	}
 	if _, ok := err.(kolide.NotFoundError); !ok {
 		return nil, err
@@ -85,29 +85,29 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 	return invite, nil
 }
 
-func (svc service) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
+func (svc *Service) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
 	return svc.ds.ListInvites(opt)
 }
 
-func (svc service) VerifyInvite(ctx context.Context, token string) (*kolide.Invite, error) {
+func (svc *Service) VerifyInvite(ctx context.Context, token string) (*kolide.Invite, error) {
 	invite, err := svc.ds.InviteByToken(token)
 	if err != nil {
 		return nil, err
 	}
 
 	if invite.Token != token {
-		return nil, newInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
+		return nil, kolide.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
 	}
 
 	expiresAt := invite.CreatedAt.Add(svc.config.App.InviteTokenValidityPeriod)
 	if svc.clock.Now().After(expiresAt) {
-		return nil, newInvalidArgumentError("invite_token", "Invite token has expired.")
+		return nil, kolide.NewInvalidArgumentError("invite_token", "Invite token has expired.")
 	}
 
 	return invite, nil
 
 }
 
-func (svc service) DeleteInvite(ctx context.Context, id uint) error {
+func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
 	return svc.ds.DeleteInvite(id)
 }

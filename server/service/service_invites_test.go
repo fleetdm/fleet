@@ -25,7 +25,7 @@ func TestInviteNewUserMock(t *testing.T) {
 		return i, nil
 	}
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-	svc := validationMiddleware{&service{
+	svc := validationMiddleware{&Service{
 		ds:          ms,
 		config:      config.TestConfig(),
 		mailService: mailer,
@@ -53,7 +53,7 @@ func TestInviteNewUserMock(t *testing.T) {
 
 func TestVerifyInvite(t *testing.T) {
 	ms := new(mock.Store)
-	svc := service{
+	svc := &Service{
 		ds:     ms,
 		config: config.TestConfig(),
 		clock:  clock.NewMockClock(),
@@ -71,12 +71,11 @@ func TestVerifyInvite(t *testing.T) {
 			},
 		}, nil
 	}
-	wantErr := &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}}
+	wantErr := kolide.NewInvalidArgumentError("invite_token", "Invite token has expired.")
 	_, err := svc.VerifyInvite(ctx, "abcd")
 	assert.Equal(t, err, wantErr)
 
-	wantErr = &invalidArgumentError{{name: "invite_token",
-		reason: "Invite Token does not match Email Address."}}
+	wantErr = kolide.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
 
 	_, err = svc.VerifyInvite(ctx, "bad_token")
 	assert.Equal(t, err, wantErr)
@@ -84,7 +83,7 @@ func TestVerifyInvite(t *testing.T) {
 
 func TestDeleteInvite(t *testing.T) {
 	ms := new(mock.Store)
-	svc := service{ds: ms}
+	svc := &Service{ds: ms}
 
 	ms.DeleteInviteFunc = func(uint) error { return nil }
 	err := svc.DeleteInvite(context.Background(), 1)
@@ -94,7 +93,7 @@ func TestDeleteInvite(t *testing.T) {
 
 func TestListInvites(t *testing.T) {
 	ms := new(mock.Store)
-	svc := service{ds: ms}
+	svc := &Service{ds: ms}
 
 	ms.ListInvitesFunc = func(kolide.ListOptions) ([]*kolide.Invite, error) {
 		return nil, nil

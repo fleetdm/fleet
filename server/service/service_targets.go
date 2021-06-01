@@ -7,10 +7,10 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
-func (svc service) SearchTargets(ctx context.Context, matchQuery string, queryID *uint, targets kolide.HostTargets) (*kolide.TargetSearchResults, error) {
+func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID *uint, targets kolide.HostTargets) (*kolide.TargetSearchResults, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, kolide.ErrNoContext
 	}
 
 	includeObserver := false
@@ -50,10 +50,10 @@ func (svc service) SearchTargets(ctx context.Context, matchQuery string, queryID
 	return results, nil
 }
 
-func (svc service) CountHostsInTargets(ctx context.Context, queryID *uint, targets kolide.HostTargets) (*kolide.TargetMetrics, error) {
+func (svc Service) CountHostsInTargets(ctx context.Context, queryID *uint, targets kolide.HostTargets) (*kolide.TargetMetrics, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, kolide.ErrNoContext
 	}
 
 	includeObserver := false

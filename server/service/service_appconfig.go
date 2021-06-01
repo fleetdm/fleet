@@ -31,7 +31,7 @@ func (e mailError) MailError() []map[string]string {
 	}
 }
 
-func (svc service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (svc Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
 	config, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, err
@@ -61,14 +61,14 @@ func (svc service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) 
 	return newConfig, nil
 }
 
-func (svc service) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
+func (svc *Service) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
 	return svc.ds.AppConfig()
 }
 
-func (svc service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
+func (svc *Service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return errNoContext
+		return kolide.ErrNoContext
 	}
 
 	testMail := kolide.Email{
@@ -88,7 +88,7 @@ func (svc service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) 
 
 }
 
-func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (svc *Service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
 	oldAppConfig, err := svc.AppConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -240,7 +240,7 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 	return &config
 }
 
-func (svc service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.EnrollSecretSpec) error {
+func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.EnrollSecretSpec) error {
 	for _, s := range spec.Secrets {
 		if s.Secret == "" {
 			return errors.New("enroll secret must not be empty")
@@ -250,7 +250,7 @@ func (svc service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.Enrol
 	return svc.ds.ApplyEnrollSecrets(nil, spec.Secrets)
 }
 
-func (svc service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecretSpec, error) {
+func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecretSpec, error) {
 	secrets, err := svc.ds.GetEnrollSecrets(nil)
 	if err != nil {
 		return nil, err
@@ -258,11 +258,11 @@ func (svc service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecre
 	return &kolide.EnrollSecretSpec{Secrets: secrets}, nil
 }
 
-func (svc service) Version(ctx context.Context) (*version.Info, error) {
+func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
 	info := version.Version()
 	return &info, nil
 }
 
-func (svc service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
+func (svc *Service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
 	return &svc.license, nil
 }

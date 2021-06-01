@@ -6,6 +6,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         go-version: ['^1.16.0']
+        fleet-tier: [core, basic]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Go
@@ -68,10 +69,10 @@ jobs:
     - name: Run E2E Tests
       run: |
         make e2e-reset-db
-        make e2e-serve &
+        make e2e-serve-${{ matrix.fleet-tier }} &
         sleep 3
         make e2e-setup
-        yarn cypress run --config video=false
+        CYPRESS_FLEET_TIER=${{ matrix.fleet-tier }} yarn cypress run --config video=false
 
 
   test-js:

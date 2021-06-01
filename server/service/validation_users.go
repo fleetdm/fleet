@@ -10,7 +10,7 @@ import (
 )
 
 func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	invalid := &invalidArgumentError{}
+	invalid := &kolide.InvalidArgumentError{}
 	if p.Username == nil {
 		invalid.Append("username", "missing required argument")
 	} else {
@@ -56,7 +56,7 @@ func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolid
 }
 
 func (mw validationMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	invalid := &invalidArgumentError{}
+	invalid := &kolide.InvalidArgumentError{}
 	if p.Username == nil {
 		invalid.Append("username", "missing required argument username")
 	} else {
@@ -96,7 +96,7 @@ func (mw validationMiddleware) CreateUser(ctx context.Context, p kolide.UserPayl
 }
 
 func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
-	invalid := &invalidArgumentError{}
+	invalid := &kolide.InvalidArgumentError{}
 	if p.Username != nil {
 		if *p.Username == "" {
 			invalid.Append("username", "cannot be empty")
@@ -128,7 +128,7 @@ func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p ko
 	return mw.Service.ModifyUser(ctx, userID, p)
 }
 
-func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *invalidArgumentError) bool {
+func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *kolide.InvalidArgumentError) bool {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		invalid.Append("viewer", "not present")
@@ -149,7 +149,7 @@ func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *inva
 }
 
 func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newPass string) error {
-	invalid := &invalidArgumentError{}
+	invalid := &kolide.InvalidArgumentError{}
 	if oldPass == "" {
 		invalid.Append("old_password", "cannot be empty")
 	}
@@ -168,7 +168,7 @@ func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newP
 }
 
 func (mw validationMiddleware) ResetPassword(ctx context.Context, token, password string) error {
-	invalid := &invalidArgumentError{}
+	invalid := &kolide.InvalidArgumentError{}
 	if token == "" {
 		invalid.Append("token", "cannot be empty field")
 	}

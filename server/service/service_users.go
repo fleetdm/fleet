@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (svc Service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	invite, err := svc.VerifyInvite(ctx, *p.InviteToken)
 	if err != nil {
 		return nil, err
@@ -35,11 +35,11 @@ func (svc service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayloa
 	return user, nil
 }
 
-func (svc service) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (svc Service) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	return svc.newUser(p)
 }
 
-func (svc service) newUser(p kolide.UserPayload) (*kolide.User, error) {
+func (svc Service) newUser(p kolide.UserPayload) (*kolide.User, error) {
 	var ssoEnabled bool
 	// if user is SSO generate a fake password
 	if (p.SSOInvite != nil && *p.SSOInvite) || (p.SSOEnabled != nil && *p.SSOEnabled) {
@@ -62,12 +62,12 @@ func (svc service) newUser(p kolide.UserPayload) (*kolide.User, error) {
 	return user, nil
 }
 
-func (svc service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {
+func (svc *Service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {
 	// TODO remove this function
 	return nil, errors.New("This function is being eliminated")
 }
 
-func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
+func (svc *Service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
 	user, err := svc.User(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 
 	if p.GlobalRole != nil && *p.GlobalRole != "" {
 		if p.Teams != nil && len(*p.Teams) > 0 {
-			return nil, newInvalidArgumentError("teams", "may not be specified with global_role")
+			return nil, kolide.NewInvalidArgumentError("teams", "may not be specified with global_role")
 		}
 		user.GlobalRole = p.GlobalRole
 		user.Teams = []kolide.UserTeam{}
@@ -121,12 +121,12 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 	return user, nil
 }
 
-func (svc service) modifyEmailAddress(ctx context.Context, user *kolide.User, email string, password *string) error {
+func (svc *Service) modifyEmailAddress(ctx context.Context, user *kolide.User, email string, password *string) error {
 	// password requirement handled in validation middleware
 	if password != nil {
 		err := user.ValidatePassword(*password)
 		if err != nil {
-			return newPermissionError("password", "incorrect password")
+			return kolide.NewPermissionError("incorrect password")
 		}
 	}
 	random, err := kolide.RandomText(svc.config.App.TokenKeySize)
@@ -155,41 +155,41 @@ func (svc service) modifyEmailAddress(ctx context.Context, user *kolide.User, em
 	return svc.mailService.SendEmail(changeEmail)
 }
 
-func (svc service) DeleteUser(ctx context.Context, id uint) error {
+func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 	return svc.ds.DeleteUser(id)
 }
 
-func (svc service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
+func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return "", errNoContext
+		return "", kolide.ErrNoContext
 	}
 	return svc.ds.ConfirmPendingEmailChange(vc.UserID(), token)
 }
 
-func (svc service) User(ctx context.Context, id uint) (*kolide.User, error) {
+func (svc *Service) User(ctx context.Context, id uint) (*kolide.User, error) {
 	return svc.ds.UserByID(id)
 }
 
-func (svc service) AuthenticatedUser(ctx context.Context) (*kolide.User, error) {
+func (svc *Service) AuthenticatedUser(ctx context.Context) (*kolide.User, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, kolide.ErrNoContext
 	}
 	if !vc.IsLoggedIn() {
-		return nil, permissionError{}
+		return nil, kolide.NewPermissionError("not logged in")
 	}
 	return vc.User, nil
 }
 
-func (svc service) ListUsers(ctx context.Context, opt kolide.UserListOptions) ([]*kolide.User, error) {
+func (svc *Service) ListUsers(ctx context.Context, opt kolide.UserListOptions) ([]*kolide.User, error) {
 	return svc.ds.ListUsers(opt)
 }
 
 // setNewPassword is a helper for changing a user's password. It should be
 // called to set the new password after proper authorization has been
 // performed.
-func (svc service) setNewPassword(ctx context.Context, user *kolide.User, password string) error {
+func (svc *Service) setNewPassword(ctx context.Context, user *kolide.User, password string) error {
 	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return errors.Wrap(err, "setting new password")
@@ -205,20 +205,20 @@ func (svc service) setNewPassword(ctx context.Context, user *kolide.User, passwo
 	return nil
 }
 
-func (svc service) ChangePassword(ctx context.Context, oldPass, newPass string) error {
+func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return errNoContext
+		return kolide.ErrNoContext
 	}
 	if vc.User.SSOEnabled {
 		return errors.New("change password for single sign on user not allowed")
 	}
 	if err := vc.User.ValidatePassword(newPass); err == nil {
-		return newInvalidArgumentError("new_password", "cannot reuse old password")
+		return kolide.NewInvalidArgumentError("new_password", "cannot reuse old password")
 	}
 
 	if err := vc.User.ValidatePassword(oldPass); err != nil {
-		return newInvalidArgumentError("old_password", "old password does not match")
+		return kolide.NewInvalidArgumentError("old_password", "old password does not match")
 	}
 
 	if err := svc.setNewPassword(ctx, vc.User, newPass); err != nil {
@@ -227,7 +227,7 @@ func (svc service) ChangePassword(ctx context.Context, oldPass, newPass string) 
 	return nil
 }
 
-func (svc service) ResetPassword(ctx context.Context, token, password string) error {
+func (svc *Service) ResetPassword(ctx context.Context, token, password string) error {
 	reset, err := svc.ds.FindPassswordResetByToken(token)
 	if err != nil {
 		return errors.Wrap(err, "looking up reset by token")
@@ -242,7 +242,7 @@ func (svc service) ResetPassword(ctx context.Context, token, password string) er
 
 	// prevent setting the same password
 	if err := user.ValidatePassword(password); err == nil {
-		return newInvalidArgumentError("new_password", "cannot reuse old password")
+		return kolide.NewInvalidArgumentError("new_password", "cannot reuse old password")
 	}
 
 	err = svc.setNewPassword(ctx, user, password)
@@ -264,10 +264,10 @@ func (svc service) ResetPassword(ctx context.Context, token, password string) er
 	return nil
 }
 
-func (svc service) PerformRequiredPasswordReset(ctx context.Context, password string) (*kolide.User, error) {
+func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password string) (*kolide.User, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, kolide.ErrNoContext
 	}
 	user := vc.User
 	if user.SSOEnabled {
@@ -279,7 +279,7 @@ func (svc service) PerformRequiredPasswordReset(ctx context.Context, password st
 
 	// prevent setting the same password
 	if err := user.ValidatePassword(password); err == nil {
-		return nil, newInvalidArgumentError("new_password", "cannot reuse old password")
+		return nil, kolide.NewInvalidArgumentError("new_password", "cannot reuse old password")
 	}
 
 	user.AdminForcedPasswordReset = false
@@ -294,7 +294,7 @@ func (svc service) PerformRequiredPasswordReset(ctx context.Context, password st
 	return user, nil
 }
 
-func (svc service) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*kolide.User, error) {
+func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*kolide.User, error) {
 	user, err := svc.ds.UserByID(uid)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading user by ID")
@@ -318,7 +318,7 @@ func (svc service) RequirePasswordReset(ctx context.Context, uid uint, require b
 	return user, nil
 }
 
-func (svc service) RequestPasswordReset(ctx context.Context, email string) error {
+func (svc *Service) RequestPasswordReset(ctx context.Context, email string) error {
 	// Regardless of error, sleep until the request has taken at least 1 second.
 	// This means that any request to this method will take ~1s and frustrate a timing attack.
 	defer func(start time.Time) {
@@ -371,7 +371,7 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 // saves user in datastore.
 // doesn't need to be exposed to the transport
 // the service should expose actions for modifying a user instead
-func (svc service) saveUser(user *kolide.User) error {
+func (svc *Service) saveUser(user *kolide.User) error {
 	return svc.ds.SaveUser(user)
 }
 

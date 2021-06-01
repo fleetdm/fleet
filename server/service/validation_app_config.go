@@ -12,7 +12,7 @@ func (mw validationMiddleware) ModifyAppConfig(ctx context.Context, p kolide.App
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching existing app config in validation")
 	}
-	invalid := &invalidArgumentError{}
+	invalid := &kolide.InvalidArgumentError{}
 	validateSSOSettings(p, existing, invalid)
 	if invalid.HasErrors() {
 		return nil, invalid
@@ -27,7 +27,7 @@ func isSet(val *string) bool {
 	return false
 }
 
-func validateSSOSettings(p kolide.AppConfigPayload, existing *kolide.AppConfig, invalid *invalidArgumentError) {
+func validateSSOSettings(p kolide.AppConfigPayload, existing *kolide.AppConfig, invalid *kolide.InvalidArgumentError) {
 	if p.SSOSettings != nil && p.SSOSettings.EnableSSO != nil {
 		if *p.SSOSettings.EnableSSO {
 			if !isSet(p.SSOSettings.Metadata) && !isSet(p.SSOSettings.MetadataURL) {

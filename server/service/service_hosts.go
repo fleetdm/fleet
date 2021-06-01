@@ -7,11 +7,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc service) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+func (svc Service) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	return svc.ds.ListHosts(opt)
 }
 
-func (svc service) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, error) {
+func (svc Service) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, error) {
 	host, err := svc.ds.Host(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host")
@@ -20,7 +20,7 @@ func (svc service) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, er
 	return svc.getHostDetails(ctx, host)
 }
 
-func (svc service) HostByIdentifier(ctx context.Context, identifier string) (*kolide.HostDetail, error) {
+func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*kolide.HostDetail, error) {
 	host, err := svc.ds.HostByIdentifier(identifier)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host by identifier")
@@ -29,7 +29,7 @@ func (svc service) HostByIdentifier(ctx context.Context, identifier string) (*ko
 	return svc.getHostDetails(ctx, host)
 }
 
-func (svc service) getHostDetails(ctx context.Context, host *kolide.Host) (*kolide.HostDetail, error) {
+func (svc Service) getHostDetails(ctx context.Context, host *kolide.Host) (*kolide.HostDetail, error) {
 	if err := svc.ds.LoadHostSoftware(host); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
@@ -47,7 +47,7 @@ func (svc service) getHostDetails(ctx context.Context, host *kolide.Host) (*koli
 	return &kolide.HostDetail{Host: *host, Labels: labels, Packs: packs}, nil
 }
 
-func (svc service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, error) {
+func (svc Service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, error) {
 	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(svc.clock.Now())
 	if err != nil {
 		return nil, err
@@ -60,22 +60,22 @@ func (svc service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, err
 	}, nil
 }
 
-func (svc service) DeleteHost(ctx context.Context, id uint) error {
+func (svc Service) DeleteHost(ctx context.Context, id uint) error {
 	return svc.ds.DeleteHost(id)
 }
 
-func (svc *service) FlushSeenHosts(ctx context.Context) error {
+func (svc *Service) FlushSeenHosts(ctx context.Context) error {
 	hostIDs := svc.seenHostSet.getAndClearHostIDs()
 	return svc.ds.MarkHostsSeen(hostIDs, svc.clock.Now())
 }
 
-func (svc service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+func (svc Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	return svc.ds.AddHostsToTeam(teamID, hostIDs)
 }
 
-func (svc service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt kolide.HostListOptions, lid *uint) error {
+func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt kolide.HostListOptions, lid *uint) error {
 	if opt.StatusFilter != "" && lid != nil {
-		return newInvalidArgumentError("status", "may not be provided with label_id")
+		return kolide.NewInvalidArgumentError("status", "may not be provided with label_id")
 	}
 
 	opt.PerPage = kolide.PerPageUnlimited
@@ -105,7 +105,7 @@ func (svc service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	return svc.ds.AddHostsToTeam(teamID, hostIDs)
 }
 
-func (svc *service) RefetchHost(ctx context.Context, id uint) error {
+func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	host, err := svc.ds.Host(id)
 	if err != nil {
 		return errors.Wrap(err, "find host for refetch")

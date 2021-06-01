@@ -16,7 +16,7 @@ const (
 	maxBlockSize = 256 * 1024 * 1024      // 256MB
 )
 
-func (svc service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayload) (*kolide.CarveMetadata, error) {
+func (svc *Service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayload) (*kolide.CarveMetadata, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
@@ -66,7 +66,7 @@ func (svc service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayl
 	return carve, nil
 }
 
-func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayload) error {
+func (svc *Service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayload) error {
 	// Note host did not authenticate via node key. We need to authenticate them
 	// by the session ID and request ID
 	carve, err := svc.carveStore.CarveBySessionId(payload.SessionId)
@@ -99,15 +99,15 @@ func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayl
 	return nil
 }
 
-func (svc service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetadata, error) {
+func (svc *Service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetadata, error) {
 	return svc.carveStore.Carve(id)
 }
 
-func (svc service) ListCarves(ctx context.Context, opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
+func (svc *Service) ListCarves(ctx context.Context, opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
 	return svc.carveStore.ListCarves(opt)
 }
 
-func (svc service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
+func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
 	metadata, err := svc.carveStore.Carve(carveId)
 	if err != nil {
 		return nil, errors.Wrap(err, "get carve by name")

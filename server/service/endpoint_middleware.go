@@ -13,8 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var errNoContext = errors.New("context key not set")
-
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
 // provided in the request, and attaches the corresponding osquery host to the
 // context for the request
@@ -70,7 +68,7 @@ func authenticatedUser(jwtKey string, svc kolide.Service, next endpoint.Endpoint
 		// if not succesful, try again this time with errors
 		bearer, ok := token.FromContext(ctx)
 		if !ok {
-			return nil, authRequiredError{internal: "no auth token"}
+			return nil, kolide.NewAuthRequiredError("no auth token")
 		}
 
 		v, err := authViewer(ctx, jwtKey, bearer, svc)
@@ -92,30 +90,30 @@ func authViewer(ctx context.Context, jwtKey string, bearerToken token.Token, svc
 		return []byte(jwtKey), nil
 	})
 	if err != nil {
-		return nil, authRequiredError{internal: err.Error()}
+		return nil, kolide.NewAuthRequiredError(err.Error())
 	}
 	if !jwtToken.Valid {
-		return nil, authRequiredError{internal: "invalid jwt token"}
+		return nil, kolide.NewAuthRequiredError("invalid jwt token")
 	}
 	claims, ok := jwtToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, authRequiredError{internal: "no jwt claims"}
+		return nil, kolide.NewAuthRequiredError("no jwt claims")
 	}
 	sessionKeyClaim, ok := claims["session_key"]
 	if !ok {
-		return nil, authRequiredError{internal: "no session_key in JWT claims"}
+		return nil, kolide.NewAuthRequiredError("no session_key in JWT claims")
 	}
 	sessionKey, ok := sessionKeyClaim.(string)
 	if !ok {
-		return nil, authRequiredError{internal: "non-string key in sessionClaim"}
+		return nil, kolide.NewAuthRequiredError("non-string key in sessionClaim")
 	}
 	session, err := svc.GetSessionByKey(ctx, sessionKey)
 	if err != nil {
-		return nil, authRequiredError{internal: err.Error()}
+		return nil, kolide.NewAuthRequiredError(err.Error())
 	}
 	user, err := svc.User(ctx, session.UserID)
 	if err != nil {
-		return nil, authRequiredError{internal: err.Error()}
+		return nil, kolide.NewAuthRequiredError(err.Error())
 	}
 	return &viewer.Viewer{User: user, Session: session}, nil
 }
@@ -124,10 +122,10 @@ func mustBeAdmin(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
 		if !ok {
-			return nil, errNoContext
+			return nil, kolide.ErrNoContext
 		}
 		if !vc.CanPerformAdminActions() {
-			return nil, permissionError{message: "must be an admin"}
+			return nil, kolide.NewPermissionError("must be an admin")
 		}
 		return next(ctx, request)
 	}
@@ -137,10 +135,10 @@ func canPerformActions(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
 		if !ok {
-			return nil, errNoContext
+			return nil, kolide.ErrNoContext
 		}
 		if !vc.CanPerformActions() {
-			return nil, permissionError{message: "no read permissions"}
+			return nil, kolide.NewPermissionError("no read permissions")
 		}
 		return next(ctx, request)
 	}
@@ -150,11 +148,11 @@ func canReadUser(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
 		if !ok {
-			return nil, errNoContext
+			return nil, kolide.ErrNoContext
 		}
 		uid := requestUserIDFromContext(ctx)
 		if !vc.CanPerformReadActionOnUser(uid) {
-			return nil, permissionError{message: "no read permissions on user"}
+			return nil, kolide.NewPermissionError("no read permissions on user")
 		}
 		return next(ctx, request)
 	}
@@ -164,11 +162,11 @@ func canModifyUser(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
 		if !ok {
-			return nil, errNoContext
+			return nil, kolide.ErrNoContext
 		}
 		uid := requestUserIDFromContext(ctx)
 		if !vc.CanPerformWriteActionOnUser(uid) {
-			return nil, permissionError{message: "no write permissions on user"}
+			return nil, kolide.NewPermissionError("no write permissions on user")
 		}
 		return next(ctx, request)
 	}
@@ -178,10 +176,10 @@ func canPerformPasswordReset(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
 		if !ok {
-			return nil, errNoContext
+			return nil, kolide.ErrNoContext
 		}
 		if !vc.CanPerformPasswordReset() {
-			return nil, permissionError{message: "cannot reset password"}
+			return nil, kolide.NewPermissionError("cannot reset password")
 		}
 		return next(ctx, request)
 	}

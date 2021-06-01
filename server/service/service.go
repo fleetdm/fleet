@@ -4,10 +4,8 @@ package service
 
 import (
 	"html/template"
-	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/config"
@@ -18,6 +16,25 @@ import (
 	"github.com/kolide/kit/version"
 	"github.com/pkg/errors"
 )
+
+// Service is the struct implementing kolide.Service. Create a new one with NewService.
+type Service struct {
+	ds             kolide.Datastore
+	carveStore     kolide.CarveStore
+	resultStore    kolide.QueryResultStore
+	liveQueryStore kolide.LiveQueryStore
+	logger         kitlog.Logger
+	config         config.KolideConfig
+	clock          clock.Clock
+	license        kolide.LicenseInfo
+
+	osqueryLogWriter *logging.OsqueryLogger
+
+	mailService     kolide.MailService
+	ssoSessionStore sso.SessionStore
+
+	seenHostSet *seenHostSet
+}
 
 // NewService creates a new service from the config struct
 func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
@@ -31,7 +48,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 		return nil, errors.Wrap(err, "initializing osquery logging")
 	}
 
-	svc = &service{
+	svc = &Service{
 		ds:               ds,
 		carveStore:       carveStore,
 		resultStore:      resultStore,
@@ -43,41 +60,14 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 		mailService:      mailService,
 		ssoSessionStore:  sso,
 		seenHostSet:      newSeenHostSet(),
-		metaDataClient: &http.Client{
-			Timeout: 5 * time.Second,
-		},
-		license: license,
+		license:          license,
 	}
 	svc = validationMiddleware{svc, ds, sso}
 	return svc, nil
 }
 
-type service struct {
-	ds             kolide.Datastore
-	carveStore     kolide.CarveStore
-	resultStore    kolide.QueryResultStore
-	liveQueryStore kolide.LiveQueryStore
-	logger         kitlog.Logger
-	config         config.KolideConfig
-	clock          clock.Clock
-
-	osqueryLogWriter *logging.OsqueryLogger
-
-	mailService     kolide.MailService
-	ssoSessionStore sso.SessionStore
-	metaDataClient  *http.Client
-
-	seenHostSet *seenHostSet
-
-	license kolide.LicenseInfo
-}
-
-func (s service) SendEmail(mail kolide.Email) error {
+func (s Service) SendEmail(mail kolide.Email) error {
 	return s.mailService.SendEmail(mail)
-}
-
-func (s service) Clock() clock.Clock {
-	return s.clock
 }
 
 type validationMiddleware struct {

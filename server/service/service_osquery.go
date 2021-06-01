@@ -42,7 +42,7 @@ func emptyToZero(val string) string {
 	return val
 }
 
-func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolide.Host, error) {
+func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolide.Host, error) {
 	if nodeKey == "" {
 		return nil, osqueryError{
 			message:     "authentication error: missing node key",
@@ -77,7 +77,7 @@ func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 	return host, nil
 }
 
-func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
+func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	secret, err := svc.ds.VerifyEnrollSecret(enrollSecret)
 	if err != nil {
 		return "", osqueryError{
@@ -191,7 +191,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 	return providedIdentifier
 }
 
-func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
+func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
@@ -300,14 +300,14 @@ func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{},
 	return config, nil
 }
 
-func (svc service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
+func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing status logs: " + err.Error()}
 	}
 	return nil
 }
 
-func (svc service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
+func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
 	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing result logs: " + err.Error()}
 	}
@@ -859,7 +859,7 @@ func ingestSoftware(logger log.Logger, host *kolide.Host, rows []map[string]stri
 
 // hostDetailQueries returns the map of queries that should be executed by
 // osqueryd to fill in the host details
-func (svc service) hostDetailQueries(host kolide.Host) (map[string]string, error) {
+func (svc *Service) hostDetailQueries(host kolide.Host) (map[string]string, error) {
 	queries := make(map[string]string)
 	if host.DetailUpdateTime.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) && !host.RefetchRequested {
 		// No need to update already fresh details
@@ -901,7 +901,7 @@ func (svc service) hostDetailQueries(host kolide.Host) (map[string]string, error
 	return queries, nil
 }
 
-func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
+func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
@@ -945,7 +945,7 @@ func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string
 
 // ingestDetailQuery takes the results of a detail query and modifies the
 // provided kolide.Host appropriately.
-func (svc service) ingestDetailQuery(host *kolide.Host, name string, rows []map[string]string) error {
+func (svc *Service) ingestDetailQuery(host *kolide.Host, name string, rows []map[string]string) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDetailQueryPrefix)
 	query, ok := detailQueries[trimmedQuery]
 	if !ok {
@@ -966,7 +966,7 @@ func (svc service) ingestDetailQuery(host *kolide.Host, name string, rows []map[
 }
 
 // ingestLabelQuery records the results of label queries run by a host
-func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[string]string, results map[uint]bool) error {
+func (svc *Service) ingestLabelQuery(host kolide.Host, query string, rows []map[string]string, results map[uint]bool) error {
 	trimmedQuery := strings.TrimPrefix(query, hostLabelQueryPrefix)
 	trimmedQueryNum, err := strconv.Atoi(emptyToZero(trimmedQuery))
 	if err != nil {
@@ -980,7 +980,7 @@ func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[s
 
 // ingestDistributedQuery takes the results of a distributed query and modifies the
 // provided kolide.Host appropriately.
-func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
+func (svc *Service) ingestDistributedQuery(host kolide.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
 	campaignID, err := strconv.Atoi(emptyToZero(trimmedQuery))
@@ -1045,7 +1045,7 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 	return nil
 }
 
-func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus, messages map[string]string) error {
+func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus, messages map[string]string) error {
 	host, ok := hostctx.FromContext(ctx)
 
 	if !ok {

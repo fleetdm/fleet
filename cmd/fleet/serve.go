@@ -16,7 +16,8 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/ee/licensing"
+	"github.com/fleetdm/fleet/ee/server/licensing"
+	eeservice "github.com/fleetdm/fleet/ee/server/service"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
 	"github.com/fleetdm/fleet/server/datastore/s3"
@@ -53,6 +54,8 @@ func createServeCmd(configManager config.Manager) *cobra.Command {
 	debug := false
 	// Whether to enable developer options
 	dev := false
+	// Whether to enable development Fleet Basic license
+	devLicense := false
 
 	serveCmd := &cobra.Command{
 		Use:   "serve",
@@ -70,6 +73,11 @@ the way that the Fleet server works.
 
 			if dev {
 				applyDevFlags(&config)
+			}
+
+			if devLicense {
+				// This license key is valid for development only
+				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw"
 			}
 
 			license, err := licensing.LoadLicense(config.License.Key)
@@ -231,6 +239,13 @@ the way that the Fleet server works.
 			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
+			}
+
+			if license.Tier == kolide.TierBasic {
+				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
+				if err != nil {
+					initFatal(err, "initial Fleet Basic service")
+				}
 			}
 
 			go func() {
@@ -409,6 +424,7 @@ the way that the Fleet server works.
 
 	serveCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug endpoints")
 	serveCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	serveCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 
 	return serveCmd
 }
