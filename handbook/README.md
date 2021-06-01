@@ -50,8 +50,10 @@ For more detailed information about __spending guidelines and limits__, please r
 In Figma:
 1. Select the layers you want to export.
 2. Confirm export settings and naming convention:
-* item name - color variant - (css)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
+  * item name - color variant - (css)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
   * note that the dimensions in the filename are in CSS pixels.  In this example, the image would actually have dimensions of 32x32px, if you opened it in preview.  But in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
+  * File extension might be .jpg or .png.
+  * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
 ### When can I merge a change to the website?
