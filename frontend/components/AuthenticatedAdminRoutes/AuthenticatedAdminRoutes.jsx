@@ -23,7 +23,6 @@ export class AuthenticatedAdminRoutes extends Component {
     if (global_role !== "admin") {
       dispatch(push(HOME));
     }
-
     return false;
   }
 
