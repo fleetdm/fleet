@@ -39,14 +39,14 @@ class EditPackForm extends Component {
         <h1>Edit pack</h1>
         <InputField
           {...fields.name}
-          placeholder="Query Pack Title"
-          label="Query Pack Title"
+          placeholder="Query pack title"
+          label="Query pack title"
           inputWrapperClass={`${baseClass}__pack-title`}
         />
         <InputField
           {...fields.description}
           inputWrapperClass={`${baseClass}__pack-description`}
-          label="Query Pack Description"
+          label="Description"
           placeholder="Add a description of your pack"
           type="textarea"
         />

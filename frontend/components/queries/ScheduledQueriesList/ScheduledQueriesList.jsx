@@ -85,45 +85,43 @@ class ScheduledQueriesList extends Component {
       <tr>
         <td colSpan={6}>
           <div className={`${baseClass}__first-query`}>
-            <h1>
-              First let&apos;s <span>add a query</span>.
-            </h1>
-            <h2>Then we&apos;ll set the following:</h2>
+            <h1>Your pack is empty.</h1>
+            <span className={`${baseClass}__first-query-cta`}>
+              Use the sidebar on the right to add queries to this pack.
+            </span>
+            <h1>Configure your queries.</h1>
             <p>
-              <strong>interval:</strong> the amount of time, in seconds, the
+              <strong>Frequency:</strong> the amount of time, in seconds, the
               query waits before running
             </p>
             <p>
-              <strong>platform:</strong> the computer platform where this query
+              <strong>Platform:</strong> the computer platform where this query
               will run (other platforms ignored)
             </p>
             <p>
-              <strong>
-                minimum <KolideIcon name="osquery" /> version:
-              </strong>{" "}
-              the minimum required <strong>osqueryd</strong> version installed
-              on a host
+              <strong>Minimum osquery version:</strong> the minimum required{" "}
+              <strong>osqueryd</strong> version installed on a host
             </p>
             <p>
-              <strong>logging type:</strong>
+              <strong>Logging:</strong>
             </p>
             <ul>
               <li>
                 <strong>
-                  <KolideIcon name="plus-minus" /> differential:
+                  <KolideIcon name="plus-minus" /> Differential:
                 </strong>{" "}
                 show only what’s added from last run
               </li>
               <li>
                 <strong>
-                  <KolideIcon name="bold-plus" /> differential (ignore
+                  <KolideIcon name="bold-plus" /> Differential (ignore
                   removals):
                 </strong>{" "}
                 show only what’s been added since the last run
               </li>
               <li>
                 <strong>
-                  <KolideIcon name="camera" /> snapshot:
+                  <KolideIcon name="camera" /> Snapshot:
                 </strong>{" "}
                 show everything in its current state
               </li>
@@ -139,6 +137,7 @@ class ScheduledQueriesList extends Component {
       onCheckQuery,
       scheduledQueries,
       checkedScheduledQueryIDs,
+      isScheduledQueriesAvailable,
     } = this.props;
     const { allQueriesSelected, selectedQueryRowId } = this.state;
     const {
@@ -157,21 +156,25 @@ class ScheduledQueriesList extends Component {
         <table className={wrapperClassName}>
           <thead>
             <tr>
-              <th>
-                <Checkbox
-                  name="select-all-scheduled-queries"
-                  onChange={handleSelectAllQueries}
-                  value={allQueriesSelected}
-                />
-              </th>
-              <th>Query name</th>
-              <th>Interval(s)</th>
-              <th>Platform</th>
-              <th>
-                <KolideIcon name="osquery" /> Ver.
-              </th>
-              <th>Shard</th>
-              <th>Logging</th>
+              {scheduledQueries.length || isScheduledQueriesAvailable ? (
+                <>
+                  <th>
+                    <Checkbox
+                      name="select-all-scheduled-queries"
+                      onChange={handleSelectAllQueries}
+                      value={allQueriesSelected}
+                    />
+                  </th>
+                  <th>Query name</th>
+                  <th>Frequency</th>
+                  <th>Platform</th>
+                  <th>Osquery ver.</th>
+                  <th>Shard</th>
+                  <th>Logging</th>
+                </>
+              ) : (
+                <th />
+              )}
             </tr>
           </thead>
           <tbody>

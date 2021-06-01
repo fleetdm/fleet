@@ -51,8 +51,8 @@ class PackForm extends Component {
         <InputField
           {...fields.description}
           inputWrapperClass={`${baseClass}__pack-description`}
-          label="Query pack description"
-          placeholder="Add a description of your query"
+          label="Description"
+          placeholder="Add a description of your pack"
           type="textarea"
         />
         <div className={`${baseClass}__pack-targets`}>

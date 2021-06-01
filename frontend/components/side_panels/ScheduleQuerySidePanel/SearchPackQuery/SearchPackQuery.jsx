@@ -97,10 +97,8 @@ class SearchPackQuery extends Component {
     if (selectedQuery) {
       return (
         <div className={`${baseClass}__description`}>
-          <h2>description</h2>
-          <p>
-            {selectedQuery.description || <em>No description available.</em>}
-          </p>
+          <h2>Description</h2>
+          <p>{selectedQuery.description || <>No description available.</>}</p>
         </div>
       );
     }
@@ -119,10 +117,7 @@ class SearchPackQuery extends Component {
         <Dropdown
           options={queryDropdownOptions}
           onChange={onSelectQuery}
-          placeholder={[
-            <KolideIcon name="search" size="lg" key="search-pack-query" />,
-            " Select query",
-          ]}
+          placeholder={"Select query"}
         />
         {renderQuery()}
         {renderDescription()}

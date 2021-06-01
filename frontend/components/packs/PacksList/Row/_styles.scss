@@ -22,17 +22,13 @@
     color: $core-fleet-black;
     font-weight: $regular;
     font-size: $x-small;
-    padding: 7px 0;
-    text-align: center;
+    padding: 0 $pad-large;
+    margin: 0;
+    line-height: 2.71;
 
     &:first-child {
-      padding-left: 14px;
-      text-align: left;
-    }
-
-    &:last-child {
-      padding-right: 25px;
-      text-align: right;
+      text-align: center;
+      vertical-align: middle;
     }
   }
 
@@ -44,6 +40,24 @@
 
   &__checkbox {
     margin-bottom: 0;
+  }
+
+  &__disabled-icon {
+    margin-bottom: 1px;
+    height: 8px;
+    width: 8px;
+    background-color: $ui-fleet-black-25;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  &__enabled-icon {
+    margin-bottom: 1px;
+    height: 8px;
+    width: 8px;
+    background-color: $ui-success;
+    border-radius: 50%;
+    display: inline-block;
   }
 
   &__status-icon {

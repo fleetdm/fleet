@@ -46,6 +46,13 @@
     background-color: $ui-light-grey;
     border-radius: $border-radius;
     height: 40px;
+
+    .Select-value {
+      font-size: $x-small;
+      border-radius: 4px;
+      background-color: $ui-off-white;
+      border: solid 1px $core-dark-blue-grey;
+    }
   }
 
   .Select-value {
@@ -90,6 +97,8 @@
     > .Select-control {
       .Select-value {
         line-height: 38px;
+        margin-top: 4px;
+        border: none;
       }
     }
   }
@@ -98,7 +107,7 @@
     content: url("../assets/images/icon-chevron-black-16x16@2x.png");
     height: 16px;
     width: 16px;
-    margin-top: 6px;
+    margin-top: 8px;
     margin-left: -4px;
     border: none;
 
@@ -112,7 +121,7 @@
       content: url("../assets/images/icon-collapse-black-16x16@2x.png");
       height: 16px;
       width: 16px;
-      margin-top: 6px;
+      margin-top: 14px;
       margin-left: -3px;
       border: none;
 
@@ -200,7 +209,8 @@
     color: $ui-gray;
   }
 
-  .Select-placeholder {
+  .Select-placeholder,
+  .Select-input {
     color: $core-fleet-blue;
     font-size: $small;
     line-height: 40px;
@@ -218,6 +228,7 @@
 
     .Select-multi-value-wrapper {
       flex-grow: 1;
+      padding: $pad-xsmall;
     }
 
     .Select-arrow-zone {

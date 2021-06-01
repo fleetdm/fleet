@@ -80,7 +80,7 @@
     }
 
     .Select-placeholder {
-      line-height: 46px;
+      line-height: 50px;
       font-size: $small;
       padding: 0 $pad-medium;
     }
@@ -108,7 +108,7 @@
 
       .Select-value {
         line-height: 34px;
-        border: 1px solid $core-fleet-black;
+        border: 1px solid $core-dark-blue-grey;
         margin-top: 5px;
         margin-bottom: 0;
       }
@@ -164,8 +164,7 @@
         content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
         transform: scale(0.5);
         border-radius: 0px;
-        margin-top: -15px;
-        margin-left: -15px;
+        margin-top: 4px;
       }
 
       &:hover {
@@ -178,8 +177,8 @@
 
     .Select-value-label {
       font-size: $small;
-      font-weight: $regular;
-      color: $core-fleet-black;
+      color: $core-dark-blue-grey;
+      font-size: $x-small;
       padding: 0 0 0 $pad-medium;
       line-height: 34px;
     }

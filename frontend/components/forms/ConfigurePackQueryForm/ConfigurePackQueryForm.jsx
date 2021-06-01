@@ -137,14 +137,14 @@ export class ConfigurePackQueryForm extends Component {
 
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
-        <h2 className={`${baseClass}__title`}>configuration</h2>
+        <h2 className={`${baseClass}__title`}>Configuration</h2>
         <div className={`${baseClass}__fields`}>
           <InputField
             {...fields.interval}
-            inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--interval`}
+            inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
             placeholder="- - -"
-            label="Interval"
-            hint="Seconds"
+            label="Frequency (seconds)"
+            // hint="Seconds"
             type="number"
           />
           <Dropdown
@@ -160,11 +160,7 @@ export class ConfigurePackQueryForm extends Component {
             {...fields.version}
             options={minOsqueryVersionOptions}
             placeholder="- - -"
-            label={[
-              "minimum ",
-              <KolideIcon name="osquery" key="min-osquery-vers" />,
-              " version",
-            ]}
+            label="Minimum osquery version"
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
           />
           <Dropdown
