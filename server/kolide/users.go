@@ -42,6 +42,11 @@ type UserService interface {
 	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
 
+	// UserUnauthorized returns a valid User given a User ID, *skipping authorization checks*
+	//
+	// This method should only be used in middleware where there is not yet a viewer context and we need to load up a user to create that context.
+	UserUnauthorized(ctx context.Context, id uint) (user *User, err error)
+
 	// AuthenticatedUser returns the current user from the viewer context.
 	AuthenticatedUser(ctx context.Context) (user *User, err error)
 

@@ -111,7 +111,7 @@ func authViewer(ctx context.Context, jwtKey string, bearerToken token.Token, svc
 	if err != nil {
 		return nil, kolide.NewAuthRequiredError(err.Error())
 	}
-	user, err := svc.User(ctx, session.UserID)
+	user, err := svc.UserUnauthorized(ctx, session.UserID)
 	if err != nil {
 		return nil, kolide.NewAuthRequiredError(err.Error())
 	}

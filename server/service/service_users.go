@@ -198,6 +198,11 @@ func (svc *Service) User(ctx context.Context, id uint) (*kolide.User, error) {
 	return svc.ds.UserByID(id)
 }
 
+func (svc *Service) UserUnauthorized(ctx context.Context, id uint) (*kolide.User, error) {
+	// Explicitly no authorization check. Should only be used by middleware.
+	return svc.ds.UserByID(id)
+}
+
 func (svc *Service) AuthenticatedUser(ctx context.Context) (*kolide.User, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
