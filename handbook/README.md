@@ -46,6 +46,13 @@ For more detailed information about __spending guidelines and limits__, please r
 
 ### Fleet website
 
+### How to export images
+In Figma:
+1. Select the layers you want to export.
+2. Confirm export settings and naming convention:
+* item name - color varient - (css)size - @2x.fileformat (e.g., os-macos-black-16x16@2x.png)
+3. Click the __Export__ button.
+
 ### When can I merge a change to the website?
 When merging a PR to master, bear in mind that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), then please do not merge.
 
