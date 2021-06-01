@@ -8,7 +8,7 @@ import backgroundImg from "../../../assets/images/403.svg";
 
 const baseClass = "fleet-403";
 
-class Fleet404 extends Component {
+class Fleet403 extends Component {
   render() {
     return (
       <div className={baseClass}>
