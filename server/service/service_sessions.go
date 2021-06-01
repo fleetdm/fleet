@@ -371,25 +371,3 @@ func generateJWT(sessionKey, jwtKey string) (string, error) {
 
 	return token.SignedString([]byte(jwtKey))
 }
-
-func (svc *Service) ViewerBySessionKey(ctx context.Context, sessionKey string) (*viewer.Viewer, error) {
-	// No authorization check because this is a helper that is used within
-	// middleware.
-
-	session, err := svc.ds.SessionByKey(sessionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	err = svc.validateSession(session)
-	if err != nil {
-		return nil, err
-	}
-
-	user, err := svc.ds.UserByID(session.UserID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &viewer.Viewer{User: user, Session: session}, nil
-}
