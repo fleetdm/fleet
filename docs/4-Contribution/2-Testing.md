@@ -246,19 +246,19 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
 
 Finally run one of the bash scripts located in the [/tools/api](../../tools/api/README.md) directory. 
 
-The `fleet/create_core` script will generate an environment to roughly reflect an installation of Fleet Core. The script creates 3 users with various roles.
+The `fleet/create_core` script will generate an environment to roughly reflect an installation of Fleet Core. The script creates 3 users with different roles.
 
 ```
 ./tools/api/fleet/teams/create_core
 ```
 
-The `fleet/create_basic` script will generate an environment to roughly reflect an installation of Fleet Basic. The script will create 2 teams 4 users with various roles.
+The `fleet/create_basic` script will generate an environment to roughly reflect an installation of Fleet Basic. The script will create 2 teams 4 users with different roles.
 
 ```
 ./tools/api/fleet/teams/create_basic
 ```
 
-The `fleet/create_figma` script will generate an environment to reflect the mockups in the Fleet EE (current) Figma file. The script creates 3 teams and 12 users with various roles.
+The `fleet/create_figma` script will generate an environment to reflect the mockups in the Fleet EE (current) Figma file. The script creates 3 teams and 12 users with different roles.
 
 ```
 ./tools/api/fleet/teams/create_figma
