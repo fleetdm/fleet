@@ -5,7 +5,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IInvite } from "interfaces/invite";
-import user, { IUser } from "interfaces/user";
+import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import stringUtils from "utilities/strings";
