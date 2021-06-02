@@ -350,7 +350,21 @@ func previewStopCommand() *cli.Command {
 			out, err := exec.Command("docker-compose", "stop").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose stop")
+				return errors.Errorf("Failed to run docker-compose stop for Fleet server and dependencies")
+			}
+
+			cmd := exec.Command("docker-compose", "stop")
+			cmd.Dir = filepath.Join(previewDir, "osquery")
+			cmd.Env = append(cmd.Env,
+				// Note that these must be set even though they are unused while
+				// stopping because docker-compose will error otherwise.
+				"ENROLL_SECRET=empty",
+				"FLEET_URL=empty",
+			)
+			out, err = cmd.CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose stop for simulated hosts")
 			}
 
 			fmt.Println("Fleet preview server and dependencies stopped. Start again with fleetctl preview.")
@@ -385,7 +399,21 @@ func previewResetCommand() *cli.Command {
 			out, err := exec.Command("docker-compose", "rm", "-sf").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose rm -sf")
+				return errors.Errorf("Failed to run docker-compose rm -sf for Fleet server and dependencies.")
+			}
+
+			cmd := exec.Command("docker-compose", "rm", "-sf")
+			cmd.Dir = filepath.Join(previewDir, "osquery")
+			cmd.Env = append(cmd.Env,
+				// Note that these must be set even though they are unused while
+				// stopping because docker-compose will error otherwise.
+				"ENROLL_SECRET=empty",
+				"FLEET_URL=empty",
+			)
+			out, err = cmd.CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose rm -sf for simulated hosts.")
 			}
 
 			fmt.Println("Fleet preview server and dependencies reset. Start again with fleetctl preview.")
