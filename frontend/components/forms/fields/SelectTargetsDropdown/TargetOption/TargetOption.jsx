@@ -46,11 +46,9 @@ class TargetOption extends Component {
 
   render() {
     const { onMoreInfoClick, target } = this.props;
-    console.log("This is a target", target);
     const { display_text: displayText, target_type: targetType } = target;
     const { handleSelect, renderTargetDetail } = this;
     const wrapperClassName = classnames(`${baseClass}__wrapper`, {
-      // added 5/26
       "is-team": targetType === "teams",
       "is-label": targetType === "labels",
       "is-host": targetType === "hosts",

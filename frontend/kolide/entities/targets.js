@@ -18,13 +18,12 @@ export default (client) => {
         )
         .then((response) => {
           const { targets } = response;
-          console.log("\n\n\n\n Targets: \n\n\n\n", targets);
+
           return {
             ...response,
             targets: [
               ...appendTargetTypeToTargets(targets.hosts, "hosts"),
               ...appendTargetTypeToTargets(targets.labels, "labels"),
-              // added 5/26
               ...appendTargetTypeToTargets(targets.teams, "teams"),
             ],
           };

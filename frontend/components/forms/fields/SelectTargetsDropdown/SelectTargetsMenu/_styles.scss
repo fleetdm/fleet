@@ -21,9 +21,20 @@
     min-height: 500px;
     position: relative;
     z-index: 2;
-    padding: $pad-large $pad-medium;
+    padding: 0 $pad-small;
     border-right: 1px solid $ui-fleet-blue-15;
     background-color: $core-white;
+  }
+
+  &__no-hosts {
+    font-size: $x-small;
+    padding: $pad-large;
+  }
+
+  &__no-hosts-heading {
+    font-weight: $bold;
+    font-size: $small;
+    padding-bottom: $pad-medium;
   }
 
   &__spotlight {
