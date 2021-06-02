@@ -5,7 +5,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IInvite } from "interfaces/invite";
-import { IUser } from "interfaces/user";
+import user, { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import stringUtils from "utilities/strings";
@@ -146,13 +146,26 @@ const generateTeam = (teams: ITeam[], globalRole: string | null): string => {
 
 const generateRole = (teams: ITeam[], globalRole: string | null): string => {
   if (globalRole === null) {
+    const listOfRoles: any = teams.map((team) => team.role);
+
     if (teams.length === 0) {
       // no global role and no teams
       return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
       return stringUtils.capitalize(teams[0].role ?? "");
+    } else if (
+      listOfRoles.every((role: string): boolean => role === "maintainer")
+    ) {
+      // only team maintainers
+      return stringUtils.capitalize(teams[0].role ?? "");
+    } else if (
+      listOfRoles.every((role: string): boolean => role === "observer")
+    ) {
+      // only team observers
+      return stringUtils.capitalize(teams[0].role ?? "");
     }
+
     return "Various"; // no global role and multiple teams
   }
 
