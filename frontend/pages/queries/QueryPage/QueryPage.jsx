@@ -649,6 +649,7 @@ export class QueryPage extends Component {
       title,
       currentUser,
     } = this.props;
+    const { hasSavePermissions, showDropdown } = helpers;
 
     const queryId = this.props.query.id;
 
@@ -685,9 +686,6 @@ export class QueryPage extends Component {
         </div>
       );
     };
-
-    // Restricts Saving for Team maintainer
-    const { hasSavePermissions } = helpers;
 
     // Team maintainer: Create and run new query, but not save
     if (permissionUtils.isAnyTeamMaintainer(currentUser)) {
@@ -761,9 +759,6 @@ export class QueryPage extends Component {
       permissionUtils.isGlobalObserver(currentUser) ||
       !permissionUtils.isOnGlobalTeam(currentUser)
     ) {
-      // Restricts targets dropdown
-      const { showDropdown } = helpers;
-
       return (
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__observer-query-view body-wrap`}>
@@ -815,7 +810,7 @@ export class QueryPage extends Component {
               serverErrors={errors}
               selectedOsqueryTable={selectedOsqueryTable}
               title={title}
-              hasSavePermissions={hasSavePermissions}
+              hasSavePermissions={hasSavePermissions(currentUser)}
             />
           </div>
           {renderLiveQueryWarning()}
