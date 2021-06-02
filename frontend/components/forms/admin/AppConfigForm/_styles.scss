@@ -32,22 +32,23 @@
     @include clearfix;
     margin: 0 0 $pad-xlarge;
 
-    .upcarat {
+    .upcarat::after {
       content: url("../assets/images/icon-collapse-black-16x16@2x.png");
-      width: 16px;
-      height: 16px;
+      transform: scale(0.5);
       border-radius: 0px;
-      top: 5px;
-      margin: 4px;
+      position: relative;
+      top: 8px;
+      margin: $pad-xsmall;
     }
 
-    .downcarat {
+    .downcarat::after {
       content: url("../assets/images/icon-chevron-black-16x16@2x.png");
-      width: 16px;
-      height: 16px;
+      transform: scale(0.5);
       border-radius: 0px;
-      top: 5px;
-      margin: 4px;
+      position: relative;
+      top: 8px;
+      margin: $pad-xsmall;
+      margin-right: 18px;
     }
 
     h2 {
