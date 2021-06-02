@@ -6,7 +6,6 @@ import { push } from "react-router-redux";
 
 import Button from "components/buttons/Button";
 import entityGetter from "redux/utilities/entityGetter";
-import KolideIcon from "components/icons/KolideIcon";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/modals/Modal";
 import packActions from "redux/nodes/entities/packs/actions";
@@ -225,29 +224,29 @@ export class AllPacksPage extends Component {
 
       return (
         <div>
-          <p className={`${baseClass}__pack-count`}>
-            {checkedPackCount} {packText} Selected
-          </p>
+          <span className={`${baseClass}__pack-count`}>
+            <strong>{checkedPackCount}</strong> selected
+          </span>
           <Button
             className={`${btnClass} ${btnClass}--disable`}
             onClick={onBulkAction("disable")}
             variant="unstyled"
           >
-            <KolideIcon name="offline" /> Disable
+            Disable
           </Button>
           <Button
             className={`${btnClass} ${btnClass}--enable`}
             onClick={onBulkAction("enable")}
             variant="unstyled"
           >
-            <KolideIcon name="success-check" /> Enable
+            Enable
           </Button>
           <Button
             className={`${btnClass} ${btnClass}--delete`}
             onClick={onToggleModal}
             variant="unstyled"
           >
-            <KolideIcon name="trash" /> Delete
+            Delete
           </Button>
         </div>
       );
@@ -337,9 +336,10 @@ export class AllPacksPage extends Component {
               placeholder="Filter packs"
               value={packFilter}
             />
-            <KolideIcon name="search" />
           </div>
-          <p className={`${baseClass}__pack-count`}>{packsTotalDisplay}</p>
+          <p className={`${baseClass}__pack-count`}>
+            <strong>{packsTotalDisplay}</strong>
+          </p>
           <PacksList
             allPacksChecked={allPacksChecked}
             checkedPackIDs={checkedPackIDs}

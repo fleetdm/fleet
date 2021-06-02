@@ -1,27 +1,32 @@
 .all-packs-page {
+  font-size: $x-small;
+
   &__bulk-action-btn {
-    color: $core-fleet-purple;
-    font-size: 15px;
+    color: $core-fleet-black;
+    font-size: $x-small;
     font-weight: $regular;
     margin-left: $pad-large;
+    position: relative;
+    bottom: 0;
 
     &--disable {
-      margin-left: 0;
-
-      i {
-        color: $ui-error;
+      &::before {
+        content: url("../assets/images/icon-action-close-16x15@2x.png");
+        transform: scale(0.5);
       }
     }
 
     &--enable {
-      i {
-        color: $ui-success;
+      &::before {
+        content: url("../assets/images/icon-action-check-16x15@2x.png");
+        transform: scale(0.5);
       }
     }
 
     &--delete {
-      i {
-        color: $core-fleet-blue;
+      &::before {
+        content: url("../assets/images/icon-action-delete-14x14@2x.png");
+        transform: scale(0.5);
       }
     }
   }
@@ -35,8 +40,10 @@
   &__pack-count {
     color: $core-fleet-black;
     font-size: $x-small;
-    font-weight: $bold;
+    line-height: 35px;
     margin: 0;
+    position: relative;
+    top: -$pad-small;
   }
 
   &__search-create-section {
@@ -50,17 +57,19 @@
       }
     }
 
-    .kolidecon {
+    &::before {
+      display: inline-block;
       position: absolute;
-      top: 36px;
-      left: 9px;
-      font-size: 18px;
-      color: $ui-gray;
+      padding: 5px 0 0 0;
+      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
+      transform: scale(0.5);
+      top: 22px;
+      left: 8px;
     }
   }
 
   &__title {
-    margin: 0 0 15px;
+    margin: 0 0 $pad-medium;
   }
 
   &__wrapper {
