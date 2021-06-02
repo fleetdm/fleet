@@ -32,7 +32,8 @@ parasails.registerPage('query-detail', {
           'Accept': 'application/vnd.github.v3+json'
         }
       })
-      .then(response => response.json());
+      .then(response => response.json())
+      .catch(error => console.log(error));
     },
 
     clickAvatar: function(contributor) {
