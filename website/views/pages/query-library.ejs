@@ -11,7 +11,7 @@
           </div>
           <div class="d-flex select-mobile">
             <div class="select-mobile-border">
-              <select class="select-purpose mobile" v-model="selectedPurpose">
+              <select class="select-purpose mobile font-weight-bold" v-model="selectedPurpose">
                 <option value="all" selected>All queries</option>
                 <option value="information">Informational queries</option>
                 <option value="detection">Detection queries</option>   
@@ -20,7 +20,7 @@
           </div>
           <div class="d-flex select-mobile">
             <div class="select-mobile-border">
-              <select class="select-purpose mobile" v-model="selectedPlatform">
+              <select class="select-purpose mobile font-weight-bold" v-model="selectedPlatform">
                 <option value="all" selected>All platforms</option>
                 <option value="macOS">macOS</option>
                 <option value="Windows">Windows</option>
@@ -65,11 +65,11 @@
             <div class="card results" @click="clickCard(query.slug)">
               <div class="card-body query-card">
                 <div class="row justify-content-between align-items-center">
-                  <div class="col-sm-10">
+                  <div class="col-sm-9 col-md-10">
                     <h5 class="card-title m-0">{{query.name}}</h5>
                     <p class="font-italic mb-1 p-0 description">{{query.description}}</p>
                     <div class="contributors" v-if="query.contributors && query.contributors.length">
-                      <div class="d-flex mb-1 align-items-center">
+                      <div class="d-flex mb-2 mb-sm-1 align-items-center">
                         <div v-for="contributor in query.contributors.split(',')">
                           <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
                             <img :alt="contributor" :src="getAvatarUrl(contributorsDictionary[contributor])"/>
@@ -79,11 +79,11 @@
                       </div>
                     </div>
                   </div>
-                  <div class="col-sm-2">
+                  <div class="col-sm-3 col-md-2">
                     <div class="text-sm-right m-0">
-                      <span v-if="query.platforms.includes('macOS')"><i class="fa fa-apple fa-md ml-1" alt="Mac"></i></span>
-                      <span v-if="query.platforms.includes('Windows')"><i class="fa fa-windows fa-md ml-1" alt="Windows"></i></span>
-                      <span v-if="query.platforms.includes('Linux')"><i class="fa fa-linux fa-md ml-1" alt="Linux"></i></span>
+                      <span v-if="query.platforms.includes('macOS')"><img class="d-inline mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo" src="../../images/os-macos-black-16x16@2x.png" alt="macOS"/></span>
+                      <span v-if="query.platforms.includes('Windows')"><img class="d-inline mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo" src="../../images/os-windows-black-16x16@2x.png" alt="Windows"/></span>
+                      <span v-if="query.platforms.includes('Linux')"><img class="d-inline mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo" src="../../images/os-linux-black-16x16@2x.png" alt="Linux"/></span>
                     </div>
                   </div>
                 </div>
