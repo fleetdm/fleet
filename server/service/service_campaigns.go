@@ -151,6 +151,11 @@ type campaignStatus struct {
 }
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "run"); err != nil {
+		conn.WriteJSONError(fmt.Sprintf("forbidden"))
+		return
+	}
+
 	// Find the campaign and ensure it is active
 	campaign, err := svc.ds.DistributedQueryCampaign(campaignID)
 	if err != nil {
@@ -211,7 +216,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	}
 
 	updateStatus := func() error {
-		metrics, err := svc.CountHostsInTargets(context.Background(), &campaign.QueryID, *targets)
+		metrics, err := svc.CountHostsInTargets(ctx, &campaign.QueryID, *targets)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
 				return errors.Wrap(err, "retrieve target counts, write failed")

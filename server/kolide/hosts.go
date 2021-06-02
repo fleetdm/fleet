@@ -168,6 +168,10 @@ type Host struct {
 	Additional *json.RawMessage `json:"additional,omitempty" db:"additional"`
 }
 
+func (h Host) AuthzType() string {
+	return "host"
+}
+
 // HostDetail provides the full host metadata along with associated labels and
 // packs.
 type HostDetail struct {

@@ -11,6 +11,10 @@ import (
 )
 
 func (svc *Service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.Team, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "write"); err != nil {
+		return nil, err
+	}
+
 	team := &kolide.Team{}
 
 	if p.Name == nil {
@@ -42,8 +46,12 @@ func (svc *Service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.
 	return team, nil
 }
 
-func (svc *Service) ModifyTeam(ctx context.Context, id uint, payload kolide.TeamPayload) (*kolide.Team, error) {
-	team, err := svc.ds.Team(id)
+func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload kolide.TeamPayload) (*kolide.Team, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+		return nil, err
+	}
+
+	team, err := svc.ds.Team(teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +71,12 @@ func (svc *Service) ModifyTeam(ctx context.Context, id uint, payload kolide.Team
 	return svc.ds.SaveTeam(team)
 }
 
-func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*kolide.Team, error) {
-	team, err := svc.ds.Team(id)
+func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, options json.RawMessage) (*kolide.Team, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+		return nil, err
+	}
+
+	team, err := svc.ds.Team(teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +91,10 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, id uint, options
 }
 
 func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []kolide.TeamUser) (*kolide.Team, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+		return nil, err
+	}
+
 	idMap := make(map[uint]kolide.TeamUser)
 	for _, user := range users {
 		if !kolide.ValidTeamRole(user.Role) {
@@ -109,6 +125,10 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []kolid
 }
 
 func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []kolide.TeamUser) (*kolide.Team, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+		return nil, err
+	}
+
 	idMap := make(map[uint]bool)
 	for _, user := range users {
 		idMap[user.ID] = true
@@ -133,6 +153,10 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []ko
 }
 
 func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt kolide.ListOptions) ([]*kolide.User, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "read"); err != nil {
+		return nil, err
+	}
+
 	team, err := svc.ds.Team(teamID)
 	if err != nil {
 		return nil, err
@@ -142,6 +166,10 @@ func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt kolide.L
 }
 
 func (svc *Service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Team, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "read"); err != nil {
+		return nil, err
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, kolide.ErrNoContext
@@ -151,10 +179,18 @@ func (svc *Service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*k
 	return svc.ds.ListTeams(filter, opt)
 }
 
-func (svc *Service) DeleteTeam(ctx context.Context, tid uint) error {
-	return svc.ds.DeleteTeam(tid)
+func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+		return err
+	}
+
+	return svc.ds.DeleteTeam(teamID)
 }
 
 func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*kolide.EnrollSecret, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "read"); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.TeamEnrollSecrets(teamID)
 }

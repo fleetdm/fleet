@@ -17,6 +17,9 @@ const (
 )
 
 func (svc *Service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayload) (*kolide.CarveMetadata, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
@@ -67,6 +70,9 @@ func (svc *Service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPay
 }
 
 func (svc *Service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayload) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	// Note host did not authenticate via node key. We need to authenticate them
 	// by the session ID and request ID
 	carve, err := svc.carveStore.CarveBySessionId(payload.SessionId)
@@ -100,14 +106,26 @@ func (svc *Service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPay
 }
 
 func (svc *Service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, "read"); err != nil {
+		return nil, err
+	}
+
 	return svc.carveStore.Carve(id)
 }
 
 func (svc *Service) ListCarves(ctx context.Context, opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, "read"); err != nil {
+		return nil, err
+	}
+
 	return svc.carveStore.ListCarves(opt)
 }
 
 func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, "read"); err != nil {
+		return nil, err
+	}
+
 	metadata, err := svc.carveStore.Carve(carveId)
 	if err != nil {
 		return nil, errors.Wrap(err, "get carve by name")

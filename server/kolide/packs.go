@@ -129,6 +129,10 @@ type Pack struct {
 	Disabled    bool   `json:"disabled,omitempty"`
 }
 
+func (p Pack) AuthzType() string {
+	return "pack"
+}
+
 const (
 	PackKind = "pack"
 )

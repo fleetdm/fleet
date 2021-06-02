@@ -86,6 +86,10 @@ type Query struct {
 	Packs []Pack `json:"packs" db:"-"`
 }
 
+func (q Query) AuthzType() string {
+	return "query"
+}
+
 var (
 	validateSQLRegexp = regexp.MustCompile(`(?i)attach[^\w]+.*[^\w]+as[^\w]+`)
 )

@@ -91,7 +91,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload kolide.Mod
 }
 
 func (svc *Service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
 		return nil, err
 	}
 
@@ -99,7 +99,7 @@ func (svc *Service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*
 }
 
 func (svc *Service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +127,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 }
 
 func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
 		return nil, err
 	}
 
@@ -135,7 +135,7 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.H
 }
 
 func (svc *Service) ListLabelsForHost(ctx context.Context, hid uint) ([]*kolide.Label, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
 		return nil, err
 	}
 

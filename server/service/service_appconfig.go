@@ -279,11 +279,20 @@ func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecr
 }
 
 func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "read"); err != nil {
+		return nil, err
+	}
+
 	info := version.Version()
 	return &info, nil
 }
 
 func (svc *Service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
+	//
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "read"); err != nil {
+		return nil, err
+	}
+
 	return &svc.license, nil
 }
 

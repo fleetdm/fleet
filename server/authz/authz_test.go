@@ -14,6 +14,7 @@ import (
 const (
 	write = kolide.ActionWrite
 	read  = kolide.ActionRead
+	run   = kolide.ActionRun
 )
 
 var auth *Authorizer
@@ -36,50 +37,50 @@ type authTestCase struct {
 func TestAuthorizeAppConfig(t *testing.T) {
 	t.Parallel()
 
-	obj := &kolide.AppConfig{}
+	config := &kolide.AppConfig{}
 	runTestCases(t, []authTestCase{
-		{user: nil, object: obj, action: read, allow: false},
-		{user: nil, object: obj, action: write, allow: false},
+		{user: nil, object: config, action: read, allow: false},
+		{user: nil, object: config, action: write, allow: false},
 
-		{user: test.UserNoRoles, object: obj, action: read, allow: true},
-		{user: test.UserNoRoles, object: obj, action: write, allow: false},
+		{user: test.UserNoRoles, object: config, action: read, allow: true},
+		{user: test.UserNoRoles, object: config, action: write, allow: false},
 
-		{user: test.UserAdmin, object: obj, action: read, allow: true},
-		{user: test.UserAdmin, object: obj, action: write, allow: true},
+		{user: test.UserAdmin, object: config, action: read, allow: true},
+		{user: test.UserAdmin, object: config, action: write, allow: true},
 
-		{user: test.UserMaintainer, object: obj, action: read, allow: true},
-		{user: test.UserMaintainer, object: obj, action: write, allow: false},
+		{user: test.UserMaintainer, object: config, action: read, allow: true},
+		{user: test.UserMaintainer, object: config, action: write, allow: false},
 
-		{user: test.UserObserver, object: obj, action: read, allow: true},
-		{user: test.UserObserver, object: obj, action: write, allow: false},
+		{user: test.UserObserver, object: config, action: read, allow: true},
+		{user: test.UserObserver, object: config, action: write, allow: false},
 	})
 }
 
 func TestAuthorizeSession(t *testing.T) {
 	t.Parallel()
 
-	obj := &kolide.Session{UserID: 42}
+	session := &kolide.Session{UserID: 42}
 	runTestCases(t, []authTestCase{
-		{user: nil, object: obj, action: read, allow: false},
-		{user: nil, object: obj, action: write, allow: false},
+		{user: nil, object: session, action: read, allow: false},
+		{user: nil, object: session, action: write, allow: false},
 
 		// Admin can read/write all
-		{user: test.UserAdmin, object: obj, action: read, allow: true},
-		{user: test.UserAdmin, object: obj, action: write, allow: true},
+		{user: test.UserAdmin, object: session, action: read, allow: true},
+		{user: test.UserAdmin, object: session, action: write, allow: true},
 
 		// Regular users can read self
-		{user: test.UserMaintainer, object: obj, action: read, allow: false},
-		{user: test.UserMaintainer, object: obj, action: write, allow: false},
+		{user: test.UserMaintainer, object: session, action: read, allow: false},
+		{user: test.UserMaintainer, object: session, action: write, allow: false},
 		{user: test.UserMaintainer, object: &kolide.Session{UserID: test.UserMaintainer.ID}, action: read, allow: true},
 		{user: test.UserMaintainer, object: &kolide.Session{UserID: test.UserMaintainer.ID}, action: write, allow: true},
 
-		{user: test.UserNoRoles, object: obj, action: read, allow: false},
-		{user: test.UserNoRoles, object: obj, action: write, allow: false},
+		{user: test.UserNoRoles, object: session, action: read, allow: false},
+		{user: test.UserNoRoles, object: session, action: write, allow: false},
 		{user: test.UserNoRoles, object: &kolide.Session{UserID: test.UserNoRoles.ID}, action: read, allow: true},
 		{user: test.UserNoRoles, object: &kolide.Session{UserID: test.UserNoRoles.ID}, action: write, allow: true},
 
-		{user: test.UserObserver, object: obj, action: read, allow: false},
-		{user: test.UserObserver, object: obj, action: write, allow: false},
+		{user: test.UserObserver, object: session, action: read, allow: false},
+		{user: test.UserObserver, object: session, action: write, allow: false},
 		{user: test.UserObserver, object: &kolide.Session{UserID: test.UserObserver.ID}, action: read, allow: true},
 		{user: test.UserObserver, object: &kolide.Session{UserID: test.UserObserver.ID}, action: write, allow: true},
 	})
@@ -88,30 +89,52 @@ func TestAuthorizeSession(t *testing.T) {
 func TestAuthorizeUser(t *testing.T) {
 	t.Parallel()
 
-	obj := &kolide.User{ID: 42}
+	user := &kolide.User{ID: 42}
 	runTestCases(t, []authTestCase{
-		{user: nil, object: obj, action: read, allow: false},
-		{user: nil, object: obj, action: write, allow: false},
+		{user: nil, object: user, action: read, allow: false},
+		{user: nil, object: user, action: write, allow: false},
 
 		// Admin can read/write all
-		{user: test.UserAdmin, object: obj, action: read, allow: true},
-		{user: test.UserAdmin, object: obj, action: write, allow: true},
+		{user: test.UserAdmin, object: user, action: read, allow: true},
+		{user: test.UserAdmin, object: user, action: write, allow: true},
 
 		// Regular users can read all users and write self
-		{user: test.UserMaintainer, object: obj, action: read, allow: true},
-		{user: test.UserMaintainer, object: obj, action: write, allow: false},
+		{user: test.UserMaintainer, object: user, action: read, allow: true},
+		{user: test.UserMaintainer, object: user, action: write, allow: false},
 		{user: test.UserMaintainer, object: test.UserMaintainer, action: read, allow: true},
 		{user: test.UserMaintainer, object: test.UserMaintainer, action: write, allow: true},
 
-		{user: test.UserNoRoles, object: obj, action: read, allow: true},
-		{user: test.UserNoRoles, object: obj, action: write, allow: false},
+		{user: test.UserNoRoles, object: user, action: read, allow: true},
+		{user: test.UserNoRoles, object: user, action: write, allow: false},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: read, allow: true},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: write, allow: true},
 
-		{user: test.UserObserver, object: obj, action: read, allow: true},
-		{user: test.UserObserver, object: obj, action: write, allow: false},
+		{user: test.UserObserver, object: user, action: read, allow: true},
+		{user: test.UserObserver, object: user, action: write, allow: false},
 		{user: test.UserObserver, object: test.UserObserver, action: read, allow: true},
 		{user: test.UserObserver, object: test.UserObserver, action: write, allow: true},
+	})
+}
+
+func TestAuthorizeInvite(t *testing.T) {
+	t.Parallel()
+
+	invite := &kolide.Invite{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: invite, action: read, allow: false},
+		{user: nil, object: invite, action: write, allow: false},
+
+		{user: test.UserNoRoles, object: invite, action: read, allow: false},
+		{user: test.UserNoRoles, object: invite, action: write, allow: false},
+
+		{user: test.UserAdmin, object: invite, action: read, allow: true},
+		{user: test.UserAdmin, object: invite, action: write, allow: true},
+
+		{user: test.UserMaintainer, object: invite, action: read, allow: false},
+		{user: test.UserMaintainer, object: invite, action: write, allow: false},
+
+		{user: test.UserObserver, object: invite, action: read, allow: false},
+		{user: test.UserObserver, object: invite, action: write, allow: false},
 	})
 }
 
@@ -210,6 +233,211 @@ func TestAuthorizeLabel(t *testing.T) {
 
 		{user: test.UserObserver, object: label, action: read, allow: true},
 		{user: test.UserObserver, object: label, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeHost(t *testing.T) {
+	t.Parallel()
+
+	teamMaintainer := &kolide.User{
+		Teams: []kolide.UserTeam{
+			{Team: kolide.Team{ID: 1}, Role: kolide.RoleMaintainer},
+		},
+	}
+	teamObserver := &kolide.User{
+		Teams: []kolide.UserTeam{
+			{Team: kolide.Team{ID: 1}, Role: kolide.RoleObserver},
+		},
+	}
+	host := &kolide.Host{}
+	hostTeam1 := &kolide.Host{TeamID: ptr.Uint(1)}
+	hostTeam2 := &kolide.Host{TeamID: ptr.Uint(2)}
+	runTestCases(t, []authTestCase{
+		// No access
+		{user: nil, object: host, action: read, allow: false},
+		{user: nil, object: host, action: write, allow: false},
+		{user: nil, object: hostTeam1, action: read, allow: false},
+		{user: nil, object: hostTeam1, action: write, allow: false},
+		{user: nil, object: hostTeam2, action: read, allow: false},
+		{user: nil, object: hostTeam2, action: write, allow: false},
+		{user: test.UserNoRoles, object: host, action: read, allow: false},
+		{user: test.UserNoRoles, object: host, action: write, allow: false},
+		{user: test.UserNoRoles, object: hostTeam1, action: read, allow: false},
+		{user: test.UserNoRoles, object: hostTeam1, action: write, allow: false},
+		{user: test.UserNoRoles, object: hostTeam2, action: read, allow: false},
+		{user: test.UserNoRoles, object: hostTeam2, action: write, allow: false},
+
+		// Global observer can read all
+		{user: test.UserObserver, object: host, action: read, allow: true},
+		{user: test.UserObserver, object: host, action: write, allow: false},
+		{user: test.UserObserver, object: hostTeam1, action: read, allow: true},
+		{user: test.UserObserver, object: hostTeam1, action: write, allow: false},
+		{user: test.UserObserver, object: hostTeam2, action: read, allow: true},
+		{user: test.UserObserver, object: hostTeam2, action: write, allow: false},
+
+		// Global maintainer can read all
+		{user: test.UserMaintainer, object: host, action: read, allow: true},
+		{user: test.UserMaintainer, object: host, action: write, allow: false},
+		{user: test.UserMaintainer, object: hostTeam1, action: read, allow: true},
+		{user: test.UserMaintainer, object: hostTeam1, action: write, allow: false},
+		{user: test.UserMaintainer, object: hostTeam2, action: read, allow: true},
+		{user: test.UserMaintainer, object: hostTeam2, action: write, allow: false},
+
+		// Global admin can read/write all
+		{user: test.UserAdmin, object: host, action: read, allow: true},
+		{user: test.UserAdmin, object: host, action: write, allow: true},
+		{user: test.UserAdmin, object: hostTeam1, action: read, allow: true},
+		{user: test.UserAdmin, object: hostTeam1, action: write, allow: true},
+		{user: test.UserAdmin, object: hostTeam2, action: read, allow: true},
+		{user: test.UserAdmin, object: hostTeam2, action: write, allow: true},
+
+		// Team observer/maintainer can read only on appropriate team
+		{user: teamObserver, object: host, action: read, allow: false},
+		{user: teamObserver, object: host, action: write, allow: false},
+		{user: teamObserver, object: hostTeam1, action: read, allow: true},
+		{user: teamObserver, object: hostTeam1, action: write, allow: false},
+		{user: teamObserver, object: hostTeam2, action: read, allow: false},
+		{user: teamObserver, object: hostTeam2, action: write, allow: false},
+		{user: teamMaintainer, object: host, action: read, allow: false},
+		{user: teamMaintainer, object: host, action: write, allow: false},
+		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
+		{user: teamMaintainer, object: hostTeam1, action: write, allow: false},
+		{user: teamMaintainer, object: hostTeam2, action: read, allow: false},
+		{user: teamMaintainer, object: hostTeam2, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeQuery(t *testing.T) {
+	t.Parallel()
+
+	teamMaintainer := &kolide.User{
+		Teams: []kolide.UserTeam{
+			{Team: kolide.Team{ID: 1}, Role: kolide.RoleMaintainer},
+		},
+	}
+	teamObserver := &kolide.User{
+		Teams: []kolide.UserTeam{
+			{Team: kolide.Team{ID: 1}, Role: kolide.RoleObserver},
+		},
+	}
+	query := &kolide.Query{}
+	observerQuery := &kolide.Query{ObserverCanRun: true}
+	runTestCases(t, []authTestCase{
+		// No access
+		{user: nil, object: query, action: read, allow: false},
+		{user: nil, object: query, action: write, allow: false},
+		{user: nil, object: query, action: run, allow: false},
+		{user: nil, object: observerQuery, action: read, allow: false},
+		{user: nil, object: observerQuery, action: write, allow: false},
+		{user: nil, object: observerQuery, action: run, allow: false},
+
+		// User can still read queries with no roles
+		{user: test.UserNoRoles, object: query, action: read, allow: true},
+		{user: test.UserNoRoles, object: query, action: write, allow: false},
+		{user: test.UserNoRoles, object: query, action: run, allow: false},
+		{user: test.UserNoRoles, object: observerQuery, action: read, allow: true},
+		{user: test.UserNoRoles, object: observerQuery, action: write, allow: false},
+		{user: test.UserNoRoles, object: query, action: run, allow: false},
+
+		// Global observer can read
+		{user: test.UserObserver, object: query, action: read, allow: true},
+		{user: test.UserObserver, object: query, action: write, allow: false},
+		{user: test.UserObserver, object: query, action: run, allow: false},
+		{user: test.UserObserver, object: observerQuery, action: read, allow: true},
+		{user: test.UserObserver, object: observerQuery, action: write, allow: false},
+		// Can run observer query
+		{user: test.UserObserver, object: observerQuery, action: run, allow: true},
+
+		// Global maintainer can read/write/run
+		{user: test.UserMaintainer, object: query, action: read, allow: true},
+		{user: test.UserMaintainer, object: query, action: write, allow: true},
+		{user: test.UserMaintainer, object: query, action: run, allow: true},
+		{user: test.UserMaintainer, object: observerQuery, action: read, allow: true},
+		{user: test.UserMaintainer, object: observerQuery, action: write, allow: true},
+		{user: test.UserMaintainer, object: observerQuery, action: run, allow: true},
+
+		// Global admin can read/write
+		{user: test.UserAdmin, object: query, action: read, allow: true},
+		{user: test.UserAdmin, object: query, action: write, allow: true},
+		{user: test.UserAdmin, object: query, action: run, allow: true},
+		{user: test.UserAdmin, object: observerQuery, action: read, allow: true},
+		{user: test.UserAdmin, object: observerQuery, action: write, allow: true},
+		{user: test.UserAdmin, object: observerQuery, action: run, allow: true},
+
+		// Team observer read
+		{user: teamObserver, object: query, action: read, allow: true},
+		{user: teamObserver, object: query, action: write, allow: false},
+		{user: teamObserver, object: query, action: run, allow: false},
+		{user: teamObserver, object: observerQuery, action: read, allow: true},
+		{user: teamObserver, object: observerQuery, action: write, allow: false},
+		// Can run observer query
+		{user: teamObserver, object: observerQuery, action: run, allow: true},
+
+		// Team maintainer can read/write
+		{user: teamMaintainer, object: query, action: read, allow: true},
+		{user: teamMaintainer, object: query, action: write, allow: true},
+		{user: teamMaintainer, object: query, action: run, allow: true},
+		{user: teamMaintainer, object: observerQuery, action: read, allow: true},
+		{user: teamMaintainer, object: observerQuery, action: write, allow: true},
+		{user: teamMaintainer, object: observerQuery, action: run, allow: true},
+	})
+}
+
+func TestAuthorizeTargets(t *testing.T) {
+	t.Parallel()
+
+	target := &kolide.Target{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: target, action: read, allow: false},
+
+		// Everyone logged in can retrieve target (filter appropriately for their
+		// access)
+		{user: test.UserNoRoles, object: target, action: read, allow: true},
+		{user: test.UserAdmin, object: target, action: read, allow: true},
+		{user: test.UserMaintainer, object: target, action: read, allow: true},
+		{user: test.UserObserver, object: target, action: read, allow: true},
+	})
+}
+
+func TestAuthorizePacks(t *testing.T) {
+	t.Parallel()
+
+	pack := &kolide.Pack{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: pack, action: read, allow: false},
+		{user: nil, object: pack, action: write, allow: false},
+
+		{user: test.UserNoRoles, object: pack, action: read, allow: false},
+		{user: test.UserNoRoles, object: pack, action: write, allow: false},
+
+		{user: test.UserAdmin, object: pack, action: read, allow: true},
+		{user: test.UserAdmin, object: pack, action: write, allow: true},
+
+		{user: test.UserMaintainer, object: pack, action: read, allow: true},
+		{user: test.UserMaintainer, object: pack, action: write, allow: true},
+
+		{user: test.UserObserver, object: pack, action: read, allow: false},
+		{user: test.UserObserver, object: pack, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeCarves(t *testing.T) {
+	t.Parallel()
+
+	carve := &kolide.CarveMetadata{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: carve, action: read, allow: false},
+		{user: nil, object: carve, action: write, allow: false},
+		{user: test.UserNoRoles, object: carve, action: read, allow: false},
+		{user: test.UserNoRoles, object: carve, action: write, allow: false},
+		{user: test.UserMaintainer, object: carve, action: read, allow: false},
+		{user: test.UserMaintainer, object: carve, action: write, allow: false},
+		{user: test.UserObserver, object: carve, action: read, allow: false},
+		{user: test.UserObserver, object: carve, action: write, allow: false},
+
+		// Only admins allowed
+		{user: test.UserAdmin, object: carve, action: read, allow: true},
+		{user: test.UserAdmin, object: carve, action: write, allow: true},
 	})
 }
 

@@ -12,6 +12,10 @@ import (
 )
 
 func (svc Service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, "write"); err != nil {
+		return nil, err
+	}
+
 	// verify that the user with the given email does not already exist
 	_, err := svc.ds.UserByEmail(*payload.Email)
 	if err == nil {
@@ -86,10 +90,17 @@ func (svc Service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 }
 
 func (svc *Service) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, "read"); err != nil {
+		return nil, err
+	}
 	return svc.ds.ListInvites(opt)
 }
 
 func (svc *Service) VerifyInvite(ctx context.Context, token string) (*kolide.Invite, error) {
+	// skipauth: There is no viewer context at this point. We rely on verifying
+	// the invite for authNZ.
+	svc.authz.SkipAuthorization(ctx)
+
 	invite, err := svc.ds.InviteByToken(token)
 	if err != nil {
 		return nil, err
@@ -109,5 +120,8 @@ func (svc *Service) VerifyInvite(ctx context.Context, token string) (*kolide.Inv
 }
 
 func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, "write"); err != nil {
+		return err
+	}
 	return svc.ds.DeleteInvite(id)
 }

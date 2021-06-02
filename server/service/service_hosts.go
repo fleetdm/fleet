@@ -8,22 +8,44 @@ import (
 )
 
 func (svc Service) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListHosts(opt)
 }
 
 func (svc Service) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+		return nil, err
+	}
+
 	host, err := svc.ds.Host(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host")
+	}
+
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, "read"); err != nil {
+		return nil, err
 	}
 
 	return svc.getHostDetails(ctx, host)
 }
 
 func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*kolide.HostDetail, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+		return nil, err
+	}
+
 	host, err := svc.ds.HostByIdentifier(identifier)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host by identifier")
+	}
+
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, "read"); err != nil {
+		return nil, err
 	}
 
 	return svc.getHostDetails(ctx, host)
@@ -48,6 +70,10 @@ func (svc Service) getHostDetails(ctx context.Context, host *kolide.Host) (*koli
 }
 
 func (svc Service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+		return nil, err
+	}
+
 	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(svc.clock.Now())
 	if err != nil {
 		return nil, err
@@ -61,19 +87,51 @@ func (svc Service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, err
 }
 
 func (svc Service) DeleteHost(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "write"); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.Host(id)
+	if err != nil {
+		return errors.Wrap(err, "get host for delete")
+	}
+
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, "write"); err != nil {
+		return err
+	}
+
 	return svc.ds.DeleteHost(id)
 }
 
 func (svc *Service) FlushSeenHosts(ctx context.Context) error {
+	// No authorization check because this is used only internally.
+
 	hostIDs := svc.seenHostSet.getAndClearHostIDs()
 	return svc.ds.MarkHostsSeen(hostIDs, svc.clock.Now())
 }
 
 func (svc Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	// This is currently treated as a "team write". If we ever give users
+	// besides global admins permissions to modify team hosts, we will need to
+	// check that the user has permissions for both the source and destination
+	// teams.
+	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "write"); err != nil {
+		return err
+	}
+
 	return svc.ds.AddHostsToTeam(teamID, hostIDs)
 }
 
 func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt kolide.HostListOptions, lid *uint) error {
+	// This is currently treated as a "team write". If we ever give users
+	// besides global admins permissions to modify team hosts, we will need to
+	// check that the user has permissions for both the source and destination
+	// teams.
+	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "write"); err != nil {
+		return err
+	}
+
 	if opt.StatusFilter != "" && lid != nil {
 		return kolide.NewInvalidArgumentError("status", "may not be provided with label_id")
 	}
@@ -106,9 +164,17 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+		return err
+	}
+
 	host, err := svc.ds.Host(id)
 	if err != nil {
 		return errors.Wrap(err, "find host for refetch")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, "read"); err != nil {
+		return err
 	}
 
 	host.RefetchRequested = true
