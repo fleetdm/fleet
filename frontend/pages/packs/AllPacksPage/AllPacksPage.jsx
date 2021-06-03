@@ -230,7 +230,7 @@ export class AllPacksPage extends Component {
           <Button
             className={`${btnClass} ${btnClass}--disable`}
             onClick={onBulkAction("disable")}
-            variant="unstyled"
+            variant="text-icon"
           >
             Disable
           </Button>
