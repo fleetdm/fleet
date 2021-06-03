@@ -24,14 +24,17 @@ func (e mailError) Error() string {
 
 func (e mailError) MailError() []map[string]string {
 	return []map[string]string{
-		map[string]string{
+		{
 			"name":   "base",
 			"reason": e.message,
 		},
 	}
 }
 
-func (svc Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (svc *Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+	// skipauth: No user context yet when the app config is first created.
+	svc.authz.SkipAuthorization(ctx)
+
 	config, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, err
@@ -62,10 +65,14 @@ func (svc Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) 
 }
 
 func (svc *Service) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.AppConfig()
 }
 
-func (svc *Service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
+func (svc *Service) sendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return kolide.ErrNoContext
@@ -89,6 +96,10 @@ func (svc *Service) SendTestEmail(ctx context.Context, config *kolide.AppConfig)
 }
 
 func (svc *Service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	oldAppConfig, err := svc.AppConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -98,7 +109,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPaylo
 	if p.SMTPSettings != nil {
 		enabled := p.SMTPSettings.SMTPEnabled
 		if (enabled == nil && oldAppConfig.SMTPConfigured) || (enabled != nil && *enabled) {
-			if err = svc.SendTestEmail(ctx, config); err != nil {
+			if err = svc.sendTestEmail(ctx, config); err != nil {
 				return nil, err
 			}
 			config.SMTPConfigured = true
@@ -241,6 +252,10 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 }
 
 func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.EnrollSecretSpec) error {
+	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	for _, s := range spec.Secrets {
 		if s.Secret == "" {
 			return errors.New("enroll secret must not be empty")
@@ -251,6 +266,10 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.Enro
 }
 
 func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecretSpec, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	secrets, err := svc.ds.GetEnrollSecrets(nil)
 	if err != nil {
 		return nil, err
@@ -259,10 +278,29 @@ func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecr
 }
 
 func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	info := version.Version()
 	return &info, nil
 }
 
 func (svc *Service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return &svc.license, nil
+}
+
+func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
+	users, err := svc.ds.ListUsers(kolide.UserListOptions{ListOptions: kolide.ListOptions{Page: 0, PerPage: 1}})
+	if err != nil {
+		return false, err
+	}
+	if len(users) == 0 {
+		return true, nil
+	}
+	return false, nil
 }

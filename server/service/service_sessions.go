@@ -16,7 +16,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error) {
+func (svc *Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error) {
+	// skipauth: Basic SSO settings are available to unauthenticated users (so
+	// that they have the necessary information to initiate SSO).
+	svc.authz.SkipAuthorization(ctx)
+
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "SSOSettings getting app config")
@@ -30,6 +34,10 @@ func (svc Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error)
 }
 
 func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// initiate SSO.
+	svc.authz.SkipAuthorization(ctx)
+
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return "", errors.Wrap(err, "InitiateSSO getting app config")
@@ -86,6 +94,10 @@ func (svc *Service) getMetadata(config *kolide.AppConfig) (*sso.Metadata, error)
 }
 
 func (svc *Service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.SSOSession, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// hit the SSO callback.
+	svc.authz.SkipAuthorization(ctx)
+
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "get config for sso")
@@ -157,6 +169,9 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.
 }
 
 func (svc *Service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {
+	// skipauth: No user context available yet to authorize against.
+	svc.authz.SkipAuthorization(ctx)
+
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
 	// take ~1s and frustrate a timing attack.
@@ -227,7 +242,10 @@ func (svc *Service) makeSession(id uint) (string, error) {
 }
 
 func (svc *Service) Logout(ctx context.Context) error {
-	// this should not return an error if the user wasn't logged in
+	// skipauth: Any user can always log out of their own session.
+	svc.authz.SkipAuthorization(ctx)
+
+	// TODO: this should not return an error if the user wasn't logged in
 	return svc.DestroySession(ctx)
 }
 
@@ -242,10 +260,18 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 		return err
 	}
 
+	if err := svc.authz.Authorize(ctx, session, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DestroySession(session)
 }
 
 func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	var validatedSessions []*kolide.Session
 
 	sessions, err := svc.ds.ListSessionsForUser(id)
@@ -263,12 +289,20 @@ func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([
 }
 
 func (svc *Service) DeleteSessionsForUser(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DestroyAllSessionsForUser(id)
 }
 
 func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Session, error) {
 	session, err := svc.ds.SessionByID(id)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -299,6 +333,11 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 	if err != nil {
 		return err
 	}
+
+	if err := svc.authz.Authorize(ctx, session, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DestroySession(session)
 }
 

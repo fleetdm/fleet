@@ -33,14 +33,23 @@ type UserStore interface {
 type UserService interface {
 	// CreateUserWithInvite creates a new User from a request payload when there is
 	// already an existing invitation.
-	CreateUserWithInvite(ctx context.Context, p UserPayload) (user *User, err error)
+	CreateUserFromInvite(ctx context.Context, p UserPayload) (user *User, err error)
 
 	// CreateUser allows an admin to create a new user without first creating
 	// and validating invite tokens.
 	CreateUser(ctx context.Context, p UserPayload) (user *User, err error)
 
+	// CreateInitialUser creates the first user, skipping authorization checks.
+	// If a user already exists this method should fail.
+	CreateInitialUser(ctx context.Context, p UserPayload) (user *User, err error)
+
 	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
+
+	// UserUnauthorized returns a valid User given a User ID, *skipping authorization checks*
+	//
+	// This method should only be used in middleware where there is not yet a viewer context and we need to load up a user to create that context.
+	UserUnauthorized(ctx context.Context, id uint) (user *User, err error)
 
 	// AuthenticatedUser returns the current user from the viewer context.
 	AuthenticatedUser(ctx context.Context) (user *User, err error)
@@ -76,9 +85,6 @@ type UserService interface {
 	// ModifyUser updates a user's parameters given a UserPayload.
 	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
 
-	// ChangeUserAdmin is used to modify the admin state of the user identified by id.
-	ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*User, error)
-
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) error
 
@@ -107,6 +113,10 @@ type User struct {
 	Teams []UserTeam `json:"teams"`
 }
 
+func (u *User) AuthzType() string {
+	return "user"
+}
+
 type UserTeam struct {
 	// Team is the team object.
 	Team
@@ -127,7 +137,6 @@ type UserPayload struct {
 	Username                 *string     `json:"username,omitempty"`
 	Name                     *string     `json:"name,omitempty"`
 	Email                    *string     `json:"email,omitempty"`
-	Admin                    *bool       `json:"admin,omitempty"`
 	Password                 *string     `json:"password,omitempty"`
 	GravatarURL              *string     `json:"gravatar_url,omitempty"`
 	Position                 *string     `json:"position,omitempty"`

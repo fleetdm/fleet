@@ -58,6 +58,10 @@ type CarveMetadata struct {
 	MaxBlock int64 `json:"max_block" db:"max_block"`
 }
 
+func (c CarveMetadata) AuthzType() string {
+	return "carve"
+}
+
 func (m *CarveMetadata) BlocksComplete() bool {
 	return m.MaxBlock == m.BlockCount-1
 }

@@ -7,7 +7,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc Service) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSpec) error {
+func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSpec) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	for _, spec := range specs {
 		if spec.LabelMembershipType == kolide.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
 			return errors.Errorf("label %s is declared as dynamic but contains `hosts` key", spec.Name)
@@ -20,15 +24,27 @@ func (svc Service) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSpe
 	return svc.ds.ApplyLabelSpecs(specs)
 }
 
-func (svc Service) GetLabelSpecs(ctx context.Context) ([]*kolide.LabelSpec, error) {
+func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*kolide.LabelSpec, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.GetLabelSpecs()
 }
 
-func (svc Service) GetLabelSpec(ctx context.Context, name string) (*kolide.LabelSpec, error) {
+func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*kolide.LabelSpec, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.GetLabelSpec(name)
 }
 
-func (svc Service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide.Label, error) {
+func (svc *Service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide.Label, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	label := &kolide.Label{}
 
 	if p.Name == nil {
@@ -56,7 +72,11 @@ func (svc Service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide
 	return label, nil
 }
 
-func (svc Service) ModifyLabel(ctx context.Context, id uint, payload kolide.ModifyLabelPayload) (*kolide.Label, error) {
+func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload kolide.ModifyLabelPayload) (*kolide.Label, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	label, err := svc.ds.Label(id)
 	if err != nil {
 		return nil, err
@@ -70,19 +90,35 @@ func (svc Service) ModifyLabel(ctx context.Context, id uint, payload kolide.Modi
 	return svc.ds.SaveLabel(label)
 }
 
-func (svc Service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
+func (svc *Service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListLabels(opt)
 }
 
-func (svc Service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error) {
+func (svc *Service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.Label(id)
 }
 
-func (svc Service) DeleteLabel(ctx context.Context, name string) error {
+func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DeleteLabel(name)
 }
 
-func (svc Service) DeleteLabelByID(ctx context.Context, id uint) error {
+func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	label, err := svc.ds.Label(id)
 	if err != nil {
 		return err
@@ -90,22 +126,18 @@ func (svc Service) DeleteLabelByID(ctx context.Context, id uint) error {
 	return svc.ds.DeleteLabel(label.Name)
 }
 
-func (svc Service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListHostsInLabel(lid, opt)
 }
 
-func (svc Service) ListLabelsForHost(ctx context.Context, hid uint) ([]*kolide.Label, error) {
-	return svc.ds.ListLabelsForHost(hid)
-}
-
-func (svc *Service) HostIDsForLabel(lid uint) ([]uint, error) {
-	hosts, err := svc.ds.ListHostsInLabel(lid, kolide.HostListOptions{})
-	if err != nil {
+func (svc *Service) ListLabelsForHost(ctx context.Context, hid uint) ([]*kolide.Label, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
-	var ids []uint
-	for _, h := range hosts {
-		ids = append(ids, h.ID)
-	}
-	return ids, nil
+
+	return svc.ds.ListLabelsForHost(hid)
 }

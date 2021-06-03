@@ -45,7 +45,6 @@ func (mw loggingMiddleware) NewDistributedQueryCampaignByNames(ctx context.Conte
 		err          error
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
-
 		loggedInUser = vc.Username()
 	}
 	defer func(begin time.Time) {

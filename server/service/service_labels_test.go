@@ -1,23 +1,19 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetLabel(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
-
-	svc, err := newTestService(ds, nil, nil)
-	assert.Nil(t, err)
-
-	ctx := context.Background()
+	svc := newTestService(ds, nil, nil)
 
 	label := &kolide.Label{
 		Name:  "foo",
@@ -27,7 +23,7 @@ func TestGetLabel(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotZero(t, label.ID)
 
-	labelVerify, err := svc.GetLabel(ctx, label.ID)
+	labelVerify, err := svc.GetLabel(test.UserContext(test.UserAdmin), label.ID)
 	assert.Nil(t, err)
 	assert.Equal(t, label.ID, labelVerify.ID)
 }

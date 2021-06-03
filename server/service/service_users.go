@@ -10,10 +10,15 @@ import (
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mail"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/pkg/errors"
 )
 
-func (svc Service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (svc *Service) CreateUserFromInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+	// skipauth: There is no viewer context at this point. We rely on verifying
+	// the invite for authNZ.
+	svc.authz.SkipAuthorization(ctx)
+
 	invite, err := svc.VerifyInvite(ctx, *p.InviteToken)
 	if err != nil {
 		return nil, err
@@ -35,11 +40,35 @@ func (svc Service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayloa
 	return user, nil
 }
 
-func (svc Service) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (svc *Service) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.User{}, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	return svc.newUser(p)
 }
 
-func (svc Service) newUser(p kolide.UserPayload) (*kolide.User, error) {
+func (svc *Service) CreateInitialUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+	// skipauth: Only the initial user creation should be allowed to skip
+	// authorization (because there is not yet a user context to check against).
+	svc.authz.SkipAuthorization(ctx)
+
+	setupRequired, err := svc.SetupRequired(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !setupRequired {
+		return nil, errors.New("a user already exists")
+	}
+
+	// Initial user should be global admin with no explicit teams
+	p.GlobalRole = ptr.String(kolide.RoleAdmin)
+	p.Teams = nil
+
+	return svc.newUser(p)
+}
+
+func (svc *Service) newUser(p kolide.UserPayload) (*kolide.User, error) {
 	var ssoEnabled bool
 	// if user is SSO generate a fake password
 	if (p.SSOInvite != nil && *p.SSOInvite) || (p.SSOEnabled != nil && *p.SSOEnabled) {
@@ -68,6 +97,16 @@ func (svc *Service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) 
 }
 
 func (svc *Service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if p.GlobalRole != nil || p.Teams != nil {
+		if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, kolide.ActionWriteRole); err != nil {
+			return nil, err
+		}
+	}
+
 	user, err := svc.User(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -156,6 +195,10 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *kolide.User, e
 }
 
 func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: id}, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DeleteUser(id)
 }
 
@@ -164,10 +207,24 @@ func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, 
 	if !ok {
 		return "", kolide.ErrNoContext
 	}
+
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: vc.UserID()}, kolide.ActionWrite); err != nil {
+		return "", err
+	}
+
 	return svc.ds.ConfirmPendingEmailChange(vc.UserID(), token)
 }
 
 func (svc *Service) User(ctx context.Context, id uint) (*kolide.User, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: id}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.UserByID(id)
+}
+
+func (svc *Service) UserUnauthorized(ctx context.Context, id uint) (*kolide.User, error) {
+	// Explicitly no authorization check. Should only be used by middleware.
 	return svc.ds.UserByID(id)
 }
 
@@ -176,6 +233,11 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*kolide.User, error)
 	if !ok {
 		return nil, kolide.ErrNoContext
 	}
+
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: vc.UserID()}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	if !vc.IsLoggedIn() {
 		return nil, kolide.NewPermissionError("not logged in")
 	}
@@ -183,6 +245,10 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*kolide.User, error)
 }
 
 func (svc *Service) ListUsers(ctx context.Context, opt kolide.UserListOptions) ([]*kolide.User, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.User{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListUsers(opt)
 }
 
@@ -210,6 +276,11 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 	if !ok {
 		return kolide.ErrNoContext
 	}
+
+	if err := svc.authz.Authorize(ctx, vc.User, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	if vc.User.SSOEnabled {
 		return errors.New("change password for single sign on user not allowed")
 	}
@@ -236,6 +307,11 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	if err != nil {
 		return errors.Wrap(err, "retrieving user")
 	}
+
+	if err := svc.authz.Authorize(ctx, user, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	if user.SSOEnabled {
 		return errors.New("password reset for single sign on user not allowed")
 	}
@@ -270,6 +346,11 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 		return nil, kolide.ErrNoContext
 	}
 	user := vc.User
+
+	if err := svc.authz.Authorize(ctx, user, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	if user.SSOEnabled {
 		return nil, errors.New("password reset for single sign on user not allowed")
 	}
@@ -295,6 +376,10 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 }
 
 func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*kolide.User, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: uid}, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	user, err := svc.ds.UserByID(uid)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading user by ID")
@@ -319,6 +404,10 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 }
 
 func (svc *Service) RequestPasswordReset(ctx context.Context, email string) error {
+	// skipauth: No viewer context available. The user is locked out of their
+	// account and trying to reset their password.
+	svc.authz.SkipAuthorization(ctx)
+
 	// Regardless of error, sleep until the request has taken at least 1 second.
 	// This means that any request to this method will take ~1s and frustrate a timing attack.
 	defer func(start time.Time) {

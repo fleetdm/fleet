@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
@@ -33,7 +34,6 @@ type KolideEndpoints struct {
 	ListUsers                             endpoint.Endpoint
 	ModifyUser                            endpoint.Endpoint
 	DeleteUser                            endpoint.Endpoint
-	AdminUser                             endpoint.Endpoint
 	RequirePasswordReset                  endpoint.Endpoint
 	PerformRequiredPasswordReset          endpoint.Endpoint
 	GetSessionsForUserInfo                endpoint.Endpoint
@@ -127,7 +127,8 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 	limiter := ratelimit.NewMiddleware(limitStore)
 
 	return KolideEndpoints{
-		Login: limiter.Limit(throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
+		Login: limiter.Limit(
+			throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
 			makeLoginEndpoint(svc),
 		),
 		Logout: makeLogoutEndpoint(svc),
@@ -136,7 +137,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 			makeForgotPasswordEndpoint(svc),
 		),
 		ResetPassword:        makeResetPasswordEndpoint(svc),
-		CreateUserWithInvite: makeCreateUserWithInviteEndpoint(svc),
+		CreateUserWithInvite: makeCreateUserFromInviteEndpoint(svc),
 		VerifyInvite:         makeVerifyInviteEndpoint(svc),
 		InitiateSSO:          makeInitiateSSOEndpoint(svc),
 		CallbackSSO:          makeCallbackSSOEndpoint(svc, urlPrefix),
@@ -155,7 +156,6 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		ListUsers:            authenticatedUser(jwtKey, svc, canPerformActions(makeListUsersEndpoint(svc))),
 		ModifyUser:           authenticatedUser(jwtKey, svc, canModifyUser(makeModifyUserEndpoint(svc))),
 		DeleteUser:           authenticatedUser(jwtKey, svc, canModifyUser(makeDeleteUserEndpoint(svc))),
-		AdminUser:            authenticatedUser(jwtKey, svc, mustBeAdmin(makeAdminUserEndpoint(svc))),
 		RequirePasswordReset: authenticatedUser(jwtKey, svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
 		CreateUser:           authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateUserEndpoint(svc))),
 		// PerformRequiredPasswordReset needs only to authenticate the
@@ -265,7 +265,6 @@ type kolideHandlers struct {
 	ListUsers                             http.Handler
 	ModifyUser                            http.Handler
 	DeleteUser                            http.Handler
-	AdminUser                             http.Handler
 	RequirePasswordReset                  http.Handler
 	PerformRequiredPasswordReset          http.Handler
 	GetSessionsForUserInfo                http.Handler
@@ -356,6 +355,7 @@ type kolideHandlers struct {
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
 	newServer := func(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc) http.Handler {
+		e = authzcheck.NewMiddleware().AuthzCheck()(e)
 		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
 	return &kolideHandlers{
@@ -373,7 +373,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		DeleteUser:                            newServer(e.DeleteUser, decodeDeleteUserRequest),
 		RequirePasswordReset:                  newServer(e.RequirePasswordReset, decodeRequirePasswordResetRequest),
 		PerformRequiredPasswordReset:          newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		AdminUser:                             newServer(e.AdminUser, decodeAdminUserRequest),
 		GetSessionsForUserInfo:                newServer(e.GetSessionsForUserInfo, decodeGetInfoAboutSessionsForUserRequest),
 		DeleteSessionsForUser:                 newServer(e.DeleteSessionsForUser, decodeDeleteSessionsForUserRequest),
 		GetSessionInfo:                        newServer(e.GetSessionInfo, decodeGetInfoAboutSessionRequest),
@@ -469,6 +468,10 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	// get the request path
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(kitlog.With(h.logger, "path", path))
+
+	if e, ok := err.(kolide.ErrWithInternal); ok {
+		logger = kitlog.With(logger, "internal", e.Internal())
+	}
 
 	switch e := err.(type) {
 	case ratelimit.Error:
@@ -591,7 +594,6 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/users/{id}", h.GetUser).Methods("GET").Name("get_user")
 	r.Handle("/api/v1/fleet/users/{id}", h.ModifyUser).Methods("PATCH").Name("modify_user")
 	r.Handle("/api/v1/fleet/users/{id}", h.DeleteUser).Methods("DELETE").Name("delete_user")
-	r.Handle("/api/v1/fleet/users/{id}/admin", h.AdminUser).Methods("POST").Name("admin_user")
 	r.Handle("/api/v1/fleet/users/{id}/require_password_reset", h.RequirePasswordReset).Methods("POST").Name("require_password_reset")
 	r.Handle("/api/v1/fleet/users/{id}/sessions", h.GetSessionsForUserInfo).Methods("GET").Name("get_session_for_user")
 	r.Handle("/api/v1/fleet/users/{id}/sessions", h.DeleteSessionsForUser).Methods("DELETE").Name("delete_session_for_user")
@@ -705,7 +707,7 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 			next.ServeHTTP(w, r)
 			return
 		}
-		requireSetup, err := RequireSetup(svc)
+		requireSetup, err := svc.SetupRequired(context.Background())
 		if err != nil {
 			logger.Log("msg", "fetching setup info from db", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -733,7 +735,7 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
 		})
 
-		setupRequired, err := RequireSetup(svc)
+		setupRequired, err := svc.SetupRequired(context.Background())
 		if err != nil {
 			logger.Log("msg", "fetching setupinfo from db", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -745,19 +747,6 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 		}
 		RedirectSetupToLogin(svc, logger, next, urlPrefix).ServeHTTP(w, r)
 	}
-}
-
-// RequireSetup checks to see if the service has been setup.
-func RequireSetup(svc kolide.Service) (bool, error) {
-	ctx := context.Background()
-	users, err := svc.ListUsers(ctx, kolide.UserListOptions{ListOptions: kolide.ListOptions{Page: 0, PerPage: 1}})
-	if err != nil {
-		return false, err
-	}
-	if len(users) == 0 {
-		return true, nil
-	}
-	return false, nil
 }
 
 // RedirectSetupToLogin forces the /setup path to be redirected to login. This middleware is used after

@@ -81,3 +81,7 @@ type Target struct {
 	Type     TargetType
 	TargetID uint
 }
+
+func (t Target) AuthzType() string {
+	return "target"
+}

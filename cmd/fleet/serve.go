@@ -303,7 +303,7 @@ the way that the Fleet server works.
 				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
-				setupRequired, err := service.RequireSetup(svc)
+				setupRequired, err := svc.SetupRequired(context.Background())
 				if err != nil {
 					initFatal(err, "fetching setup requirement")
 				}

@@ -78,10 +78,6 @@ type LabelService interface {
 
 	// LabelsForHost returns the labels that the given host is in.
 	ListLabelsForHost(ctx context.Context, hid uint) ([]*Label, error)
-
-	// HostIDsForLabel returns ids of hosts that belong to the label identified
-	// by lid
-	HostIDsForLabel(lid uint) ([]uint, error)
 }
 
 // ModifyLabelPayload is used to change editable fields for a Label
@@ -175,6 +171,10 @@ type Label struct {
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`
+}
+
+func (l Label) AuthzType() string {
+	return "label"
 }
 
 const (

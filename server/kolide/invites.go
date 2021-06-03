@@ -68,3 +68,7 @@ type Invite struct {
 	GlobalRole null.String `json:"global_role" db:"global_role"`
 	Teams      []UserTeam  `json:"teams"`
 }
+
+func (i Invite) AuthzType() string {
+	return "invite"
+}

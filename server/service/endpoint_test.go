@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/fleetdm/fleet/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/store/memstore"
@@ -29,7 +28,7 @@ type endpointService struct {
 	kolide.Service
 }
 
-func (svc endpointService) SendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
+func (svc endpointService) sendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
 	return nil
 }
 func setupEndpointTest(t *testing.T) *testResource {
@@ -50,7 +49,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 		SMTPEnableStartTLS:     true,
 	}
 	test.ds.NewAppConfig(devOrgInfo)
-	svc, _ := newTestService(test.ds, nil, nil)
+	svc := newTestService(test.ds, nil, nil)
 	svc = endpointService{svc}
 	createTestUsers(t, test.ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
@@ -91,20 +90,4 @@ func setupEndpointTest(t *testing.T) *testResource {
 	test.userToken = jsn.Token
 
 	return test
-}
-
-var testFunctions = [...]func(*testing.T, *testResource){
-	testGetAppConfig,
-	testModifyAppConfig,
-	testModifyAppConfigWithValidationFail,
-}
-
-func TestEndpoints(t *testing.T) {
-	for _, f := range testFunctions {
-		r := setupEndpointTest(t)
-		defer r.server.Close()
-		t.Run(test.FunctionName(f), func(t *testing.T) {
-			f(t, r)
-		})
-	}
 }

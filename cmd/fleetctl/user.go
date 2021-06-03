@@ -73,7 +73,6 @@ func createUserCommand() *cli.Command {
 			username := c.String(usernameFlagName)
 			password := c.String(passwordFlagName)
 			email := c.String(emailFlagName)
-			admin := c.Bool(adminFlagName)
 			sso := c.Bool(ssoFlagName)
 
 			if sso && len(password) > 0 {
@@ -111,7 +110,6 @@ func createUserCommand() *cli.Command {
 				Username:                 &username,
 				Password:                 &password,
 				Email:                    &email,
-				Admin:                    &admin,
 				SSOEnabled:               &sso,
 				AdminForcedPasswordReset: &force_reset,
 			})

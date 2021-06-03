@@ -47,8 +47,7 @@ func TestEnrollAgent(t *testing.T) {
 		}, nil
 	}
 
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	nodeKey, err := svc.EnrollAgent(context.Background(), "valid_secret", "host123", nil)
 	require.Nil(t, err)
@@ -66,8 +65,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 		}
 	}
 
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	nodeKey, err := svc.EnrollAgent(context.Background(), "not_correct", "host123", nil)
 	assert.NotNil(t, err)
@@ -90,8 +88,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		return nil
 	}
 
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	details := map[string](map[string]string){
 		"osquery_info": {"version": "2.12.0"},
@@ -118,8 +115,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.NoError(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	var gotKey string
 	host := kolide.Host{ID: 1, HostName: "foobar"}
@@ -133,7 +129,7 @@ func TestAuthenticateHost(t *testing.T) {
 		return nil
 	}
 
-	_, err = svc.AuthenticateHost(context.Background(), "test")
+	_, err := svc.AuthenticateHost(context.Background(), "test")
 	require.Nil(t, err)
 	assert.Equal(t, "test", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
@@ -163,14 +159,13 @@ func TestAuthenticateHost(t *testing.T) {
 
 func TestAuthenticateHostFailure(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	ds.AuthenticateHostFunc = func(key string) (*kolide.Host, error) {
 		return nil, errors.New("not found")
 	}
 
-	_, err = svc.AuthenticateHost(context.Background(), "test")
+	_, err := svc.AuthenticateHost(context.Background(), "test")
 	require.NotNil(t, err)
 }
 
@@ -185,8 +180,7 @@ func (n *testJSONLogger) Write(ctx context.Context, logs []json.RawMessage) erro
 
 func TestSubmitStatusLogs(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
@@ -201,7 +195,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
 
 	var status []json.RawMessage
-	err = json.Unmarshal([]byte(logJSON), &status)
+	err := json.Unmarshal([]byte(logJSON), &status)
 	require.Nil(t, err)
 
 	host := kolide.Host{}
@@ -214,8 +208,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 
 func TestSubmitResultLogs(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
@@ -234,7 +227,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
 
 	var results []json.RawMessage
-	err = json.Unmarshal([]byte(logJSON), &results)
+	err := json.Unmarshal([]byte(logJSON), &results)
 	require.Nil(t, err)
 
 	host := kolide.Host{}
@@ -300,10 +293,9 @@ func TestHostDetailQueries(t *testing.T) {
 }
 
 func TestGetDistributedQueriesMissingHost(t *testing.T) {
-	svc, err := newTestService(&mock.Store{}, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(&mock.Store{}, nil, nil)
 
-	_, _, err = svc.GetDistributedQueries(context.Background())
+	_, _, err := svc.GetDistributedQueries(context.Background())
 	require.NotNil(t, err)
 	assert.Contains(t, err.Error(), "missing host")
 }
@@ -312,8 +304,7 @@ func TestLabelQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	lq := new(live_query.MockLiveQuery)
-	svc, err := newTestServiceWithClock(ds, nil, lq, mockClock)
-	require.Nil(t, err)
+	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
 	host := &kolide.Host{
 		Platform: "darwin",
@@ -449,8 +440,7 @@ func TestGetClientConfig(t *testing.T) {
 		return nil
 	}
 
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	ctx1 := hostctx.NewContext(context.Background(), kolide.Host{ID: 1})
 	ctx2 := hostctx.NewContext(context.Background(), kolide.Host{ID: 2})
@@ -526,8 +516,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()
 	lq := new(live_query.MockLiveQuery)
-	svc, err := newTestServiceWithClock(ds, nil, lq, mockClock)
-	require.Nil(t, err)
+	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
 	host := kolide.Host{Platform: "windows"}
 	ctx := hostctx.NewContext(context.Background(), host)
@@ -698,8 +687,7 @@ func TestDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()
 	lq := new(live_query.MockLiveQuery)
-	svc, err := newTestServiceWithClock(ds, nil, lq, mockClock)
-	require.Nil(t, err)
+	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
 	host := kolide.Host{Platform: "linux"}
 	ctx := hostctx.NewContext(context.Background(), host)
@@ -1140,8 +1128,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	}
 	lq := &live_query.MockLiveQuery{}
 	mockClock := clock.NewMockClock()
-	svc, err := newTestServiceWithClock(ds, rs, lq, mockClock)
-	require.Nil(t, err)
+	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
 
 	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1206,8 +1193,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc, err := newTestServiceWithClock(ds, rs, lq, mockClock)
-	require.Nil(t, err)
+	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
 
 	campaign := &kolide.DistributedQueryCampaign{ID: 42}
 
@@ -1549,8 +1535,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 func TestUpdateHostIntervals(t *testing.T) {
 	ds := new(mock.Store)
 
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	ds.ListPacksForHostFunc = func(hid uint) ([]*kolide.Pack, error) {
 		return []*kolide.Pack{}, nil
@@ -1710,11 +1695,10 @@ func TestAuthenticationErrors(t *testing.T) {
 		return nil, nil
 	}
 
-	svc, err := newTestService(ms, nil, nil)
-	require.NoError(t, err)
+	svc := newTestService(ms, nil, nil)
 	ctx := context.Background()
 
-	_, err = svc.AuthenticateHost(ctx, "")
+	_, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
 	require.True(t, err.(osqueryError).NodeInvalid())
 

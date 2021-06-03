@@ -43,6 +43,9 @@ func emptyToZero(val string) string {
 }
 
 func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolide.Host, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	if nodeKey == "" {
 		return nil, osqueryError{
 			message:     "authentication error: missing node key",
@@ -78,6 +81,9 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 }
 
 func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	secret, err := svc.ds.VerifyEnrollSecret(enrollSecret)
 	if err != nil {
 		return "", osqueryError{
@@ -192,6 +198,9 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 }
 
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
@@ -301,6 +310,9 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing status logs: " + err.Error()}
 	}
@@ -308,6 +320,9 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 }
 
 func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing result logs: " + err.Error()}
 	}
@@ -902,6 +917,9 @@ func (svc *Service) hostDetailQueries(host kolide.Host) (map[string]string, erro
 }
 
 func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
@@ -1046,6 +1064,9 @@ func (svc *Service) ingestDistributedQuery(host kolide.Host, name string, rows [
 }
 
 func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus, messages map[string]string) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 
 	if !ok {

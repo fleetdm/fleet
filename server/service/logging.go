@@ -21,7 +21,7 @@ func NewLoggingService(svc kolide.Service, logger kitlog.Logger) kolide.Service 
 func (mw loggingMiddleware) loggerDebug(err error) kitlog.Logger {
 	logger := mw.logger
 	if e, ok := err.(kolide.ErrWithInternal); ok {
-		logger = kitlog.With(logger, "err_internal", e.Internal())
+		logger = kitlog.With(logger, "internal", e.Internal())
 	}
 	if err != nil {
 		return level.Info(logger)
@@ -33,7 +33,7 @@ func (mw loggingMiddleware) loggerDebug(err error) kitlog.Logger {
 func (mw loggingMiddleware) loggerInfo(err error) kitlog.Logger {
 	logger := mw.logger
 	if e, ok := err.(kolide.ErrWithInternal); ok {
-		logger = kitlog.With(logger, "err_internal", e.Internal())
+		logger = kitlog.With(logger, "internal", e.Internal())
 	}
 	return level.Info(logger)
 }

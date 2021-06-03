@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/server/authz"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/logging"
@@ -34,6 +35,8 @@ type Service struct {
 	ssoSessionStore sso.SessionStore
 
 	seenHostSet *seenHostSet
+
+	authz *authz.Authorizer
 }
 
 // NewService creates a new service from the config struct
@@ -46,6 +49,11 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 	osqueryLogger, err := logging.New(config, logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing osquery logging")
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	if err != nil {
+		return nil, errors.Wrap(err, "new authorizer")
 	}
 
 	svc = &Service{
@@ -61,6 +69,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 		ssoSessionStore:  sso,
 		seenHostSet:      newSeenHostSet(),
 		license:          license,
+		authz:            authorizer,
 	}
 	svc = validationMiddleware{svc, ds, sso}
 	return svc, nil
