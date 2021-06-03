@@ -9,7 +9,7 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
-func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (mw validationMiddleware) CreateUserFromInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	invalid := &kolide.InvalidArgumentError{}
 	if p.Username == nil {
 		invalid.Append("username", "missing required argument")
@@ -52,7 +52,7 @@ func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolid
 	if invalid.HasErrors() {
 		return nil, invalid
 	}
-	return mw.Service.CreateUserWithInvite(ctx, p)
+	return mw.Service.CreateUserFromInvite(ctx, p)
 }
 
 func (mw validationMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {

@@ -8,37 +8,6 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
-func (mw loggingMiddleware) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {
-	var (
-		loggedInUser = "unauthenticated"
-		userName     = "none"
-		err          error
-		user         *kolide.User
-	)
-
-	vc, ok := viewer.FromContext(ctx)
-	if ok {
-		loggedInUser = vc.Username()
-	}
-
-	defer func(begin time.Time) {
-		_ = mw.loggerInfo(err).Log(
-			"method", "ChangeUserAdmin",
-			"user", userName,
-			"changed_by", loggedInUser,
-			"admin", isAdmin,
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	user, err = mw.Service.ChangeUserAdmin(ctx, id, isAdmin)
-	if user != nil {
-		userName = user.Username
-	}
-	return user, err
-}
-
 func (mw loggingMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user         *kolide.User
@@ -120,7 +89,7 @@ func (mw loggingMiddleware) RequirePasswordReset(ctx context.Context, uid uint, 
 
 }
 
-func (mw loggingMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (mw loggingMiddleware) CreateUserFromInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user         *kolide.User
 		err          error
@@ -135,7 +104,7 @@ func (mw loggingMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.U
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
-			"method", "CreateUserWithInvite",
+			"method", "CreateUserFromInvite",
 			"user", username,
 			"created_by", loggedInUser,
 			"err", err,
@@ -143,7 +112,7 @@ func (mw loggingMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.U
 		)
 	}(time.Now())
 
-	user, err = mw.Service.CreateUserWithInvite(ctx, p)
+	user, err = mw.Service.CreateUserFromInvite(ctx, p)
 
 	if user != nil {
 		username = user.Username

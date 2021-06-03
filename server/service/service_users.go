@@ -10,10 +10,11 @@ import (
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mail"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/pkg/errors"
 )
 
-func (svc *Service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (svc *Service) CreateUserFromInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	// skipauth: There is no viewer context at this point. We rely on verifying
 	// the invite for authNZ.
 	svc.authz.SkipAuthorization(ctx)
@@ -52,13 +53,17 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p kolide.UserPayload)
 	// authorization (because there is not yet a user context to check against).
 	svc.authz.SkipAuthorization(ctx)
 
-	users, err := svc.ds.ListUsers(kolide.UserListOptions{ListOptions: kolide.ListOptions{Page: 0, PerPage: 1}})
+	setupRequired, err := svc.SetupRequired(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(users) != 0 {
+	if !setupRequired {
 		return nil, errors.New("a user already exists")
 	}
+
+	// Initial user should be global admin with no explicit teams
+	p.GlobalRole = ptr.String(kolide.RoleAdmin)
+	p.Teams = nil
 
 	return svc.newUser(p)
 }

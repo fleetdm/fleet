@@ -290,7 +290,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 	}
 // }
 
-// func TestCreateUserWithInvite(t *testing.T) {
+// func TestCreateUserFromInvite(t *testing.T) {
 // 	ds, _ := inmem.New(config.TestConfig())
 // 	svc, _ := newTestService(ds, nil, nil)
 // 	invites := setupInvites(t, ds, []string{"admin2@example.com", "admin3@example.com"})
@@ -357,7 +357,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 				Email:       tt.Email,
 // 				InviteToken: tt.InviteToken,
 // 			}
-// 			user, err := svc.CreateUserWithInvite(ctx, payload)
+// 			user, err := svc.CreateUserFromInvite(ctx, payload)
 // 			if tt.wantErr != nil {
 // 				require.Error(t, err)
 // 				assert.Equal(t, tt.wantErr.Error(), err.Error())

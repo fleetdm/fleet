@@ -33,7 +33,7 @@ type UserStore interface {
 type UserService interface {
 	// CreateUserWithInvite creates a new User from a request payload when there is
 	// already an existing invitation.
-	CreateUserWithInvite(ctx context.Context, p UserPayload) (user *User, err error)
+	CreateUserFromInvite(ctx context.Context, p UserPayload) (user *User, err error)
 
 	// CreateUser allows an admin to create a new user without first creating
 	// and validating invite tokens.
@@ -84,9 +84,6 @@ type UserService interface {
 
 	// ModifyUser updates a user's parameters given a UserPayload.
 	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
-
-	// ChangeUserAdmin is used to modify the admin state of the user identified by id.
-	ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*User, error)
 
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) error
@@ -140,7 +137,6 @@ type UserPayload struct {
 	Username                 *string     `json:"username,omitempty"`
 	Name                     *string     `json:"name,omitempty"`
 	Email                    *string     `json:"email,omitempty"`
-	Admin                    *bool       `json:"admin,omitempty"`
 	Password                 *string     `json:"password,omitempty"`
 	GravatarURL              *string     `json:"gravatar_url,omitempty"`
 	Position                 *string     `json:"position,omitempty"`

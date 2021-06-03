@@ -23,10 +23,10 @@ type createUserResponse struct {
 
 func (r createUserResponse) error() error { return r.Err }
 
-func makeCreateUserWithInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCreateUserFromInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createUserRequest)
-		user, err := svc.CreateUserWithInvite(ctx, req.payload)
+		user, err := svc.CreateUserFromInvite(ctx, req.payload)
 		if err != nil {
 			return createUserResponse{Err: err}, nil
 		}
@@ -72,29 +72,6 @@ func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getUserResponse{Err: err}, nil
 		}
 		return getUserResponse{User: user}, nil
-	}
-}
-
-type adminUserRequest struct {
-	ID    uint `json:"id"`
-	Admin bool `json:"admin"`
-}
-
-type adminUserResponse struct {
-	User *kolide.User `json:"user,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r adminUserResponse) error() error { return r.Err }
-
-func makeAdminUserEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(adminUserRequest)
-		user, err := svc.ChangeUserAdmin(ctx, req.ID, req.Admin)
-		if err != nil {
-			return adminUserResponse{Err: err}, nil
-		}
-		return adminUserResponse{User: user}, nil
 	}
 }
 

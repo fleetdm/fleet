@@ -8,35 +8,19 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
-func (mw metricsMiddleware) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {
+func (mw metricsMiddleware) CreateUserFromInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user *kolide.User
 		err  error
 	)
 
 	defer func(begin time.Time) {
-		lvs := []string{"method", "ChangeUserAdmin", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "CreateUserFromInvite", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	user, err = mw.Service.ChangeUserAdmin(ctx, id, isAdmin)
-	return user, err
-}
-
-func (mw metricsMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	var (
-		user *kolide.User
-		err  error
-	)
-
-	defer func(begin time.Time) {
-		lvs := []string{"method", "CreateUserWithInvite", "error", fmt.Sprint(err != nil)}
-		mw.requestCount.With(lvs...).Add(1)
-		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	user, err = mw.Service.CreateUserWithInvite(ctx, p)
+	user, err = mw.Service.CreateUserFromInvite(ctx, p)
 	return user, err
 }
 

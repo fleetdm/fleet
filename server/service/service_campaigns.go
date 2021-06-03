@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/websocket"
+	"github.com/go-kit/kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/pkg/errors"
 )
@@ -152,7 +153,15 @@ type campaignStatus struct {
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
 	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "run"); err != nil {
-		conn.WriteJSONError(fmt.Sprintf("forbidden"))
+		level.Info(svc.logger).Log("err", "stream results authorization failed")
+		conn.WriteJSONError("forbidden")
+		return
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		level.Info(svc.logger).Log("err", "stream results viewer missing")
+		conn.WriteJSONError("forbidden")
 		return
 	}
 
@@ -160,6 +169,17 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	campaign, err := svc.ds.DistributedQueryCampaign(campaignID)
 	if err != nil {
 		conn.WriteJSONError(fmt.Sprintf("cannot find campaign for ID %d", campaignID))
+		return
+	}
+
+	// Ensure the same user is opening to read results as initiated the query
+	if campaign.UserID != vc.User.ID {
+		level.Info(svc.logger).Log(
+			"err", "stream results ID does not match",
+			"expected", campaign.UserID,
+			"got", vc.User.ID,
+		)
+		conn.WriteJSONError("forbidden")
 		return
 	}
 
