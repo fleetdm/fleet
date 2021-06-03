@@ -99,12 +99,21 @@ const SelectTargetsMenuWrapper = (
       return targetsOutput;
     };
 
-    debugger;
+    const hasHostTargets = (options) => {
+      return options.find((option) => option.count !== 0) !== undefined;
+    };
 
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__options`}>
-          {"all" === "all" ? (
+          {hasHostTargets ? (
+            <>
+              {renderTargets("all")}
+              {renderTargets("teams")}
+              {renderTargets("labels")}
+              {renderTargets("hosts")}
+            </>
+          ) : (
             <>
               <div className={`${baseClass}__no-hosts`}>
                 <div className={`${baseClass}__no-hosts-heading`}>
@@ -113,13 +122,6 @@ const SelectTargetsMenuWrapper = (
                 Expecting to see hosts? Try again in a few seconds as the system
                 catches up.
               </div>
-            </>
-          ) : (
-            <>
-              {renderTargets("all")}
-              {renderTargets("teams")}
-              {renderTargets("labels")}
-              {renderTargets("hosts")}
             </>
           )}
         </div>
