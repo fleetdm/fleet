@@ -1,3 +1,13 @@
+## Fleet 3.13.0 (Jun 3, 2021)
+
+* Improve performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that the `/api/v1/fleet/hosts` API endpoint now return only the requested `additional` columns. See documentation on the changes to the hosts API endpoint [here](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/1-Using-Fleet/3-REST-API.md#list-hosts).
+
+* Improve viewing live query errors in the Fleet UI by including the “Errors” table in the full screen view.
+
+* Improve `fleetctl preview` experience by adding the `fleetctl preview reset` and `fleetctl preview stop` commands to reset and stop simulated hosts running in Docker.
+
+* Add several improvements to the Fleet UI including additional contrast on checkboxes and dropdown pills.
+
 ## Fleet 3.12.0 (May 19, 2021)
 
 * Add scheduled queries to the _Host details_ page. Surface the "Name", "Description", "Frequency", and "Last run" information for each query in a pack that apply to a specific host.
