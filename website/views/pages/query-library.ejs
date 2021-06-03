@@ -72,7 +72,7 @@
                       <div class="d-flex mb-2 mb-sm-1 align-items-center">
                         <div v-for="contributor in query.contributors.split(',')">
                           <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
-                            <img :alt="contributor" :src="getAvatarUrl(contributorsDictionary[contributor])"/>
+                            <img alt="GitHub profile image" :alt="contributor" :src="getAvatarUrl(contributorsDictionary[contributor])"/>
                           </div>
                         </div>
                         <p class="mb-0 ml-1">contributed by {{getContributorsString(query.contributors.split(','), contributorsDictionary)}}</p>
@@ -81,9 +81,9 @@
                   </div>
                   <div class="col-sm-3 col-md-2">
                     <div class="text-sm-right m-0">
-                      <span v-if="query.platforms.includes('macOS')"><img class="d-inline mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo" src="../../images/os-macos-black-16x16@2x.png" alt="macOS"/></span>
-                      <span v-if="query.platforms.includes('Windows')"><img class="d-inline mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo" src="../../images/os-windows-black-16x16@2x.png" alt="Windows"/></span>
-                      <span v-if="query.platforms.includes('Linux')"><img class="d-inline mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo" src="../../images/os-linux-black-16x16@2x.png" alt="Linux"/></span>
+                      <span v-if="query.platforms.includes('macOS')"><img class="d-inline mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo" src="/images/os-macos-black-16x16@2x.png" alt="macOS"/></span>
+                      <span v-if="query.platforms.includes('Windows')"><img class="d-inline mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo" src="/images/os-windows-black-16x16@2x.png" alt="Windows"/></span>
+                      <span v-if="query.platforms.includes('Linux')"><img class="d-inline mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo" src="/images/os-linux-black-16x16@2x.png" alt="Linux"/></span>
                     </div>
                   </div>
                 </div>

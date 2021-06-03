@@ -21,9 +21,9 @@
       <div class="query-sidebar border-bottom mb-3">
         <h5>Platforms</h5>
         <p>
-          <span v-if="query.platforms.includes('macOS')"><img class="d-inline mr-3 logo" src="../../images/os-macos-black-16x16@2x.png" alt="macOS"/></span>
-          <span v-if="query.platforms.includes('Windows')"><img class="d-inline mr-3 logo" src="../../images/os-windows-black-16x16@2x.png" alt="Windows"/></span>
-          <span v-if="query.platforms.includes('Linux')"><img class="d-inline mr-3 logo" src="../../images/os-linux-black-16x16@2x.png" alt="Linux"/></span>
+          <span v-if="query.platforms.includes('macOS')"><img class="d-inline mr-3 logo" src="/images/os-macos-black-16x16@2x.png" alt="macOS"/></span>
+          <span v-if="query.platforms.includes('Windows')"><img class="d-inline mr-3 logo" src="/images/os-windows-black-16x16@2x.png" alt="Windows"/></span>
+          <span v-if="query.platforms.includes('Linux')"><img class="d-inline mr-3 logo" src="/images/os-linux-black-16x16@2x.png" alt="Linux"/></span>
         </p>
       </div>
 
@@ -37,7 +37,7 @@
         <div class="d-flex mb-3">
           <div v-for="contributor in contributors">
             <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
-              <img :alt="contributor.name" :src="contributor.avatar_url"/>
+              <img alt="GitHub profile image" :alt="contributor.name" :src="contributor.avatar_url"/>
             </div>
           </div>
         </div>
@@ -56,9 +56,9 @@
         <div class="d-flex align-items-center justify-content-between platforms">        
           <h5 class="m-0">Platforms</h5>
           <p class="m-0 platform">
-            <span v-if="query.platforms.includes('macOS')"><img class="d-inline ml-3 logo" src="../../images/os-macos-black-16x16@2x.png" alt="macOS"/></span>
-            <span v-if="query.platforms.includes('Windows')"><img class="d-inline ml-3-3 logo" src="../../images/os-windows-black-16x16@2x.png" alt="Windows"/></span>
-            <span v-if="query.platforms.includes('Linux')"><img class="d-inline ml-3 logo" src="../../images/os-linux-black-16x16@2x.png" alt="Linux"/></span>
+            <span v-if="query.platforms.includes('macOS')"><img class="d-inline ml-3 logo" src="/images/os-macos-black-16x16@2x.png" alt="macOS"/></span>
+            <span v-if="query.platforms.includes('Windows')"><img class="d-inline ml-3-3 logo" src="/images/os-windows-black-16x16@2x.png" alt="Windows"/></span>
+            <span v-if="query.platforms.includes('Linux')"><img class="d-inline ml-3 logo" src="/images/os-linux-black-16x16@2x.png" alt="Linux"/></span>
           </p>
         </div>
         <div class="my-3 divider"></div>  
@@ -74,7 +74,7 @@
           <div class="d-flex align-items-center">        
             <div class="d-flex" v-for="contributor in contributors">
               <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
-                <img :alt="contributor.name" :src="contributor.avatar_url"/>
+                <img alt="GitHub profile image" :alt="contributor.name" :src="contributor.avatar_url"/>
               </div>
             </div>
           </div>
@@ -87,7 +87,7 @@
       </div>
     </div>
   </div>
-  <div class="d-block d-md-none px-4 py-5 justify-content-center">
+  <div class="d-block d-md-none py-5 justify-content-center" style="padding-left: 30px; padding-right: 30px;">
     <h3 class="py-3">Query</h3>
     <code class="pb-3">{{query.query}}</code>
     <div class="remediation" v-if="query.purpose === 'Detection'">
