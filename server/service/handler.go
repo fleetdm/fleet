@@ -470,7 +470,7 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	logger := level.Info(kitlog.With(h.logger, "path", path))
 
 	if e, ok := err.(kolide.ErrWithInternal); ok {
-		logger = kitlog.With(logger, "err_internal", e.Internal())
+		logger = kitlog.With(logger, "internal", e.Internal())
 	}
 
 	switch e := err.(type) {
