@@ -1,9 +1,9 @@
 <div id="query-detail" v-cloak>
 
-  <div class="d-flex justify-content-center">
+  <div class="d-none d-md-flex justify-content-center">
     <div class="col-6 my-5">
       <h2 class="mb-3">{{query.name}}</h2>
-      <h6 class="font-weight-light pb-3">{{query.description}}</h6>
+      <h6 class="pb-3">{{query.description}}</h6>
       <div v-if="!!query.tip">
         <div class="container query-tip d-flex align-items-center border-left border-primary p-4 my-5">
           <img alt="lightbulb" class="lightbulb" src="/images/lightbulb-blue-24x24@2x.png"/><p class="d-flex m-0">{{query.tip}}</p>
@@ -11,16 +11,13 @@
       </div>
       <h3 class="py-3">Query</h3>
       <code class="pb-3">{{query.query}}</code>
-      <div v-if="query.purpose === 'Detection' && query.remediation">
+      <div class="remediation" v-if="query.purpose === 'Detection' && query.remediation">
         <h3 class="pt-5 pb-3">Remediation</h3>
-        <ul class="px-4">
-          <li>{{query.remediation}}</li>
-        </ul>
+          <p>{{query.remediation}}</p>
       </div>
     </div>
 
     <div class="col-3 mx-5 my-5 d-none d-md-block">
-      <!-- TODO: refactor as page script to type-check and normalize"-->
       <div class="query-sidebar border-bottom mb-3">
         <h5>Platforms</h5>
         <p>
@@ -49,6 +46,54 @@
       <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">View source</a>
     </div>
   </div>
-
+  <div class="d-block d-md-none px-4 py-5 justify-content-center">
+    <h2 class="mb-3">{{query.name}}</h2>
+    <h6 class="pb-3">{{query.description}}</h6>
+  </div>
+  <div class="d-block d-md-none">
+    <div class="col d-sm-flex">
+      <div class="col pr-sm-4 platforms-purpose">
+        <div class="d-flex align-items-center justify-content-between platforms">        
+          <h5 class="m-0">Platforms</h5>
+          <p class="m-0 platform">
+            <span v-if="query.platforms.includes('macOS')"><img class="d-inline ml-3 logo" src="../../images/os-macos-black-16x16@2x.png" alt="macOS"/></span>
+            <span v-if="query.platforms.includes('Windows')"><img class="d-inline ml-3-3 logo" src="../../images/os-windows-black-16x16@2x.png" alt="Windows"/></span>
+            <span v-if="query.platforms.includes('Linux')"><img class="d-inline ml-3 logo" src="../../images/os-linux-black-16x16@2x.png" alt="Linux"/></span>
+          </p>
+        </div>
+        <div class="my-3 divider"></div>  
+        <div class="d-flex align-items-center justify-content-between purpose">        
+          <h5 class="m-0">Purpose</h5>
+          <p class="m-0">{{query.purpose}}</p>  
+        </div>
+      </div>
+      <div class="d-sm-none my-3 divider"></div>  
+      <div class="col pl-sm-4 contributors-contribute">
+        <div class="d-flex align-items-center justify-content-between contributors">        
+          <h5 class="m-0">Contributors</h5>
+          <div class="d-flex align-items-center">        
+            <div class="d-flex" v-for="contributor in contributors">
+              <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
+                <img :alt="contributor.name" :src="contributor.avatar_url"/>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="my-3 divider"></div>  
+        <div class="d-flex align-items-center justify-content-between contribute">
+          <h5 class="m-0">Contribute to this page</h5>
+          <a class="text-right m-0" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">View source</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="d-block d-md-none px-4 py-5 justify-content-center">
+    <h3 class="py-3">Query</h3>
+    <code class="pb-3">{{query.query}}</code>
+    <div class="remediation" v-if="query.purpose === 'Detection'">
+      <h3 class="pt-5 pb-3">Remediation</h3>
+      <p>{{!query.remediation ? "N/A" : query.remediation}}</p>
+    </div>
+  </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
