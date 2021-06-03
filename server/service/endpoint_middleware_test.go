@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/server/mock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TODO update this test for new patterns
@@ -200,8 +199,7 @@ func TestGetNodeKey(t *testing.T) {
 
 func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	expectedHost := kolide.Host{HostName: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
@@ -250,7 +248,7 @@ func TestAuthenticatedHost(t *testing.T) {
 	for _, tt := range authenticatedHostTests {
 		t.Run("", func(t *testing.T) {
 			var r = struct{ NodeKey string }{NodeKey: tt.nodeKey}
-			_, err = endpoint(context.Background(), r)
+			_, err := endpoint(context.Background(), r)
 			if tt.shouldErr {
 				assert.IsType(t, osqueryError{}, err)
 			} else {

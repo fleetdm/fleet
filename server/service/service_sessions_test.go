@@ -5,10 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/server/authz"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/contexts/token"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,8 +18,7 @@ import (
 func TestAuthenticate(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
 
 	var loginTests = []struct {
@@ -41,13 +42,12 @@ func TestAuthenticate(t *testing.T) {
 	for _, tt := range loginTests {
 		t.Run(tt.username, func(st *testing.T) {
 			user := tt.user
-			ctx := context.Background()
-			loggedIn, token, err := svc.Login(ctx, tt.username, tt.password)
+			loggedIn, token, err := svc.Login(test.UserContext(test.UserAdmin), tt.username, tt.password)
 			require.Nil(st, err, "login unsuccessful")
 			assert.Equal(st, user.ID, loggedIn.ID)
 			assert.NotEmpty(st, token)
 
-			sessions, err := svc.GetInfoAboutSessionsForUser(ctx, user.ID)
+			sessions, err := svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), user.ID)
 			require.Nil(st, err)
 			require.Len(st, sessions, 1, "user should have one session")
 			session := sessions[0]
@@ -63,7 +63,7 @@ func TestGenerateJWT(t *testing.T) {
 	tokenString, err := generateJWT("4", jwtKey)
 	require.Nil(t, err)
 
-	svc := authViewerService{}
+	svc := authViewerService{Service: &Service{authz: authz.Must()}}
 	viewer, err := authViewer(
 		context.Background(),
 		jwtKey,
@@ -82,6 +82,6 @@ func (authViewerService) GetSessionByKey(ctx context.Context, key string) (*koli
 	return &kolide.Session{}, nil
 }
 
-func (authViewerService) User(ctx context.Context, uid uint) (*kolide.User, error) {
+func (authViewerService) UserUnauthorized(ctx context.Context, uid uint) (*kolide.User, error) {
 	return &kolide.User{}, nil
 }

@@ -25,7 +25,7 @@ import (
 
 func TestLogin(t *testing.T) {
 	ds, _ := inmem.New(config.TestConfig())
-	svc, _ := newTestService(ds, nil, nil)
+	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 

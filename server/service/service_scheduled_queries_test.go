@@ -12,8 +12,7 @@ import (
 
 func TestScheduleQuery(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	expectedQuery := &kolide.ScheduledQuery{
 		Name:      "foobar",
@@ -26,15 +25,14 @@ func TestScheduleQuery(t *testing.T) {
 		return expectedQuery, nil
 	}
 
-	_, err = svc.ScheduleQuery(context.Background(), expectedQuery)
+	_, err := svc.ScheduleQuery(context.Background(), expectedQuery)
 	assert.NoError(t, err)
 	assert.True(t, ds.NewScheduledQueryFuncInvoked)
 }
 
 func TestScheduleQueryNoName(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	expectedQuery := &kolide.ScheduledQuery{
 		Name:      "foobar",
@@ -59,7 +57,7 @@ func TestScheduleQueryNoName(t *testing.T) {
 		return expectedQuery, nil
 	}
 
-	_, err = svc.ScheduleQuery(
+	_, err := svc.ScheduleQuery(
 		context.Background(),
 		&kolide.ScheduledQuery{QueryID: expectedQuery.QueryID},
 	)
@@ -69,8 +67,7 @@ func TestScheduleQueryNoName(t *testing.T) {
 
 func TestScheduleQueryNoNameMultiple(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	expectedQuery := &kolide.ScheduledQuery{
 		Name:      "foobar-1",
@@ -95,7 +92,7 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 		return expectedQuery, nil
 	}
 
-	_, err = svc.ScheduleQuery(
+	_, err := svc.ScheduleQuery(
 		context.Background(),
 		&kolide.ScheduledQuery{QueryID: expectedQuery.QueryID},
 	)

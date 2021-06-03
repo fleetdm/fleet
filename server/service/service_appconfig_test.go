@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/server/kolide"
@@ -34,8 +33,7 @@ func TestCleanupURL(t *testing.T) {
 
 func TestCreateAppConfig(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
 		return &kolide.AppConfig{}, nil
@@ -90,8 +88,7 @@ func TestCreateAppConfig(t *testing.T) {
 
 func TestEmptyEnrollSecret(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	ds.ApplyEnrollSecretsFunc = func(teamID *uint, secrets []*kolide.EnrollSecret) error {
 		return nil
@@ -100,8 +97,8 @@ func TestEmptyEnrollSecret(t *testing.T) {
 		return &kolide.AppConfig{}, nil
 	}
 
-	err = svc.ApplyEnrollSecretSpec(
-		context.Background(),
+	err := svc.ApplyEnrollSecretSpec(
+		test.UserContext(test.UserAdmin),
 		&kolide.EnrollSecretSpec{
 			Secrets: []*kolide.EnrollSecret{{}},
 		},
@@ -109,13 +106,13 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	require.Error(t, err)
 
 	err = svc.ApplyEnrollSecretSpec(
-		context.Background(),
+		test.UserContext(test.UserAdmin),
 		&kolide.EnrollSecretSpec{Secrets: []*kolide.EnrollSecret{{Secret: ""}}},
 	)
 	require.Error(t, err, "empty secret should be disallowed")
 
 	err = svc.ApplyEnrollSecretSpec(
-		context.Background(),
+		test.UserContext(test.UserAdmin),
 		&kolide.EnrollSecretSpec{
 			Secrets: []*kolide.EnrollSecret{{Secret: "foo"}},
 		},

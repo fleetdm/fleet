@@ -11,16 +11,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore) (kolide.Service, error) {
+func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore) kolide.Service {
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
 	license := kolide.LicenseInfo{Tier: "core"}
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
+	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
+	if err != nil {
+		panic(err)
+	}
+	return svc
 }
 
-func newTestServiceWithClock(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore, c clock.Clock) (kolide.Service, error) {
+func newTestServiceWithClock(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore, c clock.Clock) kolide.Service {
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
 	license := kolide.LicenseInfo{Tier: "core"}
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c, nil, lq, ds, license)
+	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c, nil, lq, ds, license)
+	if err != nil {
+		panic(err)
+	}
+	return svc
 }
 
 func createTestAppConfig(t *testing.T, ds kolide.Datastore) *kolide.AppConfig {

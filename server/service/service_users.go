@@ -299,7 +299,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return errors.Wrap(err, "retrieving user")
 	}
 
-	if err := svc.authz.Authorize(ctx, user.ID, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, user, "write"); err != nil {
 		return err
 	}
 

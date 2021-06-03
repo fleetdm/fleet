@@ -13,8 +13,7 @@ import (
 
 func TestAgentOptionsForHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.NoError(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	teamID := uint(1)
 	ds.TeamFunc = func(tid uint) (*kolide.Team, error) {

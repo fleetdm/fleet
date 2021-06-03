@@ -6,9 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/server/authz"
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -369,7 +371,7 @@ func TestCarveGetBlock(t *testing.T) {
 		MaxBlock:   3,
 	}
 	ms := new(mock.Store)
-	svc := &Service{carveStore: ms}
+	svc := &Service{carveStore: ms, authz: authz.Must()}
 	ms.CarveFunc = func(carveId int64) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
@@ -380,7 +382,7 @@ func TestCarveGetBlock(t *testing.T) {
 		return []byte("foobar"), nil
 	}
 
-	data, err := svc.GetBlock(context.Background(), metadata.ID, 3)
+	data, err := svc.GetBlock(test.UserContext(test.UserAdmin), metadata.ID, 3)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("foobar"), data)
 }
@@ -398,14 +400,14 @@ func TestCarveGetBlockNotAvailableError(t *testing.T) {
 		MaxBlock:   3,
 	}
 	ms := new(mock.Store)
-	svc := &Service{carveStore: ms}
+	svc := &Service{carveStore: ms, authz: authz.Must()}
 	ms.CarveFunc = func(carveId int64) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
 	}
 
 	// Block requested is great than max block
-	_, err := svc.GetBlock(context.Background(), metadata.ID, 7)
+	_, err := svc.GetBlock(test.UserContext(test.UserAdmin), metadata.ID, 7)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not yet available")
 }
@@ -423,7 +425,7 @@ func TestCarveGetBlockGetBlockError(t *testing.T) {
 		MaxBlock:   3,
 	}
 	ms := new(mock.Store)
-	svc := &Service{carveStore: ms}
+	svc := &Service{carveStore: ms, authz: authz.Must()}
 	ms.CarveFunc = func(carveId int64) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
@@ -434,8 +436,8 @@ func TestCarveGetBlockGetBlockError(t *testing.T) {
 		return nil, fmt.Errorf("yow!!")
 	}
 
-	// Block requested is great than max block
-	_, err := svc.GetBlock(context.Background(), metadata.ID, 3)
+	// Block requested is greater than max block
+	_, err := svc.GetBlock(test.UserContext(test.UserAdmin), metadata.ID, 3)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "yow!!")
 }

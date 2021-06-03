@@ -14,8 +14,7 @@ import (
 
 func TestSearchTargets(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
@@ -55,8 +54,7 @@ func TestSearchTargets(t *testing.T) {
 
 func TestSearchWithOmit(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
@@ -77,6 +75,6 @@ func TestSearchWithOmit(t *testing.T) {
 		return nil, nil
 	}
 
-	_, err = svc.SearchTargets(ctx, "foo", nil, kolide.HostTargets{HostIDs: []uint{1, 2}, LabelIDs: []uint{3, 4}, TeamIDs: []uint{5, 6}})
+	_, err := svc.SearchTargets(ctx, "foo", nil, kolide.HostTargets{HostIDs: []uint{1, 2}, LabelIDs: []uint{3, 4}, TeamIDs: []uint{5, 6}})
 	require.Nil(t, err)
 }

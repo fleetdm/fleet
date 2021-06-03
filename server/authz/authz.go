@@ -42,6 +42,15 @@ func NewAuthorizer() (*Authorizer, error) {
 	return &Authorizer{query: query}, nil
 }
 
+// Must returns a new authorizer, or panics if there is an error.
+func Must() *Authorizer {
+	auth, err := NewAuthorizer()
+	if err != nil {
+		panic(err)
+	}
+	return auth
+}
+
 // SkipAuthorization must be used by service methods that do not need an
 // authorization check.
 //

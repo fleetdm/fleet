@@ -16,8 +16,7 @@ func TestAPIRoutes(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds, nil, nil)
-	assert.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)

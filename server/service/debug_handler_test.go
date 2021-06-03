@@ -26,7 +26,7 @@ func (m *mockService) GetSessionByKey(ctx context.Context, sessionKey string) (*
 	return nil, args.Error(1)
 }
 
-func (m *mockService) User(ctx context.Context, userId uint) (*kolide.User, error) {
+func (m *mockService) UserUnauthorized(ctx context.Context, userId uint) (*kolide.User, error) {
 	args := m.Called(ctx, userId)
 	if ret := args.Get(0); ret != nil {
 		return ret.(*kolide.User), nil
@@ -87,7 +87,7 @@ func TestDebugHandlerAuthenticationSuccess(t *testing.T) {
 		"session",
 	).Return(&kolide.Session{UserID: 42, ID: 1}, nil)
 	svc.On(
-		"User",
+		"UserUnauthorized",
 		mock.Anything,
 		uint(42),
 	).Return(&kolide.User{}, nil)
