@@ -12,6 +12,7 @@ import input.subject
 # Actions
 read := "read"
 write := "write"
+write_role := "write_role"
 run := "run"
 
 # Roles
@@ -71,7 +72,7 @@ allow {
 # Users
 ##
 
-# Any user can write self
+# Any user can write self (besides role)
 allow {
   object.type == "user"
   object.id == subject.id
@@ -85,11 +86,11 @@ allow {
   action == read
 }
 
-# Admins can write all users
+# Admins can write all users + roles
 allow {
   object.type == "user"
   subject.global_role == admin
-	action == [read, write][_]
+	action == [write, write_role][_]
 }
 
 ##

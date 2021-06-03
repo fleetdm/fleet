@@ -96,11 +96,15 @@ func (svc *Service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) 
 	return nil, errors.New("This function is being eliminated")
 }
 
-// TODO split modifying basics and role information because they have different
-// permissions.
 func (svc *Service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
 	if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, "write"); err != nil {
 		return nil, err
+	}
+
+	if p.GlobalRole != nil || p.Teams != nil {
+		if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, "write_role"); err != nil {
+			return nil, err
+		}
 	}
 
 	user, err := svc.User(ctx, userID)
