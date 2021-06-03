@@ -7,6 +7,7 @@
   &__header-wrap {
     display: flex;
     justify-content: space-between;
+    align-items: center;
   }
 
   &__ctas {
@@ -55,7 +56,7 @@
   }
 
   &__title {
-    margin: 0 0 12px;
+    margin: 0 0 $pad-medium;
   }
 
   &__wrapper {

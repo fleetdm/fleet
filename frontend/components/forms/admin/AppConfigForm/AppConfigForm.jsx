@@ -8,7 +8,6 @@ import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import enrollSecretInterface from "interfaces/enroll_secret";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
-import KolideIcon from "components/icons/KolideIcon";
 import InputField from "components/forms/fields/InputField";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Slider from "components/forms/fields/Slider";
