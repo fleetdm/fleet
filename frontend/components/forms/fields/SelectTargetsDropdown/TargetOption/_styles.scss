@@ -25,10 +25,9 @@
     padding: 0;
   }
 
-  &__add-btn {
+  &__add-btn::after {
     content: url("../assets/images/icon-plus-circle-16x16@2x.png");
-    height: 16px;
-    width: 16px;
+    transform: scale(0.5);
     margin-top: 8px;
     border: none;
   }
