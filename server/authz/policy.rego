@@ -152,18 +152,16 @@ allow {
 # Hosts
 ##
 
-# Allow read/write for global admin
+# Allow read/write for global admin/maintainer
 allow {
 	object.type == "host"
 	subject.global_role = admin
 	action == [read, write][_]
 }
-
-# Allow read for global maintainer
 allow {
 	object.type == "host"
 	subject.global_role = maintainer
-	action == read
+	action == [read, write][_]
 }
 
 # Allow read for global observer
@@ -219,7 +217,7 @@ allow {
 	action == read
 }
 
-# Only admins and (team) maintainers can write queries
+# Only admins and maintainers can write queries
 allow {
 	object.type == "query"
 	subject.global_role == admin
@@ -228,12 +226,6 @@ allow {
 allow {
 	object.type == "query"
 	subject.global_role == maintainer
-	action == write
-}
-allow {
-	object.type == "query"
-	# If role is maintainer on any team
-	team_role(subject, subject.teams[_].id) == maintainer
 	action == write
 }
 
@@ -254,6 +246,7 @@ allow {
 	team_role(subject, subject.teams[_].id) == maintainer
 	action == run
 }
+
 # (Team) observers can run only if observers_can_run
 allow {
 	object.type == "query"

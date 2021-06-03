@@ -275,21 +275,19 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserObserver, object: hostTeam2, action: read, allow: true},
 		{user: test.UserObserver, object: hostTeam2, action: write, allow: false},
 
-		// Global maintainer can read all
-		{user: test.UserMaintainer, object: host, action: read, allow: true},
-		{user: test.UserMaintainer, object: host, action: write, allow: false},
-		{user: test.UserMaintainer, object: hostTeam1, action: read, allow: true},
-		{user: test.UserMaintainer, object: hostTeam1, action: write, allow: false},
-		{user: test.UserMaintainer, object: hostTeam2, action: read, allow: true},
-		{user: test.UserMaintainer, object: hostTeam2, action: write, allow: false},
-
-		// Global admin can read/write all
+		// Global admin/maintainer can read/write all
 		{user: test.UserAdmin, object: host, action: read, allow: true},
 		{user: test.UserAdmin, object: host, action: write, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: read, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: write, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: read, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: write, allow: true},
+		{user: test.UserMaintainer, object: host, action: read, allow: true},
+		{user: test.UserMaintainer, object: host, action: write, allow: true},
+		{user: test.UserMaintainer, object: hostTeam1, action: read, allow: true},
+		{user: test.UserMaintainer, object: hostTeam1, action: write, allow: true},
+		{user: test.UserMaintainer, object: hostTeam2, action: read, allow: true},
+		{user: test.UserMaintainer, object: hostTeam2, action: write, allow: true},
 
 		// Team observer/maintainer can read only on appropriate team
 		{user: teamObserver, object: host, action: read, allow: false},
@@ -375,10 +373,10 @@ func TestAuthorizeQuery(t *testing.T) {
 
 		// Team maintainer can read/write
 		{user: teamMaintainer, object: query, action: read, allow: true},
-		{user: teamMaintainer, object: query, action: write, allow: true},
+		{user: teamMaintainer, object: query, action: write, allow: false},
 		{user: teamMaintainer, object: query, action: run, allow: true},
 		{user: teamMaintainer, object: observerQuery, action: read, allow: true},
-		{user: teamMaintainer, object: observerQuery, action: write, allow: true},
+		{user: teamMaintainer, object: observerQuery, action: write, allow: false},
 		{user: teamMaintainer, object: observerQuery, action: run, allow: true},
 	})
 }
