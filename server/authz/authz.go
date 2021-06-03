@@ -1,6 +1,9 @@
 // Package authz implements the authorization checking logic via Go and OPA's
 // Rego.
 //
+// Policy is defined in policy.rego. Policy is evaluated by Authorizer, defined
+// in authz.go.
+//
 // See https://www.openpolicyagent.org/ for more details on OPA and Rego.
 package authz
 
@@ -28,7 +31,7 @@ type Authorizer struct {
 var policy string
 
 // NewAuthorizer creates a new authorizer by compiling the policy embedded in
-// authz.rego.
+// policy.rego.
 func NewAuthorizer() (*Authorizer, error) {
 	ctx := context.Background()
 	query, err := rego.New(
