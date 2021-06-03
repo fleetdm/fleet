@@ -1,17 +1,9 @@
 <svg width="1280" height="658" viewBox="0 0 1280 658" fill="none" xmlns="http://www.w3.org/2000/svg">
 <rect x="-5" width="1285" height="406" fill="url(#paint0_linear)"/>
-<g opacity="0.5">
-<path d="M158.5 455.085C91.3 501.085 62.1667 602.252 56 647.085H1508.5L1531.5 -118.915C1187.33 -136.082 496.1 -169.915 484.5 -167.915C470 -165.415 437 -141.915 440 -0.4151C443 141.085 242.5 397.585 158.5 455.085Z" fill="white" fill-opacity="0.1" style="mix-blend-mode:soft-light"/>
-<path d="M343 501.585C270.2 552.385 220.667 626.418 205 657.085L1477 625.585C1505.33 418.752 1545 -8.71508 1477 -63.9151C1392 -132.915 774.5 -164.915 680.5 120.585C586.5 406.085 434 438.085 343 501.585Z" fill="white" fill-opacity="0.1" style="mix-blend-mode:soft-light"/>
-<g style="mix-blend-mode:soft-light">
-<path d="M499.344 529.088C395.422 556.207 317.814 625.719 292 657.085L1440.64 623.771C1570.71 497.332 1825.17 64.2933 1513 -26.4151C1122.79 -139.801 810.61 208.803 730.171 294.719C649.731 380.635 629.247 495.189 499.344 529.088Z" fill="white" fill-opacity="0.1"/>
-</g>
-</g>
 <circle cx="188.5" cy="414.5" r="91.5" fill="#E6EDEF"/>
 <circle cx="111.5" cy="391.5" r="72.5" fill="#E6EDEF"/>
 <circle cx="197.5" cy="455.5" r="85.5" fill="#E6EDEF"/>
 <circle cx="1230.5" cy="364.5" r="109.5" fill="#E6EDEF"/>
-<circle cx="1158.5" cy="448.5" r="72.5" fill="#E6EDEF"/>
 <circle cx="1279.5" cy="399.5" r="94.5" fill="#E6EDEF"/>
 <circle cx="1086.5" cy="428.5" r="43.5" fill="#E6EDEF"/>
 <circle cx="1085.5" cy="406.5" r="77.5" fill="#E6EDEF"/>
@@ -20,7 +12,6 @@
 <circle cx="111.5" cy="368.5" r="72.5" fill="#F2F7F9"/>
 <circle cx="188.5" cy="438.5" r="85.5" fill="#F2F7F9"/>
 <circle cx="396.5" cy="431.5" r="72.5" fill="#F2F7F9"/>
-<circle cx="515.5" cy="453.5" r="72.5" fill="#F2F7F9"/>
 <circle cx="712.5" cy="433.5" r="72.5" fill="#F2F7F9"/>
 <circle cx="903.5" cy="430.5" r="72.5" fill="#F2F7F9"/>
 <circle cx="1142.5" cy="393.5" r="109.5" fill="#F2F7F9"/>
@@ -33,7 +24,6 @@
 <circle cx="812.5" cy="441.5" r="62.5" fill="#F2F7F9"/>
 <circle cx="20.5" cy="474.5" r="91.5" fill="white"/>
 <circle cx="97.5" cy="443.5" r="72.5" fill="white"/>
-<circle cx="188.5" cy="464.5" r="85.5" fill="white"/>
 <circle cx="356.5" cy="424.5" r="72.5" fill="white"/>
 <circle cx="501.5" cy="426.5" r="72.5" fill="white"/>
 <circle cx="677.5" cy="426.5" r="72.5" fill="white"/>
@@ -46,7 +36,7 @@
 <circle cx="591.5" cy="420.5" r="62.5" fill="white"/>
 <circle cx="935.5" cy="410.5" r="62.5" fill="white"/>
 <circle cx="762.5" cy="415.5" r="62.5" fill="white"/>
-<rect y="436" width="1285" height="123" fill="white"/>
+<rect y="436" width="1285" height="70" fill="white"/>
 <defs>
 <linearGradient id="paint0_linear" x1="637.5" y1="0" x2="669.104" y2="582.618" gradientUnits="userSpaceOnUse">
 <stop stop-color="#1F1D42"/>
