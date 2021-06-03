@@ -99,7 +99,7 @@ const SelectTargetsMenuWrapper = (
       return targetsOutput;
     };
 
-    const hasHostTargets = (options) => {
+    const hasHostTargets = () => {
       return options.find((option) => option.count !== 0) !== undefined;
     };
 
