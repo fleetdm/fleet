@@ -71,10 +71,11 @@ allow {
 # Users
 ##
 
-# Any user can modify self
+# Any user can write self
 allow {
   object.type == "user"
   object.id == subject.id
+	action == write
 }
 
 # Any user can read other users
@@ -88,6 +89,7 @@ allow {
 allow {
   object.type == "user"
   subject.global_role == admin
+	action == [read, write][_]
 }
 
 ##
@@ -98,28 +100,30 @@ allow {
 allow {
   object.type == "invite"
   subject.global_role == admin
-	action == read
+  action == read
 }
 allow {
   object.type == "invite"
   subject.global_role == admin
-	action == write
+  action == write
 }
 
 ##
 # Sessions
 ##
 
-# Any user can modify own session
+# Any user can read/write own session
 allow {
   object.type == "session"
   object.user_id == subject.id
+	action == [read, write][_]
 }
 
-# Admins can write all users
+# Admins can read/write all user sessions
 allow {
   object.type == "session"
   subject.global_role == admin
+	action == [read, write][_]
 }
 
 ##
@@ -130,6 +134,7 @@ allow {
 allow {
 	object.type == "enroll_secret"
 	subject.global_role == admin
+  action == [read, write][_]
 }
 
 # Global maintainers can read all
@@ -189,21 +194,21 @@ allow {
 
 # All users can read labels
 allow {
+  object.type == "label"
   not is_null(subject)
-	object.type == "label"
-	action == read
+  action == read
 }
 
 # Only global admins and maintainers can write labels
 allow {
-	object.type == "label"
-	subject.global_role == admin
-	action == [read, write][_]
+  object.type == "label"
+  subject.global_role == admin
+  action == write
 }
 allow {
-	object.type == "label"
-	subject.global_role == maintainer
-	action == [read, write][_]
+  object.type == "label"
+  subject.global_role == maintainer
+  action == write
 }
 
 ##
@@ -213,38 +218,40 @@ allow {
 # All users can read queries
 allow {
   not is_null(subject)
-	object.type == "query"
-	action == read
+  object.type == "query"
+  action == read
 }
 
 # Only admins and maintainers can write queries
 allow {
-	object.type == "query"
-	subject.global_role == admin
-	action == write
+  object.type == "query"
+  subject.global_role == admin
+  action == write
 }
 allow {
-	object.type == "query"
-	subject.global_role == maintainer
-	action == write
+  object.type == "query"
+  subject.global_role == maintainer
+  action == write
 }
 
 # Global admins and (team) maintainers can run any
 allow {
-	object.type == "query"
-	subject.global_role == admin
-	action = run
+  object.type == "query"
+  subject.global_role == admin
+  action = run
 }
 allow {
-	object.type == "query"
-	subject.global_role == maintainer
-	action = run
+  object.type == "query"
+  subject.global_role == maintainer
+  action = run
 }
+# Team maintainer running a non-observers_can_run query must have the targets
+# filtered to only teams that they maintain
 allow {
-	object.type == "query"
-	# If role is maintainer on any team
-	team_role(subject, subject.teams[_].id) == maintainer
-	action == run
+  object.type == "query"
+  # If role is maintainer on any team
+  team_role(subject, subject.teams[_].id) == maintainer
+  action == run
 }
 
 # (Team) observers can run only if observers_can_run
@@ -254,6 +261,8 @@ allow {
 	subject.global_role == observer
 	action = run
 }
+# Team observer running a observers_can_run query must have the targets
+# filtered to only teams that they observe
 allow {
 	object.type == "query"
 	object.observer_can_run == true
@@ -266,10 +275,12 @@ allow {
 # Targets
 ##
 
+# All users can read targets (filtered appropriately based on their
+# teams/roles).
 allow {
   not is_null(subject)
   object.type == "target"
-	action == read
+  action == read
 }
 
 ##
@@ -278,23 +289,23 @@ allow {
 
 # Only global admins and maintainers can read/write packs
 allow {
-	object.type == "pack"
-	subject.global_role == admin
-	action == [read, write][_]
+  object.type == "pack"
+  subject.global_role == admin
+  action == [read, write][_]
 }
 allow {
-	object.type == "pack"
-	subject.global_role == maintainer
-	action == [read, write][_]
+  object.type == "pack"
+  subject.global_role == maintainer
+  action == [read, write][_]
 }
 
 ##
 # File Carves
 ##
 
-# Only global adminscan read/write carves
+# Only global admins can read/write carves
 allow {
-	object.type == "carve"
-	subject.global_role == admin
-	action == [read, write][_]
+  object.type == "carve"
+  subject.global_role == admin
+  action == [read, write][_]
 }
