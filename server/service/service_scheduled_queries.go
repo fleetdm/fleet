@@ -7,15 +7,29 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Scheduled queries are currently authorized the same as packs.
+
 func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListScheduledQueriesInPack(id, opts)
 }
 
 func (svc *Service) GetScheduledQuery(ctx context.Context, id uint) (*kolide.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ScheduledQuery(id)
 }
 
 func (svc *Service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	// Fill in the name with query name if it is unset (because the UI
 	// doesn't provide a way to set it)
 	if sq.Name == "" {
@@ -53,6 +67,10 @@ func findNextNameForQuery(name string, scheduled []*kolide.ScheduledQuery) strin
 }
 
 func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.ScheduledQueryPayload) (*kolide.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	sq, err := svc.GetScheduledQuery(ctx, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting scheduled query to modify")
@@ -99,5 +117,9 @@ func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.
 }
 
 func (svc *Service) DeleteScheduledQuery(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DeleteScheduledQuery(id)
 }

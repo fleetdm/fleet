@@ -1,11 +1,11 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +25,7 @@ func TestScheduleQuery(t *testing.T) {
 		return expectedQuery, nil
 	}
 
-	_, err := svc.ScheduleQuery(context.Background(), expectedQuery)
+	_, err := svc.ScheduleQuery(test.UserContext(test.UserAdmin), expectedQuery)
 	assert.NoError(t, err)
 	assert.True(t, ds.NewScheduledQueryFuncInvoked)
 }
@@ -58,7 +58,7 @@ func TestScheduleQueryNoName(t *testing.T) {
 	}
 
 	_, err := svc.ScheduleQuery(
-		context.Background(),
+		test.UserContext(test.UserAdmin),
 		&kolide.ScheduledQuery{QueryID: expectedQuery.QueryID},
 	)
 	assert.NoError(t, err)
@@ -93,7 +93,7 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 	}
 
 	_, err := svc.ScheduleQuery(
-		context.Background(),
+		test.UserContext(test.UserAdmin),
 		&kolide.ScheduledQuery{QueryID: expectedQuery.QueryID},
 	)
 	assert.NoError(t, err)
