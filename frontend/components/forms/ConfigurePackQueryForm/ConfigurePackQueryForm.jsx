@@ -2,7 +2,6 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { pull } from "lodash";
 
-import KolideIcon from "components/icons/KolideIcon";
 import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
 import Form from "components/forms/Form";

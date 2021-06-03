@@ -2,7 +2,6 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-import KolideIcon from "components/icons/KolideIcon";
 import targetInterface from "interfaces/target";
 import TargetIcon from "./TargetIcon";
 

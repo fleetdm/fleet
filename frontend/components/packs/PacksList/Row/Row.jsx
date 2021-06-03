@@ -6,7 +6,6 @@ import moment from "moment";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import ClickableTableRow from "components/ClickableTableRow";
-import KolideIcon from "components/icons/KolideIcon";
 import packInterface from "interfaces/pack";
 
 const baseClass = "packs-list-row";
