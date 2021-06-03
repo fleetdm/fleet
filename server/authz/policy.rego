@@ -1,3 +1,6 @@
+# See OPA documentation for specification of this policy language:
+# https://www.openpolicyagent.org/docs/latest/policy-language/
+
 package authz
 
 import input.action

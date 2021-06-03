@@ -32,9 +32,8 @@ func (e mailError) MailError() []map[string]string {
 }
 
 func (svc *Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "write"); err != nil {
-		return nil, err
-	}
+	// skipauth: No user context yet when the app config is first created.
+	svc.authz.SkipAuthorization(ctx)
 
 	config, err := svc.ds.AppConfig()
 	if err != nil {
@@ -288,7 +287,6 @@ func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
 }
 
 func (svc *Service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
-	//
 	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "read"); err != nil {
 		return nil, err
 	}

@@ -47,6 +47,22 @@ func (svc *Service) CreateUser(ctx context.Context, p kolide.UserPayload) (*koli
 	return svc.newUser(p)
 }
 
+func (svc *Service) CreateInitialUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+	// skipauth: Only the initial user creation should be allowed to skip
+	// authorization (because there is not yet a user context to check against).
+	svc.authz.SkipAuthorization(ctx)
+
+	users, err := svc.ds.ListUsers(kolide.UserListOptions{ListOptions: kolide.ListOptions{Page: 0, PerPage: 1}})
+	if err != nil {
+		return nil, err
+	}
+	if len(users) != 0 {
+		return nil, errors.New("a user already exists")
+	}
+
+	return svc.newUser(p)
+}
+
 func (svc *Service) newUser(p kolide.UserPayload) (*kolide.User, error) {
 	var ssoEnabled bool
 	// if user is SSO generate a fake password

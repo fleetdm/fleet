@@ -1,3 +1,7 @@
+// Package authz implements the authorization checking logic via Go and OPA's
+// Rego.
+//
+// See https://www.openpolicyagent.org/ for more details on OPA and Rego.
 package authz
 
 import (
@@ -19,9 +23,9 @@ type Authorizer struct {
 	query rego.PreparedEvalQuery
 }
 
-// Load the policy from authz.rego in this directory.
-//go:embed authz.rego
-var module string
+// Load the policy from policy.rego in this directory.
+//go:embed policy.rego
+var policy string
 
 // NewAuthorizer creates a new authorizer by compiling the policy embedded in
 // authz.rego.
@@ -29,7 +33,7 @@ func NewAuthorizer() (*Authorizer, error) {
 	ctx := context.Background()
 	query, err := rego.New(
 		rego.Query("allowed = data.authz.allow"),
-		rego.Module("authz.rego", module),
+		rego.Module("policy.rego", policy),
 	).PrepareForEval(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "prepare query")
@@ -39,9 +43,11 @@ func NewAuthorizer() (*Authorizer, error) {
 }
 
 // SkipAuthorization must be used by service methods that do not need an
-// authorization check. Please be sure it is appropriate to skip authorization
-// when using this. You MUST leave a comment above the use of this function
-// explaining why authorization is skipped.
+// authorization check.
+//
+// Please be sure it is appropriate to skip authorization when using this. You
+// MUST leave a comment above the use of this function explaining why
+// authorization is skipped, starting with `skipauth:`
 //
 // This will mark the authorization context (if any) as checked without
 // performing any authorization check.

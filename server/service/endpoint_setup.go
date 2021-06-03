@@ -65,7 +65,7 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 		// Make the user an admin
 		adminPayload.GlobalRole = ptr.String(kolide.RoleAdmin)
-		admin, err = svc.CreateUser(ctx, adminPayload)
+		admin, err = svc.CreateInitialUser(ctx, adminPayload)
 		if err != nil {
 			return setupResponse{Err: err}, nil
 		}

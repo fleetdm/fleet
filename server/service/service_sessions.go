@@ -96,6 +96,8 @@ func (svc *Service) getMetadata(config *kolide.AppConfig) (*sso.Metadata, error)
 func (svc *Service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.SSOSession, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
+	svc.authz.SkipAuthorization(ctx)
+
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "get config for sso")
@@ -313,12 +315,6 @@ func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.S
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
-	// TODO this is currently incorrect
-	// REVIEW: Maybe this can be refactored differently?
-	// skipauth: This service method is called by authViewer when there is not
-	// yet a viewer context, so no subject to authorize.
-	svc.authz.SkipAuthorization(ctx)
-
 	session, err := svc.ds.SessionByKey(key)
 	if err != nil {
 		return nil, err

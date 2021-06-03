@@ -39,6 +39,10 @@ type UserService interface {
 	// and validating invite tokens.
 	CreateUser(ctx context.Context, p UserPayload) (user *User, err error)
 
+	// CreateInitialUser creates the first user, skipping authorization checks.
+	// If a user already exists this method should fail.
+	CreateInitialUser(ctx context.Context, p UserPayload) (user *User, err error)
+
 	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
 
