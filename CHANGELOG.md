@@ -2,7 +2,7 @@
 
 * Improve performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that the `/api/v1/fleet/hosts` API endpoint now return only the requested `additional` columns. See documentation on the changes to the hosts API endpoint [here](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/1-Using-Fleet/3-REST-API.md#list-hosts).
 
-* Fix an in which running a live query in the Fleet UI would return no results and the query would seem "hung."
+* Fix a bug in which running a live query in the Fleet UI would return no results and the query would seem "hung" on a small number of devices.
 
 * Improve viewing live query errors in the Fleet UI by including the “Errors” table in the full screen view.
 
