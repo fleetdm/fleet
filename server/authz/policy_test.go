@@ -12,9 +12,10 @@ import (
 )
 
 const (
+	read      = kolide.ActionRead
+	list      = kolide.ActionList
 	write     = kolide.ActionWrite
 	writeRole = kolide.ActionWriteRole
-	read      = kolide.ActionRead
 	run       = kolide.ActionRun
 )
 
@@ -265,12 +266,16 @@ func TestAuthorizeHost(t *testing.T) {
 		// No access
 		{user: nil, object: host, action: read, allow: false},
 		{user: nil, object: host, action: write, allow: false},
+		{user: nil, object: host, action: list, allow: false},
 		{user: nil, object: hostTeam1, action: read, allow: false},
 		{user: nil, object: hostTeam1, action: write, allow: false},
 		{user: nil, object: hostTeam2, action: read, allow: false},
 		{user: nil, object: hostTeam2, action: write, allow: false},
+
+		// List but no specific host access
 		{user: test.UserNoRoles, object: host, action: read, allow: false},
 		{user: test.UserNoRoles, object: host, action: write, allow: false},
+		{user: test.UserNoRoles, object: host, action: list, allow: true},
 		{user: test.UserNoRoles, object: hostTeam1, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: write, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: read, allow: false},
@@ -279,6 +284,7 @@ func TestAuthorizeHost(t *testing.T) {
 		// Global observer can read all
 		{user: test.UserObserver, object: host, action: read, allow: true},
 		{user: test.UserObserver, object: host, action: write, allow: false},
+		{user: test.UserObserver, object: host, action: list, allow: true},
 		{user: test.UserObserver, object: hostTeam1, action: read, allow: true},
 		{user: test.UserObserver, object: hostTeam1, action: write, allow: false},
 		{user: test.UserObserver, object: hostTeam2, action: read, allow: true},
@@ -287,12 +293,14 @@ func TestAuthorizeHost(t *testing.T) {
 		// Global admin/maintainer can read/write all
 		{user: test.UserAdmin, object: host, action: read, allow: true},
 		{user: test.UserAdmin, object: host, action: write, allow: true},
+		{user: test.UserAdmin, object: host, action: list, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: read, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: write, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: read, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: write, allow: true},
 		{user: test.UserMaintainer, object: host, action: read, allow: true},
 		{user: test.UserMaintainer, object: host, action: write, allow: true},
+		{user: test.UserMaintainer, object: host, action: list, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: read, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: write, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: read, allow: true},
@@ -301,12 +309,14 @@ func TestAuthorizeHost(t *testing.T) {
 		// Team observer/maintainer can read only on appropriate team
 		{user: teamObserver, object: host, action: read, allow: false},
 		{user: teamObserver, object: host, action: write, allow: false},
+		{user: teamObserver, object: host, action: list, allow: true},
 		{user: teamObserver, object: hostTeam1, action: read, allow: true},
 		{user: teamObserver, object: hostTeam1, action: write, allow: false},
 		{user: teamObserver, object: hostTeam2, action: read, allow: false},
 		{user: teamObserver, object: hostTeam2, action: write, allow: false},
 		{user: teamMaintainer, object: host, action: read, allow: false},
 		{user: teamMaintainer, object: host, action: write, allow: false},
+		{user: teamMaintainer, object: host, action: list, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: write, allow: false},
 		{user: teamMaintainer, object: hostTeam2, action: read, allow: false},

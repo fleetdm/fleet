@@ -11,6 +11,7 @@ import input.subject
 
 # Actions
 read := "read"
+list := "list"
 write := "write"
 write_role := "write_role"
 run := "run"
@@ -157,6 +158,13 @@ allow {
 ##
 # Hosts
 ##
+
+# Allow anyone to list (must be filtered appropriately by the service).
+allow {
+  object.type == "host"
+  not is_null(subject)
+  action == list
+}
 
 # Allow read/write for global admin/maintainer
 allow {

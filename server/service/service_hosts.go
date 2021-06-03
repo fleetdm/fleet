@@ -8,7 +8,7 @@ import (
 )
 
 func (svc Service) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -70,7 +70,7 @@ func (svc Service) getHostDetails(ctx context.Context, host *kolide.Host) (*koli
 }
 
 func (svc Service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionList); err != nil {
 		return nil, err
 	}
 
