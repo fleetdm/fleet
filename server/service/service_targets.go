@@ -8,7 +8,7 @@ import (
 )
 
 func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID *uint, targets kolide.HostTargets) (*kolide.TargetSearchResults, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Target{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Target{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -55,7 +55,7 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 }
 
 func (svc Service) CountHostsInTargets(ctx context.Context, queryID *uint, targets kolide.HostTargets) (*kolide.TargetMetrics, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Target{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Target{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 

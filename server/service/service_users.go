@@ -41,7 +41,7 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p kolide.UserPaylo
 }
 
 func (svc *Service) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.User{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -97,12 +97,12 @@ func (svc *Service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) 
 }
 
 func (svc *Service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
 	if p.GlobalRole != nil || p.Teams != nil {
-		if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, "write_role"); err != nil {
+		if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, kolide.ActionWriteRole); err != nil {
 			return nil, err
 		}
 	}
@@ -195,7 +195,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *kolide.User, e
 }
 
 func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: id}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: id}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -208,7 +208,7 @@ func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, 
 		return "", kolide.ErrNoContext
 	}
 
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: vc.UserID()}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: vc.UserID()}, kolide.ActionWrite); err != nil {
 		return "", err
 	}
 
@@ -216,7 +216,7 @@ func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, 
 }
 
 func (svc *Service) User(ctx context.Context, id uint) (*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: id}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: id}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -234,7 +234,7 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*kolide.User, error)
 		return nil, kolide.ErrNoContext
 	}
 
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: vc.UserID()}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: vc.UserID()}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -245,7 +245,7 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*kolide.User, error)
 }
 
 func (svc *Service) ListUsers(ctx context.Context, opt kolide.UserListOptions) ([]*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.User{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -277,7 +277,7 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return kolide.ErrNoContext
 	}
 
-	if err := svc.authz.Authorize(ctx, vc.User, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, vc.User, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -308,7 +308,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return errors.Wrap(err, "retrieving user")
 	}
 
-	if err := svc.authz.Authorize(ctx, user, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, user, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -347,7 +347,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 	user := vc.User
 
-	if err := svc.authz.Authorize(ctx, user, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, user, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -376,7 +376,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 }
 
 func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: uid}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.User{ID: uid}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 

@@ -65,7 +65,7 @@ func (svc *Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload)
 }
 
 func (svc *Service) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -96,7 +96,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *kolide.AppConfig)
 }
 
 func (svc *Service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -252,7 +252,7 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 }
 
 func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.EnrollSecretSpec) error {
-	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -266,7 +266,7 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.Enro
 }
 
 func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecretSpec, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -278,7 +278,7 @@ func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecr
 }
 
 func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -287,7 +287,7 @@ func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
 }
 
 func (svc *Service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 

@@ -106,7 +106,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPay
 }
 
 func (svc *Service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -114,7 +114,7 @@ func (svc *Service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetada
 }
 
 func (svc *Service) ListCarves(ctx context.Context, opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -122,7 +122,7 @@ func (svc *Service) ListCarves(ctx context.Context, opt kolide.CarveListOptions)
 }
 
 func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 

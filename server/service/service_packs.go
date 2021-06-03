@@ -7,7 +7,7 @@ import (
 )
 
 func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*kolide.PackSpec) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -15,7 +15,7 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*kolide.PackSpec
 }
 
 func (svc *Service) GetPackSpecs(ctx context.Context) ([]*kolide.PackSpec, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -23,7 +23,7 @@ func (svc *Service) GetPackSpecs(ctx context.Context) ([]*kolide.PackSpec, error
 }
 
 func (svc *Service) GetPackSpec(ctx context.Context, name string) (*kolide.PackSpec, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -31,7 +31,7 @@ func (svc *Service) GetPackSpec(ctx context.Context, name string) (*kolide.PackS
 }
 
 func (svc *Service) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -39,7 +39,7 @@ func (svc *Service) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*k
 }
 
 func (svc *Service) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -47,7 +47,7 @@ func (svc *Service) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) 
 }
 
 func (svc *Service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.Pack, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -96,7 +96,7 @@ func (svc *Service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.
 }
 
 func (svc *Service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload) (*kolide.Pack, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -226,7 +226,7 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayloa
 }
 
 func (svc *Service) DeletePack(ctx context.Context, name string) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -234,7 +234,7 @@ func (svc *Service) DeletePack(ctx context.Context, name string) error {
 }
 
 func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -246,7 +246,7 @@ func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 }
 
 func (svc *Service) AddLabelToPack(ctx context.Context, lid, pid uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -254,7 +254,7 @@ func (svc *Service) AddLabelToPack(ctx context.Context, lid, pid uint) error {
 }
 
 func (svc *Service) RemoveLabelFromPack(ctx context.Context, lid, pid uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -262,7 +262,7 @@ func (svc *Service) RemoveLabelFromPack(ctx context.Context, lid, pid uint) erro
 }
 
 func (svc *Service) AddHostToPack(ctx context.Context, hid, pid uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -270,7 +270,7 @@ func (svc *Service) AddHostToPack(ctx context.Context, hid, pid uint) error {
 }
 
 func (svc *Service) RemoveHostFromPack(ctx context.Context, hid, pid uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -278,7 +278,7 @@ func (svc *Service) RemoveHostFromPack(ctx context.Context, hid, pid uint) error
 }
 
 func (svc *Service) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -286,7 +286,7 @@ func (svc *Service) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.
 }
 
 func (svc *Service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -294,7 +294,7 @@ func (svc *Service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.Li
 }
 
 func (svc *Service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -302,7 +302,7 @@ func (svc *Service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt k
 }
 
 func (svc *Service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pack, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 

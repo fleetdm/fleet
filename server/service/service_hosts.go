@@ -8,7 +8,7 @@ import (
 )
 
 func (svc Service) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -16,7 +16,7 @@ func (svc Service) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([
 }
 
 func (svc Service) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -26,7 +26,7 @@ func (svc Service) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, er
 	}
 
 	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, host, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -34,7 +34,7 @@ func (svc Service) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, er
 }
 
 func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*kolide.HostDetail, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -44,7 +44,7 @@ func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*ko
 	}
 
 	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, host, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -70,7 +70,7 @@ func (svc Service) getHostDetails(ctx context.Context, host *kolide.Host) (*koli
 }
 
 func (svc Service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -87,7 +87,7 @@ func (svc Service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, err
 }
 
 func (svc Service) DeleteHost(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -97,7 +97,7 @@ func (svc Service) DeleteHost(ctx context.Context, id uint) error {
 	}
 
 	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, host, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -116,7 +116,7 @@ func (svc Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []u
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
 	// teams.
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -128,7 +128,7 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
 	// teams.
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -164,7 +164,7 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Host{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionRead); err != nil {
 		return err
 	}
 
@@ -173,7 +173,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		return errors.Wrap(err, "find host for refetch")
 	}
 
-	if err := svc.authz.Authorize(ctx, host, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, host, kolide.ActionRead); err != nil {
 		return err
 	}
 

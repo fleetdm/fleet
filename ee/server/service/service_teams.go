@@ -11,7 +11,7 @@ import (
 )
 
 func (svc *Service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -47,7 +47,7 @@ func (svc *Service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.
 }
 
 func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload kolide.TeamPayload) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -72,7 +72,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload kolide.
 }
 
 func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, options json.RawMessage) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -91,7 +91,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 }
 
 func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []kolide.TeamUser) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -125,7 +125,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []kolid
 }
 
 func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []kolide.TeamUser) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -153,7 +153,7 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []ko
 }
 
 func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt kolide.ListOptions) ([]*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -166,7 +166,7 @@ func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt kolide.L
 }
 
 func (svc *Service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -180,7 +180,7 @@ func (svc *Service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*k
 }
 
 func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -188,7 +188,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 }
 
 func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*kolide.EnrollSecret, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 

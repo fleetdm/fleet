@@ -12,7 +12,7 @@ import (
 )
 
 func (svc Service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -90,7 +90,7 @@ func (svc Service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 }
 
 func (svc *Service) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 	return svc.ds.ListInvites(opt)
@@ -120,7 +120,7 @@ func (svc *Service) VerifyInvite(ctx context.Context, token string) (*kolide.Inv
 }
 
 func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 	return svc.ds.DeleteInvite(id)

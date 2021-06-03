@@ -260,7 +260,7 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 		return err
 	}
 
-	if err := svc.authz.Authorize(ctx, session, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, session, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -268,7 +268,7 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 }
 
 func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -289,7 +289,7 @@ func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([
 }
 
 func (svc *Service) DeleteSessionsForUser(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -302,7 +302,7 @@ func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.S
 		return nil, err
 	}
 
-	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Session{UserID: id}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -334,7 +334,7 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 		return err
 	}
 
-	if err := svc.authz.Authorize(ctx, session, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, session, kolide.ActionWrite); err != nil {
 		return err
 	}
 

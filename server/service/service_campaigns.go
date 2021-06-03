@@ -152,7 +152,7 @@ type campaignStatus struct {
 }
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "run"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionRun); err != nil {
 		level.Info(svc.logger).Log("err", "stream results authorization failed")
 		conn.WriteJSONError("forbidden")
 		return

@@ -26,7 +26,7 @@ func specFromQuery(query *kolide.Query) *kolide.QuerySpec {
 }
 
 func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*kolide.QuerySpec) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -51,7 +51,7 @@ func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*kolide.QuerySpe
 }
 
 func (svc Service) GetQuerySpecs(ctx context.Context) ([]*kolide.QuerySpec, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -68,7 +68,7 @@ func (svc Service) GetQuerySpecs(ctx context.Context) ([]*kolide.QuerySpec, erro
 }
 
 func (svc Service) GetQuerySpec(ctx context.Context, name string) (*kolide.QuerySpec, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -80,7 +80,7 @@ func (svc Service) GetQuerySpec(ctx context.Context, name string) (*kolide.Query
 }
 
 func (svc Service) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Query, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -88,7 +88,7 @@ func (svc Service) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*
 }
 
 func (svc *Service) GetQuery(ctx context.Context, id uint) (*kolide.Query, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -96,7 +96,7 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*kolide.Query, error
 }
 
 func (svc *Service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide.Query, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -137,7 +137,7 @@ func (svc *Service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolid
 }
 
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPayload) (*kolide.Query, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -174,7 +174,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPayl
 }
 
 func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -182,7 +182,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 }
 
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -195,7 +195,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 }
 
 func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Query{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Query{}, kolide.ActionWrite); err != nil {
 		return 0, err
 	}
 

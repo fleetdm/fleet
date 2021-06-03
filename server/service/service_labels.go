@@ -8,7 +8,7 @@ import (
 )
 
 func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSpec) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -25,7 +25,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSp
 }
 
 func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*kolide.LabelSpec, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -33,7 +33,7 @@ func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*kolide.LabelSpec, err
 }
 
 func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*kolide.LabelSpec, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -41,7 +41,7 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*kolide.Labe
 }
 
 func (svc *Service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide.Label, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -73,7 +73,7 @@ func (svc *Service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolid
 }
 
 func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload kolide.ModifyLabelPayload) (*kolide.Label, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -91,7 +91,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload kolide.Mod
 }
 
 func (svc *Service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -99,7 +99,7 @@ func (svc *Service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*
 }
 
 func (svc *Service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -107,7 +107,7 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error
 }
 
 func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -115,7 +115,7 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 }
 
 func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "write"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionWrite); err != nil {
 		return err
 	}
 
@@ -127,7 +127,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 }
 
 func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -135,7 +135,7 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.H
 }
 
 func (svc *Service) ListLabelsForHost(ctx context.Context, hid uint) ([]*kolide.Label, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Label{}, "read"); err != nil {
+	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
 
