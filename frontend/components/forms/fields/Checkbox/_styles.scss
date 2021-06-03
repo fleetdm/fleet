@@ -4,10 +4,13 @@
   display: inline-block;
 
   &__input {
-    visibility: hidden;
-    margin: 0;
-    position: absolute;
-    z-index: -1;
+    opacity: 0;
+
+    &:focus + .kolide-checkbox__tick {
+      &::after {
+        border-color: $core-vibrant-blue;
+      }
+    }
 
     &:checked + .kolide-checkbox__tick {
       &::after {
@@ -52,6 +55,25 @@
     &--disabled {
       &::after {
         background-color: $ui-fleet-black-25;
+      }
+    }
+
+    &--indeterminate {
+      &::after {
+        background-color: $core-vibrant-blue;
+        border: solid 1px $core-vibrant-blue;
+      }
+
+      &::before {
+        @include position(absolute, 50% null null 50%);
+        box-sizing: border-box;
+        display: block;
+        width: 10px;
+        margin: -1px 0 0 -5px;
+        border: 2px solid $core-white;
+        border-top: 0;
+        border-left: 0;
+        content: "";
       }
     }
   }
