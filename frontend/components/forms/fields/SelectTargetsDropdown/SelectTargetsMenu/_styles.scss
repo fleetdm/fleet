@@ -1,16 +1,19 @@
 .target-list {
   &__type {
     padding: 0 8px $pad-xsmall;
-    margin: $pad-xxlarge 0 0;
-    text-transform: uppercase;
+    margin: $pad-medium 0 0;
+    text-transform: lowercase;
     font-weight: $bold;
     font-size: $xx-small;
     color: $core-fleet-black;
     letter-spacing: 0.5px;
     border-bottom: 1px solid $ui-fleet-blue-15;
 
+    &::first-letter {
+      text-transform: uppercase;
+    }
     &:first-child {
-      margin: 0;
+      margin: $pad-small 00;
     }
   }
 

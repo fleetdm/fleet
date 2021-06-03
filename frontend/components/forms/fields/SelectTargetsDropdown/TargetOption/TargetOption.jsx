@@ -62,7 +62,9 @@ class TargetOption extends Component {
         >
           <div>
             <TargetIcon target={target} />
-            <span className={`${baseClass}__label-label`}>{displayText}</span>
+            <span className={`${baseClass}__label-label`}>
+              {displayText !== "All Hosts" ? displayText : "All hosts"}
+            </span>
           </div>
           {renderTargetDetail()}
         </button>
