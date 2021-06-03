@@ -233,7 +233,7 @@ export class QueryPage extends Component {
 
     return false;
   };
-  // TODO trace onFetch and related setSelected methods with query params/arguments to see if they need to be updated to take queryId
+
   onFetchTargets = (query, targetResponse) => {
     const { dispatch } = this.props;
 

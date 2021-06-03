@@ -119,7 +119,6 @@ class SelectTargetsDropdown extends Component {
     this.setState({ moreInfoTarget: null });
   };
 
-  // TODO determine how to handle queryId; can it simply be a const that is passed as a prop? confirm how API handles "", null, undefined
   fetchTargets = (
     query = "",
     queryId = this.props.queryId,
@@ -148,7 +147,7 @@ class SelectTargetsDropdown extends Component {
           targets.push({});
         }
 
-        onFetchTargets(query, response); // TODO trace how onFetch works with query and investigate how to refactor for query string vs. queryId; does this work if queryId is const based on this.props?
+        onFetchTargets(query, response);
 
         this.setState({
           isEmpty,
