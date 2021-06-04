@@ -2,18 +2,16 @@
   &__type {
     padding: 0 8px $pad-xsmall;
     margin: $pad-medium 0 0;
-    text-transform: lowercase;
     font-weight: $bold;
-    font-size: $xx-small;
+    font-size: $x-small;
     color: $core-fleet-black;
-    letter-spacing: 0.5px;
     border-bottom: 1px solid $ui-fleet-blue-15;
 
     &::first-letter {
       text-transform: uppercase;
     }
     &:first-child {
-      margin: $pad-small 00;
+      margin: $pad-large 0 $pad-small 0;
     }
   }
 
@@ -24,7 +22,7 @@
     min-height: 500px;
     position: relative;
     z-index: 2;
-    padding: 0 $pad-small;
+    padding: 0 $pad-large;
     border-right: 1px solid $ui-fleet-blue-15;
     background-color: $core-white;
   }
