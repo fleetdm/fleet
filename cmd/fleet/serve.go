@@ -104,29 +104,6 @@ the way that the Fleet server works.
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
-			// Check for deprecated config options.
-			if config.Osquery.StatusLogFile != "" {
-				level.Info(logger).Log(
-					"DEPRECATED", "use filesystem.status_log_file.",
-					"msg", "using osquery.status_log_file value for filesystem.status_log_file",
-				)
-				config.Filesystem.StatusLogFile = config.Osquery.StatusLogFile
-			}
-			if config.Osquery.ResultLogFile != "" {
-				level.Info(logger).Log(
-					"DEPRECATED", "use filesystem.result_log_file.",
-					"msg", "using osquery.result_log_file value for filesystem.result_log_file",
-				)
-				config.Filesystem.ResultLogFile = config.Osquery.ResultLogFile
-			}
-			if config.Osquery.EnableLogRotation != false {
-				level.Info(logger).Log(
-					"DEPRECATED", "use filesystem.enable_log_rotation.",
-					"msg", "using osquery.enable_log_rotation value for filesystem.result_log_file",
-				)
-				config.Filesystem.EnableLogRotation = config.Osquery.EnableLogRotation
-			}
-
 			allowedHostIdentifiers := map[string]bool{
 				"provided": true,
 				"instance": true,
