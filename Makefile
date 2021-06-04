@@ -85,12 +85,8 @@ help:
 	$(info $(HELP_TEXT))
 
 .prefix:
-ifeq ($(OS), Windows_NT)
-	if not exist build mkdir build
-else
 	mkdir -p build/linux
 	mkdir -p build/darwin
-endif
 
 .pre-build:
 	$(eval GOGC = off)
@@ -165,14 +161,8 @@ migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
 
 clean: clean-assets
-ifeq ($(OS), Windows_NT)
-	if exist build rmdir /s/q build
-	if exist vendor rmdir /s/q vendor
-	if exist assets\bundle.js del assets\bundle.js
-else
 	rm -rf build vendor
 	rm -f assets/bundle.js
-endif
 
 clean-assets:
 	git clean -fx assets
