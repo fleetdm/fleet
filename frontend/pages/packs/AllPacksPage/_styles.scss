@@ -1,34 +1,13 @@
 .all-packs-page {
   font-size: $x-small;
 
-  &__bulk-action-btn {
-    color: $core-fleet-black;
-    font-size: $x-small;
-    font-weight: $regular;
-    margin-left: $pad-large;
-    position: relative;
-    bottom: 0;
+  &__bulk-action-container {
+    display: flex;
+    align-items: center;
+  }
 
-    &--disable {
-      &::before {
-        content: url("../assets/images/icon-action-close-16x15@2x.png");
-        transform: scale(0.5);
-      }
-    }
-
-    &--enable {
-      &::before {
-        content: url("../assets/images/icon-action-check-16x15@2x.png");
-        transform: scale(0.5);
-      }
-    }
-
-    &--delete {
-      &::before {
-        content: url("../assets/images/icon-action-delete-14x14@2x.png");
-        transform: scale(0.5);
-      }
-    }
+  &__selected-count {
+    padding: 0 $pad-medium;
   }
 
   &__header-wrap {
@@ -40,10 +19,8 @@
   &__pack-count {
     color: $core-fleet-black;
     font-size: $x-small;
-    line-height: 35px;
     margin: 0;
-    position: relative;
-    top: -$pad-small;
+    padding: $pad-xlarge 0 0 0;
   }
 
   &__search-create-section {

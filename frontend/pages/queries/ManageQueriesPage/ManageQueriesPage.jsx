@@ -18,6 +18,8 @@ import queryInterface from "interfaces/query";
 import userInterface from "interfaces/user";
 import { renderFlash } from "redux/nodes/notifications/actions";
 
+import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
+
 const baseClass = "manage-queries-page";
 
 export class ManageQueriesPage extends Component {
@@ -187,19 +189,20 @@ export class ManageQueriesPage extends Component {
     const { goToNewQueryPage, onToggleModal } = this;
     const { currentUser } = this.props;
 
-    const btnClass = `${baseClass}__delete-queries-btn`;
     const checkedQueryCount = this.state.checkedQueryIDs.length;
 
     if (checkedQueryCount) {
-      const queryText = checkedQueryCount === 1 ? "Query" : "Queries";
 
       return (
         <div className={`${baseClass}__ctas`}>
-          <p className={`${baseClass}__query-count`}>
-            {checkedQueryCount} {queryText} selected
-          </p>
-          <Button className={btnClass} onClick={onToggleModal} variant="alert">
-            Delete
+          <span className={`${baseClass}__selected-count`}>
+            <strong>{checkedQueryCount}</strong> selected
+          </span>
+          <Button onClick={onToggleModal} variant="text-icon">
+            <>
+              <img src={DeleteIcon} alt="Delete query icon" />
+              Delete
+            </>
           </Button>
         </div>
       );
@@ -224,7 +227,7 @@ export class ManageQueriesPage extends Component {
     }
 
     return (
-      <Modal title="Delete Query" onExit={onToggleModal}>
+      <Modal title="Delete query" onExit={onToggleModal}>
         <p>Are you sure you want to delete the selected queries?</p>
         <div className={`${baseClass}__modal-btn-wrap`}>
           <Button onClick={onDeleteQueries} variant="alert">
