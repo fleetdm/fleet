@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
@@ -15,13 +14,12 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/throttled/throttled/v2"
 )
 
-// KolideEndpoints is a collection of RPC endpoints implemented by the Kolide API.
-type KolideEndpoints struct {
+// FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
+type FleetEndpoints struct {
 	Login                                 endpoint.Endpoint
 	Logout                                endpoint.Endpoint
 	ForgotPassword                        endpoint.Endpoint
@@ -122,11 +120,11 @@ type KolideEndpoints struct {
 	TeamEnrollSecrets                     endpoint.Endpoint
 }
 
-// MakeKolideServerEndpoints creates the Kolide API endpoints.
-func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, limitStore throttled.GCRAStore) KolideEndpoints {
+// MakeFleetServerEndpoints creates the Fleet API endpoints.
+func MakeFleetServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, limitStore throttled.GCRAStore) FleetEndpoints {
 	limiter := ratelimit.NewMiddleware(limitStore)
 
-	return KolideEndpoints{
+	return FleetEndpoints{
 		Login: limiter.Limit(
 			throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
 			makeLoginEndpoint(svc),
@@ -252,7 +250,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 	}
 }
 
-type kolideHandlers struct {
+type fleetHandlers struct {
 	Login                                 http.Handler
 	Logout                                http.Handler
 	ForgotPassword                        http.Handler
@@ -353,12 +351,12 @@ type kolideHandlers struct {
 	TeamEnrollSecrets                     http.Handler
 }
 
-func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
+func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
 	newServer := func(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc) http.Handler {
 		e = authzcheck.NewMiddleware().AuthzCheck()(e)
 		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
-	return &kolideHandlers{
+	return &fleetHandlers{
 		Login:                                 newServer(e.Login, decodeLoginRequest),
 		Logout:                                newServer(e.Logout, decodeNoParamsRequest),
 		ForgotPassword:                        newServer(e.ForgotPassword, decodeForgotPasswordRequest),
@@ -485,7 +483,7 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
 func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
-	kolideAPIOptions := []kithttp.ServerOption{
+	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			setRequestsContexts(svc, config.Auth.JwtKey),
@@ -498,15 +496,12 @@ func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.L
 		),
 	}
 
-	kolideEndpoints := MakeKolideServerEndpoints(svc, config.Auth.JwtKey, config.Server.URLPrefix, limitStore)
-	kolideHandlers := makeKolideKitHandlers(kolideEndpoints, kolideAPIOptions)
+	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Auth.JwtKey, config.Server.URLPrefix, limitStore)
+	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
 
 	r := mux.NewRouter()
 
-	attachKolideAPIRoutes(r, kolideHandlers)
-
-	// TODO #42 remove the shims
-	shimRoutes(r, logger)
+	attachFleetAPIRoutes(r, fleetHandlers)
 
 	// Results endpoint is handled different due to websockets use
 	r.PathPrefix("/api/v1/fleet/results/").
@@ -530,54 +525,7 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
-func shimRoutes(r *mux.Router, logger kitlog.Logger) {
-	if err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		path, err := route.GetPathTemplate()
-		if err != nil {
-			return errors.Wrap(err, "get path template")
-		}
-
-		if !strings.HasPrefix(path, "/api/v1/fleet") {
-			return nil
-		}
-
-		methods, err := route.GetMethods()
-		if err != nil {
-			methods = []string{}
-		}
-
-		path = strings.Replace(path, "fleet", "kolide", 1)
-		router.Handle(path, route.GetHandler()).Methods(methods...).Name(route.GetName())
-
-		return nil
-	}); err != nil {
-		panic(err)
-	}
-
-	// Shim the routes to allow them to be referred as /api/v1/fleet or
-	// /api/v1/kolide.
-	var lastShimLogTime time.Time
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if time.Now().After(lastShimLogTime.Add(1 * time.Hour)) {
-				if strings.HasPrefix(r.URL.Path, "/api/v1/kolide") {
-					// There's a race condition with this timestamp but it's not
-					// a big deal if we accidentally log this message more than
-					// once. The point is to not overwhelm the logs with these
-					// messages and this code will be killed soon anyway.
-					lastShimLogTime = time.Now()
-					level.Info(logger).Log(
-						"msg", "client used deprecated route",
-						"deprecated", r.URL.Path,
-					)
-				}
-			}
-			next.ServeHTTP(w, r)
-		})
-	})
-}
-
-func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
+func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/login", h.Login).Methods("POST").Name("login")
 	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
 	r.Handle("/api/v1/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
