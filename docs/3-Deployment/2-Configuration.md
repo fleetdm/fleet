@@ -60,8 +60,6 @@ In order of precedence, options can be specified via:
 - Environment variables
 - Command-line flags
 
-Note: We have deprecated `KOLIDE_` environment variables and will remove them in the Fleet 4.0 release. Please migrate all environment variables to `FLEET_`.
-
 For example, all of the following ways of launching Fleet are equivalent:
 
 ##### Using only CLI flags
@@ -69,7 +67,7 @@ For example, all of the following ways of launching Fleet are equivalent:
 ```
 /usr/bin/fleet serve \
 --mysql_address=127.0.0.1:3306 \
---mysql_database=kolide \
+--mysql_database=fleet \
 --mysql_username=root \
 --mysql_password=toor \
 --redis_address=127.0.0.1:6379 \
@@ -83,7 +81,7 @@ For example, all of the following ways of launching Fleet are equivalent:
 
 ```
 FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
-FLEET_MYSQL_DATABASE=kolide \
+FLEET_MYSQL_DATABASE=fleet \
 FLEET_MYSQL_USERNAME=root \
 FLEET_MYSQL_PASSWORD=toor \
 FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
@@ -100,7 +98,7 @@ FLEET_AUTH_JWT_KEY=changeme \
 echo '
 mysql:
   address: 127.0.0.1:3306
-  database: kolide
+  database: fleet
   username: root
   password: toor
 redis:
@@ -112,8 +110,8 @@ logging:
   json: true
 auth:
   jwt_key: changeme
-' > /tmp/kolide.yml
-fleet serve --config /tmp/kolide.yml
+' > /tmp/fleet.yml
+fleet serve --config /tmp/fleet.yml
 ```
 
 #### What are the options?
@@ -668,52 +666,6 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
   ```
   osquery:
   	result_log_plugin: firehose
-  ```
-
-###### `osquery_status_log_file`
-
-DEPRECATED: Use filesystem_status_log_file.
-
-The path which osquery status logs will be logged to.
-
-- Default value: `/tmp/osquery_status`
-- Environment variable: `FLEET_OSQUERY_STATUS_LOG_FILE`
-- Config file format:
-
-  ```
-  osquery:
-  	status_log_file: /var/log/osquery/status.log
-  ```
-
-###### `osquery_result_log_file`
-
-DEPRECATED: Use filesystem_result_log_file.
-
-The path which osquery result logs will be logged to.
-
-- Default value: `/tmp/osquery_result`
-- Environment variable: `FLEET_OSQUERY_RESULT_LOG_FILE`
-- Config file format:
-
-  ```
-  osquery:
-  	result_log_file: /var/log/osquery/result.log
-  ```
-
-###### `osquery_enable_log_rotation`
-
-DEPRECATED: Use fileystem_enable_log_rotation.
-
-This flag will cause the osquery result and status log files to be automatically
-rotated when files reach a size of 500 Mb or an age of 28 days.
-
-- Default value: `false`
-- Environment variable: `FLEET_OSQUERY_ENABLE_LOG_ROTATION`
-- Config file format:
-
-  ```
-  osquery:
-     enable_log_rotation: true
   ```
 
 ##### Logging (Fleet server logging)
