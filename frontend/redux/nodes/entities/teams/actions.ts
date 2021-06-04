@@ -8,6 +8,7 @@ import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import {
   enrollSecretSuccess,
   enrollSecretFailure,
+  getEnrollSecret,
   // @ts-ignore
 } from "redux/nodes/app/actions";
 import config from "./config";
@@ -36,11 +37,11 @@ export const addMembers = (
   newMembers: INewMembersBody
 ): any => {
   return (dispatch: any) => {
-    dispatch(loadRequest()); // TODO: figure out better way to do this. This causes page flash
+    dispatch(loadRequest());
     return Kolide.teams
       .addMembers(teamId, newMembers)
       .then((res: { team: ITeam }) => {
-        return dispatch(successAction(res.team, updateSuccess)); // TODO: come back and figure out updating team entity.
+        return dispatch(successAction(res.team, updateSuccess));
       })
       .catch((res: any) => {
         const errorsObject = formatErrorResponse(res);
@@ -55,7 +56,7 @@ export const removeMembers = (
   removedMembers: IRemoveMembersBody
 ) => {
   return (dispatch: any) => {
-    dispatch(loadRequest()); // TODO: ensure works when API is implemented
+    dispatch(loadRequest());
     return Kolide.teams
       .removeMembers(teamId, removedMembers)
       .then((res: { team: ITeam }) => {
@@ -85,10 +86,16 @@ export const transferHosts = (teamId: number, hostIds: number[]): any => {
   };
 };
 
-export const getEnrollSecrets = (teamId: number): any => {
+export const getEnrollSecrets = (team?: ITeam | null): any => {
+  if (team === null || team === undefined) {
+    return (dispatch: any) => {
+      return dispatch(getEnrollSecret());
+    };
+  }
+
   return (dispatch: any) => {
     return Kolide.teams
-      .getEnrollSecrets(teamId)
+      .getEnrollSecrets(team.id)
       .then((secrets: IEnrollSecret[]) => {
         return dispatch(enrollSecretSuccess(secrets));
       })
