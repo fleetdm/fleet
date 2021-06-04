@@ -2,7 +2,7 @@ import nock from "nock";
 
 const defaultParams = {
   query: "",
-  queryId: 1,
+  query_id: 1,
   selected: {
     hosts: [],
     labels: [],
