@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
@@ -12,7 +13,13 @@ func (svc Service) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([
 		return nil, err
 	}
 
-	return svc.ds.ListHosts(opt)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, kolide.ErrNoContext
+	}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	return svc.ds.ListHosts(filter, opt)
 }
 
 func (svc Service) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, error) {
@@ -73,8 +80,13 @@ func (svc Service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, err
 	if err := svc.authz.Authorize(ctx, &kolide.Host{}, kolide.ActionList); err != nil {
 		return nil, err
 	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, kolide.ErrNoContext
+	}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(svc.clock.Now())
+	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(filter, svc.clock.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +143,11 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	if err := svc.authz.Authorize(ctx, &kolide.Team{}, kolide.ActionWrite); err != nil {
 		return err
 	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return kolide.ErrNoContext
+	}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	if opt.StatusFilter != "" && lid != nil {
 		return kolide.NewInvalidArgumentError("status", "may not be provided with label_id")
@@ -142,9 +159,9 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	var hosts []*kolide.Host
 	var err error
 	if lid != nil {
-		hosts, err = svc.ds.ListHostsInLabel(*lid, opt)
+		hosts, err = svc.ds.ListHostsInLabel(filter, *lid, opt)
 	} else {
-		hosts, err = svc.ds.ListHosts(opt)
+		hosts, err = svc.ds.ListHosts(filter, opt)
 	}
 	if err != nil {
 		return err

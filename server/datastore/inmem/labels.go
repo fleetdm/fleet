@@ -115,7 +115,7 @@ func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 	return label, nil
 }
 
-func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
+func (d *Datastore) ListLabels(filter kolide.TeamFilter, opt kolide.ListOptions) ([]*kolide.Label, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	// We need to sort by keys to provide reliable ordering
@@ -177,7 +177,7 @@ func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ..
 	return results, nil
 }
 
-func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+func (d *Datastore) ListHostsInLabel(filter kolide.TeamFilter, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	var hosts []*kolide.Host
 
 	d.mtx.Lock()
@@ -192,7 +192,7 @@ func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*k
 	return hosts, nil
 }
 
-func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]*kolide.Host, error) {
+func (d *Datastore) ListUniqueHostsInLabels(filter kolide.TeamFilter, labels []uint) ([]*kolide.Host, error) {
 	var hosts []*kolide.Host
 
 	labelSet := map[uint]bool{}

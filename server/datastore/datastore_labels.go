@@ -335,9 +335,10 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	err = db.ApplyLabelSpecs([]*kolide.LabelSpec{l1})
 	require.Nil(t, err)
 
-	{
+	filter := kolide.TeamFilter{User: test.UserAdmin}
 
-		hosts, err := db.ListHostsInLabel(l1.ID, kolide.HostListOptions{})
+	{
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, kolide.HostListOptions{})
 		require.Nil(t, err)
 		assert.Len(t, hosts, 0)
 	}
@@ -348,7 +349,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(l1.ID, kolide.HostListOptions{})
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, kolide.HostListOptions{})
 		require.Nil(t, err)
 		assert.Len(t, hosts, 3)
 	}
@@ -408,11 +409,13 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 		assert.Nil(t, err)
 	}
 
-	uniqueHosts, err := db.ListUniqueHostsInLabels([]uint{l1.ID, l2.ID})
+	filter := kolide.TeamFilter{User: test.UserAdmin}
+
+	uniqueHosts, err := db.ListUniqueHostsInLabels(filter, []uint{l1.ID, l2.ID})
 	assert.Nil(t, err)
 	assert.Equal(t, len(hosts), len(uniqueHosts))
 
-	labels, err := db.ListLabels(kolide.ListOptions{})
+	labels, err := db.ListLabels(filter, kolide.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, labels, 2)
 

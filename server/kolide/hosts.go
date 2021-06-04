@@ -47,7 +47,7 @@ type HostStore interface {
 	// provided host enrollment cooldown, by returning an error if the host has
 	// enrolled within the cooldown period.
 	EnrollHost(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
-	ListHosts(opt HostListOptions) ([]*Host, error)
+	ListHosts(filter TeamFilter, opt HostListOptions) ([]*Host, error)
 	// AuthenticateHost authenticates and returns host metadata by node key.
 	// This method should not return the host "additional" information as this
 	// is not typically necessary for the operations performed by the osquery
@@ -66,9 +66,9 @@ type HostStore interface {
 	CleanupIncomingHosts(now time.Time) error
 	// GenerateHostStatusStatistics retrieves the count of online, offline,
 	// MIA and new hosts.
-	GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, err error)
+	GenerateHostStatusStatistics(filter TeamFilter, now time.Time) (online, offline, mia, new uint, err error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
-	HostIDsByName(hostnames []string) ([]uint, error)
+	HostIDsByName(filter TeamFilter, hostnames []string) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier.
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
 	// hostname.

@@ -282,7 +282,7 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	return host, nil
 }
 
-func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
+func (d *Datastore) ListHosts(filter kolide.TeamFilter, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	sql := `SELECT
 		h.id,
 		h.osquery_host_id,
@@ -345,9 +345,10 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 		    `
 	}
 
-	sql += `FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
-WHERE TRUE
-    `
+	sql += fmt.Sprintf(`FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		WHERE TRUE AND %s
+    `, d.whereFilterHostsByTeams(filter, "h"),
+	)
 	switch opt.StatusFilter {
 	case "new":
 		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
@@ -388,19 +389,21 @@ func (d *Datastore) CleanupIncomingHosts(now time.Time) error {
 	return nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, e error) {
+func (d *Datastore) GenerateHostStatusStatistics(filter kolide.TeamFilter, now time.Time) (online, offline, mia, new uint, e error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and CountHostsInTargets
 
 	sqlStatement := fmt.Sprintf(`
-		SELECT
-			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
-			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
-			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
-			COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
-		FROM hosts
-		LIMIT 1;
-	`, kolide.OnlineIntervalBuffer, kolide.OnlineIntervalBuffer)
+			SELECT
+				COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
+				COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
+				COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
+				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
+			FROM hosts WHERE %s
+			LIMIT 1;
+		`, kolide.OnlineIntervalBuffer, kolide.OnlineIntervalBuffer,
+		d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
 	counts := struct {
 		MIA     uint `db:"mia"`
@@ -704,15 +707,16 @@ func (d *Datastore) SearchHosts(filter kolide.TeamFilter, query string, omit ...
 
 }
 
-func (d *Datastore) HostIDsByName(hostnames []string) ([]uint, error) {
+func (d *Datastore) HostIDsByName(filter kolide.TeamFilter, hostnames []string) ([]uint, error) {
 	if len(hostnames) == 0 {
 		return []uint{}, nil
 	}
 
-	sqlStatement := `
-		SELECT id FROM hosts
-		WHERE host_name IN (?)
-	`
+	sqlStatement := fmt.Sprintf(`
+			SELECT id FROM hosts
+			WHERE host_name IN (?) AND %s
+		`, d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
 	sql, args, err := sqlx.In(sqlStatement, hostnames)
 	if err != nil {

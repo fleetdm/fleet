@@ -250,28 +250,29 @@ func testListHosts(t *testing.T, ds kolide.Datastore) {
 		hosts = append(hosts, host)
 	}
 
-	hosts2, err := ds.ListHosts(kolide.HostListOptions{})
+	filter := kolide.TeamFilter{User: test.UserAdmin}
+	hosts2, err := ds.ListHosts(filter, kolide.HostListOptions{})
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts), len(hosts2))
 
 	// Test with logic for only a few hosts
-	hosts2, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{PerPage: 4, Page: 0}})
+	hosts2, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{PerPage: 4, Page: 0}})
 	require.Nil(t, err)
 	assert.Equal(t, 4, len(hosts2))
 
 	err = ds.DeleteHost(hosts[0].ID)
 	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(kolide.HostListOptions{})
+	hosts2, err = ds.ListHosts(filter, kolide.HostListOptions{})
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts)-1, len(hosts2))
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{})
+	hosts, err = ds.ListHosts(filter, kolide.HostListOptions{})
 	require.Nil(t, err)
 	require.Equal(t, len(hosts2), len(hosts))
 
 	err = ds.SaveHost(hosts[0])
 	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(kolide.HostListOptions{})
+	hosts2, err = ds.ListHosts(filter, kolide.HostListOptions{})
 	require.Nil(t, err)
 	require.Equal(t, hosts[0].ID, hosts2[0].ID)
 }
@@ -288,25 +289,27 @@ func testListHostsFilterAdditional(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
+	filter := kolide.TeamFilter{User: test.UserAdmin}
+
 	// Add additional
 	additional := json.RawMessage(`{"field1": "v1", "field2": "v2"}`)
 	h.Additional = &additional
 	require.NoError(t, ds.SaveHostAdditional(h))
 
-	hosts, err := ds.ListHosts(kolide.HostListOptions{})
+	hosts, err := ds.ListHosts(filter, kolide.HostListOptions{})
 	require.Nil(t, err)
 	assert.Nil(t, hosts[0].Additional)
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"field1", "field2"}})
+	hosts, err = ds.ListHosts(filter, kolide.HostListOptions{AdditionalFilters: []string{"field1", "field2"}})
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"*"}})
+	hosts, err = ds.ListHosts(filter, kolide.HostListOptions{AdditionalFilters: []string{"*"}})
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 
 	additional = json.RawMessage(`{"field1": "v1", "missing": null}`)
-	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"field1", "missing"}})
+	hosts, err = ds.ListHosts(filter, kolide.HostListOptions{AdditionalFilters: []string{"field1", "missing"}})
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 }
@@ -328,19 +331,21 @@ func testListHostsStatus(t *testing.T, ds kolide.Datastore) {
 		}
 	}
 
-	hosts, err := ds.ListHosts(kolide.HostListOptions{StatusFilter: "online"})
+	filter := kolide.TeamFilter{User: test.UserAdmin}
+
+	hosts, err := ds.ListHosts(filter, kolide.HostListOptions{StatusFilter: "online"})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(hosts))
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{StatusFilter: "offline"})
+	hosts, err = ds.ListHosts(filter, kolide.HostListOptions{StatusFilter: "offline"})
 	require.Nil(t, err)
 	assert.Equal(t, 9, len(hosts))
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{StatusFilter: "mia"})
+	hosts, err = ds.ListHosts(filter, kolide.HostListOptions{StatusFilter: "mia"})
 	require.Nil(t, err)
 	assert.Equal(t, 0, len(hosts))
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{StatusFilter: "new"})
+	hosts, err = ds.ListHosts(filter, kolide.HostListOptions{StatusFilter: "new"})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(hosts))
 }
@@ -364,47 +369,49 @@ func testListHostsQuery(t *testing.T, ds kolide.Datastore) {
 		hosts = append(hosts, host)
 	}
 
-	gotHosts, err := ds.ListHosts(kolide.HostListOptions{})
+	filter := kolide.TeamFilter{User: test.UserAdmin}
+
+	gotHosts, err := ds.ListHosts(filter, kolide.HostListOptions{})
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "00"}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "00"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "000"}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "000"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "192.168."}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "192.168."}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "192.168.1.1"}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "192.168.1.1"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "hostname%00"}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "hostname%00"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "hostname%003"}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "hostname%003"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "uuid_"}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "uuid_"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "uuid_006"}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "uuid_006"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "serial"}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "serial"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "serial009"}})
+	gotHosts, err = ds.ListHosts(filter, kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "serial009"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 }
@@ -551,8 +558,7 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 }
 
 func testSearchHostsLimit(t *testing.T, ds kolide.Datastore) {
-	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
-	filter := kolide.TeamFilter{User: user}
+	filter := kolide.TeamFilter{User: test.UserAdmin}
 
 	for i := 0; i < 15; i++ {
 		_, err := ds.NewHost(&kolide.Host{
@@ -573,14 +579,10 @@ func testSearchHostsLimit(t *testing.T, ds kolide.Datastore) {
 }
 
 func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
-	if ds.Name() == "inmem" {
-		fmt.Println("Busted test skipped for inmem")
-		return
-	}
-
+	filter := kolide.TeamFilter{User: test.UserAdmin}
 	mockClock := clock.NewMockClock()
 
-	online, offline, mia, new, err := ds.GenerateHostStatusStatistics(mockClock.Now())
+	online, offline, mia, new, err := ds.GenerateHostStatusStatistics(filter, mockClock.Now())
 	assert.Nil(t, err)
 	assert.Equal(t, uint(0), online)
 	assert.Equal(t, uint(0), offline)
@@ -640,14 +642,14 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now())
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(filter, mockClock.Now())
 	assert.Nil(t, err)
 	assert.Equal(t, uint(2), online)
 	assert.Equal(t, uint(1), offline)
 	assert.Equal(t, uint(1), mia)
 	assert.Equal(t, uint(4), new)
 
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now().Add(1 * time.Hour))
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(filter, mockClock.Now().Add(1*time.Hour))
 	assert.Nil(t, err)
 	assert.Equal(t, uint(0), online)
 	assert.Equal(t, uint(3), offline)
@@ -811,7 +813,8 @@ func testHostIDsByName(t *testing.T, ds kolide.Datastore) {
 		require.Nil(t, err)
 	}
 
-	hosts, err := ds.HostIDsByName([]string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	filter := kolide.TeamFilter{User: test.UserAdmin}
+	hosts, err := ds.HostIDsByName(filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
 	require.Nil(t, err)
 	sort.Slice(hosts, func(i, j int) bool { return hosts[i] < hosts[j] })
 	assert.Equal(t, hosts, []uint{2, 3, 6})

@@ -243,11 +243,14 @@ func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 }
 
 // ListLabels returns all labels limited or sorted by kolide.ListOptions.
-func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
-	query := `
-		SELECT *, (SELECT COUNT(1) FROM label_membership WHERE label_id = id) AS host_count
-		FROM labels
-	`
+func (d *Datastore) ListLabels(filter kolide.TeamFilter, opt kolide.ListOptions) ([]*kolide.Label, error) {
+	query := fmt.Sprintf(`
+			SELECT *,
+				(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
+			FROM labels l
+		`, d.whereFilterHostsByTeams(filter, "h"),
+	)
+
 	query = appendListOptionsToSQL(query, opt)
 	labels := []*kolide.Label{}
 
@@ -389,14 +392,16 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]*kolide.Label, error) {
 
 // ListHostsInLabel returns a list of kolide.Host that are associated
 // with kolide.Label referened by Label ID
-func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	sql := `
-		SELECT h.*
-		FROM label_membership lm
-		JOIN hosts h
-		ON lm.host_id = h.id
-		WHERE lm.label_id = ?
-	`
+func (d *Datastore) ListHostsInLabel(filter kolide.TeamFilter, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+	sql := fmt.Sprintf(`
+			SELECT h.*
+			FROM label_membership lm
+			JOIN hosts h
+			ON lm.host_id = h.id
+			WHERE lm.label_id = ? AND %s
+		`, d.whereFilterHostsByTeams(filter, "h"),
+	)
+
 	params := []interface{}{lid}
 
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
@@ -410,18 +415,20 @@ func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*k
 	return hosts, nil
 }
 
-func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]*kolide.Host, error) {
+func (d *Datastore) ListUniqueHostsInLabels(filter kolide.TeamFilter, labels []uint) ([]*kolide.Host, error) {
 	if len(labels) == 0 {
 		return []*kolide.Host{}, nil
 	}
 
-	sqlStatement := `
-		SELECT DISTINCT h.*
-		FROM label_membership lm
-		JOIN hosts h
-		ON lm.host_id = h.id
-		WHERE lm.label_id IN (?)
-	`
+	sqlStatement := fmt.Sprintf(`
+			SELECT DISTINCT h.*
+			FROM label_membership lm
+			JOIN hosts h
+			ON lm.host_id = h.id
+			WHERE lm.label_id IN (?) AND %s
+		`, d.whereFilterHostsByTeams(filter, "h"),
+	)
+
 	query, args, err := sqlx.In(sqlStatement, labels)
 	if err != nil {
 		return nil, errors.Wrap(err, "building query listing unique hosts in labels")
