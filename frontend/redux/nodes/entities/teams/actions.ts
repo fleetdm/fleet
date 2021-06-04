@@ -1,10 +1,16 @@
 import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Kolide from "kolide";
 // @ts-ignore
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
-
+import {
+  enrollSecretSuccess,
+  enrollSecretFailure,
+  getEnrollSecret,
+  // @ts-ignore
+} from "redux/nodes/app/actions";
 import config from "./config";
 
 const { actions } = config;
@@ -31,11 +37,11 @@ export const addMembers = (
   newMembers: INewMembersBody
 ): any => {
   return (dispatch: any) => {
-    dispatch(loadRequest()); // TODO: figure out better way to do this. This causes page flash
+    dispatch(loadRequest());
     return Kolide.teams
       .addMembers(teamId, newMembers)
       .then((res: { team: ITeam }) => {
-        return dispatch(successAction(res.team, updateSuccess)); // TODO: come back and figure out updating team entity.
+        return dispatch(successAction(res.team, updateSuccess));
       })
       .catch((res: any) => {
         const errorsObject = formatErrorResponse(res);
@@ -50,7 +56,7 @@ export const removeMembers = (
   removedMembers: IRemoveMembersBody
 ) => {
   return (dispatch: any) => {
-    dispatch(loadRequest()); // TODO: ensure works when API is implemented
+    dispatch(loadRequest());
     return Kolide.teams
       .removeMembers(teamId, removedMembers)
       .then((res: { team: ITeam }) => {
@@ -80,16 +86,24 @@ export const transferHosts = (teamId: number, hostIds: number[]): any => {
   };
 };
 
-export const getEnrollSecrets = (teamId: number): any => {
+export const getEnrollSecrets = (team?: ITeam | null): any => {
+  // This case happens when the 'No Team' options is selected. We want to
+  // just call the default getEnrollSecret in this case
+  if (team === null || team === undefined) {
+    return (dispatch: any) => {
+      return dispatch(getEnrollSecret());
+    };
+  }
+
   return (dispatch: any) => {
     return Kolide.teams
-      .getEnrollSecrets(teamId)
-      .then((res: { team: ITeam }) => {
-        return dispatch(successAction(res.team, updateSuccess));
+      .getEnrollSecrets(team.id)
+      .then((secrets: IEnrollSecret[]) => {
+        return dispatch(enrollSecretSuccess(secrets));
       })
-      .catch((res: any) => {
-        const errorsObject = formatErrorResponse(res);
-        dispatch(addMembersFailure(errorsObject));
+      .catch((err: any) => {
+        const errorsObject = formatErrorResponse(err);
+        dispatch(enrollSecretFailure(err));
         throw errorsObject;
       });
   };
