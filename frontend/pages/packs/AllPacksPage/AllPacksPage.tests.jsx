@@ -123,16 +123,22 @@ describe("AllPacksPage - component", () => {
 
       selectAllPacks.hostNodes().simulate("change");
 
+      const deleteBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Delete";
+      });
+
+      const enableBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Enable";
+      });
+
+      const disableBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Disable";
+      });
+
       expect(page.state("checkedPackIDs")).toEqual([packStub.id, 101]);
-      expect(
-        page.find(".all-packs-page__bulk-action-btn--disable").length
-      ).toBeGreaterThan(0);
-      expect(
-        page.find(".all-packs-page__bulk-action-btn--enable").length
-      ).toBeGreaterThan(0);
-      expect(
-        page.find(".all-packs-page__bulk-action-btn--delete").length
-      ).toBeGreaterThan(0);
+      expect(deleteBtn.length).toBeGreaterThan(0);
+      expect(enableBtn.length).toBeGreaterThan(0);
+      expect(disableBtn.length).toBeGreaterThan(0);
     });
 
     it("dispatches the pack update function when disable is clicked", () => {
@@ -145,11 +151,11 @@ describe("AllPacksPage - component", () => {
 
       selectAllPacks.hostNodes().simulate("change");
 
-      const disableBtn = page
-        .find(".all-packs-page__bulk-action-btn--disable")
-        .hostNodes();
+      const disableBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Disable";
+      });
 
-      disableBtn.simulate("click");
+      disableBtn.at(0).simulate("click");
 
       const dispatchedActions = mockStore.getActions();
 
@@ -168,11 +174,11 @@ describe("AllPacksPage - component", () => {
 
       selectAllPacks.hostNodes().simulate("change");
 
-      const enableBtn = page
-        .find(".all-packs-page__bulk-action-btn--enable")
-        .hostNodes();
+      const enableBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Enable";
+      });
 
-      enableBtn.simulate("click");
+      enableBtn.at(0).simulate("click");
 
       const dispatchedActions = mockStore.getActions();
 
@@ -193,11 +199,13 @@ describe("AllPacksPage - component", () => {
 
       selectAllPacks.hostNodes().simulate("change");
 
-      const deleteBtn = page
-        .find(".all-packs-page__bulk-action-btn--delete")
-        .hostNodes();
+      const deleteBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Delete";
+      });
 
-      deleteBtn.simulate("click");
+      // We use .at(1) because there are 2 buttons with the
+      // text "Delete" on the screen
+      deleteBtn.at(1).simulate("click");
 
       expect(page.find("Modal").length).toEqual(1);
     });
@@ -214,11 +222,13 @@ describe("AllPacksPage - component", () => {
 
       selectAllPacks.hostNodes().simulate("change");
 
-      const deleteBtn = page
-        .find(".all-packs-page__bulk-action-btn--delete")
-        .hostNodes();
+      const deleteBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Delete";
+      });
 
-      deleteBtn.simulate("click");
+      // We use .at(1) because there are 2 buttons with the
+      // text "Delete" on the screen
+      deleteBtn.at(1).simulate("click");
 
       const modal = page.find("Modal");
 
@@ -243,11 +253,13 @@ describe("AllPacksPage - component", () => {
 
       selectAllPacks.hostNodes().simulate("change");
 
-      const deleteBtn = page
-        .find(".all-packs-page__bulk-action-btn--delete")
-        .hostNodes();
+      const deleteBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Delete";
+      });
 
-      deleteBtn.simulate("click");
+      // We use .at(1) because there are 2 buttons with the
+      // text "Delete" on the screen
+      deleteBtn.at(1).simulate("click");
 
       const modal = page.find("Modal");
 

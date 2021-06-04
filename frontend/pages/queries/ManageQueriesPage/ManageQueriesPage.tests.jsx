@@ -225,10 +225,12 @@ describe("ManageQueriesPage - component", () => {
 
       checkAllQueries.hostNodes().simulate("change");
 
+      const deleteBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Delete";
+      });
+
       expect(page.state("checkedQueryIDs")).toEqual([queryStub.id, 101]);
-      expect(
-        page.find(".manage-queries-page__delete-queries-btn").length
-      ).toBeGreaterThan(0);
+      expect(deleteBtn.length).toBeGreaterThan(0);
     });
 
     it("calls the API to delete once the Modal has been accepted", () => {
@@ -243,11 +245,13 @@ describe("ManageQueriesPage - component", () => {
 
       checkAllQueries.hostNodes().simulate("change");
 
-      const deleteBtn = page
-        .find(".manage-queries-page__delete-queries-btn")
-        .hostNodes();
+      const deleteBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Delete";
+      });
 
-      deleteBtn.simulate("click");
+      // We use .at(1) because there are 2 buttons with the
+      // text "Delete" on the screen
+      deleteBtn.at(1).simulate("click");
 
       expect(mockStore.getActions()).not.toContainEqual({
         type: "queries_DESTROY_REQUEST",
@@ -274,11 +278,13 @@ describe("ManageQueriesPage - component", () => {
 
       checkAllQueries.hostNodes().simulate("change");
 
-      const deleteBtn = page
-        .find(".manage-queries-page__delete-queries-btn")
-        .hostNodes();
+      const deleteBtn = page.findWhere((node) => {
+        return node.type() && node.name() && node.text() === "Delete";
+      });
 
-      deleteBtn.simulate("click");
+      // We use .at(1) because there are 2 buttons with the
+      // text "Delete" on the screen
+      deleteBtn.at(1).simulate("click");
 
       expect(mockStore.getActions()).not.toContainEqual({
         type: "queries_DESTROY_REQUEST",
