@@ -418,10 +418,8 @@ Configures the TLS settings for compatibility with various user agents. Options 
 
   ```
   server:
-  	tlsprofile: intermediate
+  	tls_compatibility: intermediate
   ```
-
-Please note this option has an inconsistent key name in the config file. This will be fixed in Fleet 4.0.0.
 
 ###### `server_url_prefix`
 

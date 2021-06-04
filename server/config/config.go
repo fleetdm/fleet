@@ -54,7 +54,7 @@ type ServerConfig struct {
 	Cert       string
 	Key        string
 	TLS        bool
-	TLSProfile string // TODO #271 set `yaml:"tls_compatibility"`
+	TLSProfile string `yaml:"tls_compatibility"`
 	URLPrefix  string `yaml:"url_prefix"`
 	Keepalive  bool   `yaml:"keepalive"`
 }
