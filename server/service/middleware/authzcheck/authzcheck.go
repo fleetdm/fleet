@@ -6,11 +6,13 @@ package authzcheck
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"runtime"
 
 	"github.com/fleetdm/fleet/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/server/contexts/authz"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -28,7 +30,15 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 			authzctx := &authz_ctx.AuthorizationContext{}
 			ctx = authz_ctx.NewContext(ctx, authzctx)
 
-			response, error := next(ctx, req)
+			response, err := next(ctx, req)
+
+			// If authentication check failed, return that error (so that we log
+			// appropriately).
+			var authFailedError *kolide.AuthFailedError
+			var authRequiredError *kolide.AuthRequiredError
+			if errors.As(err, &authFailedError) || errors.As(err, &authRequiredError) {
+				return nil, err
+			}
 
 			// If authorization was not checked, return a response that will
 			// marshal to a generic error and log that the check was missed.
@@ -37,7 +47,7 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 				return nil, authz.ForbiddenWithInternal("missed authz check: " + funcName)
 			}
 
-			return response, error
+			return response, err
 		}
 	}
 }

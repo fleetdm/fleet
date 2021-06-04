@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/server/contexts/authz"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,6 +25,36 @@ func TestAuthzCheck(t *testing.T) {
 
 	_, err := check(context.Background(), struct{}{})
 	assert.NoError(t, err)
+}
+
+func TestAuthzCheckAuthFailed(t *testing.T) {
+	t.Parallel()
+
+	checker := NewMiddleware()
+
+	check := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return nil, kolide.NewAuthFailedError("failed")
+	}
+	check = checker.AuthzCheck()(check)
+
+	_, err := check(context.Background(), struct{}{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed")
+}
+
+func TestAuthzCheckAuthRequired(t *testing.T) {
+	t.Parallel()
+
+	checker := NewMiddleware()
+
+	check := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return nil, kolide.NewAuthRequiredError("required")
+	}
+	check = checker.AuthzCheck()(check)
+
+	_, err := check(context.Background(), struct{}{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "required")
 }
 
 func TestAuthzCheckMissing(t *testing.T) {
