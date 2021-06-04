@@ -20,6 +20,7 @@ class SelectTargetsDropdown extends Component {
     onSelect: PropTypes.func.isRequired,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
+    queryId: PropTypes.number,
   };
 
   static defaultProps = {
@@ -118,7 +119,11 @@ class SelectTargetsDropdown extends Component {
     this.setState({ moreInfoTarget: null });
   };
 
-  fetchTargets = (query = "", selectedTargets = this.props.selectedTargets) => {
+  fetchTargets = (
+    query = "",
+    queryId = this.props.queryId,
+    selectedTargets = this.props.selectedTargets
+  ) => {
     const { onFetchTargets } = this.props;
 
     if (!this.mounted) {
@@ -128,7 +133,7 @@ class SelectTargetsDropdown extends Component {
     this.setState({ isLoadingTargets: true, query });
 
     return Kolide.targets
-      .loadAll(query, formatSelectedTargetsForApi(selectedTargets))
+      .loadAll(query, queryId, formatSelectedTargetsForApi(selectedTargets))
       .then((response) => {
         const { targets } = response;
         const isEmpty = targets.length === 0;

@@ -2,13 +2,14 @@ import createRequestMock from "test/mocks/create_request_mock";
 
 export default {
   loadAll: {
-    valid: (bearerToken, query) => {
+    valid: (bearerToken, query, queryId) => {
       return createRequestMock({
         bearerToken,
         endpoint: "/api/v1/fleet/targets",
         method: "post",
         params: {
           query,
+          query_id: queryId,
           selected: {
             hosts: [],
             labels: [],

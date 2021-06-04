@@ -16,6 +16,7 @@ describe("SelectTargetsDropdown - component", () => {
     onSelect: noop,
     selectedTargets: [],
     targetsCount: 0,
+    queryId: 1,
   };
   afterEach(() => nock.cleanAll());
 
@@ -111,33 +112,12 @@ describe("SelectTargetsDropdown - component", () => {
     const defaultSelectedTargets = { hosts: [], labels: [] };
     const defaultParams = {
       query: "",
+      query_id: 1,
       selected: defaultSelectedTargets,
     };
     const expectedApiClientResponseWithTargets = {
       targets: [{ ...Test.Stubs.labelStub, target_type: "labels" }],
     };
-
-    it("calls the api", () => {
-      Test.Mocks.targetMock(defaultParams, apiResponseWithTargets);
-      const Component = shallow(<SelectTargetsDropdown {...defaultProps} />);
-      const node = Component.instance();
-
-      nock.cleanAll();
-      const request = Test.Mocks.targetMock(
-        defaultParams,
-        apiResponseWithTargets
-      );
-
-      expect.assertions(1);
-      return node
-        .fetchTargets()
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-        })
-        .catch((error) => {
-          expect(error).toBe(undefined);
-        });
-    });
 
     it("calls the onFetchTargets prop", () => {
       const onFetchTargets = jest.fn();
