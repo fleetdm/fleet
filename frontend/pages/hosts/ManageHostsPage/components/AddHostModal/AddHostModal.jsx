@@ -7,6 +7,7 @@ import Button from "components/buttons/Button";
 import configInterface from "interfaces/config";
 import teamInterface from "interfaces/team";
 import enrollSecretInterface from "interfaces/enroll_secret";
+import permissionUtils from "utilities/permissions";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
 import KolideIcon from "components/icons/KolideIcon";
 import Dropdown from "components/forms/fields/Dropdown";
@@ -171,15 +172,17 @@ class AddHostModal extends Component {
                 server.
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
-                <Dropdown
-                  wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
-                  label={"Select a team for this new host:"}
-                  value={selectedTeam && selectedTeam.id}
-                  options={createTeamDropdownOptions(teams)}
-                  onChange={onChangeSelectTeam}
-                  placeholder={"Select a team"}
-                  searchable={false}
-                />
+                {permissionUtils.isBasicTier(config) ? (
+                  <Dropdown
+                    wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
+                    label={"Select a team for this new host:"}
+                    value={selectedTeam && selectedTeam.id}
+                    options={createTeamDropdownOptions(teams)}
+                    onChange={onChangeSelectTeam}
+                    placeholder={"Select a team"}
+                    searchable={false}
+                  />
+                ) : null}
                 <EnrollSecretTable secrets={enrollSecret} />
               </div>
             </li>

@@ -87,6 +87,8 @@ export const transferHosts = (teamId: number, hostIds: number[]): any => {
 };
 
 export const getEnrollSecrets = (team?: ITeam | null): any => {
+  // This case happens when the 'No Team' options is selected. We want to
+  // just call the default getEnrollSecret in this case
   if (team === null || team === undefined) {
     return (dispatch: any) => {
       return dispatch(getEnrollSecret());
