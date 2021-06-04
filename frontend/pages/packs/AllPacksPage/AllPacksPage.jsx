@@ -224,7 +224,6 @@ export class AllPacksPage extends Component {
     const checkedPackCount = this.state.checkedPackIDs.length;
 
     if (checkedPackCount) {
-
       return (
         <div className={`${baseClass}__bulk-action-container`}>
           <span className={`${baseClass}__selected-count`}>

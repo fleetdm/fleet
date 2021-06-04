@@ -192,7 +192,6 @@ export class ManageQueriesPage extends Component {
     const checkedQueryCount = this.state.checkedQueryIDs.length;
 
     if (checkedQueryCount) {
-
       return (
         <div className={`${baseClass}__ctas`}>
           <span className={`${baseClass}__selected-count`}>
