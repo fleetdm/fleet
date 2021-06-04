@@ -48,7 +48,8 @@ func TestDeleteHost(t *testing.T) {
 	err = svc.DeleteHost(test.UserContext(test.UserAdmin), host.ID)
 	assert.Nil(t, err)
 
-	hosts, err := ds.ListHosts(kolide.HostListOptions{})
+	filter := kolide.TeamFilter{User: test.UserAdmin}
+	hosts, err := ds.ListHosts(filter, kolide.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
@@ -113,7 +114,7 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 	expectedHostIDs := []uint{1, 2, 4}
 	expectedTeam := (*uint)(nil)
 
-	ds.ListHostsFunc = func(opt kolide.HostListOptions) ([]*kolide.Host, error) {
+	ds.ListHostsFunc = func(filter kolide.TeamFilter, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 		var hosts []*kolide.Host
 		for _, id := range expectedHostIDs {
 			hosts = append(hosts, &kolide.Host{ID: id})
@@ -137,7 +138,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	expectedTeam := ptr.Uint(1)
 	expectedLabel := ptr.Uint(2)
 
-	ds.ListHostsInLabelFunc = func(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+	ds.ListHostsInLabelFunc = func(filter kolide.TeamFilter, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 		assert.Equal(t, *expectedLabel, lid)
 		var hosts []*kolide.Host
 		for _, id := range expectedHostIDs {
@@ -157,7 +158,7 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.ListHostsFunc = func(opt kolide.HostListOptions) ([]*kolide.Host, error) {
+	ds.ListHostsFunc = func(filter kolide.TeamFilter, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 		return []*kolide.Host{}, nil
 	}
 	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {

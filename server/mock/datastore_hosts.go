@@ -20,7 +20,7 @@ type HostFunc func(id uint) (*kolide.Host, error)
 
 type HostByIdentifierFunc func(identifier string) (*kolide.Host, error)
 
-type ListHostsFunc func(opt kolide.HostListOptions) ([]*kolide.Host, error)
+type ListHostsFunc func(filter kolide.TeamFilter, opt kolide.HostListOptions) ([]*kolide.Host, error)
 
 type EnrollHostFunc func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*kolide.Host, error)
 
@@ -34,11 +34,11 @@ type CleanupIncomingHostsFunc func(t time.Time) error
 
 type SearchHostsFunc func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Host, error)
 
-type GenerateHostStatusStatisticsFunc func(now time.Time) (online uint, offline uint, mia uint, new uint, err error)
+type GenerateHostStatusStatisticsFunc func(filter kolide.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error)
 
 type DistributedQueriesForHostFunc func(host *kolide.Host) (map[uint]string, error)
 
-type HostIDsByNameFunc func(hostnames []string) ([]uint, error)
+type HostIDsByNameFunc func(filter kolide.TeamFilter, hostnames []string) ([]uint, error)
 
 type AddHostsToTeamFunc func(teamID *uint, hostIDs []uint) error
 
@@ -122,9 +122,9 @@ func (s *HostStore) HostByIdentifier(identifier string) (*kolide.Host, error) {
 	return s.HostByIdentifierFunc(identifier)
 }
 
-func (s *HostStore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
+func (s *HostStore) ListHosts(filter kolide.TeamFilter, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	s.ListHostsFuncInvoked = true
-	return s.ListHostsFunc(opt)
+	return s.ListHostsFunc(filter, opt)
 }
 
 func (s *HostStore) EnrollHost(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*kolide.Host, error) {
@@ -157,9 +157,9 @@ func (s *HostStore) SearchHosts(filter kolide.TeamFilter, query string, omit ...
 	return s.SearchHostsFunc(filter, query, omit...)
 }
 
-func (s *HostStore) GenerateHostStatusStatistics(now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
+func (s *HostStore) GenerateHostStatusStatistics(filter kolide.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
 	s.GenerateHostStatusStatisticsFuncInvoked = true
-	return s.GenerateHostStatusStatisticsFunc(now)
+	return s.GenerateHostStatusStatisticsFunc(filter, now)
 }
 
 func (s *HostStore) DistributedQueriesForHost(host *kolide.Host) (map[uint]string, error) {
@@ -167,9 +167,9 @@ func (s *HostStore) DistributedQueriesForHost(host *kolide.Host) (map[uint]strin
 	return s.DistributedQueriesForHostFunc(host)
 }
 
-func (s *HostStore) HostIDsByName(hostnames []string) ([]uint, error) {
+func (s *HostStore) HostIDsByName(filter kolide.TeamFilter, hostnames []string) ([]uint, error) {
 	s.HostIDsByNameFuncInvoked = true
-	return s.HostIDsByNameFunc(hostnames)
+	return s.HostIDsByNameFunc(filter, hostnames)
 }
 
 func (s *HostStore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {

@@ -16,7 +16,13 @@ import (
 )
 
 func (svc Service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*kolide.DistributedQueryCampaign, error) {
-	hostIDs, err := svc.ds.HostIDsByName(hosts)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, kolide.ErrNoContext
+	}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	hostIDs, err := svc.ds.HostIDsByName(filter, hosts)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding host IDs")
 	}
@@ -25,8 +31,6 @@ func (svc Service) NewDistributedQueryCampaignByNames(ctx context.Context, query
 	if err != nil {
 		return nil, errors.Wrap(err, "finding label IDs")
 	}
-
-	// TODO handle teams
 
 	targets := kolide.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}
 	return svc.NewDistributedQueryCampaign(ctx, queryString, queryID, targets)
@@ -41,6 +45,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	if !ok {
 		return nil, kolide.ErrNoContext
 	}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	if queryID == nil && queryString == "" {
 		return nil, kolide.NewInvalidArgumentError("query", "one of query or query_id must be specified")
@@ -113,8 +118,6 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 			return nil, errors.Wrap(err, "adding team target")
 		}
 	}
-
-	filter := kolide.TeamFilter{User: vc.User}
 
 	hostIDs, err := svc.ds.HostIDsInTargets(filter, targets)
 	if err != nil {

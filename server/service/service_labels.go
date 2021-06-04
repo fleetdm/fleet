@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
@@ -94,8 +95,13 @@ func (svc *Service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*
 	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, kolide.ErrNoContext
+	}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	return svc.ds.ListLabels(opt)
+	return svc.ds.ListLabels(filter, opt)
 }
 
 func (svc *Service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error) {
@@ -130,8 +136,13 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.H
 	if err := svc.authz.Authorize(ctx, &kolide.Label{}, kolide.ActionRead); err != nil {
 		return nil, err
 	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, kolide.ErrNoContext
+	}
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	return svc.ds.ListHostsInLabel(lid, opt)
+	return svc.ds.ListHostsInLabel(filter, lid, opt)
 }
 
 func (svc *Service) ListLabelsForHost(ctx context.Context, hid uint) ([]*kolide.Label, error) {

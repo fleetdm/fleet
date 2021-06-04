@@ -24,7 +24,7 @@ type DeleteLabelFunc func(name string) error
 
 type LabelFunc func(lid uint) (*kolide.Label, error)
 
-type ListLabelsFunc func(opt kolide.ListOptions) ([]*kolide.Label, error)
+type ListLabelsFunc func(filter kolide.TeamFilter, opt kolide.ListOptions) ([]*kolide.Label, error)
 
 type LabelQueriesForHostFunc func(host *kolide.Host, cutoff time.Time) (map[string]string, error)
 
@@ -32,9 +32,9 @@ type RecordLabelQueryExecutionsFunc func(host *kolide.Host, results map[uint]boo
 
 type ListLabelsForHostFunc func(hid uint) ([]*kolide.Label, error)
 
-type ListHostsInLabelFunc func(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error)
+type ListHostsInLabelFunc func(filter kolide.TeamFilter, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error)
 
-type ListUniqueHostsInLabelsFunc func(labels []uint) ([]*kolide.Host, error)
+type ListUniqueHostsInLabelsFunc func(filter kolide.TeamFilter, labels []uint) ([]*kolide.Host, error)
 
 type SearchLabelsFunc func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error)
 
@@ -122,9 +122,9 @@ func (s *LabelStore) Label(lid uint) (*kolide.Label, error) {
 	return s.LabelFunc(lid)
 }
 
-func (s *LabelStore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
+func (s *LabelStore) ListLabels(filter kolide.TeamFilter, opt kolide.ListOptions) ([]*kolide.Label, error) {
 	s.ListLabelsFuncInvoked = true
-	return s.ListLabelsFunc(opt)
+	return s.ListLabelsFunc(filter, opt)
 }
 
 func (s *LabelStore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
@@ -142,14 +142,14 @@ func (s *LabelStore) ListLabelsForHost(hid uint) ([]*kolide.Label, error) {
 	return s.ListLabelsForHostFunc(hid)
 }
 
-func (s *LabelStore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+func (s *LabelStore) ListHostsInLabel(filter kolide.TeamFilter, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	s.ListHostsInLabelFuncInvoked = true
-	return s.ListHostsInLabelFunc(lid, opt)
+	return s.ListHostsInLabelFunc(filter, lid, opt)
 }
 
-func (s *LabelStore) ListUniqueHostsInLabels(labels []uint) ([]*kolide.Host, error) {
+func (s *LabelStore) ListUniqueHostsInLabels(filter kolide.TeamFilter, labels []uint) ([]*kolide.Host, error) {
 	s.ListUniqueHostsInLabelsFuncInvoked = true
-	return s.ListUniqueHostsInLabelsFunc(labels)
+	return s.ListUniqueHostsInLabelsFunc(filter, labels)
 }
 
 func (s *LabelStore) SearchLabels(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {

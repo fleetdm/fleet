@@ -21,7 +21,7 @@ type LabelStore interface {
 	SaveLabel(label *Label) (*Label, error)
 	DeleteLabel(name string) error
 	Label(lid uint) (*Label, error)
-	ListLabels(opt ListOptions) ([]*Label, error)
+	ListLabels(filter TeamFilter, opt ListOptions) ([]*Label, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed
 	// for the given host. The cutoff is the minimum timestamp a query
@@ -41,12 +41,12 @@ type LabelStore interface {
 
 	// ListHostsInLabel returns a slice of hosts in the label with the
 	// given ID.
-	ListHostsInLabel(lid uint, opt HostListOptions) ([]*Host, error)
+	ListHostsInLabel(filter TeamFilter, lid uint, opt HostListOptions) ([]*Host, error)
 
 	// ListUniqueHostsInLabels returns a slice of all of the hosts in the
 	// given label IDs. A host will only appear once in the results even if
 	// it is in multiple of the provided labels.
-	ListUniqueHostsInLabels(labels []uint) ([]*Host, error)
+	ListUniqueHostsInLabels(filter TeamFilter, labels []uint) ([]*Host, error)
 
 	SearchLabels(filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
