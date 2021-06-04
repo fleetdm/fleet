@@ -3,7 +3,7 @@ export const targetFilter = (targetType) => {
     return { name: "All Hosts" };
   }
 
-  if (targetType === "labels") {
+  if (targetType === "labels" || targetType === "teams") {
     return (option) => {
       return option.target_type === targetType && option.name !== "All Hosts";
     };

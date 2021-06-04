@@ -13,12 +13,11 @@
     align-content: stretch;
     cursor: default;
     border-radius: 8px;
-    padding: $pad-xsmall 8px;
+    padding: 0 $pad-xsmall;
   }
 
   &__target-content,
   &__add-btn {
-    line-height: 34px;
     font-size: $small;
     font-weight: $regular;
     text-transform: none;
@@ -28,7 +27,6 @@
   &__add-btn::after {
     content: url("../assets/images/icon-plus-circle-16x16@2x.png");
     transform: scale(0.5);
-    margin-top: 8px;
     border: none;
   }
 
@@ -47,12 +45,12 @@
     line-height: 16px;
     font-weight: bold;
     padding: 2px 10px;
-    margin-right: 12px;
   }
 
   &__icon {
     color: $core-fleet-black;
     font-size: $small;
+    margin-left: $pad-small;
 
     &--online {
       color: $core-fleet-black;
@@ -80,7 +78,7 @@
 
   &__label-label {
     color: $core-fleet-black;
-    font-size: $x-small;
+    font-size: $xx-small;
     margin-left: $pad-small;
 
     .all-hosts {

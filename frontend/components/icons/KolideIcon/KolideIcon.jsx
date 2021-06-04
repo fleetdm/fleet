@@ -8,7 +8,7 @@ export class KolideIcon extends Component {
   static propTypes = {
     className: PropTypes.string,
     fw: PropTypes.bool,
-    name: PropTypes.string.isRequired,
+    name: PropTypes.string,
     size: PropTypes.string,
     title: PropTypes.string,
   };

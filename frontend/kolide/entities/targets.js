@@ -24,6 +24,7 @@ export default (client) => {
             targets: [
               ...appendTargetTypeToTargets(targets.hosts, "hosts"),
               ...appendTargetTypeToTargets(targets.labels, "labels"),
+              ...appendTargetTypeToTargets(targets.teams, "teams"),
             ],
           };
         });
