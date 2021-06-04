@@ -8,3 +8,10 @@ export default PropTypes.arrayOf(
     created_at: PropTypes.string,
   })
 );
+
+export interface IEnrollSecret {
+  name: string;
+  secret: string;
+  active: boolean;
+  created_at: string;
+}

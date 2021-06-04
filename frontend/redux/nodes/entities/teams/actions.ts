@@ -1,10 +1,15 @@
 import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Kolide from "kolide";
 // @ts-ignore
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
-
+import {
+  enrollSecretSuccess,
+  enrollSecretFailure,
+  // @ts-ignore
+} from "redux/nodes/app/actions";
 import config from "./config";
 
 const { actions } = config;
@@ -84,12 +89,12 @@ export const getEnrollSecrets = (teamId: number): any => {
   return (dispatch: any) => {
     return Kolide.teams
       .getEnrollSecrets(teamId)
-      .then((res: { team: ITeam }) => {
-        return dispatch(successAction(res.team, updateSuccess));
+      .then((secrets: IEnrollSecret[]) => {
+        return dispatch(enrollSecretSuccess(secrets));
       })
-      .catch((res: any) => {
-        const errorsObject = formatErrorResponse(res);
-        dispatch(addMembersFailure(errorsObject));
+      .catch((err: any) => {
+        const errorsObject = formatErrorResponse(err);
+        dispatch(enrollSecretFailure(err));
         throw errorsObject;
       });
   };
