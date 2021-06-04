@@ -35,6 +35,7 @@ import PackComposerPage from "pages/packs/PackComposerPage";
 import QueryPage from "pages/queries/QueryPage";
 import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
+import Fleet403 from "pages/Fleet403";
 import Fleet404 from "pages/Fleet404";
 import Fleet500 from "pages/Fleet500";
 import UserSettingsPage from "pages/UserSettingsPage";
@@ -110,6 +111,7 @@ const routes = (
       </Route>
       <Route path="/500" component={Fleet500} />
       <Route path="/404" component={Fleet404} />
+      <Route path="/403" component={Fleet403} />
       <Route path="*" component={Fleet404} />
     </Router>
   </Provider>

@@ -18,7 +18,7 @@ interface IRootState {
   };
 }
 
-const { HOME } = paths;
+const { FLEET_403 } = paths;
 
 const BasicTierRoutes = (props: IBasicTierRoutes) => {
   const { children } = props;
@@ -33,8 +33,7 @@ const BasicTierRoutes = (props: IBasicTierRoutes) => {
   }
 
   if (!permissionUtils.isBasicTier(config)) {
-    dispatch(push(HOME));
-    dispatch(renderFlash("error", "You do not have permissions for that page"));
+    dispatch(push(FLEET_403));
     return null;
   }
   return <>{children}</>;
