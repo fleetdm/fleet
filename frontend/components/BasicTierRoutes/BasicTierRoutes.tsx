@@ -26,7 +26,9 @@ const BasicTierRoutes = (props: IBasicTierRoutes) => {
   const dispatch = useDispatch();
   const config = useSelector((state: IRootState) => state.app.config);
 
-  if (!config) {
+  // config is an empty object here. The API result has not come back
+  // so render nothing.
+  if (Object.keys(config).length === 0) {
     return null;
   }
 
