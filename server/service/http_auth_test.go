@@ -40,9 +40,9 @@ func TestLogin(t *testing.T) {
 	}
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "", limitStore)
-	kh := makeKolideKitHandlers(ke, opts)
-	attachKolideAPIRoutes(r, kh)
+	ke := MakeFleetServerEndpoints(svc, "CHANGEME", "", limitStore)
+	kh := makeKitHandlers(ke, opts)
+	attachFleetAPIRoutes(r, kh)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "index")
 	}))

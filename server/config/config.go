@@ -356,29 +356,6 @@ func (man Manager) addConfigs() {
 // LoadConfig will load the config variables into a fully initialized
 // KolideConfig struct
 func (man Manager) LoadConfig() KolideConfig {
-	// Shim old style environment variables with a warning
-	// TODO #260 remove this on major version release
-	haveLogged := false
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "KOLIDE_") {
-			splits := strings.SplitN(e, "=", 2)
-			if len(splits) != 2 {
-				panic("env " + e + " does not contain 2 splits")
-			}
-
-			key, val := splits[0], splits[1]
-
-			if !haveLogged {
-				fmt.Println("Environment variables prefixed with KOLIDE_ are deprecated. Please migrate to FLEET_ prefixes.`")
-				haveLogged = true
-			}
-
-			if err := os.Setenv("FLEET"+strings.TrimPrefix(key, "KOLIDE"), val); err != nil {
-				panic(err)
-			}
-		}
-	}
-
 	man.loadConfigFile()
 
 	return KolideConfig{

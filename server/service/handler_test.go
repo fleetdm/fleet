@@ -20,9 +20,9 @@ func TestAPIRoutes(t *testing.T) {
 
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "", limitStore)
-	kh := makeKolideKitHandlers(ke, nil)
-	attachKolideAPIRoutes(r, kh)
+	ke := MakeFleetServerEndpoints(svc, "CHANGEME", "", limitStore)
+	kh := makeKitHandlers(ke, nil)
+	attachFleetAPIRoutes(r, kh)
 	handler := mux.NewRouter()
 	handler.PathPrefix("/").Handler(r)
 
