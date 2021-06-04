@@ -45,7 +45,6 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	if !ok {
 		return nil, kolide.ErrNoContext
 	}
-	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	if queryID == nil && queryString == "" {
 		return nil, kolide.NewInvalidArgumentError("query", "one of query or query_id must be specified")
@@ -73,6 +72,8 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	if err != nil {
 		return nil, errors.Wrap(err, "new query")
 	}
+
+	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun}
 
 	campaign, err := svc.ds.NewDistributedQueryCampaign(&kolide.DistributedQueryCampaign{
 		QueryID: query.ID,
