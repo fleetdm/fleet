@@ -681,7 +681,8 @@ const mapStateToProps = (state, { location, params }) => {
   const currentUser = state.auth.user;
   const canAddNewHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
-    permissionUtils.isGlobalMaintainer(currentUser);
+    permissionUtils.isGlobalMaintainer(currentUser) ||
+    permissionUtils.isAnyTeamMaintainer(currentUser);
   const canAddNewLabels =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
