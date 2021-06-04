@@ -19,12 +19,15 @@ describe("Kolide - API client (targets)", () => {
       const hosts = [];
       const labels = [];
       const query = "mac";
-      const request = targetMocks.loadAll.valid(bearerToken, query);
+      const queryId = 1;
+      const request = targetMocks.loadAll.valid(bearerToken, query, queryId);
 
       Kolide.setBearerToken(bearerToken);
-      return Kolide.targets.loadAll(query, { hosts, labels }).then(() => {
-        expect(request.isDone()).toEqual(true);
-      });
+      return Kolide.targets
+        .loadAll(query, queryId, { hosts, labels })
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+        });
     });
   });
 });

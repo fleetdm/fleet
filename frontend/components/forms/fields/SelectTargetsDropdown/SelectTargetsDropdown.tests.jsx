@@ -16,6 +16,7 @@ describe("SelectTargetsDropdown - component", () => {
     onSelect: noop,
     selectedTargets: [],
     targetsCount: 0,
+    queryId: 1,
   };
   afterEach(() => nock.cleanAll());
 
@@ -111,6 +112,7 @@ describe("SelectTargetsDropdown - component", () => {
     const defaultSelectedTargets = { hosts: [], labels: [] };
     const defaultParams = {
       query: "",
+      queryId: 1,
       selected: defaultSelectedTargets,
     };
     const expectedApiClientResponseWithTargets = {
