@@ -121,10 +121,12 @@ module.exports = {
             return query;
           }
           query.contributors = query.contributors.split(',').map((userName) => {
+            const userData = contributorsDictionary[userName];
             return {
-              userName,
-              avatarUrl: contributorsDictionary[userName]['avatar_url'],
-              htmlUrl: contributorsDictionary[userName]['html_url']
+              name: _.startCase(userData.name),
+              handle: userData.login,
+              avatarUrl: userData.avatar_url,
+              htmlUrl: userData.html_url,
             };
           });
           return query;
