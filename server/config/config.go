@@ -190,13 +190,13 @@ func (man Manager) addConfigs() {
 		"MySQL server communication protocol (tcp,unix,...)")
 	man.addConfigString("mysql.address", "localhost:3306",
 		"MySQL server address (host:port)")
-	man.addConfigString("mysql.username", "kolide",
+	man.addConfigString("mysql.username", "fleet",
 		"MySQL server username")
 	man.addConfigString("mysql.password", "",
 		"MySQL server password (prefer env variable for security)")
 	man.addConfigString("mysql.password_path", "",
 		"Path to file containg MySQL server password")
-	man.addConfigString("mysql.database", "kolide",
+	man.addConfigString("mysql.database", "fleet",
 		"MySQL database name")
 	man.addConfigString("mysql.tls_cert", "",
 		"MySQL TLS client certificate path")
