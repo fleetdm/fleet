@@ -113,8 +113,9 @@ module.exports = {
 
         const contributorsDictionary = await _threadGitHubAPICalls(contributorsList);//•
 
-        // Map all queries to replace the "contributors" string with an array of selected user profile information pulled from the contributorsDictionary for each contributor
-        // or an empty array if the "contributors" value is undefined or problematic (although any problematic queries should already have thrown an error above).
+        // Map all queries to replace the "contributors" string with an array of selected user profile information pulled from
+        // the contributorsDictionary for each contributor (or undefined if the value is not a string although any problematic
+        // queries should already have thrown an error above).
         queries = queries.map((query) => {
           if (!query.contributors || !_.isString(query.contributors)) {
             return query;
