@@ -48,6 +48,90 @@ module.exports = {
         if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
           throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
         }//•
+
+        // Parse all queries to identify queries with problematic values for contributors.
+        const queriesWithProblematicContributors = queries.reduce((list, query) => {
+          if (!query.contributors || (query.contributors !== undefined && !_.isString(query.contributors))) {
+            list.push(query);
+            return list;
+          } else if (query.contributors.split(',').some((contributor) => contributor.match('^[^A-za-z0-9].*|[^A-Za-z0-9-]|.*[^A-za-z0-9]$'))) {
+            // GitHub Usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
+            list.push(query);
+          }
+          return list;
+        }, []);
+        // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
+        if (queriesWithProblematicContributors.length >= 1) {
+          // throw new Error('ERROR Failed parsing YAML for query library: The "contributors" of a query should either be absent (undefined) or a single string of valid GitHub user names (e.g. "zwass, noahtalerman, mikermcneil" rather than ["zwass", "noahtalerman", "mikermcneil"]).  But one or more queries have an invalid "contributors" value: ' + _.pluck(queriesWithProblematicContributors, 'slug').sort());
+          console.log('WARNING: Failed parsing YAML for query library: The "contributors" of a query should either be absent (undefined) or a single string of valid GitHub user names (e.g. "zwass, noahtalerman, mikermcneil" rather than ["zwass", "noahtalerman", "mikermcneil"]).  But one or more queries have an invalid "contributors" value: ' + _.pluck(queriesWithProblematicContributors, 'slug').sort());
+        }//•
+
+        // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
+        const contributorsList = queries.reduce((list, query) => {
+          if (!queriesWithProblematicContributors.find((element) => element.slug === query.slug)) {
+            list = _.union(list, query.contributors.split(','));
+          }
+          return list;
+        }, []);
+
+        const _threadGitHubAPICalls = async function (usersList) {
+
+          // TODO replace with sails http helper
+          const _getGitHubUserData = async (gitHubHandle) => {
+            const url =
+              'https://api.github.com/users/' + encodeURIComponent(gitHubHandle);
+            const userData = await sails.helpers.http.get(url, {}, { 'User-Agent': 'Awesome-Octocat-App', Accept: 'application/vnd.github.v3+json' })
+              .catch((error) => console.log('ERROR: ', error));
+            return userData;
+          };
+
+          // Create threads object with a thread for each user. Each thread is a promise that will resolve
+          // when the async call to the GitHub API resolves for that user.
+          const threads =  _.union(usersList).reduce((threads, userName) => {
+            threads[userName] = _getGitHubUserData(userName);
+            return threads;
+          }, {});
+
+          // Each thread resolves with a key-value pair where the key is the user's GitHub login (aka '"handle"') and the value
+          // is the deserialized JSON response returned by the GitHub API for that contributor.
+          const resolvedThreads = await Promise.all(
+            Object.keys(threads).map((key) =>
+              Promise.resolve(threads[key]).then((result) => {
+                return { [key]: result };
+              })
+            )
+          ).then((resultsArray) => {
+            return resultsArray.reduce((resolvedThreads, result) => {
+              Object.assign(resolvedThreads, result);
+              return resolvedThreads;
+            }, {});
+          });
+
+          return resolvedThreads;
+
+        };
+
+        const contributorsDictionary = await _threadGitHubAPICalls(contributorsList);//•
+
+        // Map all queries to replace the "contributors" string with an array of selected user profile information pulled from the contributorsDictionary for each contributor
+        // or an empty array if the "contributors" value is undefined or problematic (although any problematic queries should already have thrown an error above).
+        queries = queries.map((query) => {
+          if (!query.contributors || !_.isString(query.contributors)) {
+            return query;
+          }
+          query.contributors = query.contributors.split(',').map((userName) => {
+            return {
+              userName,
+              avatarUrl: contributorsDictionary[userName]['avatar_url'],
+              htmlUrl: contributorsDictionary[userName]['html_url']
+            };
+          });
+          return query;
+        });//•
+        // console.log(queries.map((q) => q.contributors));
+
+        // TODO consider if/how to cache avatar images
+
         // Attach to Sails app configuration.
         builtStaticContent.queries = queries;
         builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
