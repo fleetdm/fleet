@@ -86,17 +86,17 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 
 	subject := userFromContext(ctx)
 	if subject == nil {
-		return ForbiddenWithInternal("nil subject always forbidden")
+		return ForbiddenWithInternal("nil subject always forbidden", subject, object, action)
 	}
 
 	// Map subject and object to map[string]interface{} for use in policy evaluation.
 	subjectInterface, err := jsonToInterface(subject)
 	if err != nil {
-		return ForbiddenWithInternal("subject to interface: " + err.Error())
+		return ForbiddenWithInternal("subject to interface: "+err.Error(), subject, object, action)
 	}
 	objectInterface, err := jsonToInterface(object)
 	if err != nil {
-		return ForbiddenWithInternal("object to interface: " + err.Error())
+		return ForbiddenWithInternal("object to interface: "+err.Error(), subject, object, action)
 	}
 
 	// Perform the check via Rego.
@@ -107,13 +107,13 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	}
 	results, err := a.query.Eval(ctx, rego.EvalInput(input))
 	if err != nil {
-		return ForbiddenWithInternal("policy evaluation failed: " + err.Error())
+		return ForbiddenWithInternal("policy evaluation failed: "+err.Error(), subject, object, action)
 	}
 	if len(results) != 1 {
-		return ForbiddenWithInternal(fmt.Sprintf("expected 1 policy result, got %d", len(results)))
+		return ForbiddenWithInternal(fmt.Sprintf("expected 1 policy result, got %d", len(results)), subject, object, action)
 	}
 	if results[0].Bindings["allowed"] != true {
-		return ForbiddenWithInternal("policy disallows request")
+		return ForbiddenWithInternal("policy disallows request", subject, object, action)
 	}
 
 	return nil

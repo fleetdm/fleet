@@ -471,6 +471,10 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 		logger = kitlog.With(logger, "internal", e.Internal())
 	}
 
+	if e, ok := err.(kolide.ErrWithLogFields); ok {
+		logger = kitlog.With(logger, e.LogFields()...)
+	}
+
 	switch e := err.(type) {
 	case ratelimit.Error:
 		res := e.Result()

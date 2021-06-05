@@ -7,8 +7,6 @@ package authzcheck
 import (
 	"context"
 	"errors"
-	"reflect"
-	"runtime"
 
 	"github.com/fleetdm/fleet/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/server/contexts/authz"
@@ -36,15 +34,17 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 			// appropriately).
 			var authFailedError *kolide.AuthFailedError
 			var authRequiredError *kolide.AuthRequiredError
-			if errors.As(err, &authFailedError) || errors.As(err, &authRequiredError) {
+			var licenseError *kolide.LicenseError
+			if errors.As(err, &authFailedError) ||
+				errors.As(err, &authRequiredError) ||
+				errors.As(err, &licenseError) {
 				return nil, err
 			}
 
 			// If authorization was not checked, return a response that will
 			// marshal to a generic error and log that the check was missed.
 			if !authzctx.Checked {
-				funcName := runtime.FuncForPC(reflect.ValueOf(next).Pointer()).Name()
-				return nil, authz.ForbiddenWithInternal("missed authz check: " + funcName)
+				return nil, authz.ForbiddenWithInternal("missed authz check", nil, nil, nil)
 			}
 
 			return response, err
