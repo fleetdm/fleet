@@ -20,6 +20,15 @@ type ErrWithInternal interface {
 	Internal() string
 }
 
+// ErrWithInternal is an interface for errors that include additional logging
+// fields that should be logged in server logs but not sent to clients.
+type ErrWithLogFields interface {
+	error
+	// LogFields returns the additional log fields to add, which should come in
+	// key, value pairs (as used in go-kit log).
+	LogFields() []interface{}
+}
+
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
 // status when encoding.
 type ErrWithStatusCode interface {
