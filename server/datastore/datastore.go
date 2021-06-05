@@ -4,12 +4,12 @@ package datastore
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
 // TestFunctions are the test functions that a Datastore implementation should
 // run to verify proper implementation.
-var TestFunctions = [...]func(*testing.T, kolide.Datastore){
+var TestFunctions = [...]func(*testing.T, fleet.Datastore){
 	testOrgInfo,
 	testAdditionalQueries,
 	testEnrollSecrets,

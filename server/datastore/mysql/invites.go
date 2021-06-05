@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -13,7 +13,7 @@ import (
 var inviteSearchColumns = []string{"name", "email"}
 
 // NewInvite generates a new invitation.
-func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
+func (d *Datastore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
 	sqlStmt := `
 	INSERT INTO invites ( invited_by, email, name, position, token, sso_enabled, global_role )
 	  VALUES ( ?, ?, ?, ?, ?, ?, ?)
@@ -31,7 +31,7 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 	i.ID = uint(id)
 
 	if len(i.Teams) == 0 {
-		i.Teams = []kolide.UserTeam{}
+		i.Teams = []fleet.UserTeam{}
 		return i, nil
 	}
 
@@ -52,9 +52,9 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 }
 
 // ListInvites lists all invites in the Fleet database. Supply query options
-// using the opt parameter. See kolide.ListOptions
-func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
-	invites := []*kolide.Invite{}
+// using the opt parameter. See fleet.ListOptions
+func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) {
+	invites := []*fleet.Invite{}
 	query := "SELECT * FROM invites WHERE true"
 	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
 	query = appendListOptionsToSQL(query, opt)
@@ -74,8 +74,8 @@ func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error
 }
 
 // Invite returns Invite identified by id.
-func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
-	var invite kolide.Invite
+func (d *Datastore) Invite(id uint) (*fleet.Invite, error) {
+	var invite fleet.Invite
 	err := d.db.Get(&invite, "SELECT * FROM invites WHERE id = ?", id)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").WithID(id)
@@ -83,7 +83,7 @@ func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
 		return nil, errors.Wrap(err, "select invite by ID")
 	}
 
-	if err := d.loadTeamsForInvites([]*kolide.Invite{&invite}); err != nil {
+	if err := d.loadTeamsForInvites([]*fleet.Invite{&invite}); err != nil {
 		return nil, errors.Wrap(err, "load teams")
 	}
 
@@ -91,8 +91,8 @@ func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
 }
 
 // InviteByEmail finds an Invite with a particular email, if one exists.
-func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
-	var invite kolide.Invite
+func (d *Datastore) InviteByEmail(email string) (*fleet.Invite, error) {
+	var invite fleet.Invite
 	err := d.db.Get(&invite, "SELECT * FROM invites WHERE email = ?", email)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").
@@ -101,7 +101,7 @@ func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 		return nil, errors.Wrap(err, "sqlx get invite by email")
 	}
 
-	if err := d.loadTeamsForInvites([]*kolide.Invite{&invite}); err != nil {
+	if err := d.loadTeamsForInvites([]*fleet.Invite{&invite}); err != nil {
 		return nil, errors.Wrap(err, "load teams")
 	}
 
@@ -109,8 +109,8 @@ func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 }
 
 // InviteByToken finds an Invite with a particular token, if one exists.
-func (d *Datastore) InviteByToken(token string) (*kolide.Invite, error) {
-	var invite kolide.Invite
+func (d *Datastore) InviteByToken(token string) (*fleet.Invite, error) {
+	var invite fleet.Invite
 	err := d.db.Get(&invite, "SELECT * FROM invites WHERE token = ?", token)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").
@@ -119,7 +119,7 @@ func (d *Datastore) InviteByToken(token string) (*kolide.Invite, error) {
 		return nil, errors.Wrap(err, "sqlx get invite by token")
 	}
 
-	if err := d.loadTeamsForInvites([]*kolide.Invite{&invite}); err != nil {
+	if err := d.loadTeamsForInvites([]*fleet.Invite{&invite}); err != nil {
 		return nil, errors.Wrap(err, "load teams")
 	}
 
@@ -130,15 +130,15 @@ func (d *Datastore) DeleteInvite(id uint) error {
 	return d.deleteEntity("invites", id)
 }
 
-func (d *Datastore) loadTeamsForInvites(invites []*kolide.Invite) error {
+func (d *Datastore) loadTeamsForInvites(invites []*fleet.Invite) error {
 	inviteIDs := make([]uint, 0, len(invites)+1)
 	// Make sure the slice is never empty for IN by filling a nonexistent ID
 	inviteIDs = append(inviteIDs, 0)
-	idToInvite := make(map[uint]*kolide.Invite, len(invites))
+	idToInvite := make(map[uint]*fleet.Invite, len(invites))
 	for _, u := range invites {
 		// Initialize empty slice so we get an array in JSON responses instead
 		// of null if it is empty
-		u.Teams = []kolide.UserTeam{}
+		u.Teams = []fleet.UserTeam{}
 		// Track IDs for queries and matching
 		inviteIDs = append(inviteIDs, u.ID)
 		idToInvite[u.ID] = u
@@ -156,7 +156,7 @@ func (d *Datastore) loadTeamsForInvites(invites []*kolide.Invite) error {
 	}
 
 	var rows []struct {
-		kolide.UserTeam
+		fleet.UserTeam
 		InviteID uint `db:"invite_id"`
 	}
 	if err := d.db.Select(&rows, sql, args...); err != nil {

@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
 // SearchTargets searches for the supplied targets in the Fleet instance.
-func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*kolide.TargetSearchResults, error) {
+func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*fleet.TargetSearchResults, error) {
 	req := searchTargetsRequest{
 		MatchQuery: query,
-		Selected: kolide.HostTargets{
+		Selected: fleet.HostTargets{
 			LabelIDs: labelIDs,
 			HostIDs:  hostIDs,
 			// TODO handle TeamIDs
@@ -43,17 +43,17 @@ func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*kolide.
 		return nil, errors.Errorf("SearchTargets: %s", responseBody.Err)
 	}
 
-	hosts := make([]*kolide.Host, len(responseBody.Targets.Hosts))
+	hosts := make([]*fleet.Host, len(responseBody.Targets.Hosts))
 	for i, h := range responseBody.Targets.Hosts {
 		hosts[i] = h.HostResponse.Host
 	}
 
-	labels := make([]*kolide.Label, len(responseBody.Targets.Labels))
+	labels := make([]*fleet.Label, len(responseBody.Targets.Labels))
 	for i, h := range responseBody.Targets.Labels {
 		labels[i] = h.Label
 	}
 
-	return &kolide.TargetSearchResults{
+	return &fleet.TargetSearchResults{
 		Hosts:  hosts,
 		Labels: labels,
 	}, nil

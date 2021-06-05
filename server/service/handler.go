@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
@@ -121,7 +121,7 @@ type FleetEndpoints struct {
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
-func MakeFleetServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, limitStore throttled.GCRAStore) FleetEndpoints {
+func MakeFleetServerEndpoints(svc fleet.Service, jwtKey, urlPrefix string, limitStore throttled.GCRAStore) FleetEndpoints {
 	limiter := ratelimit.NewMiddleware(limitStore)
 
 	return FleetEndpoints{
@@ -467,11 +467,11 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(kitlog.With(h.logger, "path", path))
 
-	if e, ok := err.(kolide.ErrWithInternal); ok {
+	if e, ok := err.(fleet.ErrWithInternal); ok {
 		logger = kitlog.With(logger, "internal", e.Internal())
 	}
 
-	if e, ok := err.(kolide.ErrWithLogFields); ok {
+	if e, ok := err.(fleet.ErrWithLogFields); ok {
 		logger = kitlog.With(logger, e.LogFields()...)
 	}
 
@@ -486,7 +486,7 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 }
 
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
-func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
+func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
@@ -646,7 +646,7 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 // WithSetup is an http middleware that checks if setup procedures have been completed.
 // If setup hasn't been completed it serves the API with a setup middleware.
 // If the server is already configured, the default API handler is exposed.
-func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
 		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
@@ -675,7 +675,7 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 
 // RedirectLoginToSetup detects if the setup endpoint should be used. If setup is required it redirect all
 // frontend urls to /setup, otherwise the frontend router is used.
-func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
+func RedirectLoginToSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		redirect := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/setup" {
@@ -703,7 +703,7 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 
 // RedirectSetupToLogin forces the /setup path to be redirected to login. This middleware is used after
 // the app has been setup.
-func RedirectSetupToLogin(svc kolide.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
+func RedirectSetupToLogin(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/setup" {
 			newURL := r.URL

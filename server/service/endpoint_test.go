@@ -11,7 +11,8 @@ import (
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/store/memstore"
@@ -21,14 +22,14 @@ type testResource struct {
 	server     *httptest.Server
 	adminToken string
 	userToken  string
-	ds         kolide.Datastore
+	ds         fleet.Datastore
 }
 
 type endpointService struct {
-	kolide.Service
+	fleet.Service
 }
 
-func (svc endpointService) sendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
+func (svc endpointService) sendTestEmail(ctx context.Context, config *fleet.AppConfig) error {
 	return nil
 }
 func setupEndpointTest(t *testing.T) *testResource {
@@ -39,11 +40,11 @@ func setupEndpointTest(t *testing.T) *testResource {
 	require.Nil(t, err)
 	require.Nil(t, test.ds.MigrateData())
 
-	devOrgInfo := &kolide.AppConfig{
+	devOrgInfo := &fleet.AppConfig{
 		OrgName:                "Kolide",
 		OrgLogoURL:             "http://foo.bar/image.png",
 		SMTPPort:               465,
-		SMTPAuthenticationType: kolide.AuthTypeUserNamePassword,
+		SMTPAuthenticationType: fleet.AuthTypeUserNamePassword,
 		SMTPEnableTLS:          true,
 		SMTPVerifySSLCerts:     true,
 		SMTPEnableStartTLS:     true,
@@ -56,7 +57,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 	jwtKey := "CHANGEME"
 	limitStore, _ := memstore.New(0)
 
-	routes := MakeHandler(svc, config.KolideConfig{Auth: config.AuthConfig{JwtKey: jwtKey}}, logger, limitStore)
+	routes := MakeHandler(svc, config.FleetConfig{Auth: config.AuthConfig{JwtKey: jwtKey}}, logger, limitStore)
 
 	test.server = httptest.NewServer(routes)
 
@@ -71,9 +72,9 @@ func setupEndpointTest(t *testing.T) *testResource {
 	resp, _ := http.Post(test.server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 
 	var jsn = struct {
-		User  *kolide.User `json:"user"`
-		Token string       `json:"token"`
-		Err   string       `json:"error,omitempty"`
+		User  *fleet.User `json:"user"`
+		Token string      `json:"token"`
+		Err   string      `json:"error,omitempty"`
 	}{}
 	json.NewDecoder(resp.Body).Decode(&jsn)
 	test.adminToken = jsn.Token

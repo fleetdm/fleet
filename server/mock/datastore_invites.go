@@ -2,19 +2,19 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/fleet"
 
-var _ kolide.InviteStore = (*InviteStore)(nil)
+var _ fleet.InviteStore = (*InviteStore)(nil)
 
-type NewInviteFunc func(i *kolide.Invite) (*kolide.Invite, error)
+type NewInviteFunc func(i *fleet.Invite) (*fleet.Invite, error)
 
-type ListInvitesFunc func(opt kolide.ListOptions) ([]*kolide.Invite, error)
+type ListInvitesFunc func(opt fleet.ListOptions) ([]*fleet.Invite, error)
 
-type InviteFunc func(id uint) (*kolide.Invite, error)
+type InviteFunc func(id uint) (*fleet.Invite, error)
 
-type InviteByEmailFunc func(email string) (*kolide.Invite, error)
+type InviteByEmailFunc func(email string) (*fleet.Invite, error)
 
-type InviteByTokenFunc func(token string) (*kolide.Invite, error)
+type InviteByTokenFunc func(token string) (*fleet.Invite, error)
 
 type DeleteInviteFunc func(id uint) error
 
@@ -38,27 +38,27 @@ type InviteStore struct {
 	DeleteInviteFuncInvoked bool
 }
 
-func (s *InviteStore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
+func (s *InviteStore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
 	s.NewInviteFuncInvoked = true
 	return s.NewInviteFunc(i)
 }
 
-func (s *InviteStore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
+func (s *InviteStore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) {
 	s.ListInvitesFuncInvoked = true
 	return s.ListInvitesFunc(opt)
 }
 
-func (s *InviteStore) Invite(id uint) (*kolide.Invite, error) {
+func (s *InviteStore) Invite(id uint) (*fleet.Invite, error) {
 	s.InviteFuncInvoked = true
 	return s.InviteFunc(id)
 }
 
-func (s *InviteStore) InviteByEmail(email string) (*kolide.Invite, error) {
+func (s *InviteStore) InviteByEmail(email string) (*fleet.Invite, error) {
 	s.InviteByEmailFuncInvoked = true
 	return s.InviteByEmailFunc(email)
 }
 
-func (s *InviteStore) InviteByToken(token string) (*kolide.Invite, error) {
+func (s *InviteStore) InviteByToken(token string) (*fleet.Invite, error) {
 	s.InviteByTokenFuncInvoked = true
 	return s.InviteByTokenFunc(token)
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/contexts/token"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +24,7 @@ func TestAuthenticate(t *testing.T) {
 	var loginTests = []struct {
 		username string
 		password string
-		user     kolide.User
+		user     fleet.User
 		wantErr  error
 	}{
 		{
@@ -75,13 +75,13 @@ func TestGenerateJWT(t *testing.T) {
 }
 
 type authViewerService struct {
-	kolide.Service
+	fleet.Service
 }
 
-func (authViewerService) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
-	return &kolide.Session{}, nil
+func (authViewerService) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
+	return &fleet.Session{}, nil
 }
 
-func (authViewerService) UserUnauthorized(ctx context.Context, uid uint) (*kolide.User, error) {
-	return &kolide.User{}, nil
+func (authViewerService) UserUnauthorized(ctx context.Context, uid uint) (*fleet.User, error) {
+	return &fleet.User{}, nil
 }

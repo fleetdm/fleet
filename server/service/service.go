@@ -1,5 +1,5 @@
-// Package service holds the implementation of the kolide service interface and the HTTP endpoints
-// for the API
+// Package service holds the implementation of the fleet interface and HTTP
+// endpoints for the API
 package service
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/authz"
 	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/logging"
 	"github.com/fleetdm/fleet/server/sso"
 	kitlog "github.com/go-kit/kit/log"
@@ -18,20 +18,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Service is the struct implementing kolide.Service. Create a new one with NewService.
+// Service is the struct implementing fleet.Service. Create a new one with NewService.
 type Service struct {
-	ds             kolide.Datastore
-	carveStore     kolide.CarveStore
-	resultStore    kolide.QueryResultStore
-	liveQueryStore kolide.LiveQueryStore
+	ds             fleet.Datastore
+	carveStore     fleet.CarveStore
+	resultStore    fleet.QueryResultStore
+	liveQueryStore fleet.LiveQueryStore
 	logger         kitlog.Logger
-	config         config.KolideConfig
+	config         config.FleetConfig
 	clock          clock.Clock
-	license        kolide.LicenseInfo
+	license        fleet.LicenseInfo
 
 	osqueryLogWriter *logging.OsqueryLogger
 
-	mailService     kolide.MailService
+	mailService     fleet.MailService
 	ssoSessionStore sso.SessionStore
 
 	seenHostSet *seenHostSet
@@ -40,11 +40,11 @@ type Service struct {
 }
 
 // NewService creates a new service from the config struct
-func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
-	logger kitlog.Logger, config config.KolideConfig, mailService kolide.MailService,
-	c clock.Clock, sso sso.SessionStore, lq kolide.LiveQueryStore, carveStore kolide.CarveStore,
-	license kolide.LicenseInfo) (kolide.Service, error) {
-	var svc kolide.Service
+func NewService(ds fleet.Datastore, resultStore fleet.QueryResultStore,
+	logger kitlog.Logger, config config.FleetConfig, mailService fleet.MailService,
+	c clock.Clock, sso sso.SessionStore, lq fleet.LiveQueryStore, carveStore fleet.CarveStore,
+	license fleet.LicenseInfo) (fleet.Service, error) {
+	var svc fleet.Service
 
 	osqueryLogger, err := logging.New(config, logger)
 	if err != nil {
@@ -75,13 +75,13 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 	return svc, nil
 }
 
-func (s Service) SendEmail(mail kolide.Email) error {
+func (s Service) SendEmail(mail fleet.Email) error {
 	return s.mailService.SendEmail(mail)
 }
 
 type validationMiddleware struct {
-	kolide.Service
-	ds              kolide.Datastore
+	fleet.Service
+	ds              fleet.Datastore
 	ssoSessionStore sso.SessionStore
 }
 

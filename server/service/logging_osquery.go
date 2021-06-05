@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"time"
 
-	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/fleetdm/fleet/server/fleet"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 func (mw loggingMiddleware) EnrollAgent(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
@@ -31,9 +31,9 @@ func (mw loggingMiddleware) EnrollAgent(ctx context.Context, enrollSecret string
 	return nodeKey, err
 }
 
-func (mw loggingMiddleware) AuthenticateHost(ctx context.Context, nodeKey string) (*kolide.Host, error) {
+func (mw loggingMiddleware) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 	var (
-		host *kolide.Host
+		host *fleet.Host
 		err  error
 	)
 
@@ -92,7 +92,7 @@ func (mw loggingMiddleware) GetDistributedQueries(ctx context.Context) (map[stri
 	return queries, accelerate, err
 }
 
-func (mw loggingMiddleware) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus, messages map[string]string) error {
+func (mw loggingMiddleware) SubmitDistributedQueryResults(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string) error {
 	var (
 		err error
 	)

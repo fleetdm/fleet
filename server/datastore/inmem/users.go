@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
+func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -23,7 +23,7 @@ func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
 	return user, nil
 }
 
-func (d *Datastore) User(username string) (*kolide.User, error) {
+func (d *Datastore) User(username string) (*fleet.User, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -37,7 +37,7 @@ func (d *Datastore) User(username string) (*kolide.User, error) {
 		WithMessage(fmt.Sprintf("with username %s", username))
 }
 
-func (d *Datastore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error) {
+func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -48,7 +48,7 @@ func (d *Datastore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error
 	}
 	sort.Ints(keys)
 
-	users := []*kolide.User{}
+	users := []*fleet.User{}
 	for _, k := range keys {
 		users = append(users, d.users[uint(k)])
 	}
@@ -78,7 +78,7 @@ func (d *Datastore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error
 	return users, nil
 }
 
-func (d *Datastore) UserByEmail(email string) (*kolide.User, error) {
+func (d *Datastore) UserByEmail(email string) (*fleet.User, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -92,7 +92,7 @@ func (d *Datastore) UserByEmail(email string) (*kolide.User, error) {
 		WithMessage(fmt.Sprintf("with email address %s", email))
 }
 
-func (d *Datastore) UserByID(id uint) (*kolide.User, error) {
+func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -103,7 +103,7 @@ func (d *Datastore) UserByID(id uint) (*kolide.User, error) {
 	return nil, notFound("User").WithID(id)
 }
 
-func (d *Datastore) SaveUser(user *kolide.User) error {
+func (d *Datastore) SaveUser(user *fleet.User) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 

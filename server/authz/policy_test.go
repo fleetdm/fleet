@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	read      = kolide.ActionRead
-	list      = kolide.ActionList
-	write     = kolide.ActionWrite
-	writeRole = kolide.ActionWriteRole
-	run       = kolide.ActionRun
+	read      = fleet.ActionRead
+	list      = fleet.ActionList
+	write     = fleet.ActionWrite
+	writeRole = fleet.ActionWriteRole
+	run       = fleet.ActionRun
 )
 
 var auth *Authorizer
@@ -30,7 +30,7 @@ func init() {
 }
 
 type authTestCase struct {
-	user   *kolide.User
+	user   *fleet.User
 	object interface{}
 	action interface{}
 	allow  bool
@@ -39,7 +39,7 @@ type authTestCase struct {
 func TestAuthorizeAppConfig(t *testing.T) {
 	t.Parallel()
 
-	config := &kolide.AppConfig{}
+	config := &fleet.AppConfig{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: config, action: read, allow: false},
 		{user: nil, object: config, action: write, allow: false},
@@ -61,7 +61,7 @@ func TestAuthorizeAppConfig(t *testing.T) {
 func TestAuthorizeSession(t *testing.T) {
 	t.Parallel()
 
-	session := &kolide.Session{UserID: 42}
+	session := &fleet.Session{UserID: 42}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: session, action: read, allow: false},
 		{user: nil, object: session, action: write, allow: false},
@@ -73,25 +73,25 @@ func TestAuthorizeSession(t *testing.T) {
 		// Regular users can read self
 		{user: test.UserMaintainer, object: session, action: read, allow: false},
 		{user: test.UserMaintainer, object: session, action: write, allow: false},
-		{user: test.UserMaintainer, object: &kolide.Session{UserID: test.UserMaintainer.ID}, action: read, allow: true},
-		{user: test.UserMaintainer, object: &kolide.Session{UserID: test.UserMaintainer.ID}, action: write, allow: true},
+		{user: test.UserMaintainer, object: &fleet.Session{UserID: test.UserMaintainer.ID}, action: read, allow: true},
+		{user: test.UserMaintainer, object: &fleet.Session{UserID: test.UserMaintainer.ID}, action: write, allow: true},
 
 		{user: test.UserNoRoles, object: session, action: read, allow: false},
 		{user: test.UserNoRoles, object: session, action: write, allow: false},
-		{user: test.UserNoRoles, object: &kolide.Session{UserID: test.UserNoRoles.ID}, action: read, allow: true},
-		{user: test.UserNoRoles, object: &kolide.Session{UserID: test.UserNoRoles.ID}, action: write, allow: true},
+		{user: test.UserNoRoles, object: &fleet.Session{UserID: test.UserNoRoles.ID}, action: read, allow: true},
+		{user: test.UserNoRoles, object: &fleet.Session{UserID: test.UserNoRoles.ID}, action: write, allow: true},
 
 		{user: test.UserObserver, object: session, action: read, allow: false},
 		{user: test.UserObserver, object: session, action: write, allow: false},
-		{user: test.UserObserver, object: &kolide.Session{UserID: test.UserObserver.ID}, action: read, allow: true},
-		{user: test.UserObserver, object: &kolide.Session{UserID: test.UserObserver.ID}, action: write, allow: true},
+		{user: test.UserObserver, object: &fleet.Session{UserID: test.UserObserver.ID}, action: read, allow: true},
+		{user: test.UserObserver, object: &fleet.Session{UserID: test.UserObserver.ID}, action: write, allow: true},
 	})
 }
 
 func TestAuthorizeUser(t *testing.T) {
 	t.Parallel()
 
-	user := &kolide.User{ID: 42}
+	user := &fleet.User{ID: 42}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: user, action: read, allow: false},
 		{user: nil, object: user, action: write, allow: false},
@@ -129,7 +129,7 @@ func TestAuthorizeUser(t *testing.T) {
 func TestAuthorizeInvite(t *testing.T) {
 	t.Parallel()
 
-	invite := &kolide.Invite{}
+	invite := &fleet.Invite{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: invite, action: read, allow: false},
 		{user: nil, object: invite, action: write, allow: false},
@@ -151,18 +151,18 @@ func TestAuthorizeInvite(t *testing.T) {
 func TestAuthorizeEnrollSecret(t *testing.T) {
 	t.Parallel()
 
-	teamMaintainer := &kolide.User{
-		Teams: []kolide.UserTeam{
-			{Team: kolide.Team{ID: 1}, Role: kolide.RoleMaintainer},
+	teamMaintainer := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
 		},
 	}
-	teamObserver := &kolide.User{
-		Teams: []kolide.UserTeam{
-			{Team: kolide.Team{ID: 1}, Role: kolide.RoleObserver},
+	teamObserver := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
 		},
 	}
-	globalSecret := &kolide.EnrollSecret{}
-	teamSecret := &kolide.EnrollSecret{TeamID: ptr.Uint(1)}
+	globalSecret := &fleet.EnrollSecret{}
+	teamSecret := &fleet.EnrollSecret{TeamID: ptr.Uint(1)}
 	runTestCases(t, []authTestCase{
 		// No access
 		{user: nil, object: globalSecret, action: read, allow: false},
@@ -205,7 +205,7 @@ func TestAuthorizeEnrollSecret(t *testing.T) {
 func TestAuthorizeTeam(t *testing.T) {
 	t.Parallel()
 
-	team := &kolide.Team{}
+	team := &fleet.Team{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: team, action: read, allow: false},
 		{user: nil, object: team, action: write, allow: false},
@@ -227,7 +227,7 @@ func TestAuthorizeTeam(t *testing.T) {
 func TestAuthorizeLabel(t *testing.T) {
 	t.Parallel()
 
-	label := &kolide.Label{}
+	label := &fleet.Label{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: label, action: read, allow: false},
 		{user: nil, object: label, action: write, allow: false},
@@ -249,19 +249,19 @@ func TestAuthorizeLabel(t *testing.T) {
 func TestAuthorizeHost(t *testing.T) {
 	t.Parallel()
 
-	teamMaintainer := &kolide.User{
-		Teams: []kolide.UserTeam{
-			{Team: kolide.Team{ID: 1}, Role: kolide.RoleMaintainer},
+	teamMaintainer := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
 		},
 	}
-	teamObserver := &kolide.User{
-		Teams: []kolide.UserTeam{
-			{Team: kolide.Team{ID: 1}, Role: kolide.RoleObserver},
+	teamObserver := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
 		},
 	}
-	host := &kolide.Host{}
-	hostTeam1 := &kolide.Host{TeamID: ptr.Uint(1)}
-	hostTeam2 := &kolide.Host{TeamID: ptr.Uint(2)}
+	host := &fleet.Host{}
+	hostTeam1 := &fleet.Host{TeamID: ptr.Uint(1)}
+	hostTeam2 := &fleet.Host{TeamID: ptr.Uint(2)}
 	runTestCases(t, []authTestCase{
 		// No access
 		{user: nil, object: host, action: read, allow: false},
@@ -327,18 +327,18 @@ func TestAuthorizeHost(t *testing.T) {
 func TestAuthorizeQuery(t *testing.T) {
 	t.Parallel()
 
-	teamMaintainer := &kolide.User{
-		Teams: []kolide.UserTeam{
-			{Team: kolide.Team{ID: 1}, Role: kolide.RoleMaintainer},
+	teamMaintainer := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
 		},
 	}
-	teamObserver := &kolide.User{
-		Teams: []kolide.UserTeam{
-			{Team: kolide.Team{ID: 1}, Role: kolide.RoleObserver},
+	teamObserver := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
 		},
 	}
-	query := &kolide.Query{}
-	observerQuery := &kolide.Query{ObserverCanRun: true}
+	query := &fleet.Query{}
+	observerQuery := &fleet.Query{ObserverCanRun: true}
 	runTestCases(t, []authTestCase{
 		// No access
 		{user: nil, object: query, action: read, allow: false},
@@ -403,7 +403,7 @@ func TestAuthorizeQuery(t *testing.T) {
 func TestAuthorizeTargets(t *testing.T) {
 	t.Parallel()
 
-	target := &kolide.Target{}
+	target := &fleet.Target{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: target, action: read, allow: false},
 
@@ -419,7 +419,7 @@ func TestAuthorizeTargets(t *testing.T) {
 func TestAuthorizePacks(t *testing.T) {
 	t.Parallel()
 
-	pack := &kolide.Pack{}
+	pack := &fleet.Pack{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: pack, action: read, allow: false},
 		{user: nil, object: pack, action: write, allow: false},
@@ -441,7 +441,7 @@ func TestAuthorizePacks(t *testing.T) {
 func TestAuthorizeCarves(t *testing.T) {
 	t.Parallel()
 
-	carve := &kolide.CarveMetadata{}
+	carve := &fleet.CarveMetadata{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: carve, action: read, allow: false},
 		{user: nil, object: carve, action: write, allow: false},
@@ -458,13 +458,13 @@ func TestAuthorizeCarves(t *testing.T) {
 	})
 }
 
-func assertAuthorized(t *testing.T, user *kolide.User, object, action interface{}) {
+func assertAuthorized(t *testing.T, user *fleet.User, object, action interface{}) {
 	t.Helper()
 
 	assert.NoError(t, auth.Authorize(test.UserContext(user), object, action), "should be authorized\n%v\n%v\n%v", user, object, action)
 }
 
-func assertUnauthorized(t *testing.T, user *kolide.User, object, action interface{}) {
+func assertUnauthorized(t *testing.T, user *fleet.User, object, action interface{}) {
 	t.Helper()
 
 	assert.Error(t, auth.Authorize(test.UserContext(user), object, action), "should be unauthorized\n%v\n%v\n%v", user, object, action)
@@ -490,18 +490,18 @@ func runTestCases(t *testing.T, testCases []authTestCase) {
 func TestJSONToInterfaceUser(t *testing.T) {
 	t.Parallel()
 
-	subject, err := jsonToInterface(&kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)})
+	subject, err := jsonToInterface(&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)})
 	require.NoError(t, err)
 	{
 		subject := subject.(map[string]interface{})
-		assert.Equal(t, kolide.RoleAdmin, subject["global_role"])
+		assert.Equal(t, fleet.RoleAdmin, subject["global_role"])
 		assert.Nil(t, subject["teams"])
 	}
 
-	subject, err = jsonToInterface(&kolide.User{
-		Teams: []kolide.UserTeam{
-			{Team: kolide.Team{ID: 3}, Role: kolide.RoleObserver},
-			{Team: kolide.Team{ID: 42}, Role: kolide.RoleMaintainer},
+	subject, err = jsonToInterface(&fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 3}, Role: fleet.RoleObserver},
+			{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer},
 		},
 	})
 	require.NoError(t, err)
@@ -509,9 +509,9 @@ func TestJSONToInterfaceUser(t *testing.T) {
 		subject := subject.(map[string]interface{})
 		assert.Equal(t, nil, subject["global_role"])
 		assert.Len(t, subject["teams"], 2)
-		assert.Equal(t, kolide.RoleObserver, subject["teams"].([]interface{})[0].(map[string]interface{})["role"])
+		assert.Equal(t, fleet.RoleObserver, subject["teams"].([]interface{})[0].(map[string]interface{})["role"])
 		assert.Equal(t, json.Number("3"), subject["teams"].([]interface{})[0].(map[string]interface{})["id"])
-		assert.Equal(t, kolide.RoleMaintainer, subject["teams"].([]interface{})[1].(map[string]interface{})["role"])
+		assert.Equal(t, fleet.RoleMaintainer, subject["teams"].([]interface{})[1].(map[string]interface{})["role"])
 		assert.Equal(t, json.Number("42"), subject["teams"].([]interface{})[1].(map[string]interface{})["id"])
 	}
 }

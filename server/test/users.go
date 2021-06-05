@@ -1,28 +1,28 @@
 package test
 
 import (
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
 )
 
 var (
-	UserNoRoles = &kolide.User{
+	UserNoRoles = &fleet.User{
 		ID:       1,
 		Username: "no_roles",
 	}
-	UserAdmin = &kolide.User{
+	UserAdmin = &fleet.User{
 		ID:         2,
-		GlobalRole: ptr.String(kolide.RoleAdmin),
+		GlobalRole: ptr.String(fleet.RoleAdmin),
 		Username:   "global_admin",
 	}
-	UserMaintainer = &kolide.User{
+	UserMaintainer = &fleet.User{
 		ID:         3,
-		GlobalRole: ptr.String(kolide.RoleMaintainer),
+		GlobalRole: ptr.String(fleet.RoleMaintainer),
 		Username:   "global_maintainer",
 	}
-	UserObserver = &kolide.User{
+	UserObserver = &fleet.User{
 		ID:         4,
-		GlobalRole: ptr.String(kolide.RoleObserver),
+		GlobalRole: ptr.String(fleet.RoleObserver),
 		Username:   "global_observer",
 	}
 )

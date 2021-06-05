@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,7 +12,7 @@ var (
 	// Weird states
 	nilViewer       = Viewer{}
 	noSessionViewer = Viewer{
-		User: &kolide.User{
+		User: &fleet.User{
 			ID:       41,
 			Name:     "No Session",
 			Username: "nosession",
@@ -21,25 +21,25 @@ var (
 
 	// Regular users
 	userViewer = Viewer{
-		User: &kolide.User{
+		User: &fleet.User{
 			ID:       45,
 			Name:     "Regular User",
 			Username: "user",
 		},
-		Session: &kolide.Session{
+		Session: &fleet.Session{
 			ID:     4,
 			UserID: 45,
 		},
 	}
 
 	needsPasswordResetUserViewer = Viewer{
-		User: &kolide.User{
+		User: &fleet.User{
 			ID:                       47,
 			Name:                     "Regular User Needs Password Reset",
 			Username:                 "reset_user",
 			AdminForcedPasswordReset: true,
 		},
-		Session: &kolide.Session{
+		Session: &fleet.Session{
 			ID:     6,
 			UserID: 47,
 		},
@@ -47,24 +47,24 @@ var (
 
 	// Admin users
 	adminViewer = Viewer{
-		User: &kolide.User{
+		User: &fleet.User{
 			ID:       42,
 			Name:     "The Admin",
 			Username: "admin",
 		},
-		Session: &kolide.Session{
+		Session: &fleet.Session{
 			ID:     1,
 			UserID: 42,
 		},
 	}
 	needsPasswordResetAdminViewer = Viewer{
-		User: &kolide.User{
+		User: &fleet.User{
 			ID:                       44,
 			Name:                     "The Admin Requires Password Reset",
 			Username:                 "reset_admin",
 			AdminForcedPasswordReset: true,
 		},
-		Session: &kolide.Session{
+		Session: &fleet.Session{
 			ID:     3,
 			UserID: 44,
 		},

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/mail"
 	"github.com/kolide/kit/version"
 	"github.com/pkg/errors"
@@ -31,7 +31,7 @@ func (e mailError) MailError() []map[string]string {
 	}
 }
 
-func (svc *Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfigPayload) (*fleet.AppConfig, error) {
 	// skipauth: No user context yet when the app config is first created.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -47,11 +47,11 @@ func (svc *Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload)
 	}
 
 	// Set up a default enroll secret
-	secret, err := kolide.RandomText(kolide.EnrollSecretDefaultLength)
+	secret, err := fleet.RandomText(fleet.EnrollSecretDefaultLength)
 	if err != nil {
 		return nil, errors.Wrap(err, "generate enroll secret string")
 	}
-	secrets := []*kolide.EnrollSecret{
+	secrets := []*fleet.EnrollSecret{
 		{
 			Secret: secret,
 		},
@@ -64,21 +64,21 @@ func (svc *Service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload)
 	return newConfig, nil
 }
 
-func (svc *Service) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionRead); err != nil {
+func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	return svc.ds.AppConfig()
 }
 
-func (svc *Service) sendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
+func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return kolide.ErrNoContext
+		return fleet.ErrNoContext
 	}
 
-	testMail := kolide.Email{
+	testMail := fleet.Email{
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
 		Mailer: &mail.SMTPTestMailer{
@@ -95,8 +95,8 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *kolide.AppConfig)
 
 }
 
-func (svc *Service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionWrite); err != nil {
+func (svc *Service) ModifyAppConfig(ctx context.Context, p fleet.AppConfigPayload) (*fleet.AppConfig, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -128,7 +128,7 @@ func cleanupURL(url string) string {
 	return strings.TrimRight(strings.Trim(url, " \t\n"), "/")
 }
 
-func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppConfig) *kolide.AppConfig {
+func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppConfig) *fleet.AppConfig {
 	if p.OrgInfo != nil && p.OrgInfo.OrgLogoURL != nil {
 		config.OrgLogoURL = *p.OrgInfo.OrgLogoURL
 	}
@@ -184,25 +184,25 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 		}
 	}
 
-	populateSMTP := func(p *kolide.SMTPSettingsPayload) {
+	populateSMTP := func(p *fleet.SMTPSettingsPayload) {
 		if p.SMTPAuthenticationMethod != nil {
 			switch *p.SMTPAuthenticationMethod {
-			case kolide.AuthMethodNameCramMD5:
-				config.SMTPAuthenticationMethod = kolide.AuthMethodCramMD5
-			case kolide.AuthMethodNamePlain:
-				config.SMTPAuthenticationMethod = kolide.AuthMethodPlain
-			case kolide.AuthMethodNameLogin:
-				config.SMTPAuthenticationMethod = kolide.AuthMethodLogin
+			case fleet.AuthMethodNameCramMD5:
+				config.SMTPAuthenticationMethod = fleet.AuthMethodCramMD5
+			case fleet.AuthMethodNamePlain:
+				config.SMTPAuthenticationMethod = fleet.AuthMethodPlain
+			case fleet.AuthMethodNameLogin:
+				config.SMTPAuthenticationMethod = fleet.AuthMethodLogin
 			default:
 				panic("unknown SMTP AuthMethod: " + *p.SMTPAuthenticationMethod)
 			}
 		}
 		if p.SMTPAuthenticationType != nil {
 			switch *p.SMTPAuthenticationType {
-			case kolide.AuthTypeNameUserNamePassword:
-				config.SMTPAuthenticationType = kolide.AuthTypeUserNamePassword
-			case kolide.AuthTypeNameNone:
-				config.SMTPAuthenticationType = kolide.AuthTypeNone
+			case fleet.AuthTypeNameUserNamePassword:
+				config.SMTPAuthenticationType = fleet.AuthTypeUserNamePassword
+			case fleet.AuthTypeNameNone:
+				config.SMTPAuthenticationType = fleet.AuthTypeNone
 			default:
 				panic("unknown SMTP AuthType: " + *p.SMTPAuthenticationType)
 			}
@@ -251,8 +251,8 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 	return &config
 }
 
-func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.EnrollSecretSpec) error {
-	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, kolide.ActionWrite); err != nil {
+func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec) error {
+	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -265,8 +265,8 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.Enro
 	return svc.ds.ApplyEnrollSecrets(nil, spec.Secrets)
 }
 
-func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecretSpec, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.EnrollSecret{}, kolide.ActionRead); err != nil {
+func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*fleet.EnrollSecretSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -274,11 +274,11 @@ func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecr
 	if err != nil {
 		return nil, err
 	}
-	return &kolide.EnrollSecretSpec{Secrets: secrets}, nil
+	return &fleet.EnrollSecretSpec{Secrets: secrets}, nil
 }
 
 func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -286,8 +286,8 @@ func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
 	return &info, nil
 }
 
-func (svc *Service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.AppConfig{}, kolide.ActionRead); err != nil {
+func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -295,7 +295,7 @@ func (svc *Service) License(ctx context.Context) (*kolide.LicenseInfo, error) {
 }
 
 func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
-	users, err := svc.ds.ListUsers(kolide.UserListOptions{ListOptions: kolide.ListOptions{Page: 0, PerPage: 1}})
+	users, err := svc.ds.ListUsers(fleet.UserListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 1}})
 	if err != nil {
 		return false, err
 	}

@@ -6,22 +6,22 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (svc *Service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, kolide.ActionWrite); err != nil {
+func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
-	team := &kolide.Team{}
+	team := &fleet.Team{}
 
 	if p.Name == nil {
-		return nil, kolide.NewInvalidArgumentError("name", "missing required argument")
+		return nil, fleet.NewInvalidArgumentError("name", "missing required argument")
 	}
 	if *p.Name == "" {
-		return nil, kolide.NewInvalidArgumentError("name", "may not be empty")
+		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 	}
 	team.Name = *p.Name
 
@@ -33,11 +33,11 @@ func (svc *Service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.
 		team.Secrets = p.Secrets
 	} else {
 		// Set up a default enroll secret
-		secret, err := kolide.RandomText(kolide.EnrollSecretDefaultLength)
+		secret, err := fleet.RandomText(fleet.EnrollSecretDefaultLength)
 		if err != nil {
 			return nil, errors.Wrap(err, "generate enroll secret string")
 		}
-		team.Secrets = []*kolide.EnrollSecret{{Secret: secret}}
+		team.Secrets = []*fleet.EnrollSecret{{Secret: secret}}
 	}
 	team, err := svc.ds.NewTeam(team)
 	if err != nil {
@@ -46,8 +46,8 @@ func (svc *Service) NewTeam(ctx context.Context, p kolide.TeamPayload) (*kolide.
 	return team, nil
 }
 
-func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload kolide.TeamPayload) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
+func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.TeamPayload) (*fleet.Team, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -57,7 +57,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload kolide.
 	}
 	if payload.Name != nil {
 		if *payload.Name == "" {
-			return nil, kolide.NewInvalidArgumentError("name", "may not be empty")
+			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 		}
 		team.Name = *payload.Name
 	}
@@ -71,8 +71,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload kolide.
 	return svc.ds.SaveTeam(team)
 }
 
-func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, options json.RawMessage) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
+func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, options json.RawMessage) (*fleet.Team, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -90,15 +90,15 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 	return svc.ds.SaveTeam(team)
 }
 
-func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []kolide.TeamUser) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
+func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
-	idMap := make(map[uint]kolide.TeamUser)
+	idMap := make(map[uint]fleet.TeamUser)
 	for _, user := range users {
-		if !kolide.ValidTeamRole(user.Role) {
-			return nil, kolide.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid role for a team user", user.Role))
+		if !fleet.ValidTeamRole(user.Role) {
+			return nil, fleet.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid role for a team user", user.Role))
 		}
 		idMap[user.ID] = user
 	}
@@ -124,8 +124,8 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []kolid
 	return svc.ds.SaveTeam(team)
 }
 
-func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []kolide.TeamUser) (*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
+func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +139,7 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []ko
 		return nil, err
 	}
 
-	newUsers := []kolide.TeamUser{}
+	newUsers := []fleet.TeamUser{}
 	// Delete existing
 	for _, existingUser := range team.Users {
 		if _, ok := idMap[existingUser.ID]; !ok {
@@ -152,8 +152,8 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []ko
 	return svc.ds.SaveTeam(team)
 }
 
-func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt kolide.ListOptions) ([]*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionRead); err != nil {
+func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -162,33 +162,33 @@ func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt kolide.L
 		return nil, err
 	}
 
-	return svc.ds.ListUsers(kolide.UserListOptions{ListOptions: opt, TeamID: team.ID})
+	return svc.ds.ListUsers(fleet.UserListOptions{ListOptions: opt, TeamID: team.ID})
 }
 
-func (svc *Service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Team, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{}, kolide.ActionRead); err != nil {
+func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, kolide.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
-	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: true}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	return svc.ds.ListTeams(filter, opt)
 }
 
 func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
 	return svc.ds.DeleteTeam(teamID)
 }
 
-func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*kolide.EnrollSecret, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Team{ID: teamID}, kolide.ActionRead); err != nil {
+func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 

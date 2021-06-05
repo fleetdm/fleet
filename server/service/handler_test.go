@@ -218,19 +218,19 @@ func TestAPIRoutes(t *testing.T) {
 // 		uid            uint
 // 	)
 // 	ms := new(mock.Store)
-// 	ms.SessionByKeyFunc = func(key string) (*kolide.Session, error) {
-// 		return &kolide.Session{AccessedAt: time.Now(), UserID: uid, ID: 1}, nil
+// 	ms.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+// 		return &fleet.Session{AccessedAt: time.Now(), UserID: uid, ID: 1}, nil
 // 	}
-// 	ms.DestroySessionFunc = func(session *kolide.Session) error {
+// 	ms.DestroySessionFunc = func(session *fleet.Session) error {
 // 		return nil
 // 	}
-// 	ms.MarkSessionAccessedFunc = func(session *kolide.Session) error {
+// 	ms.MarkSessionAccessedFunc = func(session *fleet.Session) error {
 // 		return nil
 // 	}
-// 	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
-// 		return &kolide.User{ID: id, Enabled: enabled, Admin: admin}, nil
+// 	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+// 		return &fleet.User{ID: id, Enabled: enabled, Admin: admin}, nil
 // 	}
-// 	ms.SaveUserFunc = func(u *kolide.User) error {
+// 	ms.SaveUserFunc = func(u *fleet.User) error {
 // 		// Return an error so that the endpoint returns
 // 		return errors.New("foo")
 // 	}
@@ -241,7 +241,7 @@ func TestAPIRoutes(t *testing.T) {
 
 // 	handler := MakeHandler(
 // 		svc,
-// 		config.KolideConfig{Auth: config.AuthConfig{JwtKey: "CHANGEME"}},
+// 		config.FleetConfig{Auth: config.AuthConfig{JwtKey: "CHANGEME"}},
 // 		log.NewNopLogger(),
 // 		limitStore,
 // 	)

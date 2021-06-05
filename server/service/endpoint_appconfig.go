@@ -5,29 +5,29 @@ import (
 	"errors"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kit/version"
 )
 
 type appConfigRequest struct {
-	Payload kolide.AppConfigPayload
+	Payload fleet.AppConfigPayload
 }
 
 type appConfigResponse struct {
-	OrgInfo            *kolide.OrgInfo             `json:"org_info,omitempty"`
-	ServerSettings     *kolide.ServerSettings      `json:"server_settings,omitempty"`
-	SMTPSettings       *kolide.SMTPSettingsPayload `json:"smtp_settings,omitempty"`
-	SSOSettings        *kolide.SSOSettingsPayload  `json:"sso_settings,omitempty"`
-	HostExpirySettings *kolide.HostExpirySettings  `json:"host_expiry_settings,omitempty"`
-	HostSettings       *kolide.HostSettings        `json:"host_settings,omitempty"`
-	License            *kolide.LicenseInfo         `json:"license,omitempty"`
+	OrgInfo            *fleet.OrgInfo             `json:"org_info,omitempty"`
+	ServerSettings     *fleet.ServerSettings      `json:"server_settings,omitempty"`
+	SMTPSettings       *fleet.SMTPSettingsPayload `json:"smtp_settings,omitempty"`
+	SSOSettings        *fleet.SSOSettingsPayload  `json:"sso_settings,omitempty"`
+	HostExpirySettings *fleet.HostExpirySettings  `json:"host_expiry_settings,omitempty"`
+	HostSettings       *fleet.HostSettings        `json:"host_settings,omitempty"`
+	License            *fleet.LicenseInfo         `json:"license,omitempty"`
 	Err                error                       `json:"error,omitempty"`
 }
 
 func (r appConfigResponse) error() error { return r.Err }
 
-func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
 		if !ok {
@@ -41,16 +41,16 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		var smtpSettings *kolide.SMTPSettingsPayload
-		var ssoSettings *kolide.SSOSettingsPayload
-		var hostExpirySettings *kolide.HostExpirySettings
+		var smtpSettings *fleet.SMTPSettingsPayload
+		var ssoSettings *fleet.SSOSettingsPayload
+		var hostExpirySettings *fleet.HostExpirySettings
 		// only admin can see smtp, sso, and host expiry settings
 		if vc.CanPerformAdminActions() {
 			smtpSettings = smtpSettingsFromAppConfig(config)
 			if smtpSettings.SMTPPassword != nil {
 				*smtpSettings.SMTPPassword = "********"
 			}
-			ssoSettings = &kolide.SSOSettingsPayload{
+			ssoSettings = &fleet.SSOSettingsPayload{
 				EntityID:          &config.EntityID,
 				IssuerURI:         &config.IssuerURI,
 				IDPImageURL:       &config.IDPImageURL,
@@ -60,24 +60,24 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				EnableSSO:         &config.EnableSSO,
 				EnableSSOIdPLogin: &config.EnableSSOIdPLogin,
 			}
-			hostExpirySettings = &kolide.HostExpirySettings{
+			hostExpirySettings = &fleet.HostExpirySettings{
 				HostExpiryEnabled: &config.HostExpiryEnabled,
 				HostExpiryWindow:  &config.HostExpiryWindow,
 			}
 		}
 		response := appConfigResponse{
-			OrgInfo: &kolide.OrgInfo{
+			OrgInfo: &fleet.OrgInfo{
 				OrgName:    &config.OrgName,
 				OrgLogoURL: &config.OrgLogoURL,
 			},
-			ServerSettings: &kolide.ServerSettings{
+			ServerSettings: &fleet.ServerSettings{
 				KolideServerURL:   &config.KolideServerURL,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings:       smtpSettings,
 			SSOSettings:        ssoSettings,
 			HostExpirySettings: hostExpirySettings,
-			HostSettings: &kolide.HostSettings{
+			HostSettings: &fleet.HostSettings{
 				AdditionalQueries: config.AdditionalQueries,
 			},
 			License: license,
@@ -86,7 +86,7 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 	}
 }
 
-func makeModifyAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(appConfigRequest)
 		config, err := svc.ModifyAppConfig(ctx, req.Payload)
@@ -94,16 +94,16 @@ func makeModifyAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return appConfigResponse{Err: err}, nil
 		}
 		response := appConfigResponse{
-			OrgInfo: &kolide.OrgInfo{
+			OrgInfo: &fleet.OrgInfo{
 				OrgName:    &config.OrgName,
 				OrgLogoURL: &config.OrgLogoURL,
 			},
-			ServerSettings: &kolide.ServerSettings{
+			ServerSettings: &fleet.ServerSettings{
 				KolideServerURL:   &config.KolideServerURL,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings: smtpSettingsFromAppConfig(config),
-			SSOSettings: &kolide.SSOSettingsPayload{
+			SSOSettings: &fleet.SSOSettingsPayload{
 				EntityID:          &config.EntityID,
 				IssuerURI:         &config.IssuerURI,
 				IDPImageURL:       &config.IDPImageURL,
@@ -113,7 +113,7 @@ func makeModifyAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				EnableSSO:         &config.EnableSSO,
 				EnableSSOIdPLogin: &config.EnableSSOIdPLogin,
 			},
-			HostExpirySettings: &kolide.HostExpirySettings{
+			HostExpirySettings: &fleet.HostExpirySettings{
 				HostExpiryEnabled: &config.HostExpiryEnabled,
 				HostExpiryWindow:  &config.HostExpiryWindow,
 			},
@@ -125,10 +125,10 @@ func makeModifyAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 	}
 }
 
-func smtpSettingsFromAppConfig(config *kolide.AppConfig) *kolide.SMTPSettingsPayload {
+func smtpSettingsFromAppConfig(config *fleet.AppConfig) *fleet.SMTPSettingsPayload {
 	authType := config.SMTPAuthenticationType.String()
 	authMethod := config.SMTPAuthenticationMethod.String()
-	return &kolide.SMTPSettingsPayload{
+	return &fleet.SMTPSettingsPayload{
 		SMTPEnabled:              &config.SMTPConfigured,
 		SMTPConfigured:           &config.SMTPConfigured,
 		SMTPSenderAddress:        &config.SMTPSenderAddress,
@@ -150,7 +150,7 @@ func smtpSettingsFromAppConfig(config *kolide.AppConfig) *kolide.SMTPSettingsPay
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyEnrollSecretSpecRequest struct {
-	Spec *kolide.EnrollSecretSpec `json:"spec"`
+	Spec *fleet.EnrollSecretSpec `json:"spec"`
 }
 
 type applyEnrollSecretSpecResponse struct {
@@ -159,7 +159,7 @@ type applyEnrollSecretSpecResponse struct {
 
 func (r applyEnrollSecretSpecResponse) error() error { return r.Err }
 
-func makeApplyEnrollSecretSpecEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeApplyEnrollSecretSpecEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(applyEnrollSecretSpecRequest)
 		err := svc.ApplyEnrollSecretSpec(ctx, req.Spec)
@@ -175,13 +175,13 @@ func makeApplyEnrollSecretSpecEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getEnrollSecretSpecResponse struct {
-	Spec *kolide.EnrollSecretSpec `json:"specs"`
+	Spec *fleet.EnrollSecretSpec `json:"specs"`
 	Err  error                    `json:"error,omitempty"`
 }
 
 func (r getEnrollSecretSpecResponse) error() error { return r.Err }
 
-func makeGetEnrollSecretSpecEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetEnrollSecretSpecEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		specs, err := svc.GetEnrollSecretSpec(ctx)
 		if err != nil {
@@ -202,7 +202,7 @@ type versionResponse struct {
 
 func (r versionResponse) error() error { return r.Err }
 
-func makeVersionEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeVersionEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		info, err := svc.Version(ctx)
 		if err != nil {

@@ -5,20 +5,20 @@ package mock
 import (
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-var _ kolide.CampaignStore = (*CampaignStore)(nil)
+var _ fleet.CampaignStore = (*CampaignStore)(nil)
 
-type NewDistributedQueryCampaignFunc func(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error)
+type NewDistributedQueryCampaignFunc func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
-type DistributedQueryCampaignFunc func(id uint) (*kolide.DistributedQueryCampaign, error)
+type DistributedQueryCampaignFunc func(id uint) (*fleet.DistributedQueryCampaign, error)
 
-type SaveDistributedQueryCampaignFunc func(camp *kolide.DistributedQueryCampaign) error
+type SaveDistributedQueryCampaignFunc func(camp *fleet.DistributedQueryCampaign) error
 
-type DistributedQueryCampaignTargetIDsFunc func(id uint) (targets *kolide.HostTargets, err error)
+type DistributedQueryCampaignTargetIDsFunc func(id uint) (targets *fleet.HostTargets, err error)
 
-type NewDistributedQueryCampaignTargetFunc func(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error)
+type NewDistributedQueryCampaignTargetFunc func(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error)
 
 type CleanupDistributedQueryCampaignsFunc func(now time.Time) (expired uint, err error)
 
@@ -42,27 +42,27 @@ type CampaignStore struct {
 	CleanupDistributedQueryCampaignsFuncInvoked bool
 }
 
-func (s *CampaignStore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {
+func (s *CampaignStore) NewDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	s.NewDistributedQueryCampaignFuncInvoked = true
 	return s.NewDistributedQueryCampaignFunc(camp)
 }
 
-func (s *CampaignStore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryCampaign, error) {
+func (s *CampaignStore) DistributedQueryCampaign(id uint) (*fleet.DistributedQueryCampaign, error) {
 	s.DistributedQueryCampaignFuncInvoked = true
 	return s.DistributedQueryCampaignFunc(id)
 }
 
-func (s *CampaignStore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) error {
+func (s *CampaignStore) SaveDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) error {
 	s.SaveDistributedQueryCampaignFuncInvoked = true
 	return s.SaveDistributedQueryCampaignFunc(camp)
 }
 
-func (s *CampaignStore) DistributedQueryCampaignTargetIDs(id uint) (targets *kolide.HostTargets, err error) {
+func (s *CampaignStore) DistributedQueryCampaignTargetIDs(id uint) (targets *fleet.HostTargets, err error) {
 	s.DistributedQueryCampaignTargetIDsFuncInvoked = true
 	return s.DistributedQueryCampaignTargetIDsFunc(id)
 }
 
-func (s *CampaignStore) NewDistributedQueryCampaignTarget(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {
+func (s *CampaignStore) NewDistributedQueryCampaignTarget(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 	s.NewDistributedQueryCampaignTargetFuncInvoked = true
 	return s.NewDistributedQueryCampaignTargetFunc(target)
 }

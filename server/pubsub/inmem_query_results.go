@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
 type inmemQueryResults struct {
@@ -13,7 +13,7 @@ type inmemQueryResults struct {
 	channelMutex   sync.Mutex
 }
 
-var _ kolide.QueryResultStore = &inmemQueryResults{}
+var _ fleet.QueryResultStore = &inmemQueryResults{}
 
 // NewInmemQueryResults initializes a new in-memory implementation of the
 // QueryResultStore interface.
@@ -33,7 +33,7 @@ func (im *inmemQueryResults) getChannel(id uint) chan interface{} {
 	return channel
 }
 
-func (im *inmemQueryResults) WriteResult(result kolide.DistributedQueryResult) error {
+func (im *inmemQueryResults) WriteResult(result fleet.DistributedQueryResult) error {
 	channel, ok := im.resultChannels[result.DistributedQueryCampaignID]
 	if !ok {
 		return noSubscriberError{strconv.Itoa(int(result.DistributedQueryCampaignID))}
@@ -49,7 +49,7 @@ func (im *inmemQueryResults) WriteResult(result kolide.DistributedQueryResult) e
 	return nil
 }
 
-func (im *inmemQueryResults) ReadChannel(ctx context.Context, campaign kolide.DistributedQueryCampaign) (<-chan interface{}, error) {
+func (im *inmemQueryResults) ReadChannel(ctx context.Context, campaign fleet.DistributedQueryCampaign) (<-chan interface{}, error) {
 	channel := im.getChannel(campaign.ID)
 	go func() {
 		<-ctx.Done()

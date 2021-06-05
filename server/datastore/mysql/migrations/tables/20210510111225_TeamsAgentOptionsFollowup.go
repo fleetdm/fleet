@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
 	"github.com/pkg/errors"
@@ -47,17 +47,17 @@ func copyOptions(tx *sql.Tx) (json.RawMessage, error) {
 		return nil, errors.Wrap(err, "selecting options")
 	}
 
-	opt := &kolide.AgentOptions{
-		Overrides: kolide.AgentOptionsOverrides{
+	opt := &fleet.AgentOptions{
+		Overrides: fleet.AgentOptionsOverrides{
 			Platforms: make(map[string]json.RawMessage),
 		},
 	}
 	for _, row := range rows {
 		switch row.OverrideType {
-		case 0: // was kolide.OptionOverrideTypeDefault
+		case 0: // was fleet.OptionOverrideTypeDefault
 			opt.Config = json.RawMessage(row.Options)
 
-		case 1: // was kolide.OptionOverrideTypePlatform
+		case 1: // was fleet.OptionOverrideTypePlatform
 			opt.Overrides.Platforms[row.OverrideIdentifier] = json.RawMessage(row.Options)
 
 		default:

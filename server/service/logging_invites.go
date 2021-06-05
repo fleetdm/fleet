@@ -5,18 +5,18 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw loggingMiddleware) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
+func (mw loggingMiddleware) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
 	var (
-		invite *kolide.Invite
+		invite *fleet.Invite
 		err    error
 	)
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, kolide.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
@@ -37,7 +37,7 @@ func (mw loggingMiddleware) DeleteInvite(ctx context.Context, id uint) error {
 	)
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return kolide.ErrNoContext
+		return fleet.ErrNoContext
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
@@ -51,14 +51,14 @@ func (mw loggingMiddleware) DeleteInvite(ctx context.Context, id uint) error {
 	return err
 }
 
-func (mw loggingMiddleware) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
+func (mw loggingMiddleware) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
 	var (
-		invites []*kolide.Invite
+		invites []*fleet.Invite
 		err     error
 	)
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, kolide.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
@@ -72,10 +72,10 @@ func (mw loggingMiddleware) ListInvites(ctx context.Context, opt kolide.ListOpti
 	return invites, err
 }
 
-func (mw loggingMiddleware) VerifyInvite(ctx context.Context, token string) (*kolide.Invite, error) {
+func (mw loggingMiddleware) VerifyInvite(ctx context.Context, token string) (*fleet.Invite, error) {
 	var (
 		err    error
-		invite *kolide.Invite
+		invite *fleet.Invite
 	)
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(

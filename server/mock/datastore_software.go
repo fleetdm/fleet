@@ -2,13 +2,13 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/fleet"
 
-var _ kolide.SoftwareStore = (*SoftwareStore)(nil)
+var _ fleet.SoftwareStore = (*SoftwareStore)(nil)
 
-type SaveHostSoftwareFunc func(host *kolide.Host) error
+type SaveHostSoftwareFunc func(host *fleet.Host) error
 
-type LoadHostSoftwareFunc func(host *kolide.Host) error
+type LoadHostSoftwareFunc func(host *fleet.Host) error
 
 type SoftwareStore struct {
 	SaveHostSoftwareFunc        SaveHostSoftwareFunc
@@ -18,12 +18,12 @@ type SoftwareStore struct {
 	LoadHostSoftwareFuncInvoked bool
 }
 
-func (s *SoftwareStore) SaveHostSoftware(host *kolide.Host) error {
+func (s *SoftwareStore) SaveHostSoftware(host *fleet.Host) error {
 	s.SaveHostSoftwareFuncInvoked = true
 	return s.SaveHostSoftwareFunc(host)
 }
 
-func (s *SoftwareStore) LoadHostSoftware(host *kolide.Host) error {
+func (s *SoftwareStore) LoadHostSoftware(host *fleet.Host) error {
 	s.LoadHostSoftwareFuncInvoked = true
 	return s.LoadHostSoftwareFunc(host)
 }

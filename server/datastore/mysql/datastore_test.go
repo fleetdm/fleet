@@ -10,9 +10,10 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/go-kit/kit/log"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 )
@@ -104,7 +105,7 @@ func initializeDatabase(t *testing.T, dbName string) {
 
 }
 
-func runTest(t *testing.T, testFunc func(*testing.T, kolide.Datastore)) {
+func runTest(t *testing.T, testFunc func(*testing.T, fleet.Datastore)) {
 	t.Run(test.FunctionName(testFunc), func(t *testing.T) {
 		t.Parallel()
 

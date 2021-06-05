@@ -5,11 +5,11 @@ import (
 	"errors"
 	"net/url"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload kolide.AppConfigPayload) (*kolide.AppConfig, error) {
-	invalid := &kolide.InvalidArgumentError{}
+func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.AppConfigPayload) (*fleet.AppConfig, error) {
+	invalid := &fleet.InvalidArgumentError{}
 	var serverURLString string
 	if payload.ServerSettings == nil {
 		invalid.Append("kolide_server_url", "missing required argument")

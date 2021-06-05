@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/websocket"
 )
 
-func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, querySQL string, queryID *uint, targets kolide.HostTargets) (*kolide.DistributedQueryCampaign, error) {
+func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, querySQL string, queryID *uint, targets fleet.HostTargets) (*fleet.DistributedQueryCampaign, error) {
 	var (
 		loggedInUser = "unauthenticated"
-		campaign     *kolide.DistributedQueryCampaign
+		campaign     *fleet.DistributedQueryCampaign
 		err          error
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
@@ -38,10 +38,10 @@ func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, que
 	return campaign, err
 }
 
-func (mw loggingMiddleware) NewDistributedQueryCampaignByNames(ctx context.Context, querySQL string, queryID *uint, hostIDs []string, labelIDs []string) (*kolide.DistributedQueryCampaign, error) {
+func (mw loggingMiddleware) NewDistributedQueryCampaignByNames(ctx context.Context, querySQL string, queryID *uint, hostIDs []string, labelIDs []string) (*fleet.DistributedQueryCampaign, error) {
 	var (
 		loggedInUser = "unauthenticated"
-		campaign     *kolide.DistributedQueryCampaign
+		campaign     *fleet.DistributedQueryCampaign
 		err          error
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {

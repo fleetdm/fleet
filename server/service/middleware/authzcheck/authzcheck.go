@@ -10,7 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/server/contexts/authz"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -32,9 +32,9 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 
 			// If authentication check failed, return that error (so that we log
 			// appropriately).
-			var authFailedError *kolide.AuthFailedError
-			var authRequiredError *kolide.AuthRequiredError
-			var licenseError *kolide.LicenseError
+			var authFailedError *fleet.AuthFailedError
+			var authRequiredError *fleet.AuthRequiredError
+			var licenseError *fleet.LicenseError
 			if errors.As(err, &authFailedError) ||
 				errors.As(err, &authRequiredError) ||
 				errors.As(err, &licenseError) {

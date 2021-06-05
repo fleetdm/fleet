@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
 // CreateUser creates a new user, skipping the invitation process.
-func (c *Client) CreateUser(p kolide.UserPayload) error {
+func (c *Client) CreateUser(p fleet.UserPayload) error {
 	verb, path := "POST", "/api/v1/fleet/users/admin"
 	response, err := c.AuthenticatedDo(verb, path, "", p)
 	if err != nil {

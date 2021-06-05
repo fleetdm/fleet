@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,10 +13,10 @@ import (
 
 var mockCreatedAt time.Time = time.Now().UTC().Truncate(time.Second)
 
-func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
+func testCarveMetadata(t *testing.T, ds fleet.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
-	expectedCarve := &kolide.CarveMetadata{
+	expectedCarve := &fleet.CarveMetadata{
 		HostId:     h.ID,
 		Name:       "foobar",
 		BlockCount: 10,
@@ -71,12 +71,12 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, expectedCarve, carve)
 }
 
-func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
+func testCarveBlocks(t *testing.T, ds fleet.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	blockCount := int64(25)
 	blockSize := int64(30)
-	carve := &kolide.CarveMetadata{
+	carve := &fleet.CarveMetadata{
 		HostId:     h.ID,
 		Name:       "foobar",
 		BlockCount: blockCount,
@@ -112,12 +112,12 @@ func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 
 }
 
-func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
+func testCarveCleanupCarves(t *testing.T, ds fleet.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	blockCount := int64(25)
 	blockSize := int64(30)
-	carve := &kolide.CarveMetadata{
+	carve := &fleet.CarveMetadata{
 		HostId:     h.ID,
 		Name:       "foobar",
 		BlockCount: blockCount,
@@ -164,10 +164,10 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 	assert.True(t, carve.Expired)
 }
 
-func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
+func testCarveListCarves(t *testing.T, ds fleet.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
-	expectedCarve := &kolide.CarveMetadata{
+	expectedCarve := &fleet.CarveMetadata{
 		HostId:     h.ID,
 		Name:       "foobar",
 		BlockCount: 10,
@@ -188,7 +188,7 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	expectedCarve.MaxBlock = 0
 
-	expectedCarve2 := &kolide.CarveMetadata{
+	expectedCarve2 := &fleet.CarveMetadata{
 		HostId:     h.ID,
 		Name:       "foobar2",
 		BlockCount: 42,
@@ -205,28 +205,28 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 	assert.NotEqual(t, 0, expectedCarve2.ID)
 	expectedCarve2.MaxBlock = -1
 
-	carves, err := ds.ListCarves(kolide.CarveListOptions{Expired: true})
+	carves, err := ds.ListCarves(fleet.CarveListOptions{Expired: true})
 	require.NoError(t, err)
-	assert.Equal(t, []*kolide.CarveMetadata{expectedCarve, expectedCarve2}, carves)
+	assert.Equal(t, []*fleet.CarveMetadata{expectedCarve, expectedCarve2}, carves)
 
 	// Expire the carves
 	_, err = ds.CleanupCarves(time.Now().Add(24 * time.Hour))
 	require.NoError(t, err)
 
-	carves, err = ds.ListCarves(kolide.CarveListOptions{Expired: false})
+	carves, err = ds.ListCarves(fleet.CarveListOptions{Expired: false})
 	require.NoError(t, err)
 	assert.Empty(t, carves)
 
-	carves, err = ds.ListCarves(kolide.CarveListOptions{Expired: true})
+	carves, err = ds.ListCarves(fleet.CarveListOptions{Expired: true})
 	require.NoError(t, err)
 	assert.Len(t, carves, 2)
 }
 
-func testCarveUpdateCarve(t *testing.T, ds kolide.Datastore) {
+func testCarveUpdateCarve(t *testing.T, ds fleet.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	actualCount := int64(10)
-	carve := &kolide.CarveMetadata{
+	carve := &fleet.CarveMetadata{
 		HostId:     h.ID,
 		Name:       "foobar",
 		BlockCount: actualCount,

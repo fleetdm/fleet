@@ -14,8 +14,10 @@ import (
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+
 	kitlog "github.com/go-kit/kit/log"
+
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -92,7 +94,7 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, tt.status, resp.StatusCode)
 
 		var jsn = struct {
-			User  *kolide.User        `json:"user"`
+			User  *fleet.User         `json:"user"`
 			Token string              `json:"token"`
 			Err   []map[string]string `json:"errors,omitempty"`
 		}{}

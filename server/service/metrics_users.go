@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw metricsMiddleware) CreateUserFromInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (mw metricsMiddleware) CreateUserFromInvite(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	var (
-		user *kolide.User
+		user *fleet.User
 		err  error
 	)
 
@@ -24,9 +24,9 @@ func (mw metricsMiddleware) CreateUserFromInvite(ctx context.Context, p kolide.U
 	return user, err
 }
 
-func (mw metricsMiddleware) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
+func (mw metricsMiddleware) ModifyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
 	var (
-		user *kolide.User
+		user *fleet.User
 		err  error
 	)
 
@@ -40,9 +40,9 @@ func (mw metricsMiddleware) ModifyUser(ctx context.Context, userID uint, p kolid
 	return user, err
 }
 
-func (mw metricsMiddleware) User(ctx context.Context, id uint) (*kolide.User, error) {
+func (mw metricsMiddleware) User(ctx context.Context, id uint) (*fleet.User, error) {
 	var (
-		user *kolide.User
+		user *fleet.User
 		err  error
 	)
 	defer func(begin time.Time) {
@@ -55,10 +55,10 @@ func (mw metricsMiddleware) User(ctx context.Context, id uint) (*kolide.User, er
 	return user, err
 }
 
-func (mw metricsMiddleware) ListUsers(ctx context.Context, opt kolide.UserListOptions) ([]*kolide.User, error) {
+func (mw metricsMiddleware) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 
 	var (
-		users []*kolide.User
+		users []*fleet.User
 		err   error
 	)
 	defer func(begin time.Time) {
@@ -71,9 +71,9 @@ func (mw metricsMiddleware) ListUsers(ctx context.Context, opt kolide.UserListOp
 	return users, err
 }
 
-func (mw metricsMiddleware) AuthenticatedUser(ctx context.Context) (*kolide.User, error) {
+func (mw metricsMiddleware) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {
 	var (
-		user *kolide.User
+		user *fleet.User
 		err  error
 	)
 

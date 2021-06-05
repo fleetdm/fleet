@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/server/config"
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/live_query"
 	"github.com/fleetdm/fleet/server/logging"
 	"github.com/fleetdm/fleet/server/mock"
@@ -32,17 +32,17 @@ var expectedDetailQueries = len(detailQueries) - 3
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
-	ds.VerifyEnrollSecretFunc = func(secret string) (*kolide.EnrollSecret, error) {
+	ds.VerifyEnrollSecretFunc = func(secret string) (*fleet.EnrollSecret, error) {
 		switch secret {
 		case "valid_secret":
-			return &kolide.EnrollSecret{Secret: "valid_secret", TeamID: ptr.Uint(3)}, nil
+			return &fleet.EnrollSecret{Secret: "valid_secret", TeamID: ptr.Uint(3)}, nil
 		default:
 			return nil, errors.New("not found")
 		}
 	}
-	ds.EnrollHostFunc = func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*kolide.Host, error) {
+	ds.EnrollHostFunc = func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 		assert.Equal(t, ptr.Uint(3), teamID)
-		return &kolide.Host{
+		return &fleet.Host{
 			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
 		}, nil
 	}
@@ -56,10 +56,10 @@ func TestEnrollAgent(t *testing.T) {
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	ds := new(mock.Store)
-	ds.VerifyEnrollSecretFunc = func(secret string) (*kolide.EnrollSecret, error) {
+	ds.VerifyEnrollSecretFunc = func(secret string) (*fleet.EnrollSecret, error) {
 		switch secret {
 		case "valid_secret":
-			return &kolide.EnrollSecret{Secret: "valid_secret", TeamID: ptr.Uint(3)}, nil
+			return &fleet.EnrollSecret{Secret: "valid_secret", TeamID: ptr.Uint(3)}, nil
 		default:
 			return nil, errors.New("not found")
 		}
@@ -74,16 +74,16 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 
 func TestEnrollAgentDetails(t *testing.T) {
 	ds := new(mock.Store)
-	ds.VerifyEnrollSecretFunc = func(secret string) (*kolide.EnrollSecret, error) {
-		return &kolide.EnrollSecret{}, nil
+	ds.VerifyEnrollSecretFunc = func(secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{}, nil
 	}
-	ds.EnrollHostFunc = func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*kolide.Host, error) {
-		return &kolide.Host{
+	ds.EnrollHostFunc = func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+		return &fleet.Host{
 			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
 		}, nil
 	}
-	var gotHost *kolide.Host
-	ds.SaveHostFunc = func(host *kolide.Host) error {
+	var gotHost *fleet.Host
+	ds.SaveHostFunc = func(host *fleet.Host) error {
 		gotHost = host
 		return nil
 	}
@@ -118,8 +118,8 @@ func TestAuthenticateHost(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 
 	var gotKey string
-	host := kolide.Host{ID: 1, HostName: "foobar"}
-	ds.AuthenticateHostFunc = func(key string) (*kolide.Host, error) {
+	host := fleet.Host{ID: 1, HostName: "foobar"}
+	ds.AuthenticateHostFunc = func(key string) (*fleet.Host, error) {
 		gotKey = key
 		return &host, nil
 	}
@@ -134,13 +134,13 @@ func TestAuthenticateHost(t *testing.T) {
 	assert.Equal(t, "test", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 
-	host = kolide.Host{ID: 7, HostName: "foobar"}
+	host = fleet.Host{ID: 7, HostName: "foobar"}
 	_, err = svc.AuthenticateHost(context.Background(), "floobar")
 	require.Nil(t, err)
 	assert.Equal(t, "floobar", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 	// Host checks in twice
-	host = kolide.Host{ID: 7, HostName: "foobar"}
+	host = fleet.Host{ID: 7, HostName: "foobar"}
 	_, err = svc.AuthenticateHost(context.Background(), "floobar")
 	require.Nil(t, err)
 	assert.Equal(t, "floobar", gotKey)
@@ -161,7 +161,7 @@ func TestAuthenticateHostFailure(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.AuthenticateHostFunc = func(key string) (*kolide.Host, error) {
+	ds.AuthenticateHostFunc = func(key string) (*fleet.Host, error) {
 		return nil, errors.New("not found")
 	}
 
@@ -198,7 +198,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	err := json.Unmarshal([]byte(logJSON), &status)
 	require.Nil(t, err)
 
-	host := kolide.Host{}
+	host := fleet.Host{}
 	ctx := hostctx.NewContext(context.Background(), host)
 	err = serv.SubmitStatusLogs(ctx, status)
 	assert.Nil(t, err)
@@ -230,7 +230,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	err := json.Unmarshal([]byte(logJSON), &results)
 	require.Nil(t, err)
 
-	host := kolide.Host{}
+	host := fleet.Host{}
 	ctx := hostctx.NewContext(context.Background(), host)
 	err = serv.SubmitResultLogs(ctx, results)
 	assert.Nil(t, err)
@@ -241,18 +241,18 @@ func TestSubmitResultLogs(t *testing.T) {
 func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
-	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		return &kolide.AppConfig{AdditionalQueries: &additional}, nil
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{AdditionalQueries: &additional}, nil
 	}
 
 	mockClock := clock.NewMockClock()
-	host := kolide.Host{
+	host := fleet.Host{
 		ID: 1,
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			UpdateTimestamp: kolide.UpdateTimestamp{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			UpdateTimestamp: fleet.UpdateTimestamp{
 				UpdatedAt: mockClock.Now(),
 			},
-			CreateTimestamp: kolide.CreateTimestamp{
+			CreateTimestamp: fleet.CreateTimestamp{
 				CreatedAt: mockClock.Now(),
 			},
 		},
@@ -306,24 +306,24 @@ func TestLabelQueries(t *testing.T) {
 	lq := new(live_query.MockLiveQuery)
 	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
-	host := &kolide.Host{
+	host := &fleet.Host{
 		Platform: "darwin",
 	}
 
-	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.DistributedQueriesForHostFunc = func(host *kolide.Host) (map[uint]string, error) {
+	ds.DistributedQueriesForHostFunc = func(host *fleet.Host) (map[uint]string, error) {
 		return map[uint]string{}, nil
 	}
-	ds.HostFunc = func(id uint) (*kolide.Host, error) {
+	ds.HostFunc = func(id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(host *kolide.Host) error {
+	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return nil
 	}
-	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		return &kolide.AppConfig{}, nil
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
@@ -347,7 +347,7 @@ func TestLabelQueries(t *testing.T) {
 	assert.Len(t, queries, 0)
 	assert.Zero(t, acc)
 
-	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{
 			"label1": "query1",
 			"label2": "query2",
@@ -361,10 +361,10 @@ func TestLabelQueries(t *testing.T) {
 	assert.Len(t, queries, 3)
 	assert.Zero(t, acc)
 
-	var gotHost *kolide.Host
+	var gotHost *fleet.Host
 	var gotResults map[uint]bool
 	var gotTime time.Time
-	ds.RecordLabelQueryExecutionsFunc = func(host *kolide.Host, results map[uint]bool, t time.Time) error {
+	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]bool, t time.Time) error {
 		gotHost = host
 		gotResults = results
 		gotTime = t
@@ -377,7 +377,7 @@ func TestLabelQueries(t *testing.T) {
 		map[string][]map[string]string{
 			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
 		},
-		map[string]kolide.OsqueryStatus{},
+		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
 	)
 	assert.Nil(t, err)
@@ -397,7 +397,7 @@ func TestLabelQueries(t *testing.T) {
 			hostLabelQueryPrefix + "2": {{"col1": "val1"}},
 			hostLabelQueryPrefix + "3": {},
 		},
-		map[string]kolide.OsqueryStatus{},
+		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
 	)
 	assert.Nil(t, err)
@@ -412,38 +412,38 @@ func TestLabelQueries(t *testing.T) {
 
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
-	ds.ListPacksForHostFunc = func(hid uint) ([]*kolide.Pack, error) {
-		return []*kolide.Pack{}, nil
+	ds.ListPacksForHostFunc = func(hid uint) ([]*fleet.Pack, error) {
+		return []*fleet.Pack{}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(pid uint, opt kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackFunc = func(pid uint, opt fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		tru := true
 		fals := false
 		fortytwo := uint(42)
 		switch pid {
 		case 1:
-			return []*kolide.ScheduledQuery{
+			return []*fleet.ScheduledQuery{
 				{Name: "time", Query: "select * from time", Interval: 30, Removed: &fals},
 			}, nil
 		case 4:
-			return []*kolide.ScheduledQuery{
+			return []*fleet.ScheduledQuery{
 				{Name: "foobar", Query: "select 3", Interval: 20, Shard: &fortytwo},
 				{Name: "froobing", Query: "select 'guacamole'", Interval: 60, Snapshot: &tru},
 			}, nil
 		default:
-			return []*kolide.ScheduledQuery{}, nil
+			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		return &kolide.AppConfig{AgentOptions: json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`)}, nil
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{AgentOptions: json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`)}, nil
 	}
-	ds.SaveHostFunc = func(host *kolide.Host) error {
+	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return nil
 	}
 
 	svc := newTestService(ds, nil, nil)
 
-	ctx1 := hostctx.NewContext(context.Background(), kolide.Host{ID: 1})
-	ctx2 := hostctx.NewContext(context.Background(), kolide.Host{ID: 2})
+	ctx1 := hostctx.NewContext(context.Background(), fleet.Host{ID: 1})
+	ctx2 := hostctx.NewContext(context.Background(), fleet.Host{ID: 2})
 
 	expectedOptions := map[string]interface{}{
 		"baz": "bar",
@@ -463,20 +463,20 @@ func TestGetClientConfig(t *testing.T) {
 	assert.Equal(t, expectedConfig, conf)
 
 	// Now add packs
-	ds.ListPacksForHostFunc = func(hid uint) ([]*kolide.Pack, error) {
+	ds.ListPacksForHostFunc = func(hid uint) ([]*fleet.Pack, error) {
 		switch hid {
 		case 1:
-			return []*kolide.Pack{
+			return []*fleet.Pack{
 				{ID: 1, Name: "pack_by_label"},
 				{ID: 4, Name: "pack_by_other_label"},
 			}, nil
 
 		case 2:
-			return []*kolide.Pack{
+			return []*fleet.Pack{
 				{ID: 1, Name: "pack_by_label"},
 			}, nil
 		}
-		return []*kolide.Pack{}, nil
+		return []*fleet.Pack{}, nil
 	}
 
 	conf, err = svc.GetClientConfig(ctx1)
@@ -518,13 +518,13 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	lq := new(live_query.MockLiveQuery)
 	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
-	host := kolide.Host{Platform: "windows"}
+	host := fleet.Host{Platform: "windows"}
 	ctx := hostctx.NewContext(context.Background(), host)
 
-	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		return &kolide.AppConfig{}, nil
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
 	}
-	ds.LabelQueriesForHostFunc = func(*kolide.Host, time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 
@@ -625,23 +625,23 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 }
 `
 
-	var results kolide.OsqueryDistributedQueryResults
+	var results fleet.OsqueryDistributedQueryResults
 	err = json.Unmarshal([]byte(resultJSON), &results)
 	require.Nil(t, err)
 
-	var gotHost *kolide.Host
-	ds.SaveHostFunc = func(host *kolide.Host) error {
+	var gotHost *fleet.Host
+	ds.SaveHostFunc = func(host *fleet.Host) error {
 		gotHost = host
 		return nil
 	}
 
-	ds.SaveHostAdditionalFunc = func(host *kolide.Host) error {
+	ds.SaveHostAdditionalFunc = func(host *fleet.Host) error {
 		gotHost.Additional = host.Additional
 		return nil
 	}
 
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{}, map[string]string{})
+	svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -689,15 +689,15 @@ func TestDetailQueries(t *testing.T) {
 	lq := new(live_query.MockLiveQuery)
 	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
-	host := kolide.Host{Platform: "linux"}
+	host := fleet.Host{Platform: "linux"}
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
-	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		return &kolide.AppConfig{}, nil
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
 	}
-	ds.LabelQueriesForHostFunc = func(*kolide.Host, time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 
@@ -800,23 +800,23 @@ func TestDetailQueries(t *testing.T) {
 }
 `
 
-	var results kolide.OsqueryDistributedQueryResults
+	var results fleet.OsqueryDistributedQueryResults
 	err = json.Unmarshal([]byte(resultJSON), &results)
 	require.Nil(t, err)
 
-	var gotHost *kolide.Host
-	ds.SaveHostFunc = func(host *kolide.Host) error {
+	var gotHost *fleet.Host
+	ds.SaveHostFunc = func(host *fleet.Host) error {
 		gotHost = host
 		return nil
 	}
 
-	ds.SaveHostAdditionalFunc = func(host *kolide.Host) error {
+	ds.SaveHostAdditionalFunc = func(host *fleet.Host) error {
 		gotHost.Additional = host.Additional
 		return nil
 	}
 
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{}, map[string]string{})
+	svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -860,7 +860,7 @@ func TestDetailQueries(t *testing.T) {
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
-	var initialHost kolide.Host
+	var initialHost fleet.Host
 	host := initialHost
 
 	ingest := detailQueries["network_interface"].IngestFunc
@@ -942,7 +942,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
-	host := kolide.Host{}
+	host := fleet.Host{}
 
 	ingest := detailQueries["scheduled_query_stats"].IngestFunc
 
@@ -1034,7 +1034,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	})
 	assert.Equal(t, host.PackStats[0].PackName, "pack-2")
 	assert.ElementsMatch(t, host.PackStats[0].QueryStats,
-		[]kolide.ScheduledQueryStats{
+		[]fleet.ScheduledQueryStats{
 			{
 				ScheduledQueryName: "time",
 				PackName:           "pack-2",
@@ -1052,7 +1052,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	)
 	assert.Equal(t, host.PackStats[1].PackName, "test")
 	assert.ElementsMatch(t, host.PackStats[1].QueryStats,
-		[]kolide.ScheduledQueryStats{
+		[]fleet.ScheduledQueryStats{
 			{
 				ScheduledQueryName: "osquery info",
 				PackName:           "test",
@@ -1115,8 +1115,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds := &mock.Store{
 		AppConfigStore: mock.AppConfigStore{
-			AppConfigFunc: func() (*kolide.AppConfig, error) {
-				config := &kolide.AppConfig{}
+			AppConfigFunc: func() (*fleet.AppConfig, error) {
+				config := &fleet.AppConfig{}
 				return config, nil
 			},
 		},
@@ -1130,57 +1130,57 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
 
-	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.DistributedQueriesForHostFunc = func(host *kolide.Host) (map[uint]string, error) {
+	ds.DistributedQueriesForHostFunc = func(host *fleet.Host) (map[uint]string, error) {
 		return map[uint]string{}, nil
 	}
-	ds.SaveHostFunc = func(host *kolide.Host) error {
+	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return nil
 	}
-	var gotQuery *kolide.Query
-	ds.NewQueryFunc = func(query *kolide.Query, opts ...kolide.OptionalArg) (*kolide.Query, error) {
+	var gotQuery *fleet.Query
+	ds.NewQueryFunc = func(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		gotQuery = query
 		query.ID = 42
 		return query, nil
 	}
-	var gotCampaign *kolide.DistributedQueryCampaign
-	ds.NewDistributedQueryCampaignFunc = func(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {
+	var gotCampaign *fleet.DistributedQueryCampaign
+	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		gotCampaign = camp
 		camp.ID = 21
 		return camp, nil
 	}
-	var gotTargets []*kolide.DistributedQueryCampaignTarget
-	ds.NewDistributedQueryCampaignTargetFunc = func(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {
+	var gotTargets []*fleet.DistributedQueryCampaignTarget
+	ds.NewDistributedQueryCampaignTargetFunc = func(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 		gotTargets = append(gotTargets, target)
 		return target, nil
 	}
 
-	ds.CountHostsInTargetsFunc = func(filter kolide.TeamFilter, targets kolide.HostTargets, now time.Time) (kolide.TargetMetrics, error) {
-		return kolide.TargetMetrics{}, nil
+	ds.CountHostsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+		return fleet.TargetMetrics{}, nil
 	}
-	ds.HostIDsInTargetsFunc = func(filter kolide.TeamFilter, targets kolide.HostTargets) ([]uint, error) {
+	ds.HostIDsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
 	lq.On("RunQuery", "21", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
-		User: &kolide.User{
+		User: &fleet.User{
 			ID: 0,
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
-	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, kolide.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.Nil(t, err)
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
-	assert.Equal(t, []*kolide.DistributedQueryCampaignTarget{
+	assert.Equal(t, []*fleet.DistributedQueryCampaignTarget{
 		{
-			Type:                       kolide.TargetHost,
+			Type:                       fleet.TargetHost,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   2,
 		},
 		{
-			Type:                       kolide.TargetLabel,
+			Type:                       fleet.TargetLabel,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   1,
 		},
@@ -1195,22 +1195,22 @@ func TestDistributedQueryResults(t *testing.T) {
 	lq := new(live_query.MockLiveQuery)
 	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
 
-	campaign := &kolide.DistributedQueryCampaign{ID: 42}
+	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 
-	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(host *kolide.Host) error {
+	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return nil
 	}
-	ds.DistributedQueriesForHostFunc = func(host *kolide.Host) (map[uint]string, error) {
+	ds.DistributedQueriesForHostFunc = func(host *fleet.Host) (map[uint]string, error) {
 		return map[uint]string{campaign.ID: "select * from time"}, nil
 	}
-	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		return &kolide.AppConfig{}, nil
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
 	}
 
-	host := &kolide.Host{ID: 1, Platform: "windows"}
+	host := &fleet.Host{ID: 1, Platform: "windows"}
 	hostCtx := hostctx.NewContext(context.Background(), *host)
 
 	lq.On("QueriesForHost", uint(1)).Return(
@@ -1256,7 +1256,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		waitSetup.Done()
 		select {
 		case val := <-readChan:
-			if res, ok := val.(kolide.DistributedQueryResult); ok {
+			if res, ok := val.(fleet.DistributedQueryResult); ok {
 				assert.Equal(t, campaign.ID, res.DistributedQueryCampaignID)
 				assert.Equal(t, expectedRows, res.Rows)
 				assert.Equal(t, *host, res.Host)
@@ -1279,7 +1279,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	// this test.
 	time.Sleep(10 * time.Millisecond)
 
-	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]kolide.OsqueryStatus{}, map[string]string{})
+	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
 	require.Nil(t, err)
 }
 
@@ -1296,7 +1296,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 		clock:          mockClock,
 	}
 
-	host := kolide.Host{ID: 1}
+	host := fleet.Host{ID: 1}
 	err := svc.ingestDistributedQuery(host, "bad_name", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unable to parse campaign")
@@ -1315,13 +1315,13 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 		clock:          mockClock,
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*kolide.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
 		return nil, fmt.Errorf("missing campaign")
 	}
 
 	lq.On("StopQuery", "42").Return(nil)
 
-	host := kolide.Host{ID: 1}
+	host := fleet.Host{ID: 1}
 
 	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
@@ -1341,20 +1341,20 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 		clock:          mockClock,
 	}
 
-	campaign := &kolide.DistributedQueryCampaign{
+	campaign := &fleet.DistributedQueryCampaign{
 		ID: 42,
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{
 				CreatedAt: mockClock.Now().Add(-1 * time.Second),
 			},
 		},
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*kolide.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
 		return campaign, nil
 	}
 
-	host := kolide.Host{ID: 1}
+	host := fleet.Host{ID: 1}
 
 	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
@@ -1374,23 +1374,23 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 		clock:          mockClock,
 	}
 
-	campaign := &kolide.DistributedQueryCampaign{
+	campaign := &fleet.DistributedQueryCampaign{
 		ID: 42,
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{
 				CreatedAt: mockClock.Now().Add(-30 * time.Second),
 			},
 		},
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*kolide.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
 		return campaign, nil
 	}
-	ds.SaveDistributedQueryCampaignFunc = func(campaign *kolide.DistributedQueryCampaign) error {
+	ds.SaveDistributedQueryCampaignFunc = func(campaign *fleet.DistributedQueryCampaign) error {
 		return fmt.Errorf("failed save")
 	}
 
-	host := kolide.Host{ID: 1}
+	host := fleet.Host{ID: 1}
 
 	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
@@ -1410,24 +1410,24 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 		clock:          mockClock,
 	}
 
-	campaign := &kolide.DistributedQueryCampaign{
+	campaign := &fleet.DistributedQueryCampaign{
 		ID: 42,
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{
 				CreatedAt: mockClock.Now().Add(-30 * time.Second),
 			},
 		},
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*kolide.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
 		return campaign, nil
 	}
-	ds.SaveDistributedQueryCampaignFunc = func(campaign *kolide.DistributedQueryCampaign) error {
+	ds.SaveDistributedQueryCampaignFunc = func(campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
 	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(fmt.Errorf("failed"))
 
-	host := kolide.Host{ID: 1}
+	host := fleet.Host{ID: 1}
 
 	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
@@ -1447,24 +1447,24 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 		clock:          mockClock,
 	}
 
-	campaign := &kolide.DistributedQueryCampaign{
+	campaign := &fleet.DistributedQueryCampaign{
 		ID: 42,
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{
 				CreatedAt: mockClock.Now().Add(-30 * time.Second),
 			},
 		},
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*kolide.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
 		return campaign, nil
 	}
-	ds.SaveDistributedQueryCampaignFunc = func(campaign *kolide.DistributedQueryCampaign) error {
+	ds.SaveDistributedQueryCampaignFunc = func(campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
 	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(nil)
 
-	host := kolide.Host{ID: 1}
+	host := fleet.Host{ID: 1}
 
 	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.NoError(t, err)
@@ -1484,8 +1484,8 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 		clock:          mockClock,
 	}
 
-	campaign := &kolide.DistributedQueryCampaign{ID: 42}
-	host := kolide.Host{ID: 1}
+	campaign := &fleet.DistributedQueryCampaign{ID: 42}
+	host := fleet.Host{ID: 1}
 
 	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(fmt.Errorf("fail"))
 
@@ -1515,8 +1515,8 @@ func TestIngestDistributedQuery(t *testing.T) {
 		clock:          mockClock,
 	}
 
-	campaign := &kolide.DistributedQueryCampaign{ID: 42}
-	host := kolide.Host{ID: 1}
+	campaign := &fleet.DistributedQueryCampaign{ID: 42}
+	host := fleet.Host{ID: 1}
 
 	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
 
@@ -1537,22 +1537,22 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc := newTestService(ds, nil, nil)
 
-	ds.ListPacksForHostFunc = func(hid uint) ([]*kolide.Pack, error) {
-		return []*kolide.Pack{}, nil
+	ds.ListPacksForHostFunc = func(hid uint) ([]*fleet.Pack, error) {
+		return []*fleet.Pack{}, nil
 	}
 
 	var testCases = []struct {
-		initHost       kolide.Host
-		finalHost      kolide.Host
+		initHost       fleet.Host
+		finalHost      fleet.Host
 		configOptions  json.RawMessage
 		saveHostCalled bool
 	}{
 		// Both updated
 		{
-			kolide.Host{
+			fleet.Host{
 				ConfigTLSRefresh: 60,
 			},
-			kolide.Host{
+			fleet.Host{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1566,11 +1566,11 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// Only logger_tls_period updated
 		{
-			kolide.Host{
+			fleet.Host{
 				DistributedInterval: 11,
 				ConfigTLSRefresh:    60,
 			},
-			kolide.Host{
+			fleet.Host{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1583,11 +1583,11 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// Only distributed_interval updated
 		{
-			kolide.Host{
+			fleet.Host{
 				ConfigTLSRefresh: 60,
 				LoggerTLSPeriod:  33,
 			},
-			kolide.Host{
+			fleet.Host{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1600,11 +1600,11 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// Fleet not managing distributed_interval
 		{
-			kolide.Host{
+			fleet.Host{
 				ConfigTLSRefresh:    60,
 				DistributedInterval: 11,
 			},
-			kolide.Host{
+			fleet.Host{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1616,12 +1616,12 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// config_refresh should also cause an update
 		{
-			kolide.Host{
+			fleet.Host{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			kolide.Host{
+			fleet.Host{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    42,
@@ -1635,12 +1635,12 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// SaveHost should not be called with no changes
 		{
-			kolide.Host{
+			fleet.Host{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			kolide.Host{
+			fleet.Host{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1657,12 +1657,12 @@ func TestUpdateHostIntervals(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			ctx := hostctx.NewContext(context.Background(), tt.initHost)
 
-			ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
-				return &kolide.AppConfig{AgentOptions: json.RawMessage(`{"config":` + string(tt.configOptions) + `}`)}, nil
+			ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{AgentOptions: json.RawMessage(`{"config":` + string(tt.configOptions) + `}`)}, nil
 			}
 
 			saveHostCalled := false
-			ds.SaveHostFunc = func(host *kolide.Host) error {
+			ds.SaveHostFunc = func(host *fleet.Host) error {
 				saveHostCalled = true
 				assert.Equal(t, tt.finalHost, *host)
 				return nil
@@ -1688,10 +1688,10 @@ func (e notFoundError) IsNotFound() bool {
 
 func TestAuthenticationErrors(t *testing.T) {
 	ms := new(mock.Store)
-	ms.MarkHostSeenFunc = func(*kolide.Host, time.Time) error {
+	ms.MarkHostSeenFunc = func(*fleet.Host, time.Time) error {
 		return nil
 	}
-	ms.AuthenticateHostFunc = func(nodeKey string) (*kolide.Host, error) {
+	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
 		return nil, nil
 	}
 
@@ -1702,14 +1702,14 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, err.(osqueryError).NodeInvalid())
 
-	ms.AuthenticateHostFunc = func(nodeKey string) (*kolide.Host, error) {
-		return &kolide.Host{ID: 1}, nil
+	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
+		return &fleet.Host{ID: 1}, nil
 	}
 	_, err = svc.AuthenticateHost(ctx, "foo")
 	require.NoError(t, err)
 
 	// return not found error
-	ms.AuthenticateHostFunc = func(nodeKey string) (*kolide.Host, error) {
+	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
 		return nil, notFoundError{}
 	}
 
@@ -1718,7 +1718,7 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.True(t, err.(osqueryError).NodeInvalid())
 
 	// return other error
-	ms.AuthenticateHostFunc = func(nodeKey string) (*kolide.Host, error) {
+	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
 		return nil, errors.New("foo")
 	}
 

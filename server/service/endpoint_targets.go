@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -17,8 +17,8 @@ type searchTargetsRequest struct {
 	MatchQuery string `json:"query"`
 	// QueryID is the ID of a saved query to run (used to determine if this is a
 	// query that observers can run).
-	QueryID  *uint              `json:"query_id"`
-	Selected kolide.HostTargets `json:"selected"`
+	QueryID  *uint             `json:"query_id"`
+	Selected fleet.HostTargets `json:"selected"`
 }
 
 type hostSearchResult struct {
@@ -27,13 +27,13 @@ type hostSearchResult struct {
 }
 
 type labelSearchResult struct {
-	*kolide.Label
+	*fleet.Label
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
 }
 
 type teamSearchResult struct {
-	*kolide.Team
+	*fleet.Team
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
 }
@@ -55,7 +55,7 @@ type searchTargetsResponse struct {
 
 func (r searchTargetsResponse) error() error { return r.Err }
 
-func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeSearchTargetsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(searchTargetsRequest)
 

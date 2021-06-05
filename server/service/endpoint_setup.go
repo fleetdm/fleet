@@ -3,43 +3,43 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/pkg/errors"
 )
 
 type setupRequest struct {
-	Admin           *kolide.UserPayload `json:"admin"`
-	OrgInfo         *kolide.OrgInfo     `json:"org_info"`
-	KolideServerURL *string             `json:"kolide_server_url,omitempty"`
-	EnrollSecret    *string             `json:"osquery_enroll_secret,omitempty"`
+	Admin           *fleet.UserPayload `json:"admin"`
+	OrgInfo         *fleet.OrgInfo     `json:"org_info"`
+	KolideServerURL *string            `json:"kolide_server_url,omitempty"`
+	EnrollSecret    *string            `json:"osquery_enroll_secret,omitempty"`
 }
 
 type setupResponse struct {
-	Admin           *kolide.User    `json:"admin,omitempty"`
-	OrgInfo         *kolide.OrgInfo `json:"org_info,omitempty"`
-	KolideServerURL *string         `json:"kolide_server_url"`
-	EnrollSecret    *string         `json:"osquery_enroll_secret"`
-	Token           *string         `json:"token,omitempty"`
-	Err             error           `json:"error,omitempty"`
+	Admin           *fleet.User    `json:"admin,omitempty"`
+	OrgInfo         *fleet.OrgInfo `json:"org_info,omitempty"`
+	KolideServerURL *string        `json:"kolide_server_url"`
+	EnrollSecret    *string        `json:"osquery_enroll_secret"`
+	Token           *string        `json:"token,omitempty"`
+	Err             error          `json:"error,omitempty"`
 }
 
 func (r setupResponse) error() error { return r.Err }
 
-func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		var (
-			admin         *kolide.User
-			config        *kolide.AppConfig
-			configPayload kolide.AppConfigPayload
+			admin         *fleet.User
+			config        *fleet.AppConfig
+			configPayload fleet.AppConfigPayload
 			err           error
 		)
 		req := request.(setupRequest)
 		if req.OrgInfo != nil {
 			configPayload.OrgInfo = req.OrgInfo
 		}
-		configPayload.ServerSettings = &kolide.ServerSettings{}
+		configPayload.ServerSettings = &fleet.ServerSettings{}
 		if req.KolideServerURL != nil {
 			configPayload.ServerSettings.KolideServerURL = req.KolideServerURL
 		}
@@ -64,7 +64,7 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return setupResponse{Err: err}, nil
 		}
 		// Make the user an admin
-		adminPayload.GlobalRole = ptr.String(kolide.RoleAdmin)
+		adminPayload.GlobalRole = ptr.String(fleet.RoleAdmin)
 		admin, err = svc.CreateInitialUser(ctx, adminPayload)
 		if err != nil {
 			return setupResponse{Err: err}, nil
@@ -80,7 +80,7 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 		return setupResponse{
 			Admin: admin,
-			OrgInfo: &kolide.OrgInfo{
+			OrgInfo: &fleet.OrgInfo{
 				OrgName:    &config.OrgName,
 				OrgLogoURL: &config.OrgLogoURL,
 			},

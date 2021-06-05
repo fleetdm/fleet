@@ -57,7 +57,7 @@ wish to override the default value.
 	return rootCmd
 }
 
-func applyDevFlags(cfg *config.KolideConfig) {
+func applyDevFlags(cfg *config.FleetConfig) {
 	cfg.Mysql.Username = "fleet"
 	cfg.Mysql.Database = "fleet"
 	cfg.Mysql.Password = "insecure"

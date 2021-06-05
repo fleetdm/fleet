@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
 var teamSearchColumns = []string{"name"}
 
-func (d *Datastore) NewTeam(team *kolide.Team) (*kolide.Team, error) {
+func (d *Datastore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
 	query := `
 	INSERT INTO teams (
 		name,
@@ -39,12 +39,12 @@ func (d *Datastore) NewTeam(team *kolide.Team) (*kolide.Team, error) {
 	return team, nil
 }
 
-func (d *Datastore) Team(tid uint) (*kolide.Team, error) {
+func (d *Datastore) Team(tid uint) (*fleet.Team, error) {
 	sql := `
 		SELECT * FROM teams
 			WHERE id = ?
 	`
-	team := &kolide.Team{}
+	team := &fleet.Team{}
 
 	if err := d.db.Get(team, sql, tid); err != nil {
 		return nil, errors.Wrap(err, "select team")
@@ -61,7 +61,7 @@ func (d *Datastore) Team(tid uint) (*kolide.Team, error) {
 	return team, nil
 }
 
-func (d *Datastore) saveTeamSecrets(team *kolide.Team) error {
+func (d *Datastore) saveTeamSecrets(team *fleet.Team) error {
 	if team.Secrets == nil {
 		return nil
 	}
@@ -76,12 +76,12 @@ func (d *Datastore) DeleteTeam(tid uint) error {
 	return nil
 }
 
-func (d *Datastore) TeamByName(name string) (*kolide.Team, error) {
+func (d *Datastore) TeamByName(name string) (*fleet.Team, error) {
 	sql := `
 		SELECT * FROM teams
 			WHERE name = ?
 	`
-	team := &kolide.Team{}
+	team := &fleet.Team{}
 
 	if err := d.db.Get(team, sql, name); err != nil {
 		return nil, errors.Wrap(err, "select team")
@@ -94,13 +94,13 @@ func (d *Datastore) TeamByName(name string) (*kolide.Team, error) {
 	return team, nil
 }
 
-func (d *Datastore) loadUsersForTeam(team *kolide.Team) error {
+func (d *Datastore) loadUsersForTeam(team *fleet.Team) error {
 	sql := `
 		SELECT u.name, u.id, u.email, ut.role
 		FROM user_teams ut JOIN users u ON (ut.user_id = u.id)
 		WHERE ut.team_id = ?
 	`
-	rows := []kolide.TeamUser{}
+	rows := []fleet.TeamUser{}
 	if err := d.db.Select(&rows, sql, team.ID); err != nil {
 		return errors.Wrap(err, "load users for team")
 	}
@@ -109,7 +109,7 @@ func (d *Datastore) loadUsersForTeam(team *kolide.Team) error {
 	return nil
 }
 
-func (d *Datastore) saveUsersForTeam(team *kolide.Team) error {
+func (d *Datastore) saveUsersForTeam(team *fleet.Team) error {
 	// Do a full user update by deleting existing users and then inserting all
 	// the current users in a single transaction.
 	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
@@ -144,7 +144,7 @@ func (d *Datastore) saveUsersForTeam(team *kolide.Team) error {
 	return nil
 }
 
-func (d *Datastore) SaveTeam(team *kolide.Team) (*kolide.Team, error) {
+func (d *Datastore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
 	query := `
 		UPDATE teams SET
 			name = ?,
@@ -165,8 +165,8 @@ func (d *Datastore) SaveTeam(team *kolide.Team) (*kolide.Team, error) {
 }
 
 // ListTeams lists all teams with limit, sort and offset passed in with
-// kolide.ListOptions
-func (d *Datastore) ListTeams(filter kolide.TeamFilter, opt kolide.ListOptions) ([]*kolide.Team, error) {
+// fleet.ListOptions
+func (d *Datastore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	query := fmt.Sprintf(`
 			SELECT *,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
@@ -178,7 +178,7 @@ func (d *Datastore) ListTeams(filter kolide.TeamFilter, opt kolide.ListOptions) 
 	)
 	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
 	query = appendListOptionsToSQL(query, opt)
-	teams := []*kolide.Team{}
+	teams := []*fleet.Team{}
 	if err := d.db.Select(&teams, query, params...); err != nil {
 		return nil, errors.Wrap(err, "list teams")
 	}
@@ -186,7 +186,7 @@ func (d *Datastore) ListTeams(filter kolide.TeamFilter, opt kolide.ListOptions) 
 
 }
 
-func (d *Datastore) SearchTeams(filter kolide.TeamFilter, matchQuery string, omit ...uint) ([]*kolide.Team, error) {
+func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
@@ -198,18 +198,18 @@ func (d *Datastore) SearchTeams(filter kolide.TeamFilter, matchQuery string, omi
 	)
 	sql, params := searchLike(sql, nil, matchQuery, teamSearchColumns...)
 	sql += "\nLIMIT 5"
-	teams := []*kolide.Team{}
+	teams := []*fleet.Team{}
 	if err := d.db.Select(&teams, sql, params...); err != nil {
 		return nil, errors.Wrap(err, "search teams")
 	}
 	return teams, nil
 }
-func (d *Datastore) TeamEnrollSecrets(teamID uint) ([]*kolide.EnrollSecret, error) {
+func (d *Datastore) TeamEnrollSecrets(teamID uint) ([]*fleet.EnrollSecret, error) {
 	sql := `
 		SELECT * FROM enroll_secrets
 		WHERE team_id = ?
 	`
-	var secrets []*kolide.EnrollSecret
+	var secrets []*fleet.EnrollSecret
 	if err := d.db.Select(&secrets, sql, teamID); err != nil {
 		return nil, errors.Wrap(err, "get secrets")
 	}

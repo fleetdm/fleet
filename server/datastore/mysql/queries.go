@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) ApplyQueries(authorID uint, queries []*kolide.Query) (err error) {
+func (d *Datastore) ApplyQueries(authorID uint, queries []*fleet.Query) (err error) {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "begin ApplyQueries transaction")
@@ -64,14 +64,14 @@ func (d *Datastore) ApplyQueries(authorID uint, queries []*kolide.Query) (err er
 	return errors.Wrap(err, "commit ApplyQueries transaction")
 }
 
-func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, error) {
+func (d *Datastore) QueryByName(name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	db := d.getTransaction(opts)
 	sqlStatement := `
 		SELECT *
 			FROM queries
 			WHERE name = ?
 	`
-	var query kolide.Query
+	var query fleet.Query
 	err := db.Get(&query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -80,7 +80,7 @@ func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolid
 		return nil, errors.Wrap(err, "selecting query by name")
 	}
 
-	if err := d.loadPacksForQueries([]*kolide.Query{&query}); err != nil {
+	if err := d.loadPacksForQueries([]*fleet.Query{&query}); err != nil {
 		return nil, errors.Wrap(err, "loading packs for query")
 	}
 
@@ -88,7 +88,7 @@ func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolid
 }
 
 // NewQuery creates a New Query.
-func (d *Datastore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*kolide.Query, error) {
+func (d *Datastore) NewQuery(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	db := d.getTransaction(opts)
 
 	sqlStatement := `
@@ -111,12 +111,12 @@ func (d *Datastore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*
 
 	id, _ := result.LastInsertId()
 	query.ID = uint(id)
-	query.Packs = []kolide.Pack{}
+	query.Packs = []fleet.Pack{}
 	return query, nil
 }
 
 // SaveQuery saves changes to a Query.
-func (d *Datastore) SaveQuery(q *kolide.Query) error {
+func (d *Datastore) SaveQuery(q *fleet.Query) error {
 	sql := `
 		UPDATE queries
 			SET name = ?, description = ?, query = ?, author_id = ?, saved = ?, observer_can_run = ?
@@ -149,7 +149,7 @@ func (d *Datastore) DeleteQueries(ids []uint) (uint, error) {
 }
 
 // Query returns a single Query identified by id, if such exists.
-func (d *Datastore) Query(id uint) (*kolide.Query, error) {
+func (d *Datastore) Query(id uint) (*fleet.Query, error) {
 	sql := `
 		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.username, '') AS author_name
 		FROM queries q
@@ -157,12 +157,12 @@ func (d *Datastore) Query(id uint) (*kolide.Query, error) {
 			ON q.author_id = u.id
 		WHERE q.id = ?
 	`
-	query := &kolide.Query{}
+	query := &fleet.Query{}
 	if err := d.db.Get(query, sql, id); err != nil {
 		return nil, errors.Wrap(err, "selecting query")
 	}
 
-	if err := d.loadPacksForQueries([]*kolide.Query{query}); err != nil {
+	if err := d.loadPacksForQueries([]*fleet.Query{query}); err != nil {
 		return nil, errors.Wrap(err, "loading packs for queries")
 	}
 
@@ -170,8 +170,8 @@ func (d *Datastore) Query(id uint) (*kolide.Query, error) {
 }
 
 // ListQueries returns a list of queries with sort order and results limit
-// determined by passed in kolide.ListOptions
-func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
+// determined by passed in fleet.ListOptions
+func (d *Datastore) ListQueries(opt fleet.ListOptions) ([]*fleet.Query, error) {
 	sql := `
 		SELECT q.*, COALESCE(u.name, '<deleted>') AS author_name
 		FROM queries q
@@ -180,7 +180,7 @@ func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error)
 		WHERE saved = true
 	`
 	sql = appendListOptionsToSQL(sql, opt)
-	results := []*kolide.Query{}
+	results := []*fleet.Query{}
 
 	if err := d.db.Select(&results, sql); err != nil {
 		return nil, errors.Wrap(err, "listing queries")
@@ -194,7 +194,7 @@ func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error)
 }
 
 // loadPacksForQueries loads the packs associated with the provided queries
-func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
+func (d *Datastore) loadPacksForQueries(queries []*fleet.Query) error {
 	if len(queries) == 0 {
 		return nil
 	}
@@ -208,11 +208,11 @@ func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
 	`
 
 	// Used to map the results
-	name_queries := map[string]*kolide.Query{}
+	name_queries := map[string]*fleet.Query{}
 	// Used for the IN clause
 	names := []string{}
 	for _, q := range queries {
-		q.Packs = make([]kolide.Pack, 0)
+		q.Packs = make([]fleet.Pack, 0)
 		names = append(names, q.Name)
 		name_queries[q.Name] = q
 	}
@@ -224,7 +224,7 @@ func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
 
 	rows := []struct {
 		QueryName string `db:"query_name"`
-		kolide.Pack
+		fleet.Pack
 	}{}
 
 	err = d.db.Select(&rows, query, args...)

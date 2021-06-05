@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -12,13 +12,13 @@ import (
 // along with the host online status and the "display text" to be used when
 // rendering in the UI.
 type HostResponse struct {
-	*kolide.Host
-	Status      kolide.HostStatus `json:"status"`
+	*fleet.Host
+	Status      fleet.HostStatus `json:"status"`
 	DisplayText string            `json:"display_text"`
-	Labels      []kolide.Label    `json:"labels,omitempty"`
+	Labels      []fleet.Label    `json:"labels,omitempty"`
 }
 
-func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*HostResponse, error) {
+func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
 	return &HostResponse{
 		Host:        host,
 		Status:      host.Status(time.Now()),
@@ -29,12 +29,12 @@ func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.H
 // HostDetailresponse is the response struct that contains the full host information
 // with the HostDetail details.
 type HostDetailResponse struct {
-	kolide.HostDetail
-	Status      kolide.HostStatus `json:"status"`
+	fleet.HostDetail
+	Status      fleet.HostStatus `json:"status"`
 	DisplayText string            `json:"display_text"`
 }
 
-func hostDetailResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.HostDetail) (*HostDetailResponse, error) {
+func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
 	return &HostDetailResponse{
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
@@ -57,7 +57,7 @@ type getHostResponse struct {
 
 func (r getHostResponse) error() error { return r.Err }
 
-func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetHostEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getHostRequest)
 		host, err := svc.GetHost(ctx, req.ID)
@@ -84,7 +84,7 @@ type hostByIdentifierRequest struct {
 	Identifier string `json:"identifier"`
 }
 
-func makeHostByIdentifierEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeHostByIdentifierEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(hostByIdentifierRequest)
 		host, err := svc.HostByIdentifier(ctx, req.Identifier)
@@ -108,7 +108,7 @@ func makeHostByIdentifierEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listHostsRequest struct {
-	ListOptions kolide.HostListOptions
+	ListOptions fleet.HostListOptions
 }
 
 type listHostsResponse struct {
@@ -118,7 +118,7 @@ type listHostsResponse struct {
 
 func (r listHostsResponse) error() error { return r.Err }
 
-func makeListHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListHostsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listHostsRequest)
 		hosts, err := svc.ListHosts(ctx, req.ListOptions)
@@ -144,13 +144,13 @@ func makeListHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryResponse struct {
-	kolide.HostSummary
+	fleet.HostSummary
 	Err error `json:"error,omitempty"`
 }
 
 func (r getHostSummaryResponse) error() error { return r.Err }
 
-func makeGetHostSummaryEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetHostSummaryEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		summary, err := svc.GetHostSummary(ctx)
 		if err != nil {
@@ -178,7 +178,7 @@ type deleteHostResponse struct {
 
 func (r deleteHostResponse) error() error { return r.Err }
 
-func makeDeleteHostEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteHostEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteHostRequest)
 		err := svc.DeleteHost(ctx, req.ID)
@@ -204,7 +204,7 @@ type addHostsToTeamResponse struct {
 
 func (r addHostsToTeamResponse) error() error { return r.Err }
 
-func makeAddHostsToTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeAddHostsToTeamEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(addHostsToTeamRequest)
 		err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs)
@@ -224,7 +224,7 @@ type addHostsToTeamByFilterRequest struct {
 	TeamID  *uint `json:"team_id"`
 	Filters struct {
 		MatchQuery string            `json:"query"`
-		Status     kolide.HostStatus `json:"status"`
+		Status     fleet.HostStatus `json:"status"`
 		LabelID    *uint             `json:"label_id"`
 	} `json:"filters"`
 }
@@ -235,11 +235,11 @@ type addHostsToTeamByFilterResponse struct {
 
 func (r addHostsToTeamByFilterResponse) error() error { return r.Err }
 
-func makeAddHostsToTeamByFilterEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeAddHostsToTeamByFilterEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(addHostsToTeamByFilterRequest)
-		listOpt := kolide.HostListOptions{
-			ListOptions: kolide.ListOptions{
+		listOpt := fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{
 				MatchQuery: req.Filters.MatchQuery,
 			},
 			StatusFilter: req.Filters.Status,
@@ -267,7 +267,7 @@ type refetchHostResponse struct {
 
 func (r refetchHostResponse) error() error { return r.Err }
 
-func makeRefetchHostEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeRefetchHostEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(refetchHostRequest)
 		err := svc.RefetchHost(ctx, req.ID)
