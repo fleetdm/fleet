@@ -37,6 +37,17 @@ sudo apt-get install -y git golang make nodejs npm
 sudo npm install -g yarn
 ```
 
+#### Windows
+
+To install dependecies, we recommend using [Chocolatey](https://chocolatey.org/install). Chocolatey must be run in Powershell as an Administrator. Assuming your setup does not include any of our requirements, please run:
+```
+choco install nodejs git golang docker make
+```
+
+Note: all packages default to the latest versions. To specify a version, place `--version <version-number>` after each package. You may also install all packages manually from their websites if you prefer.
+
+After the packages have installed, you must use **Git Bash** to continue with the [next section](#clone-and-build). 
+
 ### Clone and build
 
 ```

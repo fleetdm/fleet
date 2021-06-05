@@ -32,9 +32,9 @@ func NewRedisPool(server, password string, database int, useTLS bool) *redis.Poo
 				redis.DialDatabase(database),
 				redis.DialUseTLS(useTLS),
 				redis.DialConnectTimeout(5*time.Second),
-				redis.DialReadTimeout(5*time.Second),
-				redis.DialWriteTimeout(5*time.Second),
-				redis.DialKeepAlive(5*time.Second),
+				redis.DialKeepAlive(10*time.Second),
+				// Read/Write timeouts not set here because we may see results
+				// only rarely on the pub/sub channel.
 			)
 
 			if err != nil {

@@ -13,6 +13,7 @@ Run the following commands to test the site locally:
 npm install -g sails
 cd website/
 npm install
+sails run scripts/build-static-content.js
 sails lift
 ```
 
