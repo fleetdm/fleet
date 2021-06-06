@@ -19,7 +19,7 @@ func TestInviteNewUserMock(t *testing.T) {
 	ms := new(mock.Store)
 	ms.UserByEmailFunc = mock.UserWithEmailNotFound()
 	ms.AppConfigFunc = mock.ReturnFakeAppConfig(&fleet.AppConfig{
-		KolideServerURL: "https://acme.co",
+		ServerURL: "https://acme.co",
 	})
 	ms.NewInviteFunc = func(i *fleet.Invite) (*fleet.Invite, error) {
 		return i, nil

@@ -493,7 +493,7 @@ spec:
     org_logo_url: "https://example.org/logo.png"
     org_name: Example Org
   server_settings:
-    kolide_server_url: https://fleet.example.org:8080
+    server_url: https://fleet.example.org:8080
   smtp_settings:
     authentication_method: authmethod_plain
     authentication_type: authtype_username_password

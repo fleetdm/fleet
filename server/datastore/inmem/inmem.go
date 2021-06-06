@@ -405,8 +405,8 @@ func (d *Datastore) createDevHosts() error {
 
 func (d *Datastore) createDevOrgInfo() error {
 	devOrgInfo := &fleet.AppConfig{
-		KolideServerURL:        "http://localhost:8080",
-		OrgName:                "Kolide",
+		ServerURL:              "http://localhost:8080",
+		OrgName:                "Test",
 		OrgLogoURL:             fmt.Sprintf("https://%s/assets/images/fleet-logo.svg", d.config.Server.Address),
 		SMTPPort:               587,
 		SMTPAuthenticationType: fleet.AuthTypeUserNamePassword,

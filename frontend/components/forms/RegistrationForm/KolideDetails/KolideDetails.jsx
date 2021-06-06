@@ -7,7 +7,7 @@ import Button from "components/buttons/Button";
 import helpers from "components/forms/RegistrationForm/KolideDetails/helpers";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 
-const formFields = ["kolide_server_url"];
+const formFields = ["server_url"];
 const { validate } = helpers;
 
 class KolideDetails extends Component {
@@ -15,7 +15,7 @@ class KolideDetails extends Component {
     className: PropTypes.string,
     currentPage: PropTypes.bool,
     fields: PropTypes.shape({
-      kolide_server_url: formFieldInterface.isRequired,
+      server_url: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
   };
@@ -42,7 +42,7 @@ class KolideDetails extends Component {
       <form onSubmit={handleSubmit} className={className}>
         <div className="registration-fields">
           <InputFieldWithIcon
-            {...fields.kolide_server_url}
+            {...fields.server_url}
             placeholder="Fleet web address"
             tabIndex={tabIndex}
             hint={[

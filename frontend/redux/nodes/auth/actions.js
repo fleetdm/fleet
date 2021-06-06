@@ -170,7 +170,7 @@ export const setup = (registrationFormData) => {
 
       dispatch(
         configSuccess({
-          kolide_server_url: response.kolide_server_url,
+          server_url: response.server_url,
           ...response.org_info,
         })
       );

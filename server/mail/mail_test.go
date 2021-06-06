@@ -56,7 +56,7 @@ func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableStartTLS:       true,
 			SMTPPort:                 1025,
 			SMTPServer:               "localhost",
-			SMTPSenderAddress:        "kolide@fleet.com",
+			SMTPSenderAddress:        "test@example.com",
 		},
 		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
@@ -82,7 +82,7 @@ func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableStartTLS:       true,
 			SMTPPort:                 1025,
 			SMTPServer:               "localhost",
-			SMTPSenderAddress:        "kolide@fleet.com",
+			SMTPSenderAddress:        "test@example.com",
 		},
 		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
@@ -104,7 +104,7 @@ func testSMTPNoAuth(t *testing.T, mailer fleet.MailService) {
 			SMTPVerifySSLCerts:     true,
 			SMTPPort:               1025,
 			SMTPServer:             "localhost",
-			SMTPSenderAddress:      "kolide@fleet.com",
+			SMTPSenderAddress:      "test@example.com",
 		},
 		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
@@ -126,7 +126,7 @@ func testMailTest(t *testing.T, mailer fleet.MailService) {
 			SMTPVerifySSLCerts:     true,
 			SMTPPort:               1025,
 			SMTPServer:             "localhost",
-			SMTPSenderAddress:      "kolide@fleet.com",
+			SMTPSenderAddress:      "test@example.com",
 		},
 		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",

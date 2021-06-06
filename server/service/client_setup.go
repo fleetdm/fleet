@@ -20,7 +20,7 @@ func (c *Client) Setup(email, username, password, org string) (string, error) {
 		OrgInfo: &fleet.OrgInfo{
 			OrgName: &org,
 		},
-		KolideServerURL: &c.addr,
+		ServerURL: &c.addr,
 	}
 
 	response, err := c.Do("POST", "/api/v1/setup", "", params)

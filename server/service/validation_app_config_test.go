@@ -20,7 +20,7 @@ func TestNeedFieldsPresent(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	config := fleet.AppConfig{
 		EnableSSO:   true,
-		EntityID:    "kolide",
+		EntityID:    "fleet",
 		IssuerURI:   "http://issuer.idp.com",
 		MetadataURL: "http://isser.metadata.com",
 		IDPName:     "onelogin",
@@ -34,7 +34,7 @@ func TestMissingMetadata(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	config := fleet.AppConfig{
 		EnableSSO: true,
-		EntityID:  "kolide",
+		EntityID:  "fleet",
 		IssuerURI: "http://issuer.idp.com",
 		IDPName:   "onelogin",
 	}
@@ -52,7 +52,7 @@ func appConfigPayloadFromAppConfig(config *fleet.AppConfig) *fleet.AppConfigPayl
 			OrgName:    &config.OrgName,
 		},
 		ServerSettings: &fleet.ServerSettings{
-			KolideServerURL:   &config.KolideServerURL,
+			ServerURL:         &config.ServerURL,
 			LiveQueryDisabled: &config.LiveQueryDisabled,
 		},
 		SMTPSettings: smtpSettingsFromAppConfig(config),

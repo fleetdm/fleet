@@ -30,7 +30,7 @@ describe("Kolide - API client (config)", () => {
       const formData = {
         org_name: "Kolide",
         org_logo_url: "0.0.0.0:8080/logo.png",
-        kolide_server_url: "",
+        server_url: "",
         configured: false,
         sender_address: "",
         server: "",

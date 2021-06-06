@@ -12,14 +12,14 @@ import (
 type setupRequest struct {
 	Admin           *fleet.UserPayload `json:"admin"`
 	OrgInfo         *fleet.OrgInfo     `json:"org_info"`
-	KolideServerURL *string            `json:"kolide_server_url,omitempty"`
+	ServerURL *string            `json:"server_url,omitempty"`
 	EnrollSecret    *string            `json:"osquery_enroll_secret,omitempty"`
 }
 
 type setupResponse struct {
 	Admin           *fleet.User    `json:"admin,omitempty"`
 	OrgInfo         *fleet.OrgInfo `json:"org_info,omitempty"`
-	KolideServerURL *string        `json:"kolide_server_url"`
+	ServerURL *string        `json:"server_url"`
 	EnrollSecret    *string        `json:"osquery_enroll_secret"`
 	Token           *string        `json:"token,omitempty"`
 	Err             error          `json:"error,omitempty"`
@@ -40,8 +40,8 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 			configPayload.OrgInfo = req.OrgInfo
 		}
 		configPayload.ServerSettings = &fleet.ServerSettings{}
-		if req.KolideServerURL != nil {
-			configPayload.ServerSettings.KolideServerURL = req.KolideServerURL
+		if req.ServerURL != nil {
+			configPayload.ServerSettings.ServerURL = req.ServerURL
 		}
 		config, err = svc.NewAppConfig(ctx, configPayload)
 		if err != nil {
@@ -84,7 +84,7 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 				OrgName:    &config.OrgName,
 				OrgLogoURL: &config.OrgLogoURL,
 			},
-			KolideServerURL: &config.KolideServerURL,
+			ServerURL: &config.ServerURL,
 			Token:           token,
 		}, nil
 	}

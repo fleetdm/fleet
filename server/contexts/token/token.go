@@ -12,7 +12,7 @@ type key int
 
 const tokenKey key = 0
 
-// Token is the concrete type which represents kolide session tokens
+// Token is the concrete type that represents Fleet session tokens
 type Token string
 
 // FromHTTPRequest extracts an Authorization

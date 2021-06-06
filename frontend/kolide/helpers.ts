@@ -84,7 +84,7 @@ const filterTarget = (targetType: string) => {
 export const formatConfigDataForServer = (config: any): any => {
   const orgInfoAttrs = pick(config, ["org_logo_url", "org_name"]);
   const serverSettingsAttrs = pick(config, [
-    "kolide_server_url",
+    "server_url",
     "osquery_enroll_secret",
     "live_query_disabled",
   ]);
@@ -250,7 +250,7 @@ const setupData = (formData: any) => {
   const adminInfo = pick(formData, ADMIN_ATTRS);
 
   return {
-    kolide_server_url: formData.kolide_server_url,
+    server_url: formData.server_url,
     org_info: {
       ...orgInfo,
     },

@@ -23,10 +23,9 @@ apiVersion: k8s.fleet.com/v1alpha1
 kind: OsqueryQuery
 spec:
   name: osquery_version
-  description: The version of the Launcher and Osquery process
-  query: select launcher.version, osquery.version from kolide_launcher_info
+  description: The osquery version info
+  query: select * from osquery_info
   support:
-    launcher: 0.3.0
     osquery: 2.9.0
 ---
 apiVersion: k8s.fleet.com/v1alpha1
@@ -46,17 +45,17 @@ spec:
 
 `,
 			[]*Query{
-				&Query{
+				{
 					Name:        "osquery_version",
-					Description: "The version of the Launcher and Osquery process",
-					Query:       "select launcher.version, osquery.version from kolide_launcher_info",
+					Description: "The osquery version info",
+					Query:       "select * from osquery_info",
 				},
-				&Query{
+				{
 					Name:        "osquery_schedule",
 					Description: "Report performance stats for each file in the query schedule.",
 					Query:       "select name, interval, executions, output_size, wall_time, (user_time",
 				},
-				&Query{
+				{
 					Name:        "foobar",
 					Description: "froobing",
 					Query:       "select fizz from frog",

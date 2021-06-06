@@ -82,7 +82,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
 		Mailer: &mail.SMTPTestMailer{
-			BaseURL:  template.URL(config.KolideServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  template.URL(config.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 		Config: config,
@@ -135,8 +135,8 @@ func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppCon
 	if p.OrgInfo != nil && p.OrgInfo.OrgName != nil {
 		config.OrgName = *p.OrgInfo.OrgName
 	}
-	if p.ServerSettings != nil && p.ServerSettings.KolideServerURL != nil {
-		config.KolideServerURL = cleanupURL(*p.ServerSettings.KolideServerURL)
+	if p.ServerSettings != nil && p.ServerSettings.ServerURL != nil {
+		config.ServerURL = cleanupURL(*p.ServerSettings.ServerURL)
 	}
 	if p.ServerSettings != nil && p.ServerSettings.LiveQueryDisabled != nil {
 		config.LiveQueryDisabled = *p.ServerSettings.LiveQueryDisabled

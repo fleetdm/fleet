@@ -187,7 +187,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		Config:  config,
 		Mailer: &mail.ChangeEmailMailer{
 			Token:    token,
-			BaseURL:  template.URL(config.KolideServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  template.URL(config.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 	}
@@ -448,7 +448,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		To:      []string{user.Email},
 		Config:  config,
 		Mailer: &mail.PasswordResetMailer{
-			BaseURL:  template.URL(config.KolideServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  template.URL(config.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 			Token:    token,
 		},

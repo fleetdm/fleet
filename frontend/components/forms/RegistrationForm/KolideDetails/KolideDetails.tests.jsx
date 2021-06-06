@@ -9,21 +9,21 @@ describe("KolideDetails - form", () => {
   describe("kolide web address input", () => {
     it("renders an input field", () => {
       const form = mount(<KolideDetails handleSubmit={noop} />);
-      const kolideWebAddressField = form.find({ name: "kolide_server_url" });
+      const kolideWebAddressField = form.find({ name: "server_url" });
 
       expect(kolideWebAddressField.length).toBeGreaterThan(0);
     });
 
     it("updates state when the field changes", () => {
       const form = mount(<KolideDetails handleSubmit={noop} />);
-      const kolideWebAddressField = form
-        .find({ name: "kolide_server_url" })
+      const serverAddressField = form
+        .find({ name: "server_url" })
         .find("input");
 
-      fillInFormInput(kolideWebAddressField, "https://gnar.kolide.co");
+      fillInFormInput(serverAddressField, "https://gnar.kolide.co");
 
       expect(form.state().formData).toMatchObject({
-        kolide_server_url: "https://gnar.kolide.co",
+        server_url: "https://gnar.kolide.co",
       });
     });
   });
@@ -38,7 +38,7 @@ describe("KolideDetails - form", () => {
 
       expect(handleSubmitSpy).not.toHaveBeenCalled();
       expect(form.state().errors).toMatchObject({
-        kolide_server_url: "Kolide web address must be completed",
+        server_url: "Kolide web address must be completed",
       });
     });
 
@@ -46,7 +46,7 @@ describe("KolideDetails - form", () => {
       const handleSubmitSpy = jest.fn();
       const form = mount(<KolideDetails handleSubmit={handleSubmitSpy} />);
       const kolideWebAddressField = form
-        .find({ name: "kolide_server_url" })
+        .find({ name: "server_url" })
         .find("input");
       const htmlForm = form.find("form");
 
@@ -55,7 +55,7 @@ describe("KolideDetails - form", () => {
 
       expect(handleSubmitSpy).not.toHaveBeenCalled();
       expect(form.state().errors).toMatchObject({
-        kolide_server_url: "Kolide web address must start with https://",
+        server_url: "Kolide web address must start with https://",
       });
     });
 
@@ -63,7 +63,7 @@ describe("KolideDetails - form", () => {
       const handleSubmitSpy = jest.fn();
       const form = mount(<KolideDetails handleSubmit={handleSubmitSpy} />);
       const kolideWebAddressField = form
-        .find({ name: "kolide_server_url" })
+        .find({ name: "server_url" })
         .find("input");
       const htmlForm = form.find("form");
 

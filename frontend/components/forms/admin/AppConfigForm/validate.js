@@ -4,7 +4,7 @@ export default (formData) => {
   const errors = {};
   const {
     authentication_type: authType,
-    kolide_server_url: kolideServerUrl,
+    server_url: kolideServerUrl,
     org_name: orgName,
     enable_smtp: enableSMTP,
     password: smtpPassword,
@@ -34,7 +34,7 @@ export default (formData) => {
   }
 
   if (!kolideServerUrl) {
-    errors.kolide_server_url = "Fleet Server URL must be present";
+    errors.server_url = "Fleet Server URL must be present";
   }
 
   if (!orgName) {

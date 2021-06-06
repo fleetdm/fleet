@@ -12,7 +12,7 @@ import (
 
 func testOrgInfo(t *testing.T, ds fleet.Datastore) {
 	info := &fleet.AppConfig{
-		OrgName:    "Kolide",
+		OrgName:    "Test",
 		OrgLogoURL: "localhost:8080/logo.png",
 	}
 
@@ -25,7 +25,7 @@ func testOrgInfo(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, info2.OrgName, info.OrgName)
 	assert.False(t, info2.SMTPConfigured)
 
-	info2.OrgName = "koolide"
+	info2.OrgName = "testss"
 	info2.SMTPDomain = "foo"
 	info2.SMTPConfigured = true
 	info2.SMTPSenderAddress = "123"
@@ -39,7 +39,7 @@ func testOrgInfo(t *testing.T, ds fleet.Datastore) {
 	info2.SMTPVerifySSLCerts = true
 	info2.SMTPEnableStartTLS = true
 	info2.EnableSSO = true
-	info2.EntityID = "kolide"
+	info2.EntityID = "test"
 	info2.MetadataURL = "https://idp.com/metadata.xml"
 	info2.IssuerURI = "https://idp.issuer.com"
 	info2.IDPName = "My IDP"
@@ -59,7 +59,7 @@ func testOrgInfo(t *testing.T, ds fleet.Datastore) {
 func testAdditionalQueries(t *testing.T, ds fleet.Datastore) {
 	additional := json.RawMessage("not valid json")
 	info := &fleet.AppConfig{
-		OrgName:           "Kolide",
+		OrgName:           "Test",
 		OrgLogoURL:        "localhost:8080/logo.png",
 		AdditionalQueries: &additional,
 	}

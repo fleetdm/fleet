@@ -90,9 +90,9 @@ class AddHostModal extends Component {
     const { fetchCertificateError, selectedTeam } = this.state;
     const { createTeamDropdownOptions, onChangeSelectTeam } = this;
 
-    let tlsHostname = config.kolide_server_url;
+    let tlsHostname = config.server_url;
     try {
-      const serverUrl = new URL(config.kolide_server_url);
+      const serverUrl = new URL(config.server_url);
       tlsHostname = serverUrl.hostname;
       if (serverUrl.port) {
         tlsHostname += `:${serverUrl.port}`;

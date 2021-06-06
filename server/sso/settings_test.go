@@ -37,7 +37,7 @@ rICQDchR6/cxoQCkoyf+/YTpY492MafV</ds:X509Certificate>
     </md:KeyDescriptor>
     <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
     <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
-    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://dev-132038.oktapreview.com/app/kolidedev132038_kolide_1/exka4zkf6dxm8pF220h7/sso/saml"/><md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://dev-132038.oktapreview.com/app/kolidedev132038_kolide_1/exka4zkf6dxm8pF220h7/sso/saml"/>
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml"/><md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml"/>
   </md:IDPSSODescriptor>
 </md:EntityDescriptor>
 `
@@ -52,7 +52,7 @@ func TestParseMetadata(t *testing.T) {
 	require.Len(t, settings.IDPSSODescriptor.KeyDescriptors, 1)
 	assert.True(t, settings.IDPSSODescriptor.KeyDescriptors[0].KeyInfo.X509Data.X509Certificates[0].Data != "")
 	require.Len(t, settings.IDPSSODescriptor.SingleSignOnService, 2)
-	assert.Equal(t, "https://dev-132038.oktapreview.com/app/kolidedev132038_kolide_1/exka4zkf6dxm8pF220h7/sso/saml",
+	assert.Equal(t, "https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml",
 		settings.IDPSSODescriptor.SingleSignOnService[0].Location)
 	assert.Equal(t, "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST", settings.IDPSSODescriptor.SingleSignOnService[0].Binding)
 }
@@ -68,7 +68,7 @@ func TestGetMetadata(t *testing.T) {
 	require.Len(t, settings.IDPSSODescriptor.KeyDescriptors, 1)
 	assert.True(t, settings.IDPSSODescriptor.KeyDescriptors[0].KeyInfo.X509Data.X509Certificates[0].Data != "")
 	require.Len(t, settings.IDPSSODescriptor.SingleSignOnService, 2)
-	assert.Equal(t, "https://dev-132038.oktapreview.com/app/kolidedev132038_kolide_1/exka4zkf6dxm8pF220h7/sso/saml",
+	assert.Equal(t, "https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml",
 		settings.IDPSSODescriptor.SingleSignOnService[0].Location)
 	assert.Equal(t, "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST", settings.IDPSSODescriptor.SingleSignOnService[0].Binding)
 }

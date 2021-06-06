@@ -23,7 +23,7 @@ class RegistrationForm extends Component {
     this.state = {
       errors: {},
       formData: {
-        kolide_server_url: window.location.origin,
+        server_url: window.location.origin,
       },
     };
   }

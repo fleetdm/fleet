@@ -71,7 +71,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			ServerSettings: &fleet.ServerSettings{
-				KolideServerURL:   &config.KolideServerURL,
+				ServerURL:   &config.ServerURL,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings:       smtpSettings,
@@ -99,7 +99,7 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			ServerSettings: &fleet.ServerSettings{
-				KolideServerURL:   &config.KolideServerURL,
+				ServerURL:   &config.ServerURL,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings: smtpSettingsFromAppConfig(config),
