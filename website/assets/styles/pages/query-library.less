@@ -27,20 +27,36 @@
       height: 16px;
       width: 16px;
     }
+    &.search {
+      transform: scale(0.5);
+    }
   }
 
-  input {
-    height: 54px;
-    width: 250px;
-    border: 1px solid #C5C7D1;
-    border-radius: 8px;
-    outline: 0;
-    padding: 15px;
-    &.mobile {
-      width: 100%;
-      margin-right: 0;
-      margin-left: 0;
+  input::placeholder {
+    font-size: 16px;
+  }
+
+  .input-group-text {
+    color: #8B8FA2;
+    border-color: #C5C7D1;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+  }
+  .form-control {
+    border-color: #C5C7D1;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    &:focus {
+      border: 1px solid #C5C7D1;
     }
+
+
+  }
+  .input-group {
+    &.search {
+      max-width: 250px;;
+    }
+
   }
 
   select {
