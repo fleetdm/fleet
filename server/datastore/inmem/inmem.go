@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/patrickmn/sortutil"
 )
 
@@ -17,28 +17,28 @@ type Datastore struct {
 	mtx     sync.RWMutex
 	nextIDs map[interface{}]uint
 
-	users                           map[uint]*kolide.User
-	sessions                        map[uint]*kolide.Session
-	passwordResets                  map[uint]*kolide.PasswordResetRequest
-	invites                         map[uint]*kolide.Invite
-	labels                          map[uint]*kolide.Label
-	labelQueryExecutions            map[uint]*kolide.LabelQueryExecution
-	queries                         map[uint]*kolide.Query
-	packs                           map[uint]*kolide.Pack
-	hosts                           map[uint]*kolide.Host
-	scheduledQueries                map[uint]*kolide.ScheduledQuery
-	packTargets                     map[uint]*kolide.PackTarget
-	distributedQueryCampaigns       map[uint]kolide.DistributedQueryCampaign
-	distributedQueryCampaignTargets map[uint]kolide.DistributedQueryCampaignTarget
-	appConfig                       *kolide.AppConfig
-	config                          *config.KolideConfig
+	users                           map[uint]*fleet.User
+	sessions                        map[uint]*fleet.Session
+	passwordResets                  map[uint]*fleet.PasswordResetRequest
+	invites                         map[uint]*fleet.Invite
+	labels                          map[uint]*fleet.Label
+	labelQueryExecutions            map[uint]*fleet.LabelQueryExecution
+	queries                         map[uint]*fleet.Query
+	packs                           map[uint]*fleet.Pack
+	hosts                           map[uint]*fleet.Host
+	scheduledQueries                map[uint]*fleet.ScheduledQuery
+	packTargets                     map[uint]*fleet.PackTarget
+	distributedQueryCampaigns       map[uint]fleet.DistributedQueryCampaign
+	distributedQueryCampaignTargets map[uint]fleet.DistributedQueryCampaignTarget
+	appConfig                       *fleet.AppConfig
+	config                          *config.FleetConfig
 
 	// Embedded interface to avoid implementing new methods for (now
 	// deprecated) inmem.
-	kolide.Datastore
+	fleet.Datastore
 }
 
-func New(config config.KolideConfig) (*Datastore, error) {
+func New(config config.FleetConfig) (*Datastore, error) {
 	ds := &Datastore{
 		Driver: "inmem",
 		config: &config,
@@ -56,7 +56,7 @@ type imemTransactionStub struct{}
 func (im *imemTransactionStub) Rollback() error { return nil }
 func (im *imemTransactionStub) Commit() error   { return nil }
 
-func (d *Datastore) Begin() (kolide.Transaction, error) {
+func (d *Datastore) Begin() (fleet.Transaction, error) {
 	return &imemTransactionStub{}, nil
 }
 
@@ -64,13 +64,13 @@ func (d *Datastore) Name() string {
 	return "inmem"
 }
 
-func sortResults(slice interface{}, opt kolide.ListOptions, fields map[string]string) error {
+func sortResults(slice interface{}, opt fleet.ListOptions, fields map[string]string) error {
 	field, ok := fields[opt.OrderKey]
 	if !ok {
 		return errors.New("cannot sort on unknown key: " + opt.OrderKey)
 	}
 
-	if opt.OrderDirection == kolide.OrderDescending {
+	if opt.OrderDirection == fleet.OrderDescending {
 		sortutil.DescByField(slice, field)
 	} else {
 		sortutil.AscByField(slice, field)
@@ -84,25 +84,25 @@ func (d *Datastore) MigrateTables() error {
 	defer d.mtx.Unlock()
 
 	d.nextIDs = make(map[interface{}]uint)
-	d.users = make(map[uint]*kolide.User)
-	d.sessions = make(map[uint]*kolide.Session)
-	d.passwordResets = make(map[uint]*kolide.PasswordResetRequest)
-	d.invites = make(map[uint]*kolide.Invite)
-	d.labels = make(map[uint]*kolide.Label)
-	d.labelQueryExecutions = make(map[uint]*kolide.LabelQueryExecution)
-	d.queries = make(map[uint]*kolide.Query)
-	d.packs = make(map[uint]*kolide.Pack)
-	d.hosts = make(map[uint]*kolide.Host)
-	d.scheduledQueries = make(map[uint]*kolide.ScheduledQuery)
-	d.packTargets = make(map[uint]*kolide.PackTarget)
-	d.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
-	d.distributedQueryCampaignTargets = make(map[uint]kolide.DistributedQueryCampaignTarget)
+	d.users = make(map[uint]*fleet.User)
+	d.sessions = make(map[uint]*fleet.Session)
+	d.passwordResets = make(map[uint]*fleet.PasswordResetRequest)
+	d.invites = make(map[uint]*fleet.Invite)
+	d.labels = make(map[uint]*fleet.Label)
+	d.labelQueryExecutions = make(map[uint]*fleet.LabelQueryExecution)
+	d.queries = make(map[uint]*fleet.Query)
+	d.packs = make(map[uint]*fleet.Pack)
+	d.hosts = make(map[uint]*fleet.Host)
+	d.scheduledQueries = make(map[uint]*fleet.ScheduledQuery)
+	d.packTargets = make(map[uint]*fleet.PackTarget)
+	d.distributedQueryCampaigns = make(map[uint]fleet.DistributedQueryCampaign)
+	d.distributedQueryCampaignTargets = make(map[uint]fleet.DistributedQueryCampaignTarget)
 
 	return nil
 }
 
 func (d *Datastore) MigrateData() error {
-	d.appConfig = &kolide.AppConfig{
+	d.appConfig = &fleet.AppConfig{
 		ID:                 1,
 		SMTPEnableTLS:      true,
 		SMTPPort:           587,
@@ -113,7 +113,7 @@ func (d *Datastore) MigrateData() error {
 	return nil
 }
 
-func (m *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {
+func (m *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
 	return 0, nil
 }
 
@@ -148,7 +148,7 @@ func (d *Datastore) Initialize() error {
 // getLimitOffsetSliceBounds returns the bounds that should be used for
 // re-slicing the results to comply with the requested ListOptions. Lack of
 // generics forces us to do this rather than reslicing in this method.
-func (d *Datastore) getLimitOffsetSliceBounds(opt kolide.ListOptions, length int) (low uint, high uint) {
+func (d *Datastore) getLimitOffsetSliceBounds(opt fleet.ListOptions, length int) (low uint, high uint) {
 	if opt.PerPage == 0 {
 		// PerPage value of 0 indicates unlimited
 		return 0, uint(length)
@@ -174,7 +174,7 @@ func (d *Datastore) nextID(val interface{}) uint {
 }
 
 func (d *Datastore) createDevPacksAndQueries() error {
-	query1 := &kolide.Query{
+	query1 := &fleet.Query{
 		Name:  "Osquery Info",
 		Query: "select * from osquery_info",
 	}
@@ -183,7 +183,7 @@ func (d *Datastore) createDevPacksAndQueries() error {
 		return err
 	}
 
-	query2 := &kolide.Query{
+	query2 := &fleet.Query{
 		Name:  "Launchd",
 		Query: "select * from launchd",
 	}
@@ -192,7 +192,7 @@ func (d *Datastore) createDevPacksAndQueries() error {
 		return err
 	}
 
-	query3 := &kolide.Query{
+	query3 := &fleet.Query{
 		Name:  "registry",
 		Query: "select * from osquery_registry",
 	}
@@ -201,7 +201,7 @@ func (d *Datastore) createDevPacksAndQueries() error {
 		return err
 	}
 
-	pack1 := &kolide.Pack{
+	pack1 := &fleet.Pack{
 		Name: "Osquery Internal Info",
 	}
 	pack1, err = d.NewPack(pack1)
@@ -209,7 +209,7 @@ func (d *Datastore) createDevPacksAndQueries() error {
 		return err
 	}
 
-	pack2 := &kolide.Pack{
+	pack2 := &fleet.Pack{
 		Name: "macOS Attacks",
 	}
 	pack2, err = d.NewPack(pack2)
@@ -223,35 +223,35 @@ func (d *Datastore) createDevPacksAndQueries() error {
 // Bootstrap a few users when using the in-memory database.
 // Each user's default password will just be their username.
 func (d *Datastore) createDevUsers() error {
-	users := []kolide.User{
+	users := []fleet.User{
 		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
 				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdateTimestamp: fleet.UpdateTimestamp{
 					UpdatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
 				},
 			},
 
 			Name:     "Admin User",
 			Username: "admin",
-			Email:    "admin@kolide.co",
+			Email:    "admin@fleet.co",
 			Position: "Director of Security",
 		},
 		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Now().Add(-3 * time.Hour),
 				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdateTimestamp: fleet.UpdateTimestamp{
 					UpdatedAt: time.Now().Add(-1 * time.Hour),
 				},
 			},
 
 			Name:     "Normal User",
 			Username: "user",
-			Email:    "user@kolide.co",
+			Email:    "user@fleet.co",
 			Position: "Security Engineer",
 		},
 	}
@@ -271,13 +271,13 @@ func (d *Datastore) createDevUsers() error {
 }
 
 func (d *Datastore) createDevQueries() error {
-	queries := []kolide.Query{
+	queries := []fleet.Query{
 		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Date(2016, time.October, 17, 7, 6, 0, 0, time.UTC),
 				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdateTimestamp: fleet.UpdateTimestamp{
 					UpdatedAt: time.Date(2016, time.October, 17, 7, 6, 0, 0, time.UTC),
 				},
 			},
@@ -286,11 +286,11 @@ func (d *Datastore) createDevQueries() error {
 			Query: "select * from processes",
 		},
 		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
 				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdateTimestamp: fleet.UpdateTimestamp{
 					UpdatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
 				},
 			},
@@ -298,11 +298,11 @@ func (d *Datastore) createDevQueries() error {
 			Query: "select * from time",
 		},
 		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Now().Add(-24 * time.Hour),
 				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdateTimestamp: fleet.UpdateTimestamp{
 					UpdatedAt: time.Now().Add(-17 * time.Hour),
 				},
 			},
@@ -311,11 +311,11 @@ func (d *Datastore) createDevQueries() error {
 			Query: "select * from cpuid",
 		},
 		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Now().Add(-1 * time.Hour),
 				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdateTimestamp: fleet.UpdateTimestamp{
 					UpdatedAt: time.Now().Add(-30 * time.Hour),
 				},
 			},
@@ -324,11 +324,11 @@ func (d *Datastore) createDevQueries() error {
 			Query: "select 1 from processes where name like '%Apache%'",
 		},
 		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Now(),
 				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdateTimestamp: fleet.UpdateTimestamp{
 					UpdatedAt: time.Now(),
 				},
 			},
@@ -350,13 +350,13 @@ func (d *Datastore) createDevQueries() error {
 
 // Bootstrap a few hosts when using the in-memory database.
 func (d *Datastore) createDevHosts() error {
-	hosts := []kolide.Host{
+	hosts := []fleet.Host{
 		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
 				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdateTimestamp: fleet.UpdateTimestamp{
 					UpdatedAt: time.Now().Add(-20 * time.Minute),
 				},
 			},
@@ -371,11 +371,11 @@ func (d *Datastore) createDevHosts() error {
 			DetailUpdateTime: time.Now().Add(-20 * time.Minute),
 		},
 		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
 				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdateTimestamp: fleet.UpdateTimestamp{
 					UpdatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
 				},
 			},
@@ -404,12 +404,12 @@ func (d *Datastore) createDevHosts() error {
 }
 
 func (d *Datastore) createDevOrgInfo() error {
-	devOrgInfo := &kolide.AppConfig{
+	devOrgInfo := &fleet.AppConfig{
 		KolideServerURL:        "http://localhost:8080",
 		OrgName:                "Kolide",
 		OrgLogoURL:             fmt.Sprintf("https://%s/assets/images/fleet-logo.svg", d.config.Server.Address),
 		SMTPPort:               587,
-		SMTPAuthenticationType: kolide.AuthTypeUserNamePassword,
+		SMTPAuthenticationType: fleet.AuthTypeUserNamePassword,
 		SMTPEnableTLS:          true,
 		SMTPVerifySSLCerts:     true,
 		SMTPEnableStartTLS:     true,

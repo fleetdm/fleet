@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,16 +16,16 @@ func TestAgentOptionsForHost(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 
 	teamID := uint(1)
-	ds.TeamFunc = func(tid uint) (*kolide.Team, error) {
+	ds.TeamFunc = func(tid uint) (*fleet.Team, error) {
 		assert.Equal(t, teamID, tid)
 		opt := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
-		return &kolide.Team{AgentOptions: &opt}, nil
+		return &fleet.Team{AgentOptions: &opt}, nil
 	}
-	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		return &kolide.AppConfig{AgentOptions: json.RawMessage(`{"config":{"baz":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override2"}}}}`)}, nil
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{AgentOptions: json.RawMessage(`{"config":{"baz":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override2"}}}}`)}, nil
 	}
 
-	host := &kolide.Host{
+	host := &fleet.Host{
 		TeamID:   &teamID,
 		Platform: "darwin",
 	}

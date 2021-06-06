@@ -16,7 +16,7 @@ import (
 
 	authz_ctx "github.com/fleetdm/fleet/server/contexts/authz"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/pkg/errors"
 )
@@ -164,7 +164,7 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 
 // userFromContext retrieves a user from the viewer context, returning nil if
 // there is no user.
-func userFromContext(ctx context.Context) *kolide.User {
+func userFromContext(ctx context.Context) *fleet.User {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil

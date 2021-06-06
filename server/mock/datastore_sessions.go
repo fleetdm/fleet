@@ -2,23 +2,23 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/fleet"
 
-var _ kolide.SessionStore = (*SessionStore)(nil)
+var _ fleet.SessionStore = (*SessionStore)(nil)
 
-type SessionByKeyFunc func(key string) (*kolide.Session, error)
+type SessionByKeyFunc func(key string) (*fleet.Session, error)
 
-type SessionByIDFunc func(id uint) (*kolide.Session, error)
+type SessionByIDFunc func(id uint) (*fleet.Session, error)
 
-type ListSessionsForUserFunc func(id uint) ([]*kolide.Session, error)
+type ListSessionsForUserFunc func(id uint) ([]*fleet.Session, error)
 
-type NewSessionFunc func(session *kolide.Session) (*kolide.Session, error)
+type NewSessionFunc func(session *fleet.Session) (*fleet.Session, error)
 
-type DestroySessionFunc func(session *kolide.Session) error
+type DestroySessionFunc func(session *fleet.Session) error
 
 type DestroyAllSessionsForUserFunc func(id uint) error
 
-type MarkSessionAccessedFunc func(session *kolide.Session) error
+type MarkSessionAccessedFunc func(session *fleet.Session) error
 
 type SessionStore struct {
 	SessionByKeyFunc        SessionByKeyFunc
@@ -43,27 +43,27 @@ type SessionStore struct {
 	MarkSessionAccessedFuncInvoked bool
 }
 
-func (s *SessionStore) SessionByKey(key string) (*kolide.Session, error) {
+func (s *SessionStore) SessionByKey(key string) (*fleet.Session, error) {
 	s.SessionByKeyFuncInvoked = true
 	return s.SessionByKeyFunc(key)
 }
 
-func (s *SessionStore) SessionByID(id uint) (*kolide.Session, error) {
+func (s *SessionStore) SessionByID(id uint) (*fleet.Session, error) {
 	s.SessionByIDFuncInvoked = true
 	return s.SessionByIDFunc(id)
 }
 
-func (s *SessionStore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
+func (s *SessionStore) ListSessionsForUser(id uint) ([]*fleet.Session, error) {
 	s.ListSessionsForUserFuncInvoked = true
 	return s.ListSessionsForUserFunc(id)
 }
 
-func (s *SessionStore) NewSession(session *kolide.Session) (*kolide.Session, error) {
+func (s *SessionStore) NewSession(session *fleet.Session) (*fleet.Session, error) {
 	s.NewSessionFuncInvoked = true
 	return s.NewSessionFunc(session)
 }
 
-func (s *SessionStore) DestroySession(session *kolide.Session) error {
+func (s *SessionStore) DestroySession(session *fleet.Session) error {
 	s.DestroySessionFuncInvoked = true
 	return s.DestroySessionFunc(session)
 }
@@ -73,7 +73,7 @@ func (s *SessionStore) DestroyAllSessionsForUser(id uint) error {
 	return s.DestroyAllSessionsForUserFunc(id)
 }
 
-func (s *SessionStore) MarkSessionAccessed(session *kolide.Session) error {
+func (s *SessionStore) MarkSessionAccessed(session *fleet.Session) error {
 	s.MarkSessionAccessedFuncInvoked = true
 	return s.MarkSessionAccessedFunc(session)
 }

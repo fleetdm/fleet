@@ -6,7 +6,7 @@ import (
 	"time"
 
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/mock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +26,7 @@ import (
 
 // 	admin1, err := ds.User("admin1")
 // 	assert.Nil(t, err)
-// 	admin1Session, err := ds.NewSession(&kolide.Session{
+// 	admin1Session, err := ds.NewSession(&fleet.Session{
 // 		UserID: admin1.ID,
 // 		Key:    "admin1",
 // 	})
@@ -34,7 +34,7 @@ import (
 
 // 	user1, err := ds.User("user1")
 // 	assert.Nil(t, err)
-// 	user1Session, err := ds.NewSession(&kolide.Session{
+// 	user1Session, err := ds.NewSession(&fleet.Session{
 // 		UserID: user1.ID,
 // 		Key:    "user1",
 // 	})
@@ -42,7 +42,7 @@ import (
 
 // 	user2, err := ds.User("user2")
 // 	assert.Nil(t, err)
-// 	user2Session, err := ds.NewSession(&kolide.Session{
+// 	user2Session, err := ds.NewSession(&fleet.Session{
 // 		UserID: user2.ID,
 // 		Key:    "user2",
 // 	})
@@ -63,15 +63,15 @@ import (
 // 	}{
 // 		{
 // 			endpoint: mustBeAdmin(e),
-// 			wantErr:  kolide.ErrNoContext,
+// 			wantErr:  fleet.ErrNoContext,
 // 		},
 // 		{
 // 			endpoint: canReadUser(e),
-// 			wantErr:  kolide.ErrNoContext,
+// 			wantErr:  fleet.ErrNoContext,
 // 		},
 // 		{
 // 			endpoint: canModifyUser(e),
-// 			wantErr:  kolide.ErrNoContext,
+// 			wantErr:  fleet.ErrNoContext,
 // 		},
 // 		{
 // 			endpoint: mustBeAdmin(e),
@@ -201,10 +201,10 @@ func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	expectedHost := kolide.Host{HostName: "foo!"}
+	expectedHost := fleet.Host{HostName: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
 
-	ds.AuthenticateHostFunc = func(secret string) (*kolide.Host, error) {
+	ds.AuthenticateHostFunc = func(secret string) (*fleet.Host, error) {
 		switch secret {
 		case goodNodeKey:
 			return &expectedHost, nil
@@ -213,7 +213,7 @@ func TestAuthenticatedHost(t *testing.T) {
 
 		}
 	}
-	ds.MarkHostSeenFunc = func(host *kolide.Host, t time.Time) error {
+	ds.MarkHostSeenFunc = func(host *fleet.Host, t time.Time) error {
 		return nil
 	}
 

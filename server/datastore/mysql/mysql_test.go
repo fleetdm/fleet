@@ -5,7 +5,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/VividCortex/mysqlerr"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
@@ -236,7 +236,7 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 
 func TestAppendListOptionsToSQL(t *testing.T) {
 	sql := "SELECT * FROM app_configs"
-	opts := kolide.ListOptions{
+	opts := fleet.ListOptions{
 		OrderKey: "name",
 	}
 
@@ -247,14 +247,14 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 	}
 
 	sql = "SELECT * FROM app_configs"
-	opts.OrderDirection = kolide.OrderDescending
+	opts.OrderDirection = fleet.OrderDescending
 	actual = appendListOptionsToSQL(sql, opts)
 	expected = "SELECT * FROM app_configs ORDER BY name DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	opts = kolide.ListOptions{
+	opts = fleet.ListOptions{
 		PerPage: 10,
 	}
 
@@ -273,7 +273,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	opts = kolide.ListOptions{}
+	opts = fleet.ListOptions{}
 	sql = "SELECT * FROM app_configs"
 	actual = appendListOptionsToSQL(sql, opts)
 	expected = "SELECT * FROM app_configs LIMIT 1000000"
@@ -288,45 +288,45 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		filter   kolide.TeamFilter
+		filter   fleet.TeamFilter
 		expected string
 	}{
 		// No teams or global role
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{},
 			},
 			expected: "FALSE",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{Teams: []kolide.UserTeam{}},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{Teams: []fleet.UserTeam{}},
 			},
 			expected: "FALSE",
 		},
 
 		// Global role
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			},
 			expected: "TRUE",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{GlobalRole: ptr.String(kolide.RoleMaintainer)},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
 			},
 			expected: "TRUE",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{GlobalRole: ptr.String(kolide.RoleObserver)},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 			},
 			expected: "FALSE",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User:            &kolide.User{GlobalRole: ptr.String(kolide.RoleObserver)},
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 				IncludeObserver: true,
 			},
 			expected: "TRUE",
@@ -334,20 +334,20 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 
 		// Team roles
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{
-					Teams: []kolide.UserTeam{
-						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
 					},
 				},
 			},
 			expected: "FALSE",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{
-					Teams: []kolide.UserTeam{
-						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
 					},
 				},
 				IncludeObserver: true,
@@ -355,33 +355,33 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 			expected: "hosts.team_id IN (1)",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{
-					Teams: []kolide.UserTeam{
-						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
-						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 2}},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 2}},
 					},
 				},
 			},
 			expected: "FALSE",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{
-					Teams: []kolide.UserTeam{
-						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
-						{Role: kolide.RoleMaintainer, Team: kolide.Team{ID: 2}},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
 					},
 				},
 			},
 			expected: "hosts.team_id IN (2)",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{
-					Teams: []kolide.UserTeam{
-						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
-						{Role: kolide.RoleMaintainer, Team: kolide.Team{ID: 2}},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
 					},
 				},
 				IncludeObserver: true,
@@ -389,25 +389,25 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 			expected: "hosts.team_id IN (1,2)",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{
-					Teams: []kolide.UserTeam{
-						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
-						{Role: kolide.RoleMaintainer, Team: kolide.Team{ID: 2}},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
 						// Invalid role should be ignored
-						{Role: "bad", Team: kolide.Team{ID: 37}},
+						{Role: "bad", Team: fleet.Team{ID: 37}},
 					},
 				},
 			},
 			expected: "hosts.team_id IN (2)",
 		},
 		{
-			filter: kolide.TeamFilter{
-				User: &kolide.User{
-					Teams: []kolide.UserTeam{
-						{Role: kolide.RoleObserver, Team: kolide.Team{ID: 1}},
-						{Role: kolide.RoleMaintainer, Team: kolide.Team{ID: 2}},
-						{Role: kolide.RoleAdmin, Team: kolide.Team{ID: 3}},
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+						{Role: fleet.RoleAdmin, Team: fleet.Team{ID: 3}},
 						// Invalid role should be ignored
 					},
 				},

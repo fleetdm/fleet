@@ -2,25 +2,25 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/fleet"
 
-var _ kolide.QueryStore = (*QueryStore)(nil)
+var _ fleet.QueryStore = (*QueryStore)(nil)
 
-type ApplyQueriesFunc func(authorID uint, queries []*kolide.Query) error
+type ApplyQueriesFunc func(authorID uint, queries []*fleet.Query) error
 
-type NewQueryFunc func(query *kolide.Query, opts ...kolide.OptionalArg) (*kolide.Query, error)
+type NewQueryFunc func(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
-type SaveQueryFunc func(query *kolide.Query) error
+type SaveQueryFunc func(query *fleet.Query) error
 
 type DeleteQueryFunc func(name string) error
 
 type DeleteQueriesFunc func(ids []uint) (uint, error)
 
-type QueryFunc func(id uint) (*kolide.Query, error)
+type QueryFunc func(id uint) (*fleet.Query, error)
 
-type ListQueriesFunc func(opt kolide.ListOptions) ([]*kolide.Query, error)
+type ListQueriesFunc func(opt fleet.ListOptions) ([]*fleet.Query, error)
 
-type QueryByNameFunc func(name string, opts ...kolide.OptionalArg) (*kolide.Query, error)
+type QueryByNameFunc func(name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
 type QueryStore struct {
 	ApplyQueriesFunc        ApplyQueriesFunc
@@ -48,17 +48,17 @@ type QueryStore struct {
 	QueryByNameFuncInvoked bool
 }
 
-func (s *QueryStore) ApplyQueries(authorID uint, queries []*kolide.Query) error {
+func (s *QueryStore) ApplyQueries(authorID uint, queries []*fleet.Query) error {
 	s.ApplyQueriesFuncInvoked = true
 	return s.ApplyQueriesFunc(authorID, queries)
 }
 
-func (s *QueryStore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*kolide.Query, error) {
+func (s *QueryStore) NewQuery(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	s.NewQueryFuncInvoked = true
 	return s.NewQueryFunc(query, opts...)
 }
 
-func (s *QueryStore) SaveQuery(query *kolide.Query) error {
+func (s *QueryStore) SaveQuery(query *fleet.Query) error {
 	s.SaveQueryFuncInvoked = true
 	return s.SaveQueryFunc(query)
 }
@@ -73,17 +73,17 @@ func (s *QueryStore) DeleteQueries(ids []uint) (uint, error) {
 	return s.DeleteQueriesFunc(ids)
 }
 
-func (s *QueryStore) Query(id uint) (*kolide.Query, error) {
+func (s *QueryStore) Query(id uint) (*fleet.Query, error) {
 	s.QueryFuncInvoked = true
 	return s.QueryFunc(id)
 }
 
-func (s *QueryStore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
+func (s *QueryStore) ListQueries(opt fleet.ListOptions) ([]*fleet.Query, error) {
 	s.ListQueriesFuncInvoked = true
 	return s.ListQueriesFunc(opt)
 }
 
-func (s *QueryStore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, error) {
+func (s *QueryStore) QueryByName(name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	s.QueryByNameFuncInvoked = true
 	return s.QueryByNameFunc(name, opts...)
 }

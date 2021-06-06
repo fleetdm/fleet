@@ -6,22 +6,22 @@ import (
 	"html/template"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/mail"
 	"github.com/pkg/errors"
 )
 
-func (svc Service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, kolide.ActionWrite); err != nil {
+func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
 	// verify that the user with the given email does not already exist
 	_, err := svc.ds.UserByEmail(*payload.Email)
 	if err == nil {
-		return nil, kolide.NewInvalidArgumentError("email", "a user with this account already exists")
+		return nil, fleet.NewInvalidArgumentError("email", "a user with this account already exists")
 	}
-	if _, ok := err.(kolide.NotFoundError); !ok {
+	if _, ok := err.(fleet.NotFoundError); !ok {
 		return nil, err
 	}
 
@@ -32,13 +32,13 @@ func (svc Service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 	}
 	inviter := v.User
 
-	random, err := kolide.RandomText(svc.config.App.TokenKeySize)
+	random, err := fleet.RandomText(svc.config.App.TokenKeySize)
 	if err != nil {
 		return nil, err
 	}
 	token := base64.URLEncoding.EncodeToString([]byte(random))
 
-	invite := &kolide.Invite{
+	invite := &fleet.Invite{
 		Email:      *payload.Email,
 		InvitedBy:  inviter.ID,
 		Token:      token,
@@ -69,7 +69,7 @@ func (svc Service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 	if invitedBy == "" {
 		invitedBy = inviter.Username
 	}
-	inviteEmail := kolide.Email{
+	inviteEmail := fleet.Email{
 		Subject: "You are Invited to Fleet",
 		To:      []string{invite.Email},
 		Config:  config,
@@ -89,14 +89,14 @@ func (svc Service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 	return invite, nil
 }
 
-func (svc *Service) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, kolide.ActionRead); err != nil {
+func (svc *Service) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 	return svc.ds.ListInvites(opt)
 }
 
-func (svc *Service) VerifyInvite(ctx context.Context, token string) (*kolide.Invite, error) {
+func (svc *Service) VerifyInvite(ctx context.Context, token string) (*fleet.Invite, error) {
 	// skipauth: There is no viewer context at this point. We rely on verifying
 	// the invite for authNZ.
 	svc.authz.SkipAuthorization(ctx)
@@ -107,12 +107,12 @@ func (svc *Service) VerifyInvite(ctx context.Context, token string) (*kolide.Inv
 	}
 
 	if invite.Token != token {
-		return nil, kolide.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
 	}
 
 	expiresAt := invite.CreatedAt.Add(svc.config.App.InviteTokenValidityPeriod)
 	if svc.clock.Now().After(expiresAt) {
-		return nil, kolide.NewInvalidArgumentError("invite_token", "Invite token has expired.")
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite token has expired.")
 	}
 
 	return invite, nil
@@ -120,7 +120,7 @@ func (svc *Service) VerifyInvite(ctx context.Context, token string) (*kolide.Inv
 }
 
 func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Invite{}, kolide.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 	return svc.ds.DeleteInvite(id)

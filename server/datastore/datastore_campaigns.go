@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func checkTargets(t *testing.T, ds kolide.Datastore, campaignID uint, expectedTargets kolide.HostTargets) {
+func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTargets fleet.HostTargets) {
 	targets, err := ds.DistributedQueryCampaignTargetIDs(campaignID)
 	require.Nil(t, err)
 	assert.ElementsMatch(t, expectedTargets.HostIDs, targets.HostIDs)
@@ -19,14 +19,14 @@ func checkTargets(t *testing.T, ds kolide.Datastore, campaignID uint, expectedTa
 	assert.ElementsMatch(t, expectedTargets.TeamIDs, targets.TeamIDs)
 }
 
-func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+func testDistributedQueryCampaign(t *testing.T, ds fleet.Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
 
 	mockClock := clock.NewMockClock()
 
 	query := test.NewQuery(t, ds, "test", "select * from time", user.ID, false)
 
-	campaign := test.NewCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
+	campaign := test.NewCampaign(t, ds, query.ID, fleet.QueryRunning, mockClock.Now())
 
 	{
 		retrieved, err := ds.DistributedQueryCampaign(campaign.ID)
@@ -39,46 +39,46 @@ func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
 	h2 := test.NewHost(t, ds, "bar.local", "192.168.1.11", "2", "2", mockClock.Now().Add(-1*time.Hour))
 	h3 := test.NewHost(t, ds, "baz.local", "192.168.1.12", "3", "3", mockClock.Now().Add(-13*time.Minute))
 
-	l1 := kolide.LabelSpec{
+	l1 := fleet.LabelSpec{
 		ID:    1,
 		Name:  "label foo",
 		Query: "query foo",
 	}
-	l2 := kolide.LabelSpec{
+	l2 := fleet.LabelSpec{
 		ID:    2,
 		Name:  "label bar",
 		Query: "query bar",
 	}
-	err := ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1, &l2})
+	err := ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
 
-	checkTargets(t, ds, campaign.ID, kolide.HostTargets{})
+	checkTargets(t, ds, campaign.ID, fleet.HostTargets{})
 
 	test.AddHostToCampaign(t, ds, campaign.ID, h1.ID)
-	checkTargets(t, ds, campaign.ID, kolide.HostTargets{HostIDs: []uint{h1.ID}})
+	checkTargets(t, ds, campaign.ID, fleet.HostTargets{HostIDs: []uint{h1.ID}})
 
 	test.AddLabelToCampaign(t, ds, campaign.ID, l1.ID)
-	checkTargets(t, ds, campaign.ID, kolide.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l1.ID}})
+	checkTargets(t, ds, campaign.ID, fleet.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l1.ID}})
 
 	test.AddLabelToCampaign(t, ds, campaign.ID, l2.ID)
-	checkTargets(t, ds, campaign.ID, kolide.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l1.ID, l2.ID}})
+	checkTargets(t, ds, campaign.ID, fleet.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l1.ID, l2.ID}})
 
 	test.AddHostToCampaign(t, ds, campaign.ID, h2.ID)
 	test.AddHostToCampaign(t, ds, campaign.ID, h3.ID)
 
-	checkTargets(t, ds, campaign.ID, kolide.HostTargets{HostIDs: []uint{h1.ID, h2.ID, h3.ID}, LabelIDs: []uint{l1.ID, l2.ID}})
+	checkTargets(t, ds, campaign.ID, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID, h3.ID}, LabelIDs: []uint{l1.ID, l2.ID}})
 
 }
 
-func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+func testCleanupDistributedQueryCampaigns(t *testing.T, ds fleet.Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
 
 	mockClock := clock.NewMockClock()
 
 	query := test.NewQuery(t, ds, "test", "select * from time", user.ID, false)
 
-	c1 := test.NewCampaign(t, ds, query.ID, kolide.QueryWaiting, mockClock.Now())
-	c2 := test.NewCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
+	c1 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now())
+	c2 := test.NewCampaign(t, ds, query.ID, fleet.QueryRunning, mockClock.Now())
 
 	// Cleanup and verify that nothing changed (because time has not
 	// advanced)
@@ -113,7 +113,7 @@ func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
 		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
-		assert.Equal(t, kolide.QueryComplete, retrieved.Status)
+		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 	{
 		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
@@ -133,14 +133,14 @@ func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
 		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
-		assert.Equal(t, kolide.QueryComplete, retrieved.Status)
+		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 	{
 		// c2 should now be complete
 		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
-		assert.Equal(t, kolide.QueryComplete, retrieved.Status)
+		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 
 }

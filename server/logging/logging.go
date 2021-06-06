@@ -4,19 +4,19 @@ package logging
 
 import (
 	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 )
 
 type OsqueryLogger struct {
-	Status kolide.JSONLogger
-	Result kolide.JSONLogger
+	Status fleet.JSONLogger
+	Result fleet.JSONLogger
 }
 
-func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) {
-	var status, result kolide.JSONLogger
+func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
+	var status, result fleet.JSONLogger
 	var err error
 
 	switch config.Osquery.StatusLogPlugin {

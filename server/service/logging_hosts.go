@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw loggingMiddleware) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+func (mw loggingMiddleware) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	var (
-		hosts []*kolide.Host
+		hosts []*fleet.Host
 		err   error
 	)
 
@@ -25,9 +25,9 @@ func (mw loggingMiddleware) ListHosts(ctx context.Context, opt kolide.HostListOp
 	return hosts, err
 }
 
-func (mw loggingMiddleware) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, error) {
+func (mw loggingMiddleware) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
 	var (
-		host *kolide.HostDetail
+		host *fleet.HostDetail
 		err  error
 	)
 
@@ -43,9 +43,9 @@ func (mw loggingMiddleware) GetHost(ctx context.Context, id uint) (*kolide.HostD
 	return host, err
 }
 
-func (mw loggingMiddleware) GetHostSummary(ctx context.Context) (*kolide.HostSummary, error) {
+func (mw loggingMiddleware) GetHostSummary(ctx context.Context) (*fleet.HostSummary, error) {
 	var (
-		summary *kolide.HostSummary
+		summary *fleet.HostSummary
 		err     error
 	)
 

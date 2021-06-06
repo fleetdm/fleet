@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/server/contexts/authz"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +33,7 @@ func TestAuthzCheckAuthFailed(t *testing.T) {
 	checker := NewMiddleware()
 
 	check := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return nil, kolide.NewAuthFailedError("failed")
+		return nil, fleet.NewAuthFailedError("failed")
 	}
 	check = checker.AuthzCheck()(check)
 
@@ -48,7 +48,7 @@ func TestAuthzCheckAuthRequired(t *testing.T) {
 	checker := NewMiddleware()
 
 	check := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return nil, kolide.NewAuthRequiredError("required")
+		return nil, fleet.NewAuthRequiredError("required")
 	}
 	check = checker.AuthzCheck()(check)
 

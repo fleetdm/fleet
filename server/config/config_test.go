@@ -28,7 +28,7 @@ func TestConfigRoundtrip(t *testing.T) {
 	// values to be verified on the roundtrip. Note that bools are always
 	// set to true, which could false positive if the default value is
 	// true.
-	original := &KolideConfig{}
+	original := &FleetConfig{}
 	v := reflect.ValueOf(original)
 	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
 		conf_v := v.Elem().Field(conf_index)

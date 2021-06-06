@@ -3,7 +3,7 @@ package service
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/mock"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
@@ -14,13 +14,13 @@ func TestScheduleQuery(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	expectedQuery := &kolide.ScheduledQuery{
+	expectedQuery := &fleet.ScheduledQuery{
 		Name:      "foobar",
 		QueryName: "foobar",
 		QueryID:   3,
 	}
 
-	ds.NewScheduledQueryFunc = func(q *kolide.ScheduledQuery, opts ...kolide.OptionalArg) (*kolide.ScheduledQuery, error) {
+	ds.NewScheduledQueryFunc = func(q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 		assert.Equal(t, expectedQuery, q)
 		return expectedQuery, nil
 	}
@@ -34,32 +34,32 @@ func TestScheduleQueryNoName(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	expectedQuery := &kolide.ScheduledQuery{
+	expectedQuery := &fleet.ScheduledQuery{
 		Name:      "foobar",
 		QueryName: "foobar",
 		QueryID:   3,
 	}
 
-	ds.QueryFunc = func(qid uint) (*kolide.Query, error) {
+	ds.QueryFunc = func(qid uint) (*fleet.Query, error) {
 		require.Equal(t, expectedQuery.QueryID, qid)
-		return &kolide.Query{Name: expectedQuery.QueryName}, nil
+		return &fleet.Query{Name: expectedQuery.QueryName}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackFunc = func(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		// No matching query
-		return []*kolide.ScheduledQuery{
-			&kolide.ScheduledQuery{
+		return []*fleet.ScheduledQuery{
+			&fleet.ScheduledQuery{
 				Name: "froobling",
 			},
 		}, nil
 	}
-	ds.NewScheduledQueryFunc = func(q *kolide.ScheduledQuery, opts ...kolide.OptionalArg) (*kolide.ScheduledQuery, error) {
+	ds.NewScheduledQueryFunc = func(q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 		assert.Equal(t, expectedQuery, q)
 		return expectedQuery, nil
 	}
 
 	_, err := svc.ScheduleQuery(
 		test.UserContext(test.UserAdmin),
-		&kolide.ScheduledQuery{QueryID: expectedQuery.QueryID},
+		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID},
 	)
 	assert.NoError(t, err)
 	assert.True(t, ds.NewScheduledQueryFuncInvoked)
@@ -69,32 +69,32 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	expectedQuery := &kolide.ScheduledQuery{
+	expectedQuery := &fleet.ScheduledQuery{
 		Name:      "foobar-1",
 		QueryName: "foobar",
 		QueryID:   3,
 	}
 
-	ds.QueryFunc = func(qid uint) (*kolide.Query, error) {
+	ds.QueryFunc = func(qid uint) (*fleet.Query, error) {
 		require.Equal(t, expectedQuery.QueryID, qid)
-		return &kolide.Query{Name: expectedQuery.QueryName}, nil
+		return &fleet.Query{Name: expectedQuery.QueryName}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackFunc = func(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		// No matching query
-		return []*kolide.ScheduledQuery{
-			&kolide.ScheduledQuery{
+		return []*fleet.ScheduledQuery{
+			&fleet.ScheduledQuery{
 				Name: "foobar",
 			},
 		}, nil
 	}
-	ds.NewScheduledQueryFunc = func(q *kolide.ScheduledQuery, opts ...kolide.OptionalArg) (*kolide.ScheduledQuery, error) {
+	ds.NewScheduledQueryFunc = func(q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 		assert.Equal(t, expectedQuery, q)
 		return expectedQuery, nil
 	}
 
 	_, err := svc.ScheduleQuery(
 		test.UserContext(test.UserAdmin),
-		&kolide.ScheduledQuery{QueryID: expectedQuery.QueryID},
+		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID},
 	)
 	assert.NoError(t, err)
 	assert.True(t, ds.NewScheduledQueryFuncInvoked)
@@ -103,17 +103,17 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 func TestFindNextNameForQuery(t *testing.T) {
 	var testCases = []struct {
 		name      string
-		scheduled []*kolide.ScheduledQuery
+		scheduled []*fleet.ScheduledQuery
 		expected  string
 	}{
 		{
 			name:      "foobar",
-			scheduled: []*kolide.ScheduledQuery{},
+			scheduled: []*fleet.ScheduledQuery{},
 			expected:  "foobar",
 		},
 		{
 			name: "foobar",
-			scheduled: []*kolide.ScheduledQuery{
+			scheduled: []*fleet.ScheduledQuery{
 				{
 					Name: "foobar",
 				},
@@ -121,7 +121,7 @@ func TestFindNextNameForQuery(t *testing.T) {
 			expected: "foobar-1",
 		}, {
 			name: "foobar",
-			scheduled: []*kolide.ScheduledQuery{
+			scheduled: []*fleet.ScheduledQuery{
 				{
 					Name: "foobar",
 				},

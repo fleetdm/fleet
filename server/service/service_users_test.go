@@ -8,7 +8,7 @@ import (
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 
@@ -26,7 +26,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 	admin1, err := ds.User("admin1")
 	assert.Nil(t, err)
-	admin1Session, err := ds.NewSession(&kolide.Session{
+	admin1Session, err := ds.NewSession(&fleet.Session{
 		UserID: admin1.ID,
 		Key:    "admin1",
 	})
@@ -40,7 +40,7 @@ func TestAuthenticatedUser(t *testing.T) {
 }
 
 func TestModifyUserEmail(t *testing.T) {
-	user := &kolide.User{
+	user := &fleet.User{
 		ID:    3,
 		Email: "foo@bar.com",
 	}
@@ -49,20 +49,20 @@ func TestModifyUserEmail(t *testing.T) {
 	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		config := &kolide.AppConfig{
+	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		config := &fleet.AppConfig{
 			SMTPPort:               1025,
 			SMTPConfigured:         true,
 			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@kolide.co",
-			SMTPAuthenticationType: kolide.AuthTypeNone,
+			SMTPSenderAddress:      "xxx@fleet.co",
+			SMTPAuthenticationType: fleet.AuthTypeNone,
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *kolide.User) error {
+	ms.SaveUserFunc = func(u *fleet.User) error {
 		// verify this isn't changed yet
 		assert.Equal(t, "foo@bar.com", u.Email)
 		// verify is changed per bug 1123
@@ -72,7 +72,7 @@ func TestModifyUserEmail(t *testing.T) {
 	svc := newTestService(ms, nil, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
-	payload := kolide.UserPayload{
+	payload := fleet.UserPayload{
 		Email:    ptr.String("zip@zap.com"),
 		Password: ptr.String("password"),
 		Position: ptr.String("minion"),
@@ -85,7 +85,7 @@ func TestModifyUserEmail(t *testing.T) {
 }
 
 func TestModifyUserEmailNoPassword(t *testing.T) {
-	user := &kolide.User{
+	user := &fleet.User{
 		ID:    3,
 		Email: "foo@bar.com",
 	}
@@ -94,33 +94,33 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		config := &kolide.AppConfig{
+	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		config := &fleet.AppConfig{
 			SMTPPort:               1025,
 			SMTPConfigured:         true,
 			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@kolide.co",
-			SMTPAuthenticationType: kolide.AuthTypeNone,
+			SMTPSenderAddress:      "xxx@fleet.co",
+			SMTPAuthenticationType: fleet.AuthTypeNone,
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *kolide.User) error {
+	ms.SaveUserFunc = func(u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
-	payload := kolide.UserPayload{
+	payload := fleet.UserPayload{
 		Email: ptr.String("zip@zap.com"),
 		// NO PASSWORD
 		//	Password: ptr.String("password"),
 	}
 	_, err := svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*kolide.InvalidArgumentError)
+	invalid, ok := err.(*fleet.InvalidArgumentError)
 	require.True(t, ok)
 	require.Len(t, *invalid, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
@@ -129,7 +129,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 }
 
 func TestModifyAdminUserEmailNoPassword(t *testing.T) {
-	user := &kolide.User{
+	user := &fleet.User{
 		ID:    3,
 		Email: "foo@bar.com",
 	}
@@ -138,33 +138,33 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		config := &kolide.AppConfig{
+	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		config := &fleet.AppConfig{
 			SMTPPort:               1025,
 			SMTPConfigured:         true,
 			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@kolide.co",
-			SMTPAuthenticationType: kolide.AuthTypeNone,
+			SMTPSenderAddress:      "xxx@fleet.co",
+			SMTPAuthenticationType: fleet.AuthTypeNone,
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *kolide.User) error {
+	ms.SaveUserFunc = func(u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
-	payload := kolide.UserPayload{
+	payload := fleet.UserPayload{
 		Email: ptr.String("zip@zap.com"),
 		// NO PASSWORD
 		//	Password: ptr.String("password"),
 	}
 	_, err := svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*kolide.InvalidArgumentError)
+	invalid, ok := err.(*fleet.InvalidArgumentError)
 	require.True(t, ok)
 	require.Len(t, *invalid, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
@@ -173,7 +173,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 }
 
 func TestModifyAdminUserEmailPassword(t *testing.T) {
-	user := &kolide.User{
+	user := &fleet.User{
 		ID:    3,
 		Email: "foo@bar.com",
 	}
@@ -182,26 +182,26 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		config := &kolide.AppConfig{
+	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		config := &fleet.AppConfig{
 			SMTPPort:               1025,
 			SMTPConfigured:         true,
 			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@kolide.co",
-			SMTPAuthenticationType: kolide.AuthTypeNone,
+			SMTPSenderAddress:      "xxx@fleet.co",
+			SMTPAuthenticationType: fleet.AuthTypeNone,
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *kolide.User) error {
+	ms.SaveUserFunc = func(u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
-	payload := kolide.UserPayload{
+	payload := fleet.UserPayload{
 		Email:    ptr.String("zip@zap.com"),
 		Password: ptr.String("password"),
 	}
@@ -222,10 +222,10 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 	assert.Nil(t, err)
 // 	user1, err := ds.User("user1")
 // 	assert.Nil(t, err)
-// 	var defaultEmailFn = func(e kolide.Email) error {
+// 	var defaultEmailFn = func(e fleet.Email) error {
 // 		return nil
 // 	}
-// 	var errEmailFn = func(e kolide.Email) error {
+// 	var errEmailFn = func(e fleet.Email) error {
 // 		return errors.New("test err")
 // 	}
 // 	authz, err := authz.NewAuthorizer()
@@ -238,9 +238,9 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 
 // 	var requestPasswordResetTests = []struct {
 // 		email   string
-// 		emailFn func(e kolide.Email) error
+// 		emailFn func(e fleet.Email) error
 // 		wantErr error
-// 		user    *kolide.User
+// 		user    *fleet.User
 // 		vc      *viewer.Viewer
 // 	}{
 // 		{
@@ -351,7 +351,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 
 // 	for _, tt := range newUserTests {
 // 		t.Run("", func(t *testing.T) {
-// 			payload := kolide.UserPayload{
+// 			payload := fleet.UserPayload{
 // 				Username:    tt.Username,
 // 				Password:    tt.Password,
 // 				Email:       tt.Email,
@@ -376,17 +376,17 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 	}
 // }
 
-func setupInvites(t *testing.T, ds kolide.Datastore, emails []string) map[string]*kolide.Invite {
-	invites := make(map[string]*kolide.Invite)
+func setupInvites(t *testing.T, ds fleet.Datastore, emails []string) map[string]*fleet.Invite {
+	invites := make(map[string]*fleet.Invite)
 	users := createTestUsers(t, ds)
 	mockClock := clock.NewMockClock()
 	for _, e := range emails {
-		invite, err := ds.NewInvite(&kolide.Invite{
+		invite, err := ds.NewInvite(&fleet.Invite{
 			InvitedBy: users["admin1"].ID,
 			Token:     e,
 			Email:     e,
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: mockClock.Now(),
 				},
 			},
@@ -395,12 +395,12 @@ func setupInvites(t *testing.T, ds kolide.Datastore, emails []string) map[string
 		invites[e] = invite
 	}
 	// add an expired invitation
-	invite, err := ds.NewInvite(&kolide.Invite{
+	invite, err := ds.NewInvite(&fleet.Invite{
 		InvitedBy: users["admin1"].ID,
 		Token:     "expired",
 		Email:     "expiredinvite@gmail.com",
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{
 				CreatedAt: mockClock.Now().AddDate(-1, 0, 0),
 			},
 		},
@@ -415,7 +415,7 @@ func TestChangePassword(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
 	var passwordChangeTests = []struct {
-		user        kolide.User
+		user        fleet.User
 		oldPassword string
 		newPassword string
 		anyErr      bool
@@ -430,7 +430,7 @@ func TestChangePassword(t *testing.T) {
 			user:        users["admin1"],
 			oldPassword: "12345cat!",
 			newPassword: "foobarbaz1234!",
-			wantErr:     kolide.NewInvalidArgumentError("new_password", "cannot reuse old password"),
+			wantErr:     fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"),
 		},
 		{ // all good
 			user:        users["user1"],
@@ -445,7 +445,7 @@ func TestChangePassword(t *testing.T) {
 		},
 		{ // missing old password
 			newPassword: "123cataaa!",
-			wantErr:     kolide.NewInvalidArgumentError("old_password", "cannot be empty"),
+			wantErr:     fleet.NewInvalidArgumentError("old_password", "cannot be empty"),
 		},
 	}
 
@@ -490,7 +490,7 @@ func TestResetPassword(t *testing.T) {
 		{ // prevent reuse
 			token:       "abcd",
 			newPassword: "123cat!",
-			wantErr:     kolide.NewInvalidArgumentError("new_password", "cannot reuse old password"),
+			wantErr:     fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"),
 		},
 		{ // bad token
 			token:       "dcbaz",
@@ -499,18 +499,18 @@ func TestResetPassword(t *testing.T) {
 		},
 		{ // missing token
 			newPassword: "123cat!",
-			wantErr:     kolide.NewInvalidArgumentError("token", "cannot be empty field"),
+			wantErr:     fleet.NewInvalidArgumentError("token", "cannot be empty field"),
 		},
 	}
 
 	for _, tt := range passwordResetTests {
 		t.Run("", func(t *testing.T) {
-			request := &kolide.PasswordResetRequest{
-				UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-					CreateTimestamp: kolide.CreateTimestamp{
+			request := &fleet.PasswordResetRequest{
+				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+					CreateTimestamp: fleet.CreateTimestamp{
 						CreatedAt: time.Now(),
 					},
-					UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdateTimestamp: fleet.UpdateTimestamp{
 						UpdatedAt: time.Now(),
 					},
 				},
@@ -521,7 +521,7 @@ func TestResetPassword(t *testing.T) {
 			_, err := ds.NewPasswordResetRequest(request)
 			assert.Nil(t, err)
 
-			serr := svc.ResetPassword(test.UserContext(&kolide.User{ID: 1}), tt.token, tt.newPassword)
+			serr := svc.ResetPassword(test.UserContext(&fleet.User{ID: 1}), tt.token, tt.newPassword)
 			if tt.wantErr != nil {
 				assert.Equal(t, tt.wantErr.Error(), errors.Cause(serr).Error())
 			} else {
@@ -542,7 +542,7 @@ func TestRequirePasswordReset(t *testing.T) {
 			user, err := ds.User(tt.Username)
 			require.Nil(t, err)
 
-			var sessions []*kolide.Session
+			var sessions []*fleet.Session
 
 			// Log user in
 			_, _, err = svc.Login(test.UserContext(test.UserAdmin), tt.Username, tt.PlaintextPassword)
@@ -595,7 +595,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 			_, err = svc.PerformRequiredPasswordReset(test.UserContext(test.UserAdmin), "new_pass")
 			require.NotNil(t, err)
 
-			session, err := ds.NewSession(&kolide.Session{
+			session, err := ds.NewSession(&fleet.Session{
 				UserID: user.ID,
 			})
 			require.Nil(t, err)

@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw loggingMiddleware) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (mw loggingMiddleware) NewAppConfig(ctx context.Context, p fleet.AppConfigPayload) (*fleet.AppConfig, error) {
 	var (
-		info *kolide.AppConfig
+		info *fleet.AppConfig
 		err  error
 	)
 
@@ -25,9 +25,9 @@ func (mw loggingMiddleware) NewAppConfig(ctx context.Context, p kolide.AppConfig
 	return info, err
 }
 
-func (mw loggingMiddleware) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
+func (mw loggingMiddleware) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	var (
-		info *kolide.AppConfig
+		info *fleet.AppConfig
 		err  error
 	)
 
@@ -43,9 +43,9 @@ func (mw loggingMiddleware) AppConfig(ctx context.Context) (*kolide.AppConfig, e
 	return info, err
 }
 
-func (mw loggingMiddleware) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (mw loggingMiddleware) ModifyAppConfig(ctx context.Context, p fleet.AppConfigPayload) (*fleet.AppConfig, error) {
 	var (
-		info *kolide.AppConfig
+		info *fleet.AppConfig
 		err  error
 	)
 

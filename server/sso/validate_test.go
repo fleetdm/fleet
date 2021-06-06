@@ -76,7 +76,7 @@ func tamperedResponse(original string) (string, error) {
 		return "", err
 	}
 	// change name
-	resp.Assertion.Subject.NameID.Value = "bob@kolide.co"
+	resp.Assertion.Subject.NameID.Value = "bob@fleet.co"
 	var wrtr bytes.Buffer
 	err = xml.NewEncoder(&wrtr).Encode(resp)
 	if err != nil {

@@ -2,19 +2,19 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/fleet"
 
-var _ kolide.ScheduledQueryStore = (*ScheduledQueryStore)(nil)
+var _ fleet.ScheduledQueryStore = (*ScheduledQueryStore)(nil)
 
-type ListScheduledQueriesInPackFunc func(id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error)
+type ListScheduledQueriesInPackFunc func(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
 
-type NewScheduledQueryFunc func(sq *kolide.ScheduledQuery, opts ...kolide.OptionalArg) (*kolide.ScheduledQuery, error)
+type NewScheduledQueryFunc func(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error)
 
-type SaveScheduledQueryFunc func(sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error)
+type SaveScheduledQueryFunc func(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
 type DeleteScheduledQueryFunc func(id uint) error
 
-type ScheduledQueryFunc func(id uint) (*kolide.ScheduledQuery, error)
+type ScheduledQueryFunc func(id uint) (*fleet.ScheduledQuery, error)
 
 type ScheduledQueryStore struct {
 	ListScheduledQueriesInPackFunc        ListScheduledQueriesInPackFunc
@@ -33,17 +33,17 @@ type ScheduledQueryStore struct {
 	ScheduledQueryFuncInvoked bool
 }
 
-func (s *ScheduledQueryStore) ListScheduledQueriesInPack(id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+func (s *ScheduledQueryStore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	s.ListScheduledQueriesInPackFuncInvoked = true
 	return s.ListScheduledQueriesInPackFunc(id, opts)
 }
 
-func (s *ScheduledQueryStore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.OptionalArg) (*kolide.ScheduledQuery, error) {
+func (s *ScheduledQueryStore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 	s.NewScheduledQueryFuncInvoked = true
 	return s.NewScheduledQueryFunc(sq, opts...)
 }
 
-func (s *ScheduledQueryStore) SaveScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+func (s *ScheduledQueryStore) SaveScheduledQuery(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	s.SaveScheduledQueryFuncInvoked = true
 	return s.SaveScheduledQueryFunc(sq)
 }
@@ -53,7 +53,7 @@ func (s *ScheduledQueryStore) DeleteScheduledQuery(id uint) error {
 	return s.DeleteScheduledQueryFunc(id)
 }
 
-func (s *ScheduledQueryStore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {
+func (s *ScheduledQueryStore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
 	s.ScheduledQueryFuncInvoked = true
 	return s.ScheduledQueryFunc(id)
 }

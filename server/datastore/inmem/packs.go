@@ -3,10 +3,10 @@ package inmem
 import (
 	"sort"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide.Pack, bool, error) {
+func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	for _, p := range d.packs {
@@ -17,7 +17,7 @@ func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide
 	return nil, false, nil
 }
 
-func (d *Datastore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kolide.Pack, error) {
+func (d *Datastore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
 	newPack := *pack
 
 	for _, q := range d.packs {
@@ -36,7 +36,7 @@ func (d *Datastore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kol
 	return pack, nil
 }
 
-func (d *Datastore) SavePack(pack *kolide.Pack) error {
+func (d *Datastore) SavePack(pack *fleet.Pack) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -49,7 +49,7 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 	return nil
 }
 
-func (d *Datastore) Pack(id uint) (*kolide.Pack, error) {
+func (d *Datastore) Pack(id uint) (*fleet.Pack, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -61,7 +61,7 @@ func (d *Datastore) Pack(id uint) (*kolide.Pack, error) {
 	return pack, nil
 }
 
-func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+func (d *Datastore) ListPacks(opt fleet.ListOptions) ([]*fleet.Pack, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -72,7 +72,7 @@ func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	}
 	sort.Ints(keys)
 
-	packs := []*kolide.Pack{}
+	packs := []*fleet.Pack{}
 	for _, k := range keys {
 		packs = append(packs, d.packs[uint(k)])
 	}
@@ -98,19 +98,19 @@ func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	return packs, nil
 }
 
-func (d *Datastore) AddLabelToPack(lid, pid uint, opts ...kolide.OptionalArg) error {
+func (d *Datastore) AddLabelToPack(lid, pid uint, opts ...fleet.OptionalArg) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
 	for _, pt := range d.packTargets {
-		if pt.PackID == pid && pt.Target.Type == kolide.TargetLabel && pt.Target.TargetID == lid {
+		if pt.PackID == pid && pt.Target.Type == fleet.TargetLabel && pt.Target.TargetID == lid {
 			return nil
 		}
 	}
-	pt := &kolide.PackTarget{
+	pt := &fleet.PackTarget{
 		PackID: pid,
-		Target: kolide.Target{
-			Type:     kolide.TargetLabel,
+		Target: fleet.Target{
+			Type:     fleet.TargetLabel,
 			TargetID: lid,
 		},
 	}
@@ -125,15 +125,15 @@ func (d *Datastore) AddHostToPack(hid, pid uint) error {
 	defer d.mtx.Unlock()
 
 	for _, pt := range d.packTargets {
-		if pt.PackID == pid && pt.Target.Type == kolide.TargetHost && pt.Target.TargetID == hid {
+		if pt.PackID == pid && pt.Target.Type == fleet.TargetHost && pt.Target.TargetID == hid {
 			d.mtx.Unlock()
 			return nil
 		}
 	}
-	pt := &kolide.PackTarget{
+	pt := &fleet.PackTarget{
 		PackID: pid,
-		Target: kolide.Target{
-			Type:     kolide.TargetHost,
+		Target: fleet.Target{
+			Type:     fleet.TargetHost,
 			TargetID: hid,
 		},
 	}
@@ -143,12 +143,12 @@ func (d *Datastore) AddHostToPack(hid, pid uint) error {
 	return nil
 }
 
-func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
+func (d *Datastore) ListLabelsForPack(pid uint) ([]*fleet.Label, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	var labels []*kolide.Label
+	var labels []*fleet.Label
 	for _, pt := range d.packTargets {
-		if pt.Type == kolide.TargetLabel && pt.PackID == pid {
+		if pt.Type == fleet.TargetLabel && pt.PackID == pid {
 			labels = append(labels, d.labels[pt.TargetID])
 		}
 	}
@@ -163,7 +163,7 @@ func (d *Datastore) RemoveLabelFromPack(lid, pid uint) error {
 	var labelsToDelete []uint
 
 	for _, pt := range d.packTargets {
-		if pt.Type == kolide.TargetLabel && pt.TargetID == lid && pt.PackID == pid {
+		if pt.Type == fleet.TargetLabel && pt.TargetID == lid && pt.PackID == pid {
 			labelsToDelete = append(labelsToDelete, pt.ID)
 		}
 	}
@@ -182,7 +182,7 @@ func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
 	var hostsToDelete []uint
 
 	for _, pt := range d.packTargets {
-		if pt.Type == kolide.TargetHost && pt.TargetID == hid && pt.PackID == pid {
+		if pt.Type == fleet.TargetHost && pt.TargetID == hid && pt.PackID == pid {
 			hostsToDelete = append(hostsToDelete, pt.ID)
 		}
 	}
@@ -194,11 +194,11 @@ func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
 	return nil
 }
 
-func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, error) {
+func (d *Datastore) ListHostsInPack(pid uint, opt fleet.ListOptions) ([]uint, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	hosts := []*kolide.Host{}
+	hosts := []*fleet.Host{}
 	hostLookup := map[uint]bool{}
 
 	for _, pt := range d.packTargets {
@@ -207,12 +207,12 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, e
 		}
 
 		switch pt.Type {
-		case kolide.TargetHost:
+		case fleet.TargetHost:
 			if !hostLookup[pt.TargetID] {
 				hostLookup[pt.TargetID] = true
 				hosts = append(hosts, d.hosts[pt.TargetID])
 			}
-		case kolide.TargetLabel:
+		case fleet.TargetLabel:
 			for _, lqe := range d.labelQueryExecutions {
 				if lqe.LabelID == pt.TargetID && lqe.Matches && !hostLookup[lqe.HostID] {
 					hostLookup[lqe.HostID] = true
@@ -250,11 +250,11 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, e
 	return extractHostIDs(hosts), nil
 }
 
-func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, error) {
+func (d *Datastore) ListExplicitHostsInPack(pid uint, opt fleet.ListOptions) ([]uint, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	hosts := []*kolide.Host{}
+	hosts := []*fleet.Host{}
 	hostLookup := map[uint]bool{}
 
 	for _, pt := range d.packTargets {
@@ -262,7 +262,7 @@ func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([
 			continue
 		}
 
-		if pt.Type == kolide.TargetHost {
+		if pt.Type == fleet.TargetHost {
 			if !hostLookup[pt.TargetID] {
 				hostLookup[pt.TargetID] = true
 				hosts = append(hosts, d.hosts[pt.TargetID])
@@ -298,7 +298,7 @@ func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([
 	return extractHostIDs(hosts), nil
 }
 
-func extractHostIDs(hosts []*kolide.Host) []uint {
+func extractHostIDs(hosts []*fleet.Host) []uint {
 	ids := make([]uint, len(hosts))
 	for i, h := range hosts {
 		ids[i] = h.ID

@@ -3,13 +3,13 @@ package authz
 import (
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
 // Forbidden is the error type for authorization errors
 type Forbidden struct {
 	internal string
-	subject  *kolide.User
+	subject  *fleet.User
 	object   interface{}
 	action   interface{}
 }
@@ -17,7 +17,7 @@ type Forbidden struct {
 // ForbiddenWithInternal creates a new error that will return a simple
 // "forbidden" to the client, logging internally the more detailed message
 // provided.
-func ForbiddenWithInternal(internal string, subject *kolide.User, object, action interface{}) *Forbidden {
+func ForbiddenWithInternal(internal string, subject *fleet.User, object, action interface{}) *Forbidden {
 	return &Forbidden{
 		internal: internal,
 		subject:  subject,

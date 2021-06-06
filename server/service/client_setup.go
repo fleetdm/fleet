@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -12,12 +12,12 @@ import (
 // an auth token is returned.
 func (c *Client) Setup(email, username, password, org string) (string, error) {
 	params := setupRequest{
-		Admin: &kolide.UserPayload{
+		Admin: &fleet.UserPayload{
 			Username: &username,
 			Email:    &email,
 			Password: &password,
 		},
-		OrgInfo: &kolide.OrgInfo{
+		OrgInfo: &fleet.OrgInfo{
 			OrgName: &org,
 		},
 		KolideServerURL: &c.addr,

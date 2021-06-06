@@ -3,11 +3,11 @@ package mysql
 import (
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {
+func (d *Datastore) NewDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 
 	sqlStatement := `
 		INSERT INTO distributed_query_campaigns (
@@ -27,11 +27,11 @@ func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCam
 	return camp, nil
 }
 
-func (d *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryCampaign, error) {
+func (d *Datastore) DistributedQueryCampaign(id uint) (*fleet.DistributedQueryCampaign, error) {
 	sql := `
 		SELECT * FROM distributed_query_campaigns WHERE id = ?
 	`
-	campaign := &kolide.DistributedQueryCampaign{}
+	campaign := &fleet.DistributedQueryCampaign{}
 	if err := d.db.Get(campaign, sql, id); err != nil {
 		return nil, errors.Wrap(err, "selecting distributed query campaign")
 	}
@@ -39,7 +39,7 @@ func (d *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryC
 	return campaign, nil
 }
 
-func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) error {
+func (d *Datastore) SaveDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) error {
 	sqlStatement := `
 		UPDATE distributed_query_campaigns SET
 			query_id = ?,
@@ -62,11 +62,11 @@ func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCa
 	return nil
 }
 
-func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*kolide.HostTargets, error) {
+func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*fleet.HostTargets, error) {
 	sqlStatement := `
 		SELECT * FROM distributed_query_campaign_targets WHERE distributed_query_campaign_id = ?
 	`
-	targets := []kolide.DistributedQueryCampaignTarget{}
+	targets := []fleet.DistributedQueryCampaignTarget{}
 
 	if err := d.db.Select(&targets, sqlStatement, id); err != nil {
 		return nil, errors.Wrap(err, "select distributed campaign target")
@@ -76,19 +76,19 @@ func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*kolide.HostTarg
 	labelIDs := []uint{}
 	teamIDs := []uint{}
 	for _, target := range targets {
-		if target.Type == kolide.TargetHost {
+		if target.Type == fleet.TargetHost {
 			hostIDs = append(hostIDs, target.TargetID)
-		} else if target.Type == kolide.TargetLabel {
+		} else if target.Type == fleet.TargetLabel {
 			labelIDs = append(labelIDs, target.TargetID)
 		} else {
 			return nil, errors.Errorf("invalid target type: %d", target.Type)
 		}
 	}
 
-	return &kolide.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs, TeamIDs: teamIDs}, nil
+	return &fleet.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs, TeamIDs: teamIDs}, nil
 }
 
-func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {
+func (d *Datastore) NewDistributedQueryCampaignTarget(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 	sqlStatement := `
 		INSERT into distributed_query_campaign_targets (
 			type,
@@ -115,9 +115,9 @@ func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uin
 		WHERE (status = ? AND created_at < ?)
 		OR (status = ? AND created_at < ?)
 	`
-	result, err := d.db.Exec(sqlStatement, kolide.QueryComplete,
-		kolide.QueryWaiting, now.Add(-1*time.Minute),
-		kolide.QueryRunning, now.Add(-24*time.Hour))
+	result, err := d.db.Exec(sqlStatement, fleet.QueryComplete,
+		fleet.QueryWaiting, now.Add(-1*time.Minute),
+		fleet.QueryRunning, now.Add(-24*time.Hour))
 	if err != nil {
 		return 0, errors.Wrap(err, "updating distributed query campaign")
 	}

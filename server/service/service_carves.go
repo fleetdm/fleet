@@ -6,7 +6,7 @@ import (
 	"time"
 
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
@@ -16,7 +16,7 @@ const (
 	maxBlockSize = 256 * 1024 * 1024      // 256MB
 )
 
-func (svc *Service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayload) (*kolide.CarveMetadata, error) {
+func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayload) (*fleet.CarveMetadata, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -49,7 +49,7 @@ func (svc *Service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPay
 	}
 
 	now := time.Now().UTC()
-	carve := &kolide.CarveMetadata{
+	carve := &fleet.CarveMetadata{
 		Name:       fmt.Sprintf("%s-%s-%s", host.HostName, now.Format(time.RFC3339), payload.RequestId),
 		HostId:     host.ID,
 		BlockCount: payload.BlockCount,
@@ -69,7 +69,7 @@ func (svc *Service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPay
 	return carve, nil
 }
 
-func (svc *Service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayload) error {
+func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayload) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -105,16 +105,16 @@ func (svc *Service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPay
 	return nil
 }
 
-func (svc *Service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, kolide.ActionRead); err != nil {
+func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	return svc.carveStore.Carve(id)
 }
 
-func (svc *Service) ListCarves(ctx context.Context, opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, kolide.ActionRead); err != nil {
+func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -122,7 +122,7 @@ func (svc *Service) ListCarves(ctx context.Context, opt kolide.CarveListOptions)
 }
 
 func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.CarveMetadata{}, kolide.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 

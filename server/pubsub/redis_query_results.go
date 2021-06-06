@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
 )
@@ -17,7 +17,7 @@ type redisQueryResults struct {
 	duplicateResults bool
 }
 
-var _ kolide.QueryResultStore = &redisQueryResults{}
+var _ fleet.QueryResultStore = &redisQueryResults{}
 
 // NewRedisPool creates a Redis connection pool using the provided server
 // address, password and database.
@@ -68,7 +68,7 @@ func pubSubForID(id uint) string {
 	return fmt.Sprintf("results_%d", id)
 }
 
-func (r *redisQueryResults) WriteResult(result kolide.DistributedQueryResult) error {
+func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) error {
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -123,7 +123,7 @@ func receiveMessages(conn *redis.PubSubConn, outChan chan<- interface{}) {
 	}
 }
 
-func (r *redisQueryResults) ReadChannel(ctx context.Context, query kolide.DistributedQueryCampaign) (<-chan interface{}, error) {
+func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan interface{}, error) {
 	outChannel := make(chan interface{})
 
 	conn := redis.PubSubConn{Conn: r.pool.Get()}
@@ -150,7 +150,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query kolide.Distri
 				}
 				switch msg := msg.(type) {
 				case redis.Message:
-					var res kolide.DistributedQueryResult
+					var res fleet.DistributedQueryResult
 					err := json.Unmarshal(msg.Data, &res)
 					if err != nil {
 						outChannel <- err

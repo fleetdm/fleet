@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15,26 +15,26 @@ import (
 
 type mockService struct {
 	mock.Mock
-	kolide.Service
+	fleet.Service
 }
 
-func (m *mockService) GetSessionByKey(ctx context.Context, sessionKey string) (*kolide.Session, error) {
+func (m *mockService) GetSessionByKey(ctx context.Context, sessionKey string) (*fleet.Session, error) {
 	args := m.Called(ctx, sessionKey)
 	if ret := args.Get(0); ret != nil {
-		return ret.(*kolide.Session), nil
+		return ret.(*fleet.Session), nil
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockService) UserUnauthorized(ctx context.Context, userId uint) (*kolide.User, error) {
+func (m *mockService) UserUnauthorized(ctx context.Context, userId uint) (*fleet.User, error) {
 	args := m.Called(ctx, userId)
 	if ret := args.Get(0); ret != nil {
-		return ret.(*kolide.User), nil
+		return ret.(*fleet.User), nil
 	}
 	return nil, args.Error(1)
 }
 
-var testConfig = config.KolideConfig{
+var testConfig = config.FleetConfig{
 	Auth: config.AuthConfig{
 		JwtKey: "insecure",
 	},
@@ -85,12 +85,12 @@ func TestDebugHandlerAuthenticationSuccess(t *testing.T) {
 		"GetSessionByKey",
 		mock.Anything,
 		"session",
-	).Return(&kolide.Session{UserID: 42, ID: 1}, nil)
+	).Return(&fleet.Session{UserID: 42, ID: 1}, nil)
 	svc.On(
 		"UserUnauthorized",
 		mock.Anything,
 		uint(42),
-	).Return(&kolide.User{}, nil)
+	).Return(&fleet.User{}, nil)
 
 	handler := MakeDebugHandler(svc, testConfig, nil)
 

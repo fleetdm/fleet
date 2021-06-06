@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,8 +24,8 @@ func TestLoadLicense(t *testing.T) {
 	license, err := LoadLicense(key)
 	require.NoError(t, err)
 	assert.Equal(t,
-		&kolide.LicenseInfo{
-			Tier:         kolide.TierBasic,
+		&fleet.LicenseInfo{
+			Tier:         fleet.TierBasic,
 			Organization: "development",
 			DeviceCount:  100,
 			Expiration:   time.Unix(1640995200, 0),
@@ -33,7 +33,7 @@ func TestLoadLicense(t *testing.T) {
 		},
 		license,
 	)
-	assert.Equal(t, kolide.TierBasic, license.Tier)
+	assert.Equal(t, fleet.TierBasic, license.Tier)
 }
 
 func TestLoadLicenseExpired(t *testing.T) {

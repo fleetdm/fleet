@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
+func (d *Datastore) ApplyLabelSpecs(specs []*fleet.LabelSpec) (err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		sql := `
 		INSERT INTO labels (
@@ -44,8 +44,8 @@ func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
 				return errors.Wrap(err, "exec ApplyLabelSpecs insert")
 			}
 
-			if s.LabelType == kolide.LabelTypeBuiltIn ||
-				s.LabelMembershipType != kolide.LabelMembershipTypeManual {
+			if s.LabelType == fleet.LabelTypeBuiltIn ||
+				s.LabelMembershipType != fleet.LabelMembershipTypeManual {
 				// No need to update membership
 				continue
 			}
@@ -109,8 +109,8 @@ func batchHostnames(hostnames []string) [][]string {
 	return batches
 }
 
-func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
-	var specs []*kolide.LabelSpec
+func (d *Datastore) GetLabelSpecs() ([]*fleet.LabelSpec, error) {
+	var specs []*fleet.LabelSpec
 	// Get basic specs
 	query := "SELECT name, description, query, platform, label_type, label_membership_type FROM labels"
 	if err := d.db.Select(&specs, query); err != nil {
@@ -118,8 +118,8 @@ func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
 	}
 
 	for _, spec := range specs {
-		if spec.LabelType != kolide.LabelTypeBuiltIn &&
-			spec.LabelMembershipType == kolide.LabelMembershipTypeManual {
+		if spec.LabelType != fleet.LabelTypeBuiltIn &&
+			spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
 			if err := d.getLabelHostnames(spec); err != nil {
 				return nil, err
 			}
@@ -129,8 +129,8 @@ func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
 	return specs, nil
 }
 
-func (d *Datastore) GetLabelSpec(name string) (*kolide.LabelSpec, error) {
-	var specs []*kolide.LabelSpec
+func (d *Datastore) GetLabelSpec(name string) (*fleet.LabelSpec, error) {
+	var specs []*fleet.LabelSpec
 	query := `
 SELECT name, description, query, platform, label_type, label_membership_type
 FROM labels
@@ -147,8 +147,8 @@ WHERE name = ?
 	}
 
 	spec := specs[0]
-	if spec.LabelType != kolide.LabelTypeBuiltIn &&
-		spec.LabelMembershipType == kolide.LabelMembershipTypeManual {
+	if spec.LabelType != fleet.LabelTypeBuiltIn &&
+		spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
 		err := d.getLabelHostnames(spec)
 		if err != nil {
 			return nil, err
@@ -158,7 +158,7 @@ WHERE name = ?
 	return spec, nil
 }
 
-func (d *Datastore) getLabelHostnames(label *kolide.LabelSpec) error {
+func (d *Datastore) getLabelHostnames(label *fleet.LabelSpec) error {
 	sql := `
 		SELECT host_name
 		FROM hosts
@@ -176,8 +176,8 @@ func (d *Datastore) getLabelHostnames(label *kolide.LabelSpec) error {
 	return nil
 }
 
-// NewLabel creates a new kolide.Label
-func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
+// NewLabel creates a new fleet.Label
+func (d *Datastore) NewLabel(label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 	db := d.getTransaction(opts)
 	query := `
 	INSERT INTO labels (
@@ -208,7 +208,7 @@ func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*
 
 }
 
-func (d *Datastore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
+func (d *Datastore) SaveLabel(label *fleet.Label) (*fleet.Label, error) {
 	query := `
 		UPDATE labels SET
 			name = ?,
@@ -222,18 +222,18 @@ func (d *Datastore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
 	return label, nil
 }
 
-// DeleteLabel deletes a kolide.Label
+// DeleteLabel deletes a fleet.Label
 func (d *Datastore) DeleteLabel(name string) error {
 	return d.deleteEntityByName("labels", name)
 }
 
-// Label returns a kolide.Label identified by lid if one exists.
-func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
+// Label returns a fleet.Label identified by lid if one exists.
+func (d *Datastore) Label(lid uint) (*fleet.Label, error) {
 	sql := `
 		SELECT * FROM labels
 			WHERE id = ?
 	`
-	label := &kolide.Label{}
+	label := &fleet.Label{}
 
 	if err := d.db.Get(label, sql, lid); err != nil {
 		return nil, errors.Wrap(err, "selecting label")
@@ -242,8 +242,8 @@ func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 	return label, nil
 }
 
-// ListLabels returns all labels limited or sorted by kolide.ListOptions.
-func (d *Datastore) ListLabels(filter kolide.TeamFilter, opt kolide.ListOptions) ([]*kolide.Label, error) {
+// ListLabels returns all labels limited or sorted by fleet.ListOptions.
+func (d *Datastore) ListLabels(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	query := fmt.Sprintf(`
 			SELECT *,
 				(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
@@ -252,7 +252,7 @@ func (d *Datastore) ListLabels(filter kolide.TeamFilter, opt kolide.ListOptions)
 	)
 
 	query = appendListOptionsToSQL(query, opt)
-	labels := []*kolide.Label{}
+	labels := []*fleet.Label{}
 
 	if err := d.db.Select(&labels, query); err != nil {
 		// it's ok if no labels exist
@@ -265,7 +265,7 @@ func (d *Datastore) ListLabels(filter kolide.TeamFilter, opt kolide.ListOptions)
 	return labels, nil
 }
 
-func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 	var rows *sql.Rows
 	var err error
 	if host.LabelUpdateTime.Before(cutoff) {
@@ -276,7 +276,7 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 			WHERE platform = ? OR platform = ''
 			AND label_membership_type = ?
 `
-		rows, err = d.db.Query(sql, host.Platform, kolide.LabelMembershipTypeDynamic)
+		rows, err = d.db.Query(sql, host.Platform, fleet.LabelMembershipTypeDynamic)
 	} else {
 		// Retrieve all labels (with matching platform) iff there is a label
 		// that has been created since this host last reported label query
@@ -293,7 +293,7 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 			host.Platform,
 			host.LabelUpdateTime,
 			host.Platform,
-			kolide.LabelMembershipTypeDynamic,
+			fleet.LabelMembershipTypeDynamic,
 		)
 	}
 
@@ -318,7 +318,7 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 
 }
 
-func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[uint]bool, updated time.Time) error {
+func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, updated time.Time) error {
 	// Loop through results, collecting which labels we need to insert/update,
 	// and which we need to delete
 	vals := []interface{}{}
@@ -372,15 +372,15 @@ func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[ui
 	return nil
 }
 
-// ListLabelsForHost returns a list of kolide.Label for a given host id.
-func (d *Datastore) ListLabelsForHost(hid uint) ([]*kolide.Label, error) {
+// ListLabelsForHost returns a list of fleet.Label for a given host id.
+func (d *Datastore) ListLabelsForHost(hid uint) ([]*fleet.Label, error) {
 	sqlStatement := `
 		SELECT labels.* from labels JOIN label_membership lm
 		WHERE lm.host_id = ?
 		AND lm.label_id = labels.id
 	`
 
-	labels := []*kolide.Label{}
+	labels := []*fleet.Label{}
 	err := d.db.Select(&labels, sqlStatement, hid)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting host labels")
@@ -390,9 +390,9 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]*kolide.Label, error) {
 
 }
 
-// ListHostsInLabel returns a list of kolide.Host that are associated
-// with kolide.Label referened by Label ID
-func (d *Datastore) ListHostsInLabel(filter kolide.TeamFilter, lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+// ListHostsInLabel returns a list of fleet.Host that are associated
+// with fleet.Label referened by Label ID
+func (d *Datastore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := fmt.Sprintf(`
 			SELECT h.*
 			FROM label_membership lm
@@ -407,7 +407,7 @@ func (d *Datastore) ListHostsInLabel(filter kolide.TeamFilter, lid uint, opt kol
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
-	hosts := []*kolide.Host{}
+	hosts := []*fleet.Host{}
 	err := d.db.Select(&hosts, sql, params...)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting label query executions")
@@ -415,9 +415,9 @@ func (d *Datastore) ListHostsInLabel(filter kolide.TeamFilter, lid uint, opt kol
 	return hosts, nil
 }
 
-func (d *Datastore) ListUniqueHostsInLabels(filter kolide.TeamFilter, labels []uint) ([]*kolide.Host, error) {
+func (d *Datastore) ListUniqueHostsInLabels(filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
 	if len(labels) == 0 {
-		return []*kolide.Host{}, nil
+		return []*fleet.Host{}, nil
 	}
 
 	sqlStatement := fmt.Sprintf(`
@@ -435,7 +435,7 @@ func (d *Datastore) ListUniqueHostsInLabels(filter kolide.TeamFilter, labels []u
 	}
 
 	query = d.db.Rebind(query)
-	hosts := []*kolide.Host{}
+	hosts := []*fleet.Host{}
 	err = d.db.Select(&hosts, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing unique hosts in labels")
@@ -445,7 +445,7 @@ func (d *Datastore) ListUniqueHostsInLabels(filter kolide.TeamFilter, labels []u
 
 }
 
-func (d *Datastore) searchLabelsWithOmits(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {
+func (d *Datastore) searchLabelsWithOmits(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 	transformedQuery := transformQuery(query)
 
 	sqlStatement := fmt.Sprintf(`
@@ -471,7 +471,7 @@ func (d *Datastore) searchLabelsWithOmits(filter kolide.TeamFilter, query string
 
 	sql = d.db.Rebind(sql)
 
-	matches := []*kolide.Label{}
+	matches := []*fleet.Label{}
 	err = d.db.Select(&matches, sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting labels with omits")
@@ -488,7 +488,7 @@ func (d *Datastore) searchLabelsWithOmits(filter kolide.TeamFilter, query string
 // When we search labels, we always want to make sure that the All Hosts label
 // is included in the results set. Sometimes it already is and we don't need to
 // add it, sometimes it's not so we explicitly add it.
-func (d *Datastore) addAllHostsLabelToList(filter kolide.TeamFilter, labels []*kolide.Label, omit ...uint) ([]*kolide.Label, error) {
+func (d *Datastore) addAllHostsLabelToList(filter fleet.TeamFilter, labels []*fleet.Label, omit ...uint) ([]*fleet.Label, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
 				(SELECT COUNT(1)
@@ -503,8 +503,8 @@ func (d *Datastore) addAllHostsLabelToList(filter kolide.TeamFilter, labels []*k
 		`, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	var allHosts kolide.Label
-	if err := d.db.Get(&allHosts, sql, kolide.LabelTypeBuiltIn); err != nil {
+	var allHosts fleet.Label
+	if err := d.db.Get(&allHosts, sql, fleet.LabelTypeBuiltIn); err != nil {
 		return nil, errors.Wrap(err, "get all hosts label")
 	}
 
@@ -523,7 +523,7 @@ func (d *Datastore) addAllHostsLabelToList(filter kolide.TeamFilter, labels []*k
 	return append(labels, &allHosts), nil
 }
 
-func (d *Datastore) searchLabelsDefault(filter kolide.TeamFilter, omit ...uint) ([]*kolide.Label, error) {
+func (d *Datastore) searchLabelsDefault(filter fleet.TeamFilter, omit ...uint) ([]*fleet.Label, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
 				(SELECT COUNT(1)
@@ -548,7 +548,7 @@ func (d *Datastore) searchLabelsDefault(filter kolide.TeamFilter, omit ...uint) 
 		}
 	}
 
-	var labels []*kolide.Label
+	var labels []*fleet.Label
 	sql, args, err := sqlx.In(sql, in)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default labels")
@@ -566,8 +566,8 @@ func (d *Datastore) searchLabelsDefault(filter kolide.TeamFilter, omit ...uint) 
 	return labels, nil
 }
 
-// SearchLabels performs wildcard searches on kolide.Label name
-func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {
+// SearchLabels performs wildcard searches on fleet.Label name
+func (d *Datastore) SearchLabels(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 	transformedQuery := transformQuery(query)
 	if !queryMinLength(transformedQuery) {
 		return d.searchLabelsDefault(filter, omit...)
@@ -595,7 +595,7 @@ func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ..
 		`, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	matches := []*kolide.Label{}
+	matches := []*fleet.Label{}
 	if err := d.db.Select(&matches, sql, transformedQuery); err != nil {
 		return nil, errors.Wrap(err, "selecting labels for search")
 	}

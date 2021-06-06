@@ -3,30 +3,30 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
 // Scheduled queries are currently authorized the same as packs.
 
-func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
+func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	return svc.ds.ListScheduledQueriesInPack(id, opts)
 }
 
-func (svc *Service) GetScheduledQuery(ctx context.Context, id uint) (*kolide.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionRead); err != nil {
+func (svc *Service) GetScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	return svc.ds.ScheduledQuery(id)
 }
 
-func (svc *Service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
+func (svc *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -38,7 +38,7 @@ func (svc *Service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery
 			return nil, errors.Wrap(err, "lookup name for query")
 		}
 
-		packQueries, err := svc.ds.ListScheduledQueriesInPack(sq.PackID, kolide.ListOptions{})
+		packQueries, err := svc.ds.ListScheduledQueriesInPack(sq.PackID, fleet.ListOptions{})
 		if err != nil {
 			return nil, errors.Wrap(err, "find existing scheduled queries")
 		}
@@ -57,7 +57,7 @@ func (svc *Service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery
 }
 
 // Add "-1" suffixes to the query name until it is unique
-func findNextNameForQuery(name string, scheduled []*kolide.ScheduledQuery) string {
+func findNextNameForQuery(name string, scheduled []*fleet.ScheduledQuery) string {
 	for _, q := range scheduled {
 		if name == q.Name {
 			return findNextNameForQuery(name+"-1", scheduled)
@@ -66,8 +66,8 @@ func findNextNameForQuery(name string, scheduled []*kolide.ScheduledQuery) strin
 	return name
 }
 
-func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.ScheduledQueryPayload) (*kolide.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
+func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -117,7 +117,7 @@ func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.
 }
 
 func (svc *Service) DeleteScheduledQuery(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.Pack{}, kolide.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
@@ -65,7 +65,7 @@ func createUserCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -106,7 +106,7 @@ func createUserCommand() *cli.Command {
 			// Only set the password reset flag if SSO is not enabled. Otherwise
 			// the user will be stuck in a bad state and not be able to log in.
 			force_reset := !sso
-			err = fleet.CreateUser(kolide.UserPayload{
+			err = client.CreateUser(fleet.UserPayload{
 				Username:                 &username,
 				Password:                 &password,
 				Email:                    &email,

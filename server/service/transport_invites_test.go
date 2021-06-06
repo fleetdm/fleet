@@ -22,7 +22,7 @@ func TestDecodeCreateInviteRequest(t *testing.T) {
 		var body bytes.Buffer
 		body.Write([]byte(`{
         "name": "foo",
-        "email": "foo@kolide.co"
+        "email": "foo@fleet.co"
     }`))
 
 		router.ServeHTTP(
@@ -36,7 +36,7 @@ func TestDecodeCreateInviteRequest(t *testing.T) {
 		var body bytes.Buffer
 		body.Write([]byte(`{
         "name": "foo",
-        "email": "Foo@Kolide.co"
+        "email": "Foo@fleet.co"
     }`))
 
 		router.ServeHTTP(

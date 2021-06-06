@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/mail"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/pkg/errors"
 )
 
-func (svc *Service) CreateUserFromInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	// skipauth: There is no viewer context at this point. We rely on verifying
 	// the invite for authNZ.
 	svc.authz.SkipAuthorization(ctx)
@@ -40,15 +40,15 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p kolide.UserPaylo
 	return user, nil
 }
 
-func (svc *Service) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{}, kolide.ActionWrite); err != nil {
+func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
 	return svc.newUser(p)
 }
 
-func (svc *Service) CreateInitialUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	// skipauth: Only the initial user creation should be allowed to skip
 	// authorization (because there is not yet a user context to check against).
 	svc.authz.SkipAuthorization(ctx)
@@ -62,13 +62,13 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p kolide.UserPayload)
 	}
 
 	// Initial user should be global admin with no explicit teams
-	p.GlobalRole = ptr.String(kolide.RoleAdmin)
+	p.GlobalRole = ptr.String(fleet.RoleAdmin)
 	p.Teams = nil
 
 	return svc.newUser(p)
 }
 
-func (svc *Service) newUser(p kolide.UserPayload) (*kolide.User, error) {
+func (svc *Service) newUser(p fleet.UserPayload) (*fleet.User, error) {
 	var ssoEnabled bool
 	// if user is SSO generate a fake password
 	if (p.SSOInvite != nil && *p.SSOInvite) || (p.SSOEnabled != nil && *p.SSOEnabled) {
@@ -91,18 +91,18 @@ func (svc *Service) newUser(p kolide.UserPayload) (*kolide.User, error) {
 	return user, nil
 }
 
-func (svc *Service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {
+func (svc *Service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*fleet.User, error) {
 	// TODO remove this function
 	return nil, errors.New("This function is being eliminated")
 }
 
-func (svc *Service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, kolide.ActionWrite); err != nil {
+func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: userID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
 	if p.GlobalRole != nil || p.Teams != nil {
-		if err := svc.authz.Authorize(ctx, &kolide.User{ID: userID}, kolide.ActionWriteRole); err != nil {
+		if err := svc.authz.Authorize(ctx, &fleet.User{ID: userID}, fleet.ActionWriteRole); err != nil {
 			return nil, err
 		}
 	}
@@ -143,10 +143,10 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPa
 
 	if p.GlobalRole != nil && *p.GlobalRole != "" {
 		if p.Teams != nil && len(*p.Teams) > 0 {
-			return nil, kolide.NewInvalidArgumentError("teams", "may not be specified with global_role")
+			return nil, fleet.NewInvalidArgumentError("teams", "may not be specified with global_role")
 		}
 		user.GlobalRole = p.GlobalRole
-		user.Teams = []kolide.UserTeam{}
+		user.Teams = []fleet.UserTeam{}
 	} else if p.Teams != nil {
 		user.Teams = *p.Teams
 		user.GlobalRole = nil
@@ -160,15 +160,15 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPa
 	return user, nil
 }
 
-func (svc *Service) modifyEmailAddress(ctx context.Context, user *kolide.User, email string, password *string) error {
+func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, email string, password *string) error {
 	// password requirement handled in validation middleware
 	if password != nil {
 		err := user.ValidatePassword(*password)
 		if err != nil {
-			return kolide.NewPermissionError("incorrect password")
+			return fleet.NewPermissionError("incorrect password")
 		}
 	}
-	random, err := kolide.RandomText(svc.config.App.TokenKeySize)
+	random, err := fleet.RandomText(svc.config.App.TokenKeySize)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *kolide.User, e
 	if err != nil {
 		return err
 	}
-	changeEmail := kolide.Email{
+	changeEmail := fleet.Email{
 		Subject: "Confirm Fleet Email Change",
 		To:      []string{email},
 		Config:  config,
@@ -195,7 +195,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *kolide.User, e
 }
 
 func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: id}, kolide.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: id}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -205,47 +205,47 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return "", kolide.ErrNoContext
+		return "", fleet.ErrNoContext
 	}
 
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: vc.UserID()}, kolide.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: vc.UserID()}, fleet.ActionWrite); err != nil {
 		return "", err
 	}
 
 	return svc.ds.ConfirmPendingEmailChange(vc.UserID(), token)
 }
 
-func (svc *Service) User(ctx context.Context, id uint) (*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: id}, kolide.ActionRead); err != nil {
+func (svc *Service) User(ctx context.Context, id uint) (*fleet.User, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: id}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	return svc.ds.UserByID(id)
 }
 
-func (svc *Service) UserUnauthorized(ctx context.Context, id uint) (*kolide.User, error) {
+func (svc *Service) UserUnauthorized(ctx context.Context, id uint) (*fleet.User, error) {
 	// Explicitly no authorization check. Should only be used by middleware.
 	return svc.ds.UserByID(id)
 }
 
-func (svc *Service) AuthenticatedUser(ctx context.Context) (*kolide.User, error) {
+func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, kolide.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
 
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: vc.UserID()}, kolide.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: vc.UserID()}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	if !vc.IsLoggedIn() {
-		return nil, kolide.NewPermissionError("not logged in")
+		return nil, fleet.NewPermissionError("not logged in")
 	}
 	return vc.User, nil
 }
 
-func (svc *Service) ListUsers(ctx context.Context, opt kolide.UserListOptions) ([]*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{}, kolide.ActionRead); err != nil {
+func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -255,7 +255,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt kolide.UserListOptions) (
 // setNewPassword is a helper for changing a user's password. It should be
 // called to set the new password after proper authorization has been
 // performed.
-func (svc *Service) setNewPassword(ctx context.Context, user *kolide.User, password string) error {
+func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string) error {
 	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return errors.Wrap(err, "setting new password")
@@ -274,10 +274,10 @@ func (svc *Service) setNewPassword(ctx context.Context, user *kolide.User, passw
 func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return kolide.ErrNoContext
+		return fleet.ErrNoContext
 	}
 
-	if err := svc.authz.Authorize(ctx, vc.User, kolide.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, vc.User, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -285,11 +285,11 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return errors.New("change password for single sign on user not allowed")
 	}
 	if err := vc.User.ValidatePassword(newPass); err == nil {
-		return kolide.NewInvalidArgumentError("new_password", "cannot reuse old password")
+		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
 	}
 
 	if err := vc.User.ValidatePassword(oldPass); err != nil {
-		return kolide.NewInvalidArgumentError("old_password", "old password does not match")
+		return fleet.NewInvalidArgumentError("old_password", "old password does not match")
 	}
 
 	if err := svc.setNewPassword(ctx, vc.User, newPass); err != nil {
@@ -308,7 +308,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return errors.Wrap(err, "retrieving user")
 	}
 
-	if err := svc.authz.Authorize(ctx, user, kolide.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -318,7 +318,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 
 	// prevent setting the same password
 	if err := user.ValidatePassword(password); err == nil {
-		return kolide.NewInvalidArgumentError("new_password", "cannot reuse old password")
+		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
 	}
 
 	err = svc.setNewPassword(ctx, user, password)
@@ -340,14 +340,14 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	return nil
 }
 
-func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password string) (*kolide.User, error) {
+func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password string) (*fleet.User, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, kolide.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
 	user := vc.User
 
-	if err := svc.authz.Authorize(ctx, user, kolide.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -360,7 +360,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 
 	// prevent setting the same password
 	if err := user.ValidatePassword(password); err == nil {
-		return nil, kolide.NewInvalidArgumentError("new_password", "cannot reuse old password")
+		return nil, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
 	}
 
 	user.AdminForcedPasswordReset = false
@@ -375,8 +375,8 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	return user, nil
 }
 
-func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*kolide.User, error) {
-	if err := svc.authz.Authorize(ctx, &kolide.User{ID: uid}, kolide.ActionWrite); err != nil {
+func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*fleet.User, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: uid}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -422,13 +422,13 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		return errors.New("password reset for single sign on user not allowed")
 	}
 
-	random, err := kolide.RandomText(svc.config.App.TokenKeySize)
+	random, err := fleet.RandomText(svc.config.App.TokenKeySize)
 	if err != nil {
 		return err
 	}
 	token := base64.URLEncoding.EncodeToString([]byte(random))
 
-	request := &kolide.PasswordResetRequest{
+	request := &fleet.PasswordResetRequest{
 		ExpiresAt: time.Now().Add(time.Hour * 24),
 		UserID:    user.ID,
 		Token:     token,
@@ -443,7 +443,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		return err
 	}
 
-	resetEmail := kolide.Email{
+	resetEmail := fleet.Email{
 		Subject: "Reset Your Fleet Password",
 		To:      []string{user.Email},
 		Config:  config,
@@ -460,7 +460,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 // saves user in datastore.
 // doesn't need to be exposed to the transport
 // the service should expose actions for modifying a user instead
-func (svc *Service) saveUser(user *kolide.User) error {
+func (svc *Service) saveUser(user *fleet.User) error {
 	return svc.ds.SaveUser(user)
 }
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -15,7 +15,7 @@ func TestGetLabel(t *testing.T) {
 	assert.Nil(t, err)
 	svc := newTestService(ds, nil, nil)
 
-	label := &kolide.Label{
+	label := &fleet.Label{
 		Name:  "foo",
 		Query: "select * from foo;",
 	}

@@ -160,11 +160,11 @@ type LicenseConfig struct {
 	Key string `yaml:"key"`
 }
 
-// KolideConfig stores the application configuration. Each subcategory is
+// FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
-type KolideConfig struct {
+type FleetConfig struct {
 	Mysql      MysqlConfig
 	Redis      RedisConfig
 	Server     ServerConfig
@@ -183,20 +183,20 @@ type KolideConfig struct {
 }
 
 // addConfigs adds the configuration keys and default values that will be
-// filled into the KolideConfig struct
+// filled into the FleetConfig struct
 func (man Manager) addConfigs() {
 	// MySQL
 	man.addConfigString("mysql.protocol", "tcp",
 		"MySQL server communication protocol (tcp,unix,...)")
 	man.addConfigString("mysql.address", "localhost:3306",
 		"MySQL server address (host:port)")
-	man.addConfigString("mysql.username", "kolide",
+	man.addConfigString("mysql.username", "fleet",
 		"MySQL server username")
 	man.addConfigString("mysql.password", "",
 		"MySQL server password (prefer env variable for security)")
 	man.addConfigString("mysql.password_path", "",
 		"Path to file containg MySQL server password")
-	man.addConfigString("mysql.database", "kolide",
+	man.addConfigString("mysql.database", "fleet",
 		"MySQL database name")
 	man.addConfigString("mysql.tls_cert", "",
 		"MySQL TLS client certificate path")
@@ -225,9 +225,9 @@ func (man Manager) addConfigs() {
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
 		"Fleet server address (host:port)")
-	man.addConfigString("server.cert", "./tools/osquery/kolide.crt",
+	man.addConfigString("server.cert", "./tools/osquery/fleet.crt",
 		"Fleet TLS certificate path")
-	man.addConfigString("server.key", "./tools/osquery/kolide.key",
+	man.addConfigString("server.key", "./tools/osquery/fleet.key",
 		"Fleet TLS key path")
 	man.addConfigBool("server.tls", true,
 		"Enable TLS (required for osqueryd communication)")
@@ -354,11 +354,11 @@ func (man Manager) addConfigs() {
 }
 
 // LoadConfig will load the config variables into a fully initialized
-// KolideConfig struct
-func (man Manager) LoadConfig() KolideConfig {
+// FleetConfig struct
+func (man Manager) LoadConfig() FleetConfig {
 	man.loadConfigFile()
 
-	return KolideConfig{
+	return FleetConfig{
 		Mysql: MysqlConfig{
 			Protocol:        man.getConfigString("mysql.protocol"),
 			Address:         man.getConfigString("mysql.address"),
@@ -490,7 +490,7 @@ func flagNameFromConfigKey(key string) string {
 
 // Manager manages the addition and retrieval of config values for Fleet
 // configs. It's only public API method is LoadConfig, which will return the
-// populated KolideConfig struct.
+// populated FleetConfig struct.
 type Manager struct {
 	viper    *viper.Viper
 	command  *cobra.Command
@@ -666,8 +666,8 @@ func (man Manager) loadConfigFile() {
 
 // TestConfig returns a barebones configuration suitable for use in tests.
 // Individual tests may want to override some of the values provided.
-func TestConfig() KolideConfig {
-	return KolideConfig{
+func TestConfig() FleetConfig {
+	return FleetConfig{
 		App: AppConfig{
 			TokenKeySize:              24,
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,

@@ -4,27 +4,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testSaveHostSoftware(t *testing.T, ds kolide.Datastore) {
+func testSaveHostSoftware(t *testing.T, ds fleet.Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
-	soft1 := kolide.HostSoftware{
+	soft1 := fleet.HostSoftware{
 		Modified: true,
-		Software: []kolide.Software{
+		Software: []fleet.Software{
 			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		},
 	}
 	host1.HostSoftware = soft1
-	soft2 := kolide.HostSoftware{
+	soft2 := fleet.HostSoftware{
 		Modified: true,
-		Software: []kolide.Software{
+		Software: []fleet.Software{
 			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
 			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 			{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
@@ -47,18 +47,18 @@ func testSaveHostSoftware(t *testing.T, ds kolide.Datastore) {
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
 
-	soft1 = kolide.HostSoftware{
+	soft1 = fleet.HostSoftware{
 		Modified: true,
-		Software: []kolide.Software{
+		Software: []fleet.Software{
 			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 			{Name: "towel", Version: "42.0.0", Source: "apps"},
 		},
 	}
 	host1.HostSoftware = soft1
-	soft2 = kolide.HostSoftware{
+	soft2 = fleet.HostSoftware{
 		Modified: true,
-		Software: []kolide.Software{},
+		Software: []fleet.Software{},
 	}
 	host2.HostSoftware = soft2
 

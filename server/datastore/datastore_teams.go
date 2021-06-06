@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testTeamGetSetDelete(t *testing.T, ds kolide.Datastore) {
+func testTeamGetSetDelete(t *testing.T, ds fleet.Datastore) {
 	var createTests = []struct {
 		name, description string
 	}{
@@ -22,7 +22,7 @@ func testTeamGetSetDelete(t *testing.T, ds kolide.Datastore) {
 
 	for _, tt := range createTests {
 		t.Run("", func(t *testing.T) {
-			team, err := ds.NewTeam(&kolide.Team{
+			team, err := ds.NewTeam(&fleet.Team{
 				Name:        tt.name,
 				Description: tt.description,
 			})
@@ -48,21 +48,21 @@ func testTeamGetSetDelete(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
-func testTeamUsers(t *testing.T, ds kolide.Datastore) {
+func testTeamUsers(t *testing.T, ds fleet.Datastore) {
 	users := createTestUsers(t, ds)
-	user1 := kolide.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID}
-	user2 := kolide.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID}
+	user1 := fleet.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID}
+	user2 := fleet.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID}
 
-	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(&kolide.Team{Name: "team2"})
+	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
 	team1, err = ds.Team(team1.ID)
 	require.NoError(t, err)
 	assert.Len(t, team1.Users, 0)
 
-	team1Users := []kolide.TeamUser{
+	team1Users := []fleet.TeamUser{
 		{User: user1, Role: "maintainer"},
 		{User: user2, Role: "observer"},
 	}
@@ -78,7 +78,7 @@ func testTeamUsers(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, team2.Users, 0)
 
-	team1Users = []kolide.TeamUser{
+	team1Users = []fleet.TeamUser{
 		{User: user2, Role: "maintainer"},
 	}
 	team1.Users = team1Users
@@ -88,7 +88,7 @@ func testTeamUsers(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, team1Users, team1.Users)
 
-	team2Users := []kolide.TeamUser{
+	team2Users := []fleet.TeamUser{
 		{User: user2, Role: "observer"},
 	}
 	team2.Users = team2Users
@@ -104,17 +104,17 @@ func testTeamUsers(t *testing.T, ds kolide.Datastore) {
 	assert.ElementsMatch(t, team2Users, team2.Users)
 }
 
-func testTeamListTeams(t *testing.T, ds kolide.Datastore) {
+func testTeamListTeams(t *testing.T, ds fleet.Datastore) {
 	users := createTestUsers(t, ds)
-	user1 := kolide.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID, GlobalRole: ptr.String(kolide.RoleAdmin)}
-	user2 := kolide.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID}
+	user1 := fleet.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID, GlobalRole: ptr.String(fleet.RoleAdmin)}
+	user2 := fleet.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID}
 
-	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(&kolide.Team{Name: "team2"})
+	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	teams, err := ds.ListTeams(kolide.TeamFilter{User: &user1}, kolide.ListOptions{})
+	teams, err := ds.ListTeams(fleet.TeamFilter{User: &user1}, fleet.ListOptions{})
 	require.NoError(t, err)
 	sort.Slice(teams, func(i, j int) bool { return teams[i].Name < teams[j].Name })
 
@@ -132,20 +132,20 @@ func testTeamListTeams(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(&team1.ID, []uint{host1.ID}))
 	require.NoError(t, ds.AddHostsToTeam(&team2.ID, []uint{host2.ID, host3.ID}))
 
-	team1.Users = []kolide.TeamUser{
+	team1.Users = []fleet.TeamUser{
 		{User: user1, Role: "maintainer"},
 		{User: user2, Role: "observer"},
 	}
 	team1, err = ds.SaveTeam(team1)
 	require.NoError(t, err)
 
-	team2.Users = []kolide.TeamUser{
+	team2.Users = []fleet.TeamUser{
 		{User: user1, Role: "maintainer"},
 	}
 	team1, err = ds.SaveTeam(team2)
 	require.NoError(t, err)
 
-	teams, err = ds.ListTeams(kolide.TeamFilter{User: &user1}, kolide.ListOptions{})
+	teams, err = ds.ListTeams(fleet.TeamFilter{User: &user1}, fleet.ListOptions{})
 	require.NoError(t, err)
 	sort.Slice(teams, func(i, j int) bool { return teams[i].Name < teams[j].Name })
 
@@ -158,18 +158,18 @@ func testTeamListTeams(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, 1, teams[1].UserCount)
 }
 
-func testTeamSearchTeams(t *testing.T, ds kolide.Datastore) {
-	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+func testTeamSearchTeams(t *testing.T, ds fleet.Datastore) {
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(&kolide.Team{Name: "team2"})
+	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
 	require.NoError(t, err)
-	team3, err := ds.NewTeam(&kolide.Team{Name: "foobar"})
+	team3, err := ds.NewTeam(&fleet.Team{Name: "foobar"})
 	require.NoError(t, err)
-	team4, err := ds.NewTeam(&kolide.Team{Name: "floobar"})
+	team4, err := ds.NewTeam(&fleet.Team{Name: "floobar"})
 	require.NoError(t, err)
 
-	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
-	filter := kolide.TeamFilter{User: user}
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	filter := fleet.TeamFilter{User: user}
 
 	teams, err := ds.SearchTeams(filter, "")
 	require.NoError(t, err)

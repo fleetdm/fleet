@@ -3,10 +3,10 @@ package inmem
 import (
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (d *Datastore) SessionByKey(key string) (*kolide.Session, error) {
+func (d *Datastore) SessionByKey(key string) (*fleet.Session, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -18,7 +18,7 @@ func (d *Datastore) SessionByKey(key string) (*kolide.Session, error) {
 	return nil, notFound("Session")
 }
 
-func (d *Datastore) SessionByID(id uint) (*kolide.Session, error) {
+func (d *Datastore) SessionByID(id uint) (*fleet.Session, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -28,11 +28,11 @@ func (d *Datastore) SessionByID(id uint) (*kolide.Session, error) {
 	return nil, notFound("Session").WithID(id)
 }
 
-func (d *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
+func (d *Datastore) ListSessionsForUser(id uint) ([]*fleet.Session, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	var sessions []*kolide.Session
+	var sessions []*fleet.Session
 	for _, session := range d.sessions {
 		if session.UserID == id {
 			sessions = append(sessions, session)
@@ -42,7 +42,7 @@ func (d *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
 	return sessions, nil
 }
 
-func (d *Datastore) NewSession(session *kolide.Session) (*kolide.Session, error) {
+func (d *Datastore) NewSession(session *fleet.Session) (*fleet.Session, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -56,7 +56,7 @@ func (d *Datastore) NewSession(session *kolide.Session) (*kolide.Session, error)
 
 }
 
-func (d *Datastore) DestroySession(session *kolide.Session) error {
+func (d *Datastore) DestroySession(session *fleet.Session) error {
 	if _, ok := d.sessions[session.ID]; !ok {
 		return notFound("Session").WithID(session.ID)
 	}
@@ -73,7 +73,7 @@ func (d *Datastore) DestroyAllSessionsForUser(id uint) error {
 	return nil
 }
 
-func (d *Datastore) MarkSessionAccessed(session *kolide.Session) error {
+func (d *Datastore) MarkSessionAccessed(session *fleet.Session) error {
 	session.AccessedAt = time.Now().UTC()
 	if _, ok := d.sessions[session.ID]; !ok {
 		return notFound("Session").WithID(session.ID)

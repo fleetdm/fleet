@@ -5,13 +5,13 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testOrgInfo(t *testing.T, ds kolide.Datastore) {
-	info := &kolide.AppConfig{
+func testOrgInfo(t *testing.T, ds fleet.Datastore) {
+	info := &fleet.AppConfig{
 		OrgName:    "Kolide",
 		OrgLogoURL: "localhost:8080/logo.png",
 	}
@@ -31,11 +31,11 @@ func testOrgInfo(t *testing.T, ds kolide.Datastore) {
 	info2.SMTPSenderAddress = "123"
 	info2.SMTPServer = "server"
 	info2.SMTPPort = 100
-	info2.SMTPAuthenticationType = kolide.AuthTypeUserNamePassword
+	info2.SMTPAuthenticationType = fleet.AuthTypeUserNamePassword
 	info2.SMTPUserName = "username"
 	info2.SMTPPassword = "password"
 	info2.SMTPEnableTLS = false
-	info2.SMTPAuthenticationMethod = kolide.AuthMethodCramMD5
+	info2.SMTPAuthenticationMethod = fleet.AuthMethodCramMD5
 	info2.SMTPVerifySSLCerts = true
 	info2.SMTPEnableStartTLS = true
 	info2.EnableSSO = true
@@ -56,9 +56,9 @@ func testOrgInfo(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, info3, info4)
 }
 
-func testAdditionalQueries(t *testing.T, ds kolide.Datastore) {
+func testAdditionalQueries(t *testing.T, ds fleet.Datastore) {
 	additional := json.RawMessage("not valid json")
-	info := &kolide.AppConfig{
+	info := &fleet.AppConfig{
 		OrgName:           "Kolide",
 		OrgLogoURL:        "localhost:8080/logo.png",
 		AdditionalQueries: &additional,
@@ -77,8 +77,8 @@ func testAdditionalQueries(t *testing.T, ds kolide.Datastore) {
 	assert.JSONEq(t, `{"foo":"bar"}`, string(*info.AdditionalQueries))
 }
 
-func testEnrollSecrets(t *testing.T, ds kolide.Datastore) {
-	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+func testEnrollSecrets(t *testing.T, ds fleet.Datastore) {
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	secret, err := ds.VerifyEnrollSecret("missing")
@@ -86,7 +86,7 @@ func testEnrollSecrets(t *testing.T, ds kolide.Datastore) {
 	assert.Nil(t, secret)
 
 	err = ds.ApplyEnrollSecrets(&team1.ID,
-		[]*kolide.EnrollSecret{
+		[]*fleet.EnrollSecret{
 			{Secret: "one_secret", TeamID: &team1.ID},
 		},
 	)
@@ -105,7 +105,7 @@ func testEnrollSecrets(t *testing.T, ds kolide.Datastore) {
 	// Add global secret
 	err = ds.ApplyEnrollSecrets(
 		nil,
-		[]*kolide.EnrollSecret{
+		[]*fleet.EnrollSecret{
 			{Secret: "two_secret"},
 		},
 	)
@@ -119,7 +119,7 @@ func testEnrollSecrets(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, (*uint)(nil), secret.TeamID)
 
 	// Remove team secret
-	err = ds.ApplyEnrollSecrets(&team1.ID, []*kolide.EnrollSecret{})
+	err = ds.ApplyEnrollSecrets(&team1.ID, []*fleet.EnrollSecret{})
 	assert.NoError(t, err)
 	secret, err = ds.VerifyEnrollSecret("one_secret")
 	assert.Error(t, err)
@@ -129,10 +129,10 @@ func testEnrollSecrets(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, (*uint)(nil), secret.TeamID)
 }
 
-func testEnrollSecretsCaseSensitive(t *testing.T, ds kolide.Datastore) {
+func testEnrollSecretsCaseSensitive(t *testing.T, ds fleet.Datastore) {
 	err := ds.ApplyEnrollSecrets(
 		nil,
-		[]*kolide.EnrollSecret{
+		[]*fleet.EnrollSecret{
 			{Secret: "one_secret"},
 		},
 	)
@@ -144,8 +144,8 @@ func testEnrollSecretsCaseSensitive(t *testing.T, ds kolide.Datastore) {
 	assert.Error(t, err, "enroll secret with different case should not verify")
 }
 
-func testEnrollSecretRoundtrip(t *testing.T, ds kolide.Datastore) {
-	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+func testEnrollSecretRoundtrip(t *testing.T, ds fleet.Datastore) {
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	secrets, err := ds.GetEnrollSecrets(nil)
@@ -156,7 +156,7 @@ func testEnrollSecretRoundtrip(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, secrets, 0)
 
-	expectedSecrets := []*kolide.EnrollSecret{
+	expectedSecrets := []*fleet.EnrollSecret{
 		{Secret: "one_secret"},
 		{Secret: "two_secret"},
 	}
@@ -183,11 +183,11 @@ func testEnrollSecretRoundtrip(t *testing.T, ds kolide.Datastore) {
 
 }
 
-func testEnrollSecretUniqueness(t *testing.T, ds kolide.Datastore) {
-	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+func testEnrollSecretUniqueness(t *testing.T, ds fleet.Datastore) {
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	expectedSecrets := []*kolide.EnrollSecret{
+	expectedSecrets := []*fleet.EnrollSecret{
 		{Secret: "one_secret"},
 	}
 	err = ds.ApplyEnrollSecrets(&team1.ID, expectedSecrets)
