@@ -106,10 +106,10 @@ func (m SMTPAuthMethod) String() string {
 // AppConfig holds configuration about the Fleet application.
 // AppConfig data can be managed by a Fleet API user.
 type AppConfig struct {
-	ID              uint
-	OrgName         string `db:"org_name"`
-	OrgLogoURL      string `db:"org_logo_url"`
-	KolideServerURL string `db:"kolide_server_url"`
+	ID         uint
+	OrgName    string `db:"org_name"`
+	OrgLogoURL string `db:"org_logo_url"`
+	ServerURL  string `db:"server_url"`
 
 	// SMTPConfigured is a flag that indicates if smtp has been successfully
 	// tested with the settings provided by an admin user.
@@ -273,9 +273,9 @@ type OrgInfo struct {
 	OrgLogoURL *string `json:"org_logo_url,omitempty"`
 }
 
-// ServerSettings contains general settings about the kolide App.
+// ServerSettings contains general settings about the Fleet application.
 type ServerSettings struct {
-	KolideServerURL   *string `json:"kolide_server_url,omitempty"`
+	ServerURL         *string `json:"server_url,omitempty"`
 	LiveQueryDisabled *bool   `json:"live_query_disabled,omitempty"`
 }
 

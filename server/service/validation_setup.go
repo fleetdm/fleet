@@ -12,12 +12,12 @@ func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.A
 	invalid := &fleet.InvalidArgumentError{}
 	var serverURLString string
 	if payload.ServerSettings == nil {
-		invalid.Append("kolide_server_url", "missing required argument")
+		invalid.Append("server_url", "missing required argument")
 	} else {
-		serverURLString = cleanupURL(*payload.ServerSettings.KolideServerURL)
+		serverURLString = cleanupURL(*payload.ServerSettings.ServerURL)
 	}
-	if err := validateKolideServerURL(serverURLString); err != nil {
-		invalid.Append("kolide_server_url", err.Error())
+	if err := validateServerURL(serverURLString); err != nil {
+		invalid.Append("server_url", err.Error())
 	}
 	if invalid.HasErrors() {
 		return nil, invalid
@@ -25,7 +25,7 @@ func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.A
 	return mw.Service.NewAppConfig(ctx, payload)
 }
 
-func validateKolideServerURL(urlString string) error {
+func validateServerURL(urlString string) error {
 	serverURL, err := url.Parse(urlString)
 	if err != nil {
 		return err

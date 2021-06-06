@@ -21,7 +21,7 @@ describe("Kolide API - helpers", () => {
     const config = {
       org_name: "Kolide",
       org_logo_url: "0.0.0.0:8080/logo.png",
-      kolide_server_url: "",
+      server_url: "",
       configured: false,
       domain: "",
       smtp_enabled: true,
@@ -50,11 +50,11 @@ describe("Kolide API - helpers", () => {
       expect(
         formatConfigDataForServer({
           org_name: "The Gnar Co",
-          kolide_server_url: "https://example.com",
+          server_url: "https://example.com",
         })
       ).toEqual({
         org_info: { org_name: "The Gnar Co" },
-        server_settings: { kolide_server_url: "https://example.com" },
+        server_settings: { server_url: "https://example.com" },
       });
       expect(
         formatConfigDataForServer({ domain: "https://kolide.co" })
@@ -172,7 +172,7 @@ describe("Kolide API - helpers", () => {
     const formData = {
       email: "hi@gnar.dog",
       name: "Gnar Dog",
-      kolide_server_url: "https://gnar.kolide.co",
+      server_url: "https://gnar.kolide.co",
       org_logo_url: "https://thegnar.co/assets/logo.png",
       org_name: "The Gnar Co.",
       password: "p@ssw0rd",
@@ -182,7 +182,7 @@ describe("Kolide API - helpers", () => {
 
     it("formats the form data to send to the server", () => {
       expect(helpers.setupData(formData)).toEqual({
-        kolide_server_url: "https://gnar.kolide.co",
+        server_url: "https://gnar.kolide.co",
         org_info: {
           org_logo_url: "https://thegnar.co/assets/logo.png",
           org_name: "The Gnar Co.",

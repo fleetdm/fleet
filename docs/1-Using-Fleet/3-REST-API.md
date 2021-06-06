@@ -4043,7 +4043,7 @@ None.
     "org_logo_url": ""
   },
   "server_settings": {
-    "kolide_server_url": "https://localhost:8080",
+    "server_url": "https://localhost:8080",
     "live_query_disabled": false
   },
   "smtp_settings": {
@@ -4092,7 +4092,7 @@ Modifies the Fleet's configuration with the supplied information.
 | --------------------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | org_name              | string  | body | _Organization information_. The organization name.                                                                                                                                     |
 | org_logo_url          | string  | body | _Organization information_. The URL for the organization logo.                                                                                                                         |
-| kolide_server_url     | string  | body | _Server settings_. The Fleet server URL.                                                                                                                                               |
+| server_url     | string  | body | _Server settings_. The Fleet server URL.                                                                                                                                               |
 | live_query_disabled   | boolean | body | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
 | enable_smtp           | boolean | body | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
 | sender_address        | string  | body | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
@@ -4147,7 +4147,7 @@ Modifies the Fleet's configuration with the supplied information.
     "org_logo_url": "https://fleetdm.com/logo.png"
   },
   "server_settings": {
-    "kolide_server_url": "https://localhost:8080",
+    "server_url": "https://localhost:8080",
     "live_query_disabled": false
   },
   "smtp_settings": {

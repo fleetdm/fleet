@@ -21,8 +21,8 @@ type loginRequest struct {
 
 type loginResponse struct {
 	User  *fleet.User `json:"user,omitempty"`
-	Token string       `json:"token,omitempty"`
-	Err   error        `json:"error,omitempty"`
+	Token string      `json:"token,omitempty"`
+	Err   error       `json:"error,omitempty"`
 }
 
 func (r loginResponse) error() error { return r.Err }
@@ -248,7 +248,7 @@ func makeCallbackSSOEndpoint(svc fleet.Service, urlPrefix string) endpoint.Endpo
 
 type ssoSettingsResponse struct {
 	Settings *fleet.SSOSettings `json:"settings,omitempty"`
-	Err      error               `json:"error,omitempty"`
+	Err      error              `json:"error,omitempty"`
 }
 
 func (r ssoSettingsResponse) error() error { return r.Err }

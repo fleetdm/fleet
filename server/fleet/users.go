@@ -93,7 +93,7 @@ type UserService interface {
 	ChangeUserEmail(ctx context.Context, token string) (string, error)
 }
 
-// User is the model struct which represents a kolide user
+// User is the model struct that represents a Fleet user.
 type User struct {
 	UpdateCreateTimestamps
 	ID                       uint   `json:"id"`

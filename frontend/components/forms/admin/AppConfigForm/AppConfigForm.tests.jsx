@@ -32,7 +32,7 @@ describe("AppConfigForm - form", () => {
 
   describe("Fleet App URL input", () => {
     it("renders an input field", () => {
-      itBehavesLikeAFormInputElement(form, "kolide_server_url");
+      itBehavesLikeAFormInputElement(form, "server_url");
     });
   });
 

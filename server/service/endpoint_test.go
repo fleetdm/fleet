@@ -41,7 +41,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 	require.Nil(t, test.ds.MigrateData())
 
 	devOrgInfo := &fleet.AppConfig{
-		OrgName:                "Kolide",
+		OrgName:                "Example",
 		OrgLogoURL:             "http://foo.bar/image.png",
 		SMTPPort:               465,
 		SMTPAuthenticationType: fleet.AuthTypeUserNamePassword,

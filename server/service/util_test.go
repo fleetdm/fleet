@@ -35,9 +35,9 @@ func createTestAppConfig(t *testing.T, ds fleet.Datastore) *fleet.AppConfig {
 	config := &fleet.AppConfig{
 		OrgName:                "Tyrell Corp",
 		OrgLogoURL:             "https://tyrell.com/image.png",
-		KolideServerURL:        "https://fleet.tyrell.com",
+		ServerURL:              "https://fleet.tyrell.com",
 		SMTPConfigured:         true,
-		SMTPSenderAddress:      "kolide@tyrell.com",
+		SMTPSenderAddress:      "test@example.com",
 		SMTPServer:             "smtp.tyrell.com",
 		SMTPPort:               587,
 		SMTPAuthenticationType: fleet.AuthTypeUserNamePassword,

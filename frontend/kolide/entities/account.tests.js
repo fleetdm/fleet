@@ -16,7 +16,7 @@ describe("Kolide - API client (account)", () => {
       const formData = {
         email: "hi@gnar.dog",
         name: "Gnar Dog",
-        kolide_server_url: "https://gnar.kolide.co",
+        server_url: "https://gnar.kolide.co",
         org_logo_url: "https://thegnar.co/assets/logo.png",
         org_name: "The Gnar Co.",
         password: "p@ssw0rd",

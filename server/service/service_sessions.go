@@ -51,7 +51,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	settings := sso.Settings{
 		Metadata: metadata,
 		// Construct call back url to send to idp
-		AssertionConsumerServiceURL: appConfig.KolideServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
+		AssertionConsumerServiceURL: appConfig.ServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 redirectURL,
 	}
@@ -59,9 +59,9 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	// If issuer is not explicitly set, default to host name.
 	var issuer string
 	if appConfig.EntityID == "" {
-		u, err := url.Parse(appConfig.KolideServerURL)
+		u, err := url.Parse(appConfig.ServerURL)
 		if err != nil {
-			return "", errors.Wrap(err, "parsing kolide server url")
+			return "", errors.Wrap(err, "parse server url")
 		}
 		issuer = u.Hostname()
 	} else {

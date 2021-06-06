@@ -1,4 +1,5 @@
 # Example deployment scenarios
+
 - [Fleet on CentOS](#fleet-on-centos)
   - [Setting up a host](#setting-up-a-host)
   - [Installing Fleet](#installing-fleet)
@@ -75,13 +76,15 @@ sudo systemctl start mysqld
 ```
 
 Let's set a password for the MySQL root user.
-MySQL creates an initial temporary root password which you can find in  ```/var/log/mysqld.log``` you will need this password to change the root password.
+MySQL creates an initial temporary root password which you can find in `/var/log/mysqld.log` you will need this password to change the root password.
 
 Connect to MySQL
+
 ```
 mysql -u root -p
 ```
-When prompted enter in the temporary password from ```/var/log/mysqld.log```
+
+When prompted enter in the temporary password from `/var/log/mysqld.log`
 
 Change root password, in this case we will use `toor?Fl33t` as default password validation requires a more complex password.
 
@@ -96,23 +99,30 @@ For MySQL 5.7.5 and older, use:
 ```
 mysql> SET PASSWORD FOR "root"@"localhost" = PASSWORD("toor?Fl33t");
 ```
+
 Now issue the command
+
 ```
 mysql> flush privileges;
 ```
+
 And exit MySQL
+
 ```
 mysql> exit
 ```
+
 Stop MySQL and start again
+
 ```
 sudo mysqld stop
 sudo systemctl start mysqld
 ```
-It's also worth creating a MySQL database for us to use at this point. Run the following to create the `kolide` database in MySQL. Note that you will be prompted for the password you created above.
+
+It's also worth creating a MySQL database for us to use at this point. Run the following to create the `fleet` database in MySQL. Note that you will be prompted for the password you created above.
 
 ```
-echo 'CREATE DATABASE kolide;' | mysql -u root -p
+echo 'CREATE DATABASE fleet;' | mysql -u root -p
 ```
 
 #### Redis
@@ -137,7 +147,7 @@ Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet
 ```
 /usr/bin/fleet prepare db \
   --mysql_address=127.0.0.1:3306 \
-  --mysql_database=kolide \
+  --mysql_database=fleet \
   --mysql_username=root \
   --mysql_password=toor?Fl33t
 ```
@@ -167,7 +177,7 @@ Now we are ready to run the server! We do this via `fleet serve`:
 ```
 /usr/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \
-  --mysql_database=kolide \
+  --mysql_database=fleet \
   --mysql_username=root \
   --mysql_password=toor \
   --redis_address=127.0.0.1:6379 \
@@ -175,14 +185,14 @@ Now we are ready to run the server! We do this via `fleet serve`:
   --server_key=/tmp/server.key \
   --logging_json
 ```
-You will be prompted to add a value for ```--auth_jwt_key```. A randomly generated key will be suggested, you can simply add the flag with the suggested key.
+
+You will be prompted to add a value for `--auth_jwt_key`. A randomly generated key will be suggested, you can simply add the flag with the suggested key.
 
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
 ### Running Fleet with systemd
 
 See [Running with systemd](./2-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
-
 
 ### Installing and running osquery
 
@@ -199,7 +209,7 @@ You will need to set the osquery enroll secret and osquery server certificate. I
 
 ![Add New Host](../images/add-new-host-modal.png)
 
-If you select "Fetch Kolide Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your CentOS host at `/var/osquery/server.pem`.
+If you select "Fetch Fleet Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your CentOS host at `/var/osquery/server.pem`.
 
 You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with its contents:
 
@@ -279,10 +289,10 @@ ps aux | grep mysqld
 mysql    13158  3.1 14.4 1105320 146408 ?      Ssl  21:36   0:00 /usr/sbin/mysqld
 ```
 
-It's also worth creating a MySQL database for us to use at this point. Run the following to create the `kolide` database in MySQL. Note that you will be prompted for the password you created above.
+It's also worth creating a MySQL database for us to use at this point. Run the following to create the `fleet` database in MySQL. Note that you will be prompted for the password you created above.
 
 ```
-echo 'CREATE DATABASE kolide;' | mysql -u root -p
+echo 'CREATE DATABASE fleet;' | mysql -u root -p
 ```
 
 #### Redis
@@ -308,7 +318,7 @@ Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet
 ```
 /usr/bin/fleet prepare db \
   --mysql_address=127.0.0.1:3306 \
-  --mysql_database=kolide \
+  --mysql_database=fleet \
   --mysql_username=root \
   --mysql_password=toor
 ```
@@ -336,7 +346,7 @@ Now we are ready to run the server! We do this via `fleet serve`:
 ```
 /usr/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \
-  --mysql_database=kolide \
+  --mysql_database=fleet \
   --mysql_username=root \
   --mysql_password=toor \
   --redis_address=127.0.0.1:6379 \
@@ -344,6 +354,7 @@ Now we are ready to run the server! We do this via `fleet serve`:
   --server_key=/tmp/server.key \
   --logging_json
 ```
+
 You will be prompted to add a value for `--auth_jwt_key`. A randomly generated key will be suggested, you can simply add the flag with the suggested key.
 
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
@@ -351,7 +362,6 @@ Now, if you go to [https://localhost:8080](https://localhost:8080) in your local
 ### Running Fleet with systemd
 
 See [Running with systemd](./2-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
-
 
 ### Installing and running osquery
 
@@ -406,7 +416,6 @@ sudo /usr/bin/osqueryd \
 
 If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet!
 
-
 ## Deploying Fleet on Kubernetes
 
 In this guide, we're going to install Fleet and all of its application dependencies on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
@@ -425,13 +434,13 @@ The MySQL that we will use for this tutorial is not replicated and it is not Hig
 
 To install MySQL from Helm, run the following command. Note that there are some options that are specified. These options basically just enumerate that:
 
-- There should be a `kolide` database created
-- The default user's username should be `kolide`
+- There should be a `fleet` database created
+- The default user's username should be `fleet`
 
 ```
 helm install \
   --name fleet-database \
-  --set mysqlUser=kolide,mysqlDatabase=kolide \
+  --set mysqlUser=fleet,mysqlDatabase=fleet \
   stable/mysql
 ```
 

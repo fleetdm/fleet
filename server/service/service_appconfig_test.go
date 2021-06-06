@@ -49,7 +49,7 @@ func TestCreateAppConfig(t *testing.T) {
 					OrgName:    ptr.String("Acme"),
 				},
 				ServerSettings: &fleet.ServerSettings{
-					KolideServerURL:   ptr.String("https://acme.co:8080/"),
+					ServerURL:   ptr.String("https://acme.co:8080/"),
 					LiveQueryDisabled: ptr.Bool(true),
 				},
 			},
@@ -76,7 +76,7 @@ func TestCreateAppConfig(t *testing.T) {
 		payload := tt.configPayload
 		assert.Equal(t, *payload.OrgInfo.OrgLogoURL, result.OrgLogoURL)
 		assert.Equal(t, *payload.OrgInfo.OrgName, result.OrgName)
-		assert.Equal(t, "https://acme.co:8080", result.KolideServerURL)
+		assert.Equal(t, "https://acme.co:8080", result.ServerURL)
 		assert.Equal(t, *payload.ServerSettings.LiveQueryDisabled, result.LiveQueryDisabled)
 
 		// Ensure enroll secret was set

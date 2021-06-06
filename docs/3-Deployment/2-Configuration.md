@@ -144,39 +144,39 @@ The address of the MySQL server which Fleet should connect to. Include the hostn
 
 The name of the MySQL database which Fleet will use.
 
-- Default value: `kolide`
+- Default value: `fleet`
 - Environment variable: `FLEET_MYSQL_DATABASE`
 - Config file format:
 
   ```
   mysql:
-  	database: kolide
+  	database: fleet
   ```
 
 ###### `mysql_username`
 
 The username to use when connecting to the MySQL instance.
 
-- Default value: `kolide`
+- Default value: `fleet`
 - Environment variable: `FLEET_MYSQL_USERNAME`
 - Config file format:
 
   ```
   mysql:
-  	username: kolide
+  	username: fleet
   ```
 
 ###### `mysql_password`
 
 The password to use when connecting to the MySQL instance.
 
-- Default value: `kolide`
+- Default value: `fleet`
 - Environment variable: `FLEET_MYSQL_PASSWORD`
 - Config file format:
 
   ```
   mysql:
-  	password: kolide
+  	password: fleet
   ```
 
 ##### `mysql_password_path`
@@ -371,26 +371,26 @@ The TLS cert to use when terminating TLS.
 
 See [TLS certificate considerations](./1-Installation.md#tls-certificate-considerations) for more information about certificates and Fleet.
 
-- Default value: `./tools/osquery/kolide.crt`
+- Default value: `./tools/osquery/fleet.crt`
 - Environment variable: `FLEET_SERVER_CERT`
 - Config file format:
 
   ```
   server:
-  	cert: /tmp/kolide.crt
+  	cert: /tmp/fleet.crt
   ```
 
 ###### `server_key`
 
 The TLS key to use when terminating TLS.
 
-- Default value: `./tools/osquery/kolide.key`
+- Default value: `./tools/osquery/fleet.key`
 - Environment variable: `FLEET_SERVER_KEY`
 - Config file format:
 
   ```
   server:
-  	key: /tmp/kolide.key
+  	key: /tmp/fleet.key
   ```
 
 ###### `server_tls`
@@ -1250,11 +1250,11 @@ AWS STS role ARN to use for S3 authentication.
 
 ## Managing osquery configurations
 
-We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Kolide have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
+We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Fleet have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
 
 ## Running with systemd
 
-Once you've verified that you can run fleet in your shell, you'll likely want to keep fleet running in the background and after the server reboots. To do that we recommend using [systemd](https://coreos.com/os/docs/latest/getting-started-with-systemd.html).
+Once you've verified that you can run Fleet in your shell, you'll likely want to keep Fleet running in the background and after the server reboots. To do that we recommend using [systemd](https://coreos.com/os/docs/latest/getting-started-with-systemd.html).
 
 Below is a sample unit file.
 
@@ -1267,7 +1267,7 @@ After=network.target
 LimitNOFILE=8192
 ExecStart=/usr/local/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \
-  --mysql_database=kolide \
+  --mysql_database=fleet \
   --mysql_username=root \
   --mysql_password=toor \
   --redis_address=127.0.0.1:6379 \
