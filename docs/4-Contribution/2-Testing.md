@@ -1,6 +1,7 @@
 # Testing & Local Development
 
 - [License key](#license-key)
+- [Simulated hosts](#hosts)
 - [Test suite](#test-suite)
 - [End-to-end tests](#end-to-end-tests)
 - [Email](#email)
@@ -30,6 +31,12 @@ or
 ```
 ./build/fleet serve --dev --license_key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
 ```
+
+## Simulated hosts
+
+It can be helpful to quickly populate the UI with simulated hosts when developing or testing features that require host information.
+
+Check out [the instructions in the `/tools/osquery` directory](../../tools/osquery/README.md#testing-with-containerized-osqueryd) for starting up simulated hosts in your development environment.
 
 ## Test suite
 
