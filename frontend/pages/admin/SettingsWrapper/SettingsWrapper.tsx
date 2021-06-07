@@ -18,7 +18,7 @@ interface IRootState {
   };
 }
 
-let settingsSubNav: ISettingSubNavItem[] = [
+const settingsSubNav: ISettingSubNavItem[] = [
   {
     name: "Organization settings",
     pathname: PATHS.ADMIN_SETTINGS,
