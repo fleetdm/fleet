@@ -2444,18 +2444,21 @@ None.
 
 Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 #### Parameters
 
-| Name     | Type   | In   | Description                                                                                                                  |
-| -------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------- |
-| query    | string | body | **Required.** The SQL of the query                                                                                           |
-| selected | object | body | **Required.** The desired targets for the query. This object must contain `hosts` and `labels` properties. See example below |
+| Name     | Type    | In   | Description                                                                                                                                      |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| query    | string  | body | The SQL if using a custom query.                                                                                                                 |
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                      |
+| selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts` and/or `labels` properties. See examples below. |
+
+One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by ID
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 ##### Request body
 
@@ -2492,7 +2495,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 #### Example with multiple hosts targeted by label ID
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 ##### Request body
 
@@ -2531,25 +2534,32 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 Runs the specified query by name as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run_by_names`
 
 #### Parameters
 
-| Name     | Type   | In   | Description                                                                                                                   |
-| -------- | ------ | ---- | ----------------------------------------------------------------------------------------------------------------------------- |
-| name     | string | body | **Required.** The name of the query.                                                                                          |
-| selected | object | body | **Required.** The desired targets for the query. This object must contain `hosts` and `labels` properties. See example below. |
+| Name     | Type    | In   | Description                                                                                                                                        |
+| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query    | string  | body | The SQL of the query.                                                                                                                              |
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                        |
+| selected | object  | body | **Required.** The desired targets for the query specified by name. This object can contain `hosts` and/or `labels` properties. See examples below. |
+
+One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run_by_names`
 
 ##### Request body
 
 ```
 {
-  "name": "instance_id"
-  "selected": { "hosts": [171], "labels": [] }
+  "query_id": 1,
+  "selected": {
+    "hosts": [
+      "macbook-pro.local",
+    ]
+  }
 }
 ```
 
@@ -3381,6 +3391,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 | Name             | Type    | In   | Description                                                                                                                                                        |
 | ---------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | query            | string  | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                           |
+| query_id         | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles effect which targets are included.                    |
 | selected         | object  | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs and a `labels` property which contains a list of label IDs. |
 | include_observer | boolean | body | Whether to include hosts that the user only has `observer` permission on.                                                                                          |
 
