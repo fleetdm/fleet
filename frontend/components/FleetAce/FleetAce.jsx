@@ -88,7 +88,7 @@ class FleetAce extends Component {
           enableLiveAutocompletion
           editorProps={{ $blockScrolling: Infinity }}
           fontSize={fontSize}
-          mode="kolide"
+          mode="fleet"
           minLines={2}
           maxLines={20}
           name={name}
@@ -98,7 +98,7 @@ class FleetAce extends Component {
           setOptions={{ enableLinking: true }}
           showGutter={showGutter}
           showPrintMargin={false}
-          theme="kolide"
+          theme="fleet"
           value={value}
           width="100%"
           wrapEnabled={wrapEnabled}

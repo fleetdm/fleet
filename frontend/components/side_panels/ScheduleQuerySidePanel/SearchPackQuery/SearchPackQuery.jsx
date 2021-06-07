@@ -73,7 +73,7 @@ class SearchPackQuery extends Component {
       return (
         <AceEditor
           editorProps={{ $blockScrolling: Infinity }}
-          mode="kolide"
+          mode="fleet"
           minLines={1}
           maxLines={3}
           name="pack-query"
@@ -81,7 +81,7 @@ class SearchPackQuery extends Component {
           setOptions={{ wrap: true }}
           showGutter={false}
           showPrintMargin={false}
-          theme="kolide"
+          theme="fleet"
           value={selectedQuery.query}
           width="100%"
           fontSize={14}
