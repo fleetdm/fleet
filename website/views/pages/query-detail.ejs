@@ -1,61 +1,64 @@
 <div id="query-detail" v-cloak>
 
-  <div class="d-none d-md-flex justify-content-center">
-    <div class="col-6 my-5">
-      <h2 class="mb-3">{{query.name}}</h2>
-      <h6 class="pb-3">{{query.description ? query.description : '--'}}</h6>
-      <div v-if="!!query.tip">
-        <div class="container query-tip d-flex align-items-center border-left border-primary p-4 my-5">
-          <img alt="lightbulb" class="lightbulb" src="/images/lightbulb-blue-24x24@2x.png"/><p class="d-flex m-0">{{query.tip}}</p>
+  <div class="d-none d-md-flex p-md-4 justify-content-center">
+    <div class="d-flex container-xl justify-content-center">
+      <div class="col-8 pl-md-4 my-5">
+        <h2 class="mb-3">{{query.name}}</h2>
+        <h6 class="pb-3">{{query.description ? query.description : '--'}}</h6>
+        <div v-if="!!query.tip">
+          <div class="container query-tip d-flex align-items-center border-left border-primary p-4 my-5">
+            <img alt="lightbulb" class="lightbulb" src="/images/lightbulb-blue-24x24@2x.png"/><p class="d-flex m-0">{{query.tip}}</p>
+          </div>
         </div>
-      </div>
-      <h3 class="py-3">Query</h3>
-      <code class="pb-3">{{query.query ? query.query : '--'}}</code>
-      <div class="remediation" v-if="query.purpose === 'Detection' && query.remediation">
-        <h3 class="pt-5 pb-3">Remediation</h3>
-          <p>{{query.remediation ? query.remediation : 'N/A'}}</p>
-      </div>
-    </div>
-
-    <div class="col-3 d-none d-md-block px-0 ml-5 my-5">
-      <div class="query-sidebar border-bottom mb-3">
-        <h5>Platforms</h5>
-        <p v-if="!query.platforms || !query.platforms.length">--</p>
-        <div class="d-flex mb-3" v-else>
-          <img class="d-inline-flex mr-3 logo" src="/images/os-macos-black-24x24@2x.png" alt="macOS" v-if="query.platforms.includes('macOS')"/>
-          <img class="d-inline-flex mr-3 logo" src="/images/os-windows-black-24x24@2x.png" alt="Windows" v-if="query.platforms.includes('Windows')"/>
-          <img class="d-inline-flex mr-3 logo" src="/images/os-linux-black-24x24@2x.png" alt="Linux" v-if="query.platforms.includes('Linux')"/>
-          <img class="d-inline-flex mr-3 logo" src="/images/os-freebsd-black-24x24@2x.png" alt="FreeBSD" v-if="query.platforms.includes('FreeBSD')"/>
+        <h3 class="py-3">Query</h3>
+        <code class="pb-3">{{query.query ? query.query : '--'}}</code>
+        <div class="remediation" v-if="query.purpose === 'Detection' && query.remediation">
+          <h3 class="pt-5 pb-3">Remediation</h3>
+            <p>{{query.remediation ? query.remediation : 'N/A'}}</p>
         </div>
       </div>
 
-      <div class="query-sidebar border-bottom mb-3">
-        <h5>Purpose</h5>
-        <p>{{query.purpose ? query.purpose : '--'}}</p>
-      </div>
+      <div class="col-4 pr-md-4 ml-5 my-5">
+        <div class="query-sidebar border-bottom mb-3">
+          <h5>Platforms</h5>
+          <p v-if="!query.platforms || !query.platforms.length">--</p>
+          <div class="d-flex mb-3" v-else>
+            <img class="d-inline-flex mr-3 logo" src="/images/os-macos-black-24x24@2x.png" alt="macOS" v-if="query.platforms.includes('macOS')"/>
+            <img class="d-inline-flex mr-3 logo" src="/images/os-windows-black-24x24@2x.png" alt="Windows" v-if="query.platforms.includes('Windows')"/>
+            <img class="d-inline-flex mr-3 logo" src="/images/os-linux-black-24x24@2x.png" alt="Linux" v-if="query.platforms.includes('Linux')"/>
+            <img class="d-inline-flex mr-3 logo" src="/images/os-freebsd-black-24x24@2x.png" alt="FreeBSD" v-if="query.platforms.includes('FreeBSD')"/>
+          </div>
+        </div>
 
-      <div class="query-sidebar">
-        <h5>Contributors</h5>
-        <div class="d-flex mb-3">
-          <span class="mb-1" v-if="!query.contributors || !query.contributors.length">--</span>
-          <div v-for="contributor in query.contributors">
-            <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
-              <img alt="a GitHub user avatar" :alt="contributor.name ? contributor.name : contributor.handle" :src="contributor.avatarUrl"/>
+        <div class="query-sidebar border-bottom mb-3">
+          <h5>Purpose</h5>
+          <p>{{query.purpose ? query.purpose : '--'}}</p>
+        </div>
+
+        <div class="query-sidebar">
+          <h5>Contributors</h5>
+          <div class="d-flex mb-3">
+            <span class="mb-1" v-if="!query.contributors || !query.contributors.length">--</span>
+            <div v-for="contributor in query.contributors">
+              <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
+                <img alt="a GitHub user avatar" :alt="contributor.name ? contributor.name : contributor.handle" :src="contributor.avatarUrl"/>
+              </div>
             </div>
           </div>
         </div>
+        <h5>Contribute to this page</h5>
+        <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">View source</a>
       </div>
-      <h5>Contribute to this page</h5>
-      <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">View source</a>
     </div>
   </div>
-  <div class="d-block d-md-none px-4 py-5 justify-content-center">
+
+  <div class="d-block d-md-none px-3 py-5 justify-content-center">
     <h2 class="mb-3">{{query.name}}</h2>
-    <h6 class="pb-3">{{query.description ? query.description : '--'}}</h6>
+    <h6 class="pb-0 mb-0">{{query.description ? query.description : '--'}}</h6>
   </div>
   <div class="d-block d-md-none">
-    <div class="col d-sm-flex">
-      <div class="col pr-sm-4 platforms-purpose">
+    <div class="col d-sm-flex px-3">
+      <div class="col p-0 pr-sm-4 platforms-purpose">
         <div class="d-flex align-items-center justify-content-between platforms">        
           <h5 class="m-0">Platforms</h5>
           <p class="text-right mb-1" v-if="!query.platforms || !query.platforms.length">--</p>
@@ -72,8 +75,8 @@
           <p class="m-0">{{query.purpose ? query.purpose : '--'}}</p>  
         </div>
       </div>
-      <div class="d-sm-none my-3 divider"></div>  
-      <div class="col pl-sm-4 contributors-contribute">
+      <div class="d-sm-none m-3 divider"></div>  
+      <div class="col p-0 pl-sm-4 contributors-contribute">
         <div class="d-flex align-items-center justify-content-between contributors">        
           <h5 class="m-0">Contributors</h5>
           <div class="d-flex align-items-center">
@@ -93,8 +96,8 @@
       </div>
     </div>
   </div>
-  <div class="d-block d-md-none py-5 justify-content-center" style="padding-left: 30px; padding-right: 30px;">
-    <h3 class="py-3">Query</h3>
+  <div class="d-block d-md-none px-3 pt-5 pb-4 justify-content-center" style="padding-left: 30px; padding-right: 30px;">
+    <h3 class="pb-3 m-0">Query</h3>
     <code class="pb-3">{{query.query ? query.query : '--'}}</code>
     <div class="remediation" v-if="query.purpose === 'Detection'">
       <h3 class="pt-5 pb-3">Remediation</h3>

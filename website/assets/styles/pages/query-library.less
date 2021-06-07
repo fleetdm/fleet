@@ -122,7 +122,9 @@
   }
 
   .library {
-    max-width: 860px;
+    max-width: 960px;
+    margin-top: 80px;
+    margin-bottom: 0;
   }
 
   .description {
@@ -225,10 +227,29 @@
     }
   }
 
+  @media (max-width: 768px) {
+    .library {
+      max-width: 720px;
+      margin-top: 60px;
+    }
+    .results {
+      margin-top: 16px;
+    }
+  }
+
   @media (max-width: 575px) {
     h2 {
       font-size: 28px;
       line-height: 36px;
+    }
+
+    .library {
+      max-width: none;
+      margin-bottom: 0px;
+    }
+
+    .results {
+      margin-top: 16px;
     }
 
     .contributors, .platforms {
