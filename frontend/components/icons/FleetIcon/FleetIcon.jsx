@@ -2,9 +2,9 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-const baseClass = "kolidecon";
+const baseClass = "fleeticon";
 
-export class KolideIcon extends Component {
+export class FleetIcon extends Component {
   static propTypes = {
     className: PropTypes.string,
     fw: PropTypes.bool,
@@ -29,4 +29,4 @@ export class KolideIcon extends Component {
   }
 }
 
-export default KolideIcon;
+export default FleetIcon;

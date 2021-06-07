@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import platformIconClass from "utilities/platform_icon_class";
 
 const baseClass = "platform-icon";
@@ -26,7 +26,7 @@ export class PlatformIcon extends Component {
     }
 
     return (
-      <KolideIcon
+      <FleetIcon
         className={iconClasses}
         fw={fw}
         name={iconName}

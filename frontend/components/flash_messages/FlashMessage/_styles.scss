@@ -25,13 +25,13 @@
   }
 
   &--success {
-    .kolidecon {
+    .fleeticon {
       color: $ui-success;
     }
   }
 
   &--error {
-    .kolidecon {
+    .fleeticon {
       color: $ui-error;
     }
   }
@@ -45,7 +45,7 @@
       margin-right: 15px;
     }
 
-    .kolidecon {
+    .fleeticon {
       font-size: $large;
     }
   }
@@ -64,7 +64,7 @@
     text-align: center;
     margin-left: 15px;
 
-    .kolidecon {
+    .fleeticon {
       transition: color 150ms ease-in-out;
       color: $core-fleet-blue;
       font-size: $large;

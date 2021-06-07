@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import AceEditor from "react-ace";
 import { isEqual, sortBy } from "lodash";
 
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import queryInterface from "interfaces/query";
 import Dropdown from "components/forms/fields/Dropdown";
 
@@ -59,7 +59,7 @@ class SearchPackQuery extends Component {
     if (selectedQuery) {
       return (
         <h1 className={`${baseClass}__title`}>
-          <KolideIcon name="query" /> {selectedQuery.name}
+          <FleetIcon name="query" /> {selectedQuery.name}
         </h1>
       );
     }

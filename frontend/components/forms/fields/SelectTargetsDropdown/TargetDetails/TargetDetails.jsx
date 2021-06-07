@@ -5,7 +5,7 @@ import AceEditor from "react-ace";
 import classnames from "classnames";
 
 import { humanHostMemory } from "fleet/helpers";
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import PlatformIcon from "components/icons/PlatformIcon";
 import targetInterface from "interfaces/target";
 
@@ -66,23 +66,23 @@ class TargetDetails extends Component {
           className={`button button--unstyled ${hostBaseClass}__back`}
           onClick={handleBackToResults}
         >
-          <KolideIcon name="chevronleft" />
+          <FleetIcon name="chevronleft" />
           Back
         </button>
 
         <p className={`${hostBaseClass}__display-text`}>
-          <KolideIcon name="single-host" className={`${hostBaseClass}__icon`} />
+          <FleetIcon name="single-host" className={`${hostBaseClass}__icon`} />
           <span>{displayText}</span>
         </p>
         <p className={statusClassName}>
           {isOnline && (
-            <KolideIcon
+            <FleetIcon
               name="success-check"
               className={`${hostBaseClass}__icon ${hostBaseClass}__icon--online`}
             />
           )}
           {isOffline && (
-            <KolideIcon
+            <FleetIcon
               name="offline"
               className={`${hostBaseClass}__icon ${hostBaseClass}__icon--offline`}
             />
@@ -150,11 +150,11 @@ class TargetDetails extends Component {
           className={`button button--unstyled ${labelBaseClass}__back`}
           onClick={handleBackToResults}
         >
-          <KolideIcon name="chevronleft" /> Back
+          <FleetIcon name="chevronleft" /> Back
         </button>
 
         <p className={`${labelBaseClass}__display-text`}>
-          <KolideIcon name="label" fw className={`${labelBaseClass}__icon`} />
+          <FleetIcon name="label" fw className={`${labelBaseClass}__icon`} />
           <span>{displayText}</span>
         </p>
 
