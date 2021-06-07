@@ -19,7 +19,7 @@ describe("QueryPageWrapper - helpers", () => {
     const bearerToken = "abc123";
 
     beforeEach(() => {
-      global.localStorage.setItem("KOLIDE::auth_token", bearerToken);
+      global.localStorage.setItem("FLEET::auth_token", bearerToken);
     });
 
     describe("when the API call is successful", () => {

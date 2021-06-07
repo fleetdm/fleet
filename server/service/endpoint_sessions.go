@@ -224,7 +224,7 @@ func makeCallbackSSOEndpoint(svc fleet.Service, urlPrefix string) endpoint.Endpo
 		relayStateLoadPage := ` <html>
      <script type='text/javascript'>
      var redirectURL = {{ .RedirectURL }};
-     window.localStorage.setItem('KOLIDE::auth_token', '{{ .Token }}');
+     window.localStorage.setItem('FLEET::auth_token', '{{ .Token }}');
      window.location = redirectURL;
      </script>
      <body>
