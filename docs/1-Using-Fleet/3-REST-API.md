@@ -441,6 +441,7 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Get host](#get-host)
 - [Get host by identifier](#get-host-by-identifier)
 - [Delete host](#delete-host)
+- [Refetch host](#refetch-host)
 
 ### List hosts
 
@@ -735,6 +736,30 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 #### Example
 
 `DELETE /api/v1/fleet/hosts/121`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Refetch host
+
+Flags the host details to be refetched the next time the host checks in for live queries. Note that we cannot be certain when the host will actually check in and update these details. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
+
+`POST /api/v1/fleet/hosts/{id}/refetch`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/121/refetch`
 
 ##### Default response
 
