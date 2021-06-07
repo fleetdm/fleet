@@ -1205,7 +1205,7 @@ None.
 - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
 - [Get user information](#get-user-information)
 - [Modify user](#modify-user)
-- [Enable or disable user](#enable-or-disable-user)
+- [Delete user](#delete-user)
 - [Promote or demote user](#promote-or-demote-user)
 - [Require password reset](#require-password-reset)
 - [List a user's sessions](#list-a-users-sessions)
@@ -1682,51 +1682,28 @@ Returns all information about a specific user.
 }
 ```
 
-### Enable or disable user
+### Delete user
 
-Revokes or renews the selected user's access to Fleet. Returns the user object.
+Delete the specified user from Fleet.
 
-`POST /api/v1/fleet/users/{id}/enable`
+`DELETE /api/v1/fleet/users/{id}`
 
 #### Parameters
 
-| Name    | Type    | In   | Description                                             |
-| ------- | ------- | ---- | ------------------------------------------------------- |
-| id      | integer | path | **Required**. The user's id.                            |
-| enabled | boolean | body | **Required**. Whether or not the user can access Fleet. |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The user's id. |
 
 #### Example
 
-`POST /api/v1/fleet/users/2/enable`
-
-#### Default body
-
-```
-{
-  "enabled": false
-}
-```
+`DELETE /api/v1/fleet/users/3`
 
 ##### Default response
 
 `Status: 200`
 
 ```
-{
-  "user": {
-    "created_at": "2021-02-23T22:23:34Z",
-    "updated_at": "2021-02-23T22:23:34Z",
-    "id": 2,
-    "username": "janedoe",
-    "name": "Jane Doe",
-    "email": "janedoe@example.com",
-    "admin": false,
-    "enabled": false,
-    "force_password_reset": false,
-    "gravatar_url": "",
-    "sso_enabled": false
-  }
-}
+{}
 ```
 
 ### Promote or demote user
