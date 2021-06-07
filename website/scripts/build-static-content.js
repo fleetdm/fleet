@@ -68,7 +68,7 @@ module.exports = {
           return list;
         }, []);
 
-        const _threadGitHubAPICalls = async function (usersList) {
+        let contributorsDictionary = await (async function () {
 
           // TODO replace with sails http helper
           const _getGitHubUserData = async (gitHubHandle) => {
@@ -81,7 +81,7 @@ module.exports = {
 
           // Create threads object with a thread for each user. Each thread is a promise that will resolve
           // when the async call to the GitHub API resolves for that user.
-          const threads =  _.union(usersList).reduce((threads, userName) => {
+          const threads =  _.union(contributorsList).reduce((threads, userName) => {
             threads[userName] = _getGitHubUserData(userName);
             return threads;
           }, {});
@@ -103,9 +103,7 @@ module.exports = {
 
           return resolvedThreads;
 
-        };
-
-        const contributorsDictionary = await _threadGitHubAPICalls(contributorsList);//•
+        })();
 
         // Map all queries to replace the "contributors" string with an array of selected user profile information pulled from
         // the contributorsDictionary for each contributor (or undefined if the value is not a string although any problematic
@@ -126,8 +124,6 @@ module.exports = {
           return query;
         });//•
         // console.log(queries.map((q) => q.contributors));
-
-        // TODO consider if/how to cache avatar images
 
         // Attach to Sails app configuration.
         builtStaticContent.queries = queries;
