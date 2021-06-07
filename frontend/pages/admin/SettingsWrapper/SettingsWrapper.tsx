@@ -1,7 +1,9 @@
 import React from "react";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { push } from "react-router-redux";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { IConfig } from "interfaces/config";
+import permissionUtils from "utilities/permissions";
 
 import PATHS from "router/paths";
 
@@ -10,7 +12,13 @@ interface ISettingSubNavItem {
   pathname: string;
 }
 
-const settingsSubNav: ISettingSubNavItem[] = [
+interface IRootState {
+  app: {
+    config: IConfig;
+  };
+}
+
+let settingsSubNav: ISettingSubNavItem[] = [
   {
     name: "Organization settings",
     pathname: PATHS.ADMIN_SETTINGS,
@@ -18,10 +26,6 @@ const settingsSubNav: ISettingSubNavItem[] = [
   {
     name: "Users",
     pathname: PATHS.ADMIN_USERS,
-  },
-  {
-    name: "Teams",
-    pathname: PATHS.ADMIN_TEAMS,
   },
 ];
 
@@ -45,6 +49,16 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
     children,
     location: { pathname },
   } = props;
+
+  // Add Teams tab for basic tier only
+  const config = useSelector((state: IRootState) => state.app.config);
+  if (permissionUtils.isBasicTier(config)) {
+    settingsSubNav.push({
+      name: "Teams",
+      pathname: PATHS.ADMIN_TEAMS,
+    });
+  }
+
   const dispatch = useDispatch();
 
   const navigateToNav = (i: number): void => {
