@@ -9,9 +9,9 @@ import "brace/ext/language_tools";
 import "./mode";
 import "./theme";
 
-const baseClass = "kolide-ace";
+const baseClass = "fleet-ace";
 
-class KolideAce extends Component {
+class FleetAce extends Component {
   static propTypes = {
     error: PropTypes.string,
     fontSize: PropTypes.number,
@@ -88,7 +88,7 @@ class KolideAce extends Component {
           enableLiveAutocompletion
           editorProps={{ $blockScrolling: Infinity }}
           fontSize={fontSize}
-          mode="kolide"
+          mode="fleet"
           minLines={2}
           maxLines={20}
           name={name}
@@ -98,7 +98,7 @@ class KolideAce extends Component {
           setOptions={{ enableLinking: true }}
           showGutter={showGutter}
           showPrintMargin={false}
-          theme="kolide"
+          theme="fleet"
           value={value}
           width="100%"
           wrapEnabled={wrapEnabled}
@@ -116,4 +116,4 @@ class KolideAce extends Component {
   }
 }
 
-export default KolideAce;
+export default FleetAce;

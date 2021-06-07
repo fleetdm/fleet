@@ -173,7 +173,7 @@ class TargetDetails extends Component {
           <div className={`${labelBaseClass}__editor`}>
             <AceEditor
               editorProps={{ $blockScrolling: Infinity }}
-              mode="kolide"
+              mode="fleet"
               minLines={1}
               maxLines={20}
               name="label-query"
@@ -181,7 +181,7 @@ class TargetDetails extends Component {
               setOptions={{ wrap: true }}
               showGutter={false}
               showPrintMargin={false}
-              theme="kolide"
+              theme="fleet"
               value={query}
               width="100%"
               fontSize={14}

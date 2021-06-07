@@ -4,7 +4,7 @@ import { Link } from "react-router";
 
 import permissionUtils from "utilities/permissions";
 import Button from "components/buttons/Button";
-import KolideAce from "components/KolideAce";
+import FleetAce from "components/FleetAce";
 import queryInterface from "interfaces/query";
 import userInterface from "interfaces/user";
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
@@ -89,7 +89,7 @@ class QueryDetailsSidePanel extends Component {
         {!permissionUtils.isOnlyObserver(currentUser) && (
           <>
             <p className={`${baseClass}__label`}>SQL</p>
-            <KolideAce
+            <FleetAce
               fontSize={12}
               name="query-details"
               readOnly

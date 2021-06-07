@@ -19,7 +19,7 @@ import { formatSelectedTargetsForApi } from "fleet/helpers";
 import helpers from "pages/queries/QueryPage/helpers";
 import hostInterface from "interfaces/host";
 import Button from "components/buttons/Button";
-import KolideAce from "components/KolideAce";
+import FleetAce from "components/FleetAce";
 import WarningBanner from "components/WarningBanner";
 import QueryForm from "components/forms/queries/QueryForm";
 import osqueryTableInterface from "interfaces/osquery_table";
@@ -659,7 +659,7 @@ export class QueryPage extends Component {
 
     const QuerySql = () => (
       <div id="results" className="search-results">
-        <KolideAce
+        <FleetAce
           fontSize={12}
           name="query-details"
           readOnly
