@@ -12,3 +12,4 @@ jobs:
         check-modified-files-only: 'yes'
         use-quiet-mode: 'yes'
         config-file: .github/workflows/markdown-link-check-config.json
+        base-branch: ${GITHUB_REF##*/}
