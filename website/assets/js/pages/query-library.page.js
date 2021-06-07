@@ -6,8 +6,8 @@ parasails.registerPage('query-library', {
     inputTextValue: '',
     inputTimers: {},
     searchString: '', // The user input string to be searched against the query library
-    selectedPurpose: 'all', // Initially set to all, the user may select a different option to filter queries by purpose (e.g., "all queries", "information", "detection")
-    selectedPlatform: 'all', // Initially set to all, the user may select a different option to filter queries by platform (e.g., "all platforms", "macOS", "Windows", "Linux")
+    selectedPurpose: 'all queries', // Initially set to all, the user may select a different option to filter queries by purpose (e.g., "all queries", "information", "detection")
+    selectedPlatform: 'all platforms', // Initially set to all, the user may select a different option to filter queries by platform (e.g., "all platforms", "macOS", "Windows", "Linux")
   },
 
   computed: {
@@ -42,6 +42,14 @@ parasails.registerPage('query-library', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    clickSelectPurpose(purpose) {
+      this.selectedPurpose = purpose;
+    },
+
+    clickSelectPlatform(platform) {
+      this.selectedPlatform = platform;
+    },
+
     clickCard: function (querySlug) {
       window.location = '/queries/' + querySlug; // we can trust the query slug is url-safe
     },

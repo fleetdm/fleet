@@ -1,5 +1,4 @@
 #query-library {
-
   h2 {
     padding: 0px 30px 0px 30px;
   }
@@ -14,7 +13,6 @@
     font-size: 16px;
     line-height: 22px;
     padding: 0px 30px 0px 30px;
-
   }
 
   a {
@@ -32,31 +30,74 @@
     }
   }
 
-  input::placeholder {
-    font-size: 16px;
+  input {
+    &::placeholder {
+      font-size: 16px;
+      line-height: 24px;
+    }
+  }
+
+  .input-group {
+    &.search {
+      width: 250px;
+    }
   }
 
   .input-group-text {
-    color: #8B8FA2;
-    border-color: #C5C7D1;
+    color: #8b8fa2;
+    border-color: #c5c7d1;
     border-top-left-radius: 8px;
     border-bottom-left-radius: 8px;
   }
+
   .form-control {
-    border-color: #C5C7D1;
+    font-size: 16px;
+    border-color: #c5c7d1;
     border-top-right-radius: 8px;
     border-bottom-right-radius: 8px;
     &:focus {
-      border: 1px solid #C5C7D1;
+      border: 1px solid #c5c7d1;
     }
-
-
   }
-  .input-group {
-    &.search {
-      max-width: 250px;;
-    }
 
+  .btn-secondary:not(:disabled):not(.disabled):active:focus,
+  .btn-secondary:not(:disabled):not(.disabled).active:focus,
+  .show > .btn-secondary.dropdown-toggle:focus {
+    box-shadow: none;
+  }
+  
+  .btn-secondary {
+    font-family: Nunito;
+    color: @core-vibrant-blue;
+    background-color: transparent;
+    border: 0;
+    cursor: pointer;
+    &:focus {
+      border: 0;
+      box-shadow: none;
+    }
+  }
+
+  .filters {
+    height: 54px;
+    p {
+      font-family: Nunito;
+      font-size: 16px;
+      line-height: 25px;
+    }
+  }
+
+  .dropdown-menu {
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .dropdown-item {
+    border-radius: 8px;
+    cursor: pointer;
+    &:hover {
+      background-color: lightness(@core-vibrant-blue, 10%);
+      margin-right: 15px;
+    }
   }
 
   select {
@@ -99,10 +140,10 @@
     width: 100%;
     margin-right: 0;
     margin-left: 0;
-    border: 1px solid #C5C7D1;
+    border: 1px solid #c5c7d1;
     border-radius: 8px;
     padding-right: 15px;
-}
+  }
 
   .select-mobile {
     padding-left: 30px;
@@ -119,10 +160,12 @@
   .filter-and-search-bar {
     padding-left: 45px;
     padding-right: 45px;
+    margin-bottom: 0;
+    min-height: 54px;
   }
 
-  .contributors, .platforms {
-
+  .contributors,
+  .platforms {
     p {
       font-size: 13px;
       line-height: 20px;
@@ -138,7 +181,7 @@
     margin-left: 30px;
     margin-right: 30px;
     border-bottom: 1px solid;
-    border-color: #E2E4EA;
+    border-color: #e2e4ea;
   }
 
   .card.results {
@@ -147,7 +190,7 @@
     border-radius: 8px;
 
     &:hover {
-      background-color: #F1F0FF;
+      background-color: #f1f0ff;
       cursor: pointer;
     }
   }
@@ -159,7 +202,6 @@
     box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
     margin-bottom: 90px;
     width: 100%;
-
   }
 
   .card-body {
@@ -187,19 +229,17 @@
   }
 
   @media (max-width: 575px) {
-
     h2 {
       font-size: 28px;
       line-height: 36px;
     }
 
-    .contributors, .platforms {
-
+    .contributors,
+    .platforms {
       p {
         font-size: 13px;
         line-height: 20px;
       }
     }
   }
-
 }
