@@ -2448,11 +2448,11 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 #### Parameters
 
-| Name     | Type    | In   | Description                                                                                                                                      |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| query    | string  | body | The SQL if using a custom query.                                                                                                                 |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                      |
-| selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts` and/or `labels` properties. See examples below. |
+| Name     | Type    | In   | Description                                                                                                                                                |
+| -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query    | string  | body | The SQL if using a custom query.                                                                                                                           |
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                |
+| selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
 
 One of `query` and `query_id` must be specified.
 
@@ -2538,11 +2538,11 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 #### Parameters
 
-| Name     | Type    | In   | Description                                                                                                                                        |
-| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query    | string  | body | The SQL of the query.                                                                                                                              |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                        |
-| selected | object  | body | **Required.** The desired targets for the query specified by name. This object can contain `hosts` and/or `labels` properties. See examples below. |
+| Name     | Type    | In   | Description                                                                                                                                                  |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| query    | string  | body | The SQL of the query.                                                                                                                                        |
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                  |
+| selected | object  | body | **Required.** The desired targets for the query specified by name. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
 
 One of `query` and `query_id` must be specified.
 
@@ -3388,12 +3388,11 @@ The returned lists are filtered based on the hosts the requesting user has acces
 
 #### Parameters
 
-| Name             | Type    | In   | Description                                                                                                                                                        |
-| ---------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| query            | string  | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                           |
-| query_id         | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles effect which targets are included.                    |
-| selected         | object  | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs and a `labels` property which contains a list of label IDs. |
-| include_observer | boolean | body | Whether to include hosts that the user only has `observer` permission on.                                                                                          |
+| Name     | Type    | In   | Description                                                                                                                                                                |
+| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query    | string  | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                                   |
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles effect which targets are included.                            |
+| selected | object  | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs, a `labels` with label IDs and/or a `teams` property with team IDs. |
 
 #### Example
 
@@ -3508,6 +3507,19 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "host_count": 5,
         "display_text": "All Hosts",
         "count": 5
+      }
+    ],
+    "teams": [
+      {
+        "id": 1,
+        "created_at": "2021-05-27T20:02:20Z",
+        "name": "Client Platform Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 4,
+        "host_count": 2,
+        "display_text": "Client Platform Engineering",
+        "count": 2
       }
     ]
   },
