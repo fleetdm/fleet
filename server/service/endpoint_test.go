@@ -54,10 +54,9 @@ func setupEndpointTest(t *testing.T) *testResource {
 	svc = endpointService{svc}
 	createTestUsers(t, test.ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	jwtKey := "CHANGEME"
 	limitStore, _ := memstore.New(0)
 
-	routes := MakeHandler(svc, config.FleetConfig{Auth: config.AuthConfig{JwtKey: jwtKey}}, logger, limitStore)
+	routes := MakeHandler(svc, config.FleetConfig{}, logger, limitStore)
 
 	test.server = httptest.NewServer(routes)
 

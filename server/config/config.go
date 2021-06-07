@@ -61,10 +61,8 @@ type ServerConfig struct {
 
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
-	JwtKey      string `yaml:"jwt_key"`
-	JwtKeyPath  string `yaml:"jwt_key_path"`
-	BcryptCost  int    `yaml:"bcrypt_cost"`
-	SaltKeySize int    `yaml:"salt_key_size"`
+	BcryptCost  int `yaml:"bcrypt_cost"`
+	SaltKeySize int `yaml:"salt_key_size"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -240,10 +238,6 @@ func (man Manager) addConfigs() {
 		"Controls wether HTTP keep-alives are enabled.")
 
 	// Auth
-	man.addConfigString("auth.jwt_key", "",
-		"JWT session token key (required)")
-	man.addConfigString("auth.jwt_key_path", "",
-		"Path to file containg JWT session token key")
 	man.addConfigInt("auth.bcrypt_cost", 12,
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
@@ -392,8 +386,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			Keepalive:  man.getConfigBool("server.keepalive"),
 		},
 		Auth: AuthConfig{
-			JwtKey:      man.getConfigString("auth.jwt_key"),
-			JwtKeyPath:  man.getConfigString("auth.jwt_key_path"),
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
 			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
 		},
@@ -673,7 +665,6 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			JwtKey:      "CHANGEME",
 			BcryptCost:  6, // Low cost keeps tests fast
 			SaltKeySize: 24,
 		},

@@ -6,13 +6,10 @@ import (
 
 	"github.com/fleetdm/fleet/server/fleet"
 
-	jwt "github.com/dgrijalva/jwt-go"
-
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
 	"github.com/fleetdm/fleet/server/contexts/token"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/pkg/errors"
 )
 
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
@@ -60,7 +57,7 @@ func getNodeKey(r interface{}) (string, error) {
 
 // authenticatedUser wraps an endpoint, requires that the Fleet user is
 // authenticated, and populates the context with a Viewer struct for that user.
-func authenticatedUser(jwtKey string, svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		// first check if already successfully set
 		if _, ok := viewer.FromContext(ctx); ok {
@@ -68,12 +65,12 @@ func authenticatedUser(jwtKey string, svc fleet.Service, next endpoint.Endpoint)
 		}
 
 		// if not succesful, try again this time with errors
-		bearer, ok := token.FromContext(ctx)
+		sessionKey, ok := token.FromContext(ctx)
 		if !ok {
 			return nil, fleet.NewAuthRequiredError("no auth token")
 		}
 
-		v, err := authViewer(ctx, jwtKey, bearer, svc)
+		v, err := authViewer(ctx, string(sessionKey), svc)
 		if err != nil {
 			return nil, err
 		}
@@ -83,32 +80,8 @@ func authenticatedUser(jwtKey string, svc fleet.Service, next endpoint.Endpoint)
 	}
 }
 
-// authViewer creates an authenticated viewer by validating a JWT token.
-func authViewer(ctx context.Context, jwtKey string, bearerToken token.Token, svc fleet.Service) (*viewer.Viewer, error) {
-	jwtToken, err := jwt.Parse(string(bearerToken), func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(jwtKey), nil
-	})
-	if err != nil {
-		return nil, fleet.NewAuthRequiredError(err.Error())
-	}
-	if !jwtToken.Valid {
-		return nil, fleet.NewAuthRequiredError("invalid jwt token")
-	}
-	claims, ok := jwtToken.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, fleet.NewAuthRequiredError("no jwt claims")
-	}
-	sessionKeyClaim, ok := claims["session_key"]
-	if !ok {
-		return nil, fleet.NewAuthRequiredError("no session_key in JWT claims")
-	}
-	sessionKey, ok := sessionKeyClaim.(string)
-	if !ok {
-		return nil, fleet.NewAuthRequiredError("non-string key in sessionClaim")
-	}
+// authViewer creates an authenticated viewer by validating the session key.
+func authViewer(ctx context.Context, sessionKey string, svc fleet.Service) (*viewer.Viewer, error) {
 	session, err := svc.GetSessionByKey(ctx, sessionKey)
 	if err != nil {
 		return nil, fleet.NewAuthRequiredError(err.Error())

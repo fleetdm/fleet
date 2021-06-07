@@ -29,10 +29,9 @@ The Fleet server allows you persist configuration, manage users, etc. Thus, it n
 
 > Fleet does not support Redis Cluster or Redis Sentinel. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
 
-Since Fleet is a web application, when you run Fleet there are some other configurations that are worth defining, such as:
+Since Fleet is a web application, when you run Fleet there are some other configurations that must be defined, such as:
 
 - The TLS certificates that Fleet should use to terminate TLS.
-- The [JWT](https://jwt.io/) Key which is used to sign and verify session tokens.
 
 When deploying Fleet, mitigate DoS attacks as you would when deploying any app.
 
@@ -73,8 +72,7 @@ For example, all of the following ways of launching Fleet are equivalent:
 --redis_address=127.0.0.1:6379 \
 --server_cert=/tmp/server.cert \
 --server_key=/tmp/server.key \
---logging_json \
---auth_jwt_key=changeme
+--logging_json
 ```
 
 ##### Using only environment variables
@@ -88,7 +86,6 @@ FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
 FLEET_SERVER_CERT=/tmp/server.cert \
 FLEET_SERVER_KEY=/tmp/server.key \
 FLEET_LOGGING_JSON=true \
-FLEET_AUTH_JWT_KEY=changeme \
 /usr/bin/fleet serve
 ```
 
@@ -108,8 +105,6 @@ server:
   key: /tmp/server.key
 logging:
   json: true
-auth:
-  jwt_key: changeme
 ' > /tmp/fleet.yml
 fleet serve --config /tmp/fleet.yml
 ```
@@ -450,32 +445,6 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   ```
 
 ##### Auth
-
-###### `auth_jwt_key`
-
-The [JWT](https://jwt.io/) key to use when signing and validating session keys. If this value is not specified the Fleet server will fail to start and a randomly generated key will be provided for use.
-
-- Default value: None
-- Environment variable: `FLEET_AUTH_JWT_KEY`
-- Config file format:
-
-  ```
-  auth:
-  	jwt_key: JVnKw7CaUdJjZwYAqDgUHVYP
-  ```
-
-##### `auth_jwt_key_path`
-
-File path to a file that contains the [JWT](https://jwt.io/) key to use when signing and validating session keys.
-
-- Default value: `""`
-- Environment variable: `FLEET_AUTH_JWT_KEY_PATH`
-- Config file format:
-
-  ```
-  auth:
-  	jwt_key_path: '/run/secrets/fleetdm-jwt-token'
-  ```
 
 ##### `auth_bcrypt_cost`
 
@@ -1273,7 +1242,6 @@ ExecStart=/usr/local/bin/fleet serve \
   --redis_address=127.0.0.1:6379 \
   --server_cert=/tmp/server.cert \
   --server_key=/tmp/server.key \
-  --auth_jwt_key=this_string_is_not_secure_replace_it \
   --logging_json
 
 [Install]

@@ -121,7 +121,7 @@ type FleetEndpoints struct {
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
-func MakeFleetServerEndpoints(svc fleet.Service, jwtKey, urlPrefix string, limitStore throttled.GCRAStore) FleetEndpoints {
+func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore) FleetEndpoints {
 	limiter := ratelimit.NewMiddleware(limitStore)
 
 	return FleetEndpoints{
@@ -148,93 +148,93 @@ func MakeFleetServerEndpoints(svc fleet.Service, jwtKey, urlPrefix string, limit
 		// stricter/different checks and should NOT also use
 		// canPerformActions (these other checks should also call
 		// canPerformActions if that is appropriate).
-		Me:                   authenticatedUser(jwtKey, svc, canPerformActions(makeGetSessionUserEndpoint(svc))),
-		ChangePassword:       authenticatedUser(jwtKey, svc, canPerformActions(makeChangePasswordEndpoint(svc))),
-		GetUser:              authenticatedUser(jwtKey, svc, canReadUser(makeGetUserEndpoint(svc))),
-		ListUsers:            authenticatedUser(jwtKey, svc, canPerformActions(makeListUsersEndpoint(svc))),
-		ModifyUser:           authenticatedUser(jwtKey, svc, canModifyUser(makeModifyUserEndpoint(svc))),
-		DeleteUser:           authenticatedUser(jwtKey, svc, canModifyUser(makeDeleteUserEndpoint(svc))),
-		RequirePasswordReset: authenticatedUser(jwtKey, svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
-		CreateUser:           authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateUserEndpoint(svc))),
+		Me:                   authenticatedUser(svc, canPerformActions(makeGetSessionUserEndpoint(svc))),
+		ChangePassword:       authenticatedUser(svc, canPerformActions(makeChangePasswordEndpoint(svc))),
+		GetUser:              authenticatedUser(svc, canReadUser(makeGetUserEndpoint(svc))),
+		ListUsers:            authenticatedUser(svc, canPerformActions(makeListUsersEndpoint(svc))),
+		ModifyUser:           authenticatedUser(svc, canModifyUser(makeModifyUserEndpoint(svc))),
+		DeleteUser:           authenticatedUser(svc, canModifyUser(makeDeleteUserEndpoint(svc))),
+		RequirePasswordReset: authenticatedUser(svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
+		CreateUser:           authenticatedUser(svc, mustBeAdmin(makeCreateUserEndpoint(svc))),
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
-		PerformRequiredPasswordReset:          authenticatedUser(jwtKey, svc, canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
-		GetSessionsForUserInfo:                authenticatedUser(jwtKey, svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
-		DeleteSessionsForUser:                 authenticatedUser(jwtKey, svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
-		GetSessionInfo:                        authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
-		DeleteSession:                         authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteSessionEndpoint(svc))),
-		GetAppConfig:                          authenticatedUser(jwtKey, svc, canPerformActions(makeGetAppConfigEndpoint(svc))),
-		ModifyAppConfig:                       authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyAppConfigEndpoint(svc))),
-		ApplyEnrollSecretSpec:                 authenticatedUser(jwtKey, svc, mustBeAdmin(makeApplyEnrollSecretSpecEndpoint(svc))),
-		GetEnrollSecretSpec:                   authenticatedUser(jwtKey, svc, canPerformActions(makeGetEnrollSecretSpecEndpoint(svc))),
-		CreateInvite:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
-		ListInvites:                           authenticatedUser(jwtKey, svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
-		DeleteInvite:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),
-		GetQuery:                              authenticatedUser(jwtKey, svc, makeGetQueryEndpoint(svc)),
-		ListQueries:                           authenticatedUser(jwtKey, svc, makeListQueriesEndpoint(svc)),
-		CreateQuery:                           authenticatedUser(jwtKey, svc, makeCreateQueryEndpoint(svc)),
-		ModifyQuery:                           authenticatedUser(jwtKey, svc, makeModifyQueryEndpoint(svc)),
-		DeleteQuery:                           authenticatedUser(jwtKey, svc, makeDeleteQueryEndpoint(svc)),
-		DeleteQueryByID:                       authenticatedUser(jwtKey, svc, makeDeleteQueryByIDEndpoint(svc)),
-		DeleteQueries:                         authenticatedUser(jwtKey, svc, makeDeleteQueriesEndpoint(svc)),
-		ApplyQuerySpecs:                       authenticatedUser(jwtKey, svc, makeApplyQuerySpecsEndpoint(svc)),
-		GetQuerySpecs:                         authenticatedUser(jwtKey, svc, makeGetQuerySpecsEndpoint(svc)),
-		GetQuerySpec:                          authenticatedUser(jwtKey, svc, makeGetQuerySpecEndpoint(svc)),
-		CreateDistributedQueryCampaign:        authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
-		CreateDistributedQueryCampaignByNames: authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		CreatePack:                            authenticatedUser(jwtKey, svc, makeCreatePackEndpoint(svc)),
-		ModifyPack:                            authenticatedUser(jwtKey, svc, makeModifyPackEndpoint(svc)),
-		GetPack:                               authenticatedUser(jwtKey, svc, makeGetPackEndpoint(svc)),
-		ListPacks:                             authenticatedUser(jwtKey, svc, makeListPacksEndpoint(svc)),
-		DeletePack:                            authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
-		DeletePackByID:                        authenticatedUser(jwtKey, svc, makeDeletePackByIDEndpoint(svc)),
-		GetScheduledQueriesInPack:             authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
-		ScheduleQuery:                         authenticatedUser(jwtKey, svc, makeScheduleQueryEndpoint(svc)),
-		GetScheduledQuery:                     authenticatedUser(jwtKey, svc, makeGetScheduledQueryEndpoint(svc)),
-		ModifyScheduledQuery:                  authenticatedUser(jwtKey, svc, makeModifyScheduledQueryEndpoint(svc)),
-		DeleteScheduledQuery:                  authenticatedUser(jwtKey, svc, makeDeleteScheduledQueryEndpoint(svc)),
-		ApplyPackSpecs:                        authenticatedUser(jwtKey, svc, makeApplyPackSpecsEndpoint(svc)),
-		GetPackSpecs:                          authenticatedUser(jwtKey, svc, makeGetPackSpecsEndpoint(svc)),
-		GetPackSpec:                           authenticatedUser(jwtKey, svc, makeGetPackSpecEndpoint(svc)),
-		GetHost:                               authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
-		HostByIdentifier:                      authenticatedUser(jwtKey, svc, makeHostByIdentifierEndpoint(svc)),
-		ListHosts:                             authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
-		GetHostSummary:                        authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
-		DeleteHost:                            authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
-		AddHostsToTeam:                        authenticatedUser(jwtKey, svc, makeAddHostsToTeamEndpoint(svc)),
-		AddHostsToTeamByFilter:                authenticatedUser(jwtKey, svc, makeAddHostsToTeamByFilterEndpoint(svc)),
-		RefetchHost:                           authenticatedUser(jwtKey, svc, makeRefetchHostEndpoint(svc)),
-		CreateLabel:                           authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
-		ModifyLabel:                           authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
-		GetLabel:                              authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
-		ListLabels:                            authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
-		ListHostsInLabel:                      authenticatedUser(jwtKey, svc, makeListHostsInLabelEndpoint(svc)),
-		DeleteLabel:                           authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
-		DeleteLabelByID:                       authenticatedUser(jwtKey, svc, makeDeleteLabelByIDEndpoint(svc)),
-		ApplyLabelSpecs:                       authenticatedUser(jwtKey, svc, makeApplyLabelSpecsEndpoint(svc)),
-		GetLabelSpecs:                         authenticatedUser(jwtKey, svc, makeGetLabelSpecsEndpoint(svc)),
-		GetLabelSpec:                          authenticatedUser(jwtKey, svc, makeGetLabelSpecEndpoint(svc)),
-		SearchTargets:                         authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
-		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
-		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
-		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
-		GetCarve:                              authenticatedUser(jwtKey, svc, makeGetCarveEndpoint(svc)),
-		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
-		Version:                               authenticatedUser(jwtKey, svc, makeVersionEndpoint(svc)),
+		PerformRequiredPasswordReset:          authenticatedUser(svc, canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
+		GetSessionsForUserInfo:                authenticatedUser(svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
+		DeleteSessionsForUser:                 authenticatedUser(svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
+		GetSessionInfo:                        authenticatedUser(svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
+		DeleteSession:                         authenticatedUser(svc, mustBeAdmin(makeDeleteSessionEndpoint(svc))),
+		GetAppConfig:                          authenticatedUser(svc, canPerformActions(makeGetAppConfigEndpoint(svc))),
+		ModifyAppConfig:                       authenticatedUser(svc, mustBeAdmin(makeModifyAppConfigEndpoint(svc))),
+		ApplyEnrollSecretSpec:                 authenticatedUser(svc, mustBeAdmin(makeApplyEnrollSecretSpecEndpoint(svc))),
+		GetEnrollSecretSpec:                   authenticatedUser(svc, canPerformActions(makeGetEnrollSecretSpecEndpoint(svc))),
+		CreateInvite:                          authenticatedUser(svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
+		ListInvites:                           authenticatedUser(svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
+		DeleteInvite:                          authenticatedUser(svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),
+		GetQuery:                              authenticatedUser(svc, makeGetQueryEndpoint(svc)),
+		ListQueries:                           authenticatedUser(svc, makeListQueriesEndpoint(svc)),
+		CreateQuery:                           authenticatedUser(svc, makeCreateQueryEndpoint(svc)),
+		ModifyQuery:                           authenticatedUser(svc, makeModifyQueryEndpoint(svc)),
+		DeleteQuery:                           authenticatedUser(svc, makeDeleteQueryEndpoint(svc)),
+		DeleteQueryByID:                       authenticatedUser(svc, makeDeleteQueryByIDEndpoint(svc)),
+		DeleteQueries:                         authenticatedUser(svc, makeDeleteQueriesEndpoint(svc)),
+		ApplyQuerySpecs:                       authenticatedUser(svc, makeApplyQuerySpecsEndpoint(svc)),
+		GetQuerySpecs:                         authenticatedUser(svc, makeGetQuerySpecsEndpoint(svc)),
+		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
+		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
+		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
+		CreatePack:                            authenticatedUser(svc, makeCreatePackEndpoint(svc)),
+		ModifyPack:                            authenticatedUser(svc, makeModifyPackEndpoint(svc)),
+		GetPack:                               authenticatedUser(svc, makeGetPackEndpoint(svc)),
+		ListPacks:                             authenticatedUser(svc, makeListPacksEndpoint(svc)),
+		DeletePack:                            authenticatedUser(svc, makeDeletePackEndpoint(svc)),
+		DeletePackByID:                        authenticatedUser(svc, makeDeletePackByIDEndpoint(svc)),
+		GetScheduledQueriesInPack:             authenticatedUser(svc, makeGetScheduledQueriesInPackEndpoint(svc)),
+		ScheduleQuery:                         authenticatedUser(svc, makeScheduleQueryEndpoint(svc)),
+		GetScheduledQuery:                     authenticatedUser(svc, makeGetScheduledQueryEndpoint(svc)),
+		ModifyScheduledQuery:                  authenticatedUser(svc, makeModifyScheduledQueryEndpoint(svc)),
+		DeleteScheduledQuery:                  authenticatedUser(svc, makeDeleteScheduledQueryEndpoint(svc)),
+		ApplyPackSpecs:                        authenticatedUser(svc, makeApplyPackSpecsEndpoint(svc)),
+		GetPackSpecs:                          authenticatedUser(svc, makeGetPackSpecsEndpoint(svc)),
+		GetPackSpec:                           authenticatedUser(svc, makeGetPackSpecEndpoint(svc)),
+		GetHost:                               authenticatedUser(svc, makeGetHostEndpoint(svc)),
+		HostByIdentifier:                      authenticatedUser(svc, makeHostByIdentifierEndpoint(svc)),
+		ListHosts:                             authenticatedUser(svc, makeListHostsEndpoint(svc)),
+		GetHostSummary:                        authenticatedUser(svc, makeGetHostSummaryEndpoint(svc)),
+		DeleteHost:                            authenticatedUser(svc, makeDeleteHostEndpoint(svc)),
+		AddHostsToTeam:                        authenticatedUser(svc, makeAddHostsToTeamEndpoint(svc)),
+		AddHostsToTeamByFilter:                authenticatedUser(svc, makeAddHostsToTeamByFilterEndpoint(svc)),
+		RefetchHost:                           authenticatedUser(svc, makeRefetchHostEndpoint(svc)),
+		CreateLabel:                           authenticatedUser(svc, makeCreateLabelEndpoint(svc)),
+		ModifyLabel:                           authenticatedUser(svc, makeModifyLabelEndpoint(svc)),
+		GetLabel:                              authenticatedUser(svc, makeGetLabelEndpoint(svc)),
+		ListLabels:                            authenticatedUser(svc, makeListLabelsEndpoint(svc)),
+		ListHostsInLabel:                      authenticatedUser(svc, makeListHostsInLabelEndpoint(svc)),
+		DeleteLabel:                           authenticatedUser(svc, makeDeleteLabelEndpoint(svc)),
+		DeleteLabelByID:                       authenticatedUser(svc, makeDeleteLabelByIDEndpoint(svc)),
+		ApplyLabelSpecs:                       authenticatedUser(svc, makeApplyLabelSpecsEndpoint(svc)),
+		GetLabelSpecs:                         authenticatedUser(svc, makeGetLabelSpecsEndpoint(svc)),
+		GetLabelSpec:                          authenticatedUser(svc, makeGetLabelSpecEndpoint(svc)),
+		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
+		GetCertificate:                        authenticatedUser(svc, makeCertificateEndpoint(svc)),
+		ChangeEmail:                           authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
+		ListCarves:                            authenticatedUser(svc, makeListCarvesEndpoint(svc)),
+		GetCarve:                              authenticatedUser(svc, makeGetCarveEndpoint(svc)),
+		GetCarveBlock:                         authenticatedUser(svc, makeGetCarveBlockEndpoint(svc)),
+		Version:                               authenticatedUser(svc, makeVersionEndpoint(svc)),
 		// TODO permissions for teams endpoints
-		CreateTeam:             authenticatedUser(jwtKey, svc, makeCreateTeamEndpoint(svc)),
-		ModifyTeam:             authenticatedUser(jwtKey, svc, makeModifyTeamEndpoint(svc)),
-		ModifyTeamAgentOptions: authenticatedUser(jwtKey, svc, makeModifyTeamAgentOptionsEndpoint(svc)),
-		DeleteTeam:             authenticatedUser(jwtKey, svc, makeDeleteTeamEndpoint(svc)),
-		ListTeams:              authenticatedUser(jwtKey, svc, makeListTeamsEndpoint(svc)),
-		ListTeamUsers:          authenticatedUser(jwtKey, svc, makeListTeamUsersEndpoint(svc)),
-		AddTeamUsers:           authenticatedUser(jwtKey, svc, makeAddTeamUsersEndpoint(svc)),
-		DeleteTeamUsers:        authenticatedUser(jwtKey, svc, makeDeleteTeamUsersEndpoint(svc)),
-		TeamEnrollSecrets:      authenticatedUser(jwtKey, svc, makeTeamEnrollSecretsEndpoint(svc)),
+		CreateTeam:             authenticatedUser(svc, makeCreateTeamEndpoint(svc)),
+		ModifyTeam:             authenticatedUser(svc, makeModifyTeamEndpoint(svc)),
+		ModifyTeamAgentOptions: authenticatedUser(svc, makeModifyTeamAgentOptionsEndpoint(svc)),
+		DeleteTeam:             authenticatedUser(svc, makeDeleteTeamEndpoint(svc)),
+		ListTeams:              authenticatedUser(svc, makeListTeamsEndpoint(svc)),
+		ListTeamUsers:          authenticatedUser(svc, makeListTeamUsersEndpoint(svc)),
+		AddTeamUsers:           authenticatedUser(svc, makeAddTeamUsersEndpoint(svc)),
+		DeleteTeamUsers:        authenticatedUser(svc, makeDeleteTeamUsersEndpoint(svc)),
+		TeamEnrollSecrets:      authenticatedUser(svc, makeTeamEnrollSecretsEndpoint(svc)),
 
 		// Authenticated status endpoints
-		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
-		StatusLiveQuery:   authenticatedUser(jwtKey, svc, makeStatusLiveQueryEndpoint(svc)),
+		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
+		StatusLiveQuery:   authenticatedUser(svc, makeStatusLiveQueryEndpoint(svc)),
 
 		// Osquery endpoints
 		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
@@ -490,7 +490,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
-			setRequestsContexts(svc, config.Auth.JwtKey),
+			setRequestsContexts(svc),
 		),
 		//kithttp.ServerErrorLogger(logger),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
@@ -500,7 +500,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 		),
 	}
 
-	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Auth.JwtKey, config.Server.URLPrefix, limitStore)
+	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Server.URLPrefix, limitStore)
 	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
 
 	r := mux.NewRouter()
@@ -509,10 +509,10 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 
 	// Results endpoint is handled different due to websockets use
 	r.PathPrefix("/api/v1/fleet/results/").
-		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, config.Auth.JwtKey, logger)).
+		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
 		Name("distributed_query_results")
 	r.PathPrefix("/api/v1/fleet/results/").
-		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, config.Auth.JwtKey, logger)).
+		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
 		Name("distributed_query_results")
 
 	addMetrics(r)

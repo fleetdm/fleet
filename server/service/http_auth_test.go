@@ -33,7 +33,7 @@ func TestLogin(t *testing.T) {
 
 	opts := []kithttp.ServerOption{
 		kithttp.ServerBefore(
-			setRequestsContexts(svc, "CHANGEME"),
+			setRequestsContexts(svc),
 		),
 		kithttp.ServerErrorLogger(logger),
 		kithttp.ServerAfter(
@@ -42,7 +42,7 @@ func TestLogin(t *testing.T) {
 	}
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)
-	ke := MakeFleetServerEndpoints(svc, "CHANGEME", "", limitStore)
+	ke := MakeFleetServerEndpoints(svc, "", limitStore)
 	kh := makeKitHandlers(ke, opts)
 	attachFleetAPIRoutes(r, kh)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
