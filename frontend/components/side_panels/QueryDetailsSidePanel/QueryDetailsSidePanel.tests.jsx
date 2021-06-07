@@ -26,7 +26,7 @@ describe("QueryDetailsSidePanel - component", () => {
         currentUser={userStub}
       />
     );
-    const aceEditor = component.find("KolideAce");
+    const aceEditor = component.find("FleetAce");
 
     expect(aceEditor.length).toEqual(1);
     expect(aceEditor.prop("value")).toEqual(queryStub.query);

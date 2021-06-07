@@ -1,4 +1,4 @@
-.kolide-ace {
+.fleet-ace {
   &__label {
     font-size: $x-small;
     font-weight: $bold;
@@ -14,7 +14,7 @@
 
   &__wrapper {
     &--error {
-      .ace-kolide {
+      .ace-fleet {
         border: 1px solid $ui-error;
       }
     }

@@ -2,7 +2,7 @@
 import { osqueryTableNames } from "utilities/osquery_tables";
 
 ace.define(
-  "ace/mode/kolide_highlight_rules",
+  "ace/mode/fleet_highlight_rules",
   [
     "require",
     "exports",
@@ -16,7 +16,7 @@ ace.define(
     var oop = acequire("../lib/oop");
     var SqlHighlightRules = acequire("./sql_highlight_rules").SqlHighlightRules;
 
-    var KolideHighlightRules = function () {
+    var FleetHighlightRules = function () {
       var keywords =
         "select|insert|update|delete|from|where|and|or|group|by|order|limit|offset|having|as|case|" +
         "when|else|end|type|left|right|join|on|outer|desc|asc|union|create|table|primary|key|if|" +
@@ -96,21 +96,21 @@ ace.define(
       this.normalizeRules();
     };
 
-    oop.inherits(KolideHighlightRules, SqlHighlightRules);
+    oop.inherits(FleetHighlightRules, SqlHighlightRules);
 
-    exports.KolideHighlightRules = KolideHighlightRules;
+    exports.FleetHighlightRules = FleetHighlightRules;
   }
 );
 
 ace.define(
-  "ace/mode/kolide",
+  "ace/mode/fleet",
   [
     "require",
     "exports",
     "module",
     "ace/lib/oop",
     "ace/mode/sql",
-    "ace/mode/kolide_highlight_rules",
+    "ace/mode/fleet_highlight_rules",
     "ace/range",
   ],
   function (acequire, exports, module) {
@@ -118,19 +118,19 @@ ace.define(
 
     var oop = acequire("../lib/oop");
     var TextMode = acequire("./sql").Mode;
-    var KolideHighlightRules = acequire("./kolide_highlight_rules")
-      .KolideHighlightRules;
+    var FleetHighlightRules = acequire("./fleet_highlight_rules")
+      .FleetHighlightRules;
     var Range = acequire("../range").Range;
 
     var Mode = function () {
-      this.HighlightRules = KolideHighlightRules;
+      this.HighlightRules = FleetHighlightRules;
     };
     oop.inherits(Mode, TextMode);
 
     (function () {
       this.lineCommentStart = "--";
 
-      this.$id = "ace/mode/kolide";
+      this.$id = "ace/mode/fleet";
     }.call(Mode.prototype));
 
     exports.Mode = Mode;

@@ -8,7 +8,7 @@ import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import helpers from "components/forms/queries/QueryForm/helpers";
 import InputField from "components/forms/fields/InputField";
-import KolideAce from "components/KolideAce";
+import FleetAce from "components/FleetAce";
 import queryInterface from "interfaces/query";
 import validateQuery from "components/forms/validators/validate_query";
 
@@ -165,7 +165,7 @@ class QueryForm extends Component {
             label="Query name"
           />
         )}
-        <KolideAce
+        <FleetAce
           {...fields.query}
           error={fields.query.error || errors.query}
           label="SQL"

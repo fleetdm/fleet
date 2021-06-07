@@ -9,9 +9,9 @@ import "brace/ext/language_tools";
 import "./mode";
 import "./theme";
 
-const baseClass = "kolide-ace";
+const baseClass = "fleet-ace";
 
-class KolideAce extends Component {
+class FleetAce extends Component {
   static propTypes = {
     error: PropTypes.string,
     fontSize: PropTypes.number,
@@ -116,4 +116,4 @@ class KolideAce extends Component {
   }
 }
 
-export default KolideAce;
+export default FleetAce;
