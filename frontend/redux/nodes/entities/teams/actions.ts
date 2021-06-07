@@ -2,7 +2,7 @@ import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import Kolide from "kolide";
+import Fleet from "fleet";
 // @ts-ignore
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import {
@@ -38,7 +38,7 @@ export const addMembers = (
 ): any => {
   return (dispatch: any) => {
     dispatch(loadRequest());
-    return Kolide.teams
+    return Fleet.teams
       .addMembers(teamId, newMembers)
       .then((res: { team: ITeam }) => {
         return dispatch(successAction(res.team, updateSuccess));
@@ -57,7 +57,7 @@ export const removeMembers = (
 ) => {
   return (dispatch: any) => {
     dispatch(loadRequest());
-    return Kolide.teams
+    return Fleet.teams
       .removeMembers(teamId, removedMembers)
       .then((res: { team: ITeam }) => {
         return dispatch(successAction(res.team, updateSuccess));
@@ -73,7 +73,7 @@ export const removeMembers = (
 export const transferHosts = (teamId: number, hostIds: number[]): any => {
   return (dispatch: any) => {
     dispatch(loadRequest()); // TODO: ensure works when API is implemented
-    return Kolide.teams
+    return Fleet.teams
       .transferHosts(teamId, hostIds)
       .then((res: { team: ITeam }) => {
         return dispatch(successAction(res.team, updateSuccess));
@@ -96,7 +96,7 @@ export const getEnrollSecrets = (team?: ITeam | null): any => {
   }
 
   return (dispatch: any) => {
-    return Kolide.teams
+    return Fleet.teams
       .getEnrollSecrets(team.id)
       .then((secrets: IEnrollSecret[]) => {
         return dispatch(enrollSecretSuccess(secrets));

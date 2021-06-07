@@ -16,7 +16,7 @@ import {
   humanHostUptime,
   humanHostLastSeen,
   humanHostDetailUpdated,
-} from "kolide/helpers";
+} from "fleet/helpers";
 import { IConfig } from "interfaces/config";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";

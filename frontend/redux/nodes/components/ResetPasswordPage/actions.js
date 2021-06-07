@@ -1,5 +1,5 @@
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
-import Kolide from "kolide";
+import Fleet from "fleet";
 
 export const CLEAR_RESET_PASSWORD_ERRORS = "CLEAR_RESET_PASSWORD_ERRORS";
 export const RESET_PASSWORD_ERROR = "RESET_PASSWORD_ERROR";
@@ -23,7 +23,7 @@ export const resetPassword = (formData) => {
   return (dispatch) => {
     dispatch(resetPasswordRequest);
 
-    return Kolide.users
+    return Fleet.users
       .resetPassword(formData)
       .then(() => {
         return dispatch(resetPasswordSuccess);

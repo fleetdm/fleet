@@ -4,7 +4,7 @@ import { noop } from "lodash";
 import AceEditor from "react-ace";
 import classnames from "classnames";
 
-import { humanHostMemory } from "kolide/helpers";
+import { humanHostMemory } from "fleet/helpers";
 import KolideIcon from "components/icons/KolideIcon";
 import PlatformIcon from "components/icons/PlatformIcon";
 import targetInterface from "interfaces/target";

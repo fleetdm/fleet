@@ -4,7 +4,7 @@ import {
   requirePasswordResetSuccess,
 } from "./actions";
 
-const user = { id: 1, email: "zwass@kolide.co", force_password_reset: false };
+const user = { id: 1, email: "zwass@Fleet.co", force_password_reset: false };
 
 describe("Users - reducer", () => {
   describe("require password reset", () => {

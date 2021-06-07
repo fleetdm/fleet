@@ -1,16 +1,16 @@
-import helpers from "kolide/helpers";
-import Kolide from "kolide";
+import helpers from "fleet/helpers";
+import Fleet from "fleet";
 import Config from "redux/nodes/entities/base/config";
 import schemas from "redux/nodes/entities/base/schemas";
 
 const { SCHEDULED_QUERIES: schema } = schemas;
 
 export default new Config({
-  createFunc: Kolide.scheduledQueries.create,
-  destroyFunc: Kolide.scheduledQueries.destroy,
+  createFunc: Fleet.scheduledQueries.create,
+  destroyFunc: Fleet.scheduledQueries.destroy,
   entityName: "scheduled_queries",
-  loadAllFunc: Kolide.scheduledQueries.loadAll,
+  loadAllFunc: Fleet.scheduledQueries.loadAll,
   parseEntityFunc: helpers.formatScheduledQueryForClient,
   schema,
-  updateFunc: Kolide.scheduledQueries.update,
+  updateFunc: Fleet.scheduledQueries.update,
 });
