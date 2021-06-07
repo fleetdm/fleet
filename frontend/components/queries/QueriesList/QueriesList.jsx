@@ -83,7 +83,13 @@ class QueriesList extends Component {
     return (
       <tr>
         <td colSpan={6}>
-          <p>No queries available. Try creating one.</p>
+          <p>
+            No queries available. Try creating one or get started by{" "}
+            <a href="https://fleetdm.com/queries" target="_blank">
+              importing standard queries
+            </a>
+            .
+          </p>
         </td>
       </tr>
     );
