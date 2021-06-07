@@ -29,6 +29,7 @@ module.exports = {
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO));
 
         let queriesWithProblematicRemediations = [];
+        let queriesWithProblematicContributors = [];
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
@@ -38,6 +39,12 @@ module.exports = {
           } else if (query.remediation === undefined) {
             query.remediation = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
           }
+
+          // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
+          if (!query.contributors || (query.contributors !== undefined && !_.isString(query.contributors)) || query.contributors.split(',').some((contributor) => contributor.match('^[^A-za-z0-9].*|[^A-Za-z0-9-]|.*[^A-za-z0-9]$'))) {
+            queriesWithProblematicContributors.push(query);
+          }
+
           return query;
         });
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
@@ -48,22 +55,9 @@ module.exports = {
         if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
           throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
         }//•
-
-        // Parse all queries to identify queries with problematic values for contributors.
-        const queriesWithProblematicContributors = queries.reduce((list, query) => {
-          if (!query.contributors || (query.contributors !== undefined && !_.isString(query.contributors))) {
-            list.push(query);
-            return list;
-          } else if (query.contributors.split(',').some((contributor) => contributor.match('^[^A-za-z0-9].*|[^A-Za-z0-9-]|.*[^A-za-z0-9]$'))) {
-            // GitHub Usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
-            list.push(query);
-          }
-          return list;
-        }, []);
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
         if (queriesWithProblematicContributors.length >= 1) {
-          // throw new Error('ERROR Failed parsing YAML for query library: The "contributors" of a query should either be absent (undefined) or a single string of valid GitHub user names (e.g. "zwass, noahtalerman, mikermcneil" rather than ["zwass", "noahtalerman", "mikermcneil"]).  But one or more queries have an invalid "contributors" value: ' + _.pluck(queriesWithProblematicContributors, 'slug').sort());
-          console.log('WARNING: Failed parsing YAML for query library: The "contributors" of a query should either be absent (undefined) or a single string of valid GitHub user names (e.g. "zwass, noahtalerman, mikermcneil" rather than ["zwass", "noahtalerman", "mikermcneil"]).  But one or more queries have an invalid "contributors" value: ' + _.pluck(queriesWithProblematicContributors, 'slug').sort());
+          throw new Error('Failed parsing YAML for query library: The "contributors" of a query should be a single string of valid GitHub user names (e.g. "zwass", or "zwass,noahtalerman,mikermcneil").  But one or more queries have an invalid "contributors" value: ' + _.pluck(queriesWithProblematicContributors, 'slug').sort());
         }//•
 
         // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
