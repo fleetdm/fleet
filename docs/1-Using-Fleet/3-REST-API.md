@@ -61,6 +61,7 @@ All of these objects are put together and distributed to the appropriate osquery
 - [Me](#me)
 - [SSO config](#sso-config)
 - [Initiate SSO](#initiate-sso)
+- [SSO callback](#sso-callback)
 
 All API requests to the Fleet server require API token authentication unless noted in the documentation.
 
@@ -397,6 +398,38 @@ Gets the current SSO configuration.
     }
   ]
 }
+```
+
+### SSO callback
+
+This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
+
+`POST /api/v1/fleet/sso/callback`
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                                 |
+| ------------ | ------ | ---- | ----------------------------------------------------------- |
+| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+
+#### Example
+
+`POST /api/v1/fleet/sso/callback`
+
+##### Request body
+
+```
+{
+  "SAMLResponse": "<SAML response from IdP>"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
 ```
 
 ---
@@ -1875,6 +1908,8 @@ None.
 - [Get queries specs](#get-queries-specs)
 - [Get query spec](#get-query-spec)
 - [Apply queries specs](#apply-queries-specs)
+- [Check live query status](#check-live-query-status)
+- [Check result store status](#check-result-store-status)
 - [Run live query](#run-live-query)
 - [Run live query by query name](#run-live-query-by-query-name)
 
@@ -2279,6 +2314,50 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
   ]
 }
 ```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Check live query status
+
+Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+
+`GET /api/v1/fleet/status/live_query`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/status/live_query`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Check result store status
+
+Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+
+`GET /api/v1/fleet/status/result_store`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/status/result_store`
 
 ##### Default response
 
