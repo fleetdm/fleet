@@ -60,70 +60,84 @@ module.exports = {
           throw new Error('Failed parsing YAML for query library: The "contributors" of a query should be a single string of valid GitHub user names (e.g. "zwass", or "zwass,noahtalerman,mikermcneil").  But one or more queries have an invalid "contributors" value: ' + _.pluck(queriesWithProblematicContributors, 'slug').sort());
         }//•
 
+        // Get a distinct list of all GitHub usernames from all of our queries.
         // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
-        const contributorsList = queries.reduce((list, query) => {
+        const githubUsernames = queries.reduce((list, query) => {
           if (!queriesWithProblematicContributors.find((element) => element.slug === query.slug)) {
             list = _.union(list, query.contributors.split(','));
           }
           return list;
         }, []);
 
-        let contributorsDictionary = await (async function () {
+        // Talk to GitHub and get additional information about each contributor.
+        let githubDataByUsername = {};
+        await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+          githubDataByUsername[username] = await sails.helpers.http.get('https://api.github.com/users/' + encodeURIComponent(username), {}, { 'User-Agent': 'Awesome-Octocat-App', Accept: 'application/vnd.github.v3+json' });
+        });//∞
 
-          // TODO replace with sails http helper
-          const _getGitHubUserData = async (gitHubHandle) => {
-            const url =
-              'https://api.github.com/users/' + encodeURIComponent(gitHubHandle);
-            const userData = await sails.helpers.http.get(url, {}, { 'User-Agent': 'Awesome-Octocat-App', Accept: 'application/vnd.github.v3+json' })
-              .catch((error) => console.log('ERROR: ', error));
-            return userData;
-          };
+        // Now expand queries with relevant of contributors.
+        for (let query of queries) {
+          // TODO
+          // if (query.contributors.split(',').includes(username)) {
+          //   query._mikesPlayground = githubProfileData;
+          // }
+        }//∞
 
-          // Create threads object with a thread for each user. Each thread is a promise that will resolve
-          // when the async call to the GitHub API resolves for that user.
-          const threads =  _.union(contributorsList).reduce((threads, userName) => {
-            threads[userName] = _getGitHubUserData(userName);
-            return threads;
-          }, {});
+        // let contributorsDictionary = await (async function () {
 
-          // Each thread resolves with a key-value pair where the key is the user's GitHub login (aka '"handle"') and the value
-          // is the deserialized JSON response returned by the GitHub API for that contributor.
-          const resolvedThreads = await Promise.all(
-            Object.keys(threads).map((key) =>
-              Promise.resolve(threads[key]).then((result) => {
-                return { [key]: result };
-              })
-            )
-          ).then((resultsArray) => {
-            return resultsArray.reduce((resolvedThreads, result) => {
-              Object.assign(resolvedThreads, result);
-              return resolvedThreads;
-            }, {});
-          });
+        //   // TODO replace with sails http helper
+        //   const _getGitHubUserData = async (gitHubHandle) => {
+        //     return await sails.helpers.http.get('https://api.github.com/users/' + encodeURIComponent(gitHubHandle), {}, {
+        //       'User-Agent': 'Awesome-Octocat-App',
+        //       Accept: 'application/vnd.github.v3+json'
+        //     });
+        //   };//ƒ
 
-          return resolvedThreads;
+        //   // Create threads object with a thread for each user. Each thread is a promise that will resolve
+        //   // when the async call to the GitHub API resolves for that user.
+        //   const threads =  _.union(githubUsernames).reduce((threads, userName) => {
+        //     threads[userName] = _getGitHubUserData(userName);
+        //     return threads;
+        //   }, {});
 
-        })();
+        //   // Each thread resolves with a key-value pair where the key is the user's GitHub login (aka '"handle"') and the value
+        //   // is the deserialized JSON response returned by the GitHub API for that contributor.
+        //   const resolvedThreads = await Promise.all(
+        //     Object.keys(threads).map((key) =>
+        //       Promise.resolve(threads[key]).then((result) => {
+        //         return { [key]: result };
+        //       })
+        //     )
+        //   ).then((resultsArray) => {
+        //     return resultsArray.reduce((resolvedThreads, result) => {
+        //       Object.assign(resolvedThreads, result);
+        //       return resolvedThreads;
+        //     }, {});
+        //   });
 
-        // Map all queries to replace the "contributors" string with an array of selected user profile information pulled from
-        // the contributorsDictionary for each contributor (or undefined if the value is not a string although any problematic
-        // queries should already have thrown an error above).
-        queries = queries.map((query) => {
-          if (!query.contributors || !_.isString(query.contributors)) {
-            return query;
-          }
-          query.contributors = query.contributors.split(',').map((userName) => {
-            const userData = contributorsDictionary[userName];
-            return {
-              name: _.startCase(userData.name),
-              handle: userData.login,
-              avatarUrl: userData.avatar_url,
-              htmlUrl: userData.html_url,
-            };
-          });
-          return query;
-        });//•
-        // console.log(queries.map((q) => q.contributors));
+        //   return resolvedThreads;
+
+        // })();
+
+        // // Map all queries to replace the "contributors" string with an array of selected user profile information pulled from
+        // // the contributorsDictionary for each contributor (or undefined if the value is not a string although any problematic
+        // // queries should already have thrown an error above).
+        // queries = queries.map((query) => {
+        //   if (!query.contributors || !_.isString(query.contributors)) {
+        //     return query;
+        //   }
+        //   query.contributors = query.contributors.split(',').map((userName) => {
+        //     const userData = contributorsDictionary[userName];
+        //     return {
+        //       name: _.startCase(userData.name),
+        //       handle: userData.login,
+        //       avatarUrl: userData.avatar_url,
+        //       htmlUrl: userData.html_url,
+        //     };
+        //   });
+        //   return query;
+        // });//•
+        // // console.log(queries.map((q) => q.contributors));
 
         // Attach to Sails app configuration.
         builtStaticContent.queries = queries;
