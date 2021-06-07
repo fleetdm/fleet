@@ -49,7 +49,7 @@ class YamlAce extends Component {
         <AceEditor
           className={baseClass}
           mode="yaml"
-          theme="kolide"
+          theme="fleet"
           width="100%"
           minLines={2}
           maxLines={17}
