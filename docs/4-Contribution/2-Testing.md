@@ -3,6 +3,7 @@
 - [License key](#license-key)
 - [Test suite](#test-suite)
 - [End-to-end tests](#end-to-end-tests)
+- [Test hosts](#test-hosts)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
 - [Teams seed data](#teams-seed-data)
@@ -193,6 +194,10 @@ CYPRESS_FLEET_TIER=basic yarn cypress run
 
 Tests will run automatically and results are reported to the shell.
 
+## Test hosts
+
+The Fleet repo includes tools to start test osquery hosts. Please see the documentation in [../../tools/osquery](/tools/osquery) for more information.
+
 ## Email
 
 #### Manually testing email with MailHog
@@ -244,7 +249,7 @@ Next, set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scr
 export FLEET_ENV_PATH=/Users/victor/fleet_env
 ```
 
-Finally run one of the bash scripts located in the [/tools/api](../../tools/api/README.md) directory. 
+Finally run one of the bash scripts located in the [/tools/api](../../tools/api/README.md) directory.
 
 The `fleet/create_core` script will generate an environment to roughly reflect an installation of Fleet Core. The script creates 3 users with different roles.
 
