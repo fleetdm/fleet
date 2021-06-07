@@ -23,15 +23,15 @@ typical directory structure for a component is as follows:
 |  |-- index.js
 ```
 
-* `_styles.scss`: The component css styles
-* `ComponentName.jsx`: The React component
-* `ComponentName.tests.jsx`: The React component tests
-* `helpers.js`: Helper functions used by the component
-* `helpers.tests.js`: Tests for the component's helper functions
-* `index.js`: Exports the React component
-  * This file is helpful as it allows other components to import the component
+- `_styles.scss`: The component css styles
+- `ComponentName.jsx`: The React component
+- `ComponentName.tests.jsx`: The React component tests
+- `helpers.js`: Helper functions used by the component
+- `helpers.tests.js`: Tests for the component's helper functions
+- `index.js`: Exports the React component
+  - This file is helpful as it allows other components to import the component
     by it's directory name. Without this file the component name would have to
-be duplicated during imports (`components/ComponentName` vs. `components/ComponentName/ComponentName`).
+    be duplicated during imports (`components/ComponentName` vs. `components/ComponentName/ComponentName`).
 
 ### [app_constants](./app_constants)
 
@@ -41,6 +41,7 @@ that require constants, the constants should be added here for accessibility
 throughout the application.
 
 ### [components](./components)
+
 The component directory contains the React components rendered by pages. They
 are typically not connected to the redux state but receive props from their
 parent components to render data and handle user interactions.
@@ -52,9 +53,9 @@ entity. This is designed to DRY up the code and increase re-usability. These
 interfaces are imported into component files and implemented when defining the
 component's PropTypes.
 
-### [kolide](./kolide)
+### [fleet](./fleet)
 
-The default export of the kolide directory is the API client. More info can be
+The default export of the `fleet` directory is the API client. More info can be
 found at the [API client documentation page](./fleet/README.md).
 
 ### [layouts](https://github.com/fleetdm/fleet/tree/master/frontend/layouts)
@@ -97,7 +98,7 @@ includes variables for the app color hex codes, fonts (families, weights and siz
 ### [templates](./templates)
 
 The templates directory contains the HTML file that renders the React application via including the `bundle.js`
- and `bundle.css` files. The HTML page also includes the HTML element in which the React application is mounted.
+and `bundle.css` files. The HTML page also includes the HTML element in which the React application is mounted.
 
 ### [test](./test)
 
