@@ -114,8 +114,7 @@ class ScheduledQueriesList extends Component {
               </li>
               <li>
                 <strong>
-                  <FleetIcon name="bold-plus" /> Differential (ignore
-                  removals):
+                  <FleetIcon name="bold-plus" /> Differential (ignore removals):
                 </strong>{" "}
                 show only what’s been added since the last run
               </li>
