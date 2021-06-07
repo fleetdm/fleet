@@ -260,7 +260,7 @@ func (man Manager) addConfigs() {
 	// Session
 	man.addConfigInt("session.key_size", 64,
 		"Size of generated session keys")
-	man.addConfigDuration("session.duration", 24*90*time.Hour,
+	man.addConfigDuration("session.duration", 4*time.Hour,
 		"Duration session keys remain valid (i.e. 24h)")
 
 	// Osquery

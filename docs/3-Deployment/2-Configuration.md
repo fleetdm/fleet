@@ -550,13 +550,13 @@ The size of the session key.
 
 The amount of time that a session should last for.
 
-- Default value: `90 days`
+- Default value: `4 hours`
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
 
   ```
   session:
-  	duration: 30d
+  	duration: 24h
   ```
 
 ##### Osquery
