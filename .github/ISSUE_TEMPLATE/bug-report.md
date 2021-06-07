@@ -7,9 +7,17 @@ assignees: ''
 
 ---
 
-**Fleet version** (Head to the "My account" page in the Fleet UI or run `fleetctl version`): 
+**Fleet version** (Head to the "My account" page in the Fleet UI or run `fleetctl version`):
+
+**Fleet tier** (Are you using the free (Fleet Core) or paid (Fleet Basic) tier?):
+
+**User role** (Which role are you assigned in Fleet? (Admin, Maintainer, or Observer)):
+> 3 roles are introduced in Fleet 4.0.0. If you're using a prior version of Fleet or don't know your assigned role, please feel free to leave this item blank.
+
 **Operating system** _(e.g. macOS 11.2.3)_: 
+
 **Web browser** _(e.g. Chrome 88.0.4324)_: 
+
 <hr/>
 
 ### 🧑‍💻  Expected behavior
