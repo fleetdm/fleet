@@ -86,7 +86,11 @@ class QueriesList extends Component {
         <td colSpan={6}>
           <p>
             No queries available. Try creating one or get started by{" "}
-            <a href="https://fleetdm.com/queries" target="_blank">
+            <a
+              href="https://fleetdm.com/queries"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               importing standard queries <FleetIcon name="external-link" />
             </a>
           </p>
