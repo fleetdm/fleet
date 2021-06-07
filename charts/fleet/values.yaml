@@ -133,8 +133,8 @@ mysql:
   # Name of the Secret resource containing MySQL password and TLS secrets
   secretName: mysql
   address: 127.0.0.1:3306
-  database: kolide
-  username: kolide
+  database: fleet
+  username: fleet
   passwordKey: mysql-password
   maxOpenConns: 50
   maxIdleConns: 50
