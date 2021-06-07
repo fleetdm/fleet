@@ -41,13 +41,13 @@ const FlashMessage = ({
         )}
       </div>
       <div className={`${baseClass}__action`}>
-        <Button
-          className={`${baseClass}__remove ${baseClass}__remove--${alertType}`}
-          variant="unstyled"
-          onClick={onRemoveFlash}
-        >
-          <FleetIcon name="x" />
-        </Button>
+        <div className={`${baseClass}__ex`}>
+          <Button
+            className={`${baseClass}__remove ${baseClass}__remove--${alertType}`}
+            variant="unstyled"
+            onClick={onRemoveFlash}
+          />
+        </div>
       </div>
     </div>
   );
