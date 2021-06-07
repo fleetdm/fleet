@@ -196,7 +196,7 @@ Tests will run automatically and results are reported to the shell.
 
 ## Test hosts
 
-The Fleet repo includes tools to start test osquery hosts. Please see the documentation in [../../tools/osquery](/tools/osquery) for more information.
+The Fleet repo includes tools to start test osquery hosts. Please see the documentation in [/tools/osquery](../../tools/osquery) for more information.
 
 ## Email
 
