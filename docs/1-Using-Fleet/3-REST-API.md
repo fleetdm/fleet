@@ -3345,14 +3345,17 @@ In Fleet, targets are used to run queries against specific hosts or groups of ho
 
 The search targets endpoint returns two lists. The first list includes the possible target hosts in Fleet given the search query provided and the hosts already selected as targets. The second list includes the possible target labels in Fleet given the search query provided and the labels already selected as targets.
 
+The returned lists are filtered based on the hosts the requesting user has access to.
+
 `POST /api/v1/fleet/targets`
 
 #### Parameters
 
-| Name     | Type   | In   | Description                                                                                                                                                        |
-| -------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| query    | string | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                           |
-| selected | object | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs and a `labels` property which contains a list of label IDs. |
+| Name             | Type    | In   | Description                                                                                                                                                        |
+| ---------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| query            | string  | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                           |
+| selected         | object  | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs and a `labels` property which contains a list of label IDs. |
+| include_observer | boolean | body | Whether to include hosts that the user only has `observer` permission on.                                                                                          |
 
 #### Example
 
@@ -3366,7 +3369,8 @@ The search targets endpoint returns two lists. The first list includes the possi
   "selected": {
     "hosts": [],
     "labels": [7]
-  }
+  },
+  "include_observer": true
 }
 ```
 
