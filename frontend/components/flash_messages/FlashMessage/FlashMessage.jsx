@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import classnames from "classnames";
 
 import notificationInterface from "interfaces/notification";
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 
 const baseClass = "flash-message";
@@ -29,7 +29,7 @@ const FlashMessage = ({
   return (
     <div className={klass}>
       <div className={`${baseClass}__content`}>
-        <KolideIcon name={alertIcon} /> <span>{message}</span>
+        <FleetIcon name={alertIcon} /> <span>{message}</span>
         {undoAction && (
           <Button
             className={`${baseClass}__undo`}
@@ -46,7 +46,7 @@ const FlashMessage = ({
           variant="unstyled"
           onClick={onRemoveFlash}
         >
-          <KolideIcon name="x" />
+          <FleetIcon name="x" />
         </Button>
       </div>
     </div>

@@ -135,7 +135,7 @@
       position: relative;
 
       &::after {
-        @extend %kolidecon;
+        @extend %fleeticon;
         content: "\f03c";
         font-size: 150px;
         position: absolute;

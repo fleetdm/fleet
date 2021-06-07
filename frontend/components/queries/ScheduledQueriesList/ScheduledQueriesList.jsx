@@ -4,7 +4,7 @@ import classnames from "classnames";
 import { includes, sortBy, size } from "lodash";
 
 import queryInterface from "interfaces/query";
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import QueriesListItem from "components/queries/ScheduledQueriesList/ScheduledQueriesListItem";
 import Checkbox from "components/forms/fields/Checkbox";
 
@@ -108,20 +108,20 @@ class ScheduledQueriesList extends Component {
             <ul>
               <li>
                 <strong>
-                  <KolideIcon name="plus-minus" /> Differential:
+                  <FleetIcon name="plus-minus" /> Differential:
                 </strong>{" "}
                 show only what’s added from last run
               </li>
               <li>
                 <strong>
-                  <KolideIcon name="bold-plus" /> Differential (ignore
+                  <FleetIcon name="bold-plus" /> Differential (ignore
                   removals):
                 </strong>{" "}
                 show only what’s been added since the last run
               </li>
               <li>
                 <strong>
-                  <KolideIcon name="camera" /> Snapshot:
+                  <FleetIcon name="camera" /> Snapshot:
                 </strong>{" "}
                 show everything in its current state
               </li>

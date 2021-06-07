@@ -33,7 +33,7 @@
     }
 
     &::after {
-      @extend %kolidecon;
+      @extend %fleeticon;
       @include size(24px);
       background-color: transparent;
       display: block;

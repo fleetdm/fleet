@@ -9,7 +9,7 @@ import teamInterface from "interfaces/team";
 import enrollSecretInterface from "interfaces/enroll_secret";
 import permissionUtils from "utilities/permissions";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import Dropdown from "components/forms/fields/Dropdown";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
@@ -157,7 +157,7 @@ class AddHostModal extends Component {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Add Hosts Documentation <KolideIcon name="external-link" />
+                Add Hosts Documentation <FleetIcon name="external-link" />
               </a>
             </h4>
           </div>

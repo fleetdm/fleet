@@ -1,378 +1,378 @@
-%kolidecon {
+%fleeticon {
   display: inline-block;
-  font: normal normal normal 14px/1 "kolidecons";
+  font: normal normal normal 14px/1 "fleeticons";
   font-size: inherit;
   text-rendering: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-[class^="kolidecon-"],
-[class*=" kolidecon-"],
-.kolidecon {
-  @extend %kolidecon;
+[class^="fleeticon-"],
+[class*=" fleeticon-"],
+.fleeticon {
+  @extend %fleeticon;
 }
 
-.kolidecon-lg {
+.fleeticon-lg {
   font-size: 1.33333333em;
   line-height: 0.75em;
   vertical-align: -15%;
 }
 
-.kolidecon-2x {
+.fleeticon-2x {
   font-size: 2em;
 }
 
-.kolidecon-3x {
+.fleeticon-3x {
   font-size: 3em;
 }
 
-.kolidecon-4x {
+.fleeticon-4x {
   font-size: 4em;
 }
 
-.kolidecon-5x {
+.fleeticon-5x {
   font-size: 5em;
 }
 
-.kolidecon-fw {
+.fleeticon-fw {
   width: 1.28571429em;
   text-align: center;
 }
 
-.kolidecon-kolide-logo-flat:before {
+.fleeticon-kolide-logo-flat:before {
   content: "\f000";
 }
 
-.kolidecon-chevrondown:before {
+.fleeticon-chevrondown:before {
   content: "\f004";
 }
 
-.kolidecon-chevronleft:before {
+.fleeticon-chevronleft:before {
   content: "\f006";
 }
 
-.kolidecon-chevronright:before {
+.fleeticon-chevronright:before {
   content: "\f008";
 }
 
-.kolidecon-chevronup:before {
+.fleeticon-chevronup:before {
   content: "\f00a";
 }
 
-.kolidecon-cpu:before {
+.fleeticon-cpu:before {
   content: "\f00c";
 }
 
-.kolidecon-downcarat:before {
+.fleeticon-downcarat:before {
   content: "\f00d";
 }
 
-.kolidecon-filter:before {
+.fleeticon-filter:before {
   content: "\f00f";
 }
 
-.kolidecon-mac:before {
+.fleeticon-mac:before {
   content: "\f012";
 }
 
-.kolidecon-memory:before {
+.fleeticon-memory:before {
   content: "\f013";
 }
 
-.kolidecon-storage:before {
+.fleeticon-storage:before {
   content: "\f019";
 }
 
-.kolidecon-upcarat:before {
+.fleeticon-upcarat:before {
   content: "\f01b";
 }
 
-.kolidecon-uptime:before {
+.fleeticon-uptime:before {
   content: "\f01c";
 }
 
-.kolidecon-world:before {
+.fleeticon-world:before {
   content: "\f01d";
 }
 
-.kolidecon-osquery:before {
+.fleeticon-osquery:before {
   content: "\f021";
 }
 
-.kolidecon-join:before {
+.fleeticon-join:before {
   content: "\f022";
 }
 
-.kolidecon-add-button:before {
+.fleeticon-add-button:before {
   content: "\f029";
 }
 
-.kolidecon-packs:before {
+.fleeticon-packs:before {
   content: "\f02f";
 }
 
-.kolidecon-help:before {
+.fleeticon-help:before {
   content: "\f030";
 }
 
-.kolidecon-admin:before {
+.fleeticon-admin:before {
   content: "\f031";
 }
 
-.kolidecon-config:before {
+.fleeticon-config:before {
   content: "\f032";
 }
 
-.kolidecon-mia:before {
+.fleeticon-mia:before {
   content: "\f034";
 }
 
-.kolidecon-success-check:before {
+.fleeticon-success-check:before {
   content: "\f035";
 }
 
-.kolidecon-offline:before {
+.fleeticon-offline:before {
   content: "\f036";
 }
 
-.kolidecon-windows-original:before {
+.fleeticon-windows-original:before {
   content: "\f037";
 }
 
-.kolidecon-centos-original:before {
+.fleeticon-centos-original:before {
   content: "\f038";
 }
 
-.kolidecon-ubuntu-original:before {
+.fleeticon-ubuntu-original:before {
   content: "\f039";
 }
 
-.kolidecon-apple-original:before {
+.fleeticon-apple-original:before {
   content: "\f03a";
 }
 
-.kolidecon-search:before {
+.fleeticon-search:before {
   content: "\f03b";
 }
 
-.kolidecon-all-hosts:before {
+.fleeticon-all-hosts:before {
   content: "\f03c";
 }
 
-.kolidecon-alerts:before {
+.fleeticon-alerts:before {
   content: "\f03e";
 }
 
-.kolidecon-logout:before {
+.fleeticon-logout:before {
   content: "\f03f";
 }
 
-.kolidecon-user-settings:before {
+.fleeticon-user-settings:before {
   content: "\f040";
 }
 
-.kolidecon-clipboard:before {
+.fleeticon-clipboard:before {
   content: "\f043";
 }
 
-.kolidecon-list-select:before {
+.fleeticon-list-select:before {
   content: "\f044";
 }
 
-.kolidecon-grid-select:before {
+.fleeticon-grid-select:before {
   content: "\f045";
 }
 
-.kolidecon-label:before {
+.fleeticon-label:before {
   content: "\f033";
 }
 
-.kolidecon-docker:before {
+.fleeticon-docker:before {
   content: "\f046";
 }
 
-.kolidecon-cloud:before {
+.fleeticon-cloud:before {
   content: "\f047";
 }
 
-.kolidecon-self-hosted:before {
+.fleeticon-self-hosted:before {
   content: "\f048";
 }
 
-.kolidecon-help-solid:before {
+.fleeticon-help-solid:before {
   content: "\f049";
 }
 
-.kolidecon-help-stroke:before {
+.fleeticon-help-stroke:before {
   content: "\f04a";
 }
 
-.kolidecon-warning-filled:before {
+.fleeticon-warning-filled:before {
   content: "\f04b";
 }
 
-.kolidecon-delete-cloud:before {
+.fleeticon-delete-cloud:before {
   content: "\f04c";
 }
 
-.kolidecon-pdf:before {
+.fleeticon-pdf:before {
   content: "\f04d";
 }
 
-.kolidecon-credit-card-small:before {
+.fleeticon-credit-card-small:before {
   content: "\f04e";
 }
 
-.kolidecon-billing-card:before {
+.fleeticon-billing-card:before {
   content: "\f04f";
 }
 
-.kolidecon-lock-big:before {
+.fleeticon-lock-big:before {
   content: "\f050";
 }
 
-.kolidecon-link-big:before {
+.fleeticon-link-big:before {
   content: "\f051";
 }
 
-.kolidecon-briefcase:before {
+.fleeticon-briefcase:before {
   content: "\f052";
 }
 
-.kolidecon-name-card:before {
+.fleeticon-name-card:before {
   content: "\f053";
 }
 
-.kolidecon-kolide-logo:before {
+.fleeticon-kolide-logo:before {
   content: "\f054";
 }
 
-.kolidecon-business:before {
+.fleeticon-business:before {
   content: "\f055";
 }
 
-.kolidecon-clock:before {
+.fleeticon-clock:before {
   content: "\f056";
 }
 
-.kolidecon-host-large:before {
+.fleeticon-host-large:before {
   content: "\f057";
 }
 
-.kolidecon-single-host:before {
+.fleeticon-single-host:before {
   content: "\f03d";
 }
 
-.kolidecon-username:before {
+.fleeticon-username:before {
   content: "\f02a";
 }
 
-.kolidecon-password:before {
+.fleeticon-password:before {
   content: "\f02b";
 }
 
-.kolidecon-email:before {
+.fleeticon-email:before {
   content: "\f02c";
 }
 
-.kolidecon-hosts:before {
+.fleeticon-hosts:before {
   content: "\f02e";
 }
 
-.kolidecon-query:before {
+.fleeticon-query:before {
   content: "\f02d";
 }
 
-.kolidecon-import:before {
+.fleeticon-import:before {
   content: "\f058";
 }
 
-.kolidecon-pencil:before {
+.fleeticon-pencil:before {
   content: "\f059";
 }
 
-.kolidecon-add-plus:before {
+.fleeticon-add-plus:before {
   content: "\f05a";
 }
 
-.kolidecon-x:before {
+.fleeticon-x:before {
   content: "\f05b";
 }
 
-.kolidecon-kill-kolide:before {
+.fleeticon-kill-kolide:before {
   content: "\f05c";
 }
 
-.kolidecon-right-arrow:before {
+.fleeticon-right-arrow:before {
   content: "\f05d";
 }
 
-.kolidecon-camera:before {
+.fleeticon-camera:before {
   content: "\f05e";
 }
 
-.kolidecon-plus-minus:before {
+.fleeticon-plus-minus:before {
   content: "\f05f";
 }
 
-.kolidecon-bold-plus:before {
+.fleeticon-bold-plus:before {
   content: "\f060";
 }
 
-.kolidecon-linux-original:before {
+.fleeticon-linux-original:before {
   content: "\f061";
 }
 
-.kolidecon-clock2:before {
+.fleeticon-clock2:before {
   content: "\f063";
 }
 
-.kolidecon-trash:before {
+.fleeticon-trash:before {
   content: "\f064";
 }
 
-.kolidecon-laptop-plus:before {
+.fleeticon-laptop-plus:before {
   content: "\f066";
 }
 
-.kolidecon-wrench-hand:before {
+.fleeticon-wrench-hand:before {
   content: "\f067";
 }
 
-.kolidecon-external-link:before {
+.fleeticon-external-link:before {
   content: "\f068";
 }
 
-.kolidecon-fullscreen:before {
+.fleeticon-fullscreen:before {
   content: "\f069";
 }
 
-.kolidecon-windowed:before {
+.fleeticon-windowed:before {
   content: "\f06a";
 }
 
-.kolidecon-heroku:before {
+.fleeticon-heroku:before {
   content: "\f06b";
 }
 
-.kolidecon-ubuntu:before {
+.fleeticon-ubuntu:before {
   content: "\f06c";
 }
 
-.kolidecon-windows:before {
+.fleeticon-windows:before {
   content: "\f06d";
 }
 
-.kolidecon-centos:before {
+.fleeticon-centos:before {
   content: "\f06e";
 }
 
-.kolidecon-apple:before {
+.fleeticon-apple:before {
   content: "\f06f";
 }
 
-.kolidecon-linux:before {
+.fleeticon-linux:before {
   content: "\f070";
 }
 

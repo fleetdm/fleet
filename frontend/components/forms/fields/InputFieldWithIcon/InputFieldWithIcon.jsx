@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import InputField from "../InputField";
 
 const baseClass = "input-icon-field";
@@ -90,7 +90,7 @@ class InputFieldWithIcon extends InputField {
           type={type}
           value={value}
         />
-        {iconName && <KolideIcon name={iconName} className={iconClasses} />}
+        {iconName && <FleetIcon name={iconName} className={iconClasses} />}
         {renderHint()}
       </div>
     );

@@ -23,7 +23,7 @@ describe("TargetOption - component", () => {
       />
     );
     expect(component.find(".is-host").length).toEqual(1);
-    expect(component.find("i.kolidecon-windows").length).toEqual(1);
+    expect(component.find("i.fleeticon-windows").length).toEqual(1);
     expect(component.text()).toContain(hostStub.primary_ip);
   });
 
