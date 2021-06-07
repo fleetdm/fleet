@@ -20,7 +20,7 @@ func TestAPIRoutes(t *testing.T) {
 
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)
-	ke := MakeFleetServerEndpoints(svc, "CHANGEME", "", limitStore)
+	ke := MakeFleetServerEndpoints(svc, "", limitStore)
 	kh := makeKitHandlers(ke, nil)
 	attachFleetAPIRoutes(r, kh)
 	handler := mux.NewRouter()
@@ -241,7 +241,7 @@ func TestAPIRoutes(t *testing.T) {
 
 // 	handler := MakeHandler(
 // 		svc,
-// 		config.FleetConfig{Auth: config.AuthConfig{JwtKey: "CHANGEME"}},
+// 		config.FleetConfig{},
 // 		log.NewNopLogger(),
 // 		limitStore,
 // 	)
@@ -312,8 +312,7 @@ func TestAPIRoutes(t *testing.T) {
 // 			recorder := httptest.NewRecorder()
 // 			path := fmt.Sprintf("/api/v1/fleet/users/%d", tt.TargetUserID)
 // 			request := httptest.NewRequest("PATCH", path, bytes.NewBufferString("{}"))
-// 			// Bearer token generated with session key CHANGEME on jwt.io
-// 			request.Header.Add("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXNzaW9uX2tleSI6ImZsb29wIn0.ukCPTFvgSJrXbHH2QeAMx3EKwoMh1OmhP3xXxy5I-Wk")
+// 			request.Header.Add("Authorization", "Bearer fake_session_token")
 
 // 			handler.ServeHTTP(recorder, request)
 // 			if tt.Authorized {

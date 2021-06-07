@@ -18,14 +18,14 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type createDistributedQueryCampaignRequest struct {
-	QuerySQL string             `json:"query"`
-	QueryID  *uint              `json:"query_id"`
+	QuerySQL string            `json:"query"`
+	QueryID  *uint             `json:"query_id"`
 	Selected fleet.HostTargets `json:"selected"`
 }
 
 type createDistributedQueryCampaignResponse struct {
 	Campaign *fleet.DistributedQueryCampaign `json:"campaign,omitempty"`
-	Err      error                            `json:"error,omitempty"`
+	Err      error                           `json:"error,omitempty"`
 }
 
 func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
@@ -71,7 +71,7 @@ func makeCreateDistributedQueryCampaignByNamesEndpoint(svc fleet.Service) endpoi
 // Stream Distributed Query Campaign Results and Metadata
 ////////////////////////////////////////////////////////////////////////////////
 
-func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, jwtKey string, logger kitlog.Logger) http.Handler {
+func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger kitlog.Logger) http.Handler {
 	opt := sockjs.DefaultOptions
 	opt.Websocket = true
 	opt.RawWebsocket = true
@@ -93,7 +93,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, jwtKey 
 		}
 
 		// Authenticate with the token
-		vc, err := authViewer(context.Background(), jwtKey, token, svc)
+		vc, err := authViewer(context.Background(), string(token), svc)
 		if err != nil || !vc.CanPerformActions() {
 			logger.Log("err", err, "msg", "unauthorized viewer")
 			conn.WriteJSONError("unauthorized")

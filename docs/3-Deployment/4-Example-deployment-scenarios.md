@@ -186,8 +186,6 @@ Now we are ready to run the server! We do this via `fleet serve`:
   --logging_json
 ```
 
-You will be prompted to add a value for `--auth_jwt_key`. A randomly generated key will be suggested, you can simply add the flag with the suggested key.
-
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
 ### Running Fleet with systemd
@@ -355,8 +353,6 @@ Now we are ready to run the server! We do this via `fleet serve`:
   --logging_json
 ```
 
-You will be prompted to add a value for `--auth_jwt_key`. A randomly generated key will be suggested, you can simply add the flag with the suggested key.
-
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
 ### Running Fleet with systemd
@@ -517,15 +513,6 @@ Now you'll have to give this CSR to a Certificate Authority, and they will give 
 
 ```
 kubectl create secret tls fleet-tls --key=./tls.key --cert=./tls.crt
-```
-
-##### JWT Auth Key
-
-This is the key that will be used to sign and validate the JWT tokens that are used as the web session key.
-
-```
-echo -n "some really secure string" > ./build/fleet-server-auth-key
-kubectl create secret generic fleet-server-auth-key --from-file=./build/fleet-server-auth-key
 ```
 
 #### Deploying Fleet

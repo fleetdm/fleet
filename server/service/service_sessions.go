@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/sso"
@@ -222,9 +221,10 @@ func (svc *Service) makeSession(id uint) (string, error) {
 		return "", err
 	}
 
+	sessionKey := base64.StdEncoding.EncodeToString(key)
 	session := &fleet.Session{
 		UserID:     id,
-		Key:        base64.StdEncoding.EncodeToString(key),
+		Key:        sessionKey,
 		AccessedAt: time.Now().UTC(),
 	}
 
@@ -233,12 +233,7 @@ func (svc *Service) makeSession(id uint) (string, error) {
 		return "", errors.Wrap(err, "creating new session")
 	}
 
-	tokenString, err := generateJWT(session.Key, svc.config.Auth.JwtKey)
-	if err != nil {
-		return "", errors.Wrap(err, "generating JWT token")
-	}
-
-	return tokenString, nil
+	return sessionKey, nil
 }
 
 func (svc *Service) Logout(ctx context.Context) error {
@@ -357,13 +352,4 @@ func (svc *Service) validateSession(session *fleet.Session) error {
 	}
 
 	return svc.ds.MarkSessionAccessed(session)
-}
-
-// Given a session key create a JWT to be delivered to the client
-func generateJWT(sessionKey, jwtKey string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"session_key": sessionKey,
-	})
-
-	return token.SignedString([]byte(jwtKey))
 }

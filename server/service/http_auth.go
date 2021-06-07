@@ -13,11 +13,11 @@ import (
 )
 
 // setRequestsContexts updates the request with necessary context values for a request
-func setRequestsContexts(svc fleet.Service, jwtKey string) kithttp.RequestFunc {
+func setRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
 		bearer := token.FromHTTPRequest(r)
 		ctx = token.NewContext(ctx, bearer)
-		v, err := authViewer(ctx, jwtKey, bearer, svc)
+		v, err := authViewer(ctx, string(bearer), svc)
 		if err == nil {
 			ctx = viewer.NewContext(ctx, *v)
 		}

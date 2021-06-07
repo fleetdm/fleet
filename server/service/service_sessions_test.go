@@ -5,9 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/authz"
 	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/contexts/token"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/test"
@@ -56,22 +54,6 @@ func TestAuthenticate(t *testing.T) {
 				"access time should be set with current time at session creation")
 		})
 	}
-}
-
-func TestGenerateJWT(t *testing.T) {
-	jwtKey := ""
-	tokenString, err := generateJWT("4", jwtKey)
-	require.Nil(t, err)
-
-	svc := authViewerService{Service: &Service{authz: authz.Must()}}
-	viewer, err := authViewer(
-		context.Background(),
-		jwtKey,
-		token.Token(tokenString),
-		svc,
-	)
-	require.Nil(t, err)
-	require.NotNil(t, viewer)
 }
 
 type authViewerService struct {

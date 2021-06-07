@@ -15,7 +15,6 @@ import (
 
 type debugAuthenticationMiddleware struct {
 	service fleet.Service
-	jwtKey  string
 }
 
 // Authenticate the user and ensure the account is not disabled.
@@ -27,7 +26,7 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 			return
 		}
 		ctx := token.NewContext(context.Background(), bearer)
-		v, err := authViewer(ctx, m.jwtKey, bearer, m.service)
+		v, err := authViewer(ctx, string(bearer), m.service)
 		if err != nil {
 			http.Error(w, "Invalid authentication", http.StatusUnauthorized)
 			return
@@ -55,7 +54,6 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlo
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,
-		jwtKey:  config.Auth.JwtKey,
 	}
 	r.Use(mw.Middleware)
 

@@ -35,9 +35,7 @@ func (m *mockService) UserUnauthorized(ctx context.Context, userId uint) (*fleet
 }
 
 var testConfig = config.FleetConfig{
-	Auth: config.AuthConfig{
-		JwtKey: "insecure",
-	},
+	Auth: config.AuthConfig{},
 }
 
 func TestDebugHandlerAuthenticationTokenMissing(t *testing.T) {
@@ -50,29 +48,18 @@ func TestDebugHandlerAuthenticationTokenMissing(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, res.Code)
 }
 
-func TestDebugHandlerAuthenticationTokenInvalid(t *testing.T) {
-	handler := MakeDebugHandler(&mockService{}, testConfig, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/profile", nil)
-	req.Header.Add("Authorization", "BEARER foobar")
-	res := httptest.NewRecorder()
-
-	handler.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusUnauthorized, res.Code)
-}
-
 func TestDebugHandlerAuthenticationSessionInvalid(t *testing.T) {
 	svc := &mockService{}
 	svc.On(
 		"GetSessionByKey",
 		mock.Anything,
-		"session",
+		"fake_session_key",
 	).Return(nil, errors.New("invalid session"))
 
 	handler := MakeDebugHandler(svc, testConfig, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/profile", nil)
-	req.Header.Add("Authorization", "BEARER eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXNzaW9uX2tleSI6InNlc3Npb24iLCJpYXQiOjE1MTYyMzkwMjJ9.YZIL9fKxfVg7fCms4CTKCPT2w8x8N3e2pciV_h0OvTk")
+	req.Header.Add("Authorization", "BEARER fake_session_key")
 	res := httptest.NewRecorder()
 
 	handler.ServeHTTP(res, req)
@@ -84,7 +71,7 @@ func TestDebugHandlerAuthenticationSuccess(t *testing.T) {
 	svc.On(
 		"GetSessionByKey",
 		mock.Anything,
-		"session",
+		"fake_session_key",
 	).Return(&fleet.Session{UserID: 42, ID: 1}, nil)
 	svc.On(
 		"UserUnauthorized",
@@ -95,7 +82,7 @@ func TestDebugHandlerAuthenticationSuccess(t *testing.T) {
 	handler := MakeDebugHandler(svc, testConfig, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/cmdline", nil)
-	req.Header.Add("Authorization", "BEARER eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXNzaW9uX2tleSI6InNlc3Npb24iLCJpYXQiOjE1MTYyMzkwMjJ9.YZIL9fKxfVg7fCms4CTKCPT2w8x8N3e2pciV_h0OvTk")
+	req.Header.Add("Authorization", "BEARER fake_session_key")
 	res := httptest.NewRecorder()
 
 	handler.ServeHTTP(res, req)
