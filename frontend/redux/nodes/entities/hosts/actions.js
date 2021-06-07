@@ -1,4 +1,4 @@
-import Kolide from "kolide";
+import Fleet from "fleet";
 import config from "./config";
 
 const { actions } = config;
@@ -13,7 +13,7 @@ export const loadPaginated = () => {
   return (dispatch) => {
     dispatch(loadRequest());
 
-    return Kolide.hosts;
+    return Fleet.hosts;
   };
 };
 
@@ -27,7 +27,7 @@ export const refetchHostFailure = (errors) => {
 
 export const refetchHostStart = (host) => {
   return (dispatch) => {
-    return Kolide.hosts
+    return Fleet.hosts
       .refetch(host)
       .then((data) => {
         dispatch(refetchHostSuccess(data));

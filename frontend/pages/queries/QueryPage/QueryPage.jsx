@@ -8,14 +8,14 @@ import moment from "moment";
 import { push } from "react-router-redux";
 import { Link } from "react-router";
 
-import Kolide from "kolide";
+import Fleet from "fleet";
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
 import convertToCSV from "utilities/convert_to_csv";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
-import { formatSelectedTargetsForApi } from "kolide/helpers";
+import { formatSelectedTargetsForApi } from "fleet/helpers";
 import helpers from "pages/queries/QueryPage/helpers";
 import hostInterface from "interfaces/host";
 import Button from "components/buttons/Button";
@@ -99,7 +99,7 @@ export class QueryPage extends Component {
   componentWillMount() {
     const { dispatch, selectedHosts, selectedTargets } = this.props;
 
-    Kolide.status.live_query().catch((response) => {
+    Fleet.status.live_query().catch((response) => {
       try {
         const error = response.message.errors[0].reason;
         this.setState({ liveQueryError: error });
@@ -289,10 +289,10 @@ export class QueryPage extends Component {
     removeSocket();
     destroyCampaign();
 
-    Kolide.queries
+    Fleet.queries
       .run({ query: sql, selected })
       .then((campaignResponse) => {
-        return Kolide.websockets.queries
+        return Fleet.websockets.queries
           .run(campaignResponse.id)
           .then((socket) => {
             this.setupDistributedQuery(socket);

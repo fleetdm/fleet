@@ -36,7 +36,7 @@ import {
   humanHostMemory,
   humanHostDetailUpdated,
   secondsToHms,
-} from "kolide/helpers";
+} from "fleet/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
 

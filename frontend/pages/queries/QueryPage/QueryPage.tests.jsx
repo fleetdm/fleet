@@ -256,7 +256,10 @@ describe("QueryPage - component", () => {
 
   describe("#componentWillReceiveProps", () => {
     it("resets selected targets and removed the campaign when the hostname changes", () => {
-      const queryResult = { org_name: "Kolide", org_url: "https://kolide.co" };
+      const queryResult = {
+        org_name: "example",
+        org_url: "https://example.com",
+      };
       const campaign = {
         id: 1,
         query_results: [queryResult],
@@ -290,7 +293,10 @@ describe("QueryPage - component", () => {
 
   describe("export as csv", () => {
     it("exports the campaign query results in csv format", () => {
-      const queryResult = { org_name: "Kolide", org_url: "https://kolide.co" };
+      const queryResult = {
+        org_name: "example",
+        org_url: "https://example.com",
+      };
       const campaign = {
         id: 1,
         hosts_count: {
@@ -334,7 +340,10 @@ describe("QueryPage - component", () => {
 
   describe("toggle full screen results", () => {
     it("toggles query results table from default to full screen and back", () => {
-      const queryResult = { org_name: "Kolide", org_url: "https://kolide.co" };
+      const queryResult = {
+        org_name: "example",
+        org_url: "https://example.com",
+      };
       const campaign = {
         id: 1,
         hosts_count: {

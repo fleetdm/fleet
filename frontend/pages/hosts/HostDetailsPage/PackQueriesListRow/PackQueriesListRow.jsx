@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { humanQueryLastRun, secondsToHms } from "kolide/helpers";
+import { humanQueryLastRun, secondsToHms } from "fleet/helpers";
 
 import queryInterface from "interfaces/query";
 

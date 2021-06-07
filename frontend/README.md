@@ -55,7 +55,7 @@ component's PropTypes.
 ### [kolide](./kolide)
 
 The default export of the kolide directory is the API client. More info can be
-found at the [API client documentation page](./kolide/README.md).
+found at the [API client documentation page](./fleet/README.md).
 
 ### [layouts](https://github.com/fleetdm/fleet/tree/master/frontend/layouts)
 
@@ -117,4 +117,4 @@ For details on creating a Fleet form visit the [Fleet Form Documentation](./comp
 
 ## API Client
 
-For details on the Fleet API Client visit the [Fleet API Client Documentation](./kolide/README.md).
+For details on the Fleet API Client visit the [Fleet API Client Documentation](./fleet/README.md).

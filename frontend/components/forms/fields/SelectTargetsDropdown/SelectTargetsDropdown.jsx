@@ -3,9 +3,9 @@ import PropTypes from "prop-types";
 import classnames from "classnames";
 import { isEqual, noop } from "lodash";
 
-import Kolide from "kolide";
+import Fleet from "fleet";
 import targetInterface from "interfaces/target";
-import { formatSelectedTargetsForApi } from "kolide/helpers";
+import { formatSelectedTargetsForApi } from "fleet/helpers";
 import Input from "./SelectTargetsInput";
 import Menu from "./SelectTargetsMenu";
 
@@ -132,7 +132,7 @@ class SelectTargetsDropdown extends Component {
 
     this.setState({ isLoadingTargets: true, query });
 
-    return Kolide.targets
+    return Fleet.targets
       .loadAll(query, queryId, formatSelectedTargetsForApi(selectedTargets))
       .then((response) => {
         const { targets } = response;

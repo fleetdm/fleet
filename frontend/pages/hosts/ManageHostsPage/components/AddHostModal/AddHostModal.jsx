@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import FileSaver from "file-saver";
 
-import Kolide from "kolide";
+import Fleet from "fleet";
 import Button from "components/buttons/Button";
 import configInterface from "interfaces/config";
 import teamInterface from "interfaces/team";
@@ -35,7 +35,7 @@ class AddHostModal extends Component {
   }
 
   componentDidMount() {
-    Kolide.config
+    Fleet.config
       .loadCertificate()
       .then((certificate) => {
         this.setState({ certificate });

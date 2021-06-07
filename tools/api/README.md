@@ -39,7 +39,7 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
 }
 
 # use jq to filter a specific query and get the id
-./tools/api/kolide/queries/list | jq '.queries[]|select(.name == "osquery_info")|.id'
+./tools/api/fleet/queries/list | jq '.queries[]|select(.name == "osquery_info")|.id'
 2
 
 # create a query

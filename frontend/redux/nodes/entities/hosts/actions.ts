@@ -1,7 +1,7 @@
 import { ITeam } from "interfaces/team";
 // @ts-ignore
 // ignore TS error for now until these are rewritten in ts.
-import Kolide from "kolide";
+import Fleet from "fleet";
 // @ts-ignore
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import { IApiError } from "interfaces/errors";
@@ -29,7 +29,7 @@ export const transferHostsFailure = (errors: any) => {
 const transferToTeam = (teamId: number | null, hostIds: number[]): any => {
   return (dispatch: any) => {
     dispatch(loadRequest());
-    return Kolide.hosts
+    return Fleet.hosts
       .transferToTeam(teamId, hostIds)
       .then(() => {
         dispatch(transferHostsSuccess());

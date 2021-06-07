@@ -7,9 +7,9 @@ import ConfirmationPage from "components/forms/RegistrationForm/ConfirmationPage
 describe("ConfirmationPage - form", () => {
   const formData = {
     username: "jmeller",
-    email: "jason@kolide.co",
+    email: "jason@Fleet.co",
     org_name: "Kolide",
-    server_url: "http://kolide.kolide.co",
+    server_url: "http://Fleet.Fleet.co",
   };
 
   it("renders the user information", () => {

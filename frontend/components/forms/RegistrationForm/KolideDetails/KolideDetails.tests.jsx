@@ -20,10 +20,10 @@ describe("KolideDetails - form", () => {
         .find({ name: "server_url" })
         .find("input");
 
-      fillInFormInput(serverAddressField, "https://gnar.kolide.co");
+      fillInFormInput(serverAddressField, "https://gnar.Fleet.co");
 
       expect(form.state().formData).toMatchObject({
-        server_url: "https://gnar.kolide.co",
+        server_url: "https://gnar.Fleet.co",
       });
     });
   });
@@ -50,7 +50,7 @@ describe("KolideDetails - form", () => {
         .find("input");
       const htmlForm = form.find("form");
 
-      fillInFormInput(kolideWebAddressField, "http://gnar.kolide.co");
+      fillInFormInput(kolideWebAddressField, "http://gnar.Fleet.co");
       htmlForm.simulate("submit");
 
       expect(handleSubmitSpy).not.toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe("KolideDetails - form", () => {
         .find("input");
       const htmlForm = form.find("form");
 
-      fillInFormInput(kolideWebAddressField, "https://gnar.kolide.co");
+      fillInFormInput(kolideWebAddressField, "https://gnar.Fleet.co");
       htmlForm.simulate("submit");
 
       expect(handleSubmitSpy).toHaveBeenCalled();

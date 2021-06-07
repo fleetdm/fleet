@@ -1,4 +1,4 @@
-import Kolide from "kolide";
+import Fleet from "fleet";
 
 import { reduxMockStore } from "test/helpers";
 import { updateUserSuccess } from "redux/nodes/auth/actions";
@@ -15,13 +15,13 @@ import {
 import config from "./config";
 
 const store = { entities: { invites: {}, users: {} } };
-const user = { id: 1, email: "zwass@kolide.co", force_password_reset: false };
+const user = { id: 1, email: "zwass@Fleet.co", force_password_reset: false };
 
 describe("Users - actions", () => {
   describe("enableUser", () => {
     describe("successful request", () => {
       beforeEach(() => {
-        jest.spyOn(Kolide.users, "enable").mockImplementation(() => {
+        jest.spyOn(Fleet.users, "enable").mockImplementation(() => {
           return Promise.resolve({ ...user, enabled: true });
         });
       });
@@ -32,7 +32,7 @@ describe("Users - actions", () => {
         return mockStore
           .dispatch(enableUser(user, { enabled: true }))
           .then(() => {
-            expect(Kolide.users.enable).toHaveBeenCalledWith(user, {
+            expect(Fleet.users.enable).toHaveBeenCalledWith(user, {
               enabled: true,
             });
           });
@@ -79,7 +79,7 @@ describe("Users - actions", () => {
         },
       };
       beforeEach(() => {
-        jest.spyOn(Kolide.users, "enable").mockImplementation(() => {
+        jest.spyOn(Fleet.users, "enable").mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
@@ -91,7 +91,7 @@ describe("Users - actions", () => {
           .dispatch(enableUser(user, { enabled: true }))
           .then(done)
           .catch(() => {
-            expect(Kolide.users.enable).toHaveBeenCalledWith(user, {
+            expect(Fleet.users.enable).toHaveBeenCalledWith(user, {
               enabled: true,
             });
 
@@ -130,7 +130,7 @@ describe("Users - actions", () => {
 
     describe("successful request", () => {
       beforeEach(() => {
-        jest.spyOn(Kolide.users, "changePassword").mockImplementation(() => {
+        jest.spyOn(Fleet.users, "changePassword").mockImplementation(() => {
           return Promise.resolve({});
         });
       });
@@ -141,7 +141,7 @@ describe("Users - actions", () => {
         mockStore
           .dispatch(changePasswordAction)
           .then(() => {
-            expect(Kolide.users.changePassword).toHaveBeenCalledWith(
+            expect(Fleet.users.changePassword).toHaveBeenCalledWith(
               passwordParams
             );
             done();
@@ -191,7 +191,7 @@ describe("Users - actions", () => {
         },
       };
       beforeEach(() => {
-        jest.spyOn(Kolide.users, "changePassword").mockImplementation(() => {
+        jest.spyOn(Fleet.users, "changePassword").mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
@@ -203,7 +203,7 @@ describe("Users - actions", () => {
           .dispatch(changePasswordAction)
           .then(done)
           .catch(() => {
-            expect(Kolide.users.changePassword).toHaveBeenCalledWith(
+            expect(Fleet.users.changePassword).toHaveBeenCalledWith(
               passwordParams
             );
 
@@ -240,11 +240,9 @@ describe("Users - actions", () => {
 
     describe("successful request", () => {
       beforeEach(() => {
-        jest
-          .spyOn(Kolide.users, "confirmEmailChange")
-          .mockImplementation(() => {
-            return Promise.resolve(updatedUser);
-          });
+        jest.spyOn(Fleet.users, "confirmEmailChange").mockImplementation(() => {
+          return Promise.resolve(updatedUser);
+        });
       });
 
       it("calls the API", (done) => {
@@ -253,7 +251,7 @@ describe("Users - actions", () => {
         mockStore
           .dispatch(confirmEmailChange(user, token))
           .then(() => {
-            expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(
+            expect(Fleet.users.confirmEmailChange).toHaveBeenCalledWith(
               user,
               token
             );
@@ -305,12 +303,10 @@ describe("Users - actions", () => {
         },
       };
       beforeEach(() => {
-        jest
-          .spyOn(Kolide.users, "confirmEmailChange")
-          .mockImplementation(() => {
-            return Promise.reject(errorResponse);
-          });
-        jest.spyOn(Kolide.sessions, "destroy").mockImplementation(() => {
+        jest.spyOn(Fleet.users, "confirmEmailChange").mockImplementation(() => {
+          return Promise.reject(errorResponse);
+        });
+        jest.spyOn(Fleet.sessions, "destroy").mockImplementation(() => {
           return Promise.resolve({});
         });
       });
@@ -321,7 +317,7 @@ describe("Users - actions", () => {
         mockStore
           .dispatch(confirmEmailChange(user, token))
           .then(() => {
-            expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(
+            expect(Fleet.users.confirmEmailChange).toHaveBeenCalledWith(
               user,
               token
             );
@@ -365,7 +361,7 @@ describe("Users - actions", () => {
   describe("updateAdmin", () => {
     describe("successful request", () => {
       beforeEach(() => {
-        jest.spyOn(Kolide.users, "updateAdmin").mockImplementation(() => {
+        jest.spyOn(Fleet.users, "updateAdmin").mockImplementation(() => {
           return Promise.resolve({ ...user, admin: true });
         });
       });
@@ -376,7 +372,7 @@ describe("Users - actions", () => {
         mockStore
           .dispatch(updateAdmin(user, { admin: true }))
           .then(() => {
-            expect(Kolide.users.updateAdmin).toHaveBeenCalledWith(user, {
+            expect(Fleet.users.updateAdmin).toHaveBeenCalledWith(user, {
               admin: true,
             });
             done();
@@ -425,7 +421,7 @@ describe("Users - actions", () => {
         },
       };
       beforeEach(() => {
-        jest.spyOn(Kolide.users, "updateAdmin").mockImplementation(() => {
+        jest.spyOn(Fleet.users, "updateAdmin").mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
@@ -437,7 +433,7 @@ describe("Users - actions", () => {
           .dispatch(updateAdmin(user, { admin: true }))
           .then(done)
           .catch(() => {
-            expect(Kolide.users.updateAdmin).toHaveBeenCalledWith(user, {
+            expect(Fleet.users.updateAdmin).toHaveBeenCalledWith(user, {
               admin: true,
             });
 
@@ -471,7 +467,7 @@ describe("Users - actions", () => {
     describe("successful request", () => {
       beforeEach(() => {
         jest
-          .spyOn(Kolide.users, "requirePasswordReset")
+          .spyOn(Fleet.users, "requirePasswordReset")
           .mockImplementation(() => {
             return Promise.resolve({ ...user, force_password_reset: true });
           });
@@ -483,7 +479,7 @@ describe("Users - actions", () => {
         return mockStore
           .dispatch(requirePasswordReset(user, { require: true }))
           .then(() => {
-            expect(Kolide.users.requirePasswordReset).toHaveBeenCalledWith(
+            expect(Fleet.users.requirePasswordReset).toHaveBeenCalledWith(
               user,
               { require: true }
             );
@@ -525,7 +521,7 @@ describe("Users - actions", () => {
 
       beforeEach(() => {
         jest
-          .spyOn(Kolide.users, "requirePasswordReset")
+          .spyOn(Fleet.users, "requirePasswordReset")
           .mockImplementation(() => {
             return Promise.reject(errorResponse);
           });
@@ -540,7 +536,7 @@ describe("Users - actions", () => {
             throw new Error("promise should have failed");
           })
           .catch(() => {
-            expect(Kolide.users.requirePasswordReset).toHaveBeenCalledWith(
+            expect(Fleet.users.requirePasswordReset).toHaveBeenCalledWith(
               user,
               { require: true }
             );
