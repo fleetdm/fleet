@@ -13,6 +13,7 @@ import inviteInterface from "interfaces/invite";
 import configInterface from "interfaces/config";
 import userInterface from "interfaces/user";
 import teamInterface from "interfaces/team";
+import permissionUtils from "utilities/permissions";
 import paths from "router/paths";
 import entityGetter from "redux/utilities/entityGetter";
 import inviteActions from "redux/nodes/entities/invites/actions";
@@ -60,6 +61,7 @@ export class UserManagementPage extends Component {
       base: PropTypes.string,
       email: PropTypes.string,
     }),
+    isBasicTier: PropTypes.bool,
     users: PropTypes.arrayOf(userInterface),
     userErrors: PropTypes.shape({
       base: PropTypes.string,
@@ -80,9 +82,11 @@ export class UserManagementPage extends Component {
       usersEditing: [],
     };
 
+    const { isBasicTier } = props;
+
     // done as an instance variable as these headers will not change, so dont
     // want to recalculate on re-renders.
-    this.tableHeaders = generateTableHeaders(this.onActionSelect);
+    this.tableHeaders = generateTableHeaders(this.onActionSelect, isBasicTier);
   }
 
   componentDidMount() {
@@ -488,6 +492,7 @@ const mapStateToProps = (state) => {
   } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;
   const loadingTableData = loadingUsers || loadingInvites;
+  const isBasicTier = permissionUtils.isBasicTier(config);
 
   return {
     appConfigLoading,
@@ -497,6 +502,7 @@ const mapStateToProps = (state) => {
     userErrors,
     invites,
     inviteErrors,
+    isBasicTier,
     loadingTableData,
     teams,
   };
