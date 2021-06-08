@@ -31,8 +31,8 @@ Cypress.Commands.add("setup", () => {
 });
 
 Cypress.Commands.add("login", (username, password) => {
-  username ||= "test";
-  password ||= "admin123#";
+  username ||= "admin";
+  password ||= "user123#";
   cy.request("POST", "/api/v1/fleet/login", { username, password }).then(
     (resp) => {
       window.localStorage.setItem("FLEET::auth_token", resp.body.token);
@@ -120,7 +120,7 @@ Cypress.Commands.add("loginSSO", () => {
       cy.request({
         method: "POST",
         url: redirect,
-        body: `username=user1&password=user1pass&AuthState=${authState}`,
+        body: `username=sso_user&password=user123#&AuthState=${authState}`,
         form: true,
         followRedirect: false,
       }).then((finalResponse) => {
@@ -148,4 +148,17 @@ Cypress.Commands.add("getEmails", () => {
       expect(response.status).to.eq(200);
       return response;
     });
+});
+
+Cypress.Commands.add("addUser", (username, options) => {
+  options ||= {};
+  let { password, email, globalRole } = options;
+  password ||= "test123#";
+  email ||= `${username}@example.com`;
+  globalRole ||= "admin";
+
+  cy.exec(
+    `./build/fleetctl user create --context e2e --username "${username}" --password "${password}" --email "${email}" --global-role "${globalRole}"`,
+    { timeout: 20000 }
+  );
 });
