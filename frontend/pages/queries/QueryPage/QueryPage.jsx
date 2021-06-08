@@ -539,11 +539,14 @@ export class QueryPage extends Component {
       return false;
     }
 
-    const message = `Live query disabled due to error: ${liveQueryError}`;
-
     return (
       <WarningBanner className={`${baseClass}__warning`} shouldShowWarning>
-        {message}
+        <h2 className={`${baseClass}__warning-title`}>
+          Live query request failed
+        </h2>
+        <p>
+          <span>Error:</span> {liveQueryError}
+        </p>
       </WarningBanner>
     );
   };
