@@ -541,9 +541,9 @@ export class QueryPage extends Component {
 
     return (
       <WarningBanner className={`${baseClass}__warning`} shouldShowWarning>
-        <span className={`${baseClass}__warning-title`}>
+        <h2 className={`${baseClass}__warning-title`}>
           Live query request failed
-        </span>
+        </h2>
         <p>
           <span>Error:</span> {liveQueryError}
         </p>
