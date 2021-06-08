@@ -189,8 +189,7 @@ Cypress.Commands.add("seedFigma", () => {
   });
 });
 
-Cypress.Commands.add("addUser", (username, options) => {
-  options ||= {};
+Cypress.Commands.add("addUser", (username, options = {}) => {
   let { password, email, globalRole } = options;
   password ||= "test123#";
   email ||= `${username}@example.com`;

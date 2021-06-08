@@ -19,6 +19,14 @@ declare namespace Cypress {
     logout(): Chainable<Element>;
 
     /**
+     * Custom command to add a new user in Fleet (via fleetctl).
+     */
+    addUser(
+      username: string,
+      options?: { username?: string; password?: string; globalRole?: string }
+    ): Chainable<Element>;
+
+    /**
      * Custom command to setup the SMTP configuration for this testing environment.
      *
      * NOTE: login() command is required before this, as it will make authenticated
