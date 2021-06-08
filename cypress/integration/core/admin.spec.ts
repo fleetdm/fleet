@@ -46,7 +46,7 @@ if (Cypress.env("FLEET_TIER") === "core") {
       cy.findByLabelText(/observers can run/i).click({ force: true });
       cy.findByRole("button", { name: /save/i }).click();
       cy.findByRole("button", { name: /new/i }).click();
-      cy.contains("a", /back to queries/i).click();
+      cy.contains("a", /back to queries/i).click({ force: true });
     });
   });
 }
