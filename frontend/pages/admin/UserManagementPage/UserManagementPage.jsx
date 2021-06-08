@@ -82,7 +82,7 @@ export class UserManagementPage extends Component {
 
     // done as an instance variable as these headers will not change, so dont
     // want to recalculate on re-renders.
-    this.tableHeaders = generateTableHeaders(this.onActionSelect);
+    this.tableHeaders = generateTableHeaders(this.onActionSelect, this.config);
   }
 
   componentDidMount() {

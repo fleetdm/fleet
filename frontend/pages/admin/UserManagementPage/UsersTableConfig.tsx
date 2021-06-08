@@ -7,9 +7,17 @@ import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IInvite } from "interfaces/invite";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
+import { IConfig } from "interfaces/config";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import permissionUtils from "utilities/permissions";
 import stringUtils from "utilities/strings";
 import DropdownCell from "../../../components/TableContainer/DataTable/DropdownCell";
+
+interface IRootState {
+  app: {
+    config: IConfig;
+  };
+}
 
 interface IHeaderProps {
   column: {
@@ -50,9 +58,10 @@ interface IUserTableData {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
+  config: IConfig,
   actionSelectHandler: (value: string, user: IUser | IInvite) => void
 ): IDataColumn[] => {
-  return [
+  const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
       Header: (cellProps) => (
@@ -84,13 +93,6 @@ const generateTableHeaders = (
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Teams",
-      Header: "Teams",
-      accessor: "teams",
-      disableSortBy: true,
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
       title: "Roles",
       Header: "Roles",
       accessor: "roles",
@@ -113,6 +115,19 @@ const generateTableHeaders = (
       ),
     },
   ];
+
+  // Add Teams tab for basic tier only
+  if (permissionUtils.isBasicTier(config)) {
+    tableHeaders.splice(3, 0, {
+      title: "Teams",
+      Header: "Teams",
+      accessor: "teams",
+      disableSortBy: true,
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    });
+  }
+
+  return tableHeaders;
 };
 
 // TODO: need to rethink status data.
