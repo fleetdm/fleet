@@ -1,4 +1,3 @@
-import { string } from "prop-types";
 import React from "react";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -7,17 +6,9 @@ import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IInvite } from "interfaces/invite";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
-import { IConfig } from "interfaces/config";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import permissionUtils from "utilities/permissions";
 import stringUtils from "utilities/strings";
 import DropdownCell from "../../../components/TableContainer/DataTable/DropdownCell";
-
-interface IRootState {
-  app: {
-    config: IConfig;
-  };
-}
 
 interface IHeaderProps {
   column: {
