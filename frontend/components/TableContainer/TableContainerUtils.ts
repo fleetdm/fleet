@@ -5,7 +5,7 @@ const generateResultsCountText = (
   pageIndex: number,
   pageSize: number,
   resultsCount: number
-) => {
+): string => {
   if (resultsCount === 0) return `No ${name}`;
 
   if (pageSize === resultsCount) return `${pageSize}+ ${name}`;

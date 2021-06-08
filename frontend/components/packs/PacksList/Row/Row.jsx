@@ -44,10 +44,6 @@ class Row extends Component {
 
   renderStatusData = () => {
     const { disabled } = this.props.pack;
-    const iconClassName = classNames(`${baseClass}__status-icon`, {
-      [`${baseClass}__status-icon--enabled`]: !disabled,
-      [`${baseClass}__status-icon--disabled`]: disabled,
-    });
 
     if (disabled) {
       return (

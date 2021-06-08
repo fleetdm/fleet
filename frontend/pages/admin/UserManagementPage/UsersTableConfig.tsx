@@ -1,4 +1,3 @@
-import { string } from "prop-types";
 import React from "react";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";

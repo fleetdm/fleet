@@ -25,7 +25,7 @@ const { HOME } = paths;
  */
 const AuthAnyMaintainerGlobalAdminRoutes = (
   props: IAuthAnyMaintainerGlobalAdminRoutesProps
-) => {
+): JSX.Element | null => {
   const { children } = props;
 
   const dispatch = useDispatch();

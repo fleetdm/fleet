@@ -1,5 +1,3 @@
-import nock from "nock";
-
 import Fleet from "fleet";
 import mocks from "test/mocks";
 import { userStub } from "test/stubs";

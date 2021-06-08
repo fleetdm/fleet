@@ -45,10 +45,10 @@ export default {
   TEAMS_MEMBERS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/users`;
   },
-  TEAMS_TRANSFER_HOSTS: (teamId: number) => {
+  TEAMS_TRANSFER_HOSTS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/hosts`;
   },
-  TEAMS_ENROLL_SECRETS: (teamId: number) => {
+  TEAMS_ENROLL_SECRETS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/secrets`;
   },
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {

@@ -179,6 +179,7 @@ const SelectQueryModal = (props) => {
         </div>
       );
     }
+    return null;
   };
 
   return (
