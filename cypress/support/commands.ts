@@ -150,6 +150,45 @@ Cypress.Commands.add("getEmails", () => {
     });
 });
 
+Cypress.Commands.add("seedCore", () => {
+  const authToken = window.localStorage.getItem("FLEET::auth_token");
+  cy.exec("bash ./tools/api/fleet/teams/create_core", {
+    env: {
+      TOKEN: authToken,
+      CURL_FLAGS: "-k",
+      SERVER_URL: Cypress.config().baseUrl,
+      // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
+      FLEET_ENV_PATH: "",
+    },
+  });
+});
+
+Cypress.Commands.add("seedBasic", () => {
+  const authToken = window.localStorage.getItem("FLEET::auth_token");
+  cy.exec("bash ./tools/api/fleet/teams/create_basic", {
+    env: {
+      TOKEN: authToken,
+      CURL_FLAGS: "-k",
+      SERVER_URL: Cypress.config().baseUrl,
+      // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
+      FLEET_ENV_PATH: "",
+    },
+  });
+});
+
+Cypress.Commands.add("seedFigma", () => {
+  const authToken = window.localStorage.getItem("FLEET::auth_token");
+  cy.exec("bash ./tools/api/fleet/teams/create_figma", {
+    env: {
+      TOKEN: authToken,
+      CURL_FLAGS: "-k",
+      SERVER_URL: Cypress.config().baseUrl,
+      // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
+      FLEET_ENV_PATH: "",
+    },
+  });
+});
+
 Cypress.Commands.add("addUser", (username, options) => {
   options ||= {};
   let { password, email, globalRole } = options;

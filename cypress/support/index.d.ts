@@ -11,7 +11,7 @@ declare namespace Cypress {
     /**
      * Custom command to login the user programmatically using the fleet API.
      */
-    login(): Chainable<Element>;
+    login(username?: string, password?: string): Chainable<Element>;
 
     /**
      * Custom command to log out the current user.
@@ -43,5 +43,29 @@ declare namespace Cypress {
      * Custom command to get the emails handled by the Mailhog server.
      */
     getEmails(): Chainable<Response>;
+
+    /**
+     * Custom command to seed the Core tier teams/users.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
+     */
+    seedCore(): Chainable<Element>;
+
+    /**
+     * Custom command to seed the Basic tier teams/users.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
+     */
+    seedBasic(): Chainable<Element>;
+
+    /**
+     * Custom command to seed the teams/users as represented in Figma.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
+     */
+    seedFigma(): Chainable<Element>;
   }
 }
