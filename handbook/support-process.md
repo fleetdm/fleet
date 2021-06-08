@@ -20,9 +20,9 @@ The Roundup meeting at Fleet provides time to discuss action items from that are
 
 ## How?
 
-- No matter what, folks who post a new comment in Slack or issue in GitHub get a **response** from the individual on-call within 24 hours. The response doesn't need to include an immediate answer.
+- No matter what, folks who post a new comment in Slack or issue in GitHub get a **response** from the individual on-call within 1 business day. The response doesn't need to include an immediate answer.
 
-- The individual on-call is responsible to either schedule a 10 minute call or join the 🧩 Product meeting to ask questions they were unable to answer. If a response is needed quicker, you can always DM Fleet team members in Slack. This way, people get answers within 24 hours.
+- The individual on-call is responsible to either schedule a 10 minute call or join the 🧩 Product meeting to ask questions they were unable to answer. If a response is needed quicker, you can always DM Fleet team members in Slack. This way, people get answers within 1 business day.
 
 ## Sources
 
