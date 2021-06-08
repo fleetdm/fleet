@@ -75,13 +75,36 @@ module.exports = {
           githubDataByUsername[username] = await sails.helpers.http.get('https://api.github.com/users/' + encodeURIComponent(username), {}, { 'User-Agent': 'Awesome-Octocat-App', Accept: 'application/vnd.github.v3+json' });
         });//∞
 
-        // Now expand queries with relevant of contributors.
+        // Now expand queries with relevant profile data for the contributors.
         for (let query of queries) {
-          // TODO
-          // if (query.contributors.split(',').includes(username)) {
-          //   query._mikesPlayground = githubProfileData;
-          // }
-        }//∞
+          let usernames = query.contributors.split(',');
+          let contributorProfiles = [];
+          for (let username of usernames) {
+            contributorProfiles.push({
+              name: githubDataByUsername[username].name,
+              handle: githubDataByUsername[username].login,
+              avatarUrl: githubDataByUsername[username].avatar_url,
+              htmlUrl: githubDataByUsername[username].html_url,
+            });
+          }
+          query.contributors = contributorProfiles;
+        }
+
+
+        //     const userData = contributorsDictionary[userName];
+        //     return {
+        //       name: _.startCase(userData.name),
+        //       handle: userData.login,
+        //       avatarUrl: userData.avatar_url,
+        //       htmlUrl: userData.html_url,
+        //     };
+        //   });
+        //   return query;
+
+        // TODO
+        // if (query.contributors.split(',').includes(username)) {
+        //   query._mikesPlayground = githubProfileData;
+        // }
 
         // let contributorsDictionary = await (async function () {
 
