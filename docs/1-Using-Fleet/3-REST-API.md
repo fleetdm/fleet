@@ -78,7 +78,8 @@ To get an API token, send a request to the [login endpoint](#log-in):
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "global_role": "admin"
+    "global_role": "admin",
+    "teams: []
   }
 }
 ```
@@ -134,7 +135,8 @@ Authenticates the user with the specified credentials. Use the token returned fr
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "global_role": "admin"
+    "global_role": "admin",
+    "teams": []
   },
   "token": "{your token}"
 }
@@ -322,7 +324,8 @@ Resets the password of the authenticated user. Requires that `force_password_res
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "global_role": "admin"
+    "global_role": "admin",
+    "teams": []
   }
 }
 ```
@@ -513,7 +516,10 @@ If `additional_info_filters` is not specified, no `additional` information will 
       "logger_tls_period": 8,
       "additional": {},
       "status": "offline",
-      "display_text": "2ceca32fe484"
+      "display_text": "2ceca32fe484",
+      "team_id": null,
+      "team_name": null,
+      "pack_stats": null,
     },
   ]
 }
@@ -606,6 +612,8 @@ The endpoint returns the host's installed `software` if the software inventory f
         "additional": {},
         "status": "offline",
         "display_text": "259404d30eb6",
+        "team_id": null,
+        "team_name",
         "labels": [
           {
             "created_at": "2021-01-14T16:37:24Z",
@@ -636,6 +644,7 @@ The endpoint returns the host's installed `software` if the software inventory f
             "name": "osquery_monitoring"
           }
         ],
+        "pack_stats": null,
         "software": [
           {
             "id": 1,
@@ -669,7 +678,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 #### Example
 
-`GET /api/v1/fleet/hosts/identifier/f01c4390-0000-0000-a1e5-14346a5724dc`
+`GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
 ##### Default response
 
@@ -677,43 +686,45 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 ```
 {
-    "host": {
-        "created_at": "2021-01-19T18:04:12Z",
-        "updated_at": "2021-01-19T20:21:27Z",
-        "id": 121,
-        "detail_updated_at": "2021-01-19T20:04:22Z",
-        "label_updated_at": "2021-01-19T20:04:22Z",
-        "last_enrolled_at": "2021-01-19T18:04:12Z",
-        "seen_time": "2021-01-19T20:21:27Z",
-        "hostname": "259404d30eb6",
-        "uuid": "f01c4390-0000-0000-a1e5-14346a5724dc",
-        "platform": "ubuntu",
-        "osquery_version": "2.10.2",
-        "os_version": "Ubuntu 14.4.0",
-        "build": "",
-        "platform_like": "debian",
-        "code_name": "",
-        "uptime": 11202000000000,
-        "memory": 2085326848,
-        "cpu_type": "6",
-        "cpu_subtype": "142",
-        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-        "cpu_physical_cores": 4,
-        "cpu_logical_cores": 4,
-        "hardware_vendor": "",
-        "hardware_model": "",
-        "hardware_version": "",
-        "hardware_serial": "",
-        "computer_name": "259404d30eb6",
-        "primary_ip": "172.19.0.4",
-        "primary_mac": "02:42:ac:13:00:04",
-        "distributed_interval": 10,
-        "config_tls_refresh": 10,
-        "logger_tls_period": 10,
-        "additional": {},
-        "status": "offline",
-        "display_text": "259404d30eb6"
-    }
+  "host": {
+    "created_at": "2020-11-05T05:09:44Z",
+    "updated_at": "2020-11-05T06:03:39Z",
+    "id": 1,
+    "detail_updated_at": "2020-11-05T05:09:45Z",
+    "label_updated_at": "2020-11-05T05:14:51Z",
+    "seen_time": "2020-11-05T06:03:39Z",
+    "hostname": "2ceca32fe484",
+    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "platform": "centos",
+    "osquery_version": "2.7.0",
+    "os_version": "CentOS Linux 7",
+    "build": "",
+    "platform_like": "rhel fedora",
+    "code_name": "",
+    "uptime": 8305000000000,
+    "memory": 2084032512,
+    "cpu_type": "6",
+    "cpu_subtype": "142",
+    "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+    "cpu_physical_cores": 4,
+    "cpu_logical_cores": 4,
+    "hardware_vendor": "",
+    "hardware_model": "",
+    "hardware_version": "",
+    "hardware_serial": "",
+    "computer_name": "2ceca32fe484",
+    "primary_ip": "",
+    "primary_mac": "",
+    "distributed_interval": 10,
+    "config_tls_refresh": 10,
+    "logger_tls_period": 8,
+    "additional": {},
+    "status": "offline",
+    "display_text": "2ceca32fe484",
+    "team_id": null,
+    "team_name": null,
+    "pack_stats": null,
+  }
 }
 ```
 
@@ -1735,8 +1746,8 @@ Returns all information about a specific user.
     "global_role": "admin",
     "force_password_reset": false,
     "gravatar_url": "",
-    "position": "Incident Response Engineer",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "teams": []
   }
 }
 ```
@@ -1778,7 +1789,6 @@ Returns all information about a specific user.
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
-    "position": "Incident Response Engineer",
     "sso_enabled": false,
     "global_role": "admin"
     "teams": [
@@ -3596,6 +3606,10 @@ None.
   "host_settings": {
     "additional_queries": null
   },
+  "license": {
+    "tier": "core",
+    "expiration": "0001-01-01T00:00:00Z"
+  },
   "agent_options": {
     "spec": {
       "config": {
@@ -3751,11 +3765,13 @@ None.
     "secrets": [
       {
         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        "created_at": "2021-01-07T19:40:04Z"
+        "created_at": "2021-01-07T19:40:04Z",
+        "team_id": null
       },
       {
         "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On",
-        "created_at": "2021-01-04T21:18:07Z"
+        "created_at": "2021-01-04T21:18:07Z",
+        "team_id": null
       }
     ]
   }
@@ -3899,7 +3915,8 @@ Returns a list of the active invitations in Fleet.
       "email": "john_appleseed@example.com",
       "name": "John",
       "sso_enabled": false,
-      "global_role": "admin"
+      "global_role": "admin",
+      "teams": []
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3908,7 +3925,8 @@ Returns a list of the active invitations in Fleet.
       "email": "bob_marks@example.com",
       "name": "Bob",
       "sso_enabled": false,
-      "global_role": "admin"
+      "global_role": "admin",
+      "teams": []
     },
   ]
 }
@@ -3967,7 +3985,8 @@ Verify the specified invite.
         "email": "steve@example.com",
         "name": "Steve",
         "sso_enabled": false,
-        "global_role": "admin"
+        "global_role": "admin",
+        "teams": []
     }
 }
 ```
