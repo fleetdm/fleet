@@ -58,8 +58,8 @@ interface IUserTableData {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  config: IConfig,
-  actionSelectHandler: (value: string, user: IUser | IInvite) => void
+  actionSelectHandler: (value: string, user: IUser | IInvite) => void,
+  isBasicTier = false
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
@@ -117,7 +117,7 @@ const generateTableHeaders = (
   ];
 
   // Add Teams tab for basic tier only
-  if (permissionUtils.isBasicTier(config)) {
+  if (isBasicTier) {
     tableHeaders.splice(3, 0, {
       title: "Teams",
       Header: "Teams",
