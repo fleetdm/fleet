@@ -24,11 +24,16 @@
     margin: $pad-xlarge;
     margin-bottom: 0;
 
+    &-title {
+      font-size: $small;
+    }
+
     span {
       font-weight: $bold;
     }
     p {
       margin: 0;
+      margin-top: $pad-xsmall;
     }
   }
 
