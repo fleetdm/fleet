@@ -11,7 +11,6 @@
 - [Packs](#packs)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
-- [Osquery options](#osquery-options)
 - [File carving](#file-carving)
 - [Teams](#teams)
 
@@ -75,11 +74,11 @@ To get an API token, send a request to the [login endpoint](#log-in):
     "username": "jane",
     "name": "",
     "email": "janedoe@example.com",
-    "admin": true,
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "global_role": "admin"
   }
 }
 ```
@@ -131,11 +130,11 @@ Authenticates the user with the specified credentials. Use the token returned fr
     "username": "jane",
     "name": "",
     "email": "janedoe@example.com",
-    "admin": true,
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "global_role": "admin"
   },
   "token": "{your token}"
 }
@@ -319,11 +318,11 @@ Resets the password of the authenticated user. Requires that `force_password_res
     "username": "jane",
     "name": "",
     "email": "janedoe@example.com",
-    "admin": true,
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "global_role": "admin"
   }
 }
 ```
@@ -1329,7 +1328,7 @@ Returns a list of all enabled users
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| team_id         | string  | query | Filters the users to only include users in the specified team.                                                                |
+| team_id         | string  | query | _Available in Fleet Basic_ Filters the users to only include users in the specified team.                                     |
 
 #### Example
 
@@ -1396,14 +1395,16 @@ Creates a user account after an invited user provides registration information a
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                       |
-| --------------------- | ------ | ---- | ----------------------------------------------------------------- |
-| email                 | string | body | **Required**. The email address of the user.                      |
-| invite_token          | string | body | **Required**. Token provided to the user in the invitation email. |
-| name                  | string | body | The name of the user.                                             |
-| username              | string | body | **Required**. The username chosen by the user                     |
-| password              | string | body | **Required**. The password chosen by the user.                    |
-| password_confirmation | string | body | **Required**. Confirmation of the password chosen by the user.    |
+| Name                  | Type   | In   | Description                                                                                                                                                                                                                                                                                                                                            |
+| --------------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| email                 | string | body | **Required**. The email address of the user.                                                                                                                                                                                                                                                                                                           |
+| invite_token          | string | body | **Required**. Token provided to the user in the invitation email.                                                                                                                                                                                                                                                                                      |
+| name                  | string | body | The name of the user.                                                                                                                                                                                                                                                                                                                                  |
+| username              | string | body | **Required**. The username chosen by the user                                                                                                                                                                                                                                                                                                          |
+| password              | string | body | **Required**. The password chosen by the user.                                                                                                                                                                                                                                                                                                         |
+| password_confirmation | string | body | **Required**. Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                         |
+| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
+| teams                 | array  | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -1418,7 +1419,17 @@ Creates a user account after an invited user provides registration information a
   "name": "janedoe",
   "username": "janedoe",
   "password": "test-123",
-  "password_confirmation": "test-123"
+  "password_confirmation": "test-123",
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 4,
+      "role": "observer"
+    }
+  ]
 }
 ```
 
@@ -1435,11 +1446,12 @@ Creates a user account after an invited user provides registration information a
     "username": "janedoe",
     "name": "janedoe",
     "email": "janedoe@example.com",
-    "admin": false,
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "global_role": "admin",
+    "teams": []
   }
 }
 ```
@@ -1502,12 +1514,13 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 #### Parameters
 
-| Name     | Type   | In   | Description                                                                                                              |
-| -------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------ |
-| username | string | body | **Required**. The user's username.                                                                                       |
-| email    | string | body | **Required**. The user's email address.                                                                                  |
-| password | string | body | **Required**. The user's password.                                                                                       |
-| teams    | list   | body | A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+| Name        | Type   | In   | Description                                                                                                                                                                                                                                                                                                                                            |
+| ----------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| username    | string | body | **Required**. The user's username.                                                                                                                                                                                                                                                                                                                     |
+| email       | string | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                |
+| password    | string | body | **Required**. The user's password.                                                                                                                                                                                                                                                                                                                     |
+| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
+| teams       | array  | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -1520,7 +1533,6 @@ Creates a user account without requiring an invitation, the user is enabled imme
   "username": "janedoe",
   "email": "janedoe@example.com",
   "password": "test-123",
-  "invited_by":1,
   "teams": [
     {
       “id”: 2,
@@ -1551,6 +1563,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "global_role": null,
     "teams": [
       {
         “id”: 2,
@@ -1682,15 +1695,16 @@ Returns all information about a specific user.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                                       |
-| ----------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------- |
-| id          | integer | path | **Required**. The user's id.                                                                                                      |
-| name        | string  | body | The user's name.                                                                                                                  |
-| username    | string  | body | The user's username.                                                                                                              |
-| position    | string  | body | The user's position.                                                                                                              |
-| email       | string  | body | The user's email.                                                                                                                 |
-| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                       |
-| teams       | list    | body | A list of teams the user is a member of. Each item in the list includes the team's ID and the user's role for the specified team. |
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                            |
+| ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| id          | integer | path | **Required**. The user's id.                                                                                                                                                                                                                                                                                                                           |
+| name        | string  | body | The user's name.                                                                                                                                                                                                                                                                                                                                       |
+| username    | string  | body | The user's username.                                                                                                                                                                                                                                                                                                                                   |
+| position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                   |
+| email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                      |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
+| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
+| teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -1701,7 +1715,7 @@ Returns all information about a specific user.
 ```
 {
   "name": "Jane Doe",
-  "position": "Incident Response Engineer"
+  "global_role": "admin"
 }
 ```
 
@@ -1718,8 +1732,7 @@ Returns all information about a specific user.
     "username": "jdoe",
     "name": "Jane Doe",
     "email": "janedoe@example.com",
-    "admin": true,
-    "enabled": true,
+    "global_role": "admin",
     "force_password_reset": false,
     "gravatar_url": "",
     "position": "Incident Response Engineer",
@@ -1762,12 +1775,12 @@ Returns all information about a specific user.
     "username": "jdoe",
     "name": "Jane Doe",
     "email": "janedoe@example.com",
-    "admin": true,
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
     "position": "Incident Response Engineer",
     "sso_enabled": false,
+    "global_role": "admin"
     "teams": [
       {
         “id”: 2,
@@ -1804,53 +1817,6 @@ Delete the specified user from Fleet.
 
 ```
 {}
-```
-
-### Promote or demote user
-
-Promotes or demotes the selected user's level of access as an admin in Fleet. Admins in Fleet have the ability to invite new users, edit settings, and edit osquery options across hosts. Returns the user object.
-
-`POST /api/v1/fleet/users/{id}/admin`
-
-#### Parameters
-
-| Name    | Type    | In   | Description                                             |
-| ------- | ------- | ---- | ------------------------------------------------------- |
-| id      | integer | path | **Required**. The user's id.                            |
-| enabled | boolean | body | **Required**. Whether or not the user can access Fleet. |
-
-#### Example
-
-`POST /api/v1/fleet/users/2/admin`
-
-#### Default body
-
-```
-{
-  "admin": true
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```
-{
-  "user": {
-    "created_at": "2021-02-23T22:23:34Z",
-    "updated_at": "2021-02-23T22:28:41Z",
-    "id": 2,
-    "username": "janedoe",
-    "name": "Jane Doe",
-    "email": "janedoe@example.com",
-    "admin": true,
-    "enabled": true,
-    "force_password_reset": false,
-    "gravatar_url": "",
-    "sso_enabled": false
-  }
-}
 ```
 
 ### Require password reset
@@ -1891,11 +1857,11 @@ The selected user is logged out of Fleet and required to reset their password du
     "username": "janedoe",
     "name": "Jane Doe",
     "email": "janedoe@example.com",
-    "admin": false,
-    "enabled": true,
     "force_password_reset": true,
     "gravatar_url": "",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "global_role": "observer",
+    "teams": []
   }
 }
 ```
@@ -2012,6 +1978,7 @@ Returns the query specified by ID.
     "saved": true,
     "author_id": 1,
     "author_name": "John",
+    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2061,6 +2028,7 @@ Returns a list of all queries in the Fleet instance.
     "saved": true,
     "author_id": 1,
     "author_name": "noah",
+    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-05T21:13:04Z",
@@ -2083,6 +2051,7 @@ Returns a list of all queries in the Fleet instance.
     "saved": true,
     "author_id": 1,
     "author_name": "noah",
+    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2114,6 +2083,7 @@ Returns a list of all queries in the Fleet instance.
     "saved": true,
     "author_id": 1,
     "author_name": "noah",
+    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2135,11 +2105,12 @@ Returns a list of all queries in the Fleet instance.
 
 #### Parameters
 
-| Name        | Type   | In   | Description                            |
-| ----------- | ------ | ---- | -------------------------------------- |
-| name        | string | body | **Required**. The name of the query.   |
-| query       | string | body | **Required**. The query in SQL syntax. |
-| description | string | body | The query's description.               |
+| Name             | Type   | In   | Description                                                                                                                                            |
+| ---------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| name             | string | body | **Required**. The name of the query.                                                                                                                   |
+| query            | string | body | **Required**. The query in SQL syntax.                                                                                                                 |
+| description      | string | body | The query's description.                                                                                                                               |
+| observer_can_run | bool   | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). |
 
 #### Example
 
@@ -2149,8 +2120,8 @@ Returns a list of all queries in the Fleet instance.
 
 ```
 {
-  "description": "This is a new query."
-  "name": "new_query"
+  "description": "This is a new query.",
+  "name": "new_query",
   "query": "SELECT * FROM osquery_info"
 }
 ```
@@ -2171,6 +2142,7 @@ Returns a list of all queries in the Fleet instance.
     "saved": true,
     "author_id": 1,
     "author_name": "",
+    "observer_can_run": true,
     "packs": []
   }
 }
@@ -2184,12 +2156,13 @@ Returns the query specified by ID.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                        |
-| ----------- | ------- | ---- | ---------------------------------- |
-| id          | integer | path | **Required.** The ID of the query. |
-| name        | string  | body | The name of the query.             |
-| query       | string  | body | The query in SQL syntax.           |
-| description | string  | body | The query's description.           |
+| Name             | Type    | In   | Description                                                                                                                                            |
+| ---------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| id               | integer | path | **Required.** The ID of the query.                                                                                                                     |
+| name             | string  | body | The name of the query.                                                                                                                                 |
+| query            | string  | body | The query in SQL syntax.                                                                                                                               |
+| description      | string  | body | The query's description.                                                                                                                               |
+| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). |
 
 #### Example
 
@@ -2219,6 +2192,7 @@ Returns the query specified by ID.
     "saved": true,
     "author_id": 1,
     "author_name": "noah",
+    "observer_can_run": true,
     "packs": []
   }
 }
@@ -3823,10 +3797,10 @@ Replaces the active global enroll secrets with the secrets specified.
 
 ```
 {
-  "admin": false,
   "email": "john_appleseed@example.com",
   "name": John,
   "sso_enabled": false,
+  "global_role": "admin"
   "teams": [
     {
       “id”: 2,
@@ -3899,18 +3873,18 @@ Returns a list of the active invitations in Fleet.
       "updated_at": "0001-01-01T00:00:00Z",
       "id": 3,
       "email": "john_appleseed@example.com",
-      "admin": false,
       "name": "John",
-      "sso_enabled": false
+      "sso_enabled": false,
+      "global_role": "admin"
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
       "updated_at": "0001-01-01T00:00:00Z",
       "id": 4,
       "email": "bob_marks@example.com",
-      "admin": true,
       "name": "Bob",
-      "sso_enabled": false
+      "sso_enabled": false,
+      "global_role": "admin"
     },
   ]
 }
@@ -3967,9 +3941,9 @@ Verify the specified invite.
         "updated_at": "2021-01-15T00:58:33Z",
         "id": 4,
         "email": "steve@example.com",
-        "admin": false,
         "name": "Steve",
-        "sso_enabled": false
+        "sso_enabled": false,
+        "global_role": "admin"
     }
 }
 ```
@@ -4017,109 +3991,6 @@ None.
   "build_date": "2021-03-27T00:28:48Z",
   "build_user": "zwass"
 }
-```
-
----
-
-## Osquery options
-
-- [Get osquery options spec](#get-osquery-options-spec)
-- [Modify osquery options spec](#modify-osquery-options-spec)
-
-### Get osquery options spec
-
-Retrieve the osquery options configured via Fleet.
-
-`GET /api/v1/fleet/spec/osquery_options`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/spec/osquery_options`
-
-##### Default response
-
-`Status: 200`
-
-```
-{
-  "spec": {
-    "config": {
-      "options": {
-        "logger_plugin": "tls",
-        "pack_delimiter": "/",
-        "logger_tls_period": 10,
-        "distributed_plugin": "tls",
-        "disable_distributed": false,
-        "logger_tls_endpoint": "/api/v1/osquery/log",
-        "distributed_interval": 10,
-        "distributed_tls_max_attempts": 3
-      },
-      "decorators": {
-        "load": [
-          "SELECT uuid AS host_uuid FROM system_info;",
-          "SELECT hostname AS hostname FROM system_info;"
-        ]
-      }
-    },
-    "overrides": {}
-  }
-}
-```
-
-### Modify osquery options spec
-
-Modifies the osquery options configuration set in Fleet.
-
-`POST /api/v1/fleet/spec/osquery_options`
-
-#### Parameters
-
-| Name | Type | In   | Description                              |
-| ---- | ---- | ---- | ---------------------------------------- |
-| spec | JSON | body | **Required.** The modified osquery spec. |
-
-#### Example
-
-`POST /api/v1/fleet/spec/osquery_options`
-
-##### Request body
-
-```
-{
-  "spec": {
-    "config": {
-      "options": {
-        "logger_plugin": "tls",
-        "pack_delimiter": "/",
-        "logger_tls_period": 10,
-        "distributed_plugin": "tls",
-        "disable_distributed": false,
-        "logger_tls_endpoint": "/api/v1/osquery/log",
-        "distributed_interval": 12,
-        "distributed_tls_max_attempts": 4
-      },
-      "decorators": {
-        "load": [
-          "SELECT uuid AS host_uuid FROM system_info;",
-          "SELECT hostname AS hostname FROM system_info;"
-        ]
-      }
-    },
-    "overrides": {}
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```
-{}
 ```
 
 ---
@@ -4259,7 +4130,102 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Teams
 
+### List teams
+
+_Available in Fleet Basic_
+
+`GET /api/v1/fleet/teams`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+| order_key       | string  | query | What to order results by. Can be any column in the `teams` table.                                                             |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
+
+#### Example
+
+`GET /api/v1/fleet/teams`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "teams: [
+    {
+      “name”: “workstations”,
+      “id”: 1.
+      “user_ids”: [],
+      “host_ids”: [],
+      "user_count": 0,
+      "host_count": 0,
+      “agent_options”: {
+        "spec": {
+          "config": {
+            "options": {
+              "logger_plugin": "tls",
+              "pack_delimiter": "/",
+              "logger_tls_period": 10,
+              "distributed_plugin": "tls",
+              "disable_distributed": false,
+              "logger_tls_endpoint": "/api/v1/osquery/log",
+              "distributed_interval": 10,
+              "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+              "load": [
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
+              ]
+            }
+          },
+          "overrides": {}
+        }
+      }
+    },
+    {
+      “name”: "servers",
+      “id”: 2,
+      “user_ids”: [],
+      “host_ids”: [],
+      "user_count": 0,
+      "host_count": 0,
+      “agent_options”: {
+        "spec": {
+          "config": {
+            "options": {
+              "logger_plugin": "tls",
+              "pack_delimiter": "/",
+              "logger_tls_period": 10,
+              "distributed_plugin": "tls",
+              "disable_distributed": false,
+              "logger_tls_endpoint": "/api/v1/osquery/log",
+              "distributed_interval": 10,
+              "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+              "load": [
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
+              ]
+            }
+          },
+          "overrides": {}
+        }
+      }
+    }
+  ]
+}
+```
+
 ### Create team
+
+_Available in Fleet Basic_
 
 `POST /api/v1/fleet/teams`
 
@@ -4293,6 +4259,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
       “id”: 1
       “user_ids”: [],
       “host_ids”: [],
+      "user_count": 0,
+      "host_count": 0,
       “agent_options”: {
         "spec": {
           "config": {
@@ -4322,6 +4290,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 ```
 
 ### Modify team
+
+_Available in Fleet Basic_
 
 `PATCH /api/v1/fleet/teams/{id}`
 
@@ -4357,6 +4327,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
     “id”: 1
     “user_ids”: [1, 17, 22, 32],
     “host_ids”: [],
+    "user_count": 4,
+    "host_count": 0,
     “agent_options”: {
       "spec": {
         "config": {
@@ -4407,6 +4379,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
     “id”: 1
     “user_ids”: [1, 17, 22, 32],
     “host_ids”: [3, 6, 7, 8, 9, 20, 32, 44],
+    "user_count": 4,
+    "host_count": 8,
     “agent_options”: {
       "spec": {
         "config": {
@@ -4479,6 +4453,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
     “id”: 1
     “user_ids”: [1, 17, 22, 32],
     “host_ids”: [3, 6, 7, 8, 9, 20, 32, 44],
+    "user_count": 4,
+    "host_count": 8,
     “agent_options”: {
       "spec": {
         "config": {
@@ -4507,6 +4483,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 ```
 
 ### Delete team
+
+_Available in Fleet Basic_
 
 `DELETE /api/v1/fleet/teams/{id}`
 
