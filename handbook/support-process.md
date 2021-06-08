@@ -89,7 +89,7 @@ BUG: (Who is the individual reporting the bug? Where do they work?)
 - Otherwise reply to let the person know you'll discuss with the rest of the team and add to the [🐄 Roundup Google doc](https://docs.google.com/document/d/16n0xT9RVqnlNSGaTLXmPJp-KJT9JN3cEyXSbudqBiZQ/edit#heading=h.le0crozigvb) in the following format:
 
 ```
-FEATURE RQUEST: (Who is the individual submitting the feature request? Where do they work?)
+FEATURE REQUEST: (Who is the individual submitting the feature request? Where do they work?)
 
 1. What does the user want to be able to do in Fleet? Is the requested feature for fleetctl, REST API or the Fleet UI?
 
