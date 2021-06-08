@@ -20,6 +20,18 @@
     margin-bottom: $pad-medium;
   }
 
+  &__warning {
+    margin: $pad-xlarge;
+    margin-bottom: 0;
+
+    span {
+      font-weight: $bold;
+    }
+    p {
+      margin: 0;
+    }
+  }
+
   &__observer-query-view {
     width: 90%;
     max-width: 1060px;
