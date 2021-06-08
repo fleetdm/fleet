@@ -1,4 +1,12 @@
 #homepage {
+  .btn-primary {
+    background-color: #ff5c83;
+    border-color: #ff5c83;
+    &:hover {
+      background-color: darken(#ff5c83, 10%);
+      border-color: darken(#ff5c83, 10%);
+    }
+  }
   .hero-banner {
     background: rgb(31, 29, 66);
     background: linear-gradient(170.26deg, #1F1D42 7.33%, #00FFF0 130.16%);//lesshint-disable-line duplicateProperty
@@ -20,10 +28,6 @@
   .prop-statement__header {
     font-size: 48px;
   }
-  .os-logo {
-    width: 60px;
-    height: 56px;
-  }
   .feature-card {
     margin-left: 5px;
     margin-right: 5px;
@@ -31,9 +35,71 @@
   .quote-mark {
     font-family: @header-font;
   }
-  .footer-fade {
-    background: linear-gradient(360deg, #201E43 0%, #353D62 100%);
+  .log-destinations-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
   }
+  .log-destination-card {
+    text-align: center;
+    padding: 24px;
+    background: #fff;
+    box-shadow: 0px 7px 3px -5px rgba(25, 33, 71, 0.1);
+    border-radius: 8px;
+    flex: 1;
+    margin: 5px;
+  }
+  .log-destination-card img {
+    margin: 0 auto;
+  }
+  .log-destination-card h6 {
+    padding-top: 12px;
+    margin-bottom: 0;
+    font-weight: bold;
+    font-size: 0.9rem;
+  }
+
+  // TODO: dedupe this into a mixin and use from here and in pricing.less, or use existing transition mixin
+  [purpose='animated-arrow-button'] {
+    padding-right: 45px;
+    cursor: pointer;
+    position: relative;
+    width: auto;
+    color: #192147;
+    font-weight: bold;
+    user-select: none;
+    transition: 0.2s ease-in-out;
+    -o-transition: 0.2s ease-in-out;
+    -ms-transition: 0.2s ease-in-out;
+    -moz-transition: 0.2s ease-in-out;
+    -webkit-transition: 0.2s ease-in-out;
+  }
+
+  [purpose='animated-arrow-button']:before {
+    content: url('/images/arrow-right-16x16@2x.png');
+    transform: scale(0.5);
+    position: absolute;
+    top: 12px;
+    left: 80%; // <--- here
+    transition: 0.2s ease-in-out;
+    -o-transition: 0.2s ease-in-out;
+    -ms-transition: 0.2s ease-in-out;
+    -moz-transition: 0.2s ease-in-out;
+    -webkit-transition: 0.2s ease-in-out;
+    /*   opacity: 0; */
+  }
+
+  [purpose='animated-arrow-button']:hover:before {
+    left: 82%; // <--- here
+    transition: 0.2s ease-in-out;
+    -o-transition: 0.2s ease-in-out;
+    -ms-transition: 0.2s ease-in-out;
+    -moz-transition: 0.2s ease-in-out;
+    -webkit-transition: 0.2s ease-in-out;
+    /*   opacity:1; */
+  }
+
+
   @media (max-width: 1175px) {
     .hero-bg {
       background-position: -1100px bottom;
@@ -52,7 +118,7 @@
     .hero-bg {
       min-height: 600px;
       background-image: url('/images/hero-bg-3000x700@2x.png');
-      background-position: left -550px bottom -30px;
+      background-position: left -850px bottom -50px;
       background-size: 3000px 700px;
     }
     .prop-statement {
@@ -77,7 +143,7 @@
   }
   @media (max-width: 420px) {
     .hero-bg {
-      background-position: left -700px bottom -60px;
+      background-position: left -900px bottom -50px;
     }
   }
   @media (max-width: 360px) {

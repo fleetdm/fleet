@@ -1,14 +1,14 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Button from 'components/buttons/Button';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import InputField from 'components/forms/fields/InputField';
-import SelectTargetsDropdown from 'components/forms/fields/SelectTargetsDropdown';
+import Button from "components/buttons/Button";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import InputField from "components/forms/fields/InputField";
+import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
 
-const fieldNames = ['description', 'name', 'targets'];
-const baseClass = 'edit-pack-form';
+const fieldNames = ["description", "name", "targets"];
+const baseClass = "edit-pack-form";
 
 class EditPackForm extends Component {
   static propTypes = {
@@ -24,7 +24,7 @@ class EditPackForm extends Component {
     targetsCount: PropTypes.number,
   };
 
-  render () {
+  render() {
     const {
       className,
       fields,
@@ -39,20 +39,20 @@ class EditPackForm extends Component {
         <h1>Edit pack</h1>
         <InputField
           {...fields.name}
-          placeholder="Query Pack Title"
-          label="Query Pack Title"
+          placeholder="Query pack title"
+          label="Query pack title"
           inputWrapperClass={`${baseClass}__pack-title`}
         />
         <InputField
           {...fields.description}
           inputWrapperClass={`${baseClass}__pack-description`}
-          label="Query Pack Description"
-          placeholder="Add a description of your query"
+          label="Description"
+          placeholder="Add a description of your pack"
           type="textarea"
         />
         <SelectTargetsDropdown
           {...fields.targets}
-          label="select pack targets"
+          label="Select pack targets"
           name="selected-pack-targets"
           onFetchTargets={onFetchTargets}
           onSelect={fields.targets.onChange}
@@ -60,8 +60,12 @@ class EditPackForm extends Component {
           targetsCount={targetsCount}
         />
         <div className={`${baseClass}__pack-buttons`}>
-          <Button onClick={onCancel} type="button" variant="inverse">Cancel</Button>
-          <Button type="submit" variant="brand">Save</Button>
+          <Button onClick={onCancel} type="button" variant="inverse">
+            Cancel
+          </Button>
+          <Button type="submit" variant="brand">
+            Save
+          </Button>
         </div>
       </form>
     );

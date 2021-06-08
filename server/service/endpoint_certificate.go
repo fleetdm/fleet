@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/fleetdm/fleet/server/kolide"
 )
 
 type certificateResponse struct {
@@ -14,7 +14,7 @@ type certificateResponse struct {
 
 func (r certificateResponse) error() error { return r.Err }
 
-func makeCertificateEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCertificateEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		chain, err := svc.CertificateChain(ctx)
 		if err != nil {

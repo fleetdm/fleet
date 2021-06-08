@@ -1,23 +1,23 @@
 .input-field {
   line-height: 34px;
   background-color: $ui-light-grey;
-  border: solid 1px $ui-borders;
+  border: solid 1px $ui-fleet-blue-15;
   border-radius: 4px;
   font-size: $small;
   padding: $pad-xsmall 12px;
-  color: $core-medium-blue-grey;
-  font-family: 'Nunito Sans', sans-serif;
+  color: $core-fleet-blue;
+  font-family: "Nunito Sans", sans-serif;
   box-sizing: border-box;
   height: 40px;
 
   ::placeholder {
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
   }
 
   &:focus {
     outline: none;
-    border-color: $core-blue;
-    border-top-color: $core-purple;
+    border-color: $core-vibrant-blue;
+    border-top-color: $core-fleet-purple;
   }
 
   &--disabled {
@@ -26,14 +26,14 @@
 
   &--error {
     transition: background 150ms ease-in-out, color 150ms ease-in-out;
-    border-color: $alert;
-    background-color: $alert-light;
-    color: $white;
+    border-color: $ui-error;
+    background-color: $ui-error;
+    color: $core-white;
 
     &:focus {
-      border-bottom-color: $alert;
-      background-color: $white;
-      color: $core-dark-blue-grey;
+      border-bottom-color: $ui-error;
+      background-color: $core-white;
+      color: $core-fleet-black;
     }
   }
 
@@ -51,30 +51,30 @@
     display: block;
     font-size: $medium;
     font-weight: $regular;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     margin-bottom: $pad-xsmall;
 
     &--error {
-      color: $alert;
+      color: $ui-error;
     }
   }
 
   &__wrapper {
-    margin-bottom: $pad-base;
+    margin-bottom: $pad-medium;
   }
 
   &__hint {
-    font-size: 14px;
+    font-size: $x-small;
     font-weight: $regular;
     line-height: 1.57;
     letter-spacing: 1px;
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
 
     code {
-      color: $core-blue;
-      background-color: $ui-medium-grey;
-      padding: 2px;
-      font-family: 'SourceCodePro', $monospace;
+      color: $core-vibrant-blue;
+      background-color: $ui-gray;
+      padding: $pad-xxsmall;
+      font-family: "SourceCodePro", $monospace;
     }
   }
 }

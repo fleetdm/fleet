@@ -1,13 +1,13 @@
-import createRequestMock from 'test/mocks/create_request_mock';
-import { userStub } from 'test/stubs';
+import createRequestMock from "test/mocks/create_request_mock";
+import { userStub } from "test/stubs";
 
 export default {
   changePassword: {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/change_password',
-        method: 'post',
+        endpoint: "/api/v1/fleet/change_password",
+        method: "post",
         params,
         response: {},
       });
@@ -20,8 +20,8 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint,
-        method: 'get',
-        response: { new_email: 'new@email.com' },
+        method: "get",
+        response: { new_email: "new@email.com" },
       });
     },
   },
@@ -32,7 +32,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint,
-        method: 'post',
+        method: "post",
         params,
         response: { user: { ...user, ...params } },
       });
@@ -41,16 +41,16 @@ export default {
   forgotPassword: {
     invalid: (response) => {
       return createRequestMock({
-        endpoint: '/api/v1/fleet/forgot_password',
-        method: 'post',
+        endpoint: "/api/v1/fleet/forgot_password",
+        method: "post",
         response,
         responseStatus: 422,
       });
     },
     valid: () => {
       return createRequestMock({
-        endpoint: '/api/v1/fleet/forgot_password',
-        method: 'post',
+        endpoint: "/api/v1/fleet/forgot_password",
+        method: "post",
         response: { user: userStub },
       });
     },
@@ -59,8 +59,17 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/users',
-        method: 'get',
+        endpoint: "/api/v1/fleet/users?page=0&per_page=100",
+        method: "get",
+        response: { users: [userStub] },
+      });
+    },
+    validWithParams: (bearerToken) => {
+      return createRequestMock({
+        bearerToken,
+        endpoint:
+          "/api/v1/fleet/users?page=3&per_page=100&&order_key=name&order_direction=desc&query=testQuery",
+        method: "get",
         response: { users: [userStub] },
       });
     },
@@ -69,8 +78,8 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/me',
-        method: 'get',
+        endpoint: "/api/v1/fleet/me",
+        method: "get",
         response: { user: userStub },
       });
     },
@@ -80,8 +89,8 @@ export default {
       const params = { new_password: password, password_reset_token: token };
 
       return createRequestMock({
-        endpoint: '/api/v1/fleet/reset_password',
-        method: 'post',
+        endpoint: "/api/v1/fleet/reset_password",
+        method: "post",
         params,
         response,
         responseStatus: 422,
@@ -91,8 +100,8 @@ export default {
       const params = { new_password: password, password_reset_token: token };
 
       return createRequestMock({
-        endpoint: '/api/v1/fleet/reset_password',
-        method: 'post',
+        endpoint: "/api/v1/fleet/reset_password",
+        method: "post",
         params,
         response: { user: userStub },
       });
@@ -102,7 +111,7 @@ export default {
     valid: (user, params) => {
       return createRequestMock({
         endpoint: `/api/v1/fleet/users/${user.id}`,
-        method: 'patch',
+        method: "patch",
         params,
         response: { user: userStub },
       });
@@ -113,7 +122,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/users/${user.id}/admin`,
-        method: 'post',
+        method: "post",
         params,
         response: { user: { ...user, ...params } },
       });

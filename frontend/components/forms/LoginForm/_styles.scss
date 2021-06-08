@@ -14,29 +14,26 @@
   &__container {
     display: flex;
     align-items: center;
-    background-color: $white;
+    background-color: $core-white;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
     box-sizing: border-box;
     flex-direction: column;
-    padding: 40px;
+    padding: $pad-xxlarge;
     font-weight: $regular;
   }
 
   &__submit-btn {
-    margin-top: 40px;
+    margin-top: $pad-xxlarge;
     width: 160px;
   }
 
   &__sso-btn {
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    padding: $pad-base;
-    height: 72px;
+    margin-top: $pad-xxlarge;
   }
 
   &__forgot-wrap {
-    margin-top: 4px;
+    margin-top: $pad-xsmall;
     text-align: right;
     width: 100%;
   }
@@ -44,14 +41,15 @@
   &__forgot-link {
     font-size: $x-small;
     text-decoration: none;
-    color: $core-blue;
+    color: $core-vibrant-blue;
   }
 
   &__sso-image {
     vertical-align: middle;
-    height: 45px;
-    width: 45px;
-    padding-right: 10px;
+    height: 20px;
+    width: 20px;
+    margin-right: 10px;
+    border-radius: 20%;
   }
 
   &__sso-legend {

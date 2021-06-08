@@ -1,11 +1,11 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { noop } from 'lodash';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { noop } from "lodash";
+import { push } from "react-router-redux";
 
-import paths from 'router/paths';
-import userInterface from 'interfaces/user';
+import paths from "router/paths";
+import userInterface from "interfaces/user";
 
 export default (WrappedComponent) => {
   class EnsureUnauthenticated extends Component {
@@ -19,7 +19,7 @@ export default (WrappedComponent) => {
       dispatch: noop,
     };
 
-    componentWillMount () {
+    componentWillMount() {
       const { currentUser, dispatch } = this.props;
       const { HOME } = paths;
 
@@ -30,7 +30,7 @@ export default (WrappedComponent) => {
       return false;
     }
 
-    componentWillReceiveProps (nextProps) {
+    componentWillReceiveProps(nextProps) {
       const { currentUser, dispatch } = nextProps;
       const { HOME } = paths;
 
@@ -41,7 +41,7 @@ export default (WrappedComponent) => {
       return false;
     }
 
-    render () {
+    render() {
       const { currentUser, isLoadingUser } = this.props;
 
       if (isLoadingUser || currentUser) {

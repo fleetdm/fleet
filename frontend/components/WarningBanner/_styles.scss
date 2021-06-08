@@ -2,34 +2,16 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background-color: $warning;
-  color: $black;
+  background-color: #fff0b9;
+  color: $core-fleet-black;
   padding: 15px 20px;
-  border-radius: 2px;
-  font-size: 15px;
-  margin: 0 0 25px;
+  border-radius: $border-radius;
+  border: 1px solid #f2c94c;
+  font-size: $x-small;
+  margin: 0 0 $pad-large;
 
-  &__icon-wrap {
-    min-width: 130px;
-    line-height: 20px;
-  }
-
-  &__label {
-    font-weight: $bold;
-    margin-left: 15px;
-  }
-
-  &__text {
+  &__message {
     flex-grow: 1;
     line-height: 20px;
-  }
-
-  .button {
-    color: $black;
-    font-size: 15px;
-    text-decoration: underline;
-    font-weight: $regular;
-    letter-spacing: 0.6px;
-    margin-left: 15px;
   }
 }

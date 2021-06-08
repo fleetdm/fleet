@@ -1,16 +1,16 @@
 .pack-details-side-panel {
-  padding: 16px 20px 0;
+  padding: $pad-medium 20px 0;
 
   &__description {
-    color: $core-dark-blue-grey;
-    font-size: 14px;
+    color: $core-fleet-black;
+    font-size: $x-small;
     word-wrap: break-word;
   }
 
   &__section-label {
-    font-size: $medium;
+    font-size: $x-small;
     font-weight: $bold;
-    margin: 24px 0 16px;
+    margin: $pad-large 0 $pad-small;
   }
 
   &__edit-pack-link {
@@ -18,34 +18,34 @@
   }
 
   &__pack-icon {
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
     margin-right: 11px;
   }
 
   &__pack-name {
     @include ellipsis(250px);
-    color: $core-dark-blue-grey;
-    font-size: $small;
+    color: $core-fleet-black;
+    font-size: $x-small;
     font-weight: $regular;
     margin: 0;
   }
 
   &__query-icon {
-    color: $core-medium-blue-grey;
-    font-size: 16px;
+    color: $core-fleet-blue;
+    font-size: $pad-medium;
     margin-right: 15px;
   }
 
   &__queries-list {
     list-style: none;
-    margin: 0 0 16px;
+    margin: 0 0 $pad-medium;
     padding: 0;
   }
 
   &__query-name {
     @include ellipsis(240px);
-    font-size: $small;
-    color: $core-blue;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
     text-decoration: none;
   }
 }

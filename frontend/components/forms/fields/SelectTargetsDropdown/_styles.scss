@@ -3,26 +3,27 @@
 
   &__label {
     font-size: $x-small;
-    color: $core-black;
+    color: $core-fleet-black;
     display: block;
-    margin: 40px 0 4px;
+    margin: $pad-xxlarge 0 $pad-xsmall;
     text-align: right;
 
     &--error {
       .target-select__select-targets {
-        color: $alert;
+        color: $ui-error;
       }
     }
   }
 
   &__select-targets {
     float: left;
+    font-weight: $bold;
   }
 
   &__targets-count {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
-    color: $core-blue;
+    color: $core-fleet-black;
   }
 
   &.Select {
@@ -31,12 +32,30 @@
     }
 
     .Select-arrow {
-      border-width: 8px 8px 2.5px;
+      content: url("../assets/images/icon-chevron-black-16x16@2x.png");
+      height: 16px;
+      width: 16px;
+      margin-top: 6px;
+      margin-left: 6px;
+      border: none;
+
+      &:hover {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      }
     }
 
     &.is-open {
       .Select-arrow {
-        border-width: 2.5px 8px 8px;
+        content: url("../assets/images/icon-collapse-black-16x16@2x.png");
+        height: 16px;
+        width: 16px;
+        margin-top: 11px;
+        margin-left: 6px;
+        border: none;
+
+        &:hover {
+          content: url("../assets/images/icon-collapse-blue-16x16@2x.png");
+        }
       }
 
       .Select-arrow-zone {
@@ -50,24 +69,25 @@
 
     .Select-input {
       height: 46px;
-      margin: 0 0 0 $pad-base;
+      margin: 0;
+      padding: 0 0 0 $pad-medium;
 
       > input {
         line-height: 30px;
         padding: 8px 0;
-        color: $core-black;
-        font-size: 16px;
+        color: $core-fleet-black;
+        font-size: $small;
       }
     }
 
     .Select-placeholder {
-      line-height: 46px;
-      font-size: 16px;
-      padding: 0 $pad-base;
+      line-height: 50px;
+      font-size: $small;
+      padding: 0 $pad-medium;
     }
 
     .Select-arrow-zone {
-      padding-right: 19px;
+      padding-right: 30px;
     }
 
     &.Select--multi {
@@ -76,7 +96,7 @@
 
         &.is-disabled {
           &.is-focused {
-            background-color: $core-blue-label-down;
+            background-color: $ui-vibrant-blue-10;
             border-radius: 8px;
           }
         }
@@ -97,7 +117,7 @@
 
     &.is-focused {
       .Select-control {
-        border: 1px solid $core-blue;
+        border: 1px solid $core-vibrant-blue;
       }
     }
   }
@@ -115,8 +135,8 @@
       position: relative;
 
       &::after {
-        @extend %kolidecon;
-        content: '\f03c';
+        @extend %fleeticon;
+        content: "\f03c";
         font-size: 150px;
         position: absolute;
         left: 50%;
@@ -135,71 +155,73 @@
 
   .Select-value {
     border-radius: $border-radius;
-    background-color: $white;
-    border: solid 1px $ui-borders;
+    background-color: $core-white;
+    border: solid 1px $ui-fleet-blue-15;
 
     .Select-value-icon {
-      border: 0;
-      float: right;
-      position: relative;
-      line-height: 34px;
-      width: 25px;
-      padding: 0;
-      margin: 0 5px;
-      text-indent: -999em;
+      height: 100%;
 
       &::after {
-        @extend %kolidecon;
-        transition: color 150ms ease-in-out;
-        transform: translate(-50%, -50%);
-        content: '\2715'; // hex code for multiplication cross
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        visibility: visible;
-        color: $core-dark-blue-grey;
-        display: block;
-        text-indent: 0;
+        content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
+        transform: scale(0.5);
+        border-radius: 0px;
+        margin-top: 4px;
       }
 
       &:hover {
         &::after {
-          color: $alert;
+          content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+          transform: scale(0.5);
         }
       }
     }
 
     .Select-value-label {
-      font-size: 16px;
-      font-weight: $regular;
+      font-size: $small;
       color: $core-dark-blue-grey;
+      font-size: $x-small;
       padding: 0 0 0 $pad-medium;
       line-height: 34px;
     }
   }
 
   .Select-clear {
-    font-size: 28px;
-    margin-right: 10px;
-    color: $core-dark-blue-grey;
+    content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
+    width: 16px;
+    height: 16px;
+    border-radius: 0px;
+    margin-left: -4px;
+    margin-top: 6px;
 
     &:hover {
-      color: $alert;
+      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+      width: 16px;
+      height: 16px;
+      border-radius: 0px;
     }
   }
 
+  .Select-clear-zone {
+    width: 30px;
+  }
+
+  .Select-arrow-zone {
+    width: 30px;
+    margin-right: 5px;
+  }
+
   .Select-loading-zone {
-    padding-right: 10px;
+    margin-right: 10px;
   }
 
   &.is-empty {
     .Select-menu-outer {
       .Select-menu {
         &::after {
-          content: '\f049';
+          content: "\f049";
           font-size: 180px;
           margin-top: -90px;
-          color: $ui-medium-grey;
+          color: $ui-gray;
         }
       }
     }

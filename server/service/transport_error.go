@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -29,14 +30,6 @@ func baseError(err string) []map[string]string {
 	}
 }
 
-// same as baseError, but replaces "base" with different name.
-func namedError(name string, err string) []map[string]string {
-	return []map[string]string{map[string]string{
-		"name":   name,
-		"reason": err},
-	}
-}
-
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	enc := json.NewEncoder(w)
@@ -56,20 +49,6 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
-	type authenticationError interface {
-		error
-		AuthError() string
-	}
-	if e, ok := err.(authenticationError); ok {
-		ae := jsonError{
-			Message: "Authentication Failed",
-			Errors:  baseError(e.AuthError()),
-		}
-		w.WriteHeader(http.StatusUnauthorized)
-		enc.Encode(ae)
-		return
-	}
-
 	type permissionError interface {
 		PermissionError() []map[string]string
 	}
@@ -83,7 +62,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
-	if kolide.IsForeignKey(errors.Cause(err)) {
+	if fleet.IsForeignKey(errors.Cause(err)) {
 		ve := jsonError{
 			Message: "Validation Failed",
 			Errors:  baseError(err.Error()),
@@ -157,9 +136,22 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
-	w.WriteHeader(http.StatusInternalServerError)
+	// Get specific status code if it is available from this error type,
+	// defaulting to HTTP 500
+	status := http.StatusInternalServerError
+	if e, ok := err.(fleet.ErrWithStatusCode); ok {
+		status = e.StatusCode()
+	}
+
+	// See header documentation
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
+	if e, ok := err.(fleet.ErrWithRetryAfter); ok {
+		w.Header().Add("Retry-After", strconv.Itoa(e.RetryAfter()))
+	}
+
+	w.WriteHeader(status)
 	je := jsonError{
-		Message: "Unknown Error",
+		Message: err.Error(),
 		Errors:  baseError(err.Error()),
 	}
 	enc.Encode(je)

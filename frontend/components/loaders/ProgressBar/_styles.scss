@@ -1,10 +1,10 @@
 .progress-bar {
   display: flex;
-  background-color: $ui-dark-grey;
+  background-color: $ui-fleet-black-25;
   height: 10px;
   overflow: hidden;
   border-radius: 2px;
-  margin-top: 4px;
+  margin-top: $pad-xsmall;
 
   &__progress {
     height: 100%;
@@ -12,11 +12,11 @@
     transition: width 300ms ease-in;
 
     &--error {
-      background-color: $alert;
+      background-color: $ui-error;
     }
 
     &--success {
-      background-color: $success;
+      background-color: $ui-success;
     }
   }
 }

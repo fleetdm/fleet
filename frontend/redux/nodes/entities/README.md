@@ -13,47 +13,47 @@ The base configuration takes an options hash with the following attributes.
 
 `createFunc`: Function
 
-* The function that calls the API to create an entity.
+- The function that calls the API to create an entity.
 
 `destroyFunc`: Function
 
-* The function that calls the API to destroy an entity.
+- The function that calls the API to destroy an entity.
 
 `entityName`: String
 
-* The name of the entity (ie 'users').
+- The name of the entity (ie 'users').
 
 `loadAllFunc`: Function
 
-* The function that calls the API to load all entities.
+- The function that calls the API to load all entities.
 
 `loadFunc`: Function
 
-* The function that calls the API to load an individual entity or subset of
+- The function that calls the API to load an individual entity or subset of
   entities.
 
 `parseApiResponseFunc`: Function
 
-* A function that is used to parse the response from the API client (optional).
+- A function that is used to parse the response from the API client (optional).
 
 `parseEntityFunc`: Function
 
-* A function that is used to parse an entity returned from the API (optional).
+- A function that is used to parse an entity returned from the API (optional).
   This can be useful for formatting entity attributes or adding new attributes.
 
 `schema`: Schema
 
-* This is a [normalizr schema](https://github.com/paularmstrong/normalizr/blob/master/docs/api.md#schema) used for structuring the entities in state.
+- This is a [normalizr schema](https://github.com/paularmstrong/normalizr/blob/master/docs/api.md#schema) used for structuring the entities in state.
 
 `updateFunc`: Function
 
-* The function that calls the API to update an entity.
+- The function that calls the API to update an entity.
 
 ### Example Entity Configuration
 
 ```js
 // in redux/nodes/entities/packs/config.js
-import API from 'kolide';
+import API from fleet;
 import ReduxConfig from 'redux/nodes/entities/base/config';
 import schemas from 'redux/nodes/entities/base/schemas';
 
@@ -80,11 +80,11 @@ string:
 
 `clearErrors`
 
-* Clears the entity's errors in state
+- Clears the entity's errors in state
 
 `loadAll`
 
-* A [thunk action](https://github.com/gaearon/redux-thunk) that does the following:
+- A [thunk action](https://github.com/gaearon/redux-thunk) that does the following:
 
 1. dispatches the `loadRequest` action type to alert the app that an API call is being made.
 2. calls the `loadAllFunc` to call the API.
@@ -93,23 +93,23 @@ string:
 
 `silentLoadAll`
 
-* A thunk action that does the same thing as the `loadAll` action without the first step of alerting the app that an API call is being made.
-* This action is useful when we have a page where in some cases we want to
+- A thunk action that does the same thing as the `loadAll` action without the first step of alerting the app that an API call is being made.
+- This action is useful when we have a page where in some cases we want to
   display a loading spinner during API calls and in some cases we do not.
 
 `successAction`
 
-* A function that accepts 2 parameters, an API response and a thunk. The
+- A function that accepts 2 parameters, an API response and a thunk. The
   `successAction` does the work of parsing the API response to get the formatted
-entities and then calls the thunk parameter, passing the thunk the formatted
-entities. It is used within the configuration class to format API responses and
-call success actions with the formatted responses.
-* This function can be helpful when extending the base set of actions. Otherwise
+  entities and then calls the thunk parameter, passing the thunk the formatted
+  entities. It is used within the configuration class to format API responses and
+  call success actions with the formatted responses.
+- This function can be helpful when extending the base set of actions. Otherwise
   it can be ignored.
 
 `create`
 
-* A thunk action that does the following:
+- A thunk action that does the following:
 
 1. dispatches the `createRequest` action to alert the app that an API call is being made.
 2. calls the `createFunc` to call the API.
@@ -118,28 +118,28 @@ call success actions with the formatted responses.
 
 `silentCreate`
 
-* A thunk action that does the same thing as the `create` action without the first step of alerting the app that an API call is being made.
-* This action is useful when we have a page where in some cases we want to
+- A thunk action that does the same thing as the `create` action without the first step of alerting the app that an API call is being made.
+- This action is useful when we have a page where in some cases we want to
   display a loading spinner during API calls and in some cases we do not.
 
 `createRequest`
 
-* An action with a namespaced action type, such as `users_CREATE_REQUEST` to
+- An action with a namespaced action type, such as `users_CREATE_REQUEST` to
   alert the app that an API call is being made for a specific entity type.
 
 `createSuccess`
 
-* An action with a namespaced action type, such as `users_CREATE_SUCCESS` which
+- An action with a namespaced action type, such as `users_CREATE_SUCCESS` which
   the reducer uses to add the action payload to the entity's data.
 
 `createFailure`
 
-* An action with a namespaced action type, such as `users_CREATE_FAILURE` which
+- An action with a namespaced action type, such as `users_CREATE_FAILURE` which
   the reducer uses to add the action payload to the entity's errors.
 
 `destroy`
 
-* A thunk action that does the following:
+- A thunk action that does the following:
 
 1. dispatches the `destroyRequest` action to alert the app that an API call is being made.
 2. calls the `destroyFunc` to call the API.
@@ -148,28 +148,28 @@ call success actions with the formatted responses.
 
 `silentDestroy`
 
-* A thunk action that does the same thing as the `destroy` action without the first step of alerting the app that an API call is being made.
-* This action is useful when we have a page where in some cases we want to
+- A thunk action that does the same thing as the `destroy` action without the first step of alerting the app that an API call is being made.
+- This action is useful when we have a page where in some cases we want to
   display a loading spinner during API calls and in some cases we do not.
 
 `destroyRequest`
 
-* An action with a namespaced action type, such as `users_DESTROY_REQUEST` to
+- An action with a namespaced action type, such as `users_DESTROY_REQUEST` to
   alert the app that an API call is being made for a specific entity type.
 
 `destroySuccess`
 
-* An action with a namespaced action type, such as `users_DESTROY_SUCCESS` which
+- An action with a namespaced action type, such as `users_DESTROY_SUCCESS` which
   the reducer uses to remove the entity from state.
 
 `destroyFailure`
 
-* An action with a namespaced action type, such as `users_DESTROY_FAILURE` which
+- An action with a namespaced action type, such as `users_DESTROY_FAILURE` which
   the reducer uses to add the action payload to the entity's errors.
 
 `load`
 
-* A thunk action that does the following:
+- A thunk action that does the following:
 
 1. dispatches the `loadRequest` action to alert the app that an API call is being made.
 2. calls the `loadFunc` to call the API.
@@ -178,28 +178,28 @@ call success actions with the formatted responses.
 
 `silentLoad`
 
-* A thunk action that does the same thing as the `load` action without the first step of alerting the app that an API call is being made.
-* This action is useful when we have a page where in some cases we want to
+- A thunk action that does the same thing as the `load` action without the first step of alerting the app that an API call is being made.
+- This action is useful when we have a page where in some cases we want to
   display a loading spinner during API calls and in some cases we do not.
 
 `loadRequest`
 
-* An action with a namespaced action type, such as `users_LOAD_REQUEST` to
+- An action with a namespaced action type, such as `users_LOAD_REQUEST` to
   alert the app that an API call is being made for a specific entity type.
 
 `loadSuccess`
 
-* An action with a namespaced action type, such as `users_LOAD_SUCCESS` which
+- An action with a namespaced action type, such as `users_LOAD_SUCCESS` which
   the reducer uses to add the action payload to the entity's data.
 
 `loadFailure`
 
-* An action with a namespaced action type, such as `users_LOAD_FAILURE` which
+- An action with a namespaced action type, such as `users_LOAD_FAILURE` which
   the reducer uses to add the action payload to the entity's errors.
 
 `update`
 
-* A thunk action that does the following:
+- A thunk action that does the following:
 
 1. dispatches the `updateRequest` action to alert the app that an API call is being made.
 2. calls the `updateFunc` to call the API.
@@ -208,23 +208,23 @@ call success actions with the formatted responses.
 
 `silentUpdate`
 
-* A thunk action that does the same thing as the `update` action without the first step of alerting the app that an API call is being made.
-* This action is useful when we have a page where in some cases we want to
+- A thunk action that does the same thing as the `update` action without the first step of alerting the app that an API call is being made.
+- This action is useful when we have a page where in some cases we want to
   display a loading spinner during API calls and in some cases we do not.
 
 `updateRequest`
 
-* An action with a namespaced action type, such as `users_UPDATE_REQUEST` to
+- An action with a namespaced action type, such as `users_UPDATE_REQUEST` to
   alert the app that an API call is being made for a specific entity type.
 
 `updateSuccess`
 
-* An action with a namespaced action type, such as `users_UPDATE_SUCCESS` which
+- An action with a namespaced action type, such as `users_UPDATE_SUCCESS` which
   the reducer uses to replace the entity in state with the action's payload.
 
 `updateFailure`
 
-* An action with a namespaced action type, such as `users_UPDATE_FAILURE` which
+- An action with a namespaced action type, such as `users_UPDATE_FAILURE` which
   the reducer uses to add the action payload to the entity's errors.
 
 ## Reducer
@@ -236,6 +236,7 @@ The ReduxConfig reducer configures entities with the same initial state:
   loading: false,
   data: {},
   errors: {},
+  originalOrder: [],
 }
 ```
 
@@ -259,7 +260,28 @@ like the following:
     },
   },
   errors: {},
+  originalOrder: [14, 10],
 }
+```
+
+Entity order from the API is also tracked in the `originalOrder` array. This is can be used
+for rendering lists of entities in a specific order that is determined by
+the API response (e.g. hosts table). In the above example the API sent back
+the users in this order.
+
+```js
+users: [
+  {
+    first_name: "Kyle",
+    last_name: "Knight",
+    id: 14,
+  },
+  {
+    first_name: "Mike",
+    last_name: "Stone",
+    id: 10,
+  },
+];
 ```
 
 Entity errors in state are an object with a key/value pair that corresponds to
@@ -274,6 +296,7 @@ after attempting to create a user with invalid data:
   errors: {
     first_name: 'First name cannot be blank',
   },
+  originalOrder: [],
 }
 ```
 

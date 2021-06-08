@@ -5,18 +5,19 @@ import (
 	"net/http"
 	"strings"
 
-	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/fleetdm/fleet/server/contexts/token"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+
+	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 // setRequestsContexts updates the request with necessary context values for a request
-func setRequestsContexts(svc kolide.Service, jwtKey string) kithttp.RequestFunc {
+func setRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
 		bearer := token.FromHTTPRequest(r)
 		ctx = token.NewContext(ctx, bearer)
-		v, err := authViewer(ctx, jwtKey, bearer, svc)
+		v, err := authViewer(ctx, string(bearer), svc)
 		if err == nil {
 			ctx = viewer.NewContext(ctx, *v)
 		}

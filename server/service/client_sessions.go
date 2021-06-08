@@ -24,8 +24,6 @@ func (c *Client) Login(email, password string) (string, error) {
 	switch response.StatusCode {
 	case http.StatusNotFound:
 		return "", notSetupErr{}
-	case http.StatusUnauthorized:
-		return "", invalidLoginErr{}
 	}
 	if response.StatusCode != http.StatusOK {
 		return "", errors.Errorf(

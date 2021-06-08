@@ -3,17 +3,18 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
 var hostSearchColumns = []string{"host_name", "uuid", "hardware_serial", "primary_ip"}
 
-func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
+func (d *Datastore) NewHost(host *fleet.Host) (*fleet.Host, error) {
 	sqlStatement := `
 	INSERT INTO hosts (
 		osquery_host_id,
@@ -27,9 +28,10 @@ func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 		os_version,
 		uptime,
 		physical_memory,
-		seen_time
+		seen_time,
+		team_id
 	)
-	VALUES( ?,?,?,?,?,?,?,?,?,?,?,? )
+	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,? )
 	`
 	result, err := d.db.Exec(
 		sqlStatement,
@@ -45,6 +47,7 @@ func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 		host.Uptime,
 		host.PhysicalMemory,
 		host.SeenTime,
+		host.TeamID,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "new host")
@@ -55,7 +58,7 @@ func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 }
 
 // TODO needs test
-func (d *Datastore) SaveHost(host *kolide.Host) error {
+func (d *Datastore) SaveHost(host *fleet.Host) error {
 	sqlStatement := `
 		UPDATE hosts SET
 			detail_update_time = ?,
@@ -85,10 +88,10 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			distributed_interval = ?,
 			config_tls_refresh = ?,
 			logger_tls_period = ?,
-			additional = COALESCE(?, additional),
-			enroll_secret_name = ?,
+			team_id = ?,
 			primary_ip = ?,
-			primary_mac = ?
+			primary_mac = ?,
+			refetch_requested = ?
 		WHERE id = ?
 	`
 	_, err := d.db.Exec(sqlStatement,
@@ -119,14 +122,134 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		host.DistributedInterval,
 		host.ConfigTLSRefresh,
 		host.LoggerTLSPeriod,
-		host.Additional,
-		host.EnrollSecretName,
+		host.TeamID,
 		host.PrimaryIP,
 		host.PrimaryMac,
+		host.RefetchRequested,
 		host.ID,
 	)
 	if err != nil {
 		return errors.Wrapf(err, "save host with id %d", host.ID)
+	}
+
+	// Save host pack stats only if it is non-nil. Empty stats should be
+	// represented by an empty slice.
+	if host.PackStats != nil {
+		if err := d.saveHostPackStats(host); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
+	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		sql := `
+			DELETE FROM scheduled_query_stats
+			WHERE host_id = ?
+		`
+		if _, err := tx.Exec(sql, host.ID); err != nil {
+			return errors.Wrap(err, "delete old stats")
+		}
+
+		// Bulk insert software entries
+		var args []interface{}
+		queryCount := 0
+		for _, pack := range host.PackStats {
+			for _, query := range pack.QueryStats {
+				queryCount++
+
+				args = append(args,
+					query.PackName,
+					query.ScheduledQueryName,
+					host.ID,
+					query.AverageMemory,
+					query.Denylisted,
+					query.Executions,
+					query.Interval,
+					query.LastExecuted,
+					query.OutputSize,
+					query.SystemTime,
+					query.UserTime,
+					query.WallTime,
+				)
+			}
+		}
+
+		if queryCount == 0 {
+			return nil
+		}
+
+		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
+		sql = fmt.Sprintf(`
+			INSERT IGNORE INTO scheduled_query_stats (
+				scheduled_query_id,
+				host_id,
+				average_memory,
+				denylisted,
+				executions,
+				schedule_interval,
+				last_executed,
+				output_size,
+				system_time,
+				user_time,
+				wall_time
+			)
+			VALUES %s
+		`, values)
+		if _, err := tx.Exec(sql, args...); err != nil {
+			return errors.Wrap(err, "insert pack stats")
+		}
+
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "save pack stats")
+	}
+	return nil
+}
+
+func (d *Datastore) loadHostPackStats(host *fleet.Host) error {
+	sql := `
+SELECT
+	sqs.scheduled_query_id,
+	sqs.average_memory,
+	sqs.denylisted,
+	sqs.executions,
+	sqs.schedule_interval,
+	sqs.last_executed,
+	sqs.output_size,
+	sqs.system_time,
+	sqs.user_time,
+	sqs.wall_time,
+	sq.name AS scheduled_query_name,
+	sq.id AS scheduled_query_id,
+	sq.query_name AS query_name,
+	p.name AS pack_name,
+	p.id as pack_id,
+	q.description
+FROM scheduled_query_stats sqs
+	JOIN scheduled_queries sq ON (sqs.scheduled_query_id = sq.id)
+	JOIN packs p ON (sq.pack_id = p.id)
+	JOIN queries q ON (sq.query_name = q.name)
+WHERE host_id = ?
+`
+	var stats []fleet.ScheduledQueryStats
+	if err := d.db.Select(&stats, sql, host.ID); err != nil {
+		return errors.Wrap(err, "load pack stats")
+	}
+
+	packs := map[uint]fleet.PackStats{}
+	for _, query := range stats {
+		pack := packs[query.PackID]
+		pack.PackName = query.PackName
+		pack.PackID = query.PackID
+		pack.QueryStats = append(pack.QueryStats, query)
+		packs[pack.PackID] = pack
+	}
+
+	for _, pack := range packs {
+		host.PackStats = append(host.PackStats, pack)
 	}
 
 	return nil
@@ -140,93 +263,104 @@ func (d *Datastore) DeleteHost(hid uint) error {
 	return nil
 }
 
-func (d *Datastore) Host(id uint) (*kolide.Host, error) {
+func (d *Datastore) Host(id uint) (*fleet.Host, error) {
 	sqlStatement := `
-		SELECT * FROM hosts
-		WHERE id = ? LIMIT 1
+		SELECT h.*, t.name AS team_name, (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
+		FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		WHERE h.id = ?
+		LIMIT 1
 	`
-	host := &kolide.Host{}
+	host := &fleet.Host{}
 	err := d.db.Get(host, sqlStatement, id)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting host by id")
+		return nil, errors.Wrap(err, "get host by id")
+	}
+	if err := d.loadHostPackStats(host); err != nil {
+		return nil, err
 	}
 
 	return host, nil
 }
 
-func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	sql := `SELECT id,
-        osquery_host_id, 
-        created_at, 
-        updated_at, 
-        detail_update_time, 
-        node_key, 
-        host_name, 
-        uuid, 
-        platform, 
-        osquery_version, 
-        os_version, 
-        build, 
-        platform_like, 
-        code_name, 
-        uptime, 
-        physical_memory, 
-        cpu_type, 
-        cpu_subtype, 
-        cpu_brand, 
-        cpu_physical_cores, 
-        cpu_logical_cores, 
-        hardware_vendor, 
-        hardware_model, 
-        hardware_version, 
-        hardware_serial, 
-        computer_name, 
-        primary_ip_id, 
-        seen_time, 
-        distributed_interval, 
-        logger_tls_period, 
-        config_tls_refresh, 
-        primary_ip, 
-        primary_mac, 
-        label_update_time, 
-        enroll_secret_name,
+func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	sql := `SELECT
+		h.id,
+		h.osquery_host_id,
+		h.created_at,
+		h.updated_at,
+		h.detail_update_time,
+		h.node_key,
+		h.host_name,
+		h.uuid,
+		h.platform,
+		h.osquery_version,
+		h.os_version,
+		h.build,
+		h.platform_like,
+		h.code_name,
+		h.uptime,
+		h.physical_memory,
+		h.cpu_type,
+		h.cpu_subtype,
+		h.cpu_brand,
+		h.cpu_physical_cores,
+		h.cpu_logical_cores,
+		h.hardware_vendor,
+		h.hardware_model,
+		h.hardware_version,
+		h.hardware_serial,
+		h.computer_name,
+		h.primary_ip_id,
+		h.seen_time,
+		h.distributed_interval,
+		h.logger_tls_period,
+		h.config_tls_refresh,
+		h.primary_ip,
+		h.primary_mac,
+		h.label_update_time,
+		h.team_id,
+		h.refetch_requested,
+		t.name AS team_name
 		`
 
 	var params []interface{}
 
-	// Filter additional info by extracting into a new json object.
-	if len(opt.AdditionalFilters) > 0 {
-		sql += `JSON_OBJECT(
+	// Only include "additional" if filter provided.
+	if len(opt.AdditionalFilters) == 1 && opt.AdditionalFilters[0] == "*" {
+		// All info requested.
+		sql += `
+		, (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
+		`
+	} else if len(opt.AdditionalFilters) > 0 {
+		// Filter specific columns.
+		sql += `, (SELECT JSON_OBJECT(
 			`
 		for _, field := range opt.AdditionalFilters {
-			sql += fmt.Sprintf(`?, JSON_EXTRACT(additional, ?), `)
+			sql += `?, JSON_EXTRACT(additional, ?), `
 			params = append(params, field, fmt.Sprintf(`$."%s"`, field))
 		}
 		sql = sql[:len(sql)-2]
 		sql += `
-		    ) AS additional
+		    ) FROM host_additional WHERE host_id = h.id) AS additional
 		    `
-	} else {
-		sql += `
-		additional
-		`
 	}
 
-	sql += `FROM hosts
-WHERE TRUE
-    `
+	sql += fmt.Sprintf(`FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		WHERE TRUE AND %s
+    `, d.whereFilterHostsByTeams(filter, "h"),
+	)
 	switch opt.StatusFilter {
 	case "new":
-		sql += "AND DATE_ADD(created_at, INTERVAL 1 DAY) >= ?"
+		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
 		params = append(params, time.Now())
 	case "online":
-		sql += fmt.Sprintf("AND DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ?", kolide.OnlineIntervalBuffer)
+		sql += fmt.Sprintf("AND DATE_ADD(h.seen_time, INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?", fleet.OnlineIntervalBuffer)
 		params = append(params, time.Now())
 	case "offline":
-		sql += fmt.Sprintf("AND DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ?", kolide.OnlineIntervalBuffer)
+		sql += fmt.Sprintf("AND DATE_ADD(h.seen_time, INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(h.seen_time, INTERVAL 30 DAY) >= ?", fleet.OnlineIntervalBuffer)
 		params = append(params, time.Now(), time.Now())
 	case "mia":
-		sql += "AND DATE_ADD(seen_time, INTERVAL 30 DAY) <= ?"
+		sql += "AND DATE_ADD(h.seen_time, INTERVAL 30 DAY) <= ?"
 		params = append(params, time.Now())
 	}
 
@@ -234,7 +368,7 @@ WHERE TRUE
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 
-	hosts := []*kolide.Host{}
+	hosts := []*fleet.Host{}
 	if err := d.db.Select(&hosts, sql, params...); err != nil {
 		return nil, errors.Wrap(err, "list hosts")
 	}
@@ -255,19 +389,21 @@ func (d *Datastore) CleanupIncomingHosts(now time.Time) error {
 	return nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, e error) {
+func (d *Datastore) GenerateHostStatusStatistics(filter fleet.TeamFilter, now time.Time) (online, offline, mia, new uint, e error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and CountHostsInTargets
 
 	sqlStatement := fmt.Sprintf(`
-		SELECT
-			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
-			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
-			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
-			COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
-		FROM hosts
-		LIMIT 1;
-	`, kolide.OnlineIntervalBuffer, kolide.OnlineIntervalBuffer)
+			SELECT
+				COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
+				COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
+				COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
+				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
+			FROM hosts WHERE %s
+			LIMIT 1;
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
+		d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
 	counts := struct {
 		MIA     uint `db:"mia"`
@@ -289,12 +425,12 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 }
 
 // EnrollHost enrolls a host
-func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*kolide.Host, error) {
+func (d *Datastore) EnrollHost(osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if osqueryHostID == "" {
 		return nil, fmt.Errorf("missing osquery host identifier")
 	}
 
-	var host kolide.Host
+	var host fleet.Host
 	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
 		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 
@@ -313,10 +449,10 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 					osquery_host_id,
 					seen_time,
 					node_key,
-					enroll_secret_name
+					team_id
 				) VALUES (?, ?, ?, ?, ?, ?)
 			`
-			result, err := tx.Exec(sqlInsert, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, secretName)
+			result, err := tx.Exec(sqlInsert, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, teamID)
 
 			if err != nil {
 				return errors.Wrap(err, "insert host")
@@ -328,7 +464,7 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 			// Prevent hosts from enrolling too often with the same identifier.
 			// Prior to adding this we saw many hosts (probably VMs) with the
 			// same identifier competing for enrollment and causing perf issues.
-			if time.Since(host.LastEnrollTime) < kolide.HostEnrollCooldown {
+			if cooldown > 0 && time.Since(host.LastEnrollTime) < cooldown {
 				return backoff.Permanent(fmt.Errorf("host identified by %s enrolling too often", osqueryHostID))
 			}
 			id = int64(host.ID)
@@ -336,11 +472,11 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 			sqlUpdate := `
 				UPDATE hosts
 				SET node_key = ?,
-				enroll_secret_name = ?,
+				team_id = ?,
 				last_enroll_time = NOW()
 				WHERE osquery_host_id = ?
 			`
-			_, err := tx.Exec(sqlUpdate, nodeKey, secretName, osqueryHostID)
+			_, err := tx.Exec(sqlUpdate, nodeKey, teamID, osqueryHostID)
 
 			if err != nil {
 				return errors.Wrap(err, "update host")
@@ -369,7 +505,8 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 	return &host, nil
 }
 
-func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
+func (d *Datastore) AuthenticateHost(nodeKey string) (*fleet.Host, error) {
+	// Select everything besides `additional`
 	sqlStatement := `
 		SELECT
 			id,
@@ -404,26 +541,29 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 			distributed_interval,
 			logger_tls_period,
 			config_tls_refresh,
-			enroll_secret_name
+			primary_ip,
+			primary_mac,
+			refetch_requested,
+			team_id
 		FROM hosts
 		WHERE node_key = ?
 		LIMIT 1
 	`
 
-	host := &kolide.Host{}
+	host := &fleet.Host{}
 	if err := d.db.Get(host, sqlStatement, nodeKey); err != nil {
 		switch err {
 		case sql.ErrNoRows:
 			return nil, notFound("Host")
 		default:
-			return nil, errors.New("finding host")
+			return nil, errors.New("find host")
 		}
 	}
 
 	return host, nil
 }
 
-func (d *Datastore) MarkHostSeen(host *kolide.Host, t time.Time) error {
+func (d *Datastore) MarkHostSeen(host *fleet.Host, t time.Time) error {
 	sqlStatement := `
 		UPDATE hosts SET
 			seen_time = ?
@@ -439,30 +579,58 @@ func (d *Datastore) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	return nil
 }
 
-func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.Host, error) {
+func (d *Datastore) MarkHostsSeen(hostIDs []uint, t time.Time) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		query := `
+		UPDATE hosts SET
+			seen_time = ?
+		WHERE id IN (?)
+	`
+		query, args, err := sqlx.In(query, t, hostIDs)
+		if err != nil {
+			return errors.Wrap(err, "sqlx in")
+		}
+		query = d.db.Rebind(query)
+		if _, err := d.db.Exec(query, args...); err != nil {
+			return errors.Wrap(err, "exec update")
+		}
+
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "MarkHostsSeen transaction")
+	}
+
+	return nil
+}
+
+func (d *Datastore) searchHostsWithOmits(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 	hostQuery := transformQuery(query)
 	ipQuery := `"` + query + `"`
 
-	sqlStatement :=
-		`
-		SELECT DISTINCT *
-		FROM hosts
-		WHERE
-		(
-			MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
-			OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-		)
-		AND id NOT IN (?)
-		LIMIT 10
-	`
+	sql := fmt.Sprintf(`
+			SELECT DISTINCT *
+			FROM hosts
+			WHERE
+			(
+				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
+			)
+			AND id NOT IN (?) AND %s
+			LIMIT 10
+		`, d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostQuery, ipQuery, omit)
+	sql, args, err := sqlx.In(sql, hostQuery, ipQuery, omit)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching hosts")
 	}
 	sql = d.db.Rebind(sql)
 
-	hosts := []*kolide.Host{}
+	hosts := []*fleet.Host{}
 
 	err = d.db.Select(&hosts, sql, args...)
 	if err != nil {
@@ -472,13 +640,14 @@ func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.
 	return hosts, nil
 }
 
-func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
-	sqlStatement := `
-	SELECT * FROM hosts
-	WHERE id NOT in (?)
-	ORDER BY seen_time DESC
-	LIMIT 5
-	`
+func (d *Datastore) searchHostsDefault(filter fleet.TeamFilter, omit ...uint) ([]*fleet.Host, error) {
+	sql := fmt.Sprintf(`
+			SELECT * FROM hosts
+			WHERE id NOT in (?) AND %s
+			ORDER BY seen_time DESC
+			LIMIT 5
+		`, d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
 	var in interface{}
 	{
@@ -490,8 +659,8 @@ func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
 		}
 	}
 
-	var hosts []*kolide.Host
-	sql, args, err := sqlx.In(sqlStatement, in)
+	var hosts []*fleet.Host
+	sql, args, err := sqlx.In(sql, in)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default hosts")
 	}
@@ -505,32 +674,32 @@ func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
 
 // SearchHosts find hosts by query containing an IP address, a host name or UUID.
 // Optionally pass a list of IDs to omit from the search
-func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {
+func (d *Datastore) SearchHosts(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 	hostQuery := transformQuery(query)
 	if !queryMinLength(hostQuery) {
-		return d.searchHostsDefault(omit...)
+		return d.searchHostsDefault(filter, omit...)
 	}
 	if len(omit) > 0 {
-		return d.searchHostsWithOmits(query, omit...)
+		return d.searchHostsWithOmits(filter, query, omit...)
 	}
 
 	// Needs quotes to avoid each . marking a word boundary
 	ipQuery := `"` + query + `"`
 
-	sqlStatement :=
-		`
-		SELECT DISTINCT *
-		FROM hosts
-		WHERE
-		(
-			MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
-			OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-		)
-		LIMIT 10
-	`
-	hosts := []*kolide.Host{}
+	sql := fmt.Sprintf(`
+			SELECT DISTINCT *
+			FROM hosts
+			WHERE
+			(
+				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
+			) AND %s
+			LIMIT 10
+		`, d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
-	if err := d.db.Select(&hosts, sqlStatement, hostQuery, ipQuery); err != nil {
+	hosts := []*fleet.Host{}
+	if err := d.db.Select(&hosts, sql, hostQuery, ipQuery); err != nil {
 		return nil, errors.Wrap(err, "searching hosts")
 	}
 
@@ -538,15 +707,16 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, err
 
 }
 
-func (d *Datastore) HostIDsByName(hostnames []string) ([]uint, error) {
+func (d *Datastore) HostIDsByName(filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 	if len(hostnames) == 0 {
 		return []uint{}, nil
 	}
 
-	sqlStatement := `
-		SELECT id FROM hosts
-		WHERE host_name IN (?)
-	`
+	sqlStatement := fmt.Sprintf(`
+			SELECT id FROM hosts
+			WHERE host_name IN (?) AND %s
+		`, d.whereFilterHostsByTeams(filter, "hosts"),
+	)
 
 	sql, args, err := sqlx.In(sqlStatement, hostnames)
 	if err != nil {
@@ -562,17 +732,55 @@ func (d *Datastore) HostIDsByName(hostnames []string) ([]uint, error) {
 
 }
 
-func (d *Datastore) HostByIdentifier(identifier string) (*kolide.Host, error) {
+func (d *Datastore) HostByIdentifier(identifier string) (*fleet.Host, error) {
 	sql := `
 		SELECT * FROM hosts
 		WHERE ? IN (host_name, osquery_host_id, node_key, uuid)
 		LIMIT 1
 	`
-	host := &kolide.Host{}
+	host := &fleet.Host{}
 	err := d.db.Get(host, sql, identifier)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host by identifier")
 	}
 
+	if err := d.loadHostPackStats(host); err != nil {
+		return nil, err
+	}
+
 	return host, nil
+}
+
+func (d *Datastore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	sql := `
+		UPDATE hosts SET team_id = ?
+		WHERE id IN (?)
+	`
+	sql, args, err := sqlx.In(sql, teamID, hostIDs)
+	if err != nil {
+		return errors.Wrap(err, "sqlx.In AddHostsToTeam")
+	}
+
+	if _, err := d.db.Exec(sql, args...); err != nil {
+		return errors.Wrap(err, "exec AddHostsToTeam")
+	}
+
+	return nil
+}
+
+func (d *Datastore) SaveHostAdditional(host *fleet.Host) error {
+	sql := `
+		INSERT INTO host_additional (host_id, additional)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE additional = VALUES(additional)
+	`
+	if _, err := d.db.Exec(sql, host.ID, host.Additional); err != nil {
+		return errors.Wrap(err, "insert additional")
+	}
+
+	return nil
 }

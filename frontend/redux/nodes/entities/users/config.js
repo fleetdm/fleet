@@ -1,13 +1,13 @@
-import Kolide from 'kolide';
-import Config from 'redux/nodes/entities/base/config';
-import schemas from 'redux/nodes/entities/base/schemas';
+import Fleet from "fleet";
+import Config from "redux/nodes/entities/base/config";
+import schemas from "redux/nodes/entities/base/schemas";
 
 const { USERS } = schemas;
 
 export default new Config({
-  createFunc: Kolide.users.create,
-  entityName: 'users',
-  loadAllFunc: Kolide.users.loadAll,
+  createFunc: Fleet.users.create,
+  entityName: "users",
+  loadAllFunc: Fleet.users.loadAll,
   schema: USERS,
-  updateFunc: Kolide.users.update,
+  updateFunc: Fleet.users.update,
 });

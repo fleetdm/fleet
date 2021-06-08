@@ -1,0 +1,43 @@
+name: Test Fleet website
+
+on:
+  pull_request:
+    paths:
+      - 'website/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [14.x]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    # Set the Node.js version
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    # Now start building!
+    # > …but first, get a little crazy for a sec and delete the top-level package.json file
+    # > i.e. the one used by the Fleet server.  This is because require() in node will go
+    # > hunting in ancestral directories for missing dependencies, and since some of the
+    # > bundled transpiler tasks sniff for package availability using require(), this trips
+    # > up when it encounters another Node universe in the parent directory.
+    - run: rm -rf package.json package-lock.json node_modules/
+    # > Turns out there's a similar issue with how eslint plugins are looked up, so we
+    # > delete the top level .eslintrc file too.
+    - run: rm -f .eslintrc.js
+
+    # Get dependencies (including dev deps)
+    - run: cd website/ && npm install
+
+    # Run sanity checks
+    - run: cd website/ && npm test
+
+    # Compile assets
+    - run: cd website/ && npm run build-for-prod

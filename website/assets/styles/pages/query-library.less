@@ -1,0 +1,187 @@
+#query-library {
+
+  h2 {
+    padding: 0px 30px 0px 30px;
+  }
+
+  h5 {
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 25px;
+  }
+
+  h6 {
+    font-size: 16px;
+    line-height: 22px;
+    padding: 0px 30px 0px 30px;
+
+  }
+
+  a {
+    font-size: 18px;
+    color: @core-vibrant-blue;
+  }
+
+  img {
+    &.logo {
+      height: 16px;
+      width: 16px;
+    }
+  }
+
+  input {
+    height: 54px;
+    width: 250px;
+    border: 1px solid #C5C7D1;
+    border-radius: 8px;
+    padding: 15px;
+    &.mobile {
+      width: 100%;
+      margin-right: 0;
+      margin-left: 0;
+    }
+  }
+
+  select {
+    color: @core-vibrant-blue;
+    border: 0px;
+    &:focus {
+      border: 0px;
+    }
+    &.select-purpose {
+      width: 102px;
+    }
+    &.select-platform {
+      width: 118px;
+    }
+    &.mobile {
+      height: 50px;
+      width: 100%;
+      margin-right: 0;
+      margin-left: 0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+  }
+
+  .library {
+    max-width: 860px;
+  }
+
+  .description {
+    padding: 0px 30px 0px 30px;
+    p {
+      font-size: 16px;
+      line-height: 25px;
+    }
+  }
+
+  .select-mobile-border {
+    height: 54px;
+    width: 100%;
+    margin-right: 0;
+    margin-left: 0;
+    border: 1px solid #C5C7D1;
+    border-radius: 8px;
+    padding-right: 15px;
+}
+
+  .select-mobile {
+    padding-left: 30px;
+    padding-right: 30px;
+    padding-bottom: 12px;
+  }
+
+  .search-mobile {
+    padding-left: 30px;
+    padding-right: 30px;
+    padding-bottom: 12px;
+  }
+
+  .filter-and-search-bar {
+    padding-left: 45px;
+    padding-right: 45px;
+  }
+
+  .contributors, .platforms {
+
+    p {
+      font-size: 13px;
+      line-height: 20px;
+    }
+  }
+
+  .row {
+    min-height: 70px;
+    align-items: center;
+  }
+
+  .divider {
+    margin-left: 30px;
+    margin-right: 30px;
+    border-bottom: 1px solid;
+    border-color: #E2E4EA;
+  }
+
+  .card.results {
+    box-shadow: none;
+    border: none;
+    border-radius: 8px;
+
+    &:hover {
+      background-color: #F1F0FF;
+      cursor: pointer;
+    }
+  }
+
+  .card.call-to-action {
+    background-color: @ui-off-white;
+    border-radius: 16px;
+    border-color: @ui-off-white;
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
+    margin-bottom: 90px;
+    width: 100%;
+
+  }
+
+  .card-body {
+    padding: 30px;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .avatar-frame {
+    width: 21px;
+    height: 21px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 50%;
+    &:hover {
+      cursor: pointer;
+    }
+
+    img {
+      display: inline;
+      margin: 0 auto;
+      height: 100%;
+      width: auto;
+    }
+  }
+
+  @media (max-width: 575px) {
+
+    h2 {
+      font-size: 28px;
+      line-height: 36px;
+    }
+
+    .contributors, .platforms {
+
+      p {
+        font-size: 13px;
+        line-height: 20px;
+      }
+    }
+  }
+
+}

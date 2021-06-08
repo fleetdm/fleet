@@ -1,53 +1,68 @@
-import React from 'react';
+import React from "react";
 
-import KolideIcon from 'components/icons/KolideIcon';
-import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
+import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
+import DifferentialIcon from "../../../../assets/images/icon-plus-minus-black-16x16@2x.png";
+import SnapshotIcon from "../../../../assets/images/icon-snapshot-black-16x14@2x.png";
 
-const baseClass = 'pack-info-side-panel';
+const baseClass = "pack-info-side-panel";
 
 const PackInfoSidePanel = () => {
   return (
     <SecondarySidePanelContainer className={baseClass}>
-      <h3 className={`${baseClass}__title`}>
-        <KolideIcon name="packs" />
-        &nbsp;
-        What&apos;s a query pack?
-      </h3>
+      <h3 className={`${baseClass}__title`}>What&apos;s a query pack?</h3>
       <p>
-        Osquery supports grouping of queries (called <b>query packs</b>)
-        which run on a scheduled basis and log the results to a configurable
-        destination.
+        Osquery supports grouping of queries (called query packs) which run on a
+        scheduled basis and log the results to a configurable destination.
       </p>
       <p>
-        Query Packs are useful for monitoring specific attributes of hosts
-        over time and can be used for alerting and incident response
-        investigations. By default, queries added to packs run every hour
-        (<b>interval = 3600s</b>).
+        Query Packs are useful for monitoring specific attributes of hosts over
+        time and can be used for alerting and incident response investigations.
+        By default, queries added to packs run every hour (interval = 3600s).
       </p>
 
-      <p>
-        Queries can be run in two modes:
-      </p>
+      <p>Queries can be run in two modes:</p>
 
       <dl>
-        <dt><KolideIcon name="plus-minus" /> <span>Differential</span></dt>
-        <dd>Only record data that has changed.</dd>
+        <dt>
+          <img src={DifferentialIcon} alt="plus-minus" />
+          <span>Differential</span>
+        </dt>
 
-        <dt><KolideIcon name="camera" /> <span>Snapshot</span></dt>
-        <dd>Record full query result each time.</dd>
+        <dt>
+          <img src={SnapshotIcon} alt="snapshot" />
+          <span>Snapshot</span>
+        </dt>
       </dl>
 
       <h4 className={`${baseClass}__subtitle`}>Where do I find results?</h4>
       <p>
-        Packs are distributed to specified <b>targets</b>. Targets may be <b>individual hosts</b> or groups of hosts called <b>labels.</b>
+        Packs are distributed to specified targets. Targets may be individual
+        hosts or groups of hosts called labels.
       </p>
-      <p>The results of queries run via query packs are stored in log files for your convenience. We recommend forwarding this logs to a log aggregation tool or other actionable tool for further analysis. These logs can be found in the following locations:</p>
+      <p>
+        The results of queries run via query packs are stored in log files for
+        your convenience. We recommend forwarding these logs to a log
+        aggregation tool or other actionable tool for further analysis. These
+        logs can be found in the following locations:
+      </p>
       <ul>
-        <li><strong>Status Log:</strong> /path/to/status/logs</li>
-        <li><strong>Result Log:</strong> /path/to/result/logs</li>
+        <li>
+          <strong>Status Log:</strong> /path/to/status/logs
+        </li>
+        <li>
+          <strong>Result Log:</strong> /path/to/result/logs
+        </li>
       </ul>
       <p>
-        Learn more about log aggregation in the <a href="https://osquery.readthedocs.io/en/stable/deployment/log-aggregation/" target="_blank" rel="noopener noreferrer">documentation</a>.
+        Learn more about log aggregation in the{" "}
+        <a
+          href="https://osquery.readthedocs.io/en/stable/deployment/log-aggregation/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          documentation
+        </a>
+        .
       </p>
     </SecondarySidePanelContainer>
   );

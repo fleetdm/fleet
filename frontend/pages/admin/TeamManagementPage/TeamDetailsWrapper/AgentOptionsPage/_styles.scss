@@ -1,0 +1,16 @@
+.agent-options {
+  font-size: $x-small;
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .icon {
+    width: 12px;
+    height: 12px;
+  }
+  &__form-wrapper {
+    margin-top: 20px;
+  }
+}

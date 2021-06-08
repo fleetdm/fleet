@@ -23,7 +23,7 @@
         // we always delete the token in the user agent. We use the session token
         // to keep track of state from the user agent (Kolide SPA), the service provider
         // (Kolide back end), to the identity provider (IDP) and back.
-        var sessionToken = localStorage.getItem("KOLIDE::auth_token")
+        var sessionToken = localStorage.getItem("FLEET::auth_token")
         if( sessionToken != null ) {
           console.log("user should be authenticated, fetching user with token " + sessionToken);
           $.ajax({
@@ -39,7 +39,7 @@
               $("#displayarea").empty();
               $("#displayarea").append(
                 "<h3>Authentication Succeeded</h3>" +
-                "<p>Token: " + localStorage.getItem("KOLIDE::auth_token").substring(0, 16) + "..." + "</p>" +
+                "<p>Token: " + localStorage.getItem("FLEET::auth_token").substring(0, 16) + "..." + "</p>" +
                 "<p>User: " + data.user.email + "</p>"
               );
               // print user stuff

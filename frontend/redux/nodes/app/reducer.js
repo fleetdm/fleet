@@ -7,14 +7,12 @@ import {
   ENROLL_SECRET_SUCCESS,
   HIDE_BACKGROUND_IMAGE,
   SHOW_BACKGROUND_IMAGE,
-  TOGGLE_SMALL_NAV,
-} from './actions';
+} from "./actions";
 
 export const initialState = {
   config: {},
   enrollSecret: [],
   error: {},
-  isSmallNav: false,
   loading: false,
   showBackgroundImage: false,
 };
@@ -66,11 +64,6 @@ const reducer = (state = initialState, { type, payload }) => {
       return {
         ...state,
         showBackgroundImage: true,
-      };
-    case TOGGLE_SMALL_NAV:
-      return {
-        ...state,
-        isSmallNav: !state.isSmallNav,
       };
     default:
       return state;

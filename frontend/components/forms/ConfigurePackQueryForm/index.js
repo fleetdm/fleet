@@ -1,1 +1,1 @@
-export { default } from './ConfigurePackQueryForm';
+export { default } from "./ConfigurePackQueryForm";

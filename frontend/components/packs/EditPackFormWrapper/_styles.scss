@@ -6,8 +6,8 @@
   &__title {
     @include ellipsis(80%);
 
-    .kolidecon {
-      color: $ui-medium-grey;
+    .fleeticon {
+      color: $ui-gray;
     }
   }
 
@@ -15,7 +15,7 @@
     font-size: 15px;
     font-weight: $regular;
     line-height: 2;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     max-width: 800px;
     word-wrap: break-word;
   }

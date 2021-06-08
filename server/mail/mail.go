@@ -12,21 +12,21 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/bindata"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func NewService() kolide.MailService {
+func NewService() fleet.MailService {
 	return &mailService{}
 }
 
 type mailService struct{}
 
 type sender interface {
-	sendMail(e kolide.Email, msg []byte) error
+	sendMail(e fleet.Email, msg []byte) error
 }
 
-func Test(mailer kolide.MailService, e kolide.Email) error {
+func Test(mailer fleet.MailService, e fleet.Email) error {
 	mailBody, err := getMessageBody(e)
 	if err != nil {
 		return errors.Wrap(err, "failed to get message body")
@@ -50,7 +50,7 @@ const (
 	PortTLS = 587
 )
 
-func getMessageBody(e kolide.Email) ([]byte, error) {
+func getMessageBody(e fleet.Email) ([]byte, error) {
 	body, err := e.Mailer.Message()
 	if err != nil {
 		return nil, errors.Wrap(err, "get mailer message")
@@ -63,7 +63,7 @@ func getMessageBody(e kolide.Email) ([]byte, error) {
 	return msg, nil
 }
 
-func (m mailService) SendEmail(e kolide.Email) error {
+func (m mailService) SendEmail(e fleet.Email) error {
 	if !e.Config.SMTPConfigured {
 		return fmt.Errorf("email not configured")
 	}
@@ -116,17 +116,17 @@ func (l *loginauth) Next(fromServer []byte, more bool) (toServer []byte, err err
 	}
 }
 
-func smtpAuth(e kolide.Email) (smtp.Auth, error) {
-	if e.Config.SMTPAuthenticationType != kolide.AuthTypeUserNamePassword {
+func smtpAuth(e fleet.Email) (smtp.Auth, error) {
+	if e.Config.SMTPAuthenticationType != fleet.AuthTypeUserNamePassword {
 		return nil, nil
 	}
 	var auth smtp.Auth
 	switch e.Config.SMTPAuthenticationMethod {
-	case kolide.AuthMethodCramMD5:
+	case fleet.AuthMethodCramMD5:
 		auth = smtp.CRAMMD5Auth(e.Config.SMTPUserName, e.Config.SMTPPassword)
-	case kolide.AuthMethodPlain:
+	case fleet.AuthMethodPlain:
 		auth = smtp.PlainAuth("", e.Config.SMTPUserName, e.Config.SMTPPassword, e.Config.SMTPServer)
-	case kolide.AuthMethodLogin:
+	case fleet.AuthMethodLogin:
 		auth = LoginAuth(e.Config.SMTPUserName, e.Config.SMTPPassword, e.Config.SMTPServer)
 	default:
 		return nil, fmt.Errorf("unknown SMTP auth type '%d'", e.Config.SMTPAuthenticationMethod)
@@ -134,14 +134,14 @@ func smtpAuth(e kolide.Email) (smtp.Auth, error) {
 	return auth, nil
 }
 
-func (m mailService) sendMail(e kolide.Email, msg []byte) error {
+func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	smtpHost := fmt.Sprintf("%s:%d", e.Config.SMTPServer, e.Config.SMTPPort)
 	auth, err := smtpAuth(e)
 	if err != nil {
 		return errors.Wrap(err, "failed to get smtp auth")
 	}
 
-	if e.Config.SMTPAuthenticationMethod == kolide.AuthMethodCramMD5 {
+	if e.Config.SMTPAuthenticationMethod == fleet.AuthMethodCramMD5 {
 		err = smtp.SendMail(smtpHost, auth, e.Config.SMTPSenderAddress, e.To, msg)
 		if err != nil {
 			return errors.Wrap(err, "failed to send mail. cramd5 auth method")

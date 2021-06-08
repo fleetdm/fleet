@@ -9,7 +9,7 @@
   }
 
   &__content {
-    margin-top: 10px;
+    margin-top: $pad-large;
     font-size: $x-small;
 
     .input-field {
@@ -20,15 +20,16 @@
   &__ex {
     text-decoration: none;
 
-    .button {
-      @include size(30px);
-      line-height: 30px;
-      color: $core-dark-blue-grey;
-      font-size: $x-large;
+    .button::after {
+      content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
+    }
 
-      &:hover {
-        color: $alert-light;
-      }
+    .button:hover::after {
+      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
     }
   }
 
@@ -37,16 +38,16 @@
     font-weight: $regular;
     text-align: left;
     padding-bottom: 15px;
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
     display: flex;
     justify-content: space-between;
   }
 
   &__modal_container {
     @include position(absolute, 22px null null null);
-    background-color: $white;
+    background-color: $core-white;
     width: 658px;
-    padding: 40px;
+    padding: $pad-xxlarge;
     border-radius: 8px;
   }
 }

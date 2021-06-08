@@ -4,15 +4,18 @@
   display: inline-block;
 
   &__input {
-    visibility: hidden;
-    margin: 0;
-    position: absolute;
-    z-index: -1;
+    opacity: 0;
+
+    &:focus + .kolide-checkbox__tick {
+      &::after {
+        border-color: $core-vibrant-blue;
+      }
+    }
 
     &:checked + .kolide-checkbox__tick {
       &::after {
-        background-color: $core-blue;
-        border: solid 1px $core-blue;
+        background-color: $core-vibrant-blue;
+        border: solid 2px $core-vibrant-blue;
       }
 
       &::before {
@@ -23,10 +26,10 @@
         width: 7px;
         height: 13px;
         margin: -8px 0 0 -3px;
-        border: 2px solid $white;
+        border: 2px solid $core-white;
         border-top: 0;
         border-left: 0;
-        content: '';
+        content: "";
       }
     }
   }
@@ -40,28 +43,43 @@
     &::after {
       @include size(20px);
       transition: border 75ms ease-in-out, background 75ms ease-in-out;
-      border-radius: 2px;
-      border: solid 1px $ui-borders;
-      content: '';
+      border-radius: $border-radius;
+      border: solid 2px $ui-fleet-black-25;
+      content: "";
       box-sizing: border-box;
       display: block;
-      background-color: $white;
+      background-color: $core-white;
       visibility: visible;
     }
 
     &--disabled {
       &::after {
-        background-color: $ui-borders;
+        background-color: $ui-fleet-black-25;
+      }
+    }
+
+    &--indeterminate {
+      &::after {
+        background-color: $core-vibrant-blue;
+        border: solid 1px $core-vibrant-blue;
+      }
+
+      &::before {
+        @include position(absolute, 50% null null 50%);
+        box-sizing: border-box;
+        display: block;
+        width: 10px;
+        margin: -1px 0 0 -5px;
+        border: 2px solid $core-white;
+        border-top: 0;
+        border-left: 0;
+        content: "";
       }
     }
   }
 
   &__label {
-    font-size: 13px;
-    font-weight: $regular;
-    line-height: 20px;
-    letter-spacing: 0.5px;
-    color: $core-dark-blue-grey;
-    padding-left: 25px;
+    font-size: $x-small;
+    padding-left: $pad-small;
   }
 }

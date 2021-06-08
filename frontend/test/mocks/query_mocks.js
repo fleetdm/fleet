@@ -1,11 +1,11 @@
-import createRequestMock from 'test/mocks/create_request_mock';
+import createRequestMock from "test/mocks/create_request_mock";
 
 const errorResponse = {
-  message: 'Resource not found',
+  message: "Resource not found",
   errors: [
     {
-      name: 'base',
-      reason: 'Resource not found',
+      name: "base",
+      reason: "Resource not found",
     },
   ],
 };
@@ -15,8 +15,8 @@ export default {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/queries',
-        method: 'post',
+        endpoint: "/api/v1/fleet/queries",
+        method: "post",
         params,
         response: { query: params },
         responseStatus: 201,
@@ -28,7 +28,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/queries/id/${id}`,
-        method: 'delete',
+        method: "delete",
         response: {},
       });
     },
@@ -38,7 +38,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/queries/${id}`,
-        method: 'get',
+        method: "get",
         response: errorResponse,
         responseStatus: 404,
       });
@@ -47,7 +47,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/queries/${id}`,
-        method: 'get',
+        method: "get",
         response: { query: { id } },
       });
     },
@@ -56,8 +56,8 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/queries',
-        method: 'get',
+        endpoint: "/api/v1/fleet/queries",
+        method: "get",
         response: { queries: [] },
       });
     },
@@ -66,8 +66,8 @@ export default {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/queries/run',
-        method: 'post',
+        endpoint: "/api/v1/fleet/queries/run",
+        method: "post",
         params,
         response: { campaign: { id: 1 } },
       });
@@ -80,7 +80,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint,
-        method: 'patch',
+        method: "patch",
         params,
         response: { query: { ...query, ...params } },
       });

@@ -7,6 +7,7 @@
 - [Hosts](#hosts)
 - [Labels](#labels)
 - [Users](#users)
+- [Sessions](#sessions)
 - [Queries](#queries)
 - [Packs](#packs)
 - [Targets](#targets)
@@ -55,6 +56,7 @@ All of these objects are put together and distributed to the appropriate osquery
 - [Log out](#log-out)
 - [Forgot password](#forgot-password)
 - [Change password](#change-password)
+- [Reset password](#reset-password)
 - [Me](#me)
 - [SSO config](#sso-config)
 - [Initiate SSO](#initiate-sso)
@@ -228,7 +230,7 @@ Changes the password for the authenticated user.
 ```
 {
   "old_password": "VArCjNW7CfsxGp67",
-  "new_password": "zGq7mCLA6z4PzArC",
+  "new_password": "zGq7mCLA6z4PzArC"
 }
 ```
 
@@ -250,6 +252,42 @@ Changes the password for the authenticated user.
     }
   ]
 }
+```
+
+### Reset password
+
+Resets a user's password. Which user is determined by the password reset token used. The password reset token can be found in the password reset email sent to the desired user.
+
+`POST /api/v1/fleet/reset_password`
+
+#### Parameters
+
+| Name                      | Type   | In   | Description                                                               |
+| ------------------------- | ------ | ---- | ------------------------------------------------------------------------- |
+| new_password              | string | body | **Required**. The new password.                                           |
+| new_password_confirmation | string | body | **Required**. Confirmation for the new password.                          |
+| password_reset_token      | string | body | **Required**. The token provided to the user in the password reset email. |
+
+#### Example
+
+`POST /api/v1/fleet/reset_password`
+
+##### Request body
+
+```
+{
+  "new_password": "abc123"
+  "new_password_confirmation": "abc123"
+  "password_reset_token": "UU5EK0JhcVpsRkY3NTdsaVliMEZDbHJ6TWdhK3oxQ1Q="
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
 ```
 
 ---
@@ -784,7 +822,7 @@ Flags the host details to be refetched the next time the host checks in for live
 - [Modify label](#modify-label)
 - [Get label](#get-label)
 - [List labels](#list-labels)
-- [List hosts in label](#list-hosts-in-label)
+- [List hosts in a label](#list-hosts-in-a-label)
 - [Delete label](#delete-label)
 - [Delete label by ID](#delete-label-by-id)
 - [Apply labels specs](#apply-labels-specs)
@@ -1846,7 +1884,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 `POST /api/v1/fleet/users/{id}/require_password_reset`
 
-#### Request body
+##### Request body
 
 ```
 {
@@ -1924,11 +1962,72 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 #### Parameters
 
-None.
+| Name | Type    | In   | Description                               |
+| ---- | ------- | ---- | ----------------------------------------- |
+| id   | integer | path | **Required**. The ID of the desired user. |
 
 #### Example
 
 `DELETE /api/v1/fleet/users/1/sessions`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+---
+
+## Sessions
+
+- [Get session info](#get-session-info)
+- [Delete session](#delete-session)
+
+### Get session info
+
+Returns the session information for the session specified by ID.
+
+`GET /api/v1/fleet/sessions/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                  |
+| ---- | ------- | ---- | -------------------------------------------- |
+| id   | integer | path | **Required**. The ID of the desired session. |
+
+#### Example
+
+`GET /api/v1/fleet/sessions/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "session_id": 1,
+  "user_id": 1,
+  "created_at": "2021-03-02T18:41:34Z"
+}
+```
+
+### Delete session
+
+Deletes the session specified by ID. When the user associated with the session next attempts to access Fleet, they will be asked to log in.
+
+`DELETE /api/v1/fleet/sessions/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                  |
+| ---- | ------- | ---- | -------------------------------------------- |
+| id   | integer | path | **Required**. The id of the desired session. |
+
+#### Example
+
+`DELETE /api/v1/fleet/sessions/1`
 
 ##### Default response
 
@@ -1948,13 +2047,16 @@ None.
 - [Modify query](#modify-query)
 - [Delete query](#delete-query)
 - [Delete query by ID](#delete-query-by-id)
+- [Delete queries](#delete-queries)
 - [Get queries specs](#get-queries-specs)
 - [Get query spec](#get-query-spec)
 - [Apply queries specs](#apply-queries-specs)
 - [Check live query status](#check-live-query-status)
 - [Check result store status](#check-result-store-status)
 - [Run live query](#run-live-query)
-- [Run live query by query name](#run-live-query-by-query-name)
+- [Run live query by name](#run-live-query-by-name)
+- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
+- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
 
 ### Get query
 
@@ -2256,6 +2358,42 @@ Deletes the query specified by ID.
 {}
 ```
 
+### Delete queries
+
+Deletes the queries specified by ID. Returns the count of queries successfully deleted.
+
+`POST /api/v1/fleet/queries/delete`
+
+#### Parameters
+
+| Name | Type | In   | Description                           |
+| ---- | ---- | ---- | ------------------------------------- |
+| ids  | list | body | **Required.** The IDs of the queries. |
+
+#### Example
+
+`POST /api/v1/fleet/queries/delete`
+
+##### Request body
+
+```
+{
+  "ids": [
+    2, 24, 25
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "deleted": 3
+}
+```
+
 ### Get queries specs
 
 Returns a list of all queries in the Fleet instance. Each item returned includes the name, description, and SQL of the query.
@@ -2420,6 +2558,60 @@ None.
 
 ### Run live query
 
+Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+
+`POST /api/v1/fleet/queries/run`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                                                |
+| -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query    | string  | body | The SQL if using a custom query.                                                                                                                           |
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                |
+| selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
+
+One of `query` and `query_id` must be specified.
+
+#### Example with one host targeted by ID
+
+`POST /api/v1/fleet/queries/run`
+
+#### Example
+
+`GET /api/v1/fleet/status/live_query`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Check result store status
+
+`POST /api/v1/fleet/queries/run`
+
+`GET /api/v1/fleet/status/result_store`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/status/result_store`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Run live query
+
 Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
 
 `POST /api/v1/fleet/queries/run`
@@ -2442,8 +2634,10 @@ One of `query` and `query_id` must be specified.
 
 ```
 {
-  "query": "select instance_id from system_info;"
-  "selected": { "hosts": [171], "labels": []}
+  "query": "select instance_id from system_info",
+  "selected": {
+    "hosts": [171]
+  }
 }
 ```
 
@@ -2463,8 +2657,8 @@ One of `query` and `query_id` must be specified.
       "MissingInActionHosts": 0,
       "NewHosts": 1
     },
-    "id": 273,
-    "query_id": 293,
+    "id": 1,
+    "query_id": 3,
     "status": 0,
     "user_id": 1
   }
@@ -2479,8 +2673,10 @@ One of `query` and `query_id` must be specified.
 
 ```
 {
-  "query": "select instance_id from system_info;"
-  "selected": { "hosts": [171], "labels": []}
+  "query": "select instance_id from system_info;",
+  "selected": {
+    "labels": [7]
+  }
 }
 ```
 
@@ -2494,23 +2690,23 @@ One of `query` and `query_id` must be specified.
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "Metrics": {
-      "TotalHosts": 1,
+      "TotalHosts": 102,
       "OnlineHosts": 0,
-      "OfflineHosts": 1,
+      "OfflineHosts": 24,
       "MissingInActionHosts": 0,
-      "NewHosts": 1
+      "NewHosts": 0
     },
-    "id": 273,
-    "query_id": 293,
+    "id": 2,
+    "query_id": 3,
     "status": 0,
     "user_id": 1
   }
 }
 ```
 
-### Run live query by query name
+### Run live query by name
 
-Runs the specified query by name as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
+Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
 
 `POST /api/v1/fleet/queries/run_by_names`
 
@@ -2524,7 +2720,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 One of `query` and `query_id` must be specified.
 
-#### Example with one host targeted
+#### Example with one host targeted by hostname
 
 `POST /api/v1/fleet/queries/run_by_names`
 
@@ -2557,12 +2753,334 @@ One of `query` and `query_id` must be specified.
           "MissingInActionHosts": 0,
           "NewHosts": 1
       },
-      "id": 275,
-      "query_id": 295,
+      "id": 1,
+      "query_id": 3,
       "status": 0,
       "user_id": 1
   }
 }
+```
+
+#### Example with multiple hosts targeted by label name
+
+`POST /api/v1/fleet/queries/run_by_names`
+
+##### Request body
+
+```
+{
+  "query": "select instance_id from system_info",
+  "selected": {
+    "labels": [
+      "All Hosts"
+    ]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "campaign": {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "Metrics": {
+          "TotalHosts": 102,
+          "OnlineHosts": 0,
+          "OfflineHosts": 24,
+          "MissingInActionHosts": 0,
+          "NewHosts": 1
+      },
+      "id": 2,
+      "query_id": 3,
+      "status": 0,
+      "user_id": 1
+  }
+}
+```
+
+### Retrieve live query results (standard WebSocket API)
+
+You can retrieve the results of a live query using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
+
+Before you retrieve the live query results, you must create a live query campaign by running the live query. See the documentation for the [Run live query](#run-live-query) endpoint to create a live query campaign.
+
+`/api/v1/fleet/results/websockets`
+
+#### Parameters
+
+| Name       | Type    | In  | Description                                                      |
+| ---------- | ------- | --- | ---------------------------------------------------------------- |
+| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
+| campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
+
+#### Example
+
+##### Example script to handle request and response
+
+```
+const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
+
+socket.onopen = () => {
+  socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));
+  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaign-id> } }));
+};
+
+socket.onmessage = ({ data }) => {
+  console.log(data);
+  const message = JSON.parse(data);
+  if (message.type === 'status' && message.data.status === 'finished') {
+    socket.close();
+  }
+}
+```
+
+##### Detailed request and response walkthrough with example data
+
+##### `webSocket.onopen()`
+
+###### Response data
+
+```
+o
+```
+
+##### `webSocket.send()`
+
+###### Request data
+
+```
+[
+  {
+    "type": "auth",
+    "data": { "token": <insert_token_here> }
+  }
+]
+```
+
+```
+[
+  {
+    "type": "select_campaign",
+    "data": { "campaign_id": 12 }
+  }
+]
+```
+
+##### `webSocket.onmessage()`
+
+###### Response data
+
+```
+// Sends the total number of hosts targeted and segments them by status
+
+[
+  {
+    "type": "totals",
+    "data": {
+      "count": 24,
+      "online": 6,
+      "offline": 18,
+      "missing_in_action": 0
+    }
+
+  }
+]
+```
+
+```
+// Sends the expected results, actual results so far, and the status of the live query
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 0,
+      "status": "pending"
+    }
+
+  }
+]
+```
+
+```
+// Sends the result for a given host
+
+[
+  {
+    "type": "result",
+    "data": {
+      "distributed_query_execution_id": 39,
+      "host": {
+        // host data
+      },
+      "rows": [
+        // query results data for the given host
+      ],
+      "error": null
+    }
+  }
+]
+```
+
+```
+// Sends the status of "finished" when messages with the results for all expected hosts have been sent
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 6,
+      "status": "finished"
+    }
+
+  }
+]
+```
+
+### Retrieve live query results (SockJS)
+
+You can also retrieve live query results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
+
+`/api/v1/fleet/results/`
+
+#### Parameters
+
+| Name       | Type    | In  | Description                                                      |
+| ---------- | ------- | --- | ---------------------------------------------------------------- |
+| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
+| campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
+
+#### Example
+
+##### Example script to handle request and response
+
+```
+const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
+
+socket.onopen = () => {
+  socket.send(JSON.stringify({ type: 'auth', data: { token: <token> } }));
+  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
+};
+
+socket.onmessage = ({ data }) => {
+  console.log(data);
+  const message = JSON.parse(data);
+
+  if (message.type === 'status' && message.data.status === 'finished') {
+    socket.close();
+  }
+}
+```
+
+##### Detailed request and response walkthrough
+
+##### `socket.onopen()`
+
+###### Response data
+
+```
+o
+```
+
+##### `socket.send()`
+
+###### Request data
+
+```
+[
+  {
+    "type": "auth",
+    "data": { "token": <insert_token_here> }
+  }
+]
+```
+
+```
+[
+  {
+    "type": "select_campaign",
+    "data": { "campaign_id": 12 }
+  }
+]
+```
+
+##### `socket.onmessage()`
+
+###### Response data
+
+```
+// Sends the total number of hosts targeted and segments them by status
+
+[
+  {
+    "type": "totals",
+    "data": {
+      "count": 24,
+      "online": 6,
+      "offline": 18,
+      "missing_in_action": 0
+    }
+
+  }
+]
+```
+
+```
+// Sends the expected results, actual results so far, and the status of the live query
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 0,
+      "status": "pending"
+    }
+
+  }
+]
+```
+
+```
+// Sends the result for a given host
+
+[
+  {
+    "type": "result",
+    "data": {
+      "distributed_query_execution_id": 39,
+      "host": {
+        // host data
+      },
+      "rows": [
+        // query results data for the given host
+      ],
+      "error": null
+    }
+  }
+]
+```
+
+```
+// Sends the status of "finished" when messages with the results for all expected hosts have been sent
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 6,
+      "status": "finished"
+    }
+
+  }
+]
 ```
 
 ---
@@ -2605,9 +3123,9 @@ One of `query` and `query_id` must be specified.
 
 ```
 {
-  "description": "Collects osquery data."
-  "host_ids": []
-  "label_ids": [6]
+  "description": "Collects osquery data.",
+  "host_ids": [],
+  "label_ids": [6],
   "name": "query_pack_1"
 }
 ```
@@ -2656,8 +3174,8 @@ One of `query` and `query_id` must be specified.
 
 ```
 {
-  "description": "MacOS hosts are targeted"
-  "host_ids": []
+  "description": "MacOS hosts are targeted",
+  "host_ids": [],
   "label_ids": [7]
 }
 ```
@@ -3380,7 +3898,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 
 ```
 {
-  "query": "172"
+  "query": "172",
   "selected": {
     "hosts": [],
     "labels": [7]

@@ -6,7 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {

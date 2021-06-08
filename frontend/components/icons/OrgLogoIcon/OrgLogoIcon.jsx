@@ -1,7 +1,7 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import fleetAvatar from '../../../../assets/images/fleet-avatar-24x24@2x.png';
+import fleetAvatar from "../../../../assets/images/fleet-avatar-24x24@2x.png";
 
 class OrgLogoIcon extends Component {
   static propTypes = {
@@ -13,13 +13,13 @@ class OrgLogoIcon extends Component {
     src: fleetAvatar,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = { imageSrc: fleetAvatar };
   }
 
-  componentWillMount () {
+  componentWillMount() {
     const { src } = this.props;
 
     this.setState({ imageSrc: src });
@@ -27,7 +27,7 @@ class OrgLogoIcon extends Component {
     return false;
   }
 
-  componentWillReceiveProps (nextProps) {
+  componentWillReceiveProps(nextProps) {
     const { src } = nextProps;
     const { unchangedSourceProp } = this;
 
@@ -40,11 +40,11 @@ class OrgLogoIcon extends Component {
     return false;
   }
 
-  shouldComponentUpdate (nextProps) {
+  shouldComponentUpdate(nextProps) {
     const { imageSrc } = this.state;
     const { unchangedSourceProp } = this;
 
-    if (unchangedSourceProp(nextProps) && (imageSrc === fleetAvatar)) {
+    if (unchangedSourceProp(nextProps) && imageSrc === fleetAvatar) {
       return false;
     }
 
@@ -55,16 +55,16 @@ class OrgLogoIcon extends Component {
     this.setState({ imageSrc: fleetAvatar });
 
     return false;
-  }
+  };
 
   unchangedSourceProp = (nextProps) => {
     const { src: nextSrcProp } = nextProps;
     const { src } = this.props;
 
     return src === nextSrcProp;
-  }
+  };
 
-  render () {
+  render() {
     const { className } = this.props;
     const { imageSrc } = this.state;
     const { onError } = this;

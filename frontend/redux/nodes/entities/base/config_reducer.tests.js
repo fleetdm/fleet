@@ -1,26 +1,30 @@
-import ReduxConfig from 'redux/nodes/entities/base/config';
-import schemas from 'redux/nodes/entities/base/schemas';
-import { userStub } from 'test/stubs';
+import ReduxConfig from "redux/nodes/entities/base/config";
+import schemas from "redux/nodes/entities/base/schemas";
+import { userStub } from "test/stubs";
 
-describe('ReduxConfig - reducer', () => {
+describe("ReduxConfig - reducer", () => {
   const state = {
     loading: false,
     errors: {},
     data: {
       [userStub.id]: userStub,
     },
+    originalOrder: [userStub.id],
   };
 
-  describe('creating an entity', () => {
+  describe("creating an entity", () => {
     const config = new ReduxConfig({
-      entityName: 'users',
+      entityName: "users",
       schema: schemas.USERS,
     });
     const { actions, reducer } = config;
 
-    describe('successful action', () => {
-      it('adds the user to state', () => {
-        const createSuccessAction = actions.successAction([userStub], actions.createSuccess);
+    describe("successful action", () => {
+      it("adds the user to state", () => {
+        const createSuccessAction = actions.successAction(
+          [userStub],
+          actions.createSuccess
+        );
 
         const newState = reducer(ReduxConfig.initialState, createSuccessAction);
 
@@ -35,9 +39,9 @@ describe('ReduxConfig - reducer', () => {
       });
     });
 
-    describe('unsuccessful action', () => {
-      it('adds the errors to state', () => {
-        const errors = { base: 'User is not authenticated' };
+    describe("unsuccessful action", () => {
+      it("adds the errors to state", () => {
+        const errors = { base: "User is not authenticated" };
         const createFailureAction = actions.createFailure(errors);
 
         const newState = reducer(ReduxConfig.initialState, createFailureAction);
@@ -52,15 +56,15 @@ describe('ReduxConfig - reducer', () => {
     });
   });
 
-  describe('destroying an entity', () => {
+  describe("destroying an entity", () => {
     const config = new ReduxConfig({
-      entityName: 'users',
+      entityName: "users",
       schema: schemas.USERS,
     });
     const { actions, reducer } = config;
 
-    describe('successful action', () => {
-      it('removes the user from state', () => {
+    describe("successful action", () => {
+      it("removes the user from state", () => {
         const destroySuccessAction = actions.destroySuccess(userStub.id);
 
         const newState = reducer(state, destroySuccessAction);
@@ -69,13 +73,14 @@ describe('ReduxConfig - reducer', () => {
           loading: false,
           errors: {},
           data: {},
+          originalOrder: [],
         });
       });
     });
 
-    describe('unsuccessful action', () => {
-      it('adds the errors to state', () => {
-        const errors = { base: 'User is not authenticated' };
+    describe("unsuccessful action", () => {
+      it("adds the errors to state", () => {
+        const errors = { base: "User is not authenticated" };
         const destroyFailureAction = actions.destroyFailure(errors);
 
         const newState = reducer(state, destroyFailureAction);
@@ -88,16 +93,19 @@ describe('ReduxConfig - reducer', () => {
     });
   });
 
-  describe('loading an entity', () => {
+  describe("loading an entity", () => {
     const config = new ReduxConfig({
-      entityName: 'users',
+      entityName: "users",
       schema: schemas.USERS,
     });
     const { actions, reducer } = config;
 
-    describe('successful action', () => {
-      it('adds the user to state', () => {
-        const loadSuccessAction = actions.successAction([userStub], actions.loadSuccess);
+    describe("successful action", () => {
+      it("adds the user to state", () => {
+        const loadSuccessAction = actions.successAction(
+          [userStub],
+          actions.loadSuccess
+        );
 
         const newState = reducer(ReduxConfig.initialState, loadSuccessAction);
 
@@ -112,9 +120,9 @@ describe('ReduxConfig - reducer', () => {
       });
     });
 
-    describe('unsuccessful action', () => {
-      it('adds the errors to state', () => {
-        const errors = { base: 'User is not authenticated' };
+    describe("unsuccessful action", () => {
+      it("adds the errors to state", () => {
+        const errors = { base: "User is not authenticated" };
         const loadFailureAction = actions.loadFailure(errors);
 
         const newState = reducer(ReduxConfig.initialState, loadFailureAction);
@@ -129,17 +137,20 @@ describe('ReduxConfig - reducer', () => {
     });
   });
 
-  describe('loading all entities', () => {
+  describe("loading all entities", () => {
     const config = new ReduxConfig({
-      entityName: 'users',
+      entityName: "users",
       schema: schemas.USERS,
     });
     const { actions, reducer } = config;
-    const newUser = { id: 101, name: 'Joe Schmoe' };
+    const newUser = { id: 101, name: "Joe Schmoe" };
 
-    describe('successful action', () => {
-      it('replaces the users in state', () => {
-        const loadAllSuccessAction = actions.successAction([newUser], actions.loadAllSuccess);
+    describe("successful action", () => {
+      it("replaces the users in state", () => {
+        const loadAllSuccessAction = actions.successAction(
+          [newUser],
+          actions.loadAllSuccess
+        );
 
         const newState = reducer(state, loadAllSuccessAction);
 
@@ -155,19 +166,22 @@ describe('ReduxConfig - reducer', () => {
     });
   });
 
-  describe('updating an entity', () => {
+  describe("updating an entity", () => {
     const config = new ReduxConfig({
-      entityName: 'users',
+      entityName: "users",
       schema: schemas.USERS,
     });
     const { actions, reducer } = config;
-    const newUser = { ...userStub, name: 'Kolide', something: 'else' };
+    const newUser = { ...userStub, name: "Kolide", something: "else" };
 
-    describe('successful action', () => {
-      const updateSuccessAction = actions.successAction([newUser], actions.updateSuccess);
+    describe("successful action", () => {
+      const updateSuccessAction = actions.successAction(
+        [newUser],
+        actions.updateSuccess
+      );
       const newState = reducer(state, updateSuccessAction);
 
-      it('replaces the user in state', () => {
+      it("replaces the user in state", () => {
         expect(newState).toEqual({
           loading: false,
           errors: {},
@@ -179,13 +193,13 @@ describe('ReduxConfig - reducer', () => {
       });
     });
 
-    describe('unsuccessful action', () => {
-      const errors = { base: 'User is not authenticated' };
+    describe("unsuccessful action", () => {
+      const errors = { base: "User is not authenticated" };
       const updateFailureAction = actions.updateFailure(errors);
 
       const newState = reducer(state, updateFailureAction);
 
-      it('adds the errors to state', () => {
+      it("adds the errors to state", () => {
         expect(newState).toEqual({
           ...state,
           errors,
@@ -194,23 +208,23 @@ describe('ReduxConfig - reducer', () => {
     });
   });
 
-  describe('clear errors', () => {
+  describe("clear errors", () => {
     const errorState = {
       loading: false,
       errors: {
-        base: 'User is not authenticated',
+        base: "User is not authenticated",
       },
       data: {
         [userStub.id]: userStub,
       },
     };
     const config = new ReduxConfig({
-      entityName: 'users',
+      entityName: "users",
       schema: schemas.USERS,
     });
     const { actions, reducer } = config;
 
-    it('resets the entity errors', () => {
+    it("resets the entity errors", () => {
       const newState = reducer(errorState, actions.clearErrors());
 
       expect(newState).toEqual({

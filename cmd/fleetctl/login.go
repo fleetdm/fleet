@@ -6,16 +6,16 @@ import (
 
 	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-func loginCommand() cli.Command {
+func loginCommand() *cli.Command {
 	var (
 		flEmail    string
 		flPassword string
 	)
-	return cli.Command{
+	return &cli.Command{
 		Name:  "login",
 		Usage: "Login to Fleet",
 		UsageText: `
@@ -24,16 +24,16 @@ fleetctl login [options]
 Interactively prompts for email and password if not specified in the flags or environment variables.
 `,
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "email",
-				EnvVar:      "EMAIL",
+				EnvVars:     []string{"EMAIL"},
 				Value:       "",
 				Destination: &flEmail,
 				Usage:       "Email or username to use to log in",
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "password",
-				EnvVar:      "PASSWORD",
+				EnvVars:     []string{"PASSWORD"},
 				Value:       "",
 				Destination: &flPassword,
 				Usage:       "Password to use to log in (recommended to use interactive entry)",
@@ -71,12 +71,10 @@ Interactively prompts for email and password if not specified in the flags or en
 			token, err := fleet.Login(flEmail, flPassword)
 			if err != nil {
 				switch err.(type) {
-				case service.InvalidLoginErr:
-					return err
 				case service.NotSetupErr:
 					return err
 				}
-				return errors.Wrap(err, "error logging in")
+				return errors.Wrap(err, "Login failed")
 			}
 
 			configPath, context := c.String("config"), c.String("context")

@@ -1,8 +1,8 @@
-import sqliteParser from 'sqlite-parser';
-import { includes, some } from 'lodash';
+import sqliteParser from "sqlite-parser";
+import { includes, some } from "lodash";
 
 const BLACKLISTED_ACTIONS = [];
-const invalidQueryErrorMessage = 'Blacklisted query action';
+const invalidQueryErrorMessage = "Blacklisted query action";
 const invalidQueryResponse = (message) => {
   return { valid: false, error: message };
 };
@@ -10,7 +10,7 @@ const validQueryResponse = { valid: true, error: null };
 
 export const validateQuery = (queryText) => {
   if (!queryText) {
-    return invalidQueryResponse('Query text must be present');
+    return invalidQueryResponse("Query text must be present");
   }
 
   try {

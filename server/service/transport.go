@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
@@ -87,7 +87,7 @@ func nameFromRequest(r *http.Request, varName string) (string, error) {
 const defaultPerPage = 20
 
 // listOptionsFromRequest parses the list options from the request parameters
-func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
+func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	var err error
 
 	pageString := r.URL.Query().Get("page")
@@ -99,10 +99,10 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 	if pageString != "" {
 		page, err = strconv.Atoi(pageString)
 		if err != nil {
-			return kolide.ListOptions{}, errors.New("non-int page value")
+			return fleet.ListOptions{}, errors.New("non-int page value")
 		}
 		if page < 0 {
-			return kolide.ListOptions{}, errors.New("negative page value")
+			return fleet.ListOptions{}, errors.New("negative page value")
 		}
 	}
 
@@ -112,10 +112,10 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 	if perPageString != "" {
 		perPage, err = strconv.Atoi(perPageString)
 		if err != nil {
-			return kolide.ListOptions{}, errors.New("non-int per_page value")
+			return fleet.ListOptions{}, errors.New("non-int per_page value")
 		}
 		if perPage <= 0 {
-			return kolide.ListOptions{}, errors.New("invalid per_page value")
+			return fleet.ListOptions{}, errors.New("invalid per_page value")
 		}
 	}
 
@@ -127,20 +127,20 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 	}
 
 	if orderKey == "" && orderDirectionString != "" {
-		return kolide.ListOptions{},
+		return fleet.ListOptions{},
 			errors.New("order_key must be specified with order_direction")
 	}
 
-	var orderDirection kolide.OrderDirection
+	var orderDirection fleet.OrderDirection
 	switch orderDirectionString {
 	case "desc":
-		orderDirection = kolide.OrderDescending
+		orderDirection = fleet.OrderDescending
 	case "asc":
-		orderDirection = kolide.OrderAscending
+		orderDirection = fleet.OrderAscending
 	case "":
-		orderDirection = kolide.OrderAscending
+		orderDirection = fleet.OrderAscending
 	default:
-		return kolide.ListOptions{},
+		return fleet.ListOptions{},
 			errors.New("unknown order_direction: " + orderDirectionString)
 
 	}
@@ -152,28 +152,33 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 		orderKey = "host_name"
 	case "memory":
 		orderKey = "physical_memory"
+	case "detail_updated_at":
+		orderKey = "detail_update_time"
 	}
 
-	return kolide.ListOptions{
+	query := r.URL.Query().Get("query")
+
+	return fleet.ListOptions{
 		Page:           uint(page),
 		PerPage:        uint(perPage),
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
+		MatchQuery:     query,
 	}, nil
 }
 
-func hostListOptionsFromRequest(r *http.Request) (kolide.HostListOptions, error) {
+func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) {
 	opt, err := listOptionsFromRequest(r)
 	if err != nil {
-		return kolide.HostListOptions{}, err
+		return fleet.HostListOptions{}, err
 	}
 
-	hopt := kolide.HostListOptions{ListOptions: opt}
+	hopt := fleet.HostListOptions{ListOptions: opt}
 
 	status := r.URL.Query().Get("status")
-	switch kolide.HostStatus(status) {
-	case kolide.StatusNew, kolide.StatusOnline, kolide.StatusOffline, kolide.StatusMIA:
-		hopt.StatusFilter = kolide.HostStatus(status)
+	switch fleet.HostStatus(status) {
+	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA:
+		hopt.StatusFilter = fleet.HostStatus(status)
 	case "":
 		// No error when unset
 	default:
@@ -189,10 +194,26 @@ func hostListOptionsFromRequest(r *http.Request) (kolide.HostListOptions, error)
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
-	query := r.URL.Query().Get("query")
-	hopt.MatchQuery = query
-
 	return hopt, nil
+}
+
+func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return fleet.UserListOptions{}, err
+	}
+
+	uopt := fleet.UserListOptions{ListOptions: opt}
+
+	if tid := r.URL.Query().Get("team_id"); tid != "" {
+		teamID, err := strconv.ParseUint(tid, 10, 64)
+		if err != nil {
+			return uopt, errors.Wrap(err, "parse team_id as int")
+		}
+		uopt.TeamID = uint(teamID)
+	}
+
+	return uopt, nil
 }
 
 func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -210,5 +231,17 @@ func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interfac
 	}
 	var req getGenericSpecRequest
 	req.Name = name
+	return req, nil
+}
+
+type genericIDListRequest struct {
+	IDs []uint `json:"ids"`
+}
+
+func decodeGenericIDListRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req genericIDListRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
 	return req, nil
 }

@@ -1,9 +1,9 @@
-import yaml from 'js-yaml';
-import Kolide from 'kolide';
+import yaml from "js-yaml";
+import Fleet from "fleet";
 
-export const OSQUERY_OPTIONS_FAILURE = 'OSQUERY_OPTIONS_FAILURE';
-export const OSQUERY_OPTIONS_START = 'OSQUERY_OPTIONS_START';
-export const OSQUERY_OPTIONS_SUCCESS = 'OSQUERY_OPTIONS_SUCCESS';
+export const OSQUERY_OPTIONS_FAILURE = "OSQUERY_OPTIONS_FAILURE";
+export const OSQUERY_OPTIONS_START = "OSQUERY_OPTIONS_START";
+export const OSQUERY_OPTIONS_SUCCESS = "OSQUERY_OPTIONS_SUCCESS";
 
 export const loadOsqueryOptions = { type: OSQUERY_OPTIONS_START };
 
@@ -19,7 +19,8 @@ export const getOsqueryOptions = () => {
   return (dispatch) => {
     dispatch(loadOsqueryOptions);
 
-    return Kolide.osqueryOptions.loadAll()
+    return Fleet.osqueryOptions
+      .loadAll()
       .then((osqueryOptions) => {
         dispatch(osqueryOptionsSuccess(osqueryOptions));
 
@@ -33,10 +34,11 @@ export const getOsqueryOptions = () => {
   };
 };
 
-export const updateOsqueryOptions = (osqueryOptionsData) => {
+export const updateOsqueryOptions = (osqueryOptionsData, teamId) => {
   return (dispatch) => {
     dispatch(loadOsqueryOptions);
-    return Kolide.osqueryOptions.update(osqueryOptionsData)
+    return Fleet.osqueryOptions
+      .update(osqueryOptionsData, teamId)
       .then((osqueryOptions) => {
         const yamlOptions = yaml.safeLoad(osqueryOptionsData.osquery_options);
         dispatch(osqueryOptionsSuccess(yamlOptions));

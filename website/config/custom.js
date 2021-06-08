@@ -22,7 +22,7 @@ module.exports.custom = {
   * > but it can also be used for user-uploaded images, webhooks, etc.      *
   *                                                                         *
   **************************************************************************/
-  baseUrl: 'http://localhost:1337',
+  baseUrl: 'http://localhost:2024',
 
   /**************************************************************************
   *                                                                         *
@@ -98,8 +98,9 @@ module.exports.custom = {
   /***************************************************************************
   *                                                                          *
   * Any other custom config this Sails app should use during development.    *
+  * (and possibly in ALL environments, if not overridden in config/env/)     *
   *                                                                          *
   ***************************************************************************/
-  // …
+  //…
 
 };

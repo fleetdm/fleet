@@ -3,7 +3,7 @@
     font-size: 15px;
 
     button {
-      color: $core-purple;
+      color: $core-fleet-purple;
       font-size: 15px;
       font-weight: $regular;
       float: right;
@@ -12,14 +12,14 @@
     }
 
     input {
-      color: $core-purple;
+      color: $core-fleet-purple;
     }
   }
 
   .form-field {
     &__label {
       font-weight: $bold;
-      margin-bottom: 4px;
+      margin-bottom: $pad-xsmall;
     }
 
     &__hint {
@@ -30,12 +30,38 @@
 
   &__section {
     @include clearfix;
-    margin: 0 0 30px;
+    margin: 0 0 $pad-xlarge;
+
+    .upcarat::after {
+      content: url("../assets/images/icon-collapse-black-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
+      position: relative;
+      top: 8px;
+      margin: $pad-xsmall;
+    }
+
+    .downcarat::after {
+      content: url("../assets/images/icon-chevron-black-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
+      position: relative;
+      top: 8px;
+      margin: $pad-xsmall;
+      margin-right: 18px;
+    }
+
+    h2 {
+      a {
+        color: $core-fleet-black;
+        scroll-margin-top: 210px; // used to push down anchor to visible area when there are sticky headers
+      }
+    }
 
     .smtp-options {
       font-size: 15px;
       font-weight: $bold;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
       padding-left: 15px;
 
       em {
@@ -44,13 +70,13 @@
 
       &--configured {
         em {
-          color: $success;
+          color: $ui-success;
         }
       }
 
       &--notconfigured {
         em {
-          color: $alert;
+          color: $ui-error;
         }
       }
     }
@@ -59,7 +85,7 @@
   &__inputs {
     width: 60%;
     float: left;
-    padding: 0 40px 0 0;
+    padding: 0 $pad-xxlarge 0 0;
     box-sizing: border-box;
 
     .input-field {
@@ -67,7 +93,7 @@
     }
 
     &--smtp {
-      margin: 0 0 $pad-base;
+      margin: 0 0 $pad-medium;
 
       .form-field {
         width: 18%;
@@ -91,17 +117,15 @@
     float: right;
     width: 40%;
 
-    p {
-      font-size: $x-small;
-      font-style: italic;
-      margin: 32px 0;
+    .icon-tooltip {
+      margin: $pad-xlarge 0;
     }
 
     .hint {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
 
       &--brand {
-        color: $core-blue;
+        color: $core-vibrant-blue;
       }
     }
   }
@@ -113,13 +137,13 @@
       border-radius: 20%;
       height: 120px;
       width: 120px;
-      border: 1px solid $ui-borders;
+      border: 1px solid $ui-fleet-blue-15;
       background-color: $ui-light-grey;
       transform: translate(-100px, 20px);
     }
 
     p {
-      color: $core-purple;
+      color: $core-fleet-purple;
       font-size: 18px;
       font-weight: $bold;
       margin-top: 0;
@@ -137,11 +161,11 @@
         vertical-align: text-bottom;
 
         &--off {
-          color: $core-medium-blue-grey;
+          color: $core-fleet-blue;
         }
 
         &--on {
-          color: $core-blue;
+          color: $core-vibrant-blue;
         }
       }
 

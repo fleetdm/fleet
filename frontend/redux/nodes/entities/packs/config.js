@@ -1,15 +1,15 @@
-import Kolide from 'kolide';
-import Config from 'redux/nodes/entities/base/config';
-import schemas from 'redux/nodes/entities/base/schemas';
+import Fleet from "fleet";
+import Config from "redux/nodes/entities/base/config";
+import schemas from "redux/nodes/entities/base/schemas";
 
 const { PACKS: schema } = schemas;
 
 export default new Config({
-  createFunc: Kolide.packs.create,
-  destroyFunc: Kolide.packs.destroy,
-  entityName: 'packs',
-  loadAllFunc: Kolide.packs.loadAll,
-  loadFunc: Kolide.packs.load,
+  createFunc: Fleet.packs.create,
+  destroyFunc: Fleet.packs.destroy,
+  entityName: "packs",
+  loadAllFunc: Fleet.packs.loadAll,
+  loadFunc: Fleet.packs.load,
   schema,
-  updateFunc: Kolide.packs.update,
+  updateFunc: Fleet.packs.update,
 });

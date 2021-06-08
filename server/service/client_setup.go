@@ -4,25 +4,23 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
 // Setup attempts to setup the current Fleet instance. If setup is successful,
 // an auth token is returned.
 func (c *Client) Setup(email, username, password, org string) (string, error) {
-	t := true
 	params := setupRequest{
-		Admin: &kolide.UserPayload{
-			Admin:    &t,
+		Admin: &fleet.UserPayload{
 			Username: &username,
 			Email:    &email,
 			Password: &password,
 		},
-		OrgInfo: &kolide.OrgInfo{
+		OrgInfo: &fleet.OrgInfo{
 			OrgName: &org,
 		},
-		KolideServerURL: &c.addr,
+		ServerURL: &c.addr,
 	}
 
 	response, err := c.Do("POST", "/api/v1/setup", "", params)

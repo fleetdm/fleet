@@ -1,3 +1,77 @@
+## Fleet 3.13.0 (Jun 3, 2021)
+
+* Improve performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that the `/api/v1/fleet/hosts` API endpoint now return only the requested `additional` columns. See documentation on the changes to the hosts API endpoint [here](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/1-Using-Fleet/3-REST-API.md#list-hosts).
+
+* Fix a bug in which running a live query in the Fleet UI would return no results and the query would seem "hung" on a small number of devices.
+
+* Improve viewing live query errors in the Fleet UI by including the “Errors” table in the full screen view.
+
+* Improve `fleetctl preview` experience by adding the `fleetctl preview reset` and `fleetctl preview stop` commands to reset and stop simulated hosts running in Docker.
+
+* Add several improvements to the Fleet UI including additional contrast on checkboxes and dropdown pills.
+
+## Fleet 3.12.0 (May 19, 2021)
+
+* Add scheduled queries to the _Host details_ page. Surface the "Name", "Description", "Frequency", and "Last run" information for each query in a pack that apply to a specific host.
+
+* Improve the freshness of host vitals by adding the ability to "refetch" the data on the _Host details_ page.
+
+* Add ability to copy log fields into Google Cloud Pub/Sub attributes. This allows users to use these values for subscription filters.
+
+* Add ability to duplicate live query results in Redis. When the `redis_duplicate_results` configuration option is set to `true`, all live query results will be copied to an additional Redis Pub/Sub channel named LQDuplicate.
+
+* Add ability to controls the server-side HTTP keepalive property. Turning off keepalives has helped reduce outstanding TCP connections in some deployments.
+
+* Fix an issue on the _Packs_ page in which Fleet would incorrectly handle the configured `server_url_prefix`.
+
+## Fleet 3.11.0 (Apr 28, 2021)
+
+* Improve Fleet performance by batch updating host seen time instead of updating synchronously. This improvement reduces MySQL CPU usage by ~33% with 4,000 simulated hosts and MySQL running in Docker.
+
+* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#software-inventory).
+
+* Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Basic customers.
+
+* Make running common queries more convenient by adding the ability to select a saved query directly from a host's respective _Host details_ page.
+
+* Fix an issue on the _Query_ page in which Fleet would override the CMD + L browser hotkey.
+
+* Fix an issue in which a host would display an unreasonable time in the "Last fetched" column.
+
+## Fleet 3.10.1 (Apr 6, 2021)
+
+* Fix a frontend bug that prevented the "Pack" page and "Edit pack" page from rendering in the Fleet UI. This issue occurred when the `platform` key, in the requested pack's configuration, was set to any value other than `darwin`, `linux`, `windows`, or `all`.
+
+## Fleet 3.10.0 (Mar 31, 2021)
+
+* Add `fleetctl` agent auto-updates beta which introduces the ability to self-manage an agent update server. Available for Fleet Basic customers.
+
+* Add option for Identity Provider-Initiated (IdP-initiated) Single Sign-On (SSO).
+
+* Improve logging. All errors are logged regardless of log level, some non-errors are logged regardless of log level (agent enrollments, runs of live queries etc.), and all other non-errors are logged on debug level.
+
+* Improve login resilience by adding rate-limiting to login and password reset attempts and preventing user enumeration.
+
+* Add Fleet version and Go version in the My Account page of the Fleet UI.
+
+* Improvements to `fleetctl preview` that ensure the latest version of Fleet is fired up on every run. In addition, the Fleet UI is now accessible without having to click through browser security warning messages.
+
+* Prefer storing IPv4 addresses for host details.
+
+## Fleet 3.9.0 (Mar 9, 2021)
+
+* Add configurable host identifier to help with duplicate host enrollment scenarios. By default, Fleet's behavior does not change (it uses the identifier configured in osquery's `--host_identifier` flag), but for users with overlapping host UUIDs changing `--osquery_host_identifier` to `instance` may be helpful. 
+
+* Make cool-down period for host enrollment configurable to control load on the database in scenarios in which hosts are using the same identifier. By default, the cooldown is off, reverting to the behavior of Fleet <=3.4.0. The cooldown can be enabled with `--osquery_enroll_cooldown`.
+
+* Refresh the Fleet UI with a new layout and horizontal navigation bar.
+
+* Trim down the size of Fleet binaries.
+
+* Improve handling of config_refresh values from osquery clients.
+
+* Fix an issue with IP addresses and host additional info dropping.
+
 ## Fleet 3.8.0 (Feb 25, 2021)
 
 * Add search, sort, and column selection in the hosts dashboard.

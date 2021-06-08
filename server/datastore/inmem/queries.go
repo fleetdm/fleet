@@ -3,11 +3,11 @@ package inmem
 import (
 	"sort"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*kolide.Query, error) {
+func (d *Datastore) NewQuery(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -20,13 +20,13 @@ func (d *Datastore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*
 	}
 
 	newQuery.ID = d.nextID(newQuery)
-	newQuery.Packs = []kolide.Pack{}
+	newQuery.Packs = []fleet.Pack{}
 	d.queries[newQuery.ID] = &newQuery
 
 	return &newQuery, nil
 }
 
-func (d *Datastore) SaveQuery(query *kolide.Query) error {
+func (d *Datastore) SaveQuery(query *fleet.Query) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -62,7 +62,7 @@ func (d *Datastore) getUserNameByID(id uint) string {
 	return ""
 }
 
-func (d *Datastore) Query(id uint) (*kolide.Query, error) {
+func (d *Datastore) Query(id uint) (*fleet.Query, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -73,25 +73,25 @@ func (d *Datastore) Query(id uint) (*kolide.Query, error) {
 
 	query.AuthorName = d.getUserNameByID(*query.AuthorID)
 
-	if err := d.loadPacksForQueries([]*kolide.Query{query}); err != nil {
+	if err := d.loadPacksForQueries([]*fleet.Query{query}); err != nil {
 		return nil, errors.Wrap(err, "error fetching query by id")
 	}
 
 	return query, nil
 }
 
-func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
+func (d *Datastore) ListQueries(opt fleet.ListOptions) ([]*fleet.Query, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range d.queries {
+	for k := range d.queries {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)
 
-	queries := []*kolide.Query{}
+	queries := []*fleet.Query{}
 	for _, k := range keys {
 		q := d.queries[uint(k)]
 		if q.Saved {
@@ -131,9 +131,9 @@ func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error)
 }
 
 // loadPacksForQueries loads the packs associated with the provided queries
-func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
+func (d *Datastore) loadPacksForQueries(queries []*fleet.Query) error {
 	for _, q := range queries {
-		q.Packs = make([]kolide.Pack, 0)
+		q.Packs = make([]fleet.Pack, 0)
 		for _, sq := range d.scheduledQueries {
 			if sq.QueryName == q.Name {
 				q.Packs = append(q.Packs, *d.packs[sq.PackID])

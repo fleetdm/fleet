@@ -3,16 +3,16 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (mw validationMiddleware) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (mw validationMiddleware) ModifyAppConfig(ctx context.Context, p fleet.AppConfigPayload) (*fleet.AppConfig, error) {
 	existing, err := mw.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching existing app config in validation")
 	}
-	invalid := &invalidArgumentError{}
+	invalid := &fleet.InvalidArgumentError{}
 	validateSSOSettings(p, existing, invalid)
 	if invalid.HasErrors() {
 		return nil, invalid
@@ -27,7 +27,7 @@ func isSet(val *string) bool {
 	return false
 }
 
-func validateSSOSettings(p kolide.AppConfigPayload, existing *kolide.AppConfig, invalid *invalidArgumentError) {
+func validateSSOSettings(p fleet.AppConfigPayload, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
 	if p.SSOSettings != nil && p.SSOSettings.EnableSSO != nil {
 		if *p.SSOSettings.EnableSSO {
 			if !isSet(p.SSOSettings.Metadata) && !isSet(p.SSOSettings.MetadataURL) {

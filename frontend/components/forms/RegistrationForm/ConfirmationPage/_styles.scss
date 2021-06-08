@@ -8,7 +8,7 @@
   }
 
   &__icon {
-    color: $success;
+    color: $ui-success;
     font-size: 120px;
     display: block;
     text-align: center;
@@ -33,7 +33,7 @@
     caption {
       font-size: $small;
       font-weight: $bold;
-      margin-bottom: 24px;
+      margin-bottom: $pad-large;
       text-align: left;
     }
 
@@ -56,18 +56,18 @@
 
   &__table-url {
     @include ellipsis(100%);
-    font-family: 'SourceCodePro', $monospace;
+    font-family: "SourceCodePro", $monospace;
     vertical-align: bottom;
     font-weight: 600;
   }
 
   &__import {
     user-select: none;
-    font-size: 14px;
+    font-size: $x-small;
     font-weight: $regular;
     line-height: 1.71;
     letter-spacing: 0.5px;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     margin: 30px 0 0;
 
     .kolide-checkbox {
@@ -80,7 +80,7 @@
 
     p {
       margin: 0;
-      padding-left: 40px;
+      padding-left: $pad-xxlarge;
     }
 
     .kolide-checkbox__input {
@@ -92,6 +92,6 @@
 
   .button {
     width: 160px;
-    margin-top: 40px;
+    margin-top: $pad-xxlarge;
   }
 }

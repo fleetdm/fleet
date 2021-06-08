@@ -8,10 +8,10 @@ html {
 }
 
 body {
-  color: $core-black;
+  color: $core-fleet-black;
   padding: 0;
   margin: 0;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: "Nunito Sans", sans-serif;
   font-size: $medium;
   min-width: $medium-width;
   height: 100%;
@@ -37,58 +37,40 @@ h1 {
   font-size: $large;
   font-weight: $regular;
   letter-spacing: -0.5px;
-  color: $core-black;
+  color: $core-fleet-black;
   margin: 0;
 }
 
 a {
-  color: $core-purple;
+  color: $core-fleet-purple;
 }
 
 .wrapper {
-  background: $core-gradient;
+  background: $gradients-dark-gradient-vertical;
   margin: 0;
-
 }
 
 .body-wrap {
-  padding: 50px 30px 0;
+  padding: $pad-xxlarge 30px 0;
   border-radius: 3px;
-  background-color: $white;
-  border: solid 1px $white;
+  background-color: $core-white;
+  border: solid 1px $core-white;
   min-width: 910px;
-  max-width: calc(100vw - #{$nav-width} - #{$pad-base});
 
   @at-root {
-    .core-wrapper--small & {
-      max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base});
-    }
-
     .has-sidebar & {
       margin-right: 0;
       min-width: 610px;
-
-      // 62px includes
-      max-width: calc(100vw - #{$nav-width} - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-width});
-
-      @at-root .core-wrapper--small & {
-        max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-tablet-width});
-      }
-
-      @include breakpoint(smalldesk) {
-        max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-tablet-width});
-      }
+      max-width: calc(
+        100vw - #{$pad-xlarge} - #{$pad-xlarge} - #{$pad-xxsmall} - #{$sidepanel-width}
+      );
     }
-  }
-
-  @include breakpoint(smalldesk) {
-    max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base});
   }
 }
 
 .has-sidebar {
   display: flex;
-  height: 100%;
+  flex-grow: 1;
 
   > * {
     &:first-child {
@@ -106,16 +88,16 @@ a {
 input,
 textarea,
 button {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: "Nunito Sans", sans-serif;
 
   &:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
-    -webkit-text-fill-color: $core-dark-blue-grey !important; //sass-lint:disable-line no-important
+    -webkit-text-fill-color: $core-fleet-black !important; //sass-lint:disable-line no-important
   }
 }
 
 input {
-  &[type=number] {
+  &[type="number"] {
     &::-webkit-inner-spin-button,
     &::-webkit-outer-spin-button {
       -webkit-appearance: none;

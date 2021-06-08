@@ -1,0 +1,34 @@
+# markdown
+*.md
+
+# output directories
+build
+vendor
+node_modules
+
+# generated artifacts
+assets/bundle*.*
+assets/*@*.svg
+assets/*@*.png
+assets/*@*.eot
+assets/*@*.woff
+assets/*@*.woff2
+assets/*@*.ttf
+frontend/templates/react.tmpl
+bindata.go
+server/bindata/generated.go
+*.cover
+*.test
+*.log
+
+# typescript generated test files
+tmp/
+
+# editors
+.vscode
+.idea
+
+# Cypress e2e testing
+cypress/screenshots
+cypress/videos
+cypress/downloads

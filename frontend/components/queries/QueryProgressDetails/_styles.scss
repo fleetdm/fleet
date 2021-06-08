@@ -1,5 +1,5 @@
 .query-progress-details {
-  margin-top: 24px;
+  margin-top: $pad-large;
   @at-root &.query-results-table__full-screen {
     float: left;
   }
@@ -9,7 +9,7 @@
     max-width: 420px;
 
     em {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
       font-size: 0.8em;
     }
   }
@@ -22,42 +22,42 @@
 
   &__text-online {
     &:before {
-      background-color: $success;
+      background-color: $ui-success;
       border-radius: 100%;
-      content: ' ';
+      content: " ";
       display: inline-block;
       height: 8px;
-      margin-right: 8px;
+      margin-right: $pad-small;
       width: 8px;
     }
   }
 
   &__text-offline {
     &:before {
-      background-color: $ui-dark-grey;
+      background-color: $ui-fleet-black-25;
       border-radius: 100%;
-      content: ' ';
+      content: " ";
       display: inline-block;
       height: 8px;
-      margin-right: 8px;
+      margin-right: $pad-small;
       width: 8px;
     }
   }
 
   &__text-error {
     &:before {
-      background-color: $alert;
+      background-color: $ui-error;
       border-radius: 100%;
-      content: ' ';
+      content: " ";
       display: inline-block;
       height: 8px;
-      margin-right: 8px;
+      margin-right: $pad-small;
       width: 8px;
     }
   }
 
   &__text-results {
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
   }
 
   &__btn-wrapper {

@@ -1,14 +1,18 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Button from 'components/buttons/Button';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import InputField from 'components/forms/fields/InputField';
-import validate from 'components/forms/ChangePasswordForm/validate';
+import Button from "components/buttons/Button";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import InputField from "components/forms/fields/InputField";
+import validate from "components/forms/ChangePasswordForm/validate";
 
-const formFields = ['old_password', 'new_password', 'new_password_confirmation'];
-const baseClass = 'change-password-form';
+const formFields = [
+  "old_password",
+  "new_password",
+  "new_password_confirmation",
+];
+const baseClass = "change-password-form";
 
 class ChangePasswordForm extends Component {
   static propTypes = {
@@ -21,7 +25,7 @@ class ChangePasswordForm extends Component {
     onCancel: PropTypes.func.isRequired,
   };
 
-  render () {
+  render() {
     const { fields, handleSubmit, onCancel } = this.props;
 
     return (
@@ -43,8 +47,16 @@ class ChangePasswordForm extends Component {
           type="password"
         />
         <div className={`${baseClass}__btn-wrap`}>
-          <Button type="submit" variant="brand" className={`${baseClass}__btn`}>Change password</Button>
-          <Button onClick={onCancel} variant="inverse" className={`${baseClass}__btn`}>Cancel</Button>
+          <Button type="submit" variant="brand" className={`${baseClass}__btn`}>
+            Change password
+          </Button>
+          <Button
+            onClick={onCancel}
+            variant="inverse"
+            className={`${baseClass}__btn`}
+          >
+            Cancel
+          </Button>
         </div>
       </form>
     );
@@ -52,4 +64,3 @@ class ChangePasswordForm extends Component {
 }
 
 export default Form(ChangePasswordForm, { fields: formFields, validate });
-

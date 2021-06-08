@@ -8,10 +8,10 @@ import (
 	gqconfig "github.com/AbGuthrie/goquery/v2/config"
 	gqhosts "github.com/AbGuthrie/goquery/v2/hosts"
 	gqmodels "github.com/AbGuthrie/goquery/v2/models"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 type activeQuery struct {
@@ -44,11 +44,11 @@ func (c *goqueryClient) CheckHost(query string) (gqhosts.Host, error) {
 		return gqhosts.Host{}, err
 	}
 
-	var host *kolide.Host
+	var host *fleet.Host
 	for _, h := range res.Hosts {
 		// We allow hosts to be looked up by hostname in addition to UUID
 		if query == h.UUID || query == h.HostName || query == h.ComputerName {
-			host = &h
+			host = h
 			break
 		}
 	}
@@ -110,8 +110,8 @@ func (c *goqueryClient) FetchResults(queryName string) (gqmodels.Rows, string, e
 	return res.results, res.status, nil
 }
 
-func goqueryCommand() cli.Command {
-	return cli.Command{
+func goqueryCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "goquery",
 		Usage: "Start the goquery interface",
 		Flags: []cli.Flag{

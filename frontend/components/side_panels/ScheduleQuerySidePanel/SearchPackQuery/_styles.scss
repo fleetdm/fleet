@@ -1,10 +1,10 @@
 .search-pack-query {
   &__title {
     @include ellipsis(250px);
-    font-size: 18px;
+    font-size: $x-small;
     font-weight: $bold;
     letter-spacing: -0.5px;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     margin: 0 0 10px;
   }
 
@@ -12,30 +12,28 @@
     margin-bottom: 20px;
   }
 
-  .ace-kolide {
+  .ace-fleet {
     margin-bottom: 20px;
   }
 
   &__description {
-    margin: 0 0 30px;
+    margin: 0 0 $pad-xlarge;
     word-wrap: break-word;
 
     h2 {
-      font-size: 16px;
+      font-size: $x-small;
       font-weight: $bold;
       letter-spacing: -0.5px;
-      color: $core-dark-blue-grey;
-      border-bottom: 1px solid #eaeefb;
-      padding: 0 0 9px;
-      margin: 0 0 9px;
+      color: $core-fleet-black;
+      margin: 0 0 $pad-small;
     }
 
     p {
       margin: 0 0 10px;
-      font-size: 14px;
+      font-size: $x-small;
       font-weight: $regular;
       line-height: 1.71;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
   }
 }

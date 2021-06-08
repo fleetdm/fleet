@@ -4,23 +4,22 @@ import (
 	"fmt"
 
 	"github.com/VividCortex/mysqlerr"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, error) {
+func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	if err := d.SaveAppConfig(info); err != nil {
 		return nil, errors.Wrap(err, "new app config")
 	}
 
 	return info, nil
-
 }
 
-func (d *Datastore) AppConfig() (*kolide.AppConfig, error) {
-	info := &kolide.AppConfig{}
+func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
+	info := &fleet.AppConfig{}
 	err := d.db.Get(info, "SELECT * FROM app_configs LIMIT 1")
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting app config")
@@ -72,7 +71,7 @@ func (d *Datastore) ManageHostExpiryEvent(hostExpiryEnabled bool, hostExpiryWind
 	return nil
 }
 
-func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
+func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 	eventSchedulerEnabled, err := d.isEventSchedulerEnabled()
 	if err != nil {
 		return err
@@ -94,7 +93,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
       id,
       org_name,
       org_logo_url,
-      kolide_server_url,
+      server_url,
       smtp_configured,
       smtp_sender_address,
       smtp_server,
@@ -114,6 +113,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
       metadata_url,
       idp_name,
       enable_sso,
+      enable_sso_idp_login,
       fim_interval,
       fim_file_accesses,
       host_expiry_enabled,
@@ -121,11 +121,11 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
       live_query_disabled,
       additional_queries
     )
-    VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+    VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
     ON DUPLICATE KEY UPDATE
       org_name = VALUES(org_name),
       org_logo_url = VALUES(org_logo_url),
-      kolide_server_url = VALUES(kolide_server_url),
+      server_url = VALUES(server_url),
       smtp_configured = VALUES(smtp_configured),
       smtp_sender_address = VALUES(smtp_sender_address),
       smtp_server = VALUES(smtp_server),
@@ -145,6 +145,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
       metadata_url = VALUES(metadata_url),
       idp_name = VALUES(idp_name),
       enable_sso = VALUES(enable_sso),
+      enable_sso_idp_login = VALUES(enable_sso_idp_login),
       fim_interval = VALUES(fim_interval),
       fim_file_accesses = VALUES(fim_file_accesses),
       host_expiry_enabled = VALUES(host_expiry_enabled),
@@ -156,7 +157,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
 	_, err = d.db.Exec(insertStatement,
 		info.OrgName,
 		info.OrgLogoURL,
-		info.KolideServerURL,
+		info.ServerURL,
 		info.SMTPConfigured,
 		info.SMTPSenderAddress,
 		info.SMTPServer,
@@ -176,6 +177,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
 		info.MetadataURL,
 		info.IDPName,
 		info.EnableSSO,
+		info.EnableSSOIdPLogin,
 		info.FIMInterval,
 		info.FIMFileAccesses,
 		info.HostExpiryEnabled,
@@ -187,30 +189,36 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
 	return err
 }
 
-func (d *Datastore) VerifyEnrollSecret(secret string) (string, error) {
-	var s kolide.EnrollSecret
-	err := d.db.Get(&s, "SELECT name, active FROM enroll_secrets WHERE secret = ?", secret)
+func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, error) {
+	var s fleet.EnrollSecret
+	err := d.db.Get(&s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
-		return "", errors.New("no matching secret found")
-	}
-	if !s.Active {
-		return "", errors.New("secret is inactive")
+		return nil, errors.New("no matching secret found")
 	}
 
-	return s.Name, nil
+	return &s, nil
 }
 
-func (d *Datastore) ApplyEnrollSecretSpec(spec *kolide.EnrollSecretSpec) error {
+func (d *Datastore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
 	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		for _, secret := range spec.Secrets {
+		if teamID != nil {
+			sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
+			if _, err := tx.Exec(sql, teamID); err != nil {
+				return errors.Wrap(err, "clear before insert")
+			}
+		} else {
+			sql := `DELETE FROM enroll_secrets WHERE team_id IS NULL`
+			if _, err := tx.Exec(sql); err != nil {
+				return errors.Wrap(err, "clear before insert")
+			}
+		}
+
+		for _, secret := range secrets {
 			sql := `
-				INSERT INTO enroll_secrets (name, secret, active)
-				VALUES (?, ?, ?)
-				ON DUPLICATE KEY UPDATE
-					secret = VALUES(secret),
-					active = VALUES(active)
+				INSERT INTO enroll_secrets (secret, team_id)
+				VALUES ( ?, ? )
 			`
-			if _, err := tx.Exec(sql, secret.Name, secret.Secret, secret.Active); err != nil {
+			if _, err := tx.Exec(sql, secret.Secret, teamID); err != nil {
 				return errors.Wrap(err, "upsert secret")
 			}
 		}
@@ -220,11 +228,19 @@ func (d *Datastore) ApplyEnrollSecretSpec(spec *kolide.EnrollSecretSpec) error {
 	return err
 }
 
-func (d *Datastore) GetEnrollSecretSpec() (*kolide.EnrollSecretSpec, error) {
-	var spec kolide.EnrollSecretSpec
-	sql := `SELECT * FROM enroll_secrets`
-	if err := d.db.Select(&spec.Secrets, sql); err != nil {
+func (d *Datastore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error) {
+	var args []interface{}
+	sql := "SELECT * FROM enroll_secrets WHERE "
+	// MySQL requires comparing NULL with IS. NULL = NULL evaluates to FALSE.
+	if teamID == nil {
+		sql += "team_id IS NULL"
+	} else {
+		sql += "team_id = ?"
+		args = append(args, teamID)
+	}
+	var secrets []*fleet.EnrollSecret
+	if err := d.db.Select(&secrets, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "get secrets")
 	}
-	return &spec, nil
+	return secrets, nil
 }

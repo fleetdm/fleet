@@ -1,60 +1,20 @@
 .user-menu {
-  padding: 0;
-
-  &__nav-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+  button {
+    background-color: transparent;
   }
 
-  &__nav-item {
-    font-size: $x-small;
-    font-weight: $regular;
-    cursor: pointer;
+  .dropdown-button__options {
+    padding: $pad-small;
+    right: 10px;
 
-    &:hover {
-      background-color: $core-black-over;
-    }
-
-    &--active {
-      background-color: $core-black;
-      border-right: 3px solid $core-blue;
-      font-weight: $bold;
+    button {
+      display: inline-block;
+      min-width: 125px;
 
       &:hover {
-        background-color: $core-black;
+        background-color: $ui-vibrant-blue-10;
+        color: $core-fleet-black;
       }
-    }
-
-    a {
-      transition: opacity 75ms $ease-in-quad, background 75ms $ease-in-quad;
-      color: $white;
-      display: flex;
-      align-items: center;
-      text-decoration: none;
-      text-transform: none;
-      padding: 11px 20px;
-    }
-
-    .icon {
-      margin-right: 24px;
-      width: 24px;
-      height: 24px;
-    }
-
-    @include breakpoint(smalldesk) {
-      a {
-        padding: 11px 14px;
-
-        span {
-          display: none;
-        }
-      }
-    }
-
-    &:last-child {
-      margin-bottom: 11px;
     }
   }
 }
- 

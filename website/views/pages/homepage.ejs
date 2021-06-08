@@ -1,14 +1,28 @@
 <div id="homepage" v-cloak>
   <div class="hero-banner">
     <div style="background-repeat: no-repeat;" class="hero-bg">
-      <div style="max-width: 1440px" class="container-fluid pt-3 pb-3 px-4 px-sm-5">
-        <img alt="Fleet logo" src="/images/logo-120x48@2x.png" style="height: 56px; width: 120px;" class="pt-2"/>
-      </div>
-      <div style="max-width: 1260px" class="prop-statement container-fluid py-5 px-4 px-sm-5">
+      <div style="max-width: 1260px; padding-top: 167px;" class="prop-statement container-fluid px-4 px-sm-5">
         <div style="max-width: 500px" class="prop-statement__container mx-auto mx-sm-0">
-          <h1 class="prop-statement__header mb-4">Open source<br/><span class="d-sm-none">&nbsp;</span>device management</h1>
-          <p class="prop-statement__paragraph mb-4">Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS.  Quickly deploy <a style="color:#fff; font-weight:bold;" target="_blank" href="https://osquery.io/">osquery</a> and scale your fleet to 50,000+ devices on top of a stable core technology.</p>
-          <a target="_blank" href="https://github.com/fleetdm/fleet/blob/master/README.md" style="max-width: 400px;" class="btn btn-block btn-lg btn-primary mb-5">Get started with Fleet</a>
+          <h1 class="prop-statement__header mb-4">Open source<br/><span class="d-sm-none">&nbsp;</span>endpoint visibility.</h1>
+          <p class="prop-statement__paragraph mb-4">Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS.  Quickly deploy <a style="color:#fff; font-weight:bold;" target="_blank" href="https://osquery.io/">osquery</a> and scale your fleet to 100,000+ devices on top of a stable core technology.</p>
+          <div class="mb-4">
+            <div class="d-inline-block mr-3 mr-lg-4">
+              <img title="macOS" alt="apple logo" src="/images/os-macos-31x35@2x.png" style="width: 31px;" class="d-block mx-auto h-100"/>
+            </div>
+            <div class="d-inline-block mr-3 mr-lg-4">
+              <img title="CentOS Linux" alt="CentOS logo" src="/images/os-centos-37x36@2x.png" style="width: 37px;" class="d-block mx-auto h-100"/>
+            </div>
+            <div class="d-inline-block mr-3 mr-lg-4">
+              <img title="Ubuntu Linux" alt="Ubuntu logo" src="/images/os-ubuntu-34x36@2x.png" style="width: 34px;" class="d-block mx-auto h-100"/>
+            </div>
+            <div class="d-inline-block mr-3 mr-lg-4">
+              <img title="Windows" alt="windows logo" src="/images/os-windows-37x36@2x.png" style="width: 37px;" class="d-block mx-auto h-100"/>
+            </div>
+            <div class="d-inline-block">
+              <img title="Other Linux distros, like Debian" alt="linux logo" src="/images/os-linux-32x36@2x.png" style="width: 32px;" class="d-block mx-auto h-100"/>
+            </div>
+          </div>
+          <a class="btn btn-block btn-lg btn-primary mb-5" href="/get-started">Get started with Fleet</a>
         </div>
       </div>
     </div>
@@ -16,92 +30,56 @@
 
   <div style="max-width: 1260px" class="container-fluid pb-5 px-4 px-sm-5 mx-auto">
     <div class="text-center py-5">
-      <div class="pb-2">
-        <div class="os-logo d-inline-block mx-2 mx-sm-3">
-          <img title="macOS" alt="apple logo" src="/images/os-apple-52x56@2x.png" style="width: auto;" class="d-block mx-auto h-100"/>
+      <h2 class="my-5">Every device in your enterprise.</h2>
+      <p style="max-width: 640px;" class="pb-5 mb-0 mx-auto">Keep track of servers and containers wherever they live: on your own hardware, in Amazon/Azure/Google clouds, or a little bit of each.  Write scripts with <span style="font-family: 'Source Code Pro', monospace; font-size: 14px;">fleetctl</span> and design scheduled queries to integrate alerts and dashboards across your enterprise. Run on your own hardware or deploy in any cloud.</p>
+      <div class="mb-5">
+        <div class="d-inline-block mr-2 mr-sm-5">
+          <img title="Kubernetes" alt="kubernetes logo" src="/images/deploy-kubernetes-64x62@2x.png" style="width: 64px;" class="d-block mx-auto h-100"/>
         </div>
-        <div class="os-logo d-inline-block mx-2 mx-sm-3">
-          <img title="CentOS Linux" alt="CentOS logo" src="/images/os-centos-60x56@2x.png" style="width: auto;" class="d-block mx-auto h-100"/>
+        <div class="d-inline-block mr-2 mr-sm-5">
+          <img title="AWS" alt="aws logo" src="/images/deploy-aws-99x60@2x.png" style="width: 99px;" class="d-block mx-auto h-100"/>
         </div>
-        <div class="os-logo d-inline-block mx-2 mx-sm-3">
-          <img title="Ubuntu Linux" alt="Ubuntu logo" src="/images/os-ubuntu-54x56@2x.png" style="width: auto;" class="d-block mx-auto h-100"/>
-        </div>
-        <div class="os-logo d-inline-block mx-2 mx-sm-3">
-          <img title="Windows" alt="windows logo" src="/images/os-windows-59x56@2x.png" style="width: auto;" class="d-block mx-auto h-100"/>
-        </div>
-        <div class="os-logo d-inline-block mx-2 mx-sm-3">
-          <img title="Other Linux distros, like Debian" alt="linux logo" src="/images/os-linux-50x56@2x.png" style="width: auto;" class="d-block mx-auto h-100"/>
+        <div class="d-inline-block">
+          <img title="Google cloud" alt="google cloud logo" src="/images/deploy-google-cloud-75x60@2x.png" style="width: 75px;" class="d-block mx-auto h-100"/>
         </div>
       </div>
-      <h2 style="font-size: 36px;" class="my-5">Programmable access to every device.</h2>
-      <p style="max-width: 640px;" class="pb-5 mb-0 mx-auto">Keep track of servers and containers wherever they live: on your own hardware, in Amazon/Azure/Google clouds, or a little bit of each.  Write scripts with fleetctl and design scheduled queries to integrate alerts and dashboards across your enterprise.</p>
-      <img alt="Fleet ctl terminal" src="/images/fleetctl-800x460@2x.png" style="max-width: 800px; height: auto;" class="w-100 my-4 mx-auto" />
+      <img alt="Fleet ctl terminal and Fleet UI" src="/images/fleetctl-900x580@2x.png" style="max-width: 900px; height: auto;" class="w-100 my-4 mx-auto" />
     </div>
-    <% /*
-    <div class="row pt-5 my-4">
-      <div class="col-md">
-        <img class="w-100 my-4" alt="todo" src="https://source.unsplash.com/1176x920/?kitten"/>
-      </div>
-      <div class="col-md d-flex flex-column justify-content-center px-md-4 py-4 py-md-0 h-md-100">
-        <p class="text-uppercase mb-1">Device management</p>
-        <h2 class="mb-3">Deploy and manage osquery fleets at scale</h2>
-        <p class="pb-4 mb-0 mx-auto">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut imperdiet ultricies nisl sit amet luctus. Maecenas ac est vehicula nulla viverra vulputate ac ac tellus. Maecenas at arcu nisi.</p>
-      </div>
-    </div>
-    <div class="row pt-5 my-4">
-      <div class="col-md d-flex flex-column justify-content-center px-md-4 py-4 py-md-0 h-md-100">
-        <p class="text-uppercase mb-1">No secrets</p>
-        <h2 class="mb-3">Provide transparency for your end users</h2>
-        <p class="pb-4 mb-0 mx-auto">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut imperdiet ultricies nisl sit amet luctus. Maecenas ac est vehicula nulla viverra vulputate ac ac tellus. Maecenas at arcu nisi.</p>
-      </div>
-      <div class="col-md">
-        <img class="w-100 my-4" alt="todo" src="https://source.unsplash.com/1176x920/?kitten,calico"/>
-      </div>
-    </div>
-    */ %>
   </div>
 
   <div style="background-color: #F2F7F9;">
     <div style="max-width: 1260px;" class="container-fluid py-5 px-4 px-sm-5 mx-auto">
       <div class="text-center py-5">
-        <p class="font-weight-bold text-uppercase mb-1">Features</p>
-        <h2 style="font-size: 36px;" class="mb-5">Turn on the lights in your cloud.</h2>
-        <p style="max-width: 640px;" class="pb-5 mb-0 mx-auto">Fleet makes it easier to query and track your servers, containers, and laptops.  It extends <a style="color:#212529; font-weight:bold;" target="_blank" href="https://osquery.io/">osquery</a> to answer questions about multiple devices at the same time and provides log streams that enable automated threat detection.  You can run it on your own hardware or deploy it in any cloud.</p>
-        <div class="feature-card-deck card-deck">
-          <div style="border-radius: 15px; max-width: 386px;" class="feature-card card d-block d-lg-flex mb-3">
-            <div class="card-body py-5 px-4 text-center">
-              <div style="width: 172px; height: 122px;" class="mx-auto mb-4">
-                <img alt="a computer and a server with different colored lightbulbs on them" src="/images/feature-device-status-172x121@2x.png" style="width: 172px; height: auto" class="mx-auto"/>
-              </div>
-              <h5 class="font-weight-bold">Device status</h5>
-              <p class="mb-0">Find out which machines are low on disk or running vulnerable software, then schedule queries to stay secure and compliant.</p>
-            </div>
-          </div>
-          <div style="border-radius: 15px; max-width: 386px;" class="feature-card card d-block d-lg-flex mb-3">
-            <div class="card-body py-5 px-4 text-center">
-              <div style="width: 172px; height: 122px;" class="mx-auto mb-4">
-                <img alt="a hand holding some kind of futuristic remote-control-esque trinket" src="/images/feature-forensics-170x122@2x.png" style="width: 170px; height: auto" class="mx-auto"/>
-              </div>
-              <h5 class="font-weight-bold">Forensics</h5>
-              <p class="mb-0">Consume and organize log streams from your devices.  Integrate with tools like Splunk for analysis, alerts, and incident response.</p>
-            </div>
-          </div>
-          <div style="border-radius: 15px; max-width: 386px;" class="feature-card card d-block d-lg-flex mb-3">
-            <div class="card-body py-5 px-4 text-center">
-              <div style="width: 172px; height: 122px;" class="mx-auto mb-4">
-                <img alt="a shadowy figure who looks sort of a character from the classic game Loom hovers over a computer with a skull and crossbones decal on it as bugs and an unlocked lock hover above his or her head" src="/images/feature-threat-hunting-168x120@2x.png" style="width: 168px; height: auto" class="mx-auto"/>
-              </div>
-              <h5 class="font-weight-bold">Cyber threat hunting</h5>
-              <p class="mb-0">Investigate advanced persistent threats (APTs) and suspicious activity in real time.  Expose developing threats with live queries.</p>
-            </div>
-          </div>
+        <h2 class="mb-5">Send device data to any log destination.</h2>
+        <p style="max-width: 866px;" class="mx-auto">Fleet makes it easier to query and track your servers, containers, and laptops.  It extends <a style="color:#6a67fe; text-decoration: underline;" target="_blank" href="https://osquery.io/">osquery</a> to answer questions about multiple devices at the same time and provides log streams that enable automated threat detection.</p>
+      </div>
+      <div class="log-destinations-container pb-5">
+        <div class="log-destination-card">
+          <img alt="filesystem log destination" src="/images/log-destination-filesystem@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>Filesystem</h6>
+        </div>
+        <div class="log-destination-card">
+          <img alt="Splunk log destination" src="/images/log-destination-splunk@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>Splunk</h6>
+        </div>
+        <div class="log-destination-card">
+          <img alt="AWS Kinesis Firehose log destination" src="/images/log-destination-firehose@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>AWS Kinesis Firehose</h6>
+        </div>
+        <div class="log-destination-card">
+          <img alt="GCP PubSub log destination" src="/images/log-destination-pubsub@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>GCP PubSub</h6>
+        </div>
+        <div class="log-destination-card">
+          <img alt="AWS Lambda log destination" src="/images/log-destination-lambda@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>AWS Lambda</h6>
         </div>
       </div>
-      <div style="max-width: 1000px" class="mx-auto">
-        <div class="row py-5">
+      <div style="max-width: 1000px" class="pt-5 mx-auto">
+        <div class="row pb-5">
           <div class="col-md">
             <div style="max-width: 510px;" class="pr-md-5">
-              <h2 style="font-size: 36px; max-width: 400px" class="mb-4">Your hosted universe, all in one flexible app.</h2>
+              <h2 style="max-width: 400px" class="mb-4">Your hosted universe, all in one flexible app.</h2>
               <p class="mb-5">Organizations large and small use osquery with Fleet every day to stay secure and compliant.  That’s good news, since it means there are lots of other developers and security practitioners talking about Fleet, dreaming up features, and contributing patches.  Let’s stop reinventing the wheel and build the future of device management together.</p>
               <a target="_blank" href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" class="btn btn-block btn-lg btn-info mb-5">Meet the Fleet<span purpose="meet-the-fleet-community-expanded-text"> community</span></a>
             </div>
@@ -129,551 +107,103 @@
             </p>
             <p style="padding-left: 32px;" class="position-relative mb-4">
               <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-              Open source license <span class="font-weight-bold">(MIT)</span>
+              Open core license <span class="font-weight-bold">(MIT)</span>
             </p>
           </div>
         </div>
       </div>
     </div>
   </div>
-  <div style="max-width: 1260px;" class="container-fluid pt-5 px-4 px-sm-5 mx-auto">
-    <div style="max-width: 800px" class="pt-5 mx-auto">
-      <div style="max-width: 760px; padding-left: 38px" class="position-relative mx-auto">
-        <span style="font-size: 48px; line-height: 60px; left: 0; top: 0;" class="quote-mark position-absolute">“</span>
-        <p style="font-size: 24px; font-family: 'Lato', sans-serif;">I've been using Fleet to manage thousands of hosts running osquery. Fleet itself is pretty low-maintenance; mostly I don't have to worry about Fleet uptime and instead focus on what matters: deploying osquery, developing better queries, and getting the most out of osquery logs.</p>
-        <p style="color: #676A7A" class="mb-4">- Brendan Shaklovitz, Senior Site Reliability Engineer, Security Team @ Atlassian</p>
-        <img alt="Atlassian logo" src="/images/logo-atlassian-194x24@2x.png" style="height: 24px; width: 194px;" class="mb-3"/>
-      </div>
-    </div>
-  </div>
-  <div style="max-width: 1260px;" class="container-fluid pt-5 px-4 px-sm-5 mx-auto">
-    <div style="max-width: 800px" class="pt-5 mx-auto">
-      <div style="max-width: 760px; padding-left: 38px" class="position-relative mx-auto">
-        <span style="font-size: 48px; line-height: 60px; left: 0; top: 0;" class="quote-mark position-absolute">“</span>
-        <p style="font-size: 24px; font-family: 'Lato', sans-serif;">Having used Fleet in production since it was first released, it is my top choice for osquery agent management - clean & functional UI, performant, and open source.</p>
-        <p style="color: #676A7A">- Josh Brower, Senior Engineer @ Security Onion - Author of <a target="_blank" href="http://learnosquery.com">learnosquery.com</a></p>
-      </div>
-    </div>
-  </div>
-  <div style="max-width: 1260px;" class="container-fluid py-5 px-4 px-sm-5 mx-auto">
+  <div style="max-width: 1260px;" class="container-fluid pt-5 pb-4 px-4 px-sm-5 mx-auto">
     <div style="max-width: 800px" class="py-5 mx-auto">
       <div style="max-width: 760px; padding-left: 38px" class="position-relative mx-auto">
-        <span style="font-size: 48px; line-height: 60px; left: 0; top: 0;" class="quote-mark position-absolute">“</span>
-        <p style="font-size: 24px; font-family: 'Lato', sans-serif;">Fleet is hands down the best osquery platform out there. <a target="_blank" href="https://www.linkedin.com/in/zacharywasserman/">Zach</a> and I created Fleet as a natural extension to our original vision for osquery and this has manifested in the ease-of-use, flexibility, and adoption it has today. Look to Fleet for the future of open-source endpoint monitoring.</p>
-        <p style="color: #676A7A" class="mb-4">- Mike Arpaia, Co-creator of osquery</p>
-        <img alt="osquery logo" src="/images/logo-osquery-89x24@2x.png" style="height: 24px; width: 89px;" class="mb-3"/>
+        <!-- <span style="font-size: 48px; line-height: 60px; left: 0; top: 0;" class="quote-mark position-absolute">“</span> -->
+        <p style="font-size: 24px;" class="text-center">&ldquo;I've been using Fleet to manage thousands of hosts running osquery: deploying, developing better queries, and getting the most out of osquery logs.&rdquo;</p>
+        <p style="color: #676A7A" class="mb-4 text-center">Brendan Shaklovitz, Site Reliability Engineer</p>
+        <img style="height: 24px; width: 194px;" class="mt-4 d-block ml-auto mr-auto" alt="Atlassian logo" src="/images/logo-atlassian-194x24@2x.png" />
       </div>
+    </div>
+    <div class="btn-toolbar justify-content-center pt-1">
+      <a
+        style="max-width: 250px"
+        class="btn btn-block btn-md btn-primary my-3 mx-2"
+        href="/get-started"
+      >
+        Get started
+      </a>
+      <a
+        style="max-width: 250px"
+        class="btn btn-block btn-lg btn-white my-3 mx-2"
+        purpose="animated-arrow-button"
+        target="_blank"
+        href="https://calendly.com/fleetdm/demo"
+        >Schedule a demo
+      </a>
     </div>
   </div>
-  <div class="footer-fade pb-5">
-    <div style="max-width: 1260px;" class="container-fluid pt-5 px-4 px-sm-5 mx-auto">
-      <div style="max-width: 800px" class="pt-5 mx-auto">
-        <h1 style="color: #fff" class="text-center">Choose a plan that suits your needs</h1>
-        <p style="color: #fff" class="text-center mb-5">All plans have unlimited hosts and collaborators.</p>
-        <div style="max-width: 810px;">
-          <div class="row">
-            <div style="max-width: 392px" class="col-lg px-1 mx-auto">
-              <div style="border-radius: 15px;" class="card mb-4">
-                <div class="card-body">
-                  <div style="min-height: 125px;" class="text-center mt-4">
-                    <p style="font-size: 18px;" class="font-weight-bold mb-0">Core</p>
-                    <h2 style="color: #6B6CFA">FREE</h2>
-                    <p class="mb-0">/host/month</p>
-                  </div>
-                  <a target="_blank" href="https://github.com/fleetdm/fleet#readme" style="max-width: 242px;" class="btn btn-block btn-lg btn-info mt-3 mb-4 mx-auto">Start now</a>
-                  <div style="max-width: 242px; min-height: 150px" class="mx-auto mb-4">
-                    <p style="padding-left: 32px;" class="position-relative mt-3 mb-4">
-                      <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-                      Open source
-                    </p>
-                    <p style="padding-left: 32px;" class="position-relative mt-3 mb-4">
-                      <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-                      Community supported
-                    </p>
-                    <p style="padding-left: 32px;" class="position-relative mt-3 mb-4">
-                      <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-                      Bring your own production
-                      environment
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div style="max-width: 392px" class="col-lg px-1 mx-auto">
-              <div style="border-radius: 15px;" class="card mb-4">
-                <div class="card-body">
-                  <div style="min-height: 125px;" class="text-center mt-4">
-                    <p style="font-size: 18px;" class="font-weight-bold mb-0">Basic</p>
-                    <h2 style="color: #6B6CFA">$4</h2>
-                    <p class="mb-0">/host/month</p>
-                    <p style="color: #8F8EA1; font-size: 13px;" class="mb-0">(USD, billed anually at $48)</p>
-                  </div>
-                  <button style="max-width: 242px;" class="btn btn-block btn-lg btn-info mt-3 mb-4 mx-auto" @click="clickChatButton()">Get free trial</button>
-                  <div style="max-width: 242px; min-height: 150px; padding-bottom: 16px;" class="position-relative mx-auto mb-4">
-                    <p style="padding-left: 32px;" class="position-relative mt-3 mb-4">
-                      <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-                      Multiple teams  (RBAC)*
-                    </p>
-                    <p style="padding-left: 32px;" class="position-relative mt-3 mb-4">
-                      <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-                      Next business day support
-                    </p>
-                    <p style="font-size: 13px; bottom: 0; left: 0;" class="position-absolute text-center mb-0 w-100">
-                      *Coming 2021
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+  <div style="max-width: 1260px;" class="container-fluid pt-5 px-4 px-sm-5 mx-auto">
+    <% /*
+    <div style="max-width: 800px; color: #fff;" class="py-5 mx-auto">
+      <h2 class="text-center mb-4">FAQ</h2>
+      <div class="mb-5">
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question1" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer1" class="collapse" aria-labelledby="faq__question1">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question2" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer2" aria-controls="faq__answer2">
+            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer2" class="collapse" aria-labelledby="faq__question2">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question3" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer3" aria-controls="faq__answer3">
+            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer3" class="collapse" aria-labelledby="faq__question3">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question4" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer4" aria-controls="faq__answer4">
+            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question5" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer5" aria-controls="faq__answer5">
+            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer5" class="collapse" aria-labelledby="faq__question5">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
+          <p id="faq__question6" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer6" aria-controls="faq__answer6">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit?
+            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+          </p>
+          <p id="faq__answer6" class="collapse" aria-labelledby="faq__question6">
+            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+          </p>
         </div>
       </div>
-      <div style="max-width: 800px;" class="py-5 mx-auto">
-        <div style="max-width: 810px;">
-          <div class="row">
-            <div class="col-lg px-1 mx-auto" style="max-width: 810px">
-              <div style="border-radius: 15px;" class="card mb-4">
-                <div class="card-body py-md-5 px-md-5">
-                  <div class="row mb-4">
-                    <div class="col-6 col-md-8">
-                      <p class="m-0" style="color: #8B8FA2">
-                        SUPPORT
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <p class="m-0" style="font-weight:bold; font-size: 15px">
-                        Fleet Core
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <p class="m-0" style="font-weight:bold; font-size: 15px">
-                        Fleet Basic
-                      </p>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        GitHub community
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Telephone support
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Email support
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Dedicated Slack channel
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-4 mt-5">
-                    <div class="col-6 col-md-8">
-                      <p class="m-0" style="color: #8B8FA2">
-                        CAPABILITIES
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                    </div>
-                    <div class="col-3 col-md-2">
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Device management & inventory dashboard
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        REST API & CLI tool
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Single sign on (SSO, SAML)
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Flexible log destinations (AWS Kinesis, Lambda, GCP)
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Self-managed
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Shareable device health reports
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Realtime device inventory
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Compatible with custom osquery extensions
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Osquery agent auto-updates
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Deployment tools (helm, terraform)
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Search devices by IP, serial, hostname, UUID
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Audit queries and other activity
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Configure osquery startup flags
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Programmable vulnerability management
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Software inventory
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Query performance monitoring
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Standard query library
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Multiple teams
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Role-based access control
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Target and configure specific groups of systems
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-6 col-md-8 d-flex">
-                      <img alt="a bullet point ellipse" src="/images/ellipse-6x8@2x.png" class="mt-2" style="width: 6.4px; height: 8px;"/>
-                      <p class="ml-2 my-0">
-                        Self-managed auto-update registry
-                      </p>
-                    </div>
-                    <div class="col-3 col-md-2">
-                    </div>
-                    <div class="col-3 col-md-2">
-                      <img alt="a check mark" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px;"/>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <% /*
-      <div style="max-width: 800px; color: #fff;" class="py-5 mx-auto">
-        <h2 class="text-center mb-4">FAQ</h2>
-        <div class="mb-5">
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question1" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer1" class="collapse" aria-labelledby="faq__question1">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question2" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer2" aria-controls="faq__answer2">
-              Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer2" class="collapse" aria-labelledby="faq__question2">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question3" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer3" aria-controls="faq__answer3">
-              Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer3" class="collapse" aria-labelledby="faq__question3">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question4" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer4" aria-controls="faq__answer4">
-              Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question5" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer5" aria-controls="faq__answer5">
-              Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer5" class="collapse" aria-labelledby="faq__question5">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-            <p id="faq__question6" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer6" aria-controls="faq__answer6">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit?
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="faq__answer6" class="collapse" aria-labelledby="faq__question6">
-              Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-            </p>
-          </div>
-        </div>
-        <h2 class="text-center pt-3 mb-4">Still got questions? Get in touch.</h2>
-        <button style="max-width: 242px;" class="btn btn-block btn-lg btn-info my-3 mb-4 mx-auto" @click="clickChatButton()">Contact us</button>
-      </div> */ %>
-    </div>
+      <h2 class="text-center pt-3 mb-4">Still got questions? Get in touch.</h2>
+      <button style="max-width: 242px;" class="btn btn-block btn-lg btn-info my-3 mb-4 mx-auto" @click="clickChatButton()">Contact us</button>
+    </div> */ %>
   </div>
 </div>
 

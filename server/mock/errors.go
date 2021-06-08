@@ -8,12 +8,12 @@ func (e *Error) Error() string {
 	return e.Message
 }
 
-// implement kolide.NotFoundError
+// implement fleet.NotFoundError
 func (e *Error) IsNotFound() bool {
 	return true
 }
 
-// implement kolide.AlreadyExistsError
+// implement fleet.AlreadyExistsError
 func (e *Error) IsExists() bool {
 	return true
 }

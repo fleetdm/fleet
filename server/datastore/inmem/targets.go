@@ -3,10 +3,10 @@ package inmem
 import (
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (d *Datastore) CountHostsInTargets(hostIDs, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error) {
+func (d *Datastore) CountHostsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// noop
-	return kolide.TargetMetrics{}, nil
+	return fleet.TargetMetrics{}, nil
 }

@@ -5,11 +5,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
 // NewInvite creates and stores a new invitation in a DB.
-func (d *Datastore) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
+func (d *Datastore) NewInvite(invite *fleet.Invite) (*fleet.Invite, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -30,18 +30,18 @@ func (d *Datastore) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
 }
 
 // Invites lists all invites in the datastore.
-func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
+func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range d.invites {
+	for k := range d.invites {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)
 
-	invites := []*kolide.Invite{}
+	invites := []*fleet.Invite{}
 	for _, k := range keys {
 		invites = append(invites, d.invites[uint(k)])
 	}
@@ -70,7 +70,7 @@ func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error
 	return invites, nil
 }
 
-func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
+func (d *Datastore) Invite(id uint) (*fleet.Invite, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if invite, ok := d.invites[id]; ok {
@@ -80,7 +80,7 @@ func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
 }
 
 // InviteByEmail retrieves an invite for a specific email address.
-func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
+func (d *Datastore) InviteByEmail(email string) (*fleet.Invite, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -94,7 +94,7 @@ func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 }
 
 // InviteByToken retrieves an invite given the invite token.
-func (d *Datastore) InviteByToken(token string) (*kolide.Invite, error) {
+func (d *Datastore) InviteByToken(token string) (*fleet.Invite, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -105,19 +105,6 @@ func (d *Datastore) InviteByToken(token string) (*kolide.Invite, error) {
 	}
 	return nil, notFound("Invite").
 		WithMessage(fmt.Sprintf("with token %s", token))
-}
-
-// SaveInvite saves an invitation in the datastore.
-func (d *Datastore) SaveInvite(invite *kolide.Invite) error {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	if _, ok := d.invites[invite.ID]; !ok {
-		return notFound("Invite").WithID(invite.ID)
-	}
-
-	d.invites[invite.ID] = invite
-	return nil
 }
 
 // DeleteInvite deletes an invitation.

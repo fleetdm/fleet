@@ -1,0 +1,35 @@
+.pagination {
+  &__pager-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: $pad-small;
+    margin-bottom: $pad-small;
+    margin-left: auto;
+    text-align: right;
+
+    button {
+      color: $core-vibrant-blue;
+      padding: 6px;
+
+      .fleeticon-chevronleft {
+        margin-right: $pad-small;
+      }
+
+      .fleeticon-chevronright {
+        margin-left: $pad-small;
+      }
+    }
+
+    button:hover {
+      background-color: $ui-vibrant-blue-10;
+    }
+
+    .button--disabled:hover {
+      background-color: transparent;
+    }
+
+    button:last-child {
+      margin-left: $pad-large;
+    }
+  }
+}

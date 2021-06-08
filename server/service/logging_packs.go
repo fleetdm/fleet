@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw loggingMiddleware) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.Pack, error) {
+func (mw loggingMiddleware) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pack, error) {
 	var (
-		pack         *kolide.Pack
+		pack         *fleet.Pack
 		loggedInUser = "unauthenticated"
 		err          error
 	)
@@ -33,9 +33,9 @@ func (mw loggingMiddleware) NewPack(ctx context.Context, p kolide.PackPayload) (
 	return pack, err
 }
 
-func (mw loggingMiddleware) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload) (*kolide.Pack, error) {
+func (mw loggingMiddleware) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload) (*fleet.Pack, error) {
 	var (
-		pack         *kolide.Pack
+		pack         *fleet.Pack
 		loggedInUser = "unauthenticated"
 		err          error
 	)
@@ -58,9 +58,9 @@ func (mw loggingMiddleware) ModifyPack(ctx context.Context, id uint, p kolide.Pa
 	return pack, err
 }
 
-func (mw loggingMiddleware) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {
+func (mw loggingMiddleware) ListPacks(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Pack, error) {
 	var (
-		packs []*kolide.Pack
+		packs []*fleet.Pack
 		err   error
 	)
 
@@ -76,9 +76,9 @@ func (mw loggingMiddleware) ListPacks(ctx context.Context, opt kolide.ListOption
 	return packs, err
 }
 
-func (mw loggingMiddleware) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) {
+func (mw loggingMiddleware) GetPack(ctx context.Context, id uint) (*fleet.Pack, error) {
 	var (
-		pack *kolide.Pack
+		pack *fleet.Pack
 		err  error
 	)
 
@@ -151,9 +151,9 @@ func (mw loggingMiddleware) RemoveLabelFromPack(ctx context.Context, lid uint, p
 	return err
 }
 
-func (mw loggingMiddleware) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {
+func (mw loggingMiddleware) ListLabelsForPack(ctx context.Context, pid uint) ([]*fleet.Label, error) {
 	var (
-		labels []*kolide.Label
+		labels []*fleet.Label
 		err    error
 	)
 
@@ -203,9 +203,9 @@ func (mw loggingMiddleware) RemoveHostFromPack(ctx context.Context, hid uint, pi
 	return err
 }
 
-func (mw loggingMiddleware) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pack, error) {
+func (mw loggingMiddleware) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 	var (
-		packs []*kolide.Pack
+		packs []*fleet.Pack
 		err   error
 	)
 
@@ -221,7 +221,7 @@ func (mw loggingMiddleware) ListPacksForHost(ctx context.Context, hid uint) ([]*
 	return packs, err
 }
 
-func (mw loggingMiddleware) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
+func (mw loggingMiddleware) ListHostsInPack(ctx context.Context, pid uint, opt fleet.ListOptions) ([]uint, error) {
 	var (
 		hosts []uint
 		err   error
@@ -239,7 +239,7 @@ func (mw loggingMiddleware) ListHostsInPack(ctx context.Context, pid uint, opt k
 	return hosts, err
 }
 
-func (mw loggingMiddleware) GetPackSpec(ctx context.Context, name string) (spec *kolide.PackSpec, err error) {
+func (mw loggingMiddleware) GetPackSpec(ctx context.Context, name string) (spec *fleet.PackSpec, err error) {
 	defer func(begin time.Time) {
 		_ = mw.loggerDebug(err).Log(
 			"method", "GetPackSpec",
@@ -251,7 +251,7 @@ func (mw loggingMiddleware) GetPackSpec(ctx context.Context, name string) (spec 
 	return spec, err
 }
 
-func (mw loggingMiddleware) GetPackSpecs(ctx context.Context) (specs []*kolide.PackSpec, err error) {
+func (mw loggingMiddleware) GetPackSpecs(ctx context.Context) (specs []*fleet.PackSpec, err error) {
 	defer func(begin time.Time) {
 		_ = mw.loggerDebug(err).Log(
 			"method", "GetPackSpecs",
@@ -263,7 +263,7 @@ func (mw loggingMiddleware) GetPackSpecs(ctx context.Context) (specs []*kolide.P
 	return specs, err
 }
 
-func (mw loggingMiddleware) ApplyPackSpecs(ctx context.Context, specs []*kolide.PackSpec) (err error) {
+func (mw loggingMiddleware) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) (err error) {
 	var (
 		loggedInUser = "unauthenticated"
 	)

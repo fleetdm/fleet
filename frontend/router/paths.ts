@@ -1,12 +1,12 @@
-import { IHost } from '../interfaces/host';
-import { IPack } from '../interfaces/pack';
-import { IQuery } from '../interfaces/query';
-import URL_PREFIX from './url_prefix';
+import { IHost } from "../interfaces/host";
+import { IPack } from "../interfaces/pack";
+import { IQuery } from "../interfaces/query";
+import URL_PREFIX from "./url_prefix";
 
 export default {
-  ADMIN_USERS: `${URL_PREFIX}/admin/users`,
-  ADMIN_SETTINGS: `${URL_PREFIX}/admin/settings`,
-  ADMIN_OSQUERY: `${URL_PREFIX}/admin/osquery`,
+  ADMIN_USERS: `${URL_PREFIX}/settings/users`,
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
+  ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (pack: IPack): string => {
     return `${URL_PREFIX}/packs/${pack.id}/edit`;
@@ -19,6 +19,7 @@ export default {
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   HOME: `${URL_PREFIX}/`,
+  FLEET_403: `${URL_PREFIX}/403`,
   FLEET_500: `${URL_PREFIX}/500`,
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
@@ -26,11 +27,17 @@ export default {
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
+  TEAM_DETAILS_MEMBERS: (teamId: number): string => {
+    return `${URL_PREFIX}/settings/teams/${teamId}/members`;
+  },
+  TEAM_DETAILS_OPTIONS: (teamId: number): string => {
+    return `${URL_PREFIX}/settings/teams/${teamId}/options`;
+  },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
-  USER_SETTINGS: `${URL_PREFIX}/settings`,
+  USER_SETTINGS: `${URL_PREFIX}/profile`,
 };

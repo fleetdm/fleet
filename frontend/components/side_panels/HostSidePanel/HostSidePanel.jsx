@@ -1,16 +1,15 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { filter } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { filter } from "lodash";
 
-import KolideIcon from 'components/icons/KolideIcon';
-import Button from 'components/buttons/Button';
-import InputField from 'components/forms/fields/InputField';
-import labelInterface from 'interfaces/label';
-import PanelGroup from 'components/side_panels/HostSidePanel/PanelGroup';
-import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
-import statusLabelsInterface from 'interfaces/status_labels';
+import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
+import labelInterface from "interfaces/label";
+import PanelGroup from "components/side_panels/HostSidePanel/PanelGroup";
+import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
+import statusLabelsInterface from "interfaces/status_labels";
 
-const baseClass = 'host-side-panel';
+const baseClass = "host-side-panel";
 
 class HostSidePanel extends Component {
   static propTypes = {
@@ -19,12 +18,13 @@ class HostSidePanel extends Component {
     onLabelClick: PropTypes.func,
     selectedFilter: PropTypes.string,
     statusLabels: statusLabelsInterface,
+    canAddNewLabel: PropTypes.bool,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
-    this.state = { labelFilter: '' };
+    this.state = { labelFilter: "" };
   }
 
   onFilterLabels = (labelFilter) => {
@@ -32,27 +32,32 @@ class HostSidePanel extends Component {
     this.setState({ labelFilter: lowerLabelFilter });
 
     return false;
-  }
+  };
 
-  render () {
-    const { labels, onAddLabelClick, onLabelClick, selectedFilter, statusLabels } = this.props;
+  render() {
+    const {
+      labels,
+      onAddLabelClick,
+      onLabelClick,
+      selectedFilter,
+      statusLabels,
+      canAddNewLabel,
+    } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
-    const allHostLabels = filter(labels, { type: 'all' });
-    const hostStatusLabels = filter(labels, { type: 'status' });
+    const allHostLabels = filter(labels, { type: "all" });
+    const hostStatusLabels = filter(labels, { type: "status" });
     const hostPlatformLabels = filter(labels, (label) => {
-      return label.type === 'platform' && label.count > 0;
+      return label.type === "platform" && label.count > 0;
     });
     const customLabels = filter(labels, (label) => {
       const lowerDisplayText = label.display_text.toLowerCase();
 
-      return label.type === 'custom' &&
-        lowerDisplayText.match(labelFilter);
+      return label.type === "custom" && lowerDisplayText.match(labelFilter);
     });
 
     return (
       <SecondarySidePanelContainer className={`${baseClass}`}>
-
         <h3>Status</h3>
         <PanelGroup
           groupItems={allHostLabels}
@@ -78,7 +83,9 @@ class HostSidePanel extends Component {
         />
 
         <h3 className="title">Labels</h3>
-        <div className={`${baseClass}__panel-group-item ${baseClass}__panel-group-item--filter`}>
+        <div
+          className={`${baseClass}__panel-group-item ${baseClass}__panel-group-item--filter`}
+        >
           <InputField
             name="tags-filter"
             onChange={onFilterLabels}
@@ -86,7 +93,6 @@ class HostSidePanel extends Component {
             value={labelFilter}
             inputWrapperClass={`${baseClass}__filter-labels`}
           />
-          <KolideIcon name="search" />
         </div>
         <PanelGroup
           groupItems={customLabels}
@@ -94,10 +100,15 @@ class HostSidePanel extends Component {
           selectedFilter={selectedFilter}
           type="label"
         />
-
-        <Button variant="grey" onClick={onAddLabelClick} className={`${baseClass}__add-label-btn`}>
-          Add new label
-        </Button>
+        {canAddNewLabel ? (
+          <Button
+            variant="grey"
+            onClick={onAddLabelClick}
+            className={`${baseClass}__add-label-btn`}
+          >
+            Add new label
+          </Button>
+        ) : null}
       </SecondarySidePanelContainer>
     );
   }

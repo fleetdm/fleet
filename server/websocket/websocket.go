@@ -4,7 +4,6 @@ package websocket
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/igm/sockjs-go/v3/sockjs"
 
@@ -13,20 +12,11 @@ import (
 )
 
 const (
-	// maxMessageSize is used to set a read limit on the websocket and
-	// prevent clients from flooding us with data.
-	maxMessageSize int64 = 8096
-
 	// authType is the type string used for auth messages.
 	authType string = "auth"
 
 	// errType is the type string used for error messages.
 	errType string = "error"
-
-	// defaultTimeout is the default timeout that should be used for
-	// sending and receiving over the websocket. It is used unless
-	// Conn.Timeout is set explicitly after Upgrade is called.
-	defaultTimeout time.Duration = 3 * time.Second
 )
 
 // JSONMessage is a wrapper struct for messages that will be sent across the wire
@@ -40,7 +30,7 @@ type JSONMessage struct {
 }
 
 // Conn is a wrapper for a standard websocket connection with utility methods
-// added for interacting with Kolide specific message types.
+// added for interacting with Fleet specific message types.
 type Conn struct {
 	sockjs.Session
 }
@@ -92,7 +82,7 @@ func (c *Conn) ReadJSONMessage() (*JSONMessage, error) {
 	return msg, nil
 }
 
-// authData defines the data used to authenticate a Kolide frontend client over
+// authData defines the data used to authenticate a Fleet frontend client over
 // a websocket connection.
 type authData struct {
 	Token token.Token `json:"token"`

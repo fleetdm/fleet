@@ -3,7 +3,7 @@ version: '2'
 
 x-default-settings:
   volumes: &default-volumes
-    - ./kolide.crt:/etc/osquery/kolide.crt
+    - ./fleet.crt:/etc/osquery/fleet.crt
     - ./example_osquery.flags:/etc/osquery/osquery.flags
   environment: &default-environment
     ENROLL_SECRET: "${ENROLL_SECRET:?ENROLL_SECRET must be set for server authentication}"

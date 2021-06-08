@@ -1,17 +1,17 @@
 .target-list {
-
   &__type {
-    padding: 0 8px 4px;
-    margin: 40px 0 0;
-    text-transform: uppercase;
+    padding: 0 8px $pad-xsmall;
+    margin: $pad-medium 0 0;
     font-weight: $bold;
-    font-size: $xx-small;
-    color: $core-dark-blue-grey;
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid $ui-borders;
+    font-size: $x-small;
+    color: $core-fleet-black;
+    border-bottom: 1px solid $ui-fleet-blue-15;
 
+    &::first-letter {
+      text-transform: uppercase;
+    }
     &:first-child {
-      margin: 0;
+      margin: $pad-large 0 $pad-small 0;
     }
   }
 
@@ -22,16 +22,27 @@
     min-height: 500px;
     position: relative;
     z-index: 2;
-    padding: 24px 16px;
-    border-right: 1px solid $ui-borders;
-    background-color: $white;
+    padding: 0 $pad-large;
+    border-right: 1px solid $ui-fleet-blue-15;
+    background-color: $core-white;
+  }
+
+  &__no-hosts {
+    font-size: $x-small;
+    padding: $pad-large;
+  }
+
+  &__no-hosts-heading {
+    font-weight: $bold;
+    font-size: $small;
+    padding-bottom: $pad-medium;
   }
 
   &__spotlight {
     width: 50%;
     float: right;
     overflow-y: auto;
-    background-color: $white;
+    background-color: $core-white;
     min-height: 500px;
     position: relative;
     z-index: 1;
@@ -39,6 +50,6 @@
 
   &__not-found {
     font-size: $x-small;
-    padding: 0 4px 4px;
+    padding: 0 $pad-xsmall $pad-xsmall;
   }
 }

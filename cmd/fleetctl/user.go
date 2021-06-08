@@ -4,60 +4,70 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
-	adminFlagName    = "admin"
-	usernameFlagName = "username"
-	passwordFlagName = "password"
-	emailFlagName    = "email"
-	ssoFlagName      = "sso"
+	adminFlagName      = "admin"
+	globalRoleFlagName = "global-role"
+	teamFlagName       = "team"
+	usernameFlagName   = "username"
+	passwordFlagName   = "password"
+	emailFlagName      = "email"
+	ssoFlagName        = "sso"
 )
 
-func userCommand() cli.Command {
-	return cli.Command{
+func userCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "user",
 		Usage: "Manage Fleet users",
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			createUserCommand(),
 		},
 	}
 }
 
-func createUserCommand() cli.Command {
-	return cli.Command{
+func createUserCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "create",
 		Usage: "Create a new user",
-		UsageText: `This command will create a new user in Fleet. By default, the user will authenticate with a password and will not have admin privileges.
+		UsageText: `This command will create a new user in Fleet. By default, the user will authenticate with a password and will be a global observer.
 
    If a password is required and not provided by flag, the command will prompt for password input through stdin.`,
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:     usernameFlagName,
 				Usage:    "Username for new user (required)",
 				Required: true,
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:     emailFlagName,
 				Usage:    "Email for new user (required)",
 				Required: true,
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:  passwordFlagName,
 				Usage: "Password for new user",
 			},
-			cli.BoolFlag{
-				Name:  adminFlagName,
-				Usage: "Grant admin privileges to created user (default false)",
-			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:  ssoFlagName,
 				Usage: "Enable user login via SSO (default false)",
+			},
+			&cli.StringFlag{
+				Name:  globalRoleFlagName,
+				Usage: "Global role to assign to user (default observer)",
+			},
+			&cli.StringSliceFlag{
+				Name:    "team",
+				Aliases: []string{"t"},
+				Usage:   "Team assignments in team_id:role pairs (multiple may be specified)",
 			},
 			configFlag(),
 			contextFlag(),
@@ -65,7 +75,7 @@ func createUserCommand() cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -73,8 +83,38 @@ func createUserCommand() cli.Command {
 			username := c.String(usernameFlagName)
 			password := c.String(passwordFlagName)
 			email := c.String(emailFlagName)
-			admin := c.Bool(adminFlagName)
 			sso := c.Bool(ssoFlagName)
+			globalRoleString := c.String(globalRoleFlagName)
+			teamStrings := c.StringSlice(teamFlagName)
+
+			var globalRole *string
+			var teams []fleet.UserTeam
+			if globalRoleString != "" && len(teamStrings) > 0 {
+				return errors.New("Users may not have global_role and teams.")
+			} else if globalRoleString == "" && len(teamStrings) == 0 {
+				globalRole = ptr.String(fleet.RoleObserver)
+			} else if globalRoleString != "" {
+				if !fleet.ValidGlobalRole(globalRoleString) {
+					return errors.Errorf("'%s' is not a valid team role", globalRoleString)
+				}
+				globalRole = ptr.String(globalRoleString)
+			} else {
+				for _, t := range teamStrings {
+					parts := strings.Split(t, ":")
+					if len(parts) != 2 {
+						return errors.Errorf("Unable to parse '%s' as team_id:role", t)
+					}
+					teamID, err := strconv.Atoi(parts[0])
+					if err != nil {
+						return errors.Wrap(err, "Unable to parse team_id")
+					}
+					if !fleet.ValidTeamRole(parts[1]) {
+						return errors.Errorf("'%s' is not a valid team role", parts[1])
+					}
+
+					teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]})
+				}
+			}
 
 			if sso && len(password) > 0 {
 				return fmt.Errorf("Password may not be provided for SSO users.")
@@ -107,13 +147,14 @@ func createUserCommand() cli.Command {
 			// Only set the password reset flag if SSO is not enabled. Otherwise
 			// the user will be stuck in a bad state and not be able to log in.
 			force_reset := !sso
-			err = fleet.CreateUser(kolide.UserPayload{
+			err = client.CreateUser(fleet.UserPayload{
 				Username:                 &username,
 				Password:                 &password,
 				Email:                    &email,
-				Admin:                    &admin,
 				SSOEnabled:               &sso,
 				AdminForcedPasswordReset: &force_reset,
+				GlobalRole:               globalRole,
+				Teams:                    &teams,
 			})
 			if err != nil {
 				return errors.Wrap(err, "Failed to create user")

@@ -14,19 +14,15 @@ import (
 func TestDecodeCreateInviteRequest(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/fleet/invites", func(writer http.ResponseWriter, request *http.Request) {
-		r, err := decodeCreateInviteRequest(context.Background(), request)
+		_, err := decodeCreateInviteRequest(context.Background(), request)
 		assert.Nil(t, err)
-
-		params := r.(createInviteRequest)
-		assert.Equal(t, uint(1), *params.payload.InvitedBy)
 	}).Methods("POST")
 
 	t.Run("lowercase email", func(t *testing.T) {
 		var body bytes.Buffer
 		body.Write([]byte(`{
         "name": "foo",
-        "email": "foo@kolide.co",
-        "invited_by": 1
+        "email": "foo@fleet.co"
     }`))
 
 		router.ServeHTTP(
@@ -40,8 +36,7 @@ func TestDecodeCreateInviteRequest(t *testing.T) {
 		var body bytes.Buffer
 		body.Write([]byte(`{
         "name": "foo",
-        "email": "Foo@Kolide.co",
-        "invited_by": 1
+        "email": "Foo@fleet.co"
     }`))
 
 		router.ServeHTTP(

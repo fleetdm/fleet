@@ -5,74 +5,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw loggingMiddleware) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {
+func (mw loggingMiddleware) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	var (
-		loggedInUser = "unauthenticated"
-		userName     = "none"
-		err          error
-		user         *kolide.User
-	)
-
-	vc, ok := viewer.FromContext(ctx)
-	if ok {
-		loggedInUser = vc.Username()
-	}
-
-	defer func(begin time.Time) {
-		_ = mw.loggerInfo(err).Log(
-			"method", "ChangeUserAdmin",
-			"user", userName,
-			"changed_by", loggedInUser,
-			"admin", isAdmin,
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	user, err = mw.Service.ChangeUserAdmin(ctx, id, isAdmin)
-	if user != nil {
-		userName = user.Username
-	}
-	return user, err
-}
-
-func (mw loggingMiddleware) ChangeUserEnabled(ctx context.Context, id uint, isEnabled bool) (*kolide.User, error) {
-	var (
-		loggedInUser = "unauthenticated"
-		userName     = "none"
-		err          error
-		user         *kolide.User
-	)
-
-	vc, ok := viewer.FromContext(ctx)
-	if ok {
-		loggedInUser = vc.Username()
-	}
-
-	defer func(begin time.Time) {
-		_ = mw.loggerInfo(err).Log(
-			"method", "ChangeUserEnabled",
-			"user", userName,
-			"changed_by", loggedInUser,
-			"enabled", isEnabled,
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	user, err = mw.Service.ChangeUserEnabled(ctx, id, isEnabled)
-	if user != nil {
-		userName = user.Username
-	}
-	return user, err
-}
-
-func (mw loggingMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	var (
-		user         *kolide.User
+		user         *fleet.User
 		err          error
 		username     = "none"
 		loggedInUser = "unauthenticated"
@@ -100,9 +38,9 @@ func (mw loggingMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload
 	return user, err
 }
 
-func (mw loggingMiddleware) ListUsers(ctx context.Context, opt kolide.ListOptions) ([]*kolide.User, error) {
+func (mw loggingMiddleware) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	var (
-		users    []*kolide.User
+		users    []*fleet.User
 		err      error
 		username = "none"
 	)
@@ -125,9 +63,9 @@ func (mw loggingMiddleware) ListUsers(ctx context.Context, opt kolide.ListOption
 	return users, err
 }
 
-func (mw loggingMiddleware) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*kolide.User, error) {
+func (mw loggingMiddleware) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*fleet.User, error) {
 	var (
-		user     *kolide.User
+		user     *fleet.User
 		err      error
 		username = "none"
 	)
@@ -151,9 +89,9 @@ func (mw loggingMiddleware) RequirePasswordReset(ctx context.Context, uid uint, 
 
 }
 
-func (mw loggingMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (mw loggingMiddleware) CreateUserFromInvite(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	var (
-		user         *kolide.User
+		user         *fleet.User
 		err          error
 		username     = "none"
 		loggedInUser = "unauthenticated"
@@ -166,7 +104,7 @@ func (mw loggingMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.U
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
-			"method", "CreateUserWithInvite",
+			"method", "CreateUserFromInvite",
 			"user", username,
 			"created_by", loggedInUser,
 			"err", err,
@@ -174,7 +112,7 @@ func (mw loggingMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.U
 		)
 	}(time.Now())
 
-	user, err = mw.Service.CreateUserWithInvite(ctx, p)
+	user, err = mw.Service.CreateUserFromInvite(ctx, p)
 
 	if user != nil {
 		username = user.Username
@@ -182,16 +120,16 @@ func (mw loggingMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.U
 	return user, err
 }
 
-func (mw loggingMiddleware) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
+func (mw loggingMiddleware) ModifyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
 	var (
-		user     *kolide.User
+		user     *fleet.User
 		err      error
 		username = "none"
 	)
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, fleet.ErrNoContext
 	}
 
 	defer func(begin time.Time) {
@@ -275,7 +213,7 @@ func (mw loggingMiddleware) RequestPasswordReset(ctx context.Context, email stri
 	return err
 }
 
-func (mw loggingMiddleware) PerformRequiredPasswordReset(ctx context.Context, password string) (*kolide.User, error) {
+func (mw loggingMiddleware) PerformRequiredPasswordReset(ctx context.Context, password string) (*fleet.User, error) {
 	var (
 		resetBy = "unauthenticated"
 		err     error

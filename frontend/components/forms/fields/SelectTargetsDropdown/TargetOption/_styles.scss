@@ -13,23 +13,21 @@
     align-content: stretch;
     cursor: default;
     border-radius: 8px;
-    padding: 4px 8px;
+    padding: 0 $pad-xsmall;
   }
 
   &__target-content,
   &__add-btn {
-    line-height: 34px;
     font-size: $small;
     font-weight: $regular;
     text-transform: none;
     padding: 0;
   }
 
-  &__add-btn {
-    transition: color 0ms;
-    color: $core-blue;
-
-    font-size: $medium;
+  &__add-btn::after {
+    content: url("../assets/images/icon-plus-circle-16x16@2x.png");
+    transform: scale(0.5);
+    border: none;
   }
 
   &__target-content {
@@ -40,48 +38,48 @@
   }
 
   &__count {
-    background-color: $core-dark-blue-grey;
+    background-color: $core-fleet-black;
     border-radius: $border-radius;
-    color: $white;
+    color: $core-white;
     font-size: $xx-small;
     line-height: 16px;
     font-weight: bold;
     padding: 2px 10px;
-    margin-right: 12px;
   }
 
   &__icon {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     font-size: $small;
+    margin-left: $pad-small;
 
     &--online {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
 
     &--offline {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
 
     &--mia {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
   }
 
   &__ip {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     font-size: $small;
   }
 
   &__label-host {
-    color: $core-purple;
+    color: $core-fleet-purple;
     font-size: $medium;
-    margin-left: $pad-half;
+    margin-left: $pad-small;
   }
 
   &__label-label {
-    color: $core-dark-blue-grey;
-    font-size: 14px;
-    margin-left: $pad-half;
+    color: $core-fleet-black;
+    font-size: $xx-small;
+    margin-left: $pad-small;
 
     .all-hosts {
       font-weight: $bold;
@@ -89,15 +87,15 @@
   }
 
   &__more-info {
-    color: $core-blue;
+    color: $core-vibrant-blue;
     cursor: pointer;
     float: right;
-    margin-right: $pad-base;
+    margin-right: $pad-medium;
   }
 
   &__target-icon {
     font-size: $medium;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     margin-right: $pad-xsmall;
   }
 
@@ -115,6 +113,6 @@
 
   .target-option__label-label {
     font-weight: $bold;
-    margin-right: 8px;
+    margin-right: $pad-small;
   }
 }

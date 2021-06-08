@@ -1,15 +1,15 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import { isEqual, noop } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { isEqual, noop } from "lodash";
 
-import Kolide from 'kolide';
-import targetInterface from 'interfaces/target';
-import { formatSelectedTargetsForApi } from 'kolide/helpers';
-import Input from './SelectTargetsInput';
-import Menu from './SelectTargetsMenu';
+import Fleet from "fleet";
+import targetInterface from "interfaces/target";
+import { formatSelectedTargetsForApi } from "fleet/helpers";
+import Input from "./SelectTargetsInput";
+import Menu from "./SelectTargetsMenu";
 
-const baseClass = 'target-select';
+const baseClass = "target-select";
 
 class SelectTargetsDropdown extends Component {
   static propTypes = {
@@ -20,6 +20,7 @@ class SelectTargetsDropdown extends Component {
     onSelect: PropTypes.func.isRequired,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
+    queryId: PropTypes.number,
   };
 
   static defaultProps = {
@@ -27,19 +28,19 @@ class SelectTargetsDropdown extends Component {
     onFetchTargets: noop,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
       isEmpty: false,
       isLoadingTargets: false,
       moreInfoTarget: null,
-      query: '',
+      query: "",
       targets: [],
     };
   }
 
-  componentWillMount () {
+  componentWillMount() {
     this.mounted = true;
     this.wrapperHeight = 0;
     this.fetchTargets();
@@ -47,7 +48,7 @@ class SelectTargetsDropdown extends Component {
     return false;
   }
 
-  componentWillReceiveProps (nextProps) {
+  componentWillReceiveProps(nextProps) {
     const { selectedTargets } = nextProps;
     const { query } = this.state;
 
@@ -56,45 +57,47 @@ class SelectTargetsDropdown extends Component {
     }
   }
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     this.mounted = false;
   }
 
   onInputClose = () => {
     const { document } = global;
-    const coreWrapper = document.querySelector('.core-wrapper');
+    const coreWrapper = document.querySelector(".core-wrapper");
 
-    this.setState({ moreInfoTarget: null, query: '' });
-    coreWrapper.style.height = 'auto';
+    this.setState({ moreInfoTarget: null, query: "" });
+    coreWrapper.style.height = "auto";
 
     return false;
-  }
+  };
 
   onInputFocus = () => {
     const { document } = global;
-    this.wrapperHeight = document.querySelector('.core-wrapper').scrollHeight;
+    this.wrapperHeight = document.querySelector(".core-wrapper").scrollHeight;
 
     return false;
-  }
+  };
 
   onInputOpen = () => {
     const { document } = global;
     const { wrapperHeight } = this;
 
     const lookForOuterMenu = setInterval(() => {
-      if (document.querySelectorAll('.Select-menu-outer')) {
+      if (document.querySelectorAll(".Select-menu-outer")) {
         clearInterval(lookForOuterMenu);
-        const coreWrapper = document.querySelector('.core-wrapper');
+        const coreWrapper = document.querySelector(".core-wrapper");
 
         const currentWrapperHeight = coreWrapper.scrollHeight;
         if (wrapperHeight < currentWrapperHeight) {
-          coreWrapper.style.height = `${wrapperHeight + (currentWrapperHeight - wrapperHeight) + 15}px`;
+          coreWrapper.style.height = `${
+            wrapperHeight + (currentWrapperHeight - wrapperHeight) + 15
+          }px`;
         }
       }
     }, 5);
 
     return false;
-  }
+  };
 
   onTargetSelectMoreInfo = (moreInfoTarget) => {
     return (evt) => {
@@ -102,7 +105,7 @@ class SelectTargetsDropdown extends Component {
 
       const currentMoreInfoTarget = this.state.moreInfoTarget || {};
 
-      if (isEqual(moreInfoTarget.display_text, currentMoreInfoTarget.display_text)) {
+      if (isEqual(moreInfoTarget.id, currentMoreInfoTarget.id)) {
         return false;
       }
 
@@ -110,13 +113,17 @@ class SelectTargetsDropdown extends Component {
 
       return false;
     };
-  }
+  };
 
   onBackToResults = () => {
     this.setState({ moreInfoTarget: null });
-  }
+  };
 
-  fetchTargets = (query = '', selectedTargets = this.props.selectedTargets) => {
+  fetchTargets = (
+    query = "",
+    queryId = this.props.queryId,
+    selectedTargets = this.props.selectedTargets
+  ) => {
     const { onFetchTargets } = this.props;
 
     if (!this.mounted) {
@@ -125,7 +132,8 @@ class SelectTargetsDropdown extends Component {
 
     this.setState({ isLoadingTargets: true, query });
 
-    return Kolide.targets.loadAll(query, formatSelectedTargetsForApi(selectedTargets))
+    return Fleet.targets
+      .loadAll(query, queryId, formatSelectedTargetsForApi(selectedTargets))
       .then((response) => {
         const { targets } = response;
         const isEmpty = targets.length === 0;
@@ -150,13 +158,13 @@ class SelectTargetsDropdown extends Component {
         return query;
       })
       .catch((error) => {
-        console.error('Error getting targets:', error);
+        console.error("Error getting targets:", error);
 
         if (this.mounted) {
           this.setState({ isLoadingTargets: false });
         }
       });
-  }
+  };
 
   renderLabel = () => {
     const { error, label, targetsCount } = this.props;
@@ -172,12 +180,15 @@ class SelectTargetsDropdown extends Component {
     return (
       <p className={labelClassName}>
         <span className={`${baseClass}__select-targets`}>{error || label}</span>
-        <span className={`${baseClass}__targets-count`}> {targetsCount} unique {targetsCount === 1 ? 'host' : 'hosts' }</span>
+        <span className={`${baseClass}__targets-count`}>
+          {" "}
+          {targetsCount} unique {targetsCount === 1 ? "host" : "hosts"}
+        </span>
       </p>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { isEmpty, isLoadingTargets, moreInfoTarget, targets } = this.state;
     const {
       fetchTargets,
@@ -189,11 +200,15 @@ class SelectTargetsDropdown extends Component {
       renderLabel,
     } = this;
     const { disabled, onSelect, selectedTargets } = this.props;
-    const menuRenderer = Menu(onTargetSelectMoreInfo, moreInfoTarget, onBackToResults);
+    const menuRenderer = Menu(
+      onTargetSelectMoreInfo,
+      moreInfoTarget,
+      onBackToResults
+    );
 
     const inputClasses = classnames({
-      'show-preview': moreInfoTarget,
-      'is-empty': isEmpty,
+      "show-preview": moreInfoTarget,
+      "is-empty": isEmpty,
     });
 
     return (

@@ -5,7 +5,7 @@ package viewer
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
 type key int
@@ -26,8 +26,8 @@ func FromContext(ctx context.Context) (Viewer, bool) {
 // Viewer holds information about the current
 // user and the user's session
 type Viewer struct {
-	User    *kolide.User
-	Session *kolide.Session
+	User    *fleet.User
+	Session *fleet.Session
 }
 
 // UserID is a helper that enables quick access to the user ID of the current
@@ -74,11 +74,6 @@ func (v Viewer) IsUserID(id uint) bool {
 // IsLoggedIn determines whether or not the current VC is attached to a user
 // account
 func (v Viewer) IsLoggedIn() bool {
-	if v.User != nil {
-		if !v.User.Enabled {
-			return false
-		}
-	}
 	if v.Session != nil {
 		// Without having access to a service to call GetInfoAboutSession(id),
 		// we can't synchronously check the database here.
@@ -101,8 +96,9 @@ func (v Viewer) CanPerformActions() bool {
 // CanPerformAdminActions indicates whether or not the current user can perform
 // administrative actions.
 func (v Viewer) CanPerformAdminActions() bool {
+	// TODO this needs revisiting for teams!
 	if v.User != nil {
-		return v.CanPerformActions() && v.User.Admin
+		return v.CanPerformActions()
 	}
 	return false
 }

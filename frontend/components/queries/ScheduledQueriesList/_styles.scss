@@ -1,6 +1,6 @@
 .scheduled-queries-list {
-  background-color: $white;
-  border: 1px solid $ui-borders;
+  background-color: $core-white;
+  border: 1px solid $ui-fleet-blue-15;
   border-radius: 4px;
   box-sizing: border-box;
 
@@ -11,14 +11,18 @@
 
     thead {
       height: 50px;
-      background-color: $core-light-blue-grey;
-      border-bottom: 1px solid $ui-borders;
+      background-color: $ui-off-white;
+      border-bottom: 1px solid $ui-fleet-blue-15;
+
+      th + th {
+        border-left: 1px solid $ui-fleet-blue-15;
+      }
 
       th {
         font-size: $x-small;
         font-weight: $bold;
         text-align: left;
-        padding: 15px 10px;
+        padding: $pad-medium $pad-large;
 
         .form-field {
           margin: 0;
@@ -30,21 +34,17 @@
         }
 
         &:nth-child(2) {
-          width: calc(46% - 20px);
+          width: calc(49% - 20px);
         }
 
-        &:nth-child(3) {
-          width: 18%;
+        &:nth-child(3),
+        &:nth-child(7) {
+          width: 8%;
         }
-
-        &:nth-child(4) {
-          width: 18%;
-          text-align: center;
-        }
-
-        &:nth-child(5) {
-          width: 18%;
-          text-align: center;
+        &:nth-child(4),
+        &:nth-child(5),
+        &:nth-child(6) {
+          width: 12%;
         }
 
         &:last-child {
@@ -55,8 +55,12 @@
     }
 
     tbody {
+      p {
+        font-size: $x-small;
+      }
+
       td {
-        padding: 0 10px;
+        padding: 0 $pad-large;
         margin: 0;
 
         .form-field {
@@ -69,33 +73,42 @@
         }
 
         &:nth-child(2) {
-          font-size: 14px;
-          font-weight: $bold;
+          font-size: $x-small;
+          font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
           text-align: left;
-          color: $core-black;
+          color: $core-fleet-black;
         }
 
         &:nth-child(3) {
-          font-size: 14px;
+          font-size: $x-small;
           font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
-          color: $core-black;
+          color: $core-fleet-black;
         }
 
-        &:nth-child(4),
-        &:nth-child(5),
-        &:nth-child(6) {
-          font-size: 14px;
+        &:nth-child(4) {
+          font-size: $x-small;
           font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
-          text-align: center;
-          color: $core-black;
+          text-align: left;
+          color: $core-fleet-black;
+          white-space: nowrap;
+        }
 
-          .kolidecon {
+        &:nth-child(5),
+        &:nth-child(6) {
+          font-size: $x-small;
+          font-weight: $regular;
+          line-height: 2.71;
+          letter-spacing: -0.5px;
+          text-align: left;
+          color: $core-fleet-black;
+
+          .fleeticon {
             font-size: 18px;
           }
         }
@@ -103,7 +116,7 @@
         &:nth-child(7) {
           text-align: center;
           font-size: 18px;
-          color: $core-black;
+          color: $core-fleet-black;
         }
       }
 
@@ -114,32 +127,39 @@
   }
 
   &__first-query {
-    padding: 30px 15px 100px;
+    padding: 0 $pad-xxlarge 100px;
     text-align: left;
 
+    &-cta {
+      text-align: left;
+      font-size: $x-small;
+      font-weight: $bold;
+      color: $core-vibrant-blue;
+    }
+
     h1 {
-      color: $core-dark-blue-grey;
-      font-size: 24px;
+      color: $core-fleet-black;
+      font-size: $large;
       font-weight: $regular;
       line-height: 1.96;
-      letter-spacing: -0.5px;
       margin: 0;
+      margin-top: $pad-xxlarge;
     }
 
     h2 {
-      font-size: 20px;
+      font-size: $medium;
       line-height: 2;
       letter-spacing: -0.4px;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
       font-weight: $regular;
       margin: 0;
     }
 
     p {
-      font-size: 16px;
+      font-size: $x-small;
       font-weight: $regular;
       line-height: 2.5;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
       margin: 0;
     }
 
@@ -151,10 +171,10 @@
 
     li {
       margin-left: 15px;
-      font-size: 16px;
+      font-size: $x-small;
       font-weight: $regular;
       line-height: 2.5;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
     }
   }
 

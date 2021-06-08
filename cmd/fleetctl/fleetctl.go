@@ -4,8 +4,9 @@ import (
 	"math/rand"
 	"time"
 
+	eefleetctl "github.com/fleetdm/fleet/ee/fleetctl"
 	"github.com/kolide/kit/version"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -25,7 +26,7 @@ func main() {
 		version.PrintFull()
 	}
 
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		applyCommand(),
 		deleteCommand(),
 		setupCommand(),
@@ -33,10 +34,10 @@ func main() {
 		logoutCommand(),
 		queryCommand(),
 		getCommand(),
-		cli.Command{
+		&cli.Command{
 			Name:  "config",
 			Usage: "Modify Fleet server connection settings",
-			Subcommands: []cli.Command{
+			Subcommands: []*cli.Command{
 				configSetCommand(),
 				configGetCommand(),
 			},
@@ -46,6 +47,7 @@ func main() {
 		userCommand(),
 		debugCommand(),
 		previewCommand(),
+		eefleetctl.UpdatesCommand(),
 	}
 
 	app.RunAndExitOnError()

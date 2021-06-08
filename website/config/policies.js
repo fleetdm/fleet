@@ -18,8 +18,15 @@ module.exports.policies = {
   'view-homepage-or-redirect': true,
   'view-faq': true,
   'view-contact': true,
+  'view-get-started': true,
+  'view-pricing': true,
   'legal/view-terms': true,
   'legal/view-privacy': true,
   'deliver-contact-form-message': true,
+  'view-query-detail': true,
+  'view-query-library': true,
+  'docs/*': true,
+  'handbook/*': true,
+  'download-sitemap': true,
 
 };

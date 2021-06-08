@@ -2,21 +2,21 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/fleet"
 
-var _ kolide.AppConfigStore = (*AppConfigStore)(nil)
+var _ fleet.AppConfigStore = (*AppConfigStore)(nil)
 
-type NewAppConfigFunc func(info *kolide.AppConfig) (*kolide.AppConfig, error)
+type NewAppConfigFunc func(info *fleet.AppConfig) (*fleet.AppConfig, error)
 
-type AppConfigFunc func() (*kolide.AppConfig, error)
+type AppConfigFunc func() (*fleet.AppConfig, error)
 
-type SaveAppConfigFunc func(info *kolide.AppConfig) error
+type SaveAppConfigFunc func(info *fleet.AppConfig) error
 
-type VerifyEnrollSecretFunc func(secret string) (string, error)
+type VerifyEnrollSecretFunc func(secret string) (*fleet.EnrollSecret, error)
 
-type ApplyEnrollSecretSpecFunc func(spec *kolide.EnrollSecretSpec) error
+type ApplyEnrollSecretsFunc func(treamID *uint, secrets []*fleet.EnrollSecret) error
 
-type GetEnrollSecretSpecFunc func() (*kolide.EnrollSecretSpec, error)
+type GetEnrollSecretsFunc func(teamID *uint) ([]*fleet.EnrollSecret, error)
 
 type AppConfigStore struct {
 	NewAppConfigFunc        NewAppConfigFunc
@@ -31,39 +31,39 @@ type AppConfigStore struct {
 	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
 	VerifyEnrollSecretFuncInvoked bool
 
-	ApplyEnrollSecretSpecFunc        ApplyEnrollSecretSpecFunc
-	ApplyEnrollSecretSpecFuncInvoked bool
+	ApplyEnrollSecretsFunc        ApplyEnrollSecretsFunc
+	ApplyEnrollSecretsFuncInvoked bool
 
-	GetEnrollSecretSpecFunc        GetEnrollSecretSpecFunc
-	GetEnrollSecretSpecFuncInvoked bool
+	GetEnrollSecretsFunc        GetEnrollSecretsFunc
+	GetEnrollSecretsFuncInvoked bool
 }
 
-func (s *AppConfigStore) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, error) {
+func (s *AppConfigStore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	s.NewAppConfigFuncInvoked = true
 	return s.NewAppConfigFunc(info)
 }
 
-func (s *AppConfigStore) AppConfig() (*kolide.AppConfig, error) {
+func (s *AppConfigStore) AppConfig() (*fleet.AppConfig, error) {
 	s.AppConfigFuncInvoked = true
 	return s.AppConfigFunc()
 }
 
-func (s *AppConfigStore) SaveAppConfig(info *kolide.AppConfig) error {
+func (s *AppConfigStore) SaveAppConfig(info *fleet.AppConfig) error {
 	s.SaveAppConfigFuncInvoked = true
 	return s.SaveAppConfigFunc(info)
 }
 
-func (s *AppConfigStore) VerifyEnrollSecret(secret string) (string, error) {
+func (s *AppConfigStore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, error) {
 	s.VerifyEnrollSecretFuncInvoked = true
 	return s.VerifyEnrollSecretFunc(secret)
 }
 
-func (s *AppConfigStore) ApplyEnrollSecretSpec(spec *kolide.EnrollSecretSpec) error {
-	s.ApplyEnrollSecretSpecFuncInvoked = true
-	return s.ApplyEnrollSecretSpecFunc(spec)
+func (s *AppConfigStore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
+	s.ApplyEnrollSecretsFuncInvoked = true
+	return s.ApplyEnrollSecretsFunc(teamID, secrets)
 }
 
-func (s *AppConfigStore) GetEnrollSecretSpec() (*kolide.EnrollSecretSpec, error) {
-	s.GetEnrollSecretSpecFuncInvoked = true
-	return s.GetEnrollSecretSpecFunc()
+func (s *AppConfigStore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error) {
+	s.GetEnrollSecretsFuncInvoked = true
+	return s.GetEnrollSecretsFunc(teamID)
 }

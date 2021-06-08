@@ -14,13 +14,13 @@ import (
 )
 
 // Certificate returns the PEM encoded certificate chain for osqueryd TLS termination.
-func (svc service) CertificateChain(ctx context.Context) ([]byte, error) {
+func (svc *Service) CertificateChain(ctx context.Context) ([]byte, error) {
 	config, err := svc.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	u, err := url.Parse(config.KolideServerURL)
+	u, err := url.Parse(config.ServerURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing serverURL")
 	}

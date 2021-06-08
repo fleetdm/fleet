@@ -35,10 +35,11 @@ type MysqlConfig struct {
 
 // RedisConfig defines configs related to Redis
 type RedisConfig struct {
-	Address  string
-	Password string
-	Database int
-	UseTLS   bool `yaml:"use_tls"`
+	Address          string
+	Password         string
+	Database         int
+	UseTLS           bool `yaml:"use_tls"`
+	DuplicateResults bool `yaml:"duplicate_results"`
 }
 
 const (
@@ -53,16 +54,15 @@ type ServerConfig struct {
 	Cert       string
 	Key        string
 	TLS        bool
-	TLSProfile string // TODO #271 set `yaml:"tls_compatibility"`
+	TLSProfile string `yaml:"tls_compatibility"`
 	URLPrefix  string `yaml:"url_prefix"`
+	Keepalive  bool   `yaml:"keepalive"`
 }
 
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
-	JwtKey      string `yaml:"jwt_key"`
-	JwtKeyPath  string `yaml:"jwt_key_path"`
-	BcryptCost  int    `yaml:"bcrypt_cost"`
-	SaltKeySize int    `yaml:"salt_key_size"`
+	BcryptCost  int `yaml:"bcrypt_cost"`
+	SaltKeySize int `yaml:"salt_key_size"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -80,6 +80,8 @@ type SessionConfig struct {
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
 	NodeKeySize          int           `yaml:"node_key_size"`
+	HostIdentifier       string        `yaml:"host_identifier"`
+	EnrollCooldown       time.Duration `yaml:"enroll_cooldown"`
 	StatusLogPlugin      string        `yaml:"status_log_plugin"`
 	ResultLogPlugin      string        `yaml:"result_log_plugin"`
 	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
@@ -137,9 +139,10 @@ type S3Config struct {
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
-	Project     string
-	StatusTopic string `yaml:"status_topic"`
-	ResultTopic string `yaml:"result_topic"`
+	Project       string
+	StatusTopic   string `yaml:"status_topic"`
+	ResultTopic   string `yaml:"result_topic"`
+	AddAttributes bool   `yaml:"add_attributes"`
 }
 
 // FilesystemConfig defines configs for the Filesystem logging plugin
@@ -150,11 +153,16 @@ type FilesystemConfig struct {
 	EnableLogCompression bool   `yaml:"enable_log_compression"`
 }
 
-// KolideConfig stores the application configuration. Each subcategory is
+// LicenseConfig defines configs related to licensing Fleet.
+type LicenseConfig struct {
+	Key string `yaml:"key"`
+}
+
+// FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
-type KolideConfig struct {
+type FleetConfig struct {
 	Mysql      MysqlConfig
 	Redis      RedisConfig
 	Server     ServerConfig
@@ -169,23 +177,24 @@ type KolideConfig struct {
 	S3         S3Config
 	PubSub     PubSubConfig
 	Filesystem FilesystemConfig
+	License    LicenseConfig
 }
 
 // addConfigs adds the configuration keys and default values that will be
-// filled into the KolideConfig struct
+// filled into the FleetConfig struct
 func (man Manager) addConfigs() {
 	// MySQL
 	man.addConfigString("mysql.protocol", "tcp",
 		"MySQL server communication protocol (tcp,unix,...)")
 	man.addConfigString("mysql.address", "localhost:3306",
 		"MySQL server address (host:port)")
-	man.addConfigString("mysql.username", "kolide",
+	man.addConfigString("mysql.username", "fleet",
 		"MySQL server username")
 	man.addConfigString("mysql.password", "",
 		"MySQL server password (prefer env variable for security)")
 	man.addConfigString("mysql.password_path", "",
 		"Path to file containg MySQL server password")
-	man.addConfigString("mysql.database", "kolide",
+	man.addConfigString("mysql.database", "fleet",
 		"MySQL database name")
 	man.addConfigString("mysql.tls_cert", "",
 		"MySQL TLS client certificate path")
@@ -209,13 +218,14 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("redis.database", 0,
 		"Redis server database number")
 	man.addConfigBool("redis.use_tls", false, "Redis server enable TLS")
+	man.addConfigBool("redis.duplicate_results", false, "Duplicate Live Query results to another Redis channel")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
 		"Fleet server address (host:port)")
-	man.addConfigString("server.cert", "./tools/osquery/kolide.crt",
+	man.addConfigString("server.cert", "./tools/osquery/fleet.crt",
 		"Fleet TLS certificate path")
-	man.addConfigString("server.key", "./tools/osquery/kolide.key",
+	man.addConfigString("server.key", "./tools/osquery/fleet.key",
 		"Fleet TLS key path")
 	man.addConfigBool("server.tls", true,
 		"Enable TLS (required for osqueryd communication)")
@@ -224,12 +234,10 @@ func (man Manager) addConfigs() {
 			TLSProfileModern, TLSProfileIntermediate))
 	man.addConfigString("server.url_prefix", "",
 		"URL prefix used on server and frontend endpoints")
+	man.addConfigBool("server.keepalive", true,
+		"Controls wether HTTP keep-alives are enabled.")
 
 	// Auth
-	man.addConfigString("auth.jwt_key", "",
-		"JWT session token key (required)")
-	man.addConfigString("auth.jwt_key_path", "",
-		"Path to file containg JWT session token key")
 	man.addConfigInt("auth.bcrypt_cost", 12,
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
@@ -246,12 +254,16 @@ func (man Manager) addConfigs() {
 	// Session
 	man.addConfigInt("session.key_size", 64,
 		"Size of generated session keys")
-	man.addConfigDuration("session.duration", 24*90*time.Hour,
+	man.addConfigDuration("session.duration", 4*time.Hour,
 		"Duration session keys remain valid (i.e. 24h)")
 
 	// Osquery
 	man.addConfigInt("osquery.node_key_size", 24,
 		"Size of generated osqueryd node keys")
+	man.addConfigString("osquery.host_identifier", "provided",
+		"Identifier used to uniquely determine osquery clients")
+	man.addConfigDuration("osquery.enroll_cooldown", 0,
+		"Cooldown period for duplicate host enrollment (default off)")
 	man.addConfigString("osquery.status_log_plugin", "filesystem",
 		"Log plugin to use for status logs")
 	man.addConfigString("osquery.result_log_plugin", "filesystem",
@@ -319,6 +331,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
 	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
 	man.addConfigString("pubsub.result_topic", "", "PubSub topic for result logs")
+	man.addConfigBool("pubsub.add_attributes", false, "Add PubSub attributes in addition to the message body")
 
 	// Filesystem
 	man.addConfigString("filesystem.status_log_file", "/tmp/osquery_status",
@@ -329,37 +342,17 @@ func (man Manager) addConfigs() {
 		"Enable automatic rotation for osquery log files")
 	man.addConfigBool("filesystem.enable_log_compression", false,
 		"Enable compression for the rotated osquery log files")
+
+	// License
+	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Basic features)")
 }
 
 // LoadConfig will load the config variables into a fully initialized
-// KolideConfig struct
-func (man Manager) LoadConfig() KolideConfig {
-	// Shim old style environment variables with a warning
-	// TODO #260 remove this on major version release
-	haveLogged := false
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "KOLIDE_") {
-			splits := strings.SplitN(e, "=", 2)
-			if len(splits) != 2 {
-				panic("env " + e + " does not contain 2 splits")
-			}
-
-			key, val := splits[0], splits[1]
-
-			if !haveLogged {
-				fmt.Println("Environment variables prefixed with KOLIDE_ are deprecated. Please migrate to FLEET_ prefixes.`")
-				haveLogged = true
-			}
-
-			if err := os.Setenv("FLEET"+strings.TrimPrefix(key, "KOLIDE"), val); err != nil {
-				panic(err)
-			}
-		}
-	}
-
+// FleetConfig struct
+func (man Manager) LoadConfig() FleetConfig {
 	man.loadConfigFile()
 
-	return KolideConfig{
+	return FleetConfig{
 		Mysql: MysqlConfig{
 			Protocol:        man.getConfigString("mysql.protocol"),
 			Address:         man.getConfigString("mysql.address"),
@@ -377,10 +370,11 @@ func (man Manager) LoadConfig() KolideConfig {
 			ConnMaxLifetime: man.getConfigInt("mysql.conn_max_lifetime"),
 		},
 		Redis: RedisConfig{
-			Address:  man.getConfigString("redis.address"),
-			Password: man.getConfigString("redis.password"),
-			Database: man.getConfigInt("redis.database"),
-			UseTLS:   man.getConfigBool("redis.use_tls"),
+			Address:          man.getConfigString("redis.address"),
+			Password:         man.getConfigString("redis.password"),
+			Database:         man.getConfigInt("redis.database"),
+			UseTLS:           man.getConfigBool("redis.use_tls"),
+			DuplicateResults: man.getConfigBool("redis.duplicate_results"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
@@ -389,10 +383,9 @@ func (man Manager) LoadConfig() KolideConfig {
 			TLS:        man.getConfigBool("server.tls"),
 			TLSProfile: man.getConfigTLSProfile(),
 			URLPrefix:  man.getConfigString("server.url_prefix"),
+			Keepalive:  man.getConfigBool("server.keepalive"),
 		},
 		Auth: AuthConfig{
-			JwtKey:      man.getConfigString("auth.jwt_key"),
-			JwtKeyPath:  man.getConfigString("auth.jwt_key_path"),
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
 			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
 		},
@@ -406,6 +399,8 @@ func (man Manager) LoadConfig() KolideConfig {
 		},
 		Osquery: OsqueryConfig{
 			NodeKeySize:          man.getConfigInt("osquery.node_key_size"),
+			HostIdentifier:       man.getConfigString("osquery.host_identifier"),
+			EnrollCooldown:       man.getConfigDuration("osquery.enroll_cooldown"),
 			StatusLogPlugin:      man.getConfigString("osquery.status_log_plugin"),
 			ResultLogPlugin:      man.getConfigString("osquery.result_log_plugin"),
 			StatusLogFile:        man.getConfigString("osquery.status_log_file"),
@@ -451,15 +446,19 @@ func (man Manager) LoadConfig() KolideConfig {
 			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
 		},
 		PubSub: PubSubConfig{
-			Project:     man.getConfigString("pubsub.project"),
-			StatusTopic: man.getConfigString("pubsub.status_topic"),
-			ResultTopic: man.getConfigString("pubsub.result_topic"),
+			Project:       man.getConfigString("pubsub.project"),
+			StatusTopic:   man.getConfigString("pubsub.status_topic"),
+			ResultTopic:   man.getConfigString("pubsub.result_topic"),
+			AddAttributes: man.getConfigBool("pubsub.add_attributes"),
 		},
 		Filesystem: FilesystemConfig{
 			StatusLogFile:        man.getConfigString("filesystem.status_log_file"),
 			ResultLogFile:        man.getConfigString("filesystem.result_log_file"),
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
+		},
+		License: LicenseConfig{
+			Key: man.getConfigString("license.key"),
 		},
 	}
 }
@@ -483,7 +482,7 @@ func flagNameFromConfigKey(key string) string {
 
 // Manager manages the addition and retrieval of config values for Fleet
 // configs. It's only public API method is LoadConfig, which will return the
-// populated KolideConfig struct.
+// populated FleetConfig struct.
 type Manager struct {
 	viper    *viper.Viper
 	command  *cobra.Command
@@ -659,14 +658,13 @@ func (man Manager) loadConfigFile() {
 
 // TestConfig returns a barebones configuration suitable for use in tests.
 // Individual tests may want to override some of the values provided.
-func TestConfig() KolideConfig {
-	return KolideConfig{
+func TestConfig() FleetConfig {
+	return FleetConfig{
 		App: AppConfig{
 			TokenKeySize:              24,
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			JwtKey:      "CHANGEME",
 			BcryptCost:  6, // Low cost keeps tests fast
 			SaltKeySize: 24,
 		},
@@ -676,6 +674,8 @@ func TestConfig() KolideConfig {
 		},
 		Osquery: OsqueryConfig{
 			NodeKeySize:          24,
+			HostIdentifier:       "instance",
+			EnrollCooldown:       42 * time.Minute,
 			StatusLogPlugin:      "filesystem",
 			ResultLogPlugin:      "filesystem",
 			LabelUpdateInterval:  1 * time.Hour,

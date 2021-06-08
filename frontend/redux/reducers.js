@@ -1,16 +1,16 @@
-import { combineReducers } from 'redux';
-import { loadingBarReducer } from 'react-redux-loading-bar';
-import { routerReducer } from 'react-router-redux';
+import { combineReducers } from "redux";
+import { routerReducer } from "react-router-redux";
 
-import app from './nodes/app/reducer';
-import auth from './nodes/auth/reducer';
-import components from './nodes/components/reducer';
-import entities from './nodes/entities/reducer';
-import errors500 from './nodes/errors500/reducer';
-import notifications from './nodes/notifications/reducer';
-import osquery from './nodes/osquery/reducer';
-import persistentFlash from './nodes/persistent_flash/reducer';
-import redirectLocation from './nodes/redirectLocation/reducer';
+import app from "./nodes/app/reducer";
+import auth from "./nodes/auth/reducer";
+import components from "./nodes/components/reducer";
+import entities from "./nodes/entities/reducer";
+import errors500 from "./nodes/errors500/reducer";
+import notifications from "./nodes/notifications/reducer";
+import osquery from "./nodes/osquery/reducer";
+import persistentFlash from "./nodes/persistent_flash/reducer";
+import redirectLocation from "./nodes/redirectLocation/reducer";
+import version from "./nodes/version/reducer";
 
 export default combineReducers({
   app,
@@ -18,10 +18,10 @@ export default combineReducers({
   components,
   entities,
   errors500,
-  loadingBar: loadingBarReducer,
   notifications,
   osquery,
   persistentFlash,
   redirectLocation,
   routing: routerReducer,
+  version,
 });

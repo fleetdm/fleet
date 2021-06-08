@@ -1,40 +1,26 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import Button from 'components/buttons/Button';
-import KolideIcon from 'components/icons/KolideIcon';
+const baseClass = "warning-banner";
 
-const baseClass = 'warning-banner';
-
-const WarningBanner = ({ className, message, labelText, shouldShowWarning, onDismiss, onResolve }) => {
+const WarningBanner = ({ children, className, shouldShowWarning }) => {
   if (!shouldShowWarning) {
-    return false;
+    return null;
   }
 
   const fullClassName = classnames(baseClass, className);
 
-  const label = labelText || 'Warning:';
-
   return (
     <div className={fullClassName}>
-      <div className={`${baseClass}__icon-wrap`}>
-        <KolideIcon name="warning-filled" />
-        <span className={`${baseClass}__label`}>{label}</span>
-      </div>
-      <span className={`${baseClass}__text`}>{message}</span>
-      {onDismiss && <Button onClick={onDismiss} variant="unstyled">Dismiss</Button>}
-      {onResolve && <Button onClick={onResolve} variant="unstyled">Resolve</Button>}
+      <div className={`${baseClass}__message`}>{children}</div>
     </div>
   );
 };
 
 WarningBanner.propTypes = {
+  children: PropTypes.node,
   className: PropTypes.string,
-  message: PropTypes.string.isRequired,
-  labelText: PropTypes.string,
-  onDismiss: PropTypes.func,
-  onResolve: PropTypes.func,
   shouldShowWarning: PropTypes.bool.isRequired,
 };
 

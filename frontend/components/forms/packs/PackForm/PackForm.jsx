@@ -1,16 +1,16 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import Button from 'components/buttons/Button';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import InputField from 'components/forms/fields/InputField';
-import SelectTargetsDropdown from 'components/forms/fields/SelectTargetsDropdown';
-import validate from './validate';
+import Button from "components/buttons/Button";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import InputField from "components/forms/fields/InputField";
+import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
+import validate from "./validate";
 
-const fieldNames = ['name', 'description', 'targets'];
-const baseClass = 'pack-form';
+const fieldNames = ["name", "description", "targets"];
+const baseClass = "pack-form";
 
 class PackForm extends Component {
   static propTypes = {
@@ -26,7 +26,7 @@ class PackForm extends Component {
     selectedTargetsCount: PropTypes.number,
   };
 
-  render () {
+  render() {
     const {
       baseError,
       className,
@@ -40,7 +40,7 @@ class PackForm extends Component {
 
     return (
       <form className={packFormClass} onSubmit={handleSubmit}>
-        <h1>New Pack</h1>
+        <h1>New pack</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
         <InputField
           {...fields.name}
@@ -51,8 +51,8 @@ class PackForm extends Component {
         <InputField
           {...fields.description}
           inputWrapperClass={`${baseClass}__pack-description`}
-          label="Query pack description"
-          placeholder="Add a description of your query"
+          label="Description"
+          placeholder="Add a description of your pack"
           type="textarea"
         />
         <div className={`${baseClass}__pack-targets`}>

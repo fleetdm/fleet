@@ -1,27 +1,27 @@
 .form-field {
-  margin-bottom: 24px;
+  margin-bottom: $pad-large;
 
   &__label {
     font-size: $x-small;
-    font-weight: $regular;
-    color: $core-black;
+    font-weight: $bold;
+    color: $core-fleet-black;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: $pad-xsmall;
 
     &--error {
-      color: $alert;
+      color: $ui-error;
     }
   }
 
   &__hint {
     font-weight: $regular;
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
 
     code {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       background-color: $ui-light-grey;
-      padding: 2px;
-      font-family: 'SourceCodePro', $monospace;
+      padding: $pad-xxsmall;
+      font-family: "SourceCodePro", $monospace;
     }
   }
 }

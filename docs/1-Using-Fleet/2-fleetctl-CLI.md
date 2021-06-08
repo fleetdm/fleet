@@ -1,4 +1,5 @@
 # fleetctl CLI
+
 - [Setting Up Fleet via the CLI](#setting-up-fleet-via-the-cli)
   - [Running Fleet](#running-fleet)
   - [`fleetctl config`](#fleetctl-config)
@@ -7,7 +8,7 @@
   - [Query hosts](#query-hosts)
   - [Update osquery options](#update-osquery-options)
 - [Logging in to an existing Fleet instance](#logging-in-to-an-existing-Fleet-instance)
-  - [Logging in with SAML (SSO) authentication](#logging-in-with-SAML-(SSO)-authentication)
+  - [Logging in with SAML (SSO) authentication](#logging-in-with-SAML-SSO-authentication)
 - [Using fleetctl for configuration](#using-fleetctl-for-configuration)
   - [Convert osquery JSON](#convert-osquery-json)
   - [Osquery queries](#osquery-queries)
@@ -34,7 +35,7 @@ This guide illustrates:
 
 ### Running Fleet
 
-For the sake of this tutorial, I will be using the local development Docker Compose infrastructure to run Fleet locally. This is documented in some detail in the [developer documentation](../3-Contribution/1-Building-Fleet.md#development-infrastructure), but the following are the minimal set of commands that you can run from the root of the repository (assuming that you have a working Go/JavaScript toolchain installed along with Docker Compose):
+For the sake of this tutorial, I will be using the local development Docker Compose infrastructure to run Fleet locally. This is documented in some detail in the [developer documentation](../4-Contribution/1-Building-Fleet.md#development-infrastructure), but the following are the minimal set of commands that you can run from the root of the repository (assuming that you have a working Go/JavaScript toolchain installed along with Docker Compose):
 
 ```
 docker-compose up -d
@@ -42,7 +43,7 @@ make deps
 make generate
 make
 ./build/fleet prepare db
-./build/fleet serve --auth_jwt_key="insecure"
+./build/fleet serve
 ```
 
 The `fleet serve` command will be the long running command that runs the Fleet server.
@@ -80,7 +81,7 @@ It's possible to specify the password via the `--password` flag or the `$PASSWOR
 
 ### Connecting a host
 
-For the sake of this tutorial, I'm going to be using Kolide's osquery launcher to start osquery locally and connect it to Fleet. To learn more about connecting osquery to Fleet, see the [Adding Hosts to Fleet](../2-Deployment/3-Adding-hosts.md) documentation.
+For the sake of this tutorial, I'm going to be using Kolide's osquery launcher to start osquery locally and connect it to Fleet. To learn more about connecting osquery to Fleet, see the [Adding Hosts to Fleet](../3-Deployment/3-Adding-hosts.md) documentation.
 
 To get your osquery enroll secret, run the following:
 
@@ -150,8 +151,8 @@ spec:
   config:
     decorators:
       load:
-      - SELECT uuid AS host_uuid FROM system_info;
-      - SELECT hostname AS hostname FROM system_info;
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
     options:
       disable_distributed: false
       distributed_interval: 10
@@ -211,30 +212,7 @@ Note the token can also be set with `fleetctl config set --token`, but this may 
 
 ## Using fleetctl for configuration
 
-A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. Each message can live in it's own file or multiple in one file, each separated by `---`. Each file/message contains a few required top-level keys:
-
-- `apiVersion` - the API version of the file/request
-- `spec` - the "data" of the request
-- `kind ` - the type of file/object (i.e.: pack, query, config)
-
-The file may optionally also include some `metadata` for more complex data types (i.e.: packs).
-
-When you reason about how to manage these config files, consider following the [General Config Tips](https://kubernetes.io/docs/concepts/configuration/overview/#general-config-tips) published by the Kubernetes project. Some of the especially relevant tips are included here as well:
-
-- When defining configurations, specify the latest stable API version.
-- Configuration files should be stored in version control before being pushed to the cluster. This allows quick roll-back of a configuration if needed. It also aids with cluster re-creation and restoration if necessary.
-- Group related objects into a single file whenever it makes sense. One file is often easier to manage than several. See the [config-single-file.yml](../../examples/config-single-file.yml) file as an example of this syntax.
-- Don’t specify default values unnecessarily – simple and minimal configs will reduce errors.
-
-All of these files can be concatenated together into [one file](../../examples/config-single-file.yml) (seperated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
-
-```
-|-- config.yml
-|-- labels.yml
-|-- packs
-|   `-- osquery-monitoring.yml
-`-- queries.yml
-```
+A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. Check out the [configuration files](./configuration-files/README.md) section of the documentation for example yaml files.
 
 ### Convert osquery JSON
 
@@ -275,11 +253,6 @@ spec:
   name: docker_processes
   description: The docker containers processes that are running on a system.
   query: select * from docker_container_processes;
-  support:
-    osquery: 2.9.0
-    platforms:
-      - linux
-      - darwin
 ```
 
 To define multiple queries in a file, concatenate multiple `query` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
@@ -291,9 +264,6 @@ spec:
   name: osquery_version
   description: The version of the Launcher and Osquery process
   query: select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;
-  support:
-    launcher: 0.3.0
-    osquery: 2.9.0
 ---
 apiVersion: v1
 kind: query
@@ -349,13 +319,15 @@ spec:
       removed: false
 ```
 
+The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of the specified labels, upon enrolling to Fleet, will automatically become targets of the given pack.
+
 #### Moving queries and packs from one Fleet environment to another
 
 When managing multiple Fleet environments, you may want to move queries and/or packs from one "exporter" environment to a another "importer" environment.
 
 1. Navigate to `~/.fleet/config` to find the context names for your "exporter" and "importer" environment. For the purpose of these instructions we will use the context names `exporter` and `importer` respectively.
-2. Run the command `fleetctl get queries --yaml --context exporter > queries.yaml && fleetctl apply -f queries.yml --context importer`. This will import all the queries from your exporter Fleet instance into your importer Fleet instance. *Note, this will also write a list of all queries in yaml syntax to a file names `queries.yml`.*
-3. Run the command `fleetctl get packs --yaml --context exporter > packs.yaml && fleetctl apply -f packs.yml --context importer`. This will import all the packs from your exporter Fleet instance into your importer Fleet instance. *Note, this will also write a list of all packs in yaml syntax to a file names `packs.yml`.*
+2. Run the command `fleetctl get queries --yaml --context exporter > queries.yaml && fleetctl apply -f queries.yml --context importer`. This will import all the queries from your exporter Fleet instance into your importer Fleet instance. _Note, this will also write a list of all queries in yaml syntax to a file names `queries.yml`._
+3. Run the command `fleetctl get packs --yaml --context exporter > packs.yaml && fleetctl apply -f packs.yml --context importer`. This will import all the packs from your exporter Fleet instance into your importer Fleet instance. _Note, this will also write a list of all packs in yaml syntax to a file names `packs.yml`._
 
 ### Host labels
 
@@ -390,14 +362,13 @@ spec:
     - hostname3
 ```
 
-
 ### Osquery configuration options
 
 The following file describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.
 
 #### Overrides option
 
-The overrides option allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform. 
+The overrides option allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
 
 In the example file below, all Darwin and Ubuntu hosts will only receive the options specified in their respective overrides sections.
 
@@ -500,6 +471,7 @@ spec:
 ```
 
 ### Fleet configuration options
+
 The following file describes configuration options applied to the Fleet server.
 
 ```yaml
@@ -522,7 +494,7 @@ spec:
     org_logo_url: "https://example.org/logo.png"
     org_name: Example Org
   server_settings:
-    kolide_server_url: https://fleet.example.org:8080
+    server_url: https://fleet.example.org:8080
   smtp_settings:
     authentication_method: authmethod_plain
     authentication_type: authtype_username_password
@@ -545,6 +517,7 @@ spec:
     metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
     metadata_url: https://idp.example.org/idp-meta.xml
 ```
+
 #### SMTP authentication
 
 **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
@@ -570,22 +543,22 @@ apiVersion: v1
 kind: enroll_secret
 spec:
   secrets:
-  - active: true
-    name: default
-    secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
-  - active: true
-    name: new_one
-    secret: reallyworks
-  - active: false
-    name: inactive_secret
-    secret: thissecretwontwork!
+    - active: true
+      name: default
+      secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+    - active: true
+      name: new_one
+      secret: reallyworks
+    - active: false
+      name: inactive_secret
+      secret: thissecretwontwork!
 ```
 
 ## File carving with Fleet
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
-File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://github.com/fleetdm/fleet/blob/master/docs/2-Deployment/2-Configuration.md#s3-file-carving-backend).
+File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#s3-file-carving-backend).
 
 ### Configuration
 
@@ -625,6 +598,7 @@ fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve
 ```
 
 The standard osquery file globbing syntax is also supported to carve entire directories or more:
+
 ```
 fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
 ```
@@ -640,13 +614,13 @@ Contents of carves are returned as .tar archives, and compressed if that option 
 To download the contents of a carve with ID 3, use
 
 ```
-fleetctl get carve 3 --outfile carve.tar
+fleetctl get carve --outfile carve.tar 3
 ```
 
 It can also be useful to pipe the results directly into the tar command for unarchiving:
 
 ```
-fleetctl get carve 3 --stdout | tar -x
+fleetctl get carve --stdout 3 | tar -x
 ```
 
 #### Expiration
@@ -669,7 +643,7 @@ fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
 
 can be helpful to debug carving problems.
 
-#### Ensure  `carver_block_size` is set appropriately
+#### Ensure `carver_block_size` is set appropriately
 
 This value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
 

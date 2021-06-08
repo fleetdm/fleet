@@ -1,4 +1,4 @@
-import { differenceWith, isArray, isEqual, isObject, map } from 'lodash';
+import { differenceWith, isArray, isEqual, isObject, map } from "lodash";
 
 const deepDifference = (obj1, obj2) => {
   const result = {};

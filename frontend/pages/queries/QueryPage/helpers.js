@@ -1,9 +1,10 @@
-import { push } from 'react-router-redux';
-import PATHS from 'router/paths';
-import { differenceWith, isEqual, uniqWith } from 'lodash';
+import { push } from "react-router-redux";
+import PATHS from "router/paths";
+import { differenceWith, isEqual, uniqWith } from "lodash";
 
-import hostActions from 'redux/nodes/entities/hosts/actions';
-import { setSelectedTargets } from 'redux/nodes/components/QueryPages/actions';
+import permissionUtils from "utilities/permissions";
+import hostActions from "redux/nodes/entities/hosts/actions";
+import { setSelectedTargets } from "redux/nodes/components/QueryPages/actions";
 
 const targetsChanged = (hosts, targets) => {
   const sameLength = hosts.length === targets.length;
@@ -18,8 +19,9 @@ const targetsChanged = (hosts, targets) => {
 };
 
 const comparator = (arrayVal, otherVal) => {
-  return arrayVal.target_type === otherVal.target_type &&
-    arrayVal.id === otherVal.id;
+  return (
+    arrayVal.target_type === otherVal.target_type && arrayVal.id === otherVal.id
+  );
 };
 
 const selectHosts = (dispatch, { hosts = [], selectedTargets = [] }) => {
@@ -36,12 +38,25 @@ const selectHosts = (dispatch, { hosts = [], selectedTargets = [] }) => {
 
 // TODO: pull out to common module. This same code is used in HostDetailsPage/helpers.js
 export const fetchHost = (dispatch, hostID) => {
-  return dispatch(hostActions.load(hostID))
-    .catch(() => {
-      dispatch(push(PATHS.FLEET_500));
+  return dispatch(hostActions.load(hostID)).catch(() => {
+    dispatch(push(PATHS.FLEET_500));
 
-      return false;
-    });
+    return false;
+  });
 };
 
-export default { selectHosts, fetchHost };
+export const showDropdown = (query, currentUser) => {
+  if (query.observer_can_run) {
+    return true;
+  }
+  return !permissionUtils.isOnlyObserver(currentUser);
+};
+
+export const hasSavePermissions = (currentUser) => {
+  return (
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser)
+  );
+};
+
+export default { selectHosts, fetchHost, showDropdown, hasSavePermissions };

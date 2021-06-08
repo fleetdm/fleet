@@ -1,9 +1,13 @@
 .queries-list-row {
   line-height: 38px;
-  border-bottom: 1px solid $ui-borders;
+  border-bottom: 1px solid $ui-fleet-blue-15;
 
   &__description {
     max-width: 280px;
+  }
+
+  &__observers-can-run {
+    max-width: 180px;
   }
 
   &:last-child {
@@ -11,12 +15,12 @@
   }
 
   &--selected {
-    background-color: $core-blue-label-down;
+    background-color: $ui-vibrant-blue-25;
   }
 
   &:hover {
     cursor: pointer;
-    background-color: $core-blue-label-over;
+    background-color: $ui-vibrant-blue-10;
   }
 
   &:active,

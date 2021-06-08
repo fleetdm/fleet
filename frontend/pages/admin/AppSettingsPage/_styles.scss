@@ -1,23 +1,25 @@
 .app-settings {
-  padding: 50px 30px;
+  padding: $pad-xxlarge 30px;
 
-  h1 {
-    margin: 0 0 22px;
+  &__page-description {
+    font-size: $x-small;
+    color: $core-fleet-black;
+    @include sticky-settings-description;
   }
 
   h2 {
-    font-size: 20px;
+    font-size: $medium;
     font-weight: $regular;
-    color: $core-black;
-    border-bottom: solid 1px $ui-borders;
+    color: $core-fleet-black;
+    border-bottom: solid 1px $ui-fleet-blue-15;
     margin: 0 0 15px;
-    padding: 0 0 8px;
+    padding: 0 0 $pad-small;
 
     a {
       text-decoration: none;
     }
 
-    .kolidecon {
+    .fleeticon {
       font-size: 8px;
       margin: 0 20px;
       vertical-align: 4px;
@@ -26,7 +28,33 @@
     small {
       font-size: $x-small;
       font-weight: $regular;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
+    }
+  }
+
+  &__settings-form {
+    display: flex;
+  }
+
+  &__form-nav-list {
+    position: sticky;
+    // this is the spacing needed to make the sticky form nav position correctly when scrolling
+    // TODO: find a way to calculate these sticky positions this and use variables.
+    //  will be tedious to update otherwise.
+    top: 207px;
+    width: 178px;
+    margin: 0;
+    padding: 0 110px 0 0;
+    list-style: none;
+    font-size: $x-small;
+
+    li {
+      margin-bottom: $pad-medium;
+    }
+
+    a {
+      color: $core-fleet-black;
+      text-decoration: none;
     }
   }
 }

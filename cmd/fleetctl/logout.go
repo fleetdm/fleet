@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func logoutCommand() cli.Command {
-	return cli.Command{
+func logoutCommand() *cli.Command {
+	return &cli.Command{
 		Name:      "logout",
 		Usage:     "Log out of Fleet",
 		UsageText: `fleetctl logout [options]`,

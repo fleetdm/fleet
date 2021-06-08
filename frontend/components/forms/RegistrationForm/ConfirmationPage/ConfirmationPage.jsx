@@ -1,12 +1,12 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import Button from 'components/buttons/Button';
-import formDataInterface from 'interfaces/registration_form_data';
-import Checkbox from 'components/forms/fields/Checkbox';
+import Button from "components/buttons/Button";
+import formDataInterface from "interfaces/registration_form_data";
+import Checkbox from "components/forms/fields/Checkbox";
 
-const baseClass = 'confirm-user-reg';
+const baseClass = "confirm-user-reg";
 
 class ConfirmationPage extends Component {
   static propTypes = {
@@ -17,12 +17,15 @@ class ConfirmationPage extends Component {
   };
 
   componentDidUpdate(prevProps) {
-    if (this.props.currentPage && this.props.currentPage !== prevProps.currentPage) {
+    if (
+      this.props.currentPage &&
+      this.props.currentPage !== prevProps.currentPage
+    ) {
       // Component has a transition duration of 300ms set in
       // RegistrationForm/_styles.scss. We need to wait 300ms before
       // calling .focus() to preserve smooth transition.
       setTimeout(() => {
-        this.firstInput.input.focus();
+        this.firstInput && this.firstInput.input.focus();
       }, 300);
     }
   }
@@ -37,14 +40,18 @@ class ConfirmationPage extends Component {
     return (
       <div className={`${baseClass}__import`}>
         <Checkbox name="import-install">
-          <p>I am migrating an existing <strong>osquery</strong> installation.</p>
-          <p>Take me to the <strong>Import Configuration</strong> page.</p>
+          <p>
+            I am migrating an existing <strong>osquery</strong> installation.
+          </p>
+          <p>
+            Take me to the <strong>Import Configuration</strong> page.
+          </p>
         </Checkbox>
       </div>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { importOsqueryConfig } = this;
     const {
       className,
@@ -52,7 +59,7 @@ class ConfirmationPage extends Component {
       handleSubmit,
       formData: {
         email,
-        kolide_server_url: kolideWebAddress,
+        server_url: kolideWebAddress,
         org_name: orgName,
         username,
       },
@@ -81,7 +88,14 @@ class ConfirmationPage extends Component {
               </tr>
               <tr>
                 <th>Fleet URL:</th>
-                <td><span className={`${baseClass}__table-url`} title={kolideWebAddress}>{kolideWebAddress}</span></td>
+                <td>
+                  <span
+                    className={`${baseClass}__table-url`}
+                    title={kolideWebAddress}
+                  >
+                    {kolideWebAddress}
+                  </span>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -89,7 +103,13 @@ class ConfirmationPage extends Component {
           {importOsqueryConfig()}
         </div>
 
-        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage} className="button button--brand" autofocus>
+        <Button
+          type="submit"
+          tabIndex={tabIndex}
+          disabled={!currentPage}
+          className="button button--brand"
+          autofocus
+        >
           Finish
         </Button>
       </form>

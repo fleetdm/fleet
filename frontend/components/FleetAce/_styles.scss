@@ -1,0 +1,35 @@
+.fleet-ace {
+  &__label {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+    display: block;
+    margin-bottom: $pad-xsmall;
+    min-height: 25px;
+
+    &--error {
+      color: $ui-error;
+    }
+  }
+
+  &__wrapper {
+    &--error {
+      .ace-fleet {
+        border: 1px solid $ui-error;
+      }
+    }
+  }
+
+  &__hint {
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $core-fleet-blue;
+
+    code {
+      color: $core-vibrant-blue;
+      background-color: $ui-light-grey;
+      padding: $pad-xxsmall;
+      font-family: "SourceCodePro", $monospace;
+    }
+  }
+}

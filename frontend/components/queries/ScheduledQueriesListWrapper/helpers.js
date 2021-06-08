@@ -1,4 +1,4 @@
-import { filter } from 'lodash';
+import { filter } from "lodash";
 
 const filterQueries = (queries, filterText) => {
   const regex = new RegExp(filterText.toLowerCase());

@@ -1,11 +1,10 @@
 .edit-column-modal {
-
   .button-actions {
     display: flex;
     justify-content: flex-end;
 
     .save-button {
-      margin-left: $pad-half;
+      margin-left: $pad-small;
     }
   }
 }

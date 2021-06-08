@@ -1,25 +1,48 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import classnames from "classnames";
 
-import ReactTooltip from 'react-tooltip';
-import { noop, pick } from 'lodash';
+import { Link } from "react-router";
+import ReactTooltip from "react-tooltip";
+import { isEmpty, noop, pick, reduce } from "lodash";
 
-import Spinner from 'components/loaders/Spinner';
-import Button from 'components/buttons/Button';
-import Modal from 'components/modals/Modal';
+import Spinner from "components/loaders/Spinner";
+import Button from "components/buttons/Button";
+import Modal from "components/modals/Modal";
+import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
+import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 
-import entityGetter from 'redux/utilities/entityGetter';
-import { renderFlash } from 'redux/nodes/notifications/actions';
-import { push } from 'react-router-redux';
-import PATHS from 'router/paths';
+import permissionUtils from "utilities/permissions";
+import entityGetter from "redux/utilities/entityGetter";
+import queryActions from "redux/nodes/entities/queries/actions";
+import queryInterface from "interfaces/query";
+import { renderFlash } from "redux/nodes/notifications/actions";
+import { push } from "react-router-redux";
+import PATHS from "router/paths";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionItemHeading,
+  AccordionItemButton,
+  AccordionItemPanel,
+} from "react-accessible-accordion";
 
-import hostInterface from 'interfaces/host';
-import { humanHostUptime, humanHostLastSeen, humanHostEnrolled, humanHostMemory } from 'kolide/helpers';
-import helpers from './helpers';
+import hostInterface from "interfaces/host";
+import {
+  humanHostUptime,
+  humanHostLastSeen,
+  humanHostEnrolled,
+  humanHostMemory,
+  humanHostDetailUpdated,
+  secondsToHms,
+} from "fleet/helpers";
+import helpers from "./helpers";
+import SelectQueryModal from "./SelectQueryModal";
 
-const baseClass = 'host-details';
+import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
+
+const baseClass = "host-details";
 
 export class HostDetailsPage extends Component {
   static propTypes = {
@@ -27,36 +50,41 @@ export class HostDetailsPage extends Component {
     hostID: PropTypes.string,
     dispatch: PropTypes.func,
     isLoadingHost: PropTypes.bool,
-  }
+    queries: PropTypes.arrayOf(queryInterface),
+    queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    isBasicTier: PropTypes.bool,
+  };
 
   static defaultProps = {
     host: {},
     dispatch: noop,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
       showDeleteHostModal: false,
+      showQueryHostModal: false,
+      showRefetchLoadingSpinner: false,
     };
   }
 
-  componentDidMount () {
-    const { dispatch, hostID } = this.props;
-    const { fetchHost } = helpers;
+  componentWillMount() {
+    const { dispatch } = this.props;
 
-    fetchHost(dispatch, hostID);
+    dispatch(queryActions.loadAll()).catch(() => false);
 
     return false;
   }
 
-  onQueryHost = (host) => {
-    const { dispatch } = this.props;
-    const { queryHost } = helpers;
+  componentDidMount() {
+    const { dispatch, hostID } = this.props;
+    const { fetchHost } = helpers;
 
-    queryHost(dispatch, host);
-
+    fetchHost(dispatch, hostID).then((host) =>
+      this.setState({ showRefetchLoadingSpinner: host.refetch_requested })
+    );
     return false;
   }
 
@@ -64,24 +92,55 @@ export class HostDetailsPage extends Component {
     const { dispatch, host } = this.props;
     const { destroyHost } = helpers;
 
-    destroyHost(dispatch, host)
-      .then(() => {
-        dispatch(renderFlash('success', `Host "${host.hostname}" was successfully deleted`));
-      });
+    destroyHost(dispatch, host).then(() => {
+      dispatch(
+        renderFlash(
+          "success",
+          `Host "${host.hostname}" was successfully deleted`
+        )
+      );
+    });
 
     return false;
-  }
+  };
+
+  onRefetchHost = () => {
+    const { dispatch, host } = this.props;
+    const { refetchHost } = helpers;
+
+    this.setState({ showRefetchLoadingSpinner: true });
+
+    refetchHost(dispatch, host).catch((error) => {
+      this.setState({ showRefetchLoadingSpinner: false });
+      console.log(error);
+      dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+    });
+
+    return false;
+  };
 
   onPackClick = (pack) => {
     const { dispatch } = this.props;
 
     return dispatch(push(PATHS.PACK({ id: pack.id })));
-  }
+  };
 
   onLabelClick = (label) => {
     const { dispatch } = this.props;
 
     return dispatch(push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`));
+  };
+
+  toggleQueryHostModal = () => {
+    return () => {
+      const { showQueryHostModal } = this.state;
+
+      this.setState({
+        showQueryHostModal: !showQueryHostModal,
+      });
+
+      return false;
+    };
   };
 
   toggleDeleteHostModal = () => {
@@ -94,7 +153,7 @@ export class HostDetailsPage extends Component {
 
       return false;
     };
-  }
+  };
 
   renderDeleteHostModal = () => {
     const { showDeleteHostModal } = this.state;
@@ -111,44 +170,72 @@ export class HostDetailsPage extends Component {
         onExit={toggleDeleteHostModal(null)}
         className={`${baseClass}__modal`}
       >
-        <p>This action will delete the host <strong>{host.hostname}</strong> from your Fleet instance.</p>
-        <p>The host will automatically re-enroll when it checks back into Fleet.</p>
-        <p>To prevent re-enrollment, you can uninstall osquery on the host or revoke the host&apos;s enroll secret.</p>
+        <p>
+          This action will delete the host <strong>{host.hostname}</strong> from
+          your Fleet instance.
+        </p>
+        <p>
+          The host will automatically re-enroll when it checks back into Fleet.
+        </p>
+        <p>
+          To prevent re-enrollment, you can uninstall osquery on the host or
+          revoke the host&apos;s enroll secret.
+        </p>
         <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={() => onDestroyHost()} variant="alert">Delete</Button>
-          <Button onClick={toggleDeleteHostModal(null)} variant="inverse">Cancel</Button>
+          <Button onClick={onDestroyHost} variant="alert">
+            Delete
+          </Button>
+          <Button onClick={toggleDeleteHostModal(null)} variant="inverse">
+            Cancel
+          </Button>
         </div>
       </Modal>
     );
-  }
+  };
 
   renderActionButtons = () => {
-    const { toggleDeleteHostModal, onQueryHost } = this;
+    const { toggleDeleteHostModal, toggleQueryHostModal } = this;
     const { host } = this.props;
 
-    const isOnline = host.status === 'online';
-    const isOffline = host.status === 'offline';
+    const isOnline = host.status === "online";
+    const isOffline = host.status === "offline";
 
     return (
       <div className={`${baseClass}__action-button-container`}>
         <div data-tip data-for="query" data-tip-disable={isOnline}>
-          <Button onClick={() => onQueryHost(host)} variant="inverse" disabled={isOffline} className={`${baseClass}__query-button`}>Query</Button>
+          <Button
+            onClick={toggleQueryHostModal()}
+            variant="inverse"
+            disabled={isOffline}
+            className={`${baseClass}__query-button`}
+          >
+            Query
+          </Button>
         </div>
-        <ReactTooltip place="bottom" type="dark" effect="solid" id="query" backgroundColor="#3e4771">
-          <span className={`${baseClass}__tooltip-text`}>You can’t <br /> query an <br /> offline host.</span>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="query"
+          backgroundColor="#3e4771"
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            You can’t query <br /> an offline host.
+          </span>
         </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="inverse">Delete</Button>
+        <Button onClick={toggleDeleteHostModal()} variant="active">
+          Delete
+        </Button>
       </div>
     );
-  }
+  };
 
   renderLabels = () => {
     const { onLabelClick } = this;
     const { host } = this.props;
     const { labels = [] } = host;
 
-    const filteredLabels = labels.filter(label => label.name !== 'All Hosts');
-    const labelItems = filteredLabels.map((label) => {
+    const labelItems = labels.map((label) => {
       return (
         <li className="list__item" key={label.id}>
           <Button
@@ -163,89 +250,291 @@ export class HostDetailsPage extends Component {
     });
 
     return (
-      <div className="section labels">
+      <div className="section labels col-25">
         <p className="section__header">Labels</p>
-        <ul className="list">
-          {labelItems}
-        </ul>
+        {labels.length === 0 ? (
+          <p className="info__item">No labels are associated with this host.</p>
+        ) : (
+          <ul className="list">{labelItems}</ul>
+        )}
       </div>
     );
-  }
+  };
 
   renderPacks = () => {
-    const { onPackClick } = this;
     const { host } = this.props;
-    const { packs = [] } = host;
+    const { pack_stats } = host;
+    const wrapperClassName = `${baseClass}__table`;
 
-    const packItems = packs.map((pack) => {
-      return (
-        <li className="list__item" key={pack.id}>
-          <Button
-            onClick={() => onPackClick(pack)}
-            variant="text-link"
-            className="list__button"
-          >
-            {pack.name}
-          </Button>
-        </li>
-      );
-    });
+    let packsAccordion;
+    if (pack_stats) {
+      packsAccordion = pack_stats.map((pack) => {
+        return (
+          <AccordionItem key={pack.pack_id}>
+            <AccordionItemHeading>
+              <AccordionItemButton>{pack.pack_name}</AccordionItemButton>
+            </AccordionItemHeading>
+            <AccordionItemPanel>
+              {pack.query_stats.length === 0 ? (
+                <div>There are no schedule queries for this pack.</div>
+              ) : (
+                <div className={`${baseClass}__wrapper`}>
+                  <table className={wrapperClassName}>
+                    <thead>
+                      <tr>
+                        <th>Query name</th>
+                        <th>Description</th>
+                        <th>Frequency</th>
+                        <th>Last run</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!!pack.query_stats.length &&
+                        pack.query_stats.map((query) => {
+                          return (
+                            <PackQueriesListRow
+                              key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
+                              query={query}
+                            />
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </AccordionItemPanel>
+          </AccordionItem>
+        );
+      });
+    }
 
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        <ul className="list">
-          {packItems}
-        </ul>
+        {!pack_stats ? (
+          <p className="results__data">
+            No packs with scheduled queries have this host as a target.
+          </p>
+        ) : (
+          <Accordion allowMultipleExpanded="true" allowZeroExpanded="true">
+            {packsAccordion}
+          </Accordion>
+        )}
       </div>
     );
-  }
+  };
 
-  render () {
-    const { host, isLoadingHost } = this.props;
+  renderSoftware = () => {
+    const { host } = this.props;
+    const wrapperClassName = `${baseClass}__table`;
+
+    return (
+      <div className="section section--software">
+        <p className="section__header">Software</p>
+        {host.software.length === 0 ? (
+          <div className="results">
+            <p className="results__header">
+              No installed software detected on this host.
+            </p>
+            <p className="results__data">
+              Expecting to see software? Try again in a few seconds as the
+              system catches up.
+            </p>
+          </div>
+        ) : (
+          <div className={`${baseClass}__wrapper`}>
+            <table className={wrapperClassName}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Installed Version</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!!host.software.length &&
+                  host.software.map((software) => {
+                    return (
+                      <SoftwareListRow
+                        key={`software-row-${software.id}`}
+                        software={software}
+                      />
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  renderRefetch = () => {
+    const { onRefetchHost } = this;
+    const { host } = this.props;
+    const { showRefetchLoadingSpinner } = this.state;
+
+    const isOnline = host.status === "online";
+    const isOffline = host.status === "offline";
+    return (
+      <>
+        <div
+          className="refetch"
+          data-tip
+          data-for="refetch-tooltip"
+          data-tip-disable={isOnline || showRefetchLoadingSpinner}
+        >
+          <Button
+            className={`
+              button
+              button--unstyled
+              ${isOffline ? "refetch-offline" : ""} 
+              ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
+            `}
+            disabled={isOffline}
+            onClick={onRefetchHost}
+          >
+            {showRefetchLoadingSpinner
+              ? "Fetching, try refreshing this page in just a moment."
+              : "Refetch"}
+          </Button>
+        </div>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="refetch-tooltip"
+          backgroundColor="#3e4771"
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            You can’t fetch data from <br /> an offline host.
+          </span>
+        </ReactTooltip>
+      </>
+    );
+  };
+
+  render() {
     const {
+      host,
+      isLoadingHost,
+      dispatch,
+      queries,
+      queryErrors,
+      isBasicTier,
+    } = this.props;
+    const { showQueryHostModal } = this.state;
+    const {
+      toggleQueryHostModal,
       renderDeleteHostModal,
       renderActionButtons,
       renderLabels,
+      renderSoftware,
       renderPacks,
+      renderRefetch,
     } = this;
 
-    const titleData = pick(host, ['status', 'memory', 'host_cpu', 'os_version', 'enroll_secret_name']);
-    const aboutData = pick(host, ['seen_time', 'uptime', 'last_enrolled_at', 'hardware_model', 'hardware_serial', 'primary_ip']);
-    const osqueryData = pick(host, ['config_tls_refresh', 'logger_tls_period', 'distributed_interval']);
-    const data = [titleData, aboutData, osqueryData];
-    data.forEach((object) => {
-      Object.keys(object).forEach((key) => {
-        if (object[key] === '') {
-          object[key] = '--';
-        }
-      });
-    });
+    const normalizeEmptyValues = (hostData) => {
+      return reduce(
+        hostData,
+        (result, value, key) => {
+          if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+            Object.assign(result, { [key]: value });
+          } else {
+            Object.assign(result, { [key]: "---" });
+          }
+          return result;
+        },
+        {}
+      );
+    };
 
-    const statusClassName = classnames(
-      'status',
-      `status--${host.status}`,
+    const wrapKolideHelper = (helperFn, value) => {
+      return value === "---" ? value : helperFn(value);
+    };
+
+    const titleData = normalizeEmptyValues(
+      pick(host, [
+        "status",
+        "memory",
+        "host_cpu",
+        "os_version",
+        "enroll_secret_name",
+        "detail_updated_at",
+      ])
+    );
+    const aboutData = normalizeEmptyValues(
+      pick(host, [
+        "seen_time",
+        "uptime",
+        "last_enrolled_at",
+        "hardware_model",
+        "hardware_serial",
+        "primary_ip",
+      ])
+    );
+    const osqueryData = normalizeEmptyValues(
+      pick(host, [
+        "config_tls_refresh",
+        "logger_tls_period",
+        "distributed_interval",
+      ])
     );
 
+    const statusClassName = classnames("status", `status--${host.status}`);
+
     if (isLoadingHost) {
-      return (
-        <Spinner />
-      );
+      return <Spinner />;
     }
 
+    const hostTeam = () => {
+      return (
+        <div className="info__item info__item--title">
+          <span className="info__header">Team</span>
+          <span className={`info__data`}>
+            {host.team_name ? (
+              `${host.team_name}`
+            ) : (
+              <span className="info__no-team">No team</span>
+            )}
+          </span>
+        </div>
+      );
+    };
     return (
       <div className={`${baseClass} body-wrap`}>
+        <div>
+          <Link to={PATHS.MANAGE_HOSTS} className={`${baseClass}__back-link`}>
+            <img src={BackChevron} alt="back chevron" id="back-chevron" />
+            <span>Back to all hosts</span>
+          </Link>
+        </div>
         <div className="section title">
           <div className="title__inner">
-            <h1 className="hostname">{host.hostname}</h1>
+            <div className="hostname-container">
+              <h1 className="hostname">
+                {host.hostname ? host.hostname : "---"}
+              </h1>
+              <p className="last-fetched">
+                {`Last fetched ${humanHostDetailUpdated(
+                  titleData.detail_updated_at
+                )}`}{" "}
+              </p>
+              {renderRefetch()}
+            </div>
             <div className="info">
               <div className="info__item info__item--title">
                 <span className="info__header">Status</span>
-                <span className={`${statusClassName} info__data`}>{titleData.status}</span>
+                <span className={`${statusClassName} info__data`}>
+                  {titleData.status}
+                </span>
               </div>
+              {isBasicTier ? hostTeam() : null}
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
-                <span className="info__data">{humanHostMemory(titleData.memory)}</span>
+                <span className="info__data">
+                  {wrapKolideHelper(humanHostMemory, titleData.memory)}
+                </span>
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">CPU</span>
@@ -257,74 +546,109 @@ export class HostDetailsPage extends Component {
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">Enroll secret</span>
-                <span className="info__data">{titleData.enroll_secret_name}</span>
+                <span className="info__data">
+                  {titleData.enroll_secret_name}
+                </span>
               </div>
             </div>
           </div>
           {renderActionButtons()}
         </div>
-        <div className="section about">
+        <div className="section about col-50">
           <p className="section__header">About this host</p>
           <div className="info">
             <div className="info__item info__item--about">
               <div className="info__block">
-                <span className="info__header">Last seen</span>
-                <span className="info__header">Enrolled</span>
+                <span className="info__header">Created at</span>
+                <span className="info__data">
+                  {wrapKolideHelper(
+                    humanHostEnrolled,
+                    aboutData.last_enrolled_at
+                  )}
+                </span>
+                <span className="info__header">Updated at</span>
+                <span className="info__data">
+                  {wrapKolideHelper(
+                    humanHostLastSeen,
+                    titleData.detail_updated_at
+                  )}
+                </span>
                 <span className="info__header">Uptime</span>
-              </div>
-              <div className="info__block">
-                <span className="info__data">{humanHostLastSeen(aboutData.seen_time)}</span>
-                <span className="info__data">{humanHostEnrolled(aboutData.last_enrolled_at)}</span>
-                <span className="info__data">{humanHostUptime(aboutData.uptime)}</span>
+                <span className="info__data">
+                  {wrapKolideHelper(humanHostUptime, aboutData.uptime)}
+                </span>
               </div>
             </div>
             <div className="info__item info__item--about">
               <div className="info__block">
                 <span className="info__header">Hardware model</span>
-                <span className="info__header">Serial number</span>
-                <span className="info__header">IP address</span>
-              </div>
-              <div className="info__block">
                 <span className="info__data">{aboutData.hardware_model}</span>
+                <span className="info__header">Serial number</span>
                 <span className="info__data">{aboutData.hardware_serial}</span>
+                <span className="info__header">IPv4</span>
                 <span className="info__data">{aboutData.primary_ip}</span>
               </div>
             </div>
           </div>
         </div>
-        <div className="section osquery">
-          <p className="section__header">Osquery configuration</p>
-          <div className="info">
-            <div className="info__item info__item--title">
+        <div className="section osquery col-25">
+          <p className="section__header">Agent options</p>
+          <div className="info__item info__item--about">
+            <div className="info__block">
               <span className="info__header">Config TLS refresh</span>
-              <span className="info__data">{osqueryData.config_tls_refresh}</span>
-            </div>
-            <div className="info__item info__item--title">
+              <span className="info__data">
+                {wrapKolideHelper(secondsToHms, osqueryData.config_tls_refresh)}
+              </span>
               <span className="info__header">Logger TLS period</span>
-              <span className="info__data">{osqueryData.logger_tls_period}</span>
-            </div>
-            <div className="info__item info__item--title">
+              <span className="info__data">
+                {wrapKolideHelper(secondsToHms, osqueryData.logger_tls_period)}
+              </span>
               <span className="info__header">Distributed interval</span>
-              <span className="info__data">{osqueryData.distributed_interval}</span>
+              <span className="info__data">
+                {wrapKolideHelper(
+                  secondsToHms,
+                  osqueryData.distributed_interval
+                )}
+              </span>
             </div>
           </div>
         </div>
         {renderLabels()}
         {renderPacks()}
+        {/* The Software inventory feature is behind a feature flag
+        so we only render the sofware section if the feature is enabled */}
+        {host.software && renderSoftware()}
         {renderDeleteHostModal()}
+        {showQueryHostModal && (
+          <SelectQueryModal
+            host={host}
+            toggleQueryHostModal={toggleQueryHostModal}
+            queries={queries}
+            dispatch={dispatch}
+            queryErrors={queryErrors}
+          />
+        )}
       </div>
     );
   }
 }
 
 const mapStateToProps = (state, ownProps) => {
+  const queryEntities = entityGetter(state).get("queries");
+  const { entities: queries, errors: queryErrors } = queryEntities;
   const { host_id: hostID } = ownProps.params;
-  const host = entityGetter(state).get('hosts').findBy({ id: hostID });
+  const host = entityGetter(state).get("hosts").findBy({ id: hostID });
   const { loading: isLoadingHost } = state.entities.hosts;
+  const config = state.app.config;
+  const isBasicTier = permissionUtils.isBasicTier(config);
+
   return {
     host,
     hostID,
     isLoadingHost,
+    queries,
+    queryErrors,
+    isBasicTier,
   };
 };
 

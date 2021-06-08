@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
+import React, { useState } from "react";
+import PropTypes from "prop-types";
 
-import Checkbox from '../../../../../components/forms/fields/Checkbox';
-import Button from '../../../../../components/buttons/Button';
+import Checkbox from "../../../../../components/forms/fields/Checkbox";
+import Button from "../../../../../components/buttons/Button";
 
 const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
   const [columnItems, setColumnItems] = useState(() => {
@@ -18,7 +18,9 @@ const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
 
   const updateColumnItems = (columnAccessor) => {
     setColumnItems((prevState) => {
-      const selectedColumn = columnItems.find(column => column.accessor === columnAccessor);
+      const selectedColumn = columnItems.find(
+        (column) => column.accessor === columnAccessor
+      );
       const updatedColumn = {
         ...selectedColumn,
         isChecked: !selectedColumn.isChecked,
@@ -26,7 +28,9 @@ const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
 
       // this is replacing the column object with the updatedColumn we just created.
       const newState = prevState.map((currentColumn) => {
-        return currentColumn.accessor === columnAccessor ? updatedColumn : currentColumn;
+        return currentColumn.accessor === columnAccessor
+          ? updatedColumn
+          : currentColumn;
       });
       return newState;
     });
@@ -36,18 +40,23 @@ const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
 };
 
 const getHiddenColumns = (columns) => {
-  return columns.filter(column => !column.isChecked)
-    .map(column => column.accessor);
+  return columns
+    .filter((column) => !column.isChecked)
+    .map((column) => column.accessor);
 };
 
 const EditColumnsModal = (props) => {
   const { columns, hiddenColumns, onSaveColumns, onCancelColumns } = props;
-  const [columnItems, updateColumnItems] = useCheckboxListStateManagement(columns, hiddenColumns);
+
+  const [columnItems, updateColumnItems] = useCheckboxListStateManagement(
+    columns,
+    hiddenColumns
+  );
 
   return (
-    <div className={'edit-column-modal'}>
+    <div className={"edit-column-modal"}>
       <p>Choose which columns you see</p>
-      <div className={'modal-items'}>
+      <div className={"modal-items"}>
         {columnItems.map((column) => {
           if (column.disableHidden) return null;
           return (
@@ -63,17 +72,14 @@ const EditColumnsModal = (props) => {
           );
         })}
       </div>
-      <div className={'button-actions'}>
-        <Button
-          onClick={onCancelColumns}
-          variant={'inverse'}
-        >
+      <div className={"button-actions"}>
+        <Button onClick={onCancelColumns} variant={"inverse"}>
           Cancel
         </Button>
         <Button
-          className={'save-button'}
+          className={"save-button"}
           onClick={() => onSaveColumns(getHiddenColumns(columnItems))}
-          variant={'default'}
+          variant={"default"}
         >
           Save
         </Button>

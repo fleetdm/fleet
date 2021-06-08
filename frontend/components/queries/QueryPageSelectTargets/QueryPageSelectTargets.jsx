@@ -1,12 +1,12 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import campaignInterface from 'interfaces/campaign';
-import QueryProgressDetails from 'components/queries/QueryProgressDetails';
-import SelectTargetsDropdown from 'components/forms/fields/SelectTargetsDropdown';
-import targetInterface from 'interfaces/target';
+import campaignInterface from "interfaces/campaign";
+import QueryProgressDetails from "components/queries/QueryProgressDetails";
+import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
+import targetInterface from "interfaces/target";
 
-const baseClass = 'query-page-select-targets';
+const baseClass = "query-page-select-targets";
 
 class QueryPageSelectTargets extends Component {
   static propTypes = {
@@ -21,9 +21,10 @@ class QueryPageSelectTargets extends Component {
     targetsCount: PropTypes.number,
     queryTimerMilliseconds: PropTypes.number,
     disableRun: PropTypes.bool,
+    queryId: PropTypes.number,
   };
 
-  render () {
+  render() {
     const {
       error,
       onFetchTargets,
@@ -36,6 +37,7 @@ class QueryPageSelectTargets extends Component {
       queryIsRunning,
       queryTimerMilliseconds,
       disableRun,
+      queryId,
     } = this.props;
 
     return (
@@ -47,6 +49,7 @@ class QueryPageSelectTargets extends Component {
           selectedTargets={selectedTargets}
           targetsCount={targetsCount}
           label="Select targets"
+          queryId={queryId}
         />
         <QueryProgressDetails
           campaign={campaign}

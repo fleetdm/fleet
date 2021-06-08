@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -106,15 +106,8 @@ func (r resp) rawResponse() string {
 	return r.rawResp
 }
 
-func (r resp) authResponse() (*Response, error) {
-	if r.response != nil {
-		return r.response, nil
-	}
-	return nil, errors.New("missing SAML response")
-}
-
 // DecodeAuthResponse extracts SAML assertions from IDP response
-func DecodeAuthResponse(samlResponse string) (kolide.Auth, error) {
+func DecodeAuthResponse(samlResponse string) (fleet.Auth, error) {
 	var authInfo resp
 	authInfo.rawResp = samlResponse
 

@@ -5,26 +5,26 @@ package mock
 import (
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-var _ kolide.CarveStore = (*CarveStore)(nil)
+var _ fleet.CarveStore = (*CarveStore)(nil)
 
-type NewCarveFunc func(c *kolide.CarveMetadata) (*kolide.CarveMetadata, error)
+type NewCarveFunc func(c *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
 
-type UpdateCarveFunc func(c *kolide.CarveMetadata) error
+type UpdateCarveFunc func(c *fleet.CarveMetadata) error
 
-type CarveFunc func(carveId int64) (*kolide.CarveMetadata, error)
+type CarveFunc func(carveId int64) (*fleet.CarveMetadata, error)
 
-type ListCarvesFunc func(opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error)
+type ListCarvesFunc func(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
 
-type CarveBySessionIdFunc func(sessionId string) (*kolide.CarveMetadata, error)
+type CarveBySessionIdFunc func(sessionId string) (*fleet.CarveMetadata, error)
 
-type CarveByNameFunc func(name string) (*kolide.CarveMetadata, error)
+type CarveByNameFunc func(name string) (*fleet.CarveMetadata, error)
 
-type NewBlockFunc func(metadata *kolide.CarveMetadata, blockId int64, data []byte) error
+type NewBlockFunc func(metadata *fleet.CarveMetadata, blockId int64, data []byte) error
 
-type GetBlockFunc func(metadata *kolide.CarveMetadata, blockId int64) ([]byte, error)
+type GetBlockFunc func(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error)
 
 type CleanupCarvesFunc func(now time.Time) (expired int, err error)
 
@@ -57,42 +57,42 @@ type CarveStore struct {
 	CleanupCarvesFuncInvoked bool
 }
 
-func (s *CarveStore) NewCarve(c *kolide.CarveMetadata) (*kolide.CarveMetadata, error) {
+func (s *CarveStore) NewCarve(c *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	s.NewCarveFuncInvoked = true
 	return s.NewCarveFunc(c)
 }
 
-func (s *CarveStore) UpdateCarve(c *kolide.CarveMetadata) error {
+func (s *CarveStore) UpdateCarve(c *fleet.CarveMetadata) error {
 	s.UpdateCarveFuncInvoked = true
 	return s.UpdateCarveFunc(c)
 }
 
-func (s *CarveStore) Carve(carveId int64) (*kolide.CarveMetadata, error) {
+func (s *CarveStore) Carve(carveId int64) (*fleet.CarveMetadata, error) {
 	s.CarveFuncInvoked = true
 	return s.CarveFunc(carveId)
 }
 
-func (s *CarveStore) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
+func (s *CarveStore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 	s.ListCarvesFuncInvoked = true
 	return s.ListCarvesFunc(opt)
 }
 
-func (s *CarveStore) CarveBySessionId(sessionId string) (*kolide.CarveMetadata, error) {
+func (s *CarveStore) CarveBySessionId(sessionId string) (*fleet.CarveMetadata, error) {
 	s.CarveBySessionIdFuncInvoked = true
 	return s.CarveBySessionIdFunc(sessionId)
 }
 
-func (s *CarveStore) CarveByName(name string) (*kolide.CarveMetadata, error) {
+func (s *CarveStore) CarveByName(name string) (*fleet.CarveMetadata, error) {
 	s.CarveByNameFuncInvoked = true
 	return s.CarveByNameFunc(name)
 }
 
-func (s *CarveStore) NewBlock(metadata *kolide.CarveMetadata, blockId int64, data []byte) error {
+func (s *CarveStore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
 	s.NewBlockFuncInvoked = true
 	return s.NewBlockFunc(metadata, blockId, data)
 }
 
-func (s *CarveStore) GetBlock(metadata *kolide.CarveMetadata, blockId int64) ([]byte, error) {
+func (s *CarveStore) GetBlock(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
 	s.GetBlockFuncInvoked = true
 	return s.GetBlockFunc(metadata, blockId)
 }

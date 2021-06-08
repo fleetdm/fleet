@@ -1,22 +1,21 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { size } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { size } from "lodash";
 
-import Button from 'components/buttons/Button';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import YamlAce from 'components/YamlAce';
-import validateYaml from 'components/forms/validators/validate_yaml';
-import constructErrorString from './helpers';
+import Button from "components/buttons/Button";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import YamlAce from "components/YamlAce";
+import validateYaml from "components/forms/validators/validate_yaml";
+import constructErrorString from "./helpers";
 
-const baseClass = 'osquery-options-form';
+const baseClass = "osquery-options-form";
 
 const validate = (formData) => {
   const errors = {};
-  const {
-    error: yamlError,
-    valid: yamlValid,
-  } = validateYaml(formData.osquery_options);
+  const { error: yamlError, valid: yamlValid } = validateYaml(
+    formData.osquery_options
+  );
 
   if (!yamlValid) {
     errors.osquery_options = constructErrorString(yamlError);
@@ -33,31 +32,30 @@ class OsqueryOptionsForm extends Component {
     fields: PropTypes.shape({
       osquery_options: formFieldInterface.isRequired,
     }).isRequired,
-  }
+  };
 
-  render () {
+  render() {
     const { handleSubmit, fields } = this.props;
 
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
+        <div className={`${baseClass}__btn-wrap`}>
+          <p>YAML</p>
+          <Button type="submit" variant="brand">
+            Save options
+          </Button>
+        </div>
         <YamlAce
           {...fields.osquery_options}
           error={fields.osquery_options.error}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          label="YAML"
         />
-        <Button
-          type="submit"
-          variant="brand"
-        >
-          Update options
-        </Button>
       </form>
     );
   }
 }
 
 export default Form(OsqueryOptionsForm, {
-  fields: ['osquery_options'],
+  fields: ["osquery_options"],
   validate,
 });

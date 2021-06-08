@@ -7,9 +7,11 @@ const calculateElementDistanceToBrowserRight = (el) => {
 };
 
 export const calculateTooltipDirection = (el) => {
-  const elementDistanceToBrowserRight = calculateElementDistanceToBrowserRight(el);
+  const elementDistanceToBrowserRight = calculateElementDistanceToBrowserRight(
+    el
+  );
 
-  return elementDistanceToBrowserRight < TOOLTIP_WIDTH ? 'left' : 'right';
+  return elementDistanceToBrowserRight < TOOLTIP_WIDTH ? "left" : "right";
 };
 
 export default { calculateTooltipDirection };

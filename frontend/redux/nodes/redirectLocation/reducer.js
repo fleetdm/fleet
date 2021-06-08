@@ -1,4 +1,4 @@
-import { CLEAR_REDIRECT_LOCATION, SET_REDIRECT_LOCATION } from './actions';
+import { CLEAR_REDIRECT_LOCATION, SET_REDIRECT_LOCATION } from "./actions";
 
 export const initialState = null;
 

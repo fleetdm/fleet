@@ -132,3 +132,9 @@ lib-cov
 *.out
 *.pid
 
+
+################################################
+# HTML files compiled from markdown in build.
+################################################
+
+views/partials/built-from-markdown/

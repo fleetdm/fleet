@@ -6,29 +6,29 @@
     display: flex;
     align-items: center;
     flex-direction: column;
-    background-color: $white;
+    background-color: $core-white;
     box-sizing: border-box;
-    padding: 30px;
+    padding: $pad-xlarge;
     width: 460px;
     min-height: 350px;
   }
 
   &__avatar {
-    border: 1px solid $core-blue;
+    border: 1px solid $core-vibrant-blue;
     border-radius: 50%;
   }
 
   &__username {
-    color: $core-blue;
+    color: $core-vibrant-blue;
     font-size: $large;
-    margin: $pad-half 0;
+    margin: $pad-small 0;
     text-transform: uppercase;
   }
 
   &__subtext {
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
     font-size: $medium;
-    margin-top: $pad-half;
+    margin-top: $pad-small;
   }
 
   &__submit-btn {

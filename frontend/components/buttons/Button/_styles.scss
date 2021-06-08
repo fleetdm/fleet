@@ -1,7 +1,6 @@
-$base-class: 'button';
+$base-class: "button";
 
 @mixin button-variant($color, $hover: null, $active: null, $inverse: null) {
-
   background-color: $color;
 
   @if $inverse {
@@ -14,8 +13,7 @@ $base-class: 'button';
       border: 2px solid $active;
       color: $active;
     }
-  } @else { 
-
+  } @else {
     &:hover {
       background-color: $hover;
     }
@@ -27,18 +25,19 @@ $base-class: 'button';
 }
 
 .#{$base-class} {
-  @include button-variant($core-blue);
-  transition: color 150ms ease-in-out, background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
+  @include button-variant($core-vibrant-blue);
+  transition: color 150ms ease-in-out, background 150ms ease-in-out,
+    top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
-  color: $white;
+  color: $core-white;
   text-decoration: none;
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  padding: 8px 16px;
+  padding: $pad-small $pad-medium;
   border-radius: 4px;
   font-size: $small;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: "Nunito Sans", sans-serif;
   font-weight: $bold;
   display: inline-flex;
   height: 38px;
@@ -51,40 +50,57 @@ $base-class: 'button';
   }
 
   &--brand {
-    @include button-variant($core-blue, $core-blue-over, $core-blue-down);
+    @include button-variant(
+      $core-vibrant-blue,
+      $core-vibrant-blue-over,
+      $core-vibrant-blue-down
+    );
   }
 
   &--success {
-    @include button-variant($success);
+    @include button-variant($ui-success);
   }
 
   &--alert {
-    @include button-variant($alert, $core-red-over, $core-red-down);
+    @include button-variant(
+      $ui-error,
+      $core-vibrant-red-over,
+      $core-vibrant-red-down
+    );
   }
 
   &--blue-green {
-    @include button-variant($core-blue-green)
+    @include button-variant($ui-success);
   }
 
   &--grey {
-    @include button-variant($core-medium-blue-grey, $core-dark-blue-grey-over, $core-dark-blue-grey-down);
+    @include button-variant(
+      $core-fleet-blue,
+      $core-fleet-blue-over,
+      $core-fleet-blue-down
+    );
   }
 
   &--warning {
-    @include button-variant($warning);
+    @include button-variant($ui-warning);
   }
 
   &--link {
-    @include button-variant($core-purple);
+    @include button-variant($core-fleet-purple);
   }
 
   &--label {
-    @include button-variant($core-light-blue-grey, $core-blue-over, null, $inverse: true);
-    color: $core-blue;
-    border: 1px solid $core-blue;
+    @include button-variant(
+      $ui-off-white,
+      $core-vibrant-blue-over,
+      null,
+      $inverse: true
+    );
+    color: $core-vibrant-blue;
+    border: 1px solid $core-vibrant-blue;
     box-sizing: border-box;
     font-size: $xx-small;
-    padding: 4px 10px;
+    padding: $pad-xsmall 10px;
     height: 24px;
 
     &:active {
@@ -92,7 +108,7 @@ $base-class: 'button';
     }
 
     &:hover {
-      border: 1px solid $core-blue;
+      border: 1px solid $core-vibrant-blue;
     }
   }
 
@@ -100,7 +116,7 @@ $base-class: 'button';
     @include button-variant(transparent);
     border: 0;
     box-shadow: none;
-    color: $core-blue;
+    color: $core-vibrant-blue;
     font-size: $x-small;
     cursor: pointer;
     margin: 0;
@@ -109,7 +125,7 @@ $base-class: 'button';
     line-height: normal;
 
     &:active {
-      color: $core-blue-down;
+      color: $core-vibrant-blue-down;
       box-shadow: none;
       top: 0;
     }
@@ -119,7 +135,37 @@ $base-class: 'button';
     }
 
     &:hover {
-      color: $core-blue-over;
+      color: $core-vibrant-blue-over;
+      background-color: transparent;
+      box-shadow: none;
+      text-decoration: underline;
+    }
+  }
+
+  &--text-icon {
+    @include button-variant(transparent);
+    border: 0;
+    box-shadow: none;
+    color: $core-fleet-black;
+    font-size: $x-small;
+    font-weight: $regular;
+    cursor: pointer;
+
+    img {
+      height: 14px;
+      width: 14px;
+      margin-right: $pad-small;
+    }
+
+    &:active {
+      box-shadow: none;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover {
       background-color: transparent;
       box-shadow: none;
       text-decoration: underline;
@@ -127,16 +173,26 @@ $base-class: 'button';
   }
 
   &--inverse {
-    @include button-variant($white, $core-blue-over, $core-blue-down, $inverse: true);
-    color: $core-blue;
-    border: 2px solid $core-blue;
+    @include button-variant(
+      $core-white,
+      $core-vibrant-blue-over,
+      $core-vibrant-blue-down,
+      $inverse: true
+    );
+    color: $core-vibrant-blue;
+    border: 2px solid $core-vibrant-blue;
     box-sizing: border-box;
   }
 
   &--inverse-alert {
-    @include button-variant($white, $core-red-over, $core-red-down, $inverse: true);
-    color: $alert;
-    border: 2px solid $alert;
+    @include button-variant(
+      $core-white,
+      $core-vibrant-red-over,
+      $core-vibrant-red-down,
+      $inverse: true
+    );
+    color: $ui-error;
+    border: 2px solid $ui-error;
     box-sizing: border-box;
   }
 
@@ -159,7 +215,7 @@ $base-class: 'button';
     @include button-variant(transparent);
     border: 0;
     box-shadow: none;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     cursor: pointer;
     margin: 0;
     padding: 0;
@@ -181,8 +237,38 @@ $base-class: 'button';
     }
   }
 
+  &--unstyled-modal-query {
+    @include button-variant(transparent);
+    border: 0;
+    box-shadow: none;
+    color: $core-fleet-black;
+    cursor: pointer;
+    margin: 0;
+    padding: 15px 12px;
+    height: auto;
+    line-height: normal;
+    display: block;
+    width: 100%;
+    border-radius: 0px;
+    border-bottom: 1px solid $ui-fleet-blue-15;
+
+    &:active {
+      box-shadow: none;
+      top: 0;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover {
+      background-color: $ui-vibrant-blue-10;
+      box-shadow: none;
+    }
+  }
+
   &--contextual-nav-item {
-    @include button-variant(transparent, $core-blue-label-over);
+    @include button-variant(transparent, $ui-vibrant-blue-10);
     display: flex;
     justify-content: space-between;
   }

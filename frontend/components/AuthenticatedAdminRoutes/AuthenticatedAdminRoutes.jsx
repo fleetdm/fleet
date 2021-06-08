@@ -1,10 +1,10 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { push } from 'react-router-redux';
-
-import paths from '../../router/paths';
-import userInterface from '../../interfaces/user';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { push } from "react-router-redux";
+import paths from "router/paths";
+import userInterface from "interfaces/user";
+import { renderFlash } from "redux/nodes/notifications/actions";
 
 export class AuthenticatedAdminRoutes extends Component {
   static propTypes = {
@@ -13,29 +13,30 @@ export class AuthenticatedAdminRoutes extends Component {
     user: userInterface,
   };
 
-  componentWillMount () {
-    const { dispatch, user: { admin } } = this.props;
+  componentWillMount() {
+    const {
+      dispatch,
+      user: { global_role },
+    } = this.props;
     const { HOME } = paths;
 
-    if (!admin) {
+    if (global_role !== "admin") {
       dispatch(push(HOME));
+      dispatch(
+        renderFlash("error", "You do not have permissions for that page")
+      );
     }
-
     return false;
   }
 
-  render () {
+  render() {
     const { children, user } = this.props;
 
     if (!user) {
       return false;
     }
 
-    return (
-      <div>
-        {children}
-      </div>
-    );
+    return <>{children}</>;
   }
 }
 

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
 func decodeModifyAppConfigRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var payload kolide.AppConfigPayload
+	var payload fleet.AppConfigPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		return nil, err
 	}

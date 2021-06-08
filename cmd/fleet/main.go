@@ -33,7 +33,7 @@ func main() {
 
 // initFatal prints an error message and exits with a non-zero status.
 func initFatal(err error, message string) {
-	fmt.Printf("Error %s: %v\n", message, err)
+	fmt.Printf("Failed to start: %s: %v\n", message, err)
 	os.Exit(1)
 }
 
@@ -57,9 +57,8 @@ wish to override the default value.
 	return rootCmd
 }
 
-func applyDevFlags(cfg *config.KolideConfig) {
+func applyDevFlags(cfg *config.FleetConfig) {
 	cfg.Mysql.Username = "fleet"
 	cfg.Mysql.Database = "fleet"
 	cfg.Mysql.Password = "insecure"
-	cfg.Auth.JwtKey = "insecure"
 }

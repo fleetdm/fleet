@@ -1,11 +1,11 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import { noop, pick } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { noop, pick } from "lodash";
 
-import FormField from 'components/forms/FormField';
+import FormField from "components/forms/FormField";
 
-const baseClass = 'kolide-checkbox';
+const baseClass = "kolide-checkbox";
 
 class Checkbox extends Component {
   static propTypes = {
@@ -16,6 +16,7 @@ class Checkbox extends Component {
     onChange: PropTypes.func,
     value: PropTypes.bool,
     wrapperClassName: PropTypes.string,
+    indeterminate: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -29,19 +30,31 @@ class Checkbox extends Component {
     return onChange(!value);
   };
 
-  render () {
+  render() {
     const { handleChange } = this;
-    const { children, className, disabled, name, value, wrapperClassName } = this.props;
+    const {
+      children,
+      className,
+      disabled,
+      name,
+      value,
+      wrapperClassName,
+      indeterminate,
+    } = this.props;
     const checkBoxClass = classnames(baseClass, className);
-
-    const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
+    const formFieldProps = pick(this.props, ["hint", "label", "error", "name"]);
 
     const checkBoxTickClass = classnames(`${checkBoxClass}__tick`, {
       [`${checkBoxClass}__tick--disabled`]: disabled,
+      [`${checkBoxClass}__tick--indeterminate`]: indeterminate,
     });
 
     return (
-      <FormField {...formFieldProps} className={wrapperClassName} type="checkbox">
+      <FormField
+        {...formFieldProps}
+        className={wrapperClassName}
+        type="checkbox"
+      >
         <label htmlFor={name} className={checkBoxClass}>
           <input
             checked={value}
@@ -51,6 +64,9 @@ class Checkbox extends Component {
             name={name}
             onChange={handleChange}
             type="checkbox"
+            ref={(element) => {
+              element && (element.indeterminate = indeterminate);
+            }}
           />
           <span className={checkBoxTickClass} />
           <span className={`${checkBoxClass}__label`}>{children}</span>

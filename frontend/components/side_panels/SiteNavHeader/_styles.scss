@@ -1,12 +1,6 @@
 .site-nav-header {
   position: relative;
   padding: 14px 20px;
-  background: $core-dark-blue-grey;
-  margin-bottom: 16px;
-
-  @include breakpoint(smalldesk) {
-    padding: 14px 10px;
-  }
 
   &__inner {
     display: flex;
@@ -15,30 +9,17 @@
 
   &__logo {
     @include size(24px);
-    margin-right: 24px;
     border-radius: 20%;
-
-    @at-root .site-nav--small & {
-      margin: 24px 5px 10px;
-    }
-
-    @include breakpoint(smalldesk) {
-      margin: 10px 5px;
-    }
   }
 
   &__username {
     @include ellipsis(110px);
     margin: 0;
     padding: 0;
-    color: $white;
+    color: $core-white;
     font-size: $small;
     font-weight: $bold;
     position: relative;
-
-    @at-root .site-nav--small & {
-      display: none;
-    }
 
     @include breakpoint(smalldesk) {
       display: none;

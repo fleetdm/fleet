@@ -12,6 +12,7 @@
 
 body {
   font-family: @main-font;
+  color: @core-fleet-black;
 }
 
 img {
@@ -28,7 +29,35 @@ h1, h2, h3, h4, h5, h6 {
   font-family: @header-font;
 }
 h1, h2, h3, h4 {
-  font-weight: 900;
+  font-weight: 800;
+}
+
+h1 {
+  font-size: 48px;
+  line-height: 56px;
+}
+
+h2 {
+  font-size: 36px;
+  line-height: 48px;
+}
+
+p {
+  font-size: 18px;
+  line-height: 28px;
+}
+
+footer {
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.text-danger {
+  color: @core-vibrant-red !important; //lesshint-disable-line importantRule
+}
+
+a.text-danger:hover, a.text-danger:focus {
+  color: darken(@core-vibrant-red, 20%) !important; //lesshint-disable-line importantRule
 }
 
 .btn {
@@ -39,6 +68,13 @@ h1, h2, h3, h4 {
   font-size: 20px;
   line-height: 23px;
   border-radius: 10px;
+
+  &.btn-link {
+    color: #ffffff;
+    font-weight: 400;
+    font-family: @navigation-font;
+    transition: none;
+  }
 
   &.btn-sm {
     padding-top: 9px;
@@ -51,23 +87,103 @@ h1, h2, h3, h4 {
   }
 
   &.btn-primary {
-    background-color: #EF7182;
-    border-color: #EF7182;
+    background-color: #ff5c83;
+    border-color: #ff5c83;
     &:hover {
-      background-color: darken(#EF7182, 10%);
-      border-color: darken(#EF7182, 10%);
+      background-color: darken(#ff5c83, 10%);
+      border-color: darken(#ff5c83, 10%);
+    }
+    &:focus, &.focus {
+      box-shadow: 0 0 0.25rem 0.2rem #ff5c83;
+    }
+    &.disabled, &:disabled {
+      color: #fff;
+      background-color: darken(#ff5c83, 10%), 0.25;
+      border-color: darken(#ff5c83, 10%), 0.25;
+    }
+    &:not(:disabled):not(.disabled):active, &:not(:disabled):not(.disabled).active, .show > &.dropdown-toggle {
+      color: #fff;
+      background-color: darken(#ff5c83, 10%), 0.25;
+      border-color: darken(#ff5c83, 10%), 0.25;
+    }
+    &:not(:disabled):not(.disabled):active:focus, &:not(:disabled):not(.disabled).active:focus, .show > &.dropdown-toggle:focus {
+      box-shadow: 0 0 0.25rem 0.2rem #ff5c83;
     }
   }
+
   &.btn-info {
-    background-color: #6B6CFA;
-    border-color: #6B6CFA;
+    background-color: #6b6cfa;
+    border-color: #6b6cfa;
     &:hover {
-      background-color: darken(#6B6CFA, 10%);
-      border-color: darken(#6B6CFA, 10%);
+      background-color: darken(#6b6cfa, 10%);
+      border-color: darken(#6b6cfa, 10%);
     }
   }
 }
 
 .card {
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.05);
 }
+
+.dropdown:hover > .dropdown-menu {
+  display: block;
+}
+.dropdown:hover > .btn {
+  color: #6a67fe;
+}
+
+.dropdown-menu {
+  left: 16px !important; //lesshint-disable-line importantRule
+  min-width: 0;
+  margin: 0;
+}
+
+.dropdown-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.dropdown-item:hover {
+  background-color: #f1f0ff;
+  font-weight: @bold;
+}
+// Bolding text when the tab is active causes a layout shift
+// so we add a hidden pseudo element with the same text string
+.dropdown-item:before {
+  content: attr(data-text);
+  height: 0;
+  visibility: hidden;
+  overflow: hidden;
+  user-select: none;
+  pointer-events: none;
+  font-weight: @bold;
+}
+
+.form-control {
+	height: 54px;
+	padding: 8px 16px;
+	font-size: 18px;
+	color: #192147;
+	border: 1px solid #C5C7D1;
+}
+.form-control:focus {
+	border: 2px solid #6a67fe;
+	box-shadow: unset;
+}
+.form-control.is-invalid:focus {
+	box-shadow: unset;
+}
+.form-control.is-invalid {
+	border: 2px solid #FF5C83;
+}
+textarea.form-control {
+	height: 108px;
+}
+.form-group {
+	margin-bottom: 24px;
+}
+
+.invalid-feedback {
+  color: @core-vibrant-red;
+}
+

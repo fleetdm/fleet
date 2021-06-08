@@ -1,16 +1,16 @@
 .scheduled-queries-list-wrapper {
   flex-grow: 1;
-  padding: 50px 30px;
-  margin-bottom: $pad-base;
+  padding: $pad-xxlarge 30px;
+  margin-bottom: $pad-medium;
 
   &__query-count {
     font-size: $x-small;
     font-weight: $bold;
-    margin: 24px 0;
+    margin: $pad-large 0;
   }
 
   &__queries-list-wrapper {
-    margin-top: $pad-base;
+    margin-top: $pad-medium;
     clear: both;
   }
 

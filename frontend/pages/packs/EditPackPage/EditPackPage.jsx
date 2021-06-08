@@ -1,27 +1,27 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { filter, includes, isEqual, noop, size, find } from 'lodash';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { filter, includes, isEqual, noop, size, find } from "lodash";
+import { push } from "react-router-redux";
 
-import deepDifference from 'utilities/deep_difference';
-import EditPackFormWrapper from 'components/packs/EditPackFormWrapper';
-import hostActions from 'redux/nodes/entities/hosts/actions';
-import hostInterface from 'interfaces/host';
-import labelActions from 'redux/nodes/entities/labels/actions';
-import labelInterface from 'interfaces/label';
-import packActions from 'redux/nodes/entities/packs/actions';
-import ScheduleQuerySidePanel from 'components/side_panels/ScheduleQuerySidePanel';
-import packInterface from 'interfaces/pack';
-import queryActions from 'redux/nodes/entities/queries/actions';
-import queryInterface from 'interfaces/query';
-import ScheduledQueriesListWrapper from 'components/queries/ScheduledQueriesListWrapper';
-import { renderFlash } from 'redux/nodes/notifications/actions';
-import scheduledQueryActions from 'redux/nodes/entities/scheduled_queries/actions';
-import stateEntityGetter from 'redux/utilities/entityGetter';
-import PATHS from 'router/paths';
+import deepDifference from "utilities/deep_difference";
+import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
+import hostActions from "redux/nodes/entities/hosts/actions";
+import hostInterface from "interfaces/host";
+import labelActions from "redux/nodes/entities/labels/actions";
+import labelInterface from "interfaces/label";
+import packActions from "redux/nodes/entities/packs/actions";
+import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePanel";
+import packInterface from "interfaces/pack";
+import queryActions from "redux/nodes/entities/queries/actions";
+import queryInterface from "interfaces/query";
+import ScheduledQueriesListWrapper from "components/queries/ScheduledQueriesListWrapper";
+import { renderFlash } from "redux/nodes/notifications/actions";
+import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
+import stateEntityGetter from "redux/utilities/entityGetter";
+import PATHS from "router/paths";
 
-const baseClass = 'edit-pack-page';
+const baseClass = "edit-pack-page";
 
 export class EditPackPage extends Component {
   static propTypes = {
@@ -41,7 +41,7 @@ export class EditPackPage extends Component {
     dispatch: noop,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
@@ -51,7 +51,7 @@ export class EditPackPage extends Component {
     };
   }
 
-  componentWillMount () {
+  componentWillMount() {
     const {
       allQueries,
       dispatch,
@@ -90,7 +90,7 @@ export class EditPackPage extends Component {
     return false;
   }
 
-  componentWillReceiveProps ({ dispatch, pack, packHosts, packLabels }) {
+  componentWillReceiveProps({ dispatch, pack, packHosts, packLabels }) {
     if (!isEqual(pack, this.props.pack)) {
       if (!packHosts || packHosts.length !== pack.host_ids.length) {
         dispatch(hostActions.loadAll());
@@ -112,7 +112,7 @@ export class EditPackPage extends Component {
     }
 
     return dispatch(push(PATHS.PACK({ id: packID })));
-  }
+  };
 
   onFetchTargets = (query, targetsResponse) => {
     const { targets_count: targetsCount } = targetsResponse;
@@ -120,7 +120,7 @@ export class EditPackPage extends Component {
     this.setState({ targetsCount });
 
     return false;
-  }
+  };
 
   onSelectQuery = (queryID) => {
     const { allQueries } = this.props;
@@ -128,7 +128,7 @@ export class EditPackPage extends Component {
     this.setState({ selectedQuery });
 
     return false;
-  }
+  };
 
   onSelectScheduledQuery = (scheduledQuery) => {
     const { selectedScheduledQuery } = this.state;
@@ -141,13 +141,13 @@ export class EditPackPage extends Component {
     }
 
     return false;
-  }
+  };
 
   onDblClickScheduledQuery = (scheduledQueryId) => {
     const { dispatch } = this.props;
 
     return dispatch(push(PATHS.EDIT_QUERY({ id: scheduledQueryId })));
-  }
+  };
 
   onToggleEdit = () => {
     const { dispatch, isEdit, packID } = this.props;
@@ -157,7 +157,7 @@ export class EditPackPage extends Component {
     }
 
     return dispatch(push(PATHS.EDIT_PACK({ id: packID })));
-  }
+  };
 
   onUpdateScheduledQuery = (formData) => {
     const { dispatch } = this.props;
@@ -168,21 +168,24 @@ export class EditPackPage extends Component {
     dispatch(update(selectedScheduledQuery, updatedAttrs))
       .then(() => {
         this.setState({ selectedScheduledQuery: null, selectedQuery: null });
-        dispatch(renderFlash('success', 'Scheduled Query updated!'));
+        dispatch(renderFlash("success", "Scheduled Query updated!"));
+        window.scrollTo(0, 0);
       })
       .catch(() => {
-        dispatch(renderFlash('error', 'Unable to update your Scheduled Query.'));
+        dispatch(
+          renderFlash("error", "Unable to update your Scheduled Query.")
+        );
+        window.scrollTo(0, 0);
       });
-  }
+  };
 
   handlePackFormSubmit = (formData) => {
     const { dispatch, pack } = this.props;
     const { update } = packActions;
     const updatedPack = deepDifference(formData, pack);
 
-    return dispatch(update(pack, updatedPack))
-      .then(() => this.onToggleEdit());
-  }
+    return dispatch(update(pack, updatedPack)).then(() => this.onToggleEdit());
+  };
 
   handleRemoveScheduledQueries = (scheduledQueryIDs) => {
     const { destroy } = scheduledQueryActions;
@@ -192,12 +195,12 @@ export class EditPackPage extends Component {
       return dispatch(destroy({ id }));
     });
 
-    return Promise.all(promises)
-      .then(() => {
-        this.setState({ selectedScheduledQuery: null, selectedQuery: null });
-        dispatch(renderFlash('success', 'Scheduled queries removed'));
-      });
-  }
+    return Promise.all(promises).then(() => {
+      this.setState({ selectedScheduledQuery: null, selectedQuery: null });
+      dispatch(renderFlash("success", "Scheduled queries removed"));
+      window.scrollTo(0, 0);
+    });
+  };
 
   handleConfigurePackQuerySubmit = (formData) => {
     const { create } = scheduledQueryActions;
@@ -207,15 +210,15 @@ export class EditPackPage extends Component {
       pack_id: packID,
     };
 
-    dispatch(create(scheduledQueryData))
-      .catch(() => {
-        dispatch(renderFlash('error', 'Unable to schedule your query.'));
-      });
+    dispatch(create(scheduledQueryData)).catch(() => {
+      dispatch(renderFlash("error", "Unable to schedule your query."));
+    });
+    window.scrollTo(0, 0);
 
     return false;
-  }
+  };
 
-  render () {
+  render() {
     const {
       handleConfigurePackQuerySubmit,
       handlePackFormSubmit,
@@ -287,17 +290,23 @@ const mapStateToProps = (state, { params, route }) => {
   const entityGetter = stateEntityGetter(state);
   const isLoadingPack = state.entities.packs.loading;
   const { id: packID } = params;
-  const pack = entityGetter.get('packs').findBy({ id: packID });
-  const { entities: allQueries } = entityGetter.get('queries');
-  const scheduledQueries = entityGetter.get('scheduled_queries').where({ pack_id: packID });
+  const pack = entityGetter.get("packs").findBy({ id: packID });
+  const { entities: allQueries } = entityGetter.get("queries");
+  const scheduledQueries = entityGetter
+    .get("scheduled_queries")
+    .where({ pack_id: packID });
   const isLoadingScheduledQueries = state.entities.scheduled_queries.loading;
-  const isEdit = route.path === 'edit';
-  const packHosts = pack ? filter(state.entities.hosts.data, (host) => {
-    return includes(pack.host_ids, host.id);
-  }) : [];
-  const packLabels = pack ? filter(state.entities.labels.data, (label) => {
-    return includes(pack.label_ids, label.id);
-  }) : [];
+  const isEdit = route.path === "edit";
+  const packHosts = pack
+    ? filter(state.entities.hosts.data, (host) => {
+        return includes(pack.host_ids, host.id);
+      })
+    : [];
+  const packLabels = pack
+    ? filter(state.entities.labels.data, (label) => {
+        return includes(pack.label_ids, label.id);
+      })
+    : [];
 
   return {
     allQueries,

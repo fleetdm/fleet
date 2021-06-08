@@ -21,10 +21,9 @@ type AuthnRequest struct {
 	NameIDPolicy                *NameIDPolicy          `xml:"NameIDPolicy,omitempty"`
 	RequestedAuthnContext       *RequestedAuthnContext `xml:"RequestedAuthnContext,omitempty"`
 	Signature                   *Signature             `xml:"Signature,omitempty"`
-	originalString              string
 }
 
-// Response is submitted to the service provider (Kolide) from the IDP via a callback.
+// Response is submitted to the service provider (Fleet) from the IDP via a callback.
 // It will contain information about a authenticated user that can in turn
 // be used to generate a session token.
 // See http://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf Section 3.3.3.
@@ -43,8 +42,6 @@ type Response struct {
 	Signature Signature `xml:"Signature"`
 	Issuer    Issuer    `xml:"Issuer"`
 	Status    Status    `xml:"Status"`
-
-	originalString string
 }
 
 type Issuer struct {

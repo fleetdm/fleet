@@ -1,9 +1,9 @@
 .packs-list-row {
-  border-bottom: 1px solid $ui-borders;
+  border-bottom: 1px solid $ui-fleet-blue-15;
   cursor: pointer;
 
   &--selected {
-    background-color: $core-blue-label-down;
+    background-color: $ui-vibrant-blue-25;
   }
 
   &:focus {
@@ -11,7 +11,7 @@
   }
 
   &:hover {
-    background-color: $core-blue-label-over;
+    background-color: $ui-vibrant-blue-10;
   }
 
   &:last-child {
@@ -19,20 +19,16 @@
   }
 
   &__td {
-    color: $core-black;
+    color: $core-fleet-black;
     font-weight: $regular;
     font-size: $x-small;
-    padding: 7px 0;
-    text-align: center;
+    padding: 0 $pad-large;
+    margin: 0;
+    line-height: 2.71;
 
     &:first-child {
-      padding-left: 14px;
-      text-align: left;
-    }
-
-    &:last-child {
-      padding-right: 25px;
-      text-align: right;
+      text-align: center;
+      vertical-align: middle;
     }
   }
 
@@ -46,18 +42,36 @@
     margin-bottom: 0;
   }
 
+  &__disabled-icon {
+    margin-bottom: 1px;
+    height: 8px;
+    width: 8px;
+    background-color: $ui-fleet-black-25;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  &__enabled-icon {
+    margin-bottom: 1px;
+    height: 8px;
+    width: 8px;
+    background-color: $ui-success;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
   &__status-icon {
     &--enabled {
-      color: $success;
+      color: $ui-success;
     }
 
     &--disabled {
-      color: $alert;
+      color: $ui-error;
     }
   }
 
   &__status-text {
-    color: $core-black;
+    color: $core-fleet-black;
     font-weight: $regular;
     margin-left: 10px;
 

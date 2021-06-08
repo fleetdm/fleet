@@ -1,13 +1,14 @@
-import { combineReducers } from 'redux';
+import { combineReducers } from "redux";
 
-import campaigns from './campaigns/reducer';
-import hosts from './hosts/reducer';
-import invites from './invites/reducer';
-import labels from './labels/reducer';
-import packs from './packs/reducer';
-import queries from './queries/reducer';
-import scheduledQueries from './scheduled_queries/reducer';
-import users from './users/reducer';
+import campaigns from "./campaigns/reducer";
+import hosts from "./hosts/reducer";
+import invites from "./invites/reducer";
+import labels from "./labels/reducer";
+import packs from "./packs/reducer";
+import queries from "./queries/reducer";
+import scheduledQueries from "./scheduled_queries/reducer";
+import users from "./users/reducer";
+import teams from "./teams/reducer";
 
 export default combineReducers({
   campaigns,
@@ -18,4 +19,5 @@ export default combineReducers({
   queries,
   scheduled_queries: scheduledQueries,
   users,
+  teams,
 });

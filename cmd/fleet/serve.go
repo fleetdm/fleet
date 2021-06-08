@@ -16,11 +16,13 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
+	"github.com/fleetdm/fleet/ee/server/licensing"
+	eeservice "github.com/fleetdm/fleet/ee/server/service"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
 	"github.com/fleetdm/fleet/server/datastore/s3"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/health"
-	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/launcher"
 	"github.com/fleetdm/fleet/server/live_query"
 	"github.com/fleetdm/fleet/server/mail"
@@ -35,6 +37,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"github.com/throttled/throttled/store/redigostore"
 	"google.golang.org/grpc"
 )
 
@@ -51,6 +54,8 @@ func createServeCmd(configManager config.Manager) *cobra.Command {
 	debug := false
 	// Whether to enable developer options
 	dev := false
+	// Whether to enable development Fleet Basic license
+	devLicense := false
 
 	serveCmd := &cobra.Command{
 		Use:   "serve",
@@ -70,6 +75,19 @@ the way that the Fleet server works.
 				applyDevFlags(&config)
 			}
 
+			if devLicense {
+				// This license key is valid for development only
+				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw"
+			}
+
+			license, err := licensing.LoadLicense(config.License.Key)
+			if err != nil {
+				initFatal(
+					err,
+					"failed to load license - for help use https://fleetdm.com/contact",
+				)
+			}
+
 			var logger kitlog.Logger
 			{
 				output := os.Stderr
@@ -86,27 +104,14 @@ the way that the Fleet server works.
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
-			// Check for deprecated config options.
-			if config.Osquery.StatusLogFile != "" {
-				level.Info(logger).Log(
-					"DEPRECATED", "use filesystem.status_log_file.",
-					"msg", "using osquery.status_log_file value for filesystem.status_log_file",
-				)
-				config.Filesystem.StatusLogFile = config.Osquery.StatusLogFile
+			allowedHostIdentifiers := map[string]bool{
+				"provided": true,
+				"instance": true,
+				"uuid":     true,
+				"hostname": true,
 			}
-			if config.Osquery.ResultLogFile != "" {
-				level.Info(logger).Log(
-					"DEPRECATED", "use filesystem.result_log_file.",
-					"msg", "using osquery.result_log_file value for filesystem.result_log_file",
-				)
-				config.Filesystem.ResultLogFile = config.Osquery.ResultLogFile
-			}
-			if config.Osquery.EnableLogRotation != false {
-				level.Info(logger).Log(
-					"DEPRECATED", "use filesystem.enable_log_rotation.",
-					"msg", "using osquery.enable_log_rotation value for filesystem.result_log_file",
-				)
-				config.Filesystem.EnableLogRotation = config.Osquery.EnableLogRotation
+			if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
+				initFatal(errors.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
 			}
 
 			if len(config.Server.URLPrefix) > 0 {
@@ -124,9 +129,8 @@ the way that the Fleet server works.
 				}
 			}
 
-			var ds kolide.Datastore
-			var carveStore kolide.CarveStore
-			var err error
+			var ds fleet.Datastore
+			var carveStore fleet.CarveStore
 			mailService := mail.NewService()
 
 			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger))
@@ -148,7 +152,7 @@ the way that the Fleet server works.
 			}
 
 			switch migrationStatus {
-			case kolide.SomeMigrationsCompleted:
+			case fleet.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# WARNING:\n"+
 					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
@@ -158,7 +162,7 @@ the way that the Fleet server works.
 					"################################################################################\n",
 					os.Args[0])
 
-			case kolide.NoMigrationsCompleted:
+			case fleet.NoMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
 					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
@@ -169,35 +173,6 @@ the way that the Fleet server works.
 				os.Exit(1)
 			}
 
-			if config.Auth.JwtKey != "" && config.Auth.JwtKeyPath != "" {
-				initFatal(err, "A JWT key and a JWT key file were provided - please specify only one")
-			}
-
-			if config.Auth.JwtKeyPath != "" {
-				fileContents, err := ioutil.ReadFile(config.Auth.JwtKeyPath)
-				if err != nil {
-					initFatal(err, "Could not read the JWT Key file provided")
-				}
-				config.Auth.JwtKey = strings.TrimSpace(string(fileContents))
-			}
-
-			if config.Auth.JwtKey == "" && config.Auth.JwtKeyPath == "" {
-				jwtKey, err := kolide.RandomText(24)
-				if err != nil {
-					initFatal(err, "generating sample jwt key")
-				}
-				fmt.Printf("################################################################################\n"+
-					"# ERROR:\n"+
-					"#   A value must be supplied for --auth_jwt_key or --auth_jwt_key_path. This value is used to create\n"+
-					"#   session tokens for users.\n"+
-					"#\n"+
-					"#   Consider using the following randomly generated key:\n"+
-					"#   %s\n"+
-					"################################################################################\n",
-					jwtKey)
-				os.Exit(1)
-			}
-
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
 					initFatal(err, "loading built in data")
@@ -205,13 +180,20 @@ the way that the Fleet server works.
 			}
 
 			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password, config.Redis.Database, config.Redis.UseTLS)
-			resultStore := pubsub.NewRedisQueryResults(redisPool)
+			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore)
+			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
+			}
+
+			if license.Tier == fleet.TierBasic {
+				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
+				if err != nil {
+					initFatal(err, "initial Fleet Basic service")
+				}
 			}
 
 			go func() {
@@ -220,6 +202,20 @@ the way that the Fleet server works.
 					ds.CleanupDistributedQueryCampaigns(time.Now())
 					ds.CleanupIncomingHosts(time.Now())
 					ds.CleanupCarves(time.Now())
+					<-ticker.C
+				}
+			}()
+
+			// Flush seen hosts every second
+			go func() {
+				ticker := time.NewTicker(1 * time.Second)
+				for {
+					if err := svc.FlushSeenHosts(context.Background()); err != nil {
+						level.Info(logger).Log(
+							"err", err,
+							"msg", "failed to update host seen times",
+						)
+					}
 					<-ticker.C
 				}
 			}()
@@ -239,17 +235,23 @@ the way that the Fleet server works.
 			}, fieldKeys)
 
 			svcLogger := kitlog.With(logger, "component", "service")
+
 			svc = service.NewLoggingService(svc, svcLogger)
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
 			httpLogger := kitlog.With(logger, "component", "http")
 
+			limiterStore, err := redigostore.New(redisPool, "ratelimit::", 0)
+			if err != nil {
+				initFatal(err, "initialize rate limit store")
+			}
+
 			var apiHandler, frontendHandler http.Handler
 			{
 				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
-				apiHandler = service.MakeHandler(svc, config, httpLogger)
+				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
-				setupRequired, err := service.RequireSetup(svc)
+				setupRequired, err := svc.SetupRequired(context.Background())
 				if err != nil {
 					initFatal(err, "fetching setup requirement")
 				}
@@ -314,7 +316,7 @@ the way that the Fleet server works.
 			if debug {
 				// Add debug endpoints with a random
 				// authorization token
-				debugToken, err := kolide.RandomText(24)
+				debugToken, err := fleet.RandomText(24)
 				if err != nil {
 					initFatal(err, "generating debug token")
 				}
@@ -337,6 +339,7 @@ the way that the Fleet server works.
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
 			}
+			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 			errs := make(chan error, 2)
 			go func() {
 				if !config.Server.TLS {
@@ -369,6 +372,7 @@ the way that the Fleet server works.
 
 	serveCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug endpoints")
 	serveCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	serveCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 
 	return serveCmd
 }

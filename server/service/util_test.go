@@ -4,32 +4,43 @@ import (
 	"testing"
 
 	"github.com/WatchBeam/clock"
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/server/ptr"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore) (kolide.Service, error) {
-	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds)
+func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore) fleet.Service {
+	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+	license := fleet.LicenseInfo{Tier: "core"}
+	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
+	if err != nil {
+		panic(err)
+	}
+	return svc
 }
 
-func newTestServiceWithClock(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore, c clock.Clock) (kolide.Service, error) {
-	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c, nil, lq, ds)
+func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
+	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+	license := fleet.LicenseInfo{Tier: "core"}
+	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c, nil, lq, ds, license)
+	if err != nil {
+		panic(err)
+	}
+	return svc
 }
 
-func createTestAppConfig(t *testing.T, ds kolide.Datastore) *kolide.AppConfig {
-	config := &kolide.AppConfig{
+func createTestAppConfig(t *testing.T, ds fleet.Datastore) *fleet.AppConfig {
+	config := &fleet.AppConfig{
 		OrgName:                "Tyrell Corp",
 		OrgLogoURL:             "https://tyrell.com/image.png",
-		KolideServerURL:        "https://kolide.tyrell.com",
+		ServerURL:              "https://fleet.tyrell.com",
 		SMTPConfigured:         true,
-		SMTPSenderAddress:      "kolide@tyrell.com",
+		SMTPSenderAddress:      "test@example.com",
 		SMTPServer:             "smtp.tyrell.com",
 		SMTPPort:               587,
-		SMTPAuthenticationType: kolide.AuthTypeUserNamePassword,
+		SMTPAuthenticationType: fleet.AuthTypeUserNamePassword,
 		SMTPUserName:           "deckard",
 		SMTPPassword:           "replicant",
 		SMTPVerifySSLCerts:     true,
@@ -41,15 +52,13 @@ func createTestAppConfig(t *testing.T, ds kolide.Datastore) *kolide.AppConfig {
 	return result
 }
 
-func createTestUsers(t *testing.T, ds kolide.Datastore) map[string]kolide.User {
-	users := make(map[string]kolide.User)
+func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
+	users := make(map[string]fleet.User)
 	for _, u := range testUsers {
-		user := &kolide.User{
+		user := &fleet.User{
 			Name:     "Test Name " + u.Username,
 			Username: u.Username,
 			Email:    u.Email,
-			Admin:    u.IsAdmin,
-			Enabled:  u.Enabled,
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)
@@ -64,50 +73,34 @@ var testUsers = map[string]struct {
 	Username          string
 	Email             string
 	PlaintextPassword string
-	IsAdmin           bool
-	Enabled           bool
+	GlobalRole        *string
 }{
 	"admin1": {
 		Username:          "admin1",
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "admin1@example.com",
-		IsAdmin:           true,
-		Enabled:           true,
+		GlobalRole:        ptr.String(fleet.RoleAdmin),
 	},
 	"user1": {
 		Username:          "user1",
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "user1@example.com",
-		Enabled:           true,
+		GlobalRole:        ptr.String(fleet.RoleMaintainer),
 	},
 	"user2": {
 		Username:          "user2",
 		PlaintextPassword: "bazfoo1234!",
 		Email:             "user2@example.com",
-		Enabled:           true,
-	},
-	"disabled1": {
-		Username:          "disabled1",
-		PlaintextPassword: "bazfoo1234!",
-		Email:             "disabled1@example.com",
-		Enabled:           false,
+		GlobalRole:        ptr.String(fleet.RoleObserver),
 	},
 }
 
 type mockMailService struct {
-	SendEmailFn func(e kolide.Email) error
+	SendEmailFn func(e fleet.Email) error
 	Invoked     bool
 }
 
-func (svc *mockMailService) SendEmail(e kolide.Email) error {
+func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	svc.Invoked = true
 	return svc.SendEmailFn(e)
-}
-
-func stringPtr(s string) *string {
-	return &s
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }

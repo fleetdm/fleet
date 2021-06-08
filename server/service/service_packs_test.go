@@ -1,34 +1,30 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestListPacks(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
-	svc, err := newTestService(ds, nil, nil)
-	assert.Nil(t, err)
-
-	ctx := context.Background()
-
-	queries, err := svc.ListPacks(ctx, kolide.ListOptions{})
+	queries, err := svc.ListPacks(test.UserContext(test.UserAdmin), fleet.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
-	_, err = ds.NewPack(&kolide.Pack{
+	_, err = ds.NewPack(&fleet.Pack{
 		Name: "foo",
 	})
 	assert.Nil(t, err)
 
-	queries, err = svc.ListPacks(ctx, kolide.ListOptions{})
+	queries, err = svc.ListPacks(test.UserContext(test.UserAdmin), fleet.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }
@@ -36,20 +32,16 @@ func TestListPacks(t *testing.T) {
 func TestGetPack(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
-	svc, err := newTestService(ds, nil, nil)
-	assert.Nil(t, err)
-
-	ctx := context.Background()
-
-	pack := &kolide.Pack{
+	pack := &fleet.Pack{
 		Name: "foo",
 	}
 	_, err = ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 
-	packVerify, err := svc.GetPack(ctx, pack.ID)
+	packVerify, err := svc.GetPack(test.UserContext(test.UserAdmin), pack.ID)
 	assert.Nil(t, err)
 
 	assert.Equal(t, pack.ID, packVerify.ID)

@@ -3,7 +3,7 @@ import {
   RESET_PASSWORD_ERROR,
   RESET_PASSWORD_REQUEST,
   RESET_PASSWORD_SUCCESS,
-} from './actions';
+} from "./actions";
 
 export const initialState = {
   errors: {},
@@ -38,4 +38,3 @@ export default (state = initialState, { type, payload }) => {
       return state;
   }
 };
-

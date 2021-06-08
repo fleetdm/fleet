@@ -9,7 +9,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -35,20 +35,20 @@ func configFlag() cli.Flag {
 		homeDir = "~"
 	}
 	defaultConfigPath := filepath.Join(homeDir, ".fleet", "config")
-	return cli.StringFlag{
-		Name:   "config",
-		Value:  defaultConfigPath,
-		EnvVar: "CONFIG",
-		Usage:  "Path to the fleetctl config file",
+	return &cli.StringFlag{
+		Name:    "config",
+		Value:   defaultConfigPath,
+		EnvVars: []string{"CONFIG"},
+		Usage:   "Path to the fleetctl config file",
 	}
 }
 
 func contextFlag() cli.Flag {
-	return cli.StringFlag{
-		Name:   "context",
-		Value:  "default",
-		EnvVar: "CONTEXT",
-		Usage:  "Name of fleetctl config context to use",
+	return &cli.StringFlag{
+		Name:    "context",
+		Value:   "default",
+		EnvVars: []string{"CONTEXT"},
+		Usage:   "Name of fleetctl config context to use",
 	}
 }
 
@@ -175,7 +175,7 @@ func setConfigValue(configPath, context, key, value string) error {
 	return nil
 }
 
-func configSetCommand() cli.Command {
+func configSetCommand() *cli.Command {
 	var (
 		flAddress       string
 		flEmail         string
@@ -184,50 +184,50 @@ func configSetCommand() cli.Command {
 		flRootCA        string
 		flURLPrefix     string
 	)
-	return cli.Command{
+	return &cli.Command{
 		Name:      "set",
 		Usage:     "Set config options",
 		UsageText: `fleetctl config set [options]`,
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "address",
-				EnvVar:      "ADDRESS",
+				EnvVars:     []string{"ADDRESS"},
 				Value:       "",
 				Destination: &flAddress,
 				Usage:       "Address of the Fleet server",
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "email",
-				EnvVar:      "EMAIL",
+				EnvVars:     []string{"EMAIL"},
 				Value:       "",
 				Destination: &flEmail,
 				Usage:       "Email to use when connecting to the Fleet server",
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "token",
-				EnvVar:      "TOKEN",
+				EnvVars:     []string{"TOKEN"},
 				Value:       "",
 				Destination: &flToken,
 				Usage:       "Fleet API token",
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "tls-skip-verify",
-				EnvVar:      "INSECURE",
+				EnvVars:     []string{"INSECURE"},
 				Destination: &flTLSSkipVerify,
 				Usage:       "Skip TLS certificate validation",
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "rootca",
-				EnvVar:      "ROOTCA",
+				EnvVars:     []string{"ROOTCA"},
 				Value:       "",
 				Destination: &flRootCA,
 				Usage:       "Specify RootCA chain used to communicate with fleet",
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "url-prefix",
-				EnvVar:      "URL_PREFIX",
+				EnvVars:     []string{"URL_PREFIX"},
 				Value:       "",
 				Destination: &flURLPrefix,
 				Usage:       "Specify URL Prefix to use with Fleet server (copy from server configuration)",
@@ -295,8 +295,8 @@ func configSetCommand() cli.Command {
 	}
 }
 
-func configGetCommand() cli.Command {
-	return cli.Command{
+func configGetCommand() *cli.Command {
+	return &cli.Command{
 		Name:      "get",
 		Usage:     "Get a config option",
 		UsageText: `fleetctl config get [options]`,
@@ -305,11 +305,11 @@ func configGetCommand() cli.Command {
 			contextFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			if len(c.Args()) != 1 {
+			if c.Args().Len() != 1 {
 				return cli.ShowCommandHelp(c, "get")
 			}
 
-			key := c.Args()[0]
+			key := c.Args().Get(0)
 
 			// validate key
 			switch key {

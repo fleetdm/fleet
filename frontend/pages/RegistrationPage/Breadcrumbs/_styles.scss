@@ -15,15 +15,15 @@
     width: 150px;
     font-size: $small;
     font-weight: $regular;
-    color: $white;
+    color: $core-white;
     position: relative;
 
     &::before {
-      content: '';
+      content: "";
       position: absolute;
       width: 200px;
       height: 2px;
-      background-color: $core-blue;
+      background-color: $core-vibrant-blue;
       bottom: 43px;
       left: 87px;
 
@@ -33,20 +33,20 @@
     }
 
     &::after {
-      @extend %kolidecon;
+      @extend %fleeticon;
       @include size(24px);
       background-color: transparent;
       display: block;
       border-radius: 50%;
-      content: '';
-      font-size: 28px;
+      content: "";
+      font-size: $x-large;
       margin: 14px auto 0;
       position: relative;
       z-index: 1;
       cursor: pointer;
 
       @include breakpoint(tablet) {
-        margin-top: 4px;
+        margin-top: $pad-xsmall;
       }
     }
 
@@ -56,37 +56,40 @@
 
     &--active {
       font-weight: $bold;
-      color: $white;
+      color: $core-white;
     }
 
     &--1 {
       &::after {
-        border: 2px solid $white;
+        border: 2px solid $core-white;
       }
 
       &.registration-breadcrumbs__page--active {
-
         &::before {
-          background: linear-gradient(to right, $white 50%, $core-blue 50%);
+          background: linear-gradient(
+            to right,
+            $core-white 50%,
+            $core-vibrant-blue 50%
+          );
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $white;
+          border: 2px solid $core-white;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background-color: $white;
+          background-color: $core-white;
           background-size: auto;
           z-index: 2;
         }
 
         &::after {
           @include size(28px);
-          content: '\f035';
-          color: $white;
+          content: "\f035";
+          color: $core-white;
           border: 0;
         }
       }
@@ -94,30 +97,34 @@
 
     &--2 {
       &::after {
-        border: solid 1px $core-blue;
+        border: solid 1px $core-vibrant-blue;
       }
 
       &.registration-breadcrumbs__page--active {
         &::before {
-          background: linear-gradient(to right, $white 50%, $core-blue 50%);
+          background: linear-gradient(
+            to right,
+            $core-white 50%,
+            $core-vibrant-blue 50%
+          );
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $white;
+          border: 2px solid $core-white;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background: $white;
+          background: $core-white;
           z-index: 2;
         }
 
         &::after {
           @include size(28px);
-          content: '\f035';
-          color: $white;
+          content: "\f035";
+          color: $core-white;
           border: 0;
         }
       }
@@ -129,26 +136,29 @@
       }
 
       &::after {
-        border: solid 1px $core-blue;
+        border: solid 1px $core-vibrant-blue;
       }
 
       &.registration-breadcrumbs__page--active {
-
         &::before {
-          background: linear-gradient(to right, $white 50%, $core-blue 50%);
+          background: linear-gradient(
+            to right,
+            $core-white 50%,
+            $core-vibrant-blue 50%
+          );
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $white;
+          border: 2px solid $core-white;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::after {
           @include size(28px);
-          content: '\f035';
-          color: $white;
+          content: "\f035";
+          color: $core-white;
           border: 0;
         }
       }

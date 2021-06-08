@@ -1,11 +1,17 @@
 .user-management {
-  min-height: 90vh;
-  padding: 30px;
+  padding: $pad-xlarge;
+
+  &__page-description {
+    font-size: $x-small;
+    color: $core-fleet-black;
+    @include sticky-settings-description;
+    padding-bottom: $pad-medium;
+  }
 
   &__wrapper {
-    border: solid 1px $ui-borders;
+    border: solid 1px $ui-fleet-blue-15;
     border-radius: 6px;
-    margin-top: $pad-base;
+    margin-top: $pad-medium;
   }
 
   &__header {
@@ -14,13 +20,13 @@
 
   &__table {
     border-collapse: collapse;
-    color: $core-black;
+    color: $core-fleet-black;
     font-size: $x-small;
     width: 100%;
   }
 
   tr {
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
 
     &:last-child {
       border-bottom: 0;
@@ -28,10 +34,10 @@
   }
 
   thead {
-    background-color: $core-light-blue-grey;
-    color: $core-black;
+    background-color: $ui-off-white;
+    color: $core-fleet-black;
     text-align: left;
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
 
     th {
       padding: 18px 30px;
@@ -55,33 +61,30 @@
 
   &__heading-wrapper {
     width: 100%;
-    margin-bottom: 10px;
   }
 
   &__smtp-warning-wrapper {
     width: 100%;
   }
 
+  &__config-button {
+    text-decoration: none;
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    margin-left: $pad-medium;
+  }
+
   &__user-count {
     font-size: $x-small;
     font-weight: $bold;
-    color: $core-black;
-    margin-top: 34px;
+    color: $core-fleet-black;
+    margin: 0;
   }
 
   &__add-user-wrap {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-  }
-
-  &__add-user-btn {
-    height: 38px;
-    letter-spacing: normal;
-    margin-top: 0;
-    margin-left: $pad-half;
-    padding: 0;
-    width: 145px;
+    align-items: center;
   }
 
   &__users {
@@ -96,9 +99,25 @@
     }
   }
 
-  @include breakpoint(smalldesk) {
-    &__position {
-      display: none;
+  .data-table {
+    &__status {
+      &--active {
+        &:before {
+          background-color: $ui-success;
+        }
+      }
+
+      &--no-access {
+        &:before {
+          background-color: $ui-offline;
+        }
+      }
+
+      &--invite-pending {
+        &:before {
+          background-color: $ui-warning;
+        }
+      }
     }
   }
 }

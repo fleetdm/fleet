@@ -17,21 +17,24 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
 	downloadUrl = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
 )
 
-func previewCommand() cli.Command {
-	return cli.Command{
+func previewCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "preview",
-		Usage: "Set up a preview deployment of the Fleet server",
-		UsageText: `Set up a preview deployment of the Fleet server using Docker and docker-compose. Docker tools must be available in the environment.
+		Usage: "Start a preview deployment of the Fleet server",
+		Description: `Start a preview deployment of the Fleet server using Docker and docker-compose. Docker tools must be available in the environment.
 
-This command will create a directory fleet-preview in the current working directory. Configurations can be modified in that directory.`,
-		Subcommands: []cli.Command{},
+Use the stop and reset subcommands to manage the server and dependencies once started.`,
+		Subcommands: []*cli.Command{
+			previewStopCommand(),
+			previewResetCommand(),
+		},
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -42,19 +45,18 @@ This command will create a directory fleet-preview in the current working direct
 				return err
 			}
 
-			// Download files if necessary
+			// Download files every time to ensure the user gets the most up to date versions
 			previewDir := previewDirectory()
-			if _, err := os.Stat(
-				filepath.Join(previewDir, "docker-compose.yml"),
-			); err != nil {
-				fmt.Printf("Downloading dependencies into %s...\n", previewDir)
-				if err := downloadFiles(); err != nil {
-					return errors.Wrap(err, "Error downloading dependencies")
-				}
+			fmt.Printf("Downloading dependencies into %s...\n", previewDir)
+			if err := downloadFiles(); err != nil {
+				return errors.Wrap(err, "Error downloading dependencies")
 			}
 
 			if err := os.Chdir(previewDir); err != nil {
 				return err
+			}
+			if _, err := os.Stat("docker-compose.yml"); err != nil {
+				return errors.Wrap(err, "docker-compose file not found in preview directory")
 			}
 
 			// Make sure the logs directory is writable, otherwise the Fleet
@@ -64,8 +66,15 @@ This command will create a directory fleet-preview in the current working direct
 				return errors.Wrap(err, "make logs writable")
 			}
 
+			fmt.Println("Pulling Docker dependencies...")
+			out, err := exec.Command("docker-compose", "pull").CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose")
+			}
+
 			fmt.Println("Starting Docker containers...")
-			out, err := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01").CombinedOutput()
+			out, err = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
@@ -74,6 +83,15 @@ This command will create a directory fleet-preview in the current working direct
 			fmt.Println("Waiting for server to start up...")
 			if err := waitStartup(); err != nil {
 				return errors.Wrap(err, "wait for server startup")
+			}
+
+			// Start fleet02 (UI server) after fleet01 (agent/fleetctl server)
+			// has finished starting up so that there is no conflict with
+			// running database migrations.
+			out, err = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "fleet02").CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose")
 			}
 
 			fmt.Println("Initializing server...")
@@ -90,7 +108,10 @@ This command will create a directory fleet-preview in the current working direct
 
 			token, err := fleet.Setup(username, username, password, "Fleet Preview")
 			if err != nil {
-				if e, ok := err.(service.SetupAlreadyErr); !(ok && e.SetupAlready()) {
+				switch errors.Cause(err).(type) {
+				case service.SetupAlreadyErr:
+					// Ignore this error
+				default:
 					return errors.Wrap(err, "Error setting up Fleet")
 				}
 			}
@@ -121,10 +142,9 @@ This command will create a directory fleet-preview in the current working direct
 				return errors.Wrap(err, "Error writing fleetctl configuration")
 			}
 
-			fmt.Println("Fleet is now available at https://localhost:8412.")
+			fmt.Println("Fleet UI is now available at http://localhost:1337.")
 			fmt.Println("Username:", username)
 			fmt.Println("Password:", password)
-			fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option. Chrome users may need to configure chrome://flags/#allow-insecure-localhost.")
 
 			// Create client and get enroll secret
 			client, err := unauthenticatedClientFromCLI(c)
@@ -147,7 +167,7 @@ This command will create a directory fleet-preview in the current working direct
 				return errors.Wrap(err, "Error retrieving enroll secret")
 			}
 
-			if len(secrets.Secrets) != 1 || !secrets.Secrets[0].Active {
+			if len(secrets.Secrets) != 1 {
 				return errors.New("Expected 1 active enroll secret")
 			}
 
@@ -303,4 +323,102 @@ func checkDocker() error {
 	}
 
 	return nil
+}
+
+func previewStopCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "stop",
+		Usage: "Stop the Fleet preview server and dependencies",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			if err := checkDocker(); err != nil {
+				return err
+			}
+
+			previewDir := previewDirectory()
+			if err := os.Chdir(previewDir); err != nil {
+				return err
+			}
+			if _, err := os.Stat("docker-compose.yml"); err != nil {
+				return errors.Wrap(err, "docker-compose file not found in preview directory")
+			}
+
+			out, err := exec.Command("docker-compose", "stop").CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose stop for Fleet server and dependencies")
+			}
+
+			cmd := exec.Command("docker-compose", "stop")
+			cmd.Dir = filepath.Join(previewDir, "osquery")
+			cmd.Env = append(cmd.Env,
+				// Note that these must be set even though they are unused while
+				// stopping because docker-compose will error otherwise.
+				"ENROLL_SECRET=empty",
+				"FLEET_URL=empty",
+			)
+			out, err = cmd.CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose stop for simulated hosts")
+			}
+
+			fmt.Println("Fleet preview server and dependencies stopped. Start again with fleetctl preview.")
+
+			return nil
+		},
+	}
+}
+
+func previewResetCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "reset",
+		Usage: "Reset the Fleet preview server and dependencies",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			if err := checkDocker(); err != nil {
+				return err
+			}
+
+			previewDir := previewDirectory()
+			if err := os.Chdir(previewDir); err != nil {
+				return err
+			}
+			if _, err := os.Stat("docker-compose.yml"); err != nil {
+				return errors.Wrap(err, "docker-compose file not found in preview directory")
+			}
+
+			out, err := exec.Command("docker-compose", "rm", "-sf").CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose rm -sf for Fleet server and dependencies.")
+			}
+
+			cmd := exec.Command("docker-compose", "rm", "-sf")
+			cmd.Dir = filepath.Join(previewDir, "osquery")
+			cmd.Env = append(cmd.Env,
+				// Note that these must be set even though they are unused while
+				// stopping because docker-compose will error otherwise.
+				"ENROLL_SECRET=empty",
+				"FLEET_URL=empty",
+			)
+			out, err = cmd.CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose rm -sf for simulated hosts.")
+			}
+
+			fmt.Println("Fleet preview server and dependencies reset. Start again with fleetctl preview.")
+
+			return nil
+		},
+	}
 }

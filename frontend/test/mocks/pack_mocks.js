@@ -1,5 +1,5 @@
-import createRequestMock from 'test/mocks/create_request_mock';
-import { packStub } from 'test/stubs';
+import createRequestMock from "test/mocks/create_request_mock";
+import { packStub } from "test/stubs";
 
 export default {
   addLabel: {
@@ -9,7 +9,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint,
-        method: 'post',
+        method: "post",
         response: { pack: packStub },
       });
     },
@@ -21,7 +21,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint,
-        method: 'post',
+        method: "post",
         response: { pack: packStub },
       });
     },
@@ -30,9 +30,9 @@ export default {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/packs',
+        endpoint: "/api/v1/fleet/packs",
         params,
-        method: 'post',
+        method: "post",
         response: { pack: params },
         responseStatus: 201,
       });
@@ -43,7 +43,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/packs/id/${pack.id}`,
-        method: 'delete',
+        method: "delete",
         response: {},
       });
     },
@@ -53,7 +53,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/packs/${pack.id}`,
-        method: 'patch',
+        method: "patch",
         params,
         response: { pack: { ...pack, ...params } },
       });

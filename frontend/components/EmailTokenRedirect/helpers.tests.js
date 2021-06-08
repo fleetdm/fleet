@@ -1,65 +1,68 @@
-import { reduxMockStore } from 'test/helpers';
+import { reduxMockStore } from "test/helpers";
 
-import helpers from 'components/EmailTokenRedirect/helpers';
-import Kolide from 'kolide';
-import { userStub } from 'test/stubs';
+import helpers from "components/EmailTokenRedirect/helpers";
+import Fleet from "fleet";
+import { userStub } from "test/stubs";
 
-describe('EmailTokenRedirect - helpers', () => {
-  describe('#confirmEmailChage', () => {
+describe("EmailTokenRedirect - helpers", () => {
+  describe("#confirmEmailChage", () => {
     const { confirmEmailChange } = helpers;
-    const token = 'KFBR392';
+    const token = "KFBR392";
     const authStore = {
       auth: {
         user: userStub,
       },
     };
 
-    describe('successfully dispatching the confirmEmailChange action', () => {
+    describe("successfully dispatching the confirmEmailChange action", () => {
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'confirmEmailChange')
-          .mockImplementation(() => Promise.resolve({ ...userStub, email: 'new@email.com' }));
+        jest
+          .spyOn(Fleet.users, "confirmEmailChange")
+          .mockImplementation(() =>
+            Promise.resolve({ ...userStub, email: "new@email.com" })
+          );
       });
 
-      it('pushes the user to the settings page', () => {
+      it("pushes the user to the settings page", () => {
         const mockStore = reduxMockStore(authStore);
         const { dispatch } = mockStore;
 
-        return confirmEmailChange(dispatch, userStub, token)
-          .then(() => {
-            const dispatchedActions = mockStore.getActions();
+        return confirmEmailChange(dispatch, userStub, token).then(() => {
+          const dispatchedActions = mockStore.getActions();
 
-            expect(dispatchedActions).toContainEqual({
-              type: '@@router/CALL_HISTORY_METHOD',
-              payload: {
-                method: 'push',
-                args: ['/settings'],
-              },
-            });
+          expect(dispatchedActions).toContainEqual({
+            type: "@@router/CALL_HISTORY_METHOD",
+            payload: {
+              method: "push",
+              args: ["/profile"],
+            },
           });
+        });
       });
     });
 
-    describe('unsuccessfully dispatching the confirmEmailChange action', () => {
+    describe("unsuccessfully dispatching the confirmEmailChange action", () => {
       beforeEach(() => {
         const errors = [
           {
-            name: 'base',
-            reason: 'Unable to confirm your email address',
+            name: "base",
+            reason: "Unable to confirm your email address",
           },
         ];
         const errorResponse = {
           status: 422,
           message: {
-            message: 'Unable to confirm email address',
+            message: "Unable to confirm email address",
             errors,
           },
         };
 
-        jest.spyOn(Kolide.users, 'confirmEmailChange')
+        jest
+          .spyOn(Fleet.users, "confirmEmailChange")
           .mockImplementation(() => Promise.reject(errorResponse));
       });
 
-      it('pushes the user to the login page', () => {
+      it("pushes the user to the login page", () => {
         const mockStore = reduxMockStore(authStore);
         const { dispatch } = mockStore;
 
@@ -69,18 +72,18 @@ describe('EmailTokenRedirect - helpers', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toContainEqual({
-              type: '@@router/CALL_HISTORY_METHOD',
+              type: "@@router/CALL_HISTORY_METHOD",
               payload: {
-                method: 'push',
-                args: ['/login'],
+                method: "push",
+                args: ["/login"],
               },
             });
           });
       });
     });
 
-    describe('when the user or token are not present', () => {
-      it('does not dispatch any actions when the user is not present', (done) => {
+    describe("when the user or token are not present", () => {
+      it("does not dispatch any actions when the user is not present", (done) => {
         const mockStore = reduxMockStore(authStore);
         const { dispatch } = mockStore;
 
@@ -95,7 +98,7 @@ describe('EmailTokenRedirect - helpers', () => {
           .catch(done);
       });
 
-      it('does not dispatch any actions when the token is not present', (done) => {
+      it("does not dispatch any actions when the token is not present", (done) => {
         const mockStore = reduxMockStore(authStore);
         const { dispatch } = mockStore;
 

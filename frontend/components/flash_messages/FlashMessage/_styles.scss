@@ -9,34 +9,30 @@
 }
 
 .flash-message {
-  @include position(fixed, 0 0 null $nav-width);
+  @include position(absolute, 0 0 null 0);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $white;
-  padding: $pad-half;
-  z-index: 2;
+  color: $core-white;
+  padding: $pad-small;
+  z-index: 3;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
   background-color: #3d4758;
   min-width: $min-width;
-
-  @include breakpoint(smalldesk) {
-    left: $nav-tablet-width;
-  }
 
   &--full-width {
     left: 0;
   }
 
   &--success {
-    .kolidecon {
-      color: $success;
+    .fleeticon {
+      color: $ui-success;
     }
   }
 
   &--error {
-    .kolidecon {
-      color: $alert;
+    .fleeticon {
+      color: $ui-error;
     }
   }
 
@@ -47,17 +43,18 @@
     span {
       margin-left: 15px;
       margin-right: 15px;
+      font-size: $small;
     }
 
-    .kolidecon {
-      font-size: 24px;
+    .fleeticon {
+      font-size: $small;
     }
   }
 
   &__undo {
-    color: $white;
+    color: $core-white;
     cursor: pointer;
-    font-size: 16px;
+    font-size: $small;
     text-decoration: underline;
     text-transform: uppercase;
   }
@@ -67,15 +64,33 @@
     cursor: pointer;
     text-align: center;
     margin-left: 15px;
+    height: 37px;
 
-    .kolidecon {
+    .fleeticon {
       transition: color 150ms ease-in-out;
-      color: $core-medium-blue-grey;
-      font-size: 24px;
+      color: $core-fleet-blue;
+      font-size: $small;
 
       &:hover {
-        color: $white;
+        color: $core-white;
       }
+    }
+  }
+
+  &__ex {
+    text-decoration: none;
+
+    .button::after {
+      content: url("../assets/images/icon-close-white-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
+      z-index: 4;
+    }
+
+    .button:hover::after {
+      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
     }
   }
 }

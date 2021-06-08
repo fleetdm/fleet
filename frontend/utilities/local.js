@@ -9,15 +9,17 @@ const local = {
   getItem: (itemName) => {
     const { localStorage } = window;
 
-    return localStorage.getItem(`KOLIDE::${itemName}`);
+    return localStorage.getItem(`FLEET::${itemName}`);
   },
   setItem: (itemName, value) => {
     const { localStorage } = window;
 
-    return localStorage.setItem(`KOLIDE::${itemName}`, value);
+    return localStorage.setItem(`FLEET::${itemName}`, value);
   },
 };
 
-export const authToken = () => { return local.getItem('auth_token'); };
+export const authToken = () => {
+  return local.getItem("auth_token");
+};
 
 export default local;

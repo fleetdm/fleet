@@ -1,3 +1,4 @@
+// Package mysql is a MySQL implementation of the Datastore interface.
 package mysql
 
 import (
@@ -8,16 +9,19 @@ import (
 	"io/ioutil"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/server/datastore/mysql/migrations/tables"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -33,7 +37,7 @@ var (
 	columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
 )
 
-// Datastore is an implementation of kolide.Datastore interface backed by
+// Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
 	db     *sqlx.DB
@@ -48,7 +52,7 @@ type dbfunctions interface {
 	Select(dest interface{}, query string, args ...interface{}) error
 }
 
-func (d *Datastore) getTransaction(opts []kolide.OptionalArg) dbfunctions {
+func (d *Datastore) getTransaction(opts []fleet.OptionalArg) dbfunctions {
 	var result dbfunctions = d.db
 	for _, opt := range opts {
 		switch t := opt().(type) {
@@ -61,12 +65,28 @@ func (d *Datastore) getTransaction(opts []kolide.OptionalArg) dbfunctions {
 
 type txFn func(*sqlx.Tx) error
 
+// retryableError determines whether a MySQL error can be retried. By default
+// errors are considered non-retryable. Only errors that we know have a
+// possibility of succeeding on a retry should return true in this function.
+func retryableError(err error) bool {
+	base := errors.Cause(err)
+	if b, ok := base.(*mysql.MySQLError); ok {
+		switch b.Number {
+		// Consider lock related errors to be retryable
+		case mysqlerr.ER_LOCK_DEADLOCK, mysqlerr.ER_LOCK_WAIT_TIMEOUT:
+			return true
+		}
+	}
+
+	return false
+}
+
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 	operation := func() error {
 		tx, err := d.db.Beginx()
 		if err != nil {
-			return errors.Wrap(err, "creating transaction")
+			return errors.Wrap(err, "create transaction")
 		}
 
 		defer func() {
@@ -78,18 +98,29 @@ func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 			}
 		}()
 
-		err = fn(tx)
-		if err != nil {
+		if err := fn(tx); err != nil {
 			rbErr := tx.Rollback()
 			if rbErr != nil && rbErr != sql.ErrTxDone {
-				return fmt.Errorf("got err '%s' rolling back after err '%s'", rbErr, err)
+				// Consider rollback errors to be non-retryable
+				return backoff.Permanent(errors.Wrapf(err, "got err '%s' rolling back after err", rbErr.Error()))
 			}
-			return err
-		} else {
-			err = tx.Commit()
-			if err != nil {
-				return errors.Wrap(err, "committing transaction")
+
+			if retryableError(err) {
+				return err
 			}
+
+			// Consider any other errors to be non-retryable
+			return backoff.Permanent(err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			err = errors.Wrap(err, "commit transaction")
+
+			if retryableError(err) {
+				return err
+			}
+
+			return backoff.Permanent(errors.Wrap(err, "commit transaction"))
 		}
 
 		return nil
@@ -126,7 +157,8 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		config.Password = strings.TrimSpace(string(fileContents))
 	}
 
-	if config.TLSConfig != "" {
+	if config.TLSCA != "" {
+		config.TLSConfig = "custom"
 		err := registerTLS(config)
 		if err != nil {
 			return nil, errors.Wrap(err, "register TLS config for mysql")
@@ -171,7 +203,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 
 }
 
-func (d *Datastore) Begin() (kolide.Transaction, error) {
+func (d *Datastore) Begin() (fleet.Transaction, error) {
 	return d.db.Beginx()
 }
 
@@ -187,7 +219,7 @@ func (d *Datastore) MigrateData() error {
 	return data.MigrationClient.Up(d.db.DB, "")
 }
 
-func (d *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {
+func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
 		return 0, errors.New("unexpected nil migrations list")
 	}
@@ -214,14 +246,14 @@ func (d *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {
 
 	switch {
 	case currentDataVersion == 0 && currentTablesVersion == 0:
-		return kolide.NoMigrationsCompleted, nil
+		return fleet.NoMigrationsCompleted, nil
 
 	case currentTablesVersion != lastTablesMigration.Version ||
 		currentDataVersion != lastDataMigration.Version:
-		return kolide.SomeMigrationsCompleted, nil
+		return fleet.SomeMigrationsCompleted, nil
 
 	default:
-		return kolide.AllMigrationsCompleted, nil
+		return fleet.AllMigrationsCompleted, nil
 	}
 }
 
@@ -275,18 +307,14 @@ func (d *Datastore) Close() error {
 	return d.db.Close()
 }
 
-func (d *Datastore) log(msg string) {
-	d.logger.Log("comp", d.Name(), "msg", msg)
-}
-
 func sanitizeColumn(col string) string {
 	return columnCharsRegexp.ReplaceAllString(col, "")
 }
 
-func appendListOptionsToSQL(sql string, opts kolide.ListOptions) string {
+func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
 	if opts.OrderKey != "" {
 		direction := "ASC"
-		if opts.OrderDirection == kolide.OrderDescending {
+		if opts.OrderDirection == fleet.OrderDescending {
 			direction = "DESC"
 		}
 		orderKey := sanitizeColumn(opts.OrderKey)
@@ -311,6 +339,119 @@ func appendListOptionsToSQL(sql string, opts kolide.ListOptions) string {
 	return sql
 }
 
+// whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
+// clause to render only the appropriate teams.
+//
+// filter provides the filtering parameters that should be used. hostKey is the
+// name/alias of the hosts table to use in generating the SQL.
+func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey string) string {
+	if filter.User == nil {
+		// This is likely unintentional, however we would like to return no
+		// results rather than panicking or returning some other error. At least
+		// log.
+		level.Info(d.logger).Log("err", "team filter missing user")
+		return "FALSE"
+	}
+
+	if filter.User.GlobalRole != nil {
+		switch *filter.User.GlobalRole {
+
+		case fleet.RoleAdmin, fleet.RoleMaintainer:
+			return "TRUE"
+
+		case fleet.RoleObserver:
+			if filter.IncludeObserver {
+				return "TRUE"
+			} else {
+				return "FALSE"
+			}
+
+		default:
+			// Fall through to specific teams
+		}
+	}
+
+	// Collect matching teams
+	var idStrs []string
+	for _, team := range filter.User.Teams {
+		if team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer ||
+			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+		}
+	}
+
+	if len(idStrs) == 0 {
+		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	return fmt.Sprintf("%s.team_id IN (%s)", hostKey, strings.Join(idStrs, ","))
+}
+
+// whereFilterTeams returns the appropriate condition to use in the WHERE
+// clause to render only the appropriate teams.
+//
+// filter provides the filtering parameters that should be used. hostKey is the
+// name/alias of the teams table to use in generating the SQL.
+func (d *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) string {
+	if filter.User == nil {
+		// This is likely unintentional, however we would like to return no
+		// results rather than panicking or returning some other error. At least
+		// log.
+		level.Info(d.logger).Log("err", "team filter missing user")
+		return "FALSE"
+	}
+
+	if filter.User.GlobalRole != nil {
+		switch *filter.User.GlobalRole {
+
+		case fleet.RoleAdmin, fleet.RoleMaintainer:
+			return "TRUE"
+
+		case fleet.RoleObserver:
+			if filter.IncludeObserver {
+				return "TRUE"
+			} else {
+				return "FALSE"
+			}
+
+		default:
+			// Fall through to specific teams
+		}
+	}
+
+	// Collect matching teams
+	var idStrs []string
+	for _, team := range filter.User.Teams {
+		if team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer ||
+			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+		}
+	}
+
+	if len(idStrs) == 0 {
+		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	return fmt.Sprintf("%s.id IN (%s)", teamKey, strings.Join(idStrs, ","))
+}
+
+// whereOmitIDs returns the appropriate condition to use in the WHERE
+// clause to omit the provided IDs from the selection.
+func (d *Datastore) whereOmitIDs(colName string, omit []uint) string {
+	if len(omit) == 0 {
+		return "TRUE"
+	}
+
+	var idStrs []string
+	for _, id := range omit {
+		idStrs = append(idStrs, strconv.Itoa(int(id)))
+	}
+
+	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
+}
+
 // registerTLS adds client certificate configuration to the mysql connection.
 func registerTLS(config config.MysqlConfig) error {
 	rootCertPool := x509.NewCertPool()
@@ -321,15 +462,18 @@ func registerTLS(config config.MysqlConfig) error {
 	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
 		return errors.New("failed to append PEM.")
 	}
-	clientCert := make([]tls.Certificate, 0, 1)
-	certs, err := tls.LoadX509KeyPair(config.TLSCert, config.TLSKey)
-	if err != nil {
-		return errors.Wrap(err, "load mysql client cert and key")
-	}
-	clientCert = append(clientCert, certs)
 	cfg := tls.Config{
-		RootCAs:      rootCertPool,
-		Certificates: clientCert,
+		RootCAs: rootCertPool,
+	}
+	if config.TLSCert != "" {
+		clientCert := make([]tls.Certificate, 0, 1)
+		certs, err := tls.LoadX509KeyPair(config.TLSCert, config.TLSKey)
+		if err != nil {
+			return errors.Wrap(err, "load mysql client cert and key")
+		}
+		clientCert = append(clientCert, certs)
+
+		cfg.Certificates = clientCert
 	}
 	if config.TLSServerName != "" {
 		cfg.ServerName = config.TLSServerName

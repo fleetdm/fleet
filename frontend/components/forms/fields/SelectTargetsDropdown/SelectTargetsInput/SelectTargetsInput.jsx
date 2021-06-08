@@ -1,11 +1,11 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { difference } from 'lodash';
-import Select from 'react-select';
-import 'react-select/dist/react-select.css';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { difference } from "lodash";
+import Select from "react-select";
+import "react-select/dist/react-select.css";
 
-import debounce from 'utilities/debounce';
-import targetInterface from 'interfaces/target';
+import debounce from "utilities/debounce";
+import targetInterface from "interfaces/target";
 
 class SelectTargetsInput extends Component {
   static propTypes = {
@@ -26,15 +26,17 @@ class SelectTargetsInput extends Component {
     const { selectedTargets } = this.props;
 
     return difference(options, selectedTargets);
-  }
+  };
 
-  handleInputChange = debounce((query) => {
-    const { onTargetSelectInputChange } = this.props;
-    onTargetSelectInputChange(query);
-  },
-  { leading: false, trailing: true })
+  handleInputChange = debounce(
+    (query) => {
+      const { onTargetSelectInputChange } = this.props;
+      onTargetSelectInputChange(query);
+    },
+    { leading: false, trailing: true }
+  );
 
-  render () {
+  render() {
     const {
       className,
       disabled,
@@ -66,12 +68,12 @@ class SelectTargetsInput extends Component {
         onOpen={onOpen}
         onFocus={onFocus}
         onInputChange={handleInputChange}
-        placeholder="Label Name, Host Name, IP Address, etc."
+        placeholder="Label name, host name, IP address, etc."
         resetValue={[]}
         scrollMenuIntoView={false}
         tabSelectsValue={false}
         value={selectedTargets}
-        valueKey="display_text"
+        valueKey="id"
       />
     );
   }

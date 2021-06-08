@@ -12,25 +12,28 @@ import (
 	"strconv"
 	"testing"
 
-	kitlog "github.com/go-kit/kit/log"
-	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+
+	kitlog "github.com/go-kit/kit/log"
+
+	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/store/memstore"
 )
 
 func TestLogin(t *testing.T) {
 	ds, _ := inmem.New(config.TestConfig())
-	svc, _ := newTestService(ds, nil, nil)
+	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
 	opts := []kithttp.ServerOption{
 		kithttp.ServerBefore(
-			setRequestsContexts(svc, "CHANGEME"),
+			setRequestsContexts(svc),
 		),
 		kithttp.ServerErrorLogger(logger),
 		kithttp.ServerAfter(
@@ -38,9 +41,10 @@ func TestLogin(t *testing.T) {
 		),
 	}
 	r := mux.NewRouter()
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "")
-	kh := makeKolideKitHandlers(ke, opts)
-	attachKolideAPIRoutes(r, kh)
+	limitStore, _ := memstore.New(0)
+	ke := MakeFleetServerEndpoints(svc, "", limitStore)
+	kh := makeKitHandlers(ke, opts)
+	attachFleetAPIRoutes(r, kh)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "index")
 	}))
@@ -74,11 +78,6 @@ func TestLogin(t *testing.T) {
 	}
 
 	for _, tt := range loginTests {
-		var shouldBeAdmin bool
-		if u, ok := testUsers[tt.username]; ok {
-			shouldBeAdmin = u.IsAdmin
-		}
-
 		// test sessions
 		testUser := users[tt.username]
 
@@ -95,7 +94,7 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, tt.status, resp.StatusCode)
 
 		var jsn = struct {
-			User  *kolide.User        `json:"user"`
+			User  *fleet.User         `json:"user"`
 			Token string              `json:"token"`
 			Err   []map[string]string `json:"errors,omitempty"`
 		}{}
@@ -108,7 +107,6 @@ func TestLogin(t *testing.T) {
 		}
 
 		require.NotNil(t, jsn.User)
-		assert.Equal(t, shouldBeAdmin, jsn.User.Admin)
 		assert.Equal(t, tt.username, jsn.User.Username)
 
 		// ensure that a session was created for our test user and stored
@@ -143,11 +141,3 @@ type nopCloser struct {
 }
 
 func (nopCloser) Close() error { return nil }
-
-// helper to convert a bool pointer false
-func falseIfNil(b *bool) bool {
-	if b == nil {
-		return false
-	}
-	return *b
-}

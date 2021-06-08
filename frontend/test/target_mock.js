@@ -1,7 +1,8 @@
-import nock from 'nock';
+import nock from "nock";
 
 const defaultParams = {
-  query: '',
+  query: "",
+  query_id: 1,
   selected: {
     hosts: [],
     labels: [],
@@ -14,9 +15,12 @@ const defaultResponse = {
   },
 };
 
-
-export default (params = defaultParams, response = defaultResponse, responseStatus = 200) => {
-  return nock('http://localhost:8080')
-    .post('/api/v1/fleet/targets', JSON.stringify(params))
+export default (
+  params = defaultParams,
+  response = defaultResponse,
+  responseStatus = 200
+) => {
+  return nock("http://localhost:8080")
+    .post("/api/v1/fleet/targets", JSON.stringify(params))
     .reply(responseStatus, response);
 };

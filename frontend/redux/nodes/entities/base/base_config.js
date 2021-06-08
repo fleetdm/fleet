@@ -1,10 +1,10 @@
-import { capitalize, isArray } from 'lodash';
-import { normalize, arrayOf } from 'normalizr';
+import { capitalize, isArray } from "lodash";
+import { normalize, arrayOf } from "normalizr";
 
-import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
+import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 
 class BaseConfig {
-  constructor (inputs) {
+  constructor(inputs) {
     this.createFunc = inputs.createFunc;
     this.destroyFunc = inputs.destroyFunc;
     this.entityName = inputs.entityName;
@@ -26,17 +26,17 @@ class BaseConfig {
     errors: {},
     data: {},
     originalOrder: [],
-  }
-
-  static TYPES = {
-    CREATE: 'CREATE',
-    DESTROY: 'DESTROY',
-    LOAD: 'LOAD',
-    LOAD_ALL: 'LOAD_ALL',
-    UPDATE: 'UPDATE',
   };
 
-  static failureActionTypeFor (actionTypes, type) {
+  static TYPES = {
+    CREATE: "CREATE",
+    DESTROY: "DESTROY",
+    LOAD: "LOAD",
+    LOAD_ALL: "LOAD_ALL",
+    UPDATE: "UPDATE",
+  };
+
+  static failureActionTypeFor(actionTypes, type) {
     const { TYPES } = BaseConfig;
 
     switch (type) {
@@ -54,7 +54,7 @@ class BaseConfig {
     }
   }
 
-  static successActionTypeFor (actionTypes, type) {
+  static successActionTypeFor(actionTypes, type) {
     const { TYPES } = BaseConfig;
 
     switch (type) {
@@ -73,7 +73,7 @@ class BaseConfig {
     }
   }
 
-  get actionTypes () {
+  get actionTypes() {
     const { entityName } = this;
 
     return {
@@ -94,7 +94,7 @@ class BaseConfig {
     };
   }
 
-  allActions () {
+  allActions() {
     const { TYPES } = BaseConfig;
 
     return {
@@ -110,7 +110,7 @@ class BaseConfig {
     };
   }
 
-  successAction (apiResponse, thunk) {
+  successAction(apiResponse, thunk) {
     let response = apiResponse;
     if (!response) {
       response = {};
@@ -126,7 +126,7 @@ class BaseConfig {
 
   // PRIVATE METHODS
 
-  _apiCallForType (type) {
+  _apiCallForType(type) {
     const { TYPES } = BaseConfig;
 
     switch (type) {
@@ -145,9 +145,9 @@ class BaseConfig {
     }
   }
 
-  _genericActions (type) {
+  _genericActions(type) {
     if (!type) {
-      throw new Error('generic action type is not defined');
+      throw new Error("generic action type is not defined");
     }
 
     const lowerType = type.toLowerCase();
@@ -155,14 +155,16 @@ class BaseConfig {
 
     return {
       [lowerType]: this._genericThunkAction(type),
-      [`silent${capitalType}`]: this._genericThunkAction(type, { silent: true }),
+      [`silent${capitalType}`]: this._genericThunkAction(type, {
+        silent: true,
+      }),
       [`${lowerType}Request`]: this._genericRequest(type),
       [`${lowerType}Success`]: this._genericSuccess(type),
       [`${lowerType}Failure`]: this._genericFailure(type),
     };
   }
 
-  _genericThunkAction (type, options = {}) {
+  _genericThunkAction(type, options = {}) {
     const { TYPES } = BaseConfig;
     const apiCall = this._apiCallForType(type);
 
@@ -198,7 +200,7 @@ class BaseConfig {
     };
   }
 
-  _genericRequest (type) {
+  _genericRequest(type) {
     const { TYPES } = BaseConfig;
 
     switch (type) {
@@ -224,7 +226,7 @@ class BaseConfig {
     }
   }
 
-  _genericSuccess (type) {
+  _genericSuccess(type) {
     const { actionTypes } = this;
 
     return (data, originalOrder) => {
@@ -237,7 +239,7 @@ class BaseConfig {
     };
   }
 
-  _destroySuccess (entity) {
+  _destroySuccess(entity) {
     const { actionTypes } = this;
 
     return () => {
@@ -250,7 +252,7 @@ class BaseConfig {
     };
   }
 
-  _genericFailure (type) {
+  _genericFailure(type) {
     const { actionTypes } = this;
 
     return (errors) => {
@@ -261,7 +263,7 @@ class BaseConfig {
     };
   }
 
-  _parse (response) {
+  _parse(response) {
     let result = response;
     const { parseApiResponseFunc, parseEntityFunc } = this;
 
@@ -269,22 +271,20 @@ class BaseConfig {
       return result;
     }
 
-    result = parseApiResponseFunc
-      ? parseApiResponseFunc(response)
-      : response;
+    result = parseApiResponseFunc ? parseApiResponseFunc(response) : response;
 
     if (!isArray(result) && parseEntityFunc) {
-      throw new Error('parseEntityFunc must be called on an array. Use the parseApiResponseFunc to format the response correctly.');
+      throw new Error(
+        "parseEntityFunc must be called on an array. Use the parseApiResponseFunc to format the response correctly."
+      );
     }
 
-    result = parseEntityFunc
-      ? result.map(r => parseEntityFunc(r))
-      : result;
+    result = parseEntityFunc ? result.map((r) => parseEntityFunc(r)) : result;
 
     return result;
   }
 
-  _clearErrors () {
+  _clearErrors() {
     return { type: this.actionTypes.CLEAR_ERRORS };
   }
 }

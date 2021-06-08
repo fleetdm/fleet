@@ -1,11 +1,11 @@
-import { reduxMockStore } from 'test/helpers';
+import { reduxMockStore } from "test/helpers";
 
 const errorAction = {
-  type: 'users_LOAD_FAILURE',
+  type: "users_LOAD_FAILURE",
   payload: {
     errors: {
       http_status: 500,
-      base: 'Something went wrong',
+      base: "Something went wrong",
     },
   },
 };
@@ -15,19 +15,18 @@ const errorActionThunk = (dispatch) => {
   return Promise.reject();
 };
 
-describe('redirect - middleware', () => {
-  it('redirect to /500 when a 500 error message is dispatched', () => {
+describe("redirect - middleware", () => {
+  it("redirect to /500 when a 500 error message is dispatched", () => {
     const mockStore = reduxMockStore();
     const expectedRedirectAction = {
-      type: '@@router/CALL_HISTORY_METHOD',
+      type: "@@router/CALL_HISTORY_METHOD",
       payload: {
-        args: ['/500'],
-        method: 'push',
+        args: ["/500"],
+        method: "push",
       },
     };
 
-    mockStore.dispatch(errorActionThunk)
-      .catch(() => false);
+    mockStore.dispatch(errorActionThunk).catch(() => false);
 
     expect(mockStore.getActions()).toContainEqual(expectedRedirectAction);
   });
