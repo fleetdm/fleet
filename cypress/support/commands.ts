@@ -197,6 +197,6 @@ Cypress.Commands.add("addUser", (username, options = {}) => {
 
   cy.exec(
     `./build/fleetctl user create --context e2e --username "${username}" --password "${password}" --email "${email}" --global-role "${globalRole}"`,
-    { timeout: 20000 }
+    { timeout: 5000 }
   );
 });
