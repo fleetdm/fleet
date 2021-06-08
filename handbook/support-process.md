@@ -59,7 +59,7 @@ PULL REQUEST: (Who is the individual submitting the PR? Where do they work?)
 
 2. Include a description of the changes here.
 
-3. Include reasoning on why it makes sense to merge these changes here.
+3. Include reasoning on why you think it makes sense or does not make sense to merge these changes here.
 ```
 
 #### Bugs
@@ -75,9 +75,9 @@ PULL REQUEST: (Who is the individual submitting the PR? Where do they work?)
 ```
 BUG: (Who is the individual reporting the bug? Where do they work?)
 
-1. Provide a short description of the expected behavior here.
+1. Expected behavior: Provide a short description of the expected behavior here.
 
-2. Provide a short description of the actual behavior here. Include a link to the Loom video that includes proof of the bug.
+2. Actual behavior Provide a short description of the actual behavior here. Include a link to the Loom video that includes proof of the bug.
 ```
 
 #### Feature requests
@@ -93,7 +93,7 @@ FEATURE REQUEST: (Who is the individual submitting the feature request? Where do
 
 1. What does the user want to be able to do in Fleet? Is the requested feature for fleetctl, REST API or the Fleet UI?
 
-2. What is the use case or motivation behind the request? You may have to ask the reporter additional questions to uncover this information. For example, "why would it be helpful to have this ability in Fleet?"
+2. Motivation: What is the use case or motivation behind the request? You may have to ask the reporter additional questions to uncover this information. For example, "why would it be helpful to have this ability in Fleet?"
 ```
 
 #### Questions
