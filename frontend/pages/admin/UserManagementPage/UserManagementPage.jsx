@@ -230,7 +230,12 @@ export class UserManagementPage extends Component {
   };
 
   onActionSelect = (action, user) => {
-    const { toggleEditUserModal, toggleDeleteUserModal, resetPassword } = this;
+    const {
+      toggleEditUserModal,
+      toggleDeleteUserModal,
+      resetPassword,
+      goToUserSettingsPage,
+    } = this;
     switch (action) {
       case "edit":
         toggleEditUserModal(user);
@@ -240,6 +245,9 @@ export class UserManagementPage extends Component {
         break;
       case "passwordReset":
         resetPassword(user);
+        break;
+      case "editMyAccount":
+        goToUserSettingsPage();
         break;
       default:
         return null;
@@ -299,6 +307,13 @@ export class UserManagementPage extends Component {
         );
       }
     );
+  };
+
+  goToUserSettingsPage = () => {
+    const { USER_SETTINGS } = paths;
+    const { dispatch } = this.props;
+
+    dispatch(push(USER_SETTINGS));
   };
 
   goToAppConfigPage = (evt) => {
