@@ -6,7 +6,7 @@
       <p class="pb-3 description">Fleet's standard query library includes a growing collection of useful queries 
         for organizations deploying Fleet and osquery.</p>
       <div class="p-0 m-0">
-        <div class="d-sm-none">
+        <div class="d-md-none">
           <div class="d-flex">
             <div class="input-group search-mobile">
               <div class="input-group-prepend border-right-0">
@@ -21,7 +21,7 @@
             <div class="select-mobile-border">
               <select class="select-purpose mobile font-weight-bold" v-model="selectedPurpose">
                 <option value="all queries" selected>All queries</option>
-                <option value="information">Informational queries</option>
+                <option value="informational">Informational queries</option>
                 <option value="detection">Detection queries</option>
               </select>
             </div>
@@ -39,12 +39,12 @@
           </div>
         </div>
 
-        <div class="filter-and-search-bar d-none d-sm-flex row align-items-center justify-content-between mb-3">
+        <div class="filter-and-search-bar d-none d-md-flex row align-items-center justify-content-between mb-3">
           <div class="d-flex px-0 align-items-center filters">
             <div class="d-flex">
               <div class="dropdown flex-wrap filter purpose">
                 <p class="d-inline-flex mb-0">Show</p>
-                <button class="btn btn-secondary btn-sm dropdown-toggle pl-1 py-0" type="button"
+                <button class="btn btn-secondary btn-sm dropdown-toggle px-1 py-0" type="button"
                   id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   {{selectedPurpose}}
                 </button>
@@ -60,8 +60,8 @@
             </div>
             <div class="d-flex">
               <div class="dropdown d-flex flex-wrap filter platform">
-                <p class="d-inline-flex flex-wrap mb-0">compatible with</p>
-                <button class="btn btn-secondary btn-sm dropdown-toggle pl-1 py-0" type="button"
+                <p class="d-inline-flex flex-wrap pl-1 mb-0">compatible with</p>
+                <button class="btn btn-secondary btn-sm dropdown-toggle pl-2 pr-1 py-0" type="button"
                   id="dropdownMenuSelectPlatform" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   {{selectedPlatform}}
                 </button>
