@@ -70,6 +70,7 @@ export class ManageHostsPage extends PureComponent {
     canAddNewLabels: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
+    isCoreTier: PropTypes.bool,
     currentUser: userInterface,
   };
 
@@ -103,11 +104,15 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentDidMount() {
-    const { dispatch, canAddNewHosts } = this.props;
-    if (canAddNewHosts) {
+    const { dispatch } = this.props;
+    dispatch(getLabels());
+  }
+
+  componentDidUpdate(prevProps) {
+    const { dispatch, isCoreTier, canAddNewHosts } = this.props;
+    if (isCoreTier !== prevProps.isCoreTier && !isCoreTier && canAddNewHosts) {
       dispatch(teamActions.loadAll({}));
     }
-    dispatch(getLabels());
   }
 
   componentWillUnmount() {
@@ -685,6 +690,7 @@ const mapStateToProps = (state, { location, params }) => {
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
+  const isCoreTier = permissionUtils.isCoreTier(config);
   const teams = memoizedGetEntity(state.entities.teams.data);
 
   return {
@@ -705,6 +711,7 @@ const mapStateToProps = (state, { location, params }) => {
     canAddNewHosts,
     canAddNewLabels,
     isGlobalAdmin,
+    isCoreTier,
     teams,
   };
 };
