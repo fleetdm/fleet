@@ -53,6 +53,7 @@ export class HostDetailsPage extends Component {
     queries: PropTypes.arrayOf(queryInterface),
     queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     isBasicTier: PropTypes.bool,
+    isOnlyObserver: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -195,10 +196,15 @@ export class HostDetailsPage extends Component {
 
   renderActionButtons = () => {
     const { toggleDeleteHostModal, toggleQueryHostModal } = this;
-    const { host } = this.props;
+    const { host, isOnlyObserver } = this.props;
 
     const isOnline = host.status === "online";
     const isOffline = host.status === "offline";
+
+    // Hide action buttons for global and team only observers
+    if (isOnlyObserver) {
+      return null;
+    }
 
     return (
       <div className={`${baseClass}__action-button-container`}>
@@ -640,7 +646,9 @@ const mapStateToProps = (state, ownProps) => {
   const host = entityGetter(state).get("hosts").findBy({ id: hostID });
   const { loading: isLoadingHost } = state.entities.hosts;
   const config = state.app.config;
+  const currentUser = state.auth.user;
   const isBasicTier = permissionUtils.isBasicTier(config);
+  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
   return {
     host,
@@ -649,6 +657,7 @@ const mapStateToProps = (state, ownProps) => {
     queries,
     queryErrors,
     isBasicTier,
+    isOnlyObserver,
   };
 };
 
