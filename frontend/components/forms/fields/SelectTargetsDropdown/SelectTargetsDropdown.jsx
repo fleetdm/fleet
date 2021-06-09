@@ -51,9 +51,10 @@ class SelectTargetsDropdown extends Component {
   componentWillReceiveProps(nextProps) {
     const { selectedTargets } = nextProps;
     const { query } = this.state;
+    const { queryId } = this.props;
 
     if (!isEqual(selectedTargets, this.props.selectedTargets)) {
-      this.fetchTargets(query, selectedTargets);
+      this.fetchTargets(query, queryId, selectedTargets);
     }
   }
 
@@ -129,15 +130,12 @@ class SelectTargetsDropdown extends Component {
     if (!this.mounted) {
       return false;
     }
-
     this.setState({ isLoadingTargets: true, query });
-
     return Fleet.targets
       .loadAll(query, queryId, formatSelectedTargetsForApi(selectedTargets))
       .then((response) => {
         const { targets } = response;
         const isEmpty = targets.length === 0;
-
         if (!this.mounted) {
           return false;
         }
@@ -148,7 +146,6 @@ class SelectTargetsDropdown extends Component {
         }
 
         onFetchTargets(query, response);
-
         this.setState({
           isEmpty,
           isLoadingTargets: false,
