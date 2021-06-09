@@ -32,6 +32,7 @@ interface IMembersPageProps {
   params: {
     team_id: string;
   };
+  isBasicTier: boolean;
 }
 
 interface IRootState {
@@ -68,6 +69,7 @@ let tableQueryData = {};
 const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const {
     params: { team_id },
+    isBasicTier,
   } = props;
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
@@ -257,6 +259,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           defaultSSOEnabled={userEditing?.sso_enabled}
           availableTeams={teams}
           validationErrors={[]}
+          isBasicTier={isBasicTier}
         />
       ) : null}
       {showRemoveMemberModal ? (
