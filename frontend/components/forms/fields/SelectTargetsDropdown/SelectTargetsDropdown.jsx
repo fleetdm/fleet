@@ -130,12 +130,15 @@ class SelectTargetsDropdown extends Component {
     if (!this.mounted) {
       return false;
     }
+
     this.setState({ isLoadingTargets: true, query });
+
     return Fleet.targets
       .loadAll(query, queryId, formatSelectedTargetsForApi(selectedTargets))
       .then((response) => {
         const { targets } = response;
         const isEmpty = targets.length === 0;
+
         if (!this.mounted) {
           return false;
         }
@@ -146,6 +149,7 @@ class SelectTargetsDropdown extends Component {
         }
 
         onFetchTargets(query, response);
+
         this.setState({
           isEmpty,
           isLoadingTargets: false,
