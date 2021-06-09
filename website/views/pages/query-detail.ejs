@@ -48,7 +48,7 @@
             </div>
           </div>
           <h5>Contribute to this page</h5>
-          <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">View source</a>
+          <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">View source</a>
         </div>
       </div>
     </div>
@@ -74,15 +74,15 @@
         <div class="my-3 divider"></div>  
         <div class="d-flex align-items-center justify-content-between purpose">        
           <h5 class="m-0">Purpose</h5>
-          <p class="m-0">{{query.purpose ? query.purpose : '--'}}</p>  
+          <p class="m-0">{{query.purpose ? query.purpose : '--'}}</p>
         </div>
       </div>
-      <div class="d-sm-none m-3 divider"></div>  
+      <div class="d-sm-none m-3 divider"></div>
       <div class="col p-0 pl-sm-4 contributors-contribute">
         <div class="d-flex align-items-center justify-content-between contributors">        
           <h5 class="m-0">Contributors</h5>
           <div class="d-flex align-items-center">
-            <span class="mb-1" v-if="!query.contributors || !query.contributors.length">--</span>        
+            <span class="mb-1" v-if="!query.contributors || !query.contributors.length">--</span>
             <div class="d-flex" v-for="contributor in query.contributors">
               <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
                 <img alt="a GitHub user avatar" :alt="contributor.name ? contributor.name : contributor.handle" :src="contributor.avatarUrl"/>
@@ -93,7 +93,7 @@
         <div class="my-3 divider"></div>  
         <div class="d-flex align-items-center justify-content-between contribute">
           <h5 class="d-flex align-items-center m-0 mr-3 contribute">Contribute to this page</h5>
-          <p class="d-flex align-items-center m-0 contribute"><a class="d-flex align-items-center text-right m-0 contribute" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/master/'+queryLibraryYmlRepoPath">View source</a></p>
+          <p class="d-flex align-items-center m-0 contribute"><a class="d-flex align-items-center text-right m-0 contribute" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">View source</a></p>
         </div>
       </div>
     </div>
