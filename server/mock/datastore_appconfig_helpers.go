@@ -1,9 +1,9 @@
 package mock
 
-import "github.com/fleetdm/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/fleet"
 
-func ReturnFakeAppConfig(fake *kolide.AppConfig) AppConfigFunc {
-	return func() (*kolide.AppConfig, error) {
+func ReturnFakeAppConfig(fake *fleet.AppConfig) AppConfigFunc {
+	return func() (*fleet.AppConfig, error) {
 		return fake, nil
 	}
 }

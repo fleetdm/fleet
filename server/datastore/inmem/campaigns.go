@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {
+func (d *Datastore) NewDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -17,7 +17,7 @@ func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCam
 	return camp, nil
 }
 
-func (d *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryCampaign, error) {
+func (d *Datastore) DistributedQueryCampaign(id uint) (*fleet.DistributedQueryCampaign, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -29,7 +29,7 @@ func (d *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryC
 	return &campaign, nil
 }
 
-func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) error {
+func (d *Datastore) SaveDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -41,7 +41,7 @@ func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCa
 	return nil
 }
 
-func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*kolide.HostTargets, error) {
+func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*fleet.HostTargets, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -49,9 +49,9 @@ func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*kolide.HostTarg
 	labelIDs := []uint{}
 	for _, target := range d.distributedQueryCampaignTargets {
 		if target.DistributedQueryCampaignID == id {
-			if target.Type == kolide.TargetHost {
+			if target.Type == fleet.TargetHost {
 				hostIDs = append(hostIDs, target.TargetID)
-			} else if target.Type == kolide.TargetLabel {
+			} else if target.Type == fleet.TargetLabel {
 				labelIDs = append(labelIDs, target.TargetID)
 			} else {
 				return nil, fmt.Errorf("invalid target type: %d", target.Type)
@@ -59,10 +59,10 @@ func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*kolide.HostTarg
 		}
 	}
 
-	return &kolide.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}, nil
+	return &fleet.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}, nil
 }
 
-func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {
+func (d *Datastore) NewDistributedQueryCampaignTarget(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -78,9 +78,9 @@ func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uin
 
 	// First expire old waiting and running campaigns
 	for id, c := range d.distributedQueryCampaigns {
-		if (c.Status == kolide.QueryWaiting && c.CreatedAt.Before(now.Add(-1*time.Minute))) ||
-			(c.Status == kolide.QueryRunning && c.CreatedAt.Before(now.Add(-24*time.Hour))) {
-			c.Status = kolide.QueryComplete
+		if (c.Status == fleet.QueryWaiting && c.CreatedAt.Before(now.Add(-1*time.Minute))) ||
+			(c.Status == fleet.QueryRunning && c.CreatedAt.Before(now.Add(-24*time.Hour))) {
+			c.Status = fleet.QueryComplete
 			d.distributedQueryCampaigns[id] = c
 			expired++
 		}

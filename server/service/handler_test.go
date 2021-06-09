@@ -16,14 +16,13 @@ func TestAPIRoutes(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds, nil, nil)
-	assert.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "", limitStore)
-	kh := makeKolideKitHandlers(ke, nil)
-	attachKolideAPIRoutes(r, kh)
+	ke := MakeFleetServerEndpoints(svc, "", limitStore)
+	kh := makeKitHandlers(ke, nil)
+	attachFleetAPIRoutes(r, kh)
 	handler := mux.NewRouter()
 	handler.PathPrefix("/").Handler(r)
 
@@ -219,19 +218,19 @@ func TestAPIRoutes(t *testing.T) {
 // 		uid            uint
 // 	)
 // 	ms := new(mock.Store)
-// 	ms.SessionByKeyFunc = func(key string) (*kolide.Session, error) {
-// 		return &kolide.Session{AccessedAt: time.Now(), UserID: uid, ID: 1}, nil
+// 	ms.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+// 		return &fleet.Session{AccessedAt: time.Now(), UserID: uid, ID: 1}, nil
 // 	}
-// 	ms.DestroySessionFunc = func(session *kolide.Session) error {
+// 	ms.DestroySessionFunc = func(session *fleet.Session) error {
 // 		return nil
 // 	}
-// 	ms.MarkSessionAccessedFunc = func(session *kolide.Session) error {
+// 	ms.MarkSessionAccessedFunc = func(session *fleet.Session) error {
 // 		return nil
 // 	}
-// 	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
-// 		return &kolide.User{ID: id, Enabled: enabled, Admin: admin}, nil
+// 	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+// 		return &fleet.User{ID: id, Enabled: enabled, Admin: admin}, nil
 // 	}
-// 	ms.SaveUserFunc = func(u *kolide.User) error {
+// 	ms.SaveUserFunc = func(u *fleet.User) error {
 // 		// Return an error so that the endpoint returns
 // 		return errors.New("foo")
 // 	}
@@ -242,7 +241,7 @@ func TestAPIRoutes(t *testing.T) {
 
 // 	handler := MakeHandler(
 // 		svc,
-// 		config.KolideConfig{Auth: config.AuthConfig{JwtKey: "CHANGEME"}},
+// 		config.FleetConfig{},
 // 		log.NewNopLogger(),
 // 		limitStore,
 // 	)
@@ -313,8 +312,7 @@ func TestAPIRoutes(t *testing.T) {
 // 			recorder := httptest.NewRecorder()
 // 			path := fmt.Sprintf("/api/v1/fleet/users/%d", tt.TargetUserID)
 // 			request := httptest.NewRequest("PATCH", path, bytes.NewBufferString("{}"))
-// 			// Bearer token generated with session key CHANGEME on jwt.io
-// 			request.Header.Add("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXNzaW9uX2tleSI6ImZsb29wIn0.ukCPTFvgSJrXbHH2QeAMx3EKwoMh1OmhP3xXxy5I-Wk")
+// 			request.Header.Add("Authorization", "Bearer fake_session_token")
 
 // 			handler.ServeHTTP(recorder, request)
 // 			if tt.Authorized {

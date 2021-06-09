@@ -13,15 +13,30 @@
     min-height: 400px;
   }
 
-  &__warning {
-    margin: 0;
-  }
-
   &__content {
     display: flex;
     flex-direction: column;
     align-self: stretch;
     margin-bottom: $pad-medium;
+  }
+
+  &__warning {
+    margin: $pad-xlarge;
+    margin-bottom: 0;
+
+    &-title {
+      font-size: $small;
+      font-weight: $bold;
+      margin: 0;
+    }
+
+    span {
+      font-weight: $bold;
+    }
+    p {
+      margin: 0;
+      margin-top: $pad-xsmall;
+    }
   }
 
   &__observer-query-view {
@@ -60,7 +75,7 @@
   &__query-preview {
     margin-top: 15px;
 
-    .kolide-ace__label {
+    .fleet-ace__label {
       display: none;
     }
   }

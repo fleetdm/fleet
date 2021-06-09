@@ -1,17 +1,18 @@
 .manage-queries-page {
-  &__delete-queries-btn {
-    font-size: 15px;
-    font-weight: $regular;
-  }
-
   &__header-wrap {
     display: flex;
     justify-content: space-between;
+    align-items: center;
   }
 
   &__ctas {
-    flex-grow: 1;
-    text-align: right;
+    display: flex;
+    align-items: center;
+    font-size: $x-small;
+  }
+
+  &__selected-count {
+    padding: 0 $pad-medium;
   }
 
   &__query-count {
@@ -55,7 +56,7 @@
   }
 
   &__title {
-    margin: 0 0 12px;
+    margin: 0 0 $pad-medium;
   }
 
   &__wrapper {

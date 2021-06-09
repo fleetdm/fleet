@@ -10,7 +10,7 @@ This Helm chart does not auto-provision a namespace. You can add one with `kubec
 
 #### 2. Create the necessary secrets
 
-This Helm chart does not create the Kubernetes `Secret`s necessary for Fleet to operate. At a minimum, secrets for the JWT key and MySQL password must be created. For example, if you are deploying into a namespace called `fleet`:
+This Helm chart does not create the Kubernetes `Secret`s necessary for Fleet to operate. At a minimum, secrets for the MySQL password must be created. For example, if you are deploying into a namespace called `fleet`:
 
 ```yaml
 ---
@@ -21,14 +21,6 @@ metadata:
   namespace: fleet
 stringData:
   mysql-password: this-is-a-bad-password
----
-kind: Secret
-apiVersion: v1
-metadata:
-  name: fleet
-  namespace: fleet
-stringData:
-  jwt-secret: dont-use-this
 ```
 
 If you use Fleet's TLS capabilities, TLS connections to the MySQL server, or AWS access secret keys, additional secrets and keys are needed. The name of each `Secret` must match the value of `secretName` for each section in the `values.yaml` file and the key of each secret must match the related key value from the values file. For example, to configure Fleet's TLS, you would use a Secret like the one below.
@@ -40,14 +32,13 @@ metadata:
   name: fleet
   namespace: fleet
 stringData:
-  jwt-secret: dont-use-this
   server.cert: |
     your-pem-encoded-certificate-here
   server.key: |
     your-pem-encoded-key-here
 ```
 
-Once all of your secrets are configured, use `kubectl apply -f <secret_file_name.yaml> --namespace <your_namespace>` to create them in the cluster. 
+Once all of your secrets are configured, use `kubectl apply -f <secret_file_name.yaml> --namespace <your_namespace>` to create them in the cluster.
 
 #### 3. Further Configuration
 

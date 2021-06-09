@@ -6,11 +6,11 @@ import (
 	"unicode"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	invalid := &kolide.InvalidArgumentError{}
+func (mw validationMiddleware) CreateUserFromInvite(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	invalid := &fleet.InvalidArgumentError{}
 	if p.Username == nil {
 		invalid.Append("username", "missing required argument")
 	} else {
@@ -52,11 +52,11 @@ func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolid
 	if invalid.HasErrors() {
 		return nil, invalid
 	}
-	return mw.Service.CreateUserWithInvite(ctx, p)
+	return mw.Service.CreateUserFromInvite(ctx, p)
 }
 
-func (mw validationMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	invalid := &kolide.InvalidArgumentError{}
+func (mw validationMiddleware) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	invalid := &fleet.InvalidArgumentError{}
 	if p.Username == nil {
 		invalid.Append("username", "missing required argument username")
 	} else {
@@ -95,8 +95,8 @@ func (mw validationMiddleware) CreateUser(ctx context.Context, p kolide.UserPayl
 	return mw.Service.CreateUser(ctx, p)
 }
 
-func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
-	invalid := &kolide.InvalidArgumentError{}
+func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
+	invalid := &fleet.InvalidArgumentError{}
 	if p.Username != nil {
 		if *p.Username == "" {
 			invalid.Append("username", "cannot be empty")
@@ -128,7 +128,7 @@ func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p ko
 	return mw.Service.ModifyUser(ctx, userID, p)
 }
 
-func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *kolide.InvalidArgumentError) bool {
+func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *fleet.InvalidArgumentError) bool {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		invalid.Append("viewer", "not present")
@@ -149,7 +149,7 @@ func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *koli
 }
 
 func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newPass string) error {
-	invalid := &kolide.InvalidArgumentError{}
+	invalid := &fleet.InvalidArgumentError{}
 	if oldPass == "" {
 		invalid.Append("old_password", "cannot be empty")
 	}
@@ -168,7 +168,7 @@ func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newP
 }
 
 func (mw validationMiddleware) ResetPassword(ctx context.Context, token, password string) error {
-	invalid := &kolide.InvalidArgumentError{}
+	invalid := &fleet.InvalidArgumentError{}
 	if token == "" {
 		invalid.Append("token", "cannot be empty field")
 	}

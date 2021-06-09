@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -40,10 +40,10 @@ func loadPublicKey() (*ecdsa.PublicKey, error) {
 }
 
 // LoadLicense loads and validates the license key.
-func LoadLicense(licenseKey string) (*kolide.LicenseInfo, error) {
+func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 	// No license key
 	if licenseKey == "" {
-		return &kolide.LicenseInfo{Tier: kolide.TierCore}, nil
+		return &fleet.LicenseInfo{Tier: fleet.TierCore}, nil
 	}
 
 	parsedToken, err := jwt.ParseWithClaims(
@@ -74,7 +74,7 @@ type licenseClaims struct {
 	Note    string `json:"note"`
 }
 
-func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {
+func validate(token *jwt.Token) (*fleet.LicenseInfo, error) {
 	// token.IssuedAt, token.ExpiresAt, token.NotBefore already validated by JWT
 	// library.
 	if !token.Valid {
@@ -108,7 +108,7 @@ func validate(token *jwt.Token) (*kolide.LicenseInfo, error) {
 		return nil, errors.Errorf("unexpected issuer %s", claims.Issuer)
 	}
 
-	return &kolide.LicenseInfo{
+	return &fleet.LicenseInfo{
 		Tier:         claims.Tier,
 		Organization: claims.Subject,
 		DeviceCount:  claims.Devices,

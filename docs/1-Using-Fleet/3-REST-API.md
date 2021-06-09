@@ -25,8 +25,6 @@ Fleet is powered by a Go API server which serves three types of endpoints:
   The React app uses React Router to determine whether or not the URI is a valid
   route and what to do.
 
-Note: We have deprecated `/api/v1/kolide/` routes and will remove them in the Fleet 4.0 release. Please migrate all routes to `/api/v1/fleet/`.
-
 ### fleetctl
 
 Many of the operations that a user may wish to perform with an API are currently best performed via the [fleetctl](./2-fleetctl-CLI.md) tooling. These CLI tools allow updating of the osquery configuration entities, as well as performing live queries.
@@ -4045,7 +4043,7 @@ None.
     "org_logo_url": ""
   },
   "server_settings": {
-    "kolide_server_url": "https://localhost:8080",
+    "server_url": "https://localhost:8080",
     "live_query_disabled": false
   },
   "smtp_settings": {
@@ -4094,7 +4092,7 @@ Modifies the Fleet's configuration with the supplied information.
 | --------------------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | org_name              | string  | body | _Organization information_. The organization name.                                                                                                                                     |
 | org_logo_url          | string  | body | _Organization information_. The URL for the organization logo.                                                                                                                         |
-| kolide_server_url     | string  | body | _Server settings_. The Fleet server URL.                                                                                                                                               |
+| server_url     | string  | body | _Server settings_. The Fleet server URL.                                                                                                                                               |
 | live_query_disabled   | boolean | body | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
 | enable_smtp           | boolean | body | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
 | sender_address        | string  | body | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
@@ -4149,7 +4147,7 @@ Modifies the Fleet's configuration with the supplied information.
     "org_logo_url": "https://fleetdm.com/logo.png"
   },
   "server_settings": {
-    "kolide_server_url": "https://localhost:8080",
+    "server_url": "https://localhost:8080",
     "live_query_disabled": false
   },
   "smtp_settings": {

@@ -6,7 +6,7 @@
     margin: 0;
     font-size: $small;
 
-    .kolidecon {
+    .fleeticon {
       color: $core-fleet-blue;
       margin-right: 6px;
     }
@@ -29,7 +29,7 @@
   &__query-preview {
     margin-bottom: 12px;
 
-    .kolide-ace__label {
+    .fleet-ace__label {
       display: none;
     }
   }

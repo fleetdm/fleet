@@ -3,27 +3,27 @@ package datastore
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testListScheduledQueriesInPack(t *testing.T, ds kolide.Datastore) {
-	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
-	queries := []*kolide.Query{
+func testListScheduledQueriesInPack(t *testing.T, ds fleet.Datastore) {
+	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
 	err := ds.ApplyQueries(zwass.ID, queries)
 	require.Nil(t, err)
 
-	specs := []*kolide.PackSpec{
+	specs := []*fleet.PackSpec{
 		{
 			Name:    "baz",
-			Targets: kolide.PackSpecTargets{Labels: []string{}},
-			Queries: []kolide.PackSpecQuery{
+			Targets: fleet.PackSpecTargets{Labels: []string{}},
+			Queries: []fleet.PackSpecQuery{
 				{
 					QueryName:   queries[0].Name,
 					Description: "test_foo",
@@ -35,18 +35,18 @@ func testListScheduledQueriesInPack(t *testing.T, ds kolide.Datastore) {
 	err = ds.ApplyPackSpecs(specs)
 	require.Nil(t, err)
 
-	gotQueries, err := ds.ListScheduledQueriesInPack(1, kolide.ListOptions{})
+	gotQueries, err := ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 1)
 	assert.Equal(t, uint(60), gotQueries[0].Interval)
 	assert.Equal(t, "test_foo", gotQueries[0].Description)
 	assert.Equal(t, "select * from foo", gotQueries[0].Query)
 
-	specs = []*kolide.PackSpec{
+	specs = []*fleet.PackSpec{
 		{
 			Name:    "baz",
-			Targets: kolide.PackSpecTargets{Labels: []string{}},
-			Queries: []kolide.PackSpecQuery{
+			Targets: fleet.PackSpecTargets{Labels: []string{}},
+			Queries: []fleet.PackSpecQuery{
 				{
 					QueryName:   queries[0].Name,
 					Description: "test_foo",
@@ -71,17 +71,17 @@ func testListScheduledQueriesInPack(t *testing.T, ds kolide.Datastore) {
 	err = ds.ApplyPackSpecs(specs)
 	require.Nil(t, err)
 
-	gotQueries, err = ds.ListScheduledQueriesInPack(1, kolide.ListOptions{})
+	gotQueries, err = ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 3)
 }
 
-func testNewScheduledQuery(t *testing.T, ds kolide.Datastore) {
-	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@kolide.co", true)
+func testNewScheduledQuery(t *testing.T, ds fleet.Datastore) {
+	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 
-	query, err := ds.NewScheduledQuery(&kolide.ScheduledQuery{
+	query, err := ds.NewScheduledQuery(&fleet.ScheduledQuery{
 		PackID:  p1.ID,
 		QueryID: q1.ID,
 		Name:    "foo-scheduled",
@@ -92,8 +92,8 @@ func testNewScheduledQuery(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, "select * from time;", query.Query)
 }
 
-func testScheduledQuery(t *testing.T, ds kolide.Datastore) {
-	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@kolide.co", true)
+func testScheduledQuery(t *testing.T, ds fleet.Datastore) {
+	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "")
@@ -116,8 +116,8 @@ func testScheduledQuery(t *testing.T, ds kolide.Datastore) {
 	assert.False(t, *query.Denylist)
 }
 
-func testDeleteScheduledQuery(t *testing.T, ds kolide.Datastore) {
-	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@kolide.co", true)
+func testDeleteScheduledQuery(t *testing.T, ds fleet.Datastore) {
+	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "")
@@ -133,20 +133,20 @@ func testDeleteScheduledQuery(t *testing.T, ds kolide.Datastore) {
 	require.NotNil(t, err)
 }
 
-func testCascadingDeletionOfQueries(t *testing.T, ds kolide.Datastore) {
-	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
-	queries := []*kolide.Query{
+func testCascadingDeletionOfQueries(t *testing.T, ds fleet.Datastore) {
+	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
 	err := ds.ApplyQueries(zwass.ID, queries)
 	require.Nil(t, err)
 
-	specs := []*kolide.PackSpec{
+	specs := []*fleet.PackSpec{
 		{
 			Name:    "baz",
-			Targets: kolide.PackSpecTargets{Labels: []string{}},
-			Queries: []kolide.PackSpecQuery{
+			Targets: fleet.PackSpecTargets{Labels: []string{}},
+			Queries: []fleet.PackSpecQuery{
 				{
 					QueryName:   queries[0].Name,
 					Description: "test_foo",
@@ -170,14 +170,14 @@ func testCascadingDeletionOfQueries(t *testing.T, ds kolide.Datastore) {
 	err = ds.ApplyPackSpecs(specs)
 	require.Nil(t, err)
 
-	gotQueries, err := ds.ListScheduledQueriesInPack(1, kolide.ListOptions{})
+	gotQueries, err := ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 3)
 
 	err = ds.DeleteQuery(queries[1].Name)
 	require.Nil(t, err)
 
-	gotQueries, err = ds.ListScheduledQueriesInPack(1, kolide.ListOptions{})
+	gotQueries, err = ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 1)
 

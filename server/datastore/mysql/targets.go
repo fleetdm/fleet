@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) CountHostsInTargets(filter kolide.TeamFilter, targets kolide.HostTargets, now time.Time) (kolide.TargetMetrics, error) {
+func (d *Datastore) CountHostsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and GenerateHostStatusStatistics
 
 	if len(targets.HostIDs) == 0 && len(targets.LabelIDs) == 0 && len(targets.TeamIDs) == 0 {
 		// No need to query if no targets selected
-		return kolide.TargetMetrics{}, nil
+		return fleet.TargetMetrics{}, nil
 	}
 
 	sql := fmt.Sprintf(`
@@ -27,7 +27,7 @@ func (d *Datastore) CountHostsInTargets(filter kolide.TeamFilter, targets kolide
 			COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
 		WHERE (id IN (?) OR (id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))) OR team_id IN (?)) AND %s
-`, kolide.OnlineIntervalBuffer, kolide.OnlineIntervalBuffer, d.whereFilterHostsByTeams(filter, "h"))
+`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, d.whereFilterHostsByTeams(filter, "h"))
 
 	// Using -1 in the ID slices for the IN clause allows us to include the
 	// IN clause even if we have no IDs to use. -1 will not match the
@@ -48,19 +48,19 @@ func (d *Datastore) CountHostsInTargets(filter kolide.TeamFilter, targets kolide
 
 	query, args, err := sqlx.In(sql, now, now, now, now, now, queryHostIDs, queryLabelIDs, queryTeamIDs)
 	if err != nil {
-		return kolide.TargetMetrics{}, errors.Wrap(err, "sqlx.In CountHostsInTargets")
+		return fleet.TargetMetrics{}, errors.Wrap(err, "sqlx.In CountHostsInTargets")
 	}
 
-	res := kolide.TargetMetrics{}
+	res := fleet.TargetMetrics{}
 	err = d.db.Get(&res, query, args...)
 	if err != nil {
-		return kolide.TargetMetrics{}, errors.Wrap(err, "sqlx.Get CountHostsInTargets")
+		return fleet.TargetMetrics{}, errors.Wrap(err, "sqlx.Get CountHostsInTargets")
 	}
 
 	return res, nil
 }
 
-func (d *Datastore) HostIDsInTargets(filter kolide.TeamFilter, targets kolide.HostTargets) ([]uint, error) {
+func (d *Datastore) HostIDsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 	if len(targets.HostIDs) == 0 && len(targets.LabelIDs) == 0 && len(targets.TeamIDs) == 0 {
 		// No need to query if no targets selected
 		return []uint{}, nil

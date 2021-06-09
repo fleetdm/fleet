@@ -1,4 +1,5 @@
 # fleetctl CLI
+
 - [Setting Up Fleet via the CLI](#setting-up-fleet-via-the-cli)
   - [Running Fleet](#running-fleet)
   - [`fleetctl config`](#fleetctl-config)
@@ -42,7 +43,7 @@ make deps
 make generate
 make
 ./build/fleet prepare db
-./build/fleet serve --auth_jwt_key="insecure"
+./build/fleet serve
 ```
 
 The `fleet serve` command will be the long running command that runs the Fleet server.
@@ -150,8 +151,8 @@ spec:
   config:
     decorators:
       load:
-      - SELECT uuid AS host_uuid FROM system_info;
-      - SELECT hostname AS hostname FROM system_info;
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
     options:
       disable_distributed: false
       distributed_interval: 10
@@ -325,8 +326,8 @@ The `targets` field allows you to specify the `labels` field. With the `labels` 
 When managing multiple Fleet environments, you may want to move queries and/or packs from one "exporter" environment to a another "importer" environment.
 
 1. Navigate to `~/.fleet/config` to find the context names for your "exporter" and "importer" environment. For the purpose of these instructions we will use the context names `exporter` and `importer` respectively.
-2. Run the command `fleetctl get queries --yaml --context exporter > queries.yaml && fleetctl apply -f queries.yml --context importer`. This will import all the queries from your exporter Fleet instance into your importer Fleet instance. *Note, this will also write a list of all queries in yaml syntax to a file names `queries.yml`.*
-3. Run the command `fleetctl get packs --yaml --context exporter > packs.yaml && fleetctl apply -f packs.yml --context importer`. This will import all the packs from your exporter Fleet instance into your importer Fleet instance. *Note, this will also write a list of all packs in yaml syntax to a file names `packs.yml`.*
+2. Run the command `fleetctl get queries --yaml --context exporter > queries.yaml && fleetctl apply -f queries.yml --context importer`. This will import all the queries from your exporter Fleet instance into your importer Fleet instance. _Note, this will also write a list of all queries in yaml syntax to a file names `queries.yml`._
+3. Run the command `fleetctl get packs --yaml --context exporter > packs.yaml && fleetctl apply -f packs.yml --context importer`. This will import all the packs from your exporter Fleet instance into your importer Fleet instance. _Note, this will also write a list of all packs in yaml syntax to a file names `packs.yml`._
 
 ### Host labels
 
@@ -361,14 +362,13 @@ spec:
     - hostname3
 ```
 
-
 ### Osquery configuration options
 
 The following file describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.
 
 #### Overrides option
 
-The overrides option allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform. 
+The overrides option allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
 
 In the example file below, all Darwin and Ubuntu hosts will only receive the options specified in their respective overrides sections.
 
@@ -471,6 +471,7 @@ spec:
 ```
 
 ### Fleet configuration options
+
 The following file describes configuration options applied to the Fleet server.
 
 ```yaml
@@ -493,7 +494,7 @@ spec:
     org_logo_url: "https://example.org/logo.png"
     org_name: Example Org
   server_settings:
-    kolide_server_url: https://fleet.example.org:8080
+    server_url: https://fleet.example.org:8080
   smtp_settings:
     authentication_method: authmethod_plain
     authentication_type: authtype_username_password
@@ -516,6 +517,7 @@ spec:
     metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
     metadata_url: https://idp.example.org/idp-meta.xml
 ```
+
 #### SMTP authentication
 
 **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
@@ -541,15 +543,15 @@ apiVersion: v1
 kind: enroll_secret
 spec:
   secrets:
-  - active: true
-    name: default
-    secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
-  - active: true
-    name: new_one
-    secret: reallyworks
-  - active: false
-    name: inactive_secret
-    secret: thissecretwontwork!
+    - active: true
+      name: default
+      secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+    - active: true
+      name: new_one
+      secret: reallyworks
+    - active: false
+      name: inactive_secret
+      secret: thissecretwontwork!
 ```
 
 ## File carving with Fleet
@@ -596,6 +598,7 @@ fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve
 ```
 
 The standard osquery file globbing syntax is also supported to carve entire directories or more:
+
 ```
 fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
 ```
@@ -640,7 +643,7 @@ fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
 
 can be helpful to debug carving problems.
 
-#### Ensure  `carver_block_size` is set appropriately
+#### Ensure `carver_block_size` is set appropriately
 
 This value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
 

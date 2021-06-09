@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"html/template"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
 // InviteMailer is used to build an email template for the invite email.
 type InviteMailer struct {
-	*kolide.Invite
+	*fleet.Invite
 	BaseURL           template.URL
 	AssetURL          template.URL
 	InvitedByUsername string

@@ -8,7 +8,6 @@ import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import enrollSecretInterface from "interfaces/enroll_secret";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
-import KolideIcon from "components/icons/KolideIcon";
 import InputField from "components/forms/fields/InputField";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Slider from "components/forms/fields/Slider";
@@ -31,7 +30,7 @@ const formFields = [
   "domain",
   "enable_ssl_tls",
   "enable_start_tls",
-  "kolide_server_url",
+  "server_url",
   "org_logo_url",
   "org_name",
   "osquery_enroll_secret",
@@ -81,7 +80,7 @@ class AppConfigForm extends Component {
       domain: formFieldInterface.isRequired,
       enable_ssl_tls: formFieldInterface.isRequired,
       enable_start_tls: formFieldInterface.isRequired,
-      kolide_server_url: formFieldInterface.isRequired,
+      server_url: formFieldInterface.isRequired,
       org_logo_url: formFieldInterface.isRequired,
       org_name: formFieldInterface.isRequired,
       password: formFieldInterface.isRequired,
@@ -228,7 +227,7 @@ class AppConfigForm extends Component {
           </h2>
           <div className={`${baseClass}__inputs`}>
             <InputField
-              {...fields.kolide_server_url}
+              {...fields.server_url}
               label="Fleet App URL"
               hint={
                 <span>

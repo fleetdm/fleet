@@ -7,17 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testLabels(t *testing.T, db kolide.Datastore) {
+func testLabels(t *testing.T, db fleet.Datastore) {
 	test.AddAllHostsLabel(t, db)
-	hosts := []kolide.Host{}
-	var host *kolide.Host
+	hosts := []fleet.Host{}
+	var host *fleet.Host
 	var err error
 	for i := 0; i < 10; i++ {
 		host, err = db.EnrollHost(fmt.Sprint(i), fmt.Sprint(i), nil, 0)
@@ -39,23 +39,23 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Nil(t, err)
 	assert.Len(t, labels, 1)
 
-	newLabels := []*kolide.LabelSpec{
+	newLabels := []*fleet.LabelSpec{
 		// Note these are intentionally out of order
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			Name:     "label3",
 			Query:    "query3",
 			Platform: "darwin",
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			Name:  "label1",
 			Query: "query1",
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			Name:     "label2",
 			Query:    "query2",
 			Platform: "darwin",
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			Name:     "label4",
 			Query:    "query4",
 			Platform: "darwin",
@@ -101,8 +101,8 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 
 	// A new label targeting another platform should not effect the labels for
 	// this host
-	err = db.ApplyLabelSpecs([]*kolide.LabelSpec{
-		&kolide.LabelSpec{
+	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{
+		&fleet.LabelSpec{
 			Name:     "label5",
 			Platform: "not-matching",
 			Query:    "query5",
@@ -114,8 +114,8 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Len(t, queries, 0)
 
 	// If a new label is added, all labels should be returned
-	err = db.ApplyLabelSpecs([]*kolide.LabelSpec{
-		&kolide.LabelSpec{
+	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{
+		&fleet.LabelSpec{
 			Name:     "label6",
 			Platform: "",
 			Query:    "query6",
@@ -156,32 +156,32 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Len(t, labels, 1)
 }
 
-func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
-	pack := &kolide.PackSpec{
+func testManagingLabelsOnPacks(t *testing.T, ds fleet.Datastore) {
+	pack := &fleet.PackSpec{
 		ID:   1,
 		Name: "pack1",
 	}
-	err := ds.ApplyPackSpecs([]*kolide.PackSpec{pack})
+	err := ds.ApplyPackSpecs([]*fleet.PackSpec{pack})
 	require.Nil(t, err)
 
 	labels, err := ds.ListLabelsForPack(pack.ID)
 	require.Nil(t, err)
 	assert.Len(t, labels, 0)
 
-	mysqlLabel := &kolide.LabelSpec{
+	mysqlLabel := &fleet.LabelSpec{
 		ID:    1,
 		Name:  "MySQL Monitoring",
 		Query: "select pid from processes where name = 'mysqld';",
 	}
-	err = ds.ApplyLabelSpecs([]*kolide.LabelSpec{mysqlLabel})
+	err = ds.ApplyLabelSpecs([]*fleet.LabelSpec{mysqlLabel})
 	require.Nil(t, err)
 
-	pack.Targets = kolide.PackSpecTargets{
+	pack.Targets = fleet.PackSpecTargets{
 		Labels: []string{
 			mysqlLabel.Name,
 		},
 	}
-	err = ds.ApplyPackSpecs([]*kolide.PackSpec{pack})
+	err = ds.ApplyPackSpecs([]*fleet.PackSpec{pack})
 	require.Nil(t, err)
 
 	labels, err = ds.ListLabelsForPack(pack.ID)
@@ -190,21 +190,21 @@ func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
 		assert.Equal(t, "MySQL Monitoring", labels[0].Name)
 	}
 
-	osqueryLabel := &kolide.LabelSpec{
+	osqueryLabel := &fleet.LabelSpec{
 		ID:    2,
 		Name:  "Osquery Monitoring",
 		Query: "select pid from processes where name = 'osqueryd';",
 	}
-	err = ds.ApplyLabelSpecs([]*kolide.LabelSpec{mysqlLabel, osqueryLabel})
+	err = ds.ApplyLabelSpecs([]*fleet.LabelSpec{mysqlLabel, osqueryLabel})
 	require.Nil(t, err)
 
-	pack.Targets = kolide.PackSpecTargets{
+	pack.Targets = fleet.PackSpecTargets{
 		Labels: []string{
 			mysqlLabel.Name,
 			osqueryLabel.Name,
 		},
 	}
-	err = ds.ApplyPackSpecs([]*kolide.PackSpec{pack})
+	err = ds.ApplyPackSpecs([]*fleet.PackSpec{pack})
 	require.Nil(t, err)
 
 	labels, err = ds.ListLabelsForPack(pack.ID)
@@ -212,24 +212,24 @@ func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
 	assert.Len(t, labels, 2)
 }
 
-func testSearchLabels(t *testing.T, db kolide.Datastore) {
-	specs := []*kolide.LabelSpec{
-		&kolide.LabelSpec{
+func testSearchLabels(t *testing.T, db fleet.Datastore) {
+	specs := []*fleet.LabelSpec{
+		&fleet.LabelSpec{
 			ID:   1,
 			Name: "foo",
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			ID:   2,
 			Name: "bar",
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			ID:   3,
 			Name: "foo-bar",
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			ID:        4,
 			Name:      "All Hosts",
-			LabelType: kolide.LabelTypeBuiltIn,
+			LabelType: fleet.LabelTypeBuiltIn,
 		},
 	}
 	err := db.ApplyLabelSpecs(specs)
@@ -240,8 +240,8 @@ func testSearchLabels(t *testing.T, db kolide.Datastore) {
 	l3, err := db.Label(specs[2].ID)
 	require.Nil(t, err)
 
-	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
-	filter := kolide.TeamFilter{User: user}
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	filter := fleet.TeamFilter{User: user}
 
 	// We once threw errors when the search query was empty. Verify that we
 	// don't error.
@@ -265,36 +265,36 @@ func testSearchLabels(t *testing.T, db kolide.Datastore) {
 	assert.Contains(t, labels, all)
 }
 
-func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
+func testSearchLabelsLimit(t *testing.T, db fleet.Datastore) {
 	if db.Name() == "inmem" {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
 
-	all := &kolide.LabelSpec{
+	all := &fleet.LabelSpec{
 		Name:      "All Hosts",
-		LabelType: kolide.LabelTypeBuiltIn,
+		LabelType: fleet.LabelTypeBuiltIn,
 	}
-	err := db.ApplyLabelSpecs([]*kolide.LabelSpec{all})
+	err := db.ApplyLabelSpecs([]*fleet.LabelSpec{all})
 	require.Nil(t, err)
 
 	for i := 0; i < 15; i++ {
-		l := &kolide.LabelSpec{
+		l := &fleet.LabelSpec{
 			Name: fmt.Sprintf("foo%d", i),
 		}
-		err := db.ApplyLabelSpecs([]*kolide.LabelSpec{l})
+		err := db.ApplyLabelSpecs([]*fleet.LabelSpec{l})
 		require.Nil(t, err)
 	}
 
-	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
-	filter := kolide.TeamFilter{User: user}
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	filter := fleet.TeamFilter{User: user}
 
 	labels, err := db.SearchLabels(filter, "foo")
 	require.Nil(t, err)
 	assert.Len(t, labels, 11)
 }
 
-func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
-	h1, err := db.NewHost(&kolide.Host{
+func testListHostsInLabel(t *testing.T, db fleet.Datastore) {
+	h1, err := db.NewHost(&fleet.Host{
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
@@ -305,7 +305,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	h2, err := db.NewHost(&kolide.Host{
+	h2, err := db.NewHost(&fleet.Host{
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
@@ -316,7 +316,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	h3, err := db.NewHost(&kolide.Host{
+	h3, err := db.NewHost(&fleet.Host{
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
@@ -327,51 +327,52 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	l1 := &kolide.LabelSpec{
+	l1 := &fleet.LabelSpec{
 		ID:    1,
 		Name:  "label foo",
 		Query: "query1",
 	}
-	err = db.ApplyLabelSpecs([]*kolide.LabelSpec{l1})
+	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{l1})
 	require.Nil(t, err)
 
-	{
+	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-		hosts, err := db.ListHostsInLabel(l1.ID, kolide.HostListOptions{})
+	{
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, fleet.HostListOptions{})
 		require.Nil(t, err)
 		assert.Len(t, hosts, 0)
 	}
 
-	for _, h := range []*kolide.Host{h1, h2, h3} {
+	for _, h := range []*fleet.Host{h1, h2, h3} {
 		err = db.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
 		assert.Nil(t, err)
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(l1.ID, kolide.HostListOptions{})
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, fleet.HostListOptions{})
 		require.Nil(t, err)
 		assert.Len(t, hosts, 3)
 	}
 }
 
-func testBuiltInLabels(t *testing.T, db kolide.Datastore) {
+func testBuiltInLabels(t *testing.T, db fleet.Datastore) {
 	require.Nil(t, db.MigrateData())
 
-	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
-	filter := kolide.TeamFilter{User: user}
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	filter := fleet.TeamFilter{User: user}
 
 	hits, err := db.SearchLabels(filter, "macOS")
 	require.Nil(t, err)
 	// Should get Mac OS X and All Hosts
 	assert.Equal(t, 2, len(hits))
-	assert.Equal(t, kolide.LabelTypeBuiltIn, hits[0].LabelType)
-	assert.Equal(t, kolide.LabelTypeBuiltIn, hits[1].LabelType)
+	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[0].LabelType)
+	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[1].LabelType)
 }
 
-func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
-	hosts := []*kolide.Host{}
+func testListUniqueHostsInLabels(t *testing.T, db fleet.Datastore) {
+	hosts := []*fleet.Host{}
 	for i := 0; i < 4; i++ {
-		h, err := db.NewHost(&kolide.Host{
+		h, err := db.NewHost(&fleet.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
@@ -385,17 +386,17 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 		hosts = append(hosts, h)
 	}
 
-	l1 := kolide.LabelSpec{
+	l1 := fleet.LabelSpec{
 		ID:    1,
 		Name:  "label foo",
 		Query: "query1",
 	}
-	l2 := kolide.LabelSpec{
+	l2 := fleet.LabelSpec{
 		ID:    2,
 		Name:  "label bar",
 		Query: "query2",
 	}
-	err := db.ApplyLabelSpecs([]*kolide.LabelSpec{&l1, &l2})
+	err := db.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
 
 	for i := 0; i < 3; i++ {
@@ -408,33 +409,35 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 		assert.Nil(t, err)
 	}
 
-	uniqueHosts, err := db.ListUniqueHostsInLabels([]uint{l1.ID, l2.ID})
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	uniqueHosts, err := db.ListUniqueHostsInLabels(filter, []uint{l1.ID, l2.ID})
 	assert.Nil(t, err)
 	assert.Equal(t, len(hosts), len(uniqueHosts))
 
-	labels, err := db.ListLabels(kolide.ListOptions{})
+	labels, err := db.ListLabels(filter, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, labels, 2)
 
 }
 
-func testChangeLabelDetails(t *testing.T, db kolide.Datastore) {
+func testChangeLabelDetails(t *testing.T, db fleet.Datastore) {
 	if db.Name() == "inmem" {
 		t.Skip("inmem is being deprecated")
 	}
 
-	label := kolide.LabelSpec{
+	label := fleet.LabelSpec{
 		ID:          1,
 		Name:        "my label",
 		Description: "a label",
 		Query:       "select 1 from processes",
 		Platform:    "darwin",
 	}
-	err := db.ApplyLabelSpecs([]*kolide.LabelSpec{&label})
+	err := db.ApplyLabelSpecs([]*fleet.LabelSpec{&label})
 	require.Nil(t, err)
 
 	label.Description = "changed description"
-	err = db.ApplyLabelSpecs([]*kolide.LabelSpec{&label})
+	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{&label})
 	require.Nil(t, err)
 
 	saved, err := db.Label(label.ID)
@@ -442,9 +445,9 @@ func testChangeLabelDetails(t *testing.T, db kolide.Datastore) {
 	assert.Equal(t, label.Name, saved.Name)
 }
 
-func setupLabelSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.LabelSpec {
+func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	for i := 0; i < 10; i++ {
-		_, err := ds.NewHost(&kolide.Host{
+		_, err := ds.NewHost(&fleet.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
@@ -456,30 +459,30 @@ func setupLabelSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.LabelSpec 
 		require.Nil(t, err)
 	}
 
-	expectedSpecs := []*kolide.LabelSpec{
-		&kolide.LabelSpec{
+	expectedSpecs := []*fleet.LabelSpec{
+		&fleet.LabelSpec{
 			Name:        "foo",
 			Query:       "select * from foo",
 			Description: "foo description",
 			Platform:    "darwin",
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			Name:  "bar",
 			Query: "select * from bar",
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			Name:  "bing",
 			Query: "select * from bing",
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			Name:                "All Hosts",
 			Query:               "SELECT 1",
-			LabelType:           kolide.LabelTypeBuiltIn,
-			LabelMembershipType: kolide.LabelMembershipTypeManual,
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
 		},
-		&kolide.LabelSpec{
+		&fleet.LabelSpec{
 			Name:                "Manual Label",
-			LabelMembershipType: kolide.LabelMembershipTypeManual,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
 			Hosts: []string{
 				"1", "2", "3", "4",
 			},
@@ -491,7 +494,7 @@ func setupLabelSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.LabelSpec 
 	return expectedSpecs
 }
 
-func testGetLabelSpec(t *testing.T, ds kolide.Datastore) {
+func testGetLabelSpec(t *testing.T, ds fleet.Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 
 	for _, s := range expectedSpecs {
@@ -501,7 +504,7 @@ func testGetLabelSpec(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
-func testApplyLabelSpecsRoundtrip(t *testing.T, ds kolide.Datastore) {
+func testApplyLabelSpecsRoundtrip(t *testing.T, ds fleet.Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 
 	specs, err := ds.GetLabelSpecs()
@@ -516,7 +519,7 @@ func testApplyLabelSpecsRoundtrip(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, expectedSpecs, specs)
 }
 
-func testLabelIDsByName(t *testing.T, ds kolide.Datastore) {
+func testLabelIDsByName(t *testing.T, ds fleet.Datastore) {
 	setupLabelSpecsTest(t, ds)
 
 	labels, err := ds.LabelIDsByName([]string{"foo", "bar", "bing"})
@@ -525,8 +528,8 @@ func testLabelIDsByName(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, []uint{1, 2, 3}, labels)
 }
 
-func testSaveLabel(t *testing.T, db kolide.Datastore) {
-	label := &kolide.Label{
+func testSaveLabel(t *testing.T, db fleet.Datastore) {
+	label := &fleet.Label{
 		Name:        "my label",
 		Description: "a label",
 		Query:       "select 1 from processes;",

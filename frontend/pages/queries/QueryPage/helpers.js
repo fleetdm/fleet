@@ -2,6 +2,7 @@ import { push } from "react-router-redux";
 import PATHS from "router/paths";
 import { differenceWith, isEqual, uniqWith } from "lodash";
 
+import permissionUtils from "utilities/permissions";
 import hostActions from "redux/nodes/entities/hosts/actions";
 import { setSelectedTargets } from "redux/nodes/components/QueryPages/actions";
 
@@ -44,4 +45,18 @@ export const fetchHost = (dispatch, hostID) => {
   });
 };
 
-export default { selectHosts, fetchHost };
+export const showDropdown = (query, currentUser) => {
+  if (query.observer_can_run) {
+    return true;
+  }
+  return !permissionUtils.isOnlyObserver(currentUser);
+};
+
+export const hasSavePermissions = (currentUser) => {
+  return (
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser)
+  );
+};
+
+export default { selectHosts, fetchHost, showDropdown, hasSavePermissions };

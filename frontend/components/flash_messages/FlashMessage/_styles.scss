@@ -25,13 +25,13 @@
   }
 
   &--success {
-    .kolidecon {
+    .fleeticon {
       color: $ui-success;
     }
   }
 
   &--error {
-    .kolidecon {
+    .fleeticon {
       color: $ui-error;
     }
   }
@@ -43,10 +43,11 @@
     span {
       margin-left: 15px;
       margin-right: 15px;
+      font-size: $small;
     }
 
-    .kolidecon {
-      font-size: $large;
+    .fleeticon {
+      font-size: $small;
     }
   }
 
@@ -63,15 +64,33 @@
     cursor: pointer;
     text-align: center;
     margin-left: 15px;
+    height: 37px;
 
-    .kolidecon {
+    .fleeticon {
       transition: color 150ms ease-in-out;
       color: $core-fleet-blue;
-      font-size: $large;
+      font-size: $small;
 
       &:hover {
         color: $core-white;
       }
+    }
+  }
+
+  &__ex {
+    text-decoration: none;
+
+    .button::after {
+      content: url("../assets/images/icon-close-white-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
+      z-index: 4;
+    }
+
+    .button:hover::after {
+      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
     }
   }
 }

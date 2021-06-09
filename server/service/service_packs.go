@@ -3,31 +3,55 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*kolide.PackSpec) error {
+func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.ApplyPackSpecs(specs)
 }
 
-func (svc *Service) GetPackSpecs(ctx context.Context) ([]*kolide.PackSpec, error) {
+func (svc *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.GetPackSpecs()
 }
 
-func (svc *Service) GetPackSpec(ctx context.Context, name string) (*kolide.PackSpec, error) {
+func (svc *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.GetPackSpec(name)
 }
 
-func (svc *Service) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {
+func (svc *Service) ListPacks(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListPacks(opt)
 }
 
-func (svc *Service) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) {
+func (svc *Service) GetPack(ctx context.Context, id uint) (*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.Pack(id)
 }
 
-func (svc *Service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.Pack, error) {
-	var pack kolide.Pack
+func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	var pack fleet.Pack
 
 	if p.Name != nil {
 		pack.Name = *p.Name
@@ -71,7 +95,11 @@ func (svc *Service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.
 	return &pack, nil
 }
 
-func (svc *Service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload) (*kolide.Pack, error) {
+func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload) (*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	pack, err := svc.ds.Pack(id)
 	if err != nil {
 		return nil, err
@@ -104,7 +132,7 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayloa
 	if p.HostIDs != nil {
 
 		// first, let's retrieve the total set of hosts
-		hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
+		hosts, err := svc.ListHostsInPack(ctx, pack.ID, fleet.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -198,10 +226,18 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayloa
 }
 
 func (svc *Service) DeletePack(ctx context.Context, name string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DeletePack(name)
 }
 
 func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	pack, err := svc.ds.Pack(id)
 	if err != nil {
 		return err
@@ -210,33 +246,65 @@ func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 }
 
 func (svc *Service) AddLabelToPack(ctx context.Context, lid, pid uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.AddLabelToPack(lid, pid)
 }
 
 func (svc *Service) RemoveLabelFromPack(ctx context.Context, lid, pid uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.RemoveLabelFromPack(lid, pid)
 }
 
 func (svc *Service) AddHostToPack(ctx context.Context, hid, pid uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.AddHostToPack(hid, pid)
 }
 
 func (svc *Service) RemoveHostFromPack(ctx context.Context, hid, pid uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.RemoveHostFromPack(hid, pid)
 }
 
-func (svc *Service) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {
+func (svc *Service) ListLabelsForPack(ctx context.Context, pid uint) ([]*fleet.Label, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListLabelsForPack(pid)
 }
 
-func (svc *Service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
+func (svc *Service) ListHostsInPack(ctx context.Context, pid uint, opt fleet.ListOptions) ([]uint, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListHostsInPack(pid, opt)
 }
 
-func (svc *Service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
+func (svc *Service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt fleet.ListOptions) ([]uint, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListExplicitHostsInPack(pid, opt)
 }
 
-func (svc *Service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pack, error) {
+func (svc *Service) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListPacksForHost(hid)
 }

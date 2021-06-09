@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -22,7 +22,7 @@ func truncateString(str string, length int) string {
 	return str
 }
 
-func (d *Datastore) SaveHostSoftware(host *kolide.Host) error {
+func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 	if !host.HostSoftware.Modified {
 		return nil
 	}
@@ -76,8 +76,8 @@ func (d *Datastore) SaveHostSoftware(host *kolide.Host) error {
 	return nil
 }
 
-func (d *Datastore) LoadHostSoftware(host *kolide.Host) error {
-	host.HostSoftware = kolide.HostSoftware{Modified: false}
+func (d *Datastore) LoadHostSoftware(host *fleet.Host) error {
+	host.HostSoftware = fleet.HostSoftware{Modified: false}
 	sql := `
 		SELECT * FROM software
 		WHERE id IN

@@ -6,7 +6,7 @@
     margin-bottom: $pad-medium;
   }
 
-  .ace-kolide {
+  .ace-fleet {
     margin-bottom: $pad-medium;
   }
 
@@ -22,20 +22,20 @@
   &__title {
     font-size: $large;
 
-    .kolidecon {
+    .fleeticon {
       color: $core-fleet-blue;
       margin-right: 15px;
     }
 
-    .kolidecon-success-check {
+    .fleeticon-success-check {
       color: $ui-success;
     }
 
-    .kolidecon-offline {
+    .fleeticon-offline {
       color: $ui-error;
     }
 
-    .kolidecon-mia {
+    .fleeticon-mia {
       color: $core-fleet-black;
     }
   }
@@ -67,7 +67,7 @@
   }
 
   &__toggle-view {
-    .kolidecon {
+    .fleeticon {
       width: 24px;
       height: 24px;
       margin-left: 12px;
@@ -75,7 +75,7 @@
     }
 
     &--active {
-      .kolidecon {
+      .fleeticon {
         fill: $core-fleet-purple;
       }
     }

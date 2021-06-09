@@ -1,7 +1,7 @@
 import React from "react";
 import classnames from "classnames";
 
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import targetInterface from "interfaces/target";
 
 const baseClass = "target-option";
@@ -24,7 +24,7 @@ const TargetIcon = ({ target }) => {
     `${baseClass}__icon--${status}`
   );
 
-  return <KolideIcon name={iconName()} className={targetClasses} />;
+  return <FleetIcon name={iconName()} className={targetClasses} />;
 };
 
 TargetIcon.propTypes = { target: targetInterface.isRequired };

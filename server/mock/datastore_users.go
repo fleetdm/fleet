@@ -2,21 +2,21 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/fleet"
 
-var _ kolide.UserStore = (*UserStore)(nil)
+var _ fleet.UserStore = (*UserStore)(nil)
 
-type NewUserFunc func(user *kolide.User) (*kolide.User, error)
+type NewUserFunc func(user *fleet.User) (*fleet.User, error)
 
-type UserFunc func(username string) (*kolide.User, error)
+type UserFunc func(username string) (*fleet.User, error)
 
-type ListUsersFunc func(opt kolide.UserListOptions) ([]*kolide.User, error)
+type ListUsersFunc func(opt fleet.UserListOptions) ([]*fleet.User, error)
 
-type UserByEmailFunc func(email string) (*kolide.User, error)
+type UserByEmailFunc func(email string) (*fleet.User, error)
 
-type UserByIDFunc func(id uint) (*kolide.User, error)
+type UserByIDFunc func(id uint) (*fleet.User, error)
 
-type SaveUserFunc func(user *kolide.User) error
+type SaveUserFunc func(user *fleet.User) error
 
 type DeleteUserFunc func(id uint) error
 
@@ -53,32 +53,32 @@ type UserStore struct {
 	ConfirmPendingEmailChangeFuncInvoked bool
 }
 
-func (s *UserStore) NewUser(user *kolide.User) (*kolide.User, error) {
+func (s *UserStore) NewUser(user *fleet.User) (*fleet.User, error) {
 	s.NewUserFuncInvoked = true
 	return s.NewUserFunc(user)
 }
 
-func (s *UserStore) User(username string) (*kolide.User, error) {
+func (s *UserStore) User(username string) (*fleet.User, error) {
 	s.UserFuncInvoked = true
 	return s.UserFunc(username)
 }
 
-func (s *UserStore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error) {
+func (s *UserStore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {
 	s.ListUsersFuncInvoked = true
 	return s.ListUsersFunc(opt)
 }
 
-func (s *UserStore) UserByEmail(email string) (*kolide.User, error) {
+func (s *UserStore) UserByEmail(email string) (*fleet.User, error) {
 	s.UserByEmailFuncInvoked = true
 	return s.UserByEmailFunc(email)
 }
 
-func (s *UserStore) UserByID(id uint) (*kolide.User, error) {
+func (s *UserStore) UserByID(id uint) (*fleet.User, error) {
 	s.UserByIDFuncInvoked = true
 	return s.UserByIDFunc(id)
 }
 
-func (s *UserStore) SaveUser(user *kolide.User) error {
+func (s *UserStore) SaveUser(user *fleet.User) error {
 	s.SaveUserFuncInvoked = true
 	return s.SaveUserFunc(user)
 }

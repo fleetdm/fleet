@@ -1,29 +1,13 @@
 .all-packs-page {
-  &__bulk-action-btn {
-    color: $core-fleet-purple;
-    font-size: 15px;
-    font-weight: $regular;
-    margin-left: $pad-large;
+  font-size: $x-small;
 
-    &--disable {
-      margin-left: 0;
+  &__bulk-action-container {
+    display: flex;
+    align-items: center;
+  }
 
-      i {
-        color: $ui-error;
-      }
-    }
-
-    &--enable {
-      i {
-        color: $ui-success;
-      }
-    }
-
-    &--delete {
-      i {
-        color: $core-fleet-blue;
-      }
-    }
+  &__selected-count {
+    padding: 0 $pad-medium;
   }
 
   &__header-wrap {
@@ -35,8 +19,8 @@
   &__pack-count {
     color: $core-fleet-black;
     font-size: $x-small;
-    font-weight: $bold;
     margin: 0;
+    padding: $pad-xlarge 0 0 0;
   }
 
   &__search-create-section {
@@ -50,17 +34,19 @@
       }
     }
 
-    .kolidecon {
+    &::before {
+      display: inline-block;
       position: absolute;
-      top: 36px;
-      left: 9px;
-      font-size: 18px;
-      color: $ui-gray;
+      padding: 5px 0 0 0;
+      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
+      transform: scale(0.5);
+      top: 22px;
+      left: 8px;
     }
   }
 
   &__title {
-    margin: 0 0 15px;
+    margin: 0 0 $pad-medium;
   }
 
   &__wrapper {

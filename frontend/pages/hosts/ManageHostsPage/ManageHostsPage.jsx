@@ -164,9 +164,7 @@ export class ManageHostsPage extends PureComponent {
 
   onChangeTeam = (team) => {
     const { dispatch } = this.props;
-    if (team !== null) {
-      dispatch(teamActions.getEnrollSecrets(team.id)); // TODO: ensure works when API is implemented
-    }
+    dispatch(teamActions.getEnrollSecrets(team));
   };
 
   // NOTE: this is called once on the initial rendering. The initial render of
@@ -431,7 +429,7 @@ export class ManageHostsPage extends PureComponent {
     return (
       <AceEditor
         editorProps={{ $blockScrolling: Infinity }}
-        mode="kolide"
+        mode="fleet"
         minLines={1}
         maxLines={20}
         name="label-header"
@@ -439,7 +437,7 @@ export class ManageHostsPage extends PureComponent {
         setOptions={{ wrap: true }}
         showGutter={false}
         showPrintMargin={false}
-        theme="kolide"
+        theme="fleet"
         value={query}
         width="100%"
         fontSize={14}
@@ -681,7 +679,8 @@ const mapStateToProps = (state, { location, params }) => {
   const currentUser = state.auth.user;
   const canAddNewHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
-    permissionUtils.isGlobalMaintainer(currentUser);
+    permissionUtils.isGlobalMaintainer(currentUser) ||
+    permissionUtils.isAnyTeamMaintainer(currentUser);
   const canAddNewLabels =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);

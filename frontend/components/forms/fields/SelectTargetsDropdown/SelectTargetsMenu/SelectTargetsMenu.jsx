@@ -99,12 +99,31 @@ const SelectTargetsMenuWrapper = (
       return targetsOutput;
     };
 
+    const hasHostTargets = () => {
+      return options.find((option) => option.count !== 0) !== undefined;
+    };
+
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__options`}>
-          {renderTargets("all")}
-          {renderTargets("labels")}
-          {renderTargets("hosts")}
+          {hasHostTargets ? (
+            <>
+              {renderTargets("all")}
+              {renderTargets("teams")}
+              {renderTargets("labels")}
+              {renderTargets("hosts")}
+            </>
+          ) : (
+            <>
+              <div className={`${baseClass}__no-hosts`}>
+                <div className={`${baseClass}__no-hosts-heading`}>
+                  You have no hosts to run this query against.
+                </div>
+                Expecting to see hosts? Try again in a few seconds as the system
+                catches up.
+              </div>
+            </>
+          )}
         </div>
         <TargetDetails
           target={moreInfoTarget}

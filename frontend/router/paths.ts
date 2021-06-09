@@ -19,6 +19,7 @@ export default {
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   HOME: `${URL_PREFIX}/`,
+  FLEET_403: `${URL_PREFIX}/403`,
   FLEET_500: `${URL_PREFIX}/500`,
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,

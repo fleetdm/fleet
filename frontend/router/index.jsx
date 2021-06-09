@@ -17,6 +17,9 @@ import AllPacksPage from "pages/packs/AllPacksPage";
 import App from "components/App";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
+import AuthGlobalAdminMaintainerRoutes from "components/AuthGlobalAdminMaintainerRoutes";
+import AuthAnyMaintainerGlobalAdminRoutes from "components/AuthAnyMaintainerGlobalAdminRoutes";
+import BasicTierRoutes from "components/BasicTierRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
@@ -32,6 +35,7 @@ import PackComposerPage from "pages/packs/PackComposerPage";
 import QueryPage from "pages/queries/QueryPage";
 import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
+import Fleet403 from "pages/Fleet403";
 import Fleet404 from "pages/Fleet404";
 import Fleet500 from "pages/Fleet500";
 import UserSettingsPage from "pages/UserSettingsPage";
@@ -66,7 +70,9 @@ const routes = (
               <Route component={SettingsWrapper}>
                 <Route path="organization" component={AdminAppSettingsPage} />
                 <Route path="users" component={AdminUserManagementPage} />
-                <Route path="teams" component={AdminTeamManagementPage} />
+                <Route component={BasicTierRoutes}>
+                  <Route path="teams" component={AdminTeamManagementPage} />
+                </Route>
               </Route>
               <Route path="teams/:team_id" component={TeamDetailsWrapper}>
                 <Route path="members" component={MembersPage} />
@@ -82,17 +88,21 @@ const routes = (
               <Route path="manage/:active_label" component={ManageHostsPage} />
               <Route path=":host_id" component={HostDetailsPage} />
             </Route>
-            <Route path="packs" component={PackPageWrapper}>
-              <Route path="manage" component={AllPacksPage} />
-              <Route path="new" component={PackComposerPage} />
-              <Route path=":id">
-                <IndexRoute component={EditPackPage} />
-                <Route path="edit" component={EditPackPage} />
+            <Route component={AuthGlobalAdminMaintainerRoutes}>
+              <Route path="packs" component={PackPageWrapper}>
+                <Route path="manage" component={AllPacksPage} />
+                <Route path="new" component={PackComposerPage} />
+                <Route path=":id">
+                  <IndexRoute component={EditPackPage} />
+                  <Route path="edit" component={EditPackPage} />
+                </Route>
               </Route>
             </Route>
             <Route path="queries" component={QueryPageWrapper}>
               <Route path="manage" component={ManageQueriesPage} />
-              <Route path="new" component={QueryPage} />
+              <Route component={AuthAnyMaintainerGlobalAdminRoutes}>
+                <Route path="new" component={QueryPage} />
+              </Route>
               <Route path=":id" component={QueryPage} />
             </Route>
             <Route path="profile" component={UserSettingsPage} />
@@ -101,6 +111,7 @@ const routes = (
       </Route>
       <Route path="/500" component={Fleet500} />
       <Route path="/404" component={Fleet404} />
+      <Route path="/403" component={Fleet403} />
       <Route path="*" component={Fleet404} />
     </Router>
   </Provider>

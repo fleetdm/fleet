@@ -5,7 +5,7 @@ package viewer
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
 type key int
@@ -26,8 +26,8 @@ func FromContext(ctx context.Context) (Viewer, bool) {
 // Viewer holds information about the current
 // user and the user's session
 type Viewer struct {
-	User    *kolide.User
-	Session *kolide.Session
+	User    *fleet.User
+	Session *fleet.Session
 }
 
 // UserID is a helper that enables quick access to the user ID of the current

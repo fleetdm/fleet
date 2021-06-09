@@ -8,7 +8,7 @@ import (
 	gqconfig "github.com/AbGuthrie/goquery/v2/config"
 	gqhosts "github.com/AbGuthrie/goquery/v2/hosts"
 	gqmodels "github.com/AbGuthrie/goquery/v2/models"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -44,7 +44,7 @@ func (c *goqueryClient) CheckHost(query string) (gqhosts.Host, error) {
 		return gqhosts.Host{}, err
 	}
 
-	var host *kolide.Host
+	var host *fleet.Host
 	for _, h := range res.Hosts {
 		// We allow hosts to be looked up by hostname in addition to UUID
 		if query == h.UUID || query == h.HostName || query == h.ComputerName {

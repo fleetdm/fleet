@@ -1,4 +1,5 @@
 # Contribution FAQ
+
 - [Make errors](#make-errors)
   - [`dep: command not found`](#dep-command-not-found)
   - [`undefined: Asset`](#undefined-asset)
@@ -20,7 +21,7 @@ See the Go language documentation for [workspaces](https://golang.org/doc/code.h
 ### `undefined: Asset`
 
 ```
-server/kolide/emails.go:90:23: undefined: Asset
+server/fleet/emails.go:90:23: undefined: Asset
 make: *** [fleet] Error 2
 ```
 
@@ -34,7 +35,7 @@ Visit [locahost:8025](http://localhost:8025) to view Mailhog's admin interface w
 
 ## Adding hosts for testing
 
-The `osquery` directory contains a docker-compose.yml and additional configuration files to start containerized osquery agents. 
+The `osquery` directory contains a docker-compose.yml and additional configuration files to start containerized osquery agents.
 
 To start osquery, first retrieve the "Enroll Secret" from Fleet (by clicking the "Add New Host") button in the Fleet dashboard, or with `fleetctl get enroll-secret`).
 

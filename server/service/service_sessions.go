@@ -9,19 +9,22 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/sso"
 	"github.com/pkg/errors"
 )
 
-func (svc Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error) {
+func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SSOSettings, error) {
+	// skipauth: Basic SSO settings are available to unauthenticated users (so
+	// that they have the necessary information to initiate SSO).
+	svc.authz.SkipAuthorization(ctx)
+
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "SSOSettings getting app config")
 	}
-	settings := &kolide.SSOSettings{
+	settings := &fleet.SSOSettings{
 		IDPName:     appConfig.IDPName,
 		IDPImageURL: appConfig.IDPImageURL,
 		SSOEnabled:  appConfig.EnableSSO,
@@ -30,6 +33,10 @@ func (svc Service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error)
 }
 
 func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// initiate SSO.
+	svc.authz.SkipAuthorization(ctx)
+
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return "", errors.Wrap(err, "InitiateSSO getting app config")
@@ -43,7 +50,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	settings := sso.Settings{
 		Metadata: metadata,
 		// Construct call back url to send to idp
-		AssertionConsumerServiceURL: appConfig.KolideServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
+		AssertionConsumerServiceURL: appConfig.ServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 redirectURL,
 	}
@@ -51,9 +58,9 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	// If issuer is not explicitly set, default to host name.
 	var issuer string
 	if appConfig.EntityID == "" {
-		u, err := url.Parse(appConfig.KolideServerURL)
+		u, err := url.Parse(appConfig.ServerURL)
 		if err != nil {
-			return "", errors.Wrap(err, "parsing kolide server url")
+			return "", errors.Wrap(err, "parse server url")
 		}
 		issuer = u.Hostname()
 	} else {
@@ -67,7 +74,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	return idpURL, nil
 }
 
-func (svc *Service) getMetadata(config *kolide.AppConfig) (*sso.Metadata, error) {
+func (svc *Service) getMetadata(config *fleet.AppConfig) (*sso.Metadata, error) {
 	if config.MetadataURL != "" {
 		metadata, err := sso.GetMetadata(config.MetadataURL)
 		if err != nil {
@@ -85,7 +92,11 @@ func (svc *Service) getMetadata(config *kolide.AppConfig) (*sso.Metadata, error)
 	return nil, errors.Errorf("missing metadata for idp %s", config.IDPName)
 }
 
-func (svc *Service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.SSOSession, error) {
+func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SSOSession, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// hit the SSO callback.
+	svc.authz.SkipAuthorization(ctx)
+
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "get config for sso")
@@ -149,14 +160,17 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.
 	if err != nil {
 		return nil, errors.Wrap(err, "make session in sso callback")
 	}
-	result := &kolide.SSOSession{
+	result := &fleet.SSOSession{
 		Token:       token,
 		RedirectURL: redirectURL,
 	}
 	return result, nil
 }
 
-func (svc *Service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {
+func (svc *Service) Login(ctx context.Context, username, password string) (*fleet.User, string, error) {
+	// skipauth: No user context available yet to authorize against.
+	svc.authz.SkipAuthorization(ctx)
+
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
 	// take ~1s and frustrate a timing attack.
@@ -168,30 +182,30 @@ func (svc *Service) Login(ctx context.Context, username, password string) (*koli
 	}(time.Now())
 
 	user, err := svc.userByEmailOrUsername(username)
-	if _, ok := err.(kolide.NotFoundError); ok {
-		return nil, "", kolide.NewAuthFailedError("user not found")
+	if _, ok := err.(fleet.NotFoundError); ok {
+		return nil, "", fleet.NewAuthFailedError("user not found")
 	}
 	if err != nil {
-		return nil, "", kolide.NewAuthFailedError(err.Error())
+		return nil, "", fleet.NewAuthFailedError(err.Error())
 	}
 
 	if err = user.ValidatePassword(password); err != nil {
-		return nil, "", kolide.NewAuthFailedError("invalid password")
+		return nil, "", fleet.NewAuthFailedError("invalid password")
 	}
 
 	if user.SSOEnabled {
-		return nil, "", kolide.NewAuthFailedError("password login disabled for sso users")
+		return nil, "", fleet.NewAuthFailedError("password login disabled for sso users")
 	}
 
 	token, err := svc.makeSession(user.ID)
 	if err != nil {
-		return nil, "", kolide.NewAuthFailedError(err.Error())
+		return nil, "", fleet.NewAuthFailedError(err.Error())
 	}
 
 	return user, token, nil
 }
 
-func (svc *Service) userByEmailOrUsername(username string) (*kolide.User, error) {
+func (svc *Service) userByEmailOrUsername(username string) (*fleet.User, error) {
 	if strings.Contains(username, "@") {
 		return svc.ds.UserByEmail(username)
 	}
@@ -207,9 +221,10 @@ func (svc *Service) makeSession(id uint) (string, error) {
 		return "", err
 	}
 
-	session := &kolide.Session{
+	sessionKey := base64.StdEncoding.EncodeToString(key)
+	session := &fleet.Session{
 		UserID:     id,
-		Key:        base64.StdEncoding.EncodeToString(key),
+		Key:        sessionKey,
 		AccessedAt: time.Now().UTC(),
 	}
 
@@ -218,23 +233,21 @@ func (svc *Service) makeSession(id uint) (string, error) {
 		return "", errors.Wrap(err, "creating new session")
 	}
 
-	tokenString, err := generateJWT(session.Key, svc.config.Auth.JwtKey)
-	if err != nil {
-		return "", errors.Wrap(err, "generating JWT token")
-	}
-
-	return tokenString, nil
+	return sessionKey, nil
 }
 
 func (svc *Service) Logout(ctx context.Context) error {
-	// this should not return an error if the user wasn't logged in
+	// skipauth: Any user can always log out of their own session.
+	svc.authz.SkipAuthorization(ctx)
+
+	// TODO: this should not return an error if the user wasn't logged in
 	return svc.DestroySession(ctx)
 }
 
 func (svc *Service) DestroySession(ctx context.Context) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return kolide.ErrNoContext
+		return fleet.ErrNoContext
 	}
 
 	session, err := svc.ds.SessionByID(vc.SessionID())
@@ -242,11 +255,19 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 		return err
 	}
 
+	if err := svc.authz.Authorize(ctx, session, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DestroySession(session)
 }
 
-func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {
-	var validatedSessions []*kolide.Session
+func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	var validatedSessions []*fleet.Session
 
 	sessions, err := svc.ds.ListSessionsForUser(id)
 	if err != nil {
@@ -263,12 +284,20 @@ func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([
 }
 
 func (svc *Service) DeleteSessionsForUser(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DestroyAllSessionsForUser(id)
 }
 
-func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Session, error) {
+func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Session, error) {
 	session, err := svc.ds.SessionByID(id)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -280,7 +309,7 @@ func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.S
 	return session, nil
 }
 
-func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
+func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
 	session, err := svc.ds.SessionByKey(key)
 	if err != nil {
 		return nil, err
@@ -299,12 +328,17 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 	if err != nil {
 		return err
 	}
+
+	if err := svc.authz.Authorize(ctx, session, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DestroySession(session)
 }
 
-func (svc *Service) validateSession(session *kolide.Session) error {
+func (svc *Service) validateSession(session *fleet.Session) error {
 	if session == nil {
-		return kolide.NewAuthRequiredError("active session not present")
+		return fleet.NewAuthRequiredError("active session not present")
 	}
 
 	sessionDuration := svc.config.Session.Duration
@@ -314,17 +348,8 @@ func (svc *Service) validateSession(session *kolide.Session) error {
 		if err != nil {
 			return errors.Wrap(err, "destroying session")
 		}
-		return kolide.NewAuthRequiredError("expired session")
+		return fleet.NewAuthRequiredError("expired session")
 	}
 
 	return svc.ds.MarkSessionAccessed(session)
-}
-
-// Given a session key create a JWT to be delivered to the client
-func generateJWT(sessionKey, jwtKey string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"session_key": sessionKey,
-	})
-
-	return token.SignedString([]byte(jwtKey))
 }

@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/contexts/token"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,14 +16,13 @@ import (
 func TestAuthenticate(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
-	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
 
 	var loginTests = []struct {
 		username string
 		password string
-		user     kolide.User
+		user     fleet.User
 		wantErr  error
 	}{
 		{
@@ -41,13 +40,12 @@ func TestAuthenticate(t *testing.T) {
 	for _, tt := range loginTests {
 		t.Run(tt.username, func(st *testing.T) {
 			user := tt.user
-			ctx := context.Background()
-			loggedIn, token, err := svc.Login(ctx, tt.username, tt.password)
+			loggedIn, token, err := svc.Login(test.UserContext(test.UserAdmin), tt.username, tt.password)
 			require.Nil(st, err, "login unsuccessful")
 			assert.Equal(st, user.ID, loggedIn.ID)
 			assert.NotEmpty(st, token)
 
-			sessions, err := svc.GetInfoAboutSessionsForUser(ctx, user.ID)
+			sessions, err := svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), user.ID)
 			require.Nil(st, err)
 			require.Len(st, sessions, 1, "user should have one session")
 			session := sessions[0]
@@ -58,30 +56,14 @@ func TestAuthenticate(t *testing.T) {
 	}
 }
 
-func TestGenerateJWT(t *testing.T) {
-	jwtKey := ""
-	tokenString, err := generateJWT("4", jwtKey)
-	require.Nil(t, err)
-
-	svc := authViewerService{}
-	viewer, err := authViewer(
-		context.Background(),
-		jwtKey,
-		token.Token(tokenString),
-		svc,
-	)
-	require.Nil(t, err)
-	require.NotNil(t, viewer)
-}
-
 type authViewerService struct {
-	kolide.Service
+	fleet.Service
 }
 
-func (authViewerService) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
-	return &kolide.Session{}, nil
+func (authViewerService) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
+	return &fleet.Session{}, nil
 }
 
-func (authViewerService) User(ctx context.Context, uid uint) (*kolide.User, error) {
-	return &kolide.User{}, nil
+func (authViewerService) UserUnauthorized(ctx context.Context, uid uint) (*fleet.User, error) {
+	return &fleet.User{}, nil
 }

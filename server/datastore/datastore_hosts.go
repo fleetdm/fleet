@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
@@ -21,17 +21,17 @@ var enrollTests = []struct {
 	uuid, hostname, platform, nodeKey string
 }{
 	0: {uuid: "6D14C88F-8ECF-48D5-9197-777647BF6B26",
-		hostname: "web.kolide.co",
+		hostname: "web.fleet.co",
 		platform: "linux",
 		nodeKey:  "key0",
 	},
 	1: {uuid: "B998C0EB-38CE-43B1-A743-FBD7A5C9513B",
-		hostname: "mail.kolide.co",
+		hostname: "mail.fleet.co",
 		platform: "linux",
 		nodeKey:  "key1",
 	},
 	2: {uuid: "008F0688-5311-4C59-86EE-00C2D6FC3EC2",
-		hostname: "home.kolide.co",
+		hostname: "home.fleet.co",
 		platform: "darwin",
 		nodeKey:  "key2",
 	},
@@ -42,8 +42,8 @@ var enrollTests = []struct {
 	},
 }
 
-func testSaveHosts(t *testing.T, ds kolide.Datastore) {
-	host, err := ds.NewHost(&kolide.Host{
+func testSaveHosts(t *testing.T, ds fleet.Datastore) {
+	host, err := ds.NewHost(&fleet.Host{
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
@@ -93,8 +93,8 @@ func testSaveHosts(t *testing.T, ds kolide.Datastore) {
 	assert.Nil(t, host)
 }
 
-func testSaveHostPackStats(t *testing.T, ds kolide.Datastore) {
-	host, err := ds.NewHost(&kolide.Host{
+func testSaveHostPackStats(t *testing.T, ds fleet.Datastore) {
+	host, err := ds.NewHost(&fleet.Host{
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
@@ -111,7 +111,7 @@ func testSaveHostPackStats(t *testing.T, ds kolide.Datastore) {
 	pack1 := test.NewPack(t, ds, "test1")
 	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
 	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
-	stats1 := []kolide.ScheduledQueryStats{
+	stats1 := []fleet.ScheduledQueryStats{
 		{
 			ScheduledQueryName: squery1.Name,
 			ScheduledQueryID:   squery1.ID,
@@ -134,7 +134,7 @@ func testSaveHostPackStats(t *testing.T, ds kolide.Datastore) {
 	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query1.ID, 30, true, true, "time-scheduled")
 	query2 := test.NewQuery(t, ds, "processes", "select * from processes", 0, true)
 	squery3 := test.NewScheduledQuery(t, ds, pack2.ID, query2.ID, 30, true, true, "processes")
-	stats2 := []kolide.ScheduledQueryStats{
+	stats2 := []fleet.ScheduledQueryStats{
 		{
 			ScheduledQueryName: squery2.Name,
 			ScheduledQueryID:   squery2.ID,
@@ -169,13 +169,13 @@ func testSaveHostPackStats(t *testing.T, ds kolide.Datastore) {
 		},
 	}
 
-	host.PackStats = []kolide.PackStats{
+	host.PackStats = []fleet.PackStats{
 		{
 			PackName: "test1",
 			// Append an additional entry to be sure that receiving stats for a
 			// now-deleted query doesn't break saving. This extra entry should
 			// not be returned on loading the host.
-			QueryStats: append(stats1, kolide.ScheduledQueryStats{PackName: "foo", ScheduledQueryName: "bar"}),
+			QueryStats: append(stats1, fleet.ScheduledQueryStats{PackName: "foo", ScheduledQueryName: "bar"}),
 		},
 		{
 			PackName:   "test2",
@@ -205,15 +205,15 @@ func testSaveHostPackStats(t *testing.T, ds kolide.Datastore) {
 	require.Len(t, host.PackStats, 2)
 
 	// Set to empty should make it empty
-	host.PackStats = []kolide.PackStats{}
+	host.PackStats = []fleet.PackStats{}
 	require.NoError(t, ds.SaveHost(host))
 	host, err = ds.Host(host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.PackStats, 0)
 }
 
-func testDeleteHost(t *testing.T, ds kolide.Datastore) {
-	host, err := ds.NewHost(&kolide.Host{
+func testDeleteHost(t *testing.T, ds fleet.Datastore) {
+	host, err := ds.NewHost(&fleet.Host{
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
@@ -231,10 +231,10 @@ func testDeleteHost(t *testing.T, ds kolide.Datastore) {
 	assert.NotNil(t, err)
 }
 
-func testListHosts(t *testing.T, ds kolide.Datastore) {
-	hosts := []*kolide.Host{}
+func testListHosts(t *testing.T, ds fleet.Datastore) {
+	hosts := []*fleet.Host{}
 	for i := 0; i < 10; i++ {
-		host, err := ds.NewHost(&kolide.Host{
+		host, err := ds.NewHost(&fleet.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
@@ -250,34 +250,35 @@ func testListHosts(t *testing.T, ds kolide.Datastore) {
 		hosts = append(hosts, host)
 	}
 
-	hosts2, err := ds.ListHosts(kolide.HostListOptions{})
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts2, err := ds.ListHosts(filter, fleet.HostListOptions{})
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts), len(hosts2))
 
 	// Test with logic for only a few hosts
-	hosts2, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{PerPage: 4, Page: 0}})
+	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{PerPage: 4, Page: 0}})
 	require.Nil(t, err)
 	assert.Equal(t, 4, len(hosts2))
 
 	err = ds.DeleteHost(hosts[0].ID)
 	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(kolide.HostListOptions{})
+	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{})
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts)-1, len(hosts2))
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{})
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{})
 	require.Nil(t, err)
 	require.Equal(t, len(hosts2), len(hosts))
 
 	err = ds.SaveHost(hosts[0])
 	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(kolide.HostListOptions{})
+	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{})
 	require.Nil(t, err)
 	require.Equal(t, hosts[0].ID, hosts2[0].ID)
 }
 
-func testListHostsFilterAdditional(t *testing.T, ds kolide.Datastore) {
-	h, err := ds.NewHost(&kolide.Host{
+func testListHostsFilterAdditional(t *testing.T, ds fleet.Datastore) {
+	h, err := ds.NewHost(&fleet.Host{
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
@@ -288,32 +289,34 @@ func testListHostsFilterAdditional(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
 	// Add additional
 	additional := json.RawMessage(`{"field1": "v1", "field2": "v2"}`)
 	h.Additional = &additional
 	require.NoError(t, ds.SaveHostAdditional(h))
 
-	hosts, err := ds.ListHosts(kolide.HostListOptions{})
+	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
 	require.Nil(t, err)
 	assert.Nil(t, hosts[0].Additional)
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"field1", "field2"}})
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "field2"}})
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"*"}})
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{AdditionalFilters: []string{"*"}})
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 
 	additional = json.RawMessage(`{"field1": "v1", "missing": null}`)
-	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"field1", "missing"}})
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "missing"}})
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 }
 
-func testListHostsStatus(t *testing.T, ds kolide.Datastore) {
+func testListHostsStatus(t *testing.T, ds fleet.Datastore) {
 	for i := 0; i < 10; i++ {
-		_, err := ds.NewHost(&kolide.Host{
+		_, err := ds.NewHost(&fleet.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now().Add(-time.Duration(i) * time.Minute),
@@ -328,27 +331,29 @@ func testListHostsStatus(t *testing.T, ds kolide.Datastore) {
 		}
 	}
 
-	hosts, err := ds.ListHosts(kolide.HostListOptions{StatusFilter: "online"})
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{StatusFilter: "online"})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(hosts))
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{StatusFilter: "offline"})
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{StatusFilter: "offline"})
 	require.Nil(t, err)
 	assert.Equal(t, 9, len(hosts))
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{StatusFilter: "mia"})
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{StatusFilter: "mia"})
 	require.Nil(t, err)
 	assert.Equal(t, 0, len(hosts))
 
-	hosts, err = ds.ListHosts(kolide.HostListOptions{StatusFilter: "new"})
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{StatusFilter: "new"})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(hosts))
 }
 
-func testListHostsQuery(t *testing.T, ds kolide.Datastore) {
-	hosts := []*kolide.Host{}
+func testListHostsQuery(t *testing.T, ds fleet.Datastore) {
+	hosts := []*fleet.Host{}
 	for i := 0; i < 10; i++ {
-		host, err := ds.NewHost(&kolide.Host{
+		host, err := ds.NewHost(&fleet.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
@@ -364,55 +369,57 @@ func testListHostsQuery(t *testing.T, ds kolide.Datastore) {
 		hosts = append(hosts, host)
 	}
 
-	gotHosts, err := ds.ListHosts(kolide.HostListOptions{})
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	gotHosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "00"}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "00"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "000"}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "000"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "192.168."}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168."}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "192.168.1.1"}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168.1.1"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "hostname%00"}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%00"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "hostname%003"}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%003"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "uuid_"}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "uuid_006"}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_006"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "serial"}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "serial009"}})
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial009"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 }
 
-func testEnrollHost(t *testing.T, ds kolide.Datastore) {
+func testEnrollHost(t *testing.T, ds fleet.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
-	team, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+	team, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	for _, tt := range enrollTests {
@@ -432,7 +439,7 @@ func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
-func testAuthenticateHost(t *testing.T, ds kolide.Datastore) {
+func testAuthenticateHost(t *testing.T, ds fleet.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, nil, 0)
@@ -450,7 +457,7 @@ func testAuthenticateHost(t *testing.T, ds kolide.Datastore) {
 	assert.Error(t, err)
 }
 
-func testAuthenticateHostCaseSensitive(t *testing.T, ds kolide.Datastore) {
+func testAuthenticateHostCaseSensitive(t *testing.T, ds fleet.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, nil, 0)
@@ -461,8 +468,8 @@ func testAuthenticateHostCaseSensitive(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
-func testSearchHosts(t *testing.T, ds kolide.Datastore) {
-	_, err := ds.NewHost(&kolide.Host{
+func testSearchHosts(t *testing.T, ds fleet.Datastore) {
+	_, err := ds.NewHost(&fleet.Host{
 		OsqueryHostID:    "1234",
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
@@ -473,7 +480,7 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	h2, err := ds.NewHost(&kolide.Host{
+	h2, err := ds.NewHost(&fleet.Host{
 		OsqueryHostID:    "5679",
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
@@ -484,7 +491,7 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	h3, err := ds.NewHost(&kolide.Host{
+	h3, err := ds.NewHost(&fleet.Host{
 		OsqueryHostID:    "99999",
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
@@ -495,8 +502,8 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
-	filter := kolide.TeamFilter{User: user}
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	filter := fleet.TeamFilter{User: user}
 
 	// We once threw errors when the search query was empty. Verify that we
 	// don't error.
@@ -550,12 +557,11 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, 1, len(hits))
 }
 
-func testSearchHostsLimit(t *testing.T, ds kolide.Datastore) {
-	user := &kolide.User{GlobalRole: ptr.String(kolide.RoleAdmin)}
-	filter := kolide.TeamFilter{User: user}
+func testSearchHostsLimit(t *testing.T, ds fleet.Datastore) {
+	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	for i := 0; i < 15; i++ {
-		_, err := ds.NewHost(&kolide.Host{
+		_, err := ds.NewHost(&fleet.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
@@ -572,15 +578,11 @@ func testSearchHostsLimit(t *testing.T, ds kolide.Datastore) {
 	assert.Len(t, hosts, 10)
 }
 
-func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
-	if ds.Name() == "inmem" {
-		fmt.Println("Busted test skipped for inmem")
-		return
-	}
-
+func testGenerateHostStatusStatistics(t *testing.T, ds fleet.Datastore) {
+	filter := fleet.TeamFilter{User: test.UserAdmin}
 	mockClock := clock.NewMockClock()
 
-	online, offline, mia, new, err := ds.GenerateHostStatusStatistics(mockClock.Now())
+	online, offline, mia, new, err := ds.GenerateHostStatusStatistics(filter, mockClock.Now())
 	assert.Nil(t, err)
 	assert.Equal(t, uint(0), online)
 	assert.Equal(t, uint(0), offline)
@@ -588,7 +590,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, uint(0), new)
 
 	// Online
-	h, err := ds.NewHost(&kolide.Host{
+	h, err := ds.NewHost(&fleet.Host{
 		ID:               1,
 		OsqueryHostID:    "1",
 		NodeKey:          "1",
@@ -602,7 +604,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, ds.SaveHost(h))
 
 	// Online
-	h, err = ds.NewHost(&kolide.Host{
+	h, err = ds.NewHost(&fleet.Host{
 		ID:               2,
 		OsqueryHostID:    "2",
 		NodeKey:          "2",
@@ -616,7 +618,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, ds.SaveHost(h))
 
 	// Offline
-	h, err = ds.NewHost(&kolide.Host{
+	h, err = ds.NewHost(&fleet.Host{
 		ID:               3,
 		OsqueryHostID:    "3",
 		NodeKey:          "3",
@@ -630,7 +632,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, ds.SaveHost(h))
 
 	// MIA
-	h, err = ds.NewHost(&kolide.Host{
+	h, err = ds.NewHost(&fleet.Host{
 		ID:               4,
 		OsqueryHostID:    "4",
 		NodeKey:          "4",
@@ -640,14 +642,14 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now())
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(filter, mockClock.Now())
 	assert.Nil(t, err)
 	assert.Equal(t, uint(2), online)
 	assert.Equal(t, uint(1), offline)
 	assert.Equal(t, uint(1), mia)
 	assert.Equal(t, uint(4), new)
 
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now().Add(1 * time.Hour))
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(filter, mockClock.Now().Add(1*time.Hour))
 	assert.Nil(t, err)
 	assert.Equal(t, uint(0), online)
 	assert.Equal(t, uint(3), offline)
@@ -655,13 +657,13 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, uint(4), new)
 }
 
-func testMarkHostSeen(t *testing.T, ds kolide.Datastore) {
+func testMarkHostSeen(t *testing.T, ds fleet.Datastore) {
 	mockClock := clock.NewMockClock()
 
 	anHourAgo := mockClock.Now().Add(-1 * time.Hour).UTC()
 	aDayAgo := mockClock.Now().Add(-24 * time.Hour).UTC()
 
-	h1, err := ds.NewHost(&kolide.Host{
+	h1, err := ds.NewHost(&fleet.Host{
 		ID:               1,
 		OsqueryHostID:    "1",
 		UUID:             "1",
@@ -690,14 +692,14 @@ func testMarkHostSeen(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
-func testMarkHostsSeen(t *testing.T, ds kolide.Datastore) {
+func testMarkHostsSeen(t *testing.T, ds fleet.Datastore) {
 	mockClock := clock.NewMockClock()
 
 	aSecondAgo := mockClock.Now().Add(-1 * time.Second).UTC()
 	anHourAgo := mockClock.Now().Add(-1 * time.Hour).UTC()
 	aDayAgo := mockClock.Now().Add(-24 * time.Hour).UTC()
 
-	h1, err := ds.NewHost(&kolide.Host{
+	h1, err := ds.NewHost(&fleet.Host{
 		ID:               1,
 		OsqueryHostID:    "1",
 		UUID:             "1",
@@ -708,7 +710,7 @@ func testMarkHostsSeen(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	h2, err := ds.NewHost(&kolide.Host{
+	h2, err := ds.NewHost(&fleet.Host{
 		ID:               2,
 		OsqueryHostID:    "2",
 		UUID:             "2",
@@ -751,10 +753,10 @@ func testMarkHostsSeen(t *testing.T, ds kolide.Datastore) {
 
 }
 
-func testCleanupIncomingHosts(t *testing.T, ds kolide.Datastore) {
+func testCleanupIncomingHosts(t *testing.T, ds fleet.Datastore) {
 	mockClock := clock.NewMockClock()
 
-	h1, err := ds.NewHost(&kolide.Host{
+	h1, err := ds.NewHost(&fleet.Host{
 		ID:               1,
 		OsqueryHostID:    "1",
 		UUID:             "1",
@@ -765,7 +767,7 @@ func testCleanupIncomingHosts(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	h2, err := ds.NewHost(&kolide.Host{
+	h2, err := ds.NewHost(&fleet.Host{
 		ID:               2,
 		OsqueryHostID:    "2",
 		UUID:             "2",
@@ -797,9 +799,9 @@ func testCleanupIncomingHosts(t *testing.T, ds kolide.Datastore) {
 	assert.Nil(t, err)
 }
 
-func testHostIDsByName(t *testing.T, ds kolide.Datastore) {
+func testHostIDsByName(t *testing.T, ds fleet.Datastore) {
 	for i := 0; i < 10; i++ {
-		_, err := ds.NewHost(&kolide.Host{
+		_, err := ds.NewHost(&fleet.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
@@ -811,14 +813,15 @@ func testHostIDsByName(t *testing.T, ds kolide.Datastore) {
 		require.Nil(t, err)
 	}
 
-	hosts, err := ds.HostIDsByName([]string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts, err := ds.HostIDsByName(filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
 	require.Nil(t, err)
 	sort.Slice(hosts, func(i, j int) bool { return hosts[i] < hosts[j] })
 	assert.Equal(t, hosts, []uint{2, 3, 6})
 }
 
-func testHostAdditional(t *testing.T, ds kolide.Datastore) {
-	_, err := ds.NewHost(&kolide.Host{
+func testHostAdditional(t *testing.T, ds fleet.Datastore) {
+	_, err := ds.NewHost(&fleet.Host{
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
@@ -888,9 +891,9 @@ func testHostAdditional(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, &additional, h.Additional)
 }
 
-func testHostByIdentifier(t *testing.T, ds kolide.Datastore) {
+func testHostByIdentifier(t *testing.T, ds fleet.Datastore) {
 	for i := 1; i <= 10; i++ {
-		_, err := ds.NewHost(&kolide.Host{
+		_, err := ds.NewHost(&fleet.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
@@ -903,7 +906,7 @@ func testHostByIdentifier(t *testing.T, ds kolide.Datastore) {
 	}
 
 	var (
-		h   *kolide.Host
+		h   *fleet.Host
 		err error
 	)
 	h, err = ds.HostByIdentifier("uuid_1")
@@ -926,10 +929,10 @@ func testHostByIdentifier(t *testing.T, ds kolide.Datastore) {
 	require.Error(t, err)
 }
 
-func testAddHostsToTeam(t *testing.T, ds kolide.Datastore) {
-	team1, err := ds.NewTeam(&kolide.Team{Name: "team1"})
+func testAddHostsToTeam(t *testing.T, ds fleet.Datastore) {
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(&kolide.Team{Name: "team2"})
+	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {

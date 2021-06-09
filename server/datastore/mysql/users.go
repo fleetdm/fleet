@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -13,7 +13,7 @@ import (
 var userSearchColumns = []string{"name", "email"}
 
 // NewUser creates a new user
-func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
+func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 	sqlStatement := `
       INSERT INTO users (
       	password,
@@ -46,14 +46,14 @@ func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
 	return user, nil
 }
 
-func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*kolide.User, error) {
+func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
 		"SELECT * FROM users "+
 			"WHERE %s = ? LIMIT 1",
 		searchCol,
 	)
 
-	user := &kolide.User{}
+	user := &fleet.User{}
 
 	err := d.db.Get(user, sqlStatement, searchVal)
 	if err != nil && err == sql.ErrNoRows {
@@ -63,7 +63,7 @@ func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*kolide.U
 		return nil, errors.Wrap(err, "find user")
 	}
 
-	if err := d.loadTeamsForUsers([]*kolide.User{user}); err != nil {
+	if err := d.loadTeamsForUsers([]*fleet.User{user}); err != nil {
 		return nil, errors.Wrap(err, "load teams")
 	}
 
@@ -71,13 +71,13 @@ func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*kolide.U
 }
 
 // User retrieves a user by name
-func (d *Datastore) User(username string) (*kolide.User, error) {
+func (d *Datastore) User(username string) (*fleet.User, error) {
 	return d.findUser("username", username)
 }
 
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
 // UserListOptions.
-func (d *Datastore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error) {
+func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {
 	sqlStatement := `
 		SELECT * FROM users
 		WHERE TRUE
@@ -90,7 +90,7 @@ func (d *Datastore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error
 
 	sqlStatement, params = searchLike(sqlStatement, params, opt.MatchQuery, userSearchColumns...)
 	sqlStatement = appendListOptionsToSQL(sqlStatement, opt.ListOptions)
-	users := []*kolide.User{}
+	users := []*fleet.User{}
 
 	if err := d.db.Select(&users, sqlStatement, params...); err != nil {
 		return nil, errors.Wrap(err, "list users")
@@ -104,15 +104,15 @@ func (d *Datastore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error
 
 }
 
-func (d *Datastore) UserByEmail(email string) (*kolide.User, error) {
+func (d *Datastore) UserByEmail(email string) (*fleet.User, error) {
 	return d.findUser("email", email)
 }
 
-func (d *Datastore) UserByID(id uint) (*kolide.User, error) {
+func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
 	return d.findUser("id", id)
 }
 
-func (d *Datastore) SaveUser(user *kolide.User) error {
+func (d *Datastore) SaveUser(user *fleet.User) error {
 	sqlStatement := `
       UPDATE users SET
       	username = ?,
@@ -151,15 +151,15 @@ func (d *Datastore) SaveUser(user *kolide.User) error {
 }
 
 // loadTeamsForUsers will load the teams/roles for the provided users.
-func (d *Datastore) loadTeamsForUsers(users []*kolide.User) error {
+func (d *Datastore) loadTeamsForUsers(users []*fleet.User) error {
 	userIDs := make([]uint, 0, len(users)+1)
 	// Make sure the slice is never empty for IN by filling a nonexistent ID
 	userIDs = append(userIDs, 0)
-	idToUser := make(map[uint]*kolide.User, len(users))
+	idToUser := make(map[uint]*fleet.User, len(users))
 	for _, u := range users {
 		// Initialize empty slice so we get an array in JSON responses instead
 		// of null if it is empty
-		u.Teams = []kolide.UserTeam{}
+		u.Teams = []fleet.UserTeam{}
 		// Track IDs for queries and matching
 		userIDs = append(userIDs, u.ID)
 		idToUser[u.ID] = u
@@ -177,7 +177,7 @@ func (d *Datastore) loadTeamsForUsers(users []*kolide.User) error {
 	}
 
 	var rows []struct {
-		kolide.UserTeam
+		fleet.UserTeam
 		UserID uint `db:"user_id"`
 	}
 	if err := d.db.Select(&rows, sql, args...); err != nil {
@@ -193,7 +193,7 @@ func (d *Datastore) loadTeamsForUsers(users []*kolide.User) error {
 	return nil
 }
 
-func (d *Datastore) saveTeamsForUser(user *kolide.User) error {
+func (d *Datastore) saveTeamsForUser(user *fleet.User) error {
 	// Do a full teams update by deleting existing teams and then inserting all
 	// the current teams in a single transaction.
 	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {

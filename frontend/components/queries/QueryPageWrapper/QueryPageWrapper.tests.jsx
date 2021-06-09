@@ -18,7 +18,7 @@ const storeWithoutQuery = {
 
 describe("QueryPageWrapper - component", () => {
   beforeEach(() => {
-    global.localStorage.setItem("KOLIDE::auth_token", bearerToken);
+    global.localStorage.setItem("FLEET::auth_token", bearerToken);
   });
 
   afterEach(() => {

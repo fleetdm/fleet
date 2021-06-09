@@ -35,7 +35,7 @@ Cypress.Commands.add("login", (username, password) => {
   password ||= "admin123#";
   cy.request("POST", "/api/v1/fleet/login", { username, password }).then(
     (resp) => {
-      window.localStorage.setItem("KOLIDE::auth_token", resp.body.token);
+      window.localStorage.setItem("FLEET::auth_token", resp.body.token);
     }
   );
 });
@@ -46,10 +46,10 @@ Cypress.Commands.add("logout", () => {
     method: "POST",
     body: {},
     auth: {
-      bearer: window.localStorage.getItem("KOLIDE::auth_token"),
+      bearer: window.localStorage.getItem("FLEET::auth_token"),
     },
   }).then(() => {
-    window.localStorage.removeItem("KOLIDE::auth_token");
+    window.localStorage.removeItem("FLEET::auth_token");
   });
 });
 
@@ -69,7 +69,7 @@ Cypress.Commands.add("setupSMTP", () => {
     method: "PATCH",
     body,
     auth: {
-      bearer: window.localStorage.getItem("KOLIDE::auth_token"),
+      bearer: window.localStorage.getItem("FLEET::auth_token"),
     },
   });
 });
@@ -91,7 +91,7 @@ Cypress.Commands.add("setupSSO", (enable_idp_login = false) => {
     method: "PATCH",
     body,
     auth: {
-      bearer: window.localStorage.getItem("KOLIDE::auth_token"),
+      bearer: window.localStorage.getItem("FLEET::auth_token"),
     },
   });
 });

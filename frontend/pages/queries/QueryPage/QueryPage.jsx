@@ -8,18 +8,18 @@ import moment from "moment";
 import { push } from "react-router-redux";
 import { Link } from "react-router";
 
-import Kolide from "kolide";
+import Fleet from "fleet";
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
 import convertToCSV from "utilities/convert_to_csv";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
-import { formatSelectedTargetsForApi } from "kolide/helpers";
+import { formatSelectedTargetsForApi } from "fleet/helpers";
 import helpers from "pages/queries/QueryPage/helpers";
 import hostInterface from "interfaces/host";
 import Button from "components/buttons/Button";
-import KolideAce from "components/KolideAce";
+import FleetAce from "components/FleetAce";
 import WarningBanner from "components/WarningBanner";
 import QueryForm from "components/forms/queries/QueryForm";
 import osqueryTableInterface from "interfaces/osquery_table";
@@ -70,7 +70,6 @@ export class QueryPage extends Component {
     requestHost: PropTypes.bool,
     hostId: PropTypes.string,
     currentUser: userInterface,
-    queryID: PropTypes.number,
   };
 
   static defaultProps = {
@@ -100,7 +99,7 @@ export class QueryPage extends Component {
   componentWillMount() {
     const { dispatch, selectedHosts, selectedTargets } = this.props;
 
-    Kolide.status.live_query().catch((response) => {
+    Fleet.status.live_query().catch((response) => {
       try {
         const error = response.message.errors[0].reason;
         this.setState({ liveQueryError: error });
@@ -290,10 +289,10 @@ export class QueryPage extends Component {
     removeSocket();
     destroyCampaign();
 
-    Kolide.queries
+    Fleet.queries
       .run({ query: sql, selected })
       .then((campaignResponse) => {
-        return Kolide.websockets.queries
+        return Fleet.websockets.queries
           .run(campaignResponse.id)
           .then((socket) => {
             this.setupDistributedQuery(socket);
@@ -540,11 +539,14 @@ export class QueryPage extends Component {
       return false;
     }
 
-    const message = `Live query disabled due to error: ${liveQueryError}`;
-
     return (
       <WarningBanner className={`${baseClass}__warning`} shouldShowWarning>
-        {message}
+        <h2 className={`${baseClass}__warning-title`}>
+          Live query request failed
+        </h2>
+        <p>
+          <span>Error:</span> {liveQueryError}
+        </p>
       </WarningBanner>
     );
   };
@@ -608,6 +610,7 @@ export class QueryPage extends Component {
       liveQueryError,
     } = this.state;
     const { selectedTargets } = this.props;
+    const queryId = this.props.query.id;
 
     return (
       <QueryPageSelectTargets
@@ -622,6 +625,7 @@ export class QueryPage extends Component {
         targetsCount={targetsCount}
         queryTimerMilliseconds={runQueryMilliseconds}
         disableRun={liveQueryError !== undefined}
+        queryId={queryId}
       />
     );
   };
@@ -647,8 +651,10 @@ export class QueryPage extends Component {
       selectedOsqueryTable,
       title,
       currentUser,
-      queryID,
     } = this.props;
+    const { hasSavePermissions, showDropdown } = helpers;
+
+    const queryId = this.props.query.id;
 
     if (loadingQueries) {
       return false;
@@ -656,7 +662,7 @@ export class QueryPage extends Component {
 
     const QuerySql = () => (
       <div id="results" className="search-results">
-        <KolideAce
+        <FleetAce
           fontSize={12}
           name="query-details"
           readOnly
@@ -684,12 +690,34 @@ export class QueryPage extends Component {
       );
     };
 
-    // If team maintainer, can create and run new query, but not save
-    const hasSavePermissions =
-      permissionUtils.isGlobalAdmin(currentUser) ||
-      permissionUtils.isGlobalMaintainer(currentUser);
+    // Team maintainer: Create and run new query, but not save
+    if (permissionUtils.isAnyTeamMaintainer(currentUser)) {
+      // Team maintainer: Existing query
+      if (queryId) {
+        return (
+          <div className={`${baseClass}__content`}>
+            <div className={`${baseClass}__observer-query-view body-wrap`}>
+              <div className={`${baseClass}__observer-query-details`}>
+                <Link
+                  to={PATHS.MANAGE_QUERIES}
+                  className={`${baseClass}__back-link`}
+                >
+                  <img src={BackChevron} alt="back chevron" id="back-chevron" />
+                  <span>Back to queries</span>
+                </Link>
+                <h1>{query.name}</h1>
+                <p>{query.description}</p>
+                {editDisabledSql()}
+              </div>
+              {renderLiveQueryWarning()}
+              {renderTargetsInput()}
+              {renderResultsTable()}
+            </div>
+          </div>
+        );
+      }
 
-    if (permissionUtils.isAnyTeamMaintainer(currentUser) && !queryID) {
+      // Team maintainer: New query
       return (
         <div className={`${baseClass} has-sidebar`}>
           <div className={`${baseClass}__content`}>
@@ -713,7 +741,7 @@ export class QueryPage extends Component {
                 serverErrors={errors}
                 selectedOsqueryTable={selectedOsqueryTable}
                 title={title}
-                hasSavePermissions={hasSavePermissions}
+                hasSavePermissions={hasSavePermissions(currentUser)}
               />
             </div>
             {renderLiveQueryWarning()}
@@ -729,15 +757,11 @@ export class QueryPage extends Component {
       );
     }
 
-    // TODO: Modify observerCanQueryHostCount to reflect all hosts user can query
-    // This will depend on 5/26 API changes, if it comes back as 0, we will not render the dropdown for observers
-    const observerCanQueryHostCount = 1;
-
+    // Global Observer or Team Maintainer or Team Observer: Restricted UI
     if (
       permissionUtils.isGlobalObserver(currentUser) ||
       !permissionUtils.isOnGlobalTeam(currentUser)
     ) {
-      // Restricted UI for Global Observer or Team Maintainer or Team Observer
       return (
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__observer-query-view body-wrap`}>
@@ -753,7 +777,7 @@ export class QueryPage extends Component {
               <p>{query.description}</p>
               {editDisabledSql()}
             </div>
-            {observerCanQueryHostCount > 0 && (
+            {showDropdown(query, currentUser) && (
               <div>
                 {renderLiveQueryWarning()}
                 {renderTargetsInput()}
@@ -765,7 +789,7 @@ export class QueryPage extends Component {
       );
     }
 
-    // UI for Global Admin and Global Maintainer
+    // Global Admin or Global Maintainer: Full functionality
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__content`}>
@@ -789,7 +813,7 @@ export class QueryPage extends Component {
               serverErrors={errors}
               selectedOsqueryTable={selectedOsqueryTable}
               title={title}
-              hasSavePermissions={hasSavePermissions}
+              hasSavePermissions={hasSavePermissions(currentUser)}
             />
           </div>
           {renderLiveQueryWarning()}
@@ -808,13 +832,13 @@ export class QueryPage extends Component {
 
 const mapStateToProps = (state, ownProps) => {
   const stateEntities = entityGetter(state);
-  const { id: queryID } = ownProps.params;
-  const query = entityGetter(state).get("queries").findBy({ id: queryID });
+  const { id: queryId } = ownProps.params;
+  const query = entityGetter(state).get("queries").findBy({ id: queryId });
   const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors, loading: loadingQueries } = state.entities.queries;
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
-  const title = queryID ? "Edit & run query" : "Custom query";
+  const title = queryId ? "Edit & run query" : "Custom query";
   let selectedHosts = [];
 
   if (((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {

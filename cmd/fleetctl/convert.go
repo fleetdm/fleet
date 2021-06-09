@@ -9,25 +9,25 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
-func specGroupFromPack(name string, inputPack kolide.PermissivePackContent) (*specGroup, error) {
+func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*specGroup, error) {
 	specs := &specGroup{
-		Queries: []*kolide.QuerySpec{},
-		Packs:   []*kolide.PackSpec{},
-		Labels:  []*kolide.LabelSpec{},
+		Queries: []*fleet.QuerySpec{},
+		Packs:   []*fleet.PackSpec{},
+		Labels:  []*fleet.LabelSpec{},
 	}
 
-	pack := &kolide.PackSpec{
+	pack := &fleet.PackSpec{
 		Name: name,
 	}
 
 	for name, query := range inputPack.Queries {
-		spec := &kolide.QuerySpec{
+		spec := &fleet.QuerySpec{
 			Name:        name,
 			Description: query.Description,
 			Query:       query.Query,
@@ -48,7 +48,7 @@ func specGroupFromPack(name string, inputPack kolide.PermissivePackContent) (*sp
 		}
 
 		specs.Queries = append(specs.Queries, spec)
-		pack.Queries = append(pack.Queries, kolide.PackSpecQuery{
+		pack.Queries = append(pack.Queries, fleet.PackSpecQuery{
 			Name:        name,
 			QueryName:   name,
 			Interval:    interval,
@@ -104,7 +104,7 @@ func convertCommand() *cli.Command {
 
 			var specs *specGroup
 
-			var pack kolide.PermissivePackContent
+			var pack fleet.PermissivePackContent
 			if err := json.Unmarshal(b, &pack); err != nil {
 				return err
 			}
@@ -126,8 +126,8 @@ func convertCommand() *cli.Command {
 				}
 
 				meta := specMetadata{
-					Kind:    kolide.PackKind,
-					Version: kolide.ApiVersion,
+					Kind:    fleet.PackKind,
+					Version: fleet.ApiVersion,
 					Spec:    spec,
 				}
 
@@ -147,8 +147,8 @@ func convertCommand() *cli.Command {
 				}
 
 				meta := specMetadata{
-					Kind:    kolide.QueryKind,
-					Version: kolide.ApiVersion,
+					Kind:    fleet.QueryKind,
+					Version: fleet.ApiVersion,
 					Spec:    spec,
 				}
 

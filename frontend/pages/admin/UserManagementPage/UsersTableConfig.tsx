@@ -1,4 +1,3 @@
-import { string } from "prop-types";
 import React from "react";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -50,9 +49,10 @@ interface IUserTableData {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, user: IUser | IInvite) => void
+  actionSelectHandler: (value: string, user: IUser | IInvite) => void,
+  isBasicTier = false
 ): IDataColumn[] => {
-  return [
+  const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
       Header: (cellProps) => (
@@ -84,13 +84,6 @@ const generateTableHeaders = (
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Teams",
-      Header: "Teams",
-      accessor: "teams",
-      disableSortBy: true,
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
       title: "Roles",
       Header: "Roles",
       accessor: "roles",
@@ -113,6 +106,19 @@ const generateTableHeaders = (
       ),
     },
   ];
+
+  // Add Teams tab for basic tier only
+  if (isBasicTier) {
+    tableHeaders.splice(3, 0, {
+      title: "Teams",
+      Header: "Teams",
+      accessor: "teams",
+      disableSortBy: true,
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    });
+  }
+
+  return tableHeaders;
 };
 
 // TODO: need to rethink status data.
@@ -146,13 +152,26 @@ const generateTeam = (teams: ITeam[], globalRole: string | null): string => {
 
 const generateRole = (teams: ITeam[], globalRole: string | null): string => {
   if (globalRole === null) {
+    const listOfRoles: any = teams.map((team) => team.role);
+
     if (teams.length === 0) {
       // no global role and no teams
       return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
       return stringUtils.capitalize(teams[0].role ?? "");
+    } else if (
+      listOfRoles.every((role: string): boolean => role === "maintainer")
+    ) {
+      // only team maintainers
+      return stringUtils.capitalize(teams[0].role ?? "");
+    } else if (
+      listOfRoles.every((role: string): boolean => role === "observer")
+    ) {
+      // only team observers
+      return stringUtils.capitalize(teams[0].role ?? "");
     }
+
     return "Various"; // no global role and multiple teams
   }
 

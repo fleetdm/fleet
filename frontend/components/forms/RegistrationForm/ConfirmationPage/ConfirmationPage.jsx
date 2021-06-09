@@ -59,7 +59,7 @@ class ConfirmationPage extends Component {
       handleSubmit,
       formData: {
         email,
-        kolide_server_url: kolideWebAddress,
+        server_url: kolideWebAddress,
         org_name: orgName,
         username,
       },

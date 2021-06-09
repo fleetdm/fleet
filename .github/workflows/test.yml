@@ -68,6 +68,7 @@ jobs:
 
     - name: Run E2E Tests
       run: |
+        .github/scripts/check-infra-dependencies.sh all
         make e2e-reset-db
         make e2e-serve-${{ matrix.fleet-tier }} &
         sleep 3

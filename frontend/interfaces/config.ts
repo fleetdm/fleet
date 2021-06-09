@@ -10,7 +10,7 @@ export default PropTypes.shape({
   enable_start_tls: PropTypes.bool,
   host_expiry_enabled: PropTypes.bool,
   host_expiry_window: PropTypes.number,
-  kolide_server_url: PropTypes.string,
+  server_url: PropTypes.string,
   org_logo_url: PropTypes.string,
   org_name: PropTypes.string,
   password: PropTypes.string,
@@ -32,7 +32,7 @@ export interface IConfig {
   enable_start_tls: boolean;
   host_expiry_enabled: boolean;
   host_expiry_window: number;
-  kolide_server_url: string;
+  server_url: string;
   org_logo_url: string;
   org_name: string;
   password: string;

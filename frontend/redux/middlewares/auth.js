@@ -3,7 +3,7 @@ import { endsWith, get } from "lodash";
 import { push } from "react-router-redux";
 
 import APP_CONSTANTS from "app_constants";
-import kolide from "kolide";
+import Fleet from "fleet";
 import {
   LOGIN_FAILURE,
   LOGIN_SUCCESS,
@@ -28,7 +28,7 @@ const authMiddleware = (store) => (next) => (action) => {
 
     if (token) {
       local.setItem("auth_token", token);
-      kolide.setBearerToken(token);
+      Fleet.setBearerToken(token);
     }
   }
 
@@ -36,7 +36,7 @@ const authMiddleware = (store) => (next) => (action) => {
     const { LOGIN } = PATHS;
 
     local.clear();
-    kolide.setBearerToken(null);
+    Fleet.setBearerToken(null);
     store.dispatch(push(LOGIN));
   }
 

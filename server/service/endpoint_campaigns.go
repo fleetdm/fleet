@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/websocket"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
@@ -18,19 +18,19 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type createDistributedQueryCampaignRequest struct {
-	QuerySQL string             `json:"query"`
-	QueryID  *uint              `json:"query_id"`
-	Selected kolide.HostTargets `json:"selected"`
+	QuerySQL string            `json:"query"`
+	QueryID  *uint             `json:"query_id"`
+	Selected fleet.HostTargets `json:"selected"`
 }
 
 type createDistributedQueryCampaignResponse struct {
-	Campaign *kolide.DistributedQueryCampaign `json:"campaign,omitempty"`
-	Err      error                            `json:"error,omitempty"`
+	Campaign *fleet.DistributedQueryCampaign `json:"campaign,omitempty"`
+	Err      error                           `json:"error,omitempty"`
 }
 
 func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
 
-func makeCreateDistributedQueryCampaignEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCreateDistributedQueryCampaignEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createDistributedQueryCampaignRequest)
 		campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected)
@@ -56,7 +56,7 @@ type distributedQueryCampaignTargetsByNames struct {
 	Hosts  []string `json:"hosts"`
 }
 
-func makeCreateDistributedQueryCampaignByNamesEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCreateDistributedQueryCampaignByNamesEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createDistributedQueryCampaignByNamesRequest)
 		campaign, err := svc.NewDistributedQueryCampaignByNames(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
@@ -71,7 +71,7 @@ func makeCreateDistributedQueryCampaignByNamesEndpoint(svc kolide.Service) endpo
 // Stream Distributed Query Campaign Results and Metadata
 ////////////////////////////////////////////////////////////////////////////////
 
-func makeStreamDistributedQueryCampaignResultsHandler(svc kolide.Service, jwtKey string, logger kitlog.Logger) http.Handler {
+func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger kitlog.Logger) http.Handler {
 	opt := sockjs.DefaultOptions
 	opt.Websocket = true
 	opt.RawWebsocket = true
@@ -93,7 +93,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc kolide.Service, jwtKey
 		}
 
 		// Authenticate with the token
-		vc, err := authViewer(context.Background(), jwtKey, token, svc)
+		vc, err := authViewer(context.Background(), string(token), svc)
 		if err != nil || !vc.CanPerformActions() {
 			logger.Log("err", err, "msg", "unauthorized viewer")
 			conn.WriteJSONError("unauthorized")

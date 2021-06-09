@@ -21,8 +21,8 @@ import (
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
 	"github.com/fleetdm/fleet/server/datastore/s3"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/health"
-	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/launcher"
 	"github.com/fleetdm/fleet/server/live_query"
 	"github.com/fleetdm/fleet/server/mail"
@@ -104,29 +104,6 @@ the way that the Fleet server works.
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
-			// Check for deprecated config options.
-			if config.Osquery.StatusLogFile != "" {
-				level.Info(logger).Log(
-					"DEPRECATED", "use filesystem.status_log_file.",
-					"msg", "using osquery.status_log_file value for filesystem.status_log_file",
-				)
-				config.Filesystem.StatusLogFile = config.Osquery.StatusLogFile
-			}
-			if config.Osquery.ResultLogFile != "" {
-				level.Info(logger).Log(
-					"DEPRECATED", "use filesystem.result_log_file.",
-					"msg", "using osquery.result_log_file value for filesystem.result_log_file",
-				)
-				config.Filesystem.ResultLogFile = config.Osquery.ResultLogFile
-			}
-			if config.Osquery.EnableLogRotation != false {
-				level.Info(logger).Log(
-					"DEPRECATED", "use filesystem.enable_log_rotation.",
-					"msg", "using osquery.enable_log_rotation value for filesystem.result_log_file",
-				)
-				config.Filesystem.EnableLogRotation = config.Osquery.EnableLogRotation
-			}
-
 			allowedHostIdentifiers := map[string]bool{
 				"provided": true,
 				"instance": true,
@@ -152,8 +129,8 @@ the way that the Fleet server works.
 				}
 			}
 
-			var ds kolide.Datastore
-			var carveStore kolide.CarveStore
+			var ds fleet.Datastore
+			var carveStore fleet.CarveStore
 			mailService := mail.NewService()
 
 			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger))
@@ -175,7 +152,7 @@ the way that the Fleet server works.
 			}
 
 			switch migrationStatus {
-			case kolide.SomeMigrationsCompleted:
+			case fleet.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# WARNING:\n"+
 					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
@@ -185,7 +162,7 @@ the way that the Fleet server works.
 					"################################################################################\n",
 					os.Args[0])
 
-			case kolide.NoMigrationsCompleted:
+			case fleet.NoMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
 					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
@@ -193,35 +170,6 @@ the way that the Fleet server works.
 					"#   Run `%s prepare db` to initialize the database.\n"+
 					"################################################################################\n",
 					os.Args[0])
-				os.Exit(1)
-			}
-
-			if config.Auth.JwtKey != "" && config.Auth.JwtKeyPath != "" {
-				initFatal(err, "A JWT key and a JWT key file were provided - please specify only one")
-			}
-
-			if config.Auth.JwtKeyPath != "" {
-				fileContents, err := ioutil.ReadFile(config.Auth.JwtKeyPath)
-				if err != nil {
-					initFatal(err, "Could not read the JWT Key file provided")
-				}
-				config.Auth.JwtKey = strings.TrimSpace(string(fileContents))
-			}
-
-			if config.Auth.JwtKey == "" && config.Auth.JwtKeyPath == "" {
-				jwtKey, err := kolide.RandomText(24)
-				if err != nil {
-					initFatal(err, "generating sample jwt key")
-				}
-				fmt.Printf("################################################################################\n"+
-					"# ERROR:\n"+
-					"#   A value must be supplied for --auth_jwt_key or --auth_jwt_key_path. This value is used to create\n"+
-					"#   session tokens for users.\n"+
-					"#\n"+
-					"#   Consider using the following randomly generated key:\n"+
-					"#   %s\n"+
-					"################################################################################\n",
-					jwtKey)
 				os.Exit(1)
 			}
 
@@ -241,7 +189,7 @@ the way that the Fleet server works.
 				initFatal(err, "initializing service")
 			}
 
-			if license.Tier == kolide.TierBasic {
+			if license.Tier == fleet.TierBasic {
 				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
 				if err != nil {
 					initFatal(err, "initial Fleet Basic service")
@@ -303,7 +251,7 @@ the way that the Fleet server works.
 				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
-				setupRequired, err := service.RequireSetup(svc)
+				setupRequired, err := svc.SetupRequired(context.Background())
 				if err != nil {
 					initFatal(err, "fetching setup requirement")
 				}
@@ -368,7 +316,7 @@ the way that the Fleet server works.
 			if debug {
 				// Add debug endpoints with a random
 				// authorization token
-				debugToken, err := kolide.RandomText(24)
+				debugToken, err := fleet.RandomText(24)
 				if err != nil {
 					initFatal(err, "generating debug token")
 				}

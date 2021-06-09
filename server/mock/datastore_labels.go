@@ -5,38 +5,38 @@ package mock
 import (
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-var _ kolide.LabelStore = (*LabelStore)(nil)
+var _ fleet.LabelStore = (*LabelStore)(nil)
 
-type ApplyLabelSpecsFunc func(specs []*kolide.LabelSpec) error
+type ApplyLabelSpecsFunc func(specs []*fleet.LabelSpec) error
 
-type GetLabelSpecsFunc func() ([]*kolide.LabelSpec, error)
+type GetLabelSpecsFunc func() ([]*fleet.LabelSpec, error)
 
-type GetLabelSpecFunc func(name string) (*kolide.LabelSpec, error)
+type GetLabelSpecFunc func(name string) (*fleet.LabelSpec, error)
 
-type NewLabelFunc func(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error)
+type NewLabelFunc func(Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(label *kolide.Label) (*kolide.Label, error)
+type SaveLabelFunc func(label *fleet.Label) (*fleet.Label, error)
 
 type DeleteLabelFunc func(name string) error
 
-type LabelFunc func(lid uint) (*kolide.Label, error)
+type LabelFunc func(lid uint) (*fleet.Label, error)
 
-type ListLabelsFunc func(opt kolide.ListOptions) ([]*kolide.Label, error)
+type ListLabelsFunc func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
-type LabelQueriesForHostFunc func(host *kolide.Host, cutoff time.Time) (map[string]string, error)
+type LabelQueriesForHostFunc func(host *fleet.Host, cutoff time.Time) (map[string]string, error)
 
-type RecordLabelQueryExecutionsFunc func(host *kolide.Host, results map[uint]bool, t time.Time) error
+type RecordLabelQueryExecutionsFunc func(host *fleet.Host, results map[uint]bool, t time.Time) error
 
-type ListLabelsForHostFunc func(hid uint) ([]*kolide.Label, error)
+type ListLabelsForHostFunc func(hid uint) ([]*fleet.Label, error)
 
-type ListHostsInLabelFunc func(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error)
+type ListHostsInLabelFunc func(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type ListUniqueHostsInLabelsFunc func(labels []uint) ([]*kolide.Host, error)
+type ListUniqueHostsInLabelsFunc func(filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error)
 
-type SearchLabelsFunc func(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error)
+type SearchLabelsFunc func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
 
 type LabelIDsByNameFunc func(labels []string) ([]uint, error)
 
@@ -87,27 +87,27 @@ type LabelStore struct {
 	LabelIDsByNameFuncInvoked bool
 }
 
-func (s *LabelStore) ApplyLabelSpecs(specs []*kolide.LabelSpec) error {
+func (s *LabelStore) ApplyLabelSpecs(specs []*fleet.LabelSpec) error {
 	s.ApplyLabelSpecsFuncInvoked = true
 	return s.ApplyLabelSpecsFunc(specs)
 }
 
-func (s *LabelStore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
+func (s *LabelStore) GetLabelSpecs() ([]*fleet.LabelSpec, error) {
 	s.GetLabelSpecsFuncInvoked = true
 	return s.GetLabelSpecsFunc()
 }
 
-func (s *LabelStore) GetLabelSpec(name string) (*kolide.LabelSpec, error) {
+func (s *LabelStore) GetLabelSpec(name string) (*fleet.LabelSpec, error) {
 	s.GetLabelSpecFuncInvoked = true
 	return s.GetLabelSpecFunc(name)
 }
 
-func (s *LabelStore) NewLabel(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
+func (s *LabelStore) NewLabel(Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 	s.NewLabelFuncInvoked = true
 	return s.NewLabelFunc(Label, opts...)
 }
 
-func (s *LabelStore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
+func (s *LabelStore) SaveLabel(label *fleet.Label) (*fleet.Label, error) {
 	s.SaveLabelFuncInvoked = true
 	return s.SaveLabelFunc(label)
 }
@@ -117,42 +117,42 @@ func (s *LabelStore) DeleteLabel(name string) error {
 	return s.DeleteLabelFunc(name)
 }
 
-func (s *LabelStore) Label(lid uint) (*kolide.Label, error) {
+func (s *LabelStore) Label(lid uint) (*fleet.Label, error) {
 	s.LabelFuncInvoked = true
 	return s.LabelFunc(lid)
 }
 
-func (s *LabelStore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
+func (s *LabelStore) ListLabels(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	s.ListLabelsFuncInvoked = true
-	return s.ListLabelsFunc(opt)
+	return s.ListLabelsFunc(filter, opt)
 }
 
-func (s *LabelStore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+func (s *LabelStore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 	s.LabelQueriesForHostFuncInvoked = true
 	return s.LabelQueriesForHostFunc(host, cutoff)
 }
 
-func (s *LabelStore) RecordLabelQueryExecutions(host *kolide.Host, results map[uint]bool, t time.Time) error {
+func (s *LabelStore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, t time.Time) error {
 	s.RecordLabelQueryExecutionsFuncInvoked = true
 	return s.RecordLabelQueryExecutionsFunc(host, results, t)
 }
 
-func (s *LabelStore) ListLabelsForHost(hid uint) ([]*kolide.Label, error) {
+func (s *LabelStore) ListLabelsForHost(hid uint) ([]*fleet.Label, error) {
 	s.ListLabelsForHostFuncInvoked = true
 	return s.ListLabelsForHostFunc(hid)
 }
 
-func (s *LabelStore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+func (s *LabelStore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	s.ListHostsInLabelFuncInvoked = true
-	return s.ListHostsInLabelFunc(lid, opt)
+	return s.ListHostsInLabelFunc(filter, lid, opt)
 }
 
-func (s *LabelStore) ListUniqueHostsInLabels(labels []uint) ([]*kolide.Host, error) {
+func (s *LabelStore) ListUniqueHostsInLabels(filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
 	s.ListUniqueHostsInLabelsFuncInvoked = true
-	return s.ListUniqueHostsInLabelsFunc(labels)
+	return s.ListUniqueHostsInLabelsFunc(filter, labels)
 }
 
-func (s *LabelStore) SearchLabels(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {
+func (s *LabelStore) SearchLabels(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 	s.SearchLabelsFuncInvoked = true
 	return s.SearchLabelsFunc(filter, query, omit...)
 }

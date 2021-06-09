@@ -209,7 +209,7 @@ binary-bundle: xp-fleet xp-fleetctl
 # Drop, create, and migrate the e2e test database
 e2e-reset-db:
 	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | mysql -uroot -ptoor'
-	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e
+	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --mysql_database=e2e
 
 e2e-setup:
 	./build/fleetctl config set --context e2e --address https://localhost:8642
@@ -220,8 +220,8 @@ e2e-setup:
 	./build/fleetctl user create --context e2e --email=test+2@example.com --username=test2 --password=admin123#
 
 e2e-serve-core:
-	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e --server_address=localhost:8642 
+	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=localhost:8642 
 
 e2e-serve-basic:
-	./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e --server_address=localhost:8642
+	./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=localhost:8642
 

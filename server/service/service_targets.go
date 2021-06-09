@@ -4,13 +4,17 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID *uint, targets kolide.HostTargets) (*kolide.TargetSearchResults, error) {
+func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID *uint, targets fleet.HostTargets) (*fleet.TargetSearchResults, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Target{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, kolide.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
 
 	includeObserver := false
@@ -22,9 +26,9 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 		includeObserver = query.ObserverCanRun
 	}
 
-	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
-	results := &kolide.TargetSearchResults{}
+	results := &fleet.TargetSearchResults{}
 
 	hosts, err := svc.ds.SearchHosts(filter, matchQuery, targets.HostIDs...)
 	if err != nil {
@@ -50,10 +54,14 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 	return results, nil
 }
 
-func (svc Service) CountHostsInTargets(ctx context.Context, queryID *uint, targets kolide.HostTargets) (*kolide.TargetMetrics, error) {
+func (svc Service) CountHostsInTargets(ctx context.Context, queryID *uint, targets fleet.HostTargets) (*fleet.TargetMetrics, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Target{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, kolide.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
 
 	includeObserver := false
@@ -65,7 +73,7 @@ func (svc Service) CountHostsInTargets(ctx context.Context, queryID *uint, targe
 		includeObserver = query.ObserverCanRun
 	}
 
-	filter := kolide.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
 	metrics, err := svc.ds.CountHostsInTargets(filter, targets, svc.clock.Now())
 	if err != nil {

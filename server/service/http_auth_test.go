@@ -14,8 +14,10 @@ import (
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+
 	kitlog "github.com/go-kit/kit/log"
+
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -25,13 +27,13 @@ import (
 
 func TestLogin(t *testing.T) {
 	ds, _ := inmem.New(config.TestConfig())
-	svc, _ := newTestService(ds, nil, nil)
+	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
 	opts := []kithttp.ServerOption{
 		kithttp.ServerBefore(
-			setRequestsContexts(svc, "CHANGEME"),
+			setRequestsContexts(svc),
 		),
 		kithttp.ServerErrorLogger(logger),
 		kithttp.ServerAfter(
@@ -40,9 +42,9 @@ func TestLogin(t *testing.T) {
 	}
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "", limitStore)
-	kh := makeKolideKitHandlers(ke, opts)
-	attachKolideAPIRoutes(r, kh)
+	ke := MakeFleetServerEndpoints(svc, "", limitStore)
+	kh := makeKitHandlers(ke, opts)
+	attachFleetAPIRoutes(r, kh)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "index")
 	}))
@@ -92,7 +94,7 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, tt.status, resp.StatusCode)
 
 		var jsn = struct {
-			User  *kolide.User        `json:"user"`
+			User  *fleet.User         `json:"user"`
 			Token string              `json:"token"`
 			Err   []map[string]string `json:"errors,omitempty"`
 		}{}

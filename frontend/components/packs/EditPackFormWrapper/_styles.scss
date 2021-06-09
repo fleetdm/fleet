@@ -6,7 +6,7 @@
   &__title {
     @include ellipsis(80%);
 
-    .kolidecon {
+    .fleeticon {
       color: $ui-gray;
     }
   }

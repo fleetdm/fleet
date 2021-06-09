@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw loggingMiddleware) Login(ctx context.Context, username, password string) (user *kolide.User, token string, err error) {
+func (mw loggingMiddleware) Login(ctx context.Context, username, password string) (user *fleet.User, token string, err error) {
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
@@ -48,7 +48,7 @@ func (mw loggingMiddleware) InitiateSSO(ctx context.Context, relayURL string) (i
 	return
 }
 
-func (mw loggingMiddleware) CallbackSSO(ctx context.Context, auth kolide.Auth) (sess *kolide.SSOSession, err error) {
+func (mw loggingMiddleware) CallbackSSO(ctx context.Context, auth fleet.Auth) (sess *fleet.SSOSession, err error) {
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "CallbackSSO",
@@ -60,7 +60,7 @@ func (mw loggingMiddleware) CallbackSSO(ctx context.Context, auth kolide.Auth) (
 	return
 }
 
-func (mw loggingMiddleware) SSOSettings(ctx context.Context) (settings *kolide.SSOSettings, err error) {
+func (mw loggingMiddleware) SSOSettings(ctx context.Context) (settings *fleet.SSOSettings, err error) {
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "SSOSettings",

@@ -27,12 +27,11 @@ Your Fleet server's two main purposes are:
 
 The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
 
-> Fleet does not support Redis Cluster. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
+> Fleet does not support Redis Cluster or Redis Sentinel. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
 
-Since Fleet is a web application, when you run Fleet there are some other configurations that are worth defining, such as:
+Since Fleet is a web application, when you run Fleet there are some other configurations that must be defined, such as:
 
 - The TLS certificates that Fleet should use to terminate TLS.
-- The [JWT](https://jwt.io/) Key which is used to sign and verify session tokens.
 
 When deploying Fleet, mitigate DoS attacks as you would when deploying any app.
 
@@ -60,8 +59,6 @@ In order of precedence, options can be specified via:
 - Environment variables
 - Command-line flags
 
-Note: We have deprecated `KOLIDE_` environment variables and will remove them in the Fleet 4.0 release. Please migrate all environment variables to `FLEET_`.
-
 For example, all of the following ways of launching Fleet are equivalent:
 
 ##### Using only CLI flags
@@ -69,28 +66,26 @@ For example, all of the following ways of launching Fleet are equivalent:
 ```
 /usr/bin/fleet serve \
 --mysql_address=127.0.0.1:3306 \
---mysql_database=kolide \
+--mysql_database=fleet \
 --mysql_username=root \
 --mysql_password=toor \
 --redis_address=127.0.0.1:6379 \
 --server_cert=/tmp/server.cert \
 --server_key=/tmp/server.key \
---logging_json \
---auth_jwt_key=changeme
+--logging_json
 ```
 
 ##### Using only environment variables
 
 ```
 FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
-FLEET_MYSQL_DATABASE=kolide \
+FLEET_MYSQL_DATABASE=fleet \
 FLEET_MYSQL_USERNAME=root \
 FLEET_MYSQL_PASSWORD=toor \
 FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
 FLEET_SERVER_CERT=/tmp/server.cert \
 FLEET_SERVER_KEY=/tmp/server.key \
 FLEET_LOGGING_JSON=true \
-FLEET_AUTH_JWT_KEY=changeme \
 /usr/bin/fleet serve
 ```
 
@@ -100,7 +95,7 @@ FLEET_AUTH_JWT_KEY=changeme \
 echo '
 mysql:
   address: 127.0.0.1:3306
-  database: kolide
+  database: fleet
   username: root
   password: toor
 redis:
@@ -110,10 +105,8 @@ server:
   key: /tmp/server.key
 logging:
   json: true
-auth:
-  jwt_key: changeme
-' > /tmp/kolide.yml
-fleet serve --config /tmp/kolide.yml
+' > /tmp/fleet.yml
+fleet serve --config /tmp/fleet.yml
 ```
 
 #### What are the options?
@@ -146,39 +139,39 @@ The address of the MySQL server which Fleet should connect to. Include the hostn
 
 The name of the MySQL database which Fleet will use.
 
-- Default value: `kolide`
+- Default value: `fleet`
 - Environment variable: `FLEET_MYSQL_DATABASE`
 - Config file format:
 
   ```
   mysql:
-  	database: kolide
+  	database: fleet
   ```
 
 ###### `mysql_username`
 
 The username to use when connecting to the MySQL instance.
 
-- Default value: `kolide`
+- Default value: `fleet`
 - Environment variable: `FLEET_MYSQL_USERNAME`
 - Config file format:
 
   ```
   mysql:
-  	username: kolide
+  	username: fleet
   ```
 
 ###### `mysql_password`
 
 The password to use when connecting to the MySQL instance.
 
-- Default value: `kolide`
+- Default value: `fleet`
 - Environment variable: `FLEET_MYSQL_PASSWORD`
 - Config file format:
 
   ```
   mysql:
-  	password: kolide
+  	password: fleet
   ```
 
 ##### `mysql_password_path`
@@ -373,26 +366,26 @@ The TLS cert to use when terminating TLS.
 
 See [TLS certificate considerations](./1-Installation.md#tls-certificate-considerations) for more information about certificates and Fleet.
 
-- Default value: `./tools/osquery/kolide.crt`
+- Default value: `./tools/osquery/fleet.crt`
 - Environment variable: `FLEET_SERVER_CERT`
 - Config file format:
 
   ```
   server:
-  	cert: /tmp/kolide.crt
+  	cert: /tmp/fleet.crt
   ```
 
 ###### `server_key`
 
 The TLS key to use when terminating TLS.
 
-- Default value: `./tools/osquery/kolide.key`
+- Default value: `./tools/osquery/fleet.key`
 - Environment variable: `FLEET_SERVER_KEY`
 - Config file format:
 
   ```
   server:
-  	key: /tmp/kolide.key
+  	key: /tmp/fleet.key
   ```
 
 ###### `server_tls`
@@ -418,10 +411,8 @@ Configures the TLS settings for compatibility with various user agents. Options 
 
   ```
   server:
-  	tlsprofile: intermediate
+  	tls_compatibility: intermediate
   ```
-
-Please note this option has an inconsistent key name in the config file. This will be fixed in Fleet 4.0.0.
 
 ###### `server_url_prefix`
 
@@ -454,32 +445,6 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   ```
 
 ##### Auth
-
-###### `auth_jwt_key`
-
-The [JWT](https://jwt.io/) key to use when signing and validating session keys. If this value is not specified the Fleet server will fail to start and a randomly generated key will be provided for use.
-
-- Default value: None
-- Environment variable: `FLEET_AUTH_JWT_KEY`
-- Config file format:
-
-  ```
-  auth:
-  	jwt_key: JVnKw7CaUdJjZwYAqDgUHVYP
-  ```
-
-##### `auth_jwt_key_path`
-
-File path to a file that contains the [JWT](https://jwt.io/) key to use when signing and validating session keys.
-
-- Default value: `""`
-- Environment variable: `FLEET_AUTH_JWT_KEY_PATH`
-- Config file format:
-
-  ```
-  auth:
-  	jwt_key_path: '/run/secrets/fleetdm-jwt-token'
-  ```
 
 ##### `auth_bcrypt_cost`
 
@@ -554,13 +519,13 @@ The size of the session key.
 
 The amount of time that a session should last for.
 
-- Default value: `90 days`
+- Default value: `4 hours`
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
 
   ```
   session:
-  	duration: 30d
+  	duration: 24h
   ```
 
 ##### Osquery
@@ -670,52 +635,6 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
   ```
   osquery:
   	result_log_plugin: firehose
-  ```
-
-###### `osquery_status_log_file`
-
-DEPRECATED: Use filesystem_status_log_file.
-
-The path which osquery status logs will be logged to.
-
-- Default value: `/tmp/osquery_status`
-- Environment variable: `FLEET_OSQUERY_STATUS_LOG_FILE`
-- Config file format:
-
-  ```
-  osquery:
-  	status_log_file: /var/log/osquery/status.log
-  ```
-
-###### `osquery_result_log_file`
-
-DEPRECATED: Use filesystem_result_log_file.
-
-The path which osquery result logs will be logged to.
-
-- Default value: `/tmp/osquery_result`
-- Environment variable: `FLEET_OSQUERY_RESULT_LOG_FILE`
-- Config file format:
-
-  ```
-  osquery:
-  	result_log_file: /var/log/osquery/result.log
-  ```
-
-###### `osquery_enable_log_rotation`
-
-DEPRECATED: Use fileystem_enable_log_rotation.
-
-This flag will cause the osquery result and status log files to be automatically
-rotated when files reach a size of 500 Mb or an age of 28 days.
-
-- Default value: `false`
-- Environment variable: `FLEET_OSQUERY_ENABLE_LOG_ROTATION`
-- Config file format:
-
-  ```
-  osquery:
-     enable_log_rotation: true
   ```
 
 ##### Logging (Fleet server logging)
@@ -1300,11 +1219,11 @@ AWS STS role ARN to use for S3 authentication.
 
 ## Managing osquery configurations
 
-We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Kolide have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
+We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Fleet have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
 
 ## Running with systemd
 
-Once you've verified that you can run fleet in your shell, you'll likely want to keep fleet running in the background and after the server reboots. To do that we recommend using [systemd](https://coreos.com/os/docs/latest/getting-started-with-systemd.html).
+Once you've verified that you can run Fleet in your shell, you'll likely want to keep Fleet running in the background and after the server reboots. To do that we recommend using [systemd](https://coreos.com/os/docs/latest/getting-started-with-systemd.html).
 
 Below is a sample unit file.
 
@@ -1317,13 +1236,12 @@ After=network.target
 LimitNOFILE=8192
 ExecStart=/usr/local/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \
-  --mysql_database=kolide \
+  --mysql_database=fleet \
   --mysql_username=root \
   --mysql_password=toor \
   --redis_address=127.0.0.1:6379 \
   --server_cert=/tmp/server.cert \
   --server_key=/tmp/server.key \
-  --auth_jwt_key=this_string_is_not_secure_replace_it \
   --logging_json
 
 [Install]

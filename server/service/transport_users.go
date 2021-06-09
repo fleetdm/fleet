@@ -8,19 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func decodeAdminUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req adminUserRequest
-	if err = json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	req.ID = id
-	return req, nil
-}
-
 func decodeCreateUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req createUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {

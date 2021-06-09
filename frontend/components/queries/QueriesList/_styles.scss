@@ -6,6 +6,19 @@
   margin-top: $pad-medium;
   overflow: scroll;
 
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-left: 7px;
+    }
+  }
+
   &__table {
     border-collapse: collapse;
     width: 100%;

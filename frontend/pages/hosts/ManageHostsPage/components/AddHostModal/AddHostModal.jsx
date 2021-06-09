@@ -2,13 +2,14 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import FileSaver from "file-saver";
 
-import Kolide from "kolide";
+import Fleet from "fleet";
 import Button from "components/buttons/Button";
 import configInterface from "interfaces/config";
 import teamInterface from "interfaces/team";
 import enrollSecretInterface from "interfaces/enroll_secret";
+import permissionUtils from "utilities/permissions";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import Dropdown from "components/forms/fields/Dropdown";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
@@ -34,7 +35,7 @@ class AddHostModal extends Component {
   }
 
   componentDidMount() {
-    Kolide.config
+    Fleet.config
       .loadCertificate()
       .then((certificate) => {
         this.setState({ certificate });
@@ -89,9 +90,9 @@ class AddHostModal extends Component {
     const { fetchCertificateError, selectedTeam } = this.state;
     const { createTeamDropdownOptions, onChangeSelectTeam } = this;
 
-    let tlsHostname = config.kolide_server_url;
+    let tlsHostname = config.server_url;
     try {
-      const serverUrl = new URL(config.kolide_server_url);
+      const serverUrl = new URL(config.server_url);
       tlsHostname = serverUrl.hostname;
       if (serverUrl.port) {
         tlsHostname += `:${serverUrl.port}`;
@@ -156,7 +157,7 @@ class AddHostModal extends Component {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Add Hosts Documentation <KolideIcon name="external-link" />
+                Add Hosts Documentation <FleetIcon name="external-link" />
               </a>
             </h4>
           </div>
@@ -171,15 +172,17 @@ class AddHostModal extends Component {
                 server.
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
-                <Dropdown
-                  wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
-                  label={"Select a team for this new host:"}
-                  value={selectedTeam && selectedTeam.id}
-                  options={createTeamDropdownOptions(teams)}
-                  onChange={onChangeSelectTeam}
-                  placeholder={"Select a team"}
-                  searchable={false}
-                />
+                {permissionUtils.isBasicTier(config) ? (
+                  <Dropdown
+                    wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
+                    label={"Select a team for this new host:"}
+                    value={selectedTeam && selectedTeam.id}
+                    options={createTeamDropdownOptions(teams)}
+                    onChange={onChangeSelectTeam}
+                    placeholder={"Select a team"}
+                    searchable={false}
+                  />
+                ) : null}
                 <EnrollSecretTable secrets={enrollSecret} />
               </div>
             </li>

@@ -4,6 +4,7 @@ import classnames from "classnames";
 import { includes, sortBy, size } from "lodash";
 
 import queryInterface from "interfaces/query";
+import FleetIcon from "components/icons/FleetIcon";
 import Checkbox from "components/forms/fields/Checkbox";
 import QueriesListRow from "components/queries/QueriesList/QueriesListRow";
 
@@ -83,7 +84,16 @@ class QueriesList extends Component {
     return (
       <tr>
         <td colSpan={6}>
-          <p>No queries available. Try creating one.</p>
+          <p>
+            No queries available. Try creating one or get started by&nbsp;
+            <a
+              href="https://fleetdm.com/queries"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              importing standard queries <FleetIcon name="external-link" />
+            </a>
+          </p>
         </td>
       </tr>
     );

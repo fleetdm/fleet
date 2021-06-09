@@ -15,7 +15,7 @@ export const configStub = {
     org_logo_url: "0.0.0.0:8080/logo.png",
   },
   server_settings: {
-    kolide_server_url: "",
+    server_url: "",
     live_query_disabled: false,
   },
   smtp_settings: {
@@ -41,7 +41,7 @@ export const configStub = {
 export const flatConfigStub = {
   org_name: "Kolide",
   org_logo_url: "0.0.0.0:8080/logo.png",
-  kolide_server_url: "",
+  server_url: "",
   configured: false,
   domain: "",
   sender_address: "",

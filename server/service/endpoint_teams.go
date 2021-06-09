@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -13,17 +13,17 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type createTeamRequest struct {
-	payload kolide.TeamPayload
+	payload fleet.TeamPayload
 }
 
 type teamResponse struct {
-	Team *kolide.Team `json:"team,omitempty"`
+	Team *fleet.Team `json:"team,omitempty"`
 	Err  error        `json:"error,omitempty"`
 }
 
 func (r teamResponse) error() error { return r.Err }
 
-func makeCreateTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCreateTeamEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createTeamRequest)
 
@@ -42,10 +42,10 @@ func makeCreateTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type modifyTeamRequest struct {
 	ID      uint
-	payload kolide.TeamPayload
+	payload fleet.TeamPayload
 }
 
-func makeModifyTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeModifyTeamEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyTeamRequest)
 		team, err := svc.ModifyTeam(ctx, req.ID, req.payload)
@@ -66,7 +66,7 @@ type modifyTeamAgentOptionsRequest struct {
 	options json.RawMessage
 }
 
-func makeModifyTeamAgentOptionsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeModifyTeamAgentOptionsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyTeamAgentOptionsRequest)
 		team, err := svc.ModifyTeamAgentOptions(ctx, req.ID, req.options)
@@ -83,17 +83,17 @@ func makeModifyTeamAgentOptionsEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listTeamsRequest struct {
-	ListOptions kolide.ListOptions
+	ListOptions fleet.ListOptions
 }
 
 type listTeamsResponse struct {
-	Teams []kolide.Team `json:"teams"`
+	Teams []fleet.Team `json:"teams"`
 	Err   error         `json:"error,omitempty"`
 }
 
 func (r listTeamsResponse) error() error { return r.Err }
 
-func makeListTeamsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListTeamsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listTeamsRequest)
 		teams, err := svc.ListTeams(ctx, req.ListOptions)
@@ -101,7 +101,7 @@ func makeListTeamsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listTeamsResponse{Err: err}, nil
 		}
 
-		resp := listTeamsResponse{Teams: []kolide.Team{}}
+		resp := listTeamsResponse{Teams: []fleet.Team{}}
 		for _, team := range teams {
 			resp.Teams = append(resp.Teams, *team)
 		}
@@ -123,7 +123,7 @@ type deleteTeamResponse struct {
 
 func (r deleteTeamResponse) error() error { return r.Err }
 
-func makeDeleteTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteTeamEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteTeamRequest)
 		err := svc.DeleteTeam(ctx, req.ID)
@@ -140,10 +140,10 @@ func makeDeleteTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type listTeamUsersRequest struct {
 	TeamID      uint
-	ListOptions kolide.ListOptions
+	ListOptions fleet.ListOptions
 }
 
-func makeListTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListTeamUsersEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listTeamUsersRequest)
 		users, err := svc.ListTeamUsers(ctx, req.TeamID, req.ListOptions)
@@ -151,7 +151,7 @@ func makeListTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listUsersResponse{Err: err}, nil
 		}
 
-		resp := listUsersResponse{Users: []kolide.User{}}
+		resp := listUsersResponse{Users: []fleet.User{}}
 		for _, user := range users {
 			resp.Users = append(resp.Users, *user)
 		}
@@ -167,10 +167,10 @@ type modifyTeamUsersRequest struct {
 	TeamID uint // From request path
 	// User ID and role must be specified for add users, user ID must be
 	// specified for delete users.
-	Users []kolide.TeamUser `json:"users"`
+	Users []fleet.TeamUser `json:"users"`
 }
 
-func makeAddTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeAddTeamUsersEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyTeamUsersRequest)
 		team, err := svc.AddTeamUsers(ctx, req.TeamID, req.Users)
@@ -182,7 +182,7 @@ func makeAddTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 	}
 }
 
-func makeDeleteTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteTeamUsersEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyTeamUsersRequest)
 		team, err := svc.DeleteTeamUsers(ctx, req.TeamID, req.Users)
@@ -203,13 +203,13 @@ type teamEnrollSecretsRequest struct {
 }
 
 type teamEnrollSecretsResponse struct {
-	Secrets []*kolide.EnrollSecret `json:"secrets"`
+	Secrets []*fleet.EnrollSecret `json:"secrets"`
 	Err     error                  `json:"error,omitempty"`
 }
 
 func (r teamEnrollSecretsResponse) error() error { return r.Err }
 
-func makeTeamEnrollSecretsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeTeamEnrollSecretsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(teamEnrollSecretsRequest)
 		secrets, err := svc.TeamEnrollSecrets(ctx, req.TeamID)

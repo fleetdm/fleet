@@ -1,26 +1,26 @@
 package mock
 
-//go:generate mockimpl -o datastore_users.go "s *UserStore" "kolide.UserStore"
-//go:generate mockimpl -o datastore_invites.go "s *InviteStore" "kolide.InviteStore"
-//go:generate mockimpl -o datastore_appconfig.go "s *AppConfigStore" "kolide.AppConfigStore"
-//go:generate mockimpl -o datastore_labels.go "s *LabelStore" "kolide.LabelStore"
-//go:generate mockimpl -o datastore_options.go "s *OptionStore" "kolide.OptionStore"
-//go:generate mockimpl -o datastore_packs.go "s *PackStore" "kolide.PackStore"
-//go:generate mockimpl -o datastore_hosts.go "s *HostStore" "kolide.HostStore"
-//go:generate mockimpl -o datastore_fim.go "s *FileIntegrityMonitoringStore" "kolide.FileIntegrityMonitoringStore"
-//go:generate mockimpl -o datastore_osquery_options.go "s *OsqueryOptionsStore" "kolide.OsqueryOptionsStore"
-//go:generate mockimpl -o datastore_scheduled_queries.go "s *ScheduledQueryStore" "kolide.ScheduledQueryStore"
-//go:generate mockimpl -o datastore_queries.go "s *QueryStore" "kolide.QueryStore"
-//go:generate mockimpl -o datastore_query_results.go "s *QueryResultStore" "kolide.QueryResultStore"
-//go:generate mockimpl -o datastore_campaigns.go "s *CampaignStore" "kolide.CampaignStore"
-//go:generate mockimpl -o datastore_sessions.go "s *SessionStore" "kolide.SessionStore"
+import "github.com/fleetdm/fleet/server/fleet"
 
-import "github.com/fleetdm/fleet/server/kolide"
+//go:generate mockimpl -o datastore_users.go "s *UserStore" "fleet.UserStore"
+//go:generate mockimpl -o datastore_invites.go "s *InviteStore" "fleet.InviteStore"
+//go:generate mockimpl -o datastore_appconfig.go "s *AppConfigStore" "fleet.AppConfigStore"
+//go:generate mockimpl -o datastore_labels.go "s *LabelStore" "fleet.LabelStore"
+//go:generate mockimpl -o datastore_options.go "s *OptionStore" "fleet.OptionStore"
+//go:generate mockimpl -o datastore_packs.go "s *PackStore" "fleet.PackStore"
+//go:generate mockimpl -o datastore_hosts.go "s *HostStore" "fleet.HostStore"
+//go:generate mockimpl -o datastore_fim.go "s *FileIntegrityMonitoringStore" "fleet.FileIntegrityMonitoringStore"
+//go:generate mockimpl -o datastore_osquery_options.go "s *OsqueryOptionsStore" "fleet.OsqueryOptionsStore"
+//go:generate mockimpl -o datastore_scheduled_queries.go "s *ScheduledQueryStore" "fleet.ScheduledQueryStore"
+//go:generate mockimpl -o datastore_queries.go "s *QueryStore" "fleet.QueryStore"
+//go:generate mockimpl -o datastore_query_results.go "s *QueryResultStore" "fleet.QueryResultStore"
+//go:generate mockimpl -o datastore_campaigns.go "s *CampaignStore" "fleet.CampaignStore"
+//go:generate mockimpl -o datastore_sessions.go "s *SessionStore" "fleet.SessionStore"
 
-var _ kolide.Datastore = (*Store)(nil)
+var _ fleet.Datastore = (*Store)(nil)
 
 type Store struct {
-	kolide.PasswordResetStore
+	fleet.PasswordResetStore
 	TeamStore
 	TargetStore
 	SessionStore
@@ -47,7 +47,7 @@ func (m *Store) MigrateTables() error {
 func (m *Store) MigrateData() error {
 	return nil
 }
-func (m *Store) MigrationStatus() (kolide.MigrationStatus, error) {
+func (m *Store) MigrationStatus() (fleet.MigrationStatus, error) {
 	return 0, nil
 }
 func (m *Store) Name() string {
@@ -59,6 +59,6 @@ type mockTransaction struct{}
 func (m *mockTransaction) Commit() error   { return nil }
 func (m *mockTransaction) Rollback() error { return nil }
 
-func (m *Store) Begin() (kolide.Transaction, error) {
+func (m *Store) Begin() (fleet.Transaction, error) {
 	return &mockTransaction{}, nil
 }

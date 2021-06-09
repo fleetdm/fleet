@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/server/fleet"
+
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/pubsub"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -42,7 +43,10 @@ func emptyToZero(val string) string {
 	return val
 }
 
-func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolide.Host, error) {
+func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	if nodeKey == "" {
 		return nil, osqueryError{
 			message:     "authentication error: missing node key",
@@ -53,7 +57,7 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 	host, err := svc.ds.AuthenticateHost(nodeKey)
 	if err != nil {
 		switch err.(type) {
-		case kolide.NotFoundError:
+		case fleet.NotFoundError:
 			return nil, osqueryError{
 				message:     "authentication error: invalid node key: " + nodeKey,
 				nodeInvalid: true,
@@ -78,6 +82,9 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 }
 
 func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	secret, err := svc.ds.VerifyEnrollSecret(enrollSecret)
 	if err != nil {
 		return "", osqueryError{
@@ -86,7 +93,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		}
 	}
 
-	nodeKey, err := kolide.RandomText(svc.config.Osquery.NodeKeySize)
+	nodeKey, err := fleet.RandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", osqueryError{
 			message:     "generate node key failed: " + err.Error(),
@@ -192,6 +199,9 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 }
 
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
@@ -213,19 +223,19 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		return nil, osqueryError{message: "database error: " + err.Error()}
 	}
 
-	packConfig := kolide.Packs{}
+	packConfig := fleet.Packs{}
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
-		queries, err := svc.ds.ListScheduledQueriesInPack(pack.ID, kolide.ListOptions{})
+		queries, err := svc.ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
 		if err != nil {
 			return nil, osqueryError{message: "database error: " + err.Error()}
 		}
 
 		// the serializable osquery config struct expects content in a
 		// particular format, so we do the conversion here
-		configQueries := kolide.Queries{}
+		configQueries := fleet.Queries{}
 		for _, query := range queries {
-			queryContent := kolide.QueryContent{
+			queryContent := fleet.QueryContent{
 				Query:    query.Query,
 				Interval: query.Interval,
 				Platform: query.Platform,
@@ -248,7 +258,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 
 		// finally, we add the pack to the client config struct with all of
 		// the pack's queries
-		packConfig[pack.Name] = kolide.PackContent{
+		packConfig[pack.Name] = fleet.PackContent{
 			Platform: pack.Platform,
 			Queries:  configQueries,
 		}
@@ -301,6 +311,9 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing status logs: " + err.Error()}
 	}
@@ -308,6 +321,9 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 }
 
 func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing result logs: " + err.Error()}
 	}
@@ -336,7 +352,7 @@ type detailQuery struct {
 	// Platforms is a list of platforms to run the query on. If this value is
 	// empty, run on all platforms.
 	Platforms  []string
-	IngestFunc func(logger log.Logger, host *kolide.Host, rows []map[string]string) error
+	IngestFunc func(logger log.Logger, host *fleet.Host, rows []map[string]string) error
 }
 
 // runForPlatform determines whether this detail query should run on the given platform
@@ -354,14 +370,14 @@ func (q *detailQuery) runForPlatform(platform string) bool {
 
 // detailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
-// kolide.Host data model. This map should not be modified at runtime.
+// fleet.Host data model. This map should not be modified at runtime.
 var detailQueries = map[string]detailQuery{
 	"network_interface": {
 		Query: `select address, mac
                         from interface_details id join interface_addresses ia
                                on ia.interface = id.interface where length(mac) > 0
                                order by (ibytes + obytes) desc`,
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) (err error) {
+		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
 			if len(rows) == 0 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					"detail_query_network_interface expected 1 or more results")
@@ -416,7 +432,7 @@ var detailQueries = map[string]detailQuery{
 	},
 	"os_version": {
 		Query: "select * from os_version limit 1",
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)))
@@ -456,7 +472,7 @@ var detailQueries = map[string]detailQuery{
 		// distributed_interval (but it's not required), and typically
 		// do not control config_tls_refresh.
 		Query: `select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")`,
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			var configTLSRefresh, configRefresh uint
 			var configRefreshSeen, configTLSRefreshSeen bool
 			for _, row := range rows {
@@ -513,7 +529,7 @@ var detailQueries = map[string]detailQuery{
 	},
 	"osquery_info": {
 		Query: "select * from osquery_info limit 1",
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_osquery_info expected single result got %d", len(rows)))
@@ -527,7 +543,7 @@ var detailQueries = map[string]detailQuery{
 	},
 	"system_info": {
 		Query: "select * from system_info limit 1",
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_system_info expected single result got %d", len(rows)))
@@ -562,7 +578,7 @@ var detailQueries = map[string]detailQuery{
 	},
 	"uptime": {
 		Query: "select * from uptime limit 1",
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)))
@@ -753,8 +769,8 @@ FROM python_packages;
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
 			FROM osquery_schedule
 `,
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
-			packs := map[string][]kolide.ScheduledQueryStats{}
+		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+			packs := map[string][]fleet.ScheduledQueryStats{}
 
 			for _, row := range rows {
 				providedName := row["name"]
@@ -790,7 +806,7 @@ FROM python_packages;
 				}
 				packName, scheduledName := parts[0], parts[1]
 
-				stats := kolide.ScheduledQueryStats{
+				stats := fleet.ScheduledQueryStats{
 					ScheduledQueryName: scheduledName,
 					PackName:           packName,
 					AverageMemory:      cast.ToInt(row["average_memory"]),
@@ -807,11 +823,11 @@ FROM python_packages;
 				packs[packName] = append(packs[packName], stats)
 			}
 
-			host.PackStats = []kolide.PackStats{}
+			host.PackStats = []fleet.PackStats{}
 			for packName, stats := range packs {
 				host.PackStats = append(
 					host.PackStats,
-					kolide.PackStats{
+					fleet.PackStats{
 						PackName:   packName,
 						QueryStats: stats,
 					},
@@ -823,8 +839,8 @@ FROM python_packages;
 	},
 }
 
-func ingestSoftware(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
-	software := kolide.HostSoftware{Modified: true}
+func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	software := fleet.HostSoftware{Modified: true}
 
 	for _, row := range rows {
 		name := row["name"]
@@ -848,7 +864,7 @@ func ingestSoftware(logger log.Logger, host *kolide.Host, rows []map[string]stri
 			)
 			continue
 		}
-		s := kolide.Software{Name: name, Version: version, Source: source}
+		s := fleet.Software{Name: name, Version: version, Source: source}
 		software.Software = append(software.Software, s)
 	}
 
@@ -859,7 +875,7 @@ func ingestSoftware(logger log.Logger, host *kolide.Host, rows []map[string]stri
 
 // hostDetailQueries returns the map of queries that should be executed by
 // osqueryd to fill in the host details
-func (svc *Service) hostDetailQueries(host kolide.Host) (map[string]string, error) {
+func (svc *Service) hostDetailQueries(host fleet.Host) (map[string]string, error) {
 	queries := make(map[string]string)
 	if host.DetailUpdateTime.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) && !host.RefetchRequested {
 		// No need to update already fresh details
@@ -902,6 +918,9 @@ func (svc *Service) hostDetailQueries(host kolide.Host) (map[string]string, erro
 }
 
 func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
@@ -944,8 +963,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 }
 
 // ingestDetailQuery takes the results of a detail query and modifies the
-// provided kolide.Host appropriately.
-func (svc *Service) ingestDetailQuery(host *kolide.Host, name string, rows []map[string]string) error {
+// provided fleet.Host appropriately.
+func (svc *Service) ingestDetailQuery(host *fleet.Host, name string, rows []map[string]string) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDetailQueryPrefix)
 	query, ok := detailQueries[trimmedQuery]
 	if !ok {
@@ -966,7 +985,7 @@ func (svc *Service) ingestDetailQuery(host *kolide.Host, name string, rows []map
 }
 
 // ingestLabelQuery records the results of label queries run by a host
-func (svc *Service) ingestLabelQuery(host kolide.Host, query string, rows []map[string]string, results map[uint]bool) error {
+func (svc *Service) ingestLabelQuery(host fleet.Host, query string, rows []map[string]string, results map[uint]bool) error {
 	trimmedQuery := strings.TrimPrefix(query, hostLabelQueryPrefix)
 	trimmedQueryNum, err := strconv.Atoi(emptyToZero(trimmedQuery))
 	if err != nil {
@@ -979,8 +998,8 @@ func (svc *Service) ingestLabelQuery(host kolide.Host, query string, rows []map[
 }
 
 // ingestDistributedQuery takes the results of a distributed query and modifies the
-// provided kolide.Host appropriately.
-func (svc *Service) ingestDistributedQuery(host kolide.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
+// provided fleet.Host appropriately.
+func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
 	campaignID, err := strconv.Atoi(emptyToZero(trimmedQuery))
@@ -989,7 +1008,7 @@ func (svc *Service) ingestDistributedQuery(host kolide.Host, name string, rows [
 	}
 
 	// Write the results to the pubsub store
-	res := kolide.DistributedQueryResult{
+	res := fleet.DistributedQueryResult{
 		DistributedQueryCampaignID: uint(campaignID),
 		Host:                       host,
 		Rows:                       rows,
@@ -1022,8 +1041,8 @@ func (svc *Service) ingestDistributedQuery(host kolide.Host, name string, rows [
 			return osqueryError{message: "campaign waiting for listener (please retry)"}
 		}
 
-		if campaign.Status != kolide.QueryComplete {
-			campaign.Status = kolide.QueryComplete
+		if campaign.Status != fleet.QueryComplete {
+			campaign.Status = fleet.QueryComplete
 			if err := svc.ds.SaveDistributedQueryCampaign(campaign); err != nil {
 				return osqueryError{message: "closing orphaned campaign: " + err.Error()}
 			}
@@ -1045,7 +1064,10 @@ func (svc *Service) ingestDistributedQuery(host kolide.Host, name string, rows [
 	return nil
 }
 
-func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus, messages map[string]string) error {
+func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 
 	if !ok {
@@ -1068,7 +1090,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results k
 
 	var err error
 	detailUpdated := false // Whether detail or additional was updated
-	additionalResults := make(kolide.OsqueryDistributedQueryResults)
+	additionalResults := make(fleet.OsqueryDistributedQueryResults)
 	labelResults := map[uint]bool{}
 	for query, rows := range results {
 		switch {
@@ -1085,7 +1107,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results k
 			// osquery docs say any nonzero (string) value for
 			// status indicates a query error
 			status, ok := statuses[query]
-			failed := (ok && status != kolide.StatusOK)
+			failed := (ok && status != fleet.StatusOK)
 			err = svc.ingestDistributedQuery(host, query, rows, failed, messages[query])
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}

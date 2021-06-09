@@ -13,6 +13,8 @@ import (
 // Throttled to verify that the rate limiting algorithm works properly.
 
 func TestLimit(t *testing.T) {
+	t.Parallel()
+
 	store, _ := memstore.New(0)
 	limiter := NewMiddleware(store)
 	endpoint := func(context.Context, interface{}) (interface{}, error) { return struct{}{}, nil }

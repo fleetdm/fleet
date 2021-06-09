@@ -1,4 +1,4 @@
-import Kolide from "kolide";
+import Fleet from "fleet";
 
 import formatApiErrors from "utilities/format_api_errors";
 import { frontendFormattedConfig } from "redux/nodes/app/helpers";
@@ -36,7 +36,7 @@ export const getConfig = () => {
   return (dispatch) => {
     dispatch(loadConfig);
 
-    return Kolide.config
+    return Fleet.config
       .loadAll()
       .then((config) => {
         const formattedConfig = frontendFormattedConfig(config);
@@ -57,7 +57,7 @@ export const getConfig = () => {
 export const updateConfig = (configData) => {
   return (dispatch) => {
     dispatch(loadConfig);
-    return Kolide.config
+    return Fleet.config
       .update(configData)
       .then((config) => {
         const formattedConfig = frontendFormattedConfig(config);
@@ -79,7 +79,7 @@ export const getEnrollSecret = () => {
   return (dispatch) => {
     dispatch(loadEnrollSecret);
 
-    return Kolide.config
+    return Fleet.config
       .loadEnrollSecret()
       .then((secret) => {
         dispatch(enrollSecretSuccess(secret.specs.secrets));

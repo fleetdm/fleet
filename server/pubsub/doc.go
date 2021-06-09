@@ -1,4 +1,4 @@
-// Package pubsub implements pub/sub interfaces defined in package kolide.
+// Package pubsub implements pub/sub interfaces defined in package fleet.
 package pubsub
 
 // Error defines the interface of errors specific to the pubsub package

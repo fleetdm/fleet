@@ -5,13 +5,13 @@ import (
 	"os"
 	"sort"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/gosuri/uilive"
 	"github.com/olekukonko/tablewriter"
 )
 
 type outputWriter interface {
-	WriteResult(res kolide.DistributedQueryResult) error
+	WriteResult(res fleet.DistributedQueryResult) error
 }
 
 type resultOutput struct {
@@ -26,7 +26,7 @@ func newJsonWriter() *jsonWriter {
 	return &jsonWriter{}
 }
 
-func (w *jsonWriter) WriteResult(res kolide.DistributedQueryResult) error {
+func (w *jsonWriter) WriteResult(res fleet.DistributedQueryResult) error {
 	out := resultOutput{
 		HostIdentifier: res.Host.HostName,
 		Rows:           res.Rows,
@@ -36,7 +36,7 @@ func (w *jsonWriter) WriteResult(res kolide.DistributedQueryResult) error {
 }
 
 type prettyWriter struct {
-	results []kolide.DistributedQueryResult
+	results []fleet.DistributedQueryResult
 	columns map[string]bool
 	writer  *uilive.Writer
 }
@@ -48,7 +48,7 @@ func newPrettyWriter() *prettyWriter {
 	}
 }
 
-func (w *prettyWriter) WriteResult(res kolide.DistributedQueryResult) error {
+func (w *prettyWriter) WriteResult(res fleet.DistributedQueryResult) error {
 	w.results = append(w.results, res)
 
 	// Recompute columns

@@ -8,7 +8,7 @@ import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import helpers from "components/forms/queries/QueryForm/helpers";
 import InputField from "components/forms/fields/InputField";
-import KolideAce from "components/KolideAce";
+import FleetAce from "components/FleetAce";
 import validate from "components/forms/LabelForm/validate";
 
 const baseClass = "label-form";
@@ -86,7 +86,7 @@ class LabelForm extends Component {
       <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
         <h1>{headerText}</h1>
         {!isManual && (
-          <KolideAce
+          <FleetAce
             {...fields.query}
             label="SQL"
             onLoad={onLoad}

@@ -1,6 +1,6 @@
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import Kolide from "kolide";
+import Fleet from "fleet";
 // @ts-ignore
 import Config from "redux/nodes/entities/base/config";
 // @ts-ignore
@@ -9,11 +9,11 @@ import schemas from "redux/nodes/entities/base/schemas";
 const { TEAMS } = schemas;
 
 export default new Config({
-  createFunc: Kolide.teams.create,
-  destroyFunc: Kolide.teams.destroy,
+  createFunc: Fleet.teams.create,
+  destroyFunc: Fleet.teams.destroy,
   entityName: "teams",
-  loadFunc: Kolide.teams.load,
-  loadAllFunc: Kolide.teams.loadAll,
+  loadFunc: Fleet.teams.load,
+  loadAllFunc: Fleet.teams.loadAll,
   schema: TEAMS,
-  updateFunc: Kolide.teams.update,
+  updateFunc: Fleet.teams.update,
 });

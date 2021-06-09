@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw loggingMiddleware) GetQuerySpec(ctx context.Context, name string) (spec *kolide.QuerySpec, err error) {
+func (mw loggingMiddleware) GetQuerySpec(ctx context.Context, name string) (spec *fleet.QuerySpec, err error) {
 	defer func(begin time.Time) {
 		_ = mw.loggerDebug(err).Log(
 			"method", "GetQuerySpec",
@@ -20,7 +20,7 @@ func (mw loggingMiddleware) GetQuerySpec(ctx context.Context, name string) (spec
 	return spec, err
 }
 
-func (mw loggingMiddleware) GetQuerySpecs(ctx context.Context) (specs []*kolide.QuerySpec, err error) {
+func (mw loggingMiddleware) GetQuerySpecs(ctx context.Context) (specs []*fleet.QuerySpec, err error) {
 	defer func(begin time.Time) {
 		_ = mw.loggerDebug(err).Log(
 			"method", "GetQuerySpecs",
@@ -32,7 +32,7 @@ func (mw loggingMiddleware) GetQuerySpecs(ctx context.Context) (specs []*kolide.
 	return specs, err
 }
 
-func (mw loggingMiddleware) ApplyQuerySpecs(ctx context.Context, specs []*kolide.QuerySpec) (err error) {
+func (mw loggingMiddleware) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) (err error) {
 	defer func(begin time.Time) {
 		_ = mw.loggerDebug(err).Log(
 			"method", "ApplyQuerySpecs",
@@ -44,7 +44,7 @@ func (mw loggingMiddleware) ApplyQuerySpecs(ctx context.Context, specs []*kolide
 	return err
 }
 
-func (mw loggingMiddleware) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Query, error) {
+func (mw loggingMiddleware) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Query, error) {
 	var (
 		loggedInUser = "unauthenticated"
 		err          error
@@ -64,7 +64,7 @@ func (mw loggingMiddleware) ListQueries(ctx context.Context, opt kolide.ListOpti
 	query, err := mw.Service.ListQueries(ctx, opt)
 	return query, err
 }
-func (mw loggingMiddleware) GetQuery(ctx context.Context, id uint) (*kolide.Query, error) {
+func (mw loggingMiddleware) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {
 	var (
 		loggedInUser = "unauthenticated"
 		err          error
@@ -84,9 +84,9 @@ func (mw loggingMiddleware) GetQuery(ctx context.Context, id uint) (*kolide.Quer
 	query, err := mw.Service.GetQuery(ctx, id)
 	return query, err
 }
-func (mw loggingMiddleware) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide.Query, error) {
+func (mw loggingMiddleware) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
 	var (
-		query        *kolide.Query
+		query        *fleet.Query
 		loggedInUser = "unauthenticated"
 		err          error
 	)
@@ -116,9 +116,9 @@ func (mw loggingMiddleware) NewQuery(ctx context.Context, p kolide.QueryPayload)
 	query, err = mw.Service.NewQuery(ctx, p)
 	return query, err
 }
-func (mw loggingMiddleware) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPayload) (*kolide.Query, error) {
+func (mw loggingMiddleware) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
 	var (
-		query        *kolide.Query
+		query        *fleet.Query
 		loggedInUser = "unauthenticated"
 		err          error
 	)

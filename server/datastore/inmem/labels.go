@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/patrickmn/sortutil"
 )
 
-func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
+func (d *Datastore) NewLabel(label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	newLabel := *label
@@ -28,11 +28,11 @@ func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*
 	return &newLabel, nil
 }
 
-func (d *Datastore) ListLabelsForHost(hid uint) ([]*kolide.Label, error) {
+func (d *Datastore) ListLabelsForHost(hid uint) ([]*fleet.Label, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	// First get IDs of label executions for the host
-	resLabels := []*kolide.Label{}
+	resLabels := []*fleet.Label{}
 
 	for _, lqe := range d.labelQueryExecutions {
 		if lqe.HostID == hid && lqe.Matches {
@@ -45,7 +45,7 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]*kolide.Label, error) {
 	return resLabels, nil
 }
 
-func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	// Get post-cutoff executions for host
@@ -67,7 +67,7 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 	return queries, nil
 }
 
-func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[uint]bool, t time.Time) error {
+func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, t time.Time) error {
 	// Record executions
 	for labelID, matches := range results {
 		label, ok := d.labels[labelID]
@@ -89,7 +89,7 @@ func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[ui
 
 		if !updated {
 			// Create new execution
-			lqe := kolide.LabelQueryExecution{
+			lqe := fleet.LabelQueryExecution{
 				HostID:    host.ID,
 				LabelID:   label.ID,
 				UpdatedAt: t,
@@ -104,7 +104,7 @@ func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[ui
 	return nil
 }
 
-func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
+func (d *Datastore) Label(lid uint) (*fleet.Label, error) {
 	d.mtx.Lock()
 	label, ok := d.labels[lid]
 	d.mtx.Unlock()
@@ -115,7 +115,7 @@ func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 	return label, nil
 }
 
-func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
+func (d *Datastore) ListLabels(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	// We need to sort by keys to provide reliable ordering
@@ -126,7 +126,7 @@ func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) 
 	}
 	sort.Ints(keys)
 
-	labels := []*kolide.Label{}
+	labels := []*fleet.Label{}
 	for _, k := range keys {
 		labels = append(labels, d.labels[uint(k)])
 	}
@@ -151,13 +151,13 @@ func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) 
 	return labels, nil
 }
 
-func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ...uint) ([]*kolide.Label, error) {
+func (d *Datastore) SearchLabels(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 	omitLookup := map[uint]bool{}
 	for _, o := range omit {
 		omitLookup[o] = true
 	}
 
-	var results []*kolide.Label
+	var results []*fleet.Label
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -177,8 +177,8 @@ func (d *Datastore) SearchLabels(filter kolide.TeamFilter, query string, omit ..
 	return results, nil
 }
 
-func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	var hosts []*kolide.Host
+func (d *Datastore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	var hosts []*fleet.Host
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -192,8 +192,8 @@ func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]*k
 	return hosts, nil
 }
 
-func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]*kolide.Host, error) {
-	var hosts []*kolide.Host
+func (d *Datastore) ListUniqueHostsInLabels(filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
+	var hosts []*fleet.Host
 
 	labelSet := map[uint]bool{}
 	hostSet := map[uint]bool{}
@@ -217,6 +217,6 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]*kolide.Host, erro
 	return hosts, nil
 }
 
-func (d *Datastore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
+func (d *Datastore) SaveLabel(label *fleet.Label) (*fleet.Label, error) {
 	panic("inmem is being deprecated")
 }

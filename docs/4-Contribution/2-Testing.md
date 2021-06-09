@@ -1,8 +1,10 @@
 # Testing & Local Development
 
 - [License key](#license-key)
+- [Simulated hosts](#hosts)
 - [Test suite](#test-suite)
 - [End-to-end tests](#end-to-end-tests)
+- [Test hosts](#test-hosts)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
 - [Teams seed data](#teams-seed-data)
@@ -30,6 +32,12 @@ or
 ```
 ./build/fleet serve --dev --license_key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
 ```
+
+## Simulated hosts
+
+It can be helpful to quickly populate the UI with simulated hosts when developing or testing features that require host information.
+
+Check out [the instructions in the `/tools/osquery` directory](../../tools/osquery/README.md#testing-with-containerized-osqueryd) for starting up simulated hosts in your development environment.
 
 ## Test suite
 
@@ -193,6 +201,10 @@ CYPRESS_FLEET_TIER=basic yarn cypress run
 
 Tests will run automatically and results are reported to the shell.
 
+## Test hosts
+
+The Fleet repo includes tools to start test osquery hosts. Please see the documentation in [/tools/osquery](../../tools/osquery) for more information.
+
 ## Email
 
 #### Manually testing email with MailHog
@@ -244,7 +256,7 @@ Next, set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scr
 export FLEET_ENV_PATH=/Users/victor/fleet_env
 ```
 
-Finally run one of the bash scripts located in the [/tools/api](../../tools/api/README.md) directory. 
+Finally run one of the bash scripts located in the [/tools/api](../../tools/api/README.md) directory.
 
 The `fleet/create_core` script will generate an environment to roughly reflect an installation of Fleet Core. The script creates 3 users with different roles.
 

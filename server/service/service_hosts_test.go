@@ -1,14 +1,14 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/mock"
 	"github.com/fleetdm/fleet/server/ptr"
+	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,21 +17,18 @@ func TestListHosts(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds, nil, nil)
-	assert.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
-	ctx := context.Background()
-
-	hosts, err := svc.ListHosts(ctx, kolide.HostListOptions{})
+	hosts, err := svc.ListHosts(test.UserContext(test.UserAdmin), fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
-	_, err = ds.NewHost(&kolide.Host{
+	_, err = ds.NewHost(&fleet.Host{
 		HostName: "foo",
 	})
 	assert.Nil(t, err)
 
-	hosts, err = svc.ListHosts(ctx, kolide.HostListOptions{})
+	hosts, err = svc.ListHosts(test.UserContext(test.UserAdmin), fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 1)
 }
@@ -40,21 +37,19 @@ func TestDeleteHost(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds, nil, nil)
-	assert.Nil(t, err)
+	svc := newTestService(ds, nil, nil)
 
-	ctx := context.Background()
-
-	host, err := ds.NewHost(&kolide.Host{
+	host, err := ds.NewHost(&fleet.Host{
 		HostName: "foo",
 	})
 	assert.Nil(t, err)
 	assert.NotZero(t, host.ID)
 
-	err = svc.DeleteHost(ctx, host.ID)
+	err = svc.DeleteHost(test.UserContext(test.UserAdmin), host.ID)
 	assert.Nil(t, err)
 
-	hosts, err := ds.ListHosts(kolide.HostListOptions{})
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
@@ -64,18 +59,17 @@ func TestHostDetails(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
 
-	host := &kolide.Host{ID: 3}
-	ctx := context.Background()
-	expectedLabels := []*kolide.Label{
+	host := &fleet.Host{ID: 3}
+	expectedLabels := []*fleet.Label{
 		{
 			Name:        "foobar",
 			Description: "the foobar label",
 		},
 	}
-	ds.ListLabelsForHostFunc = func(hid uint) ([]*kolide.Label, error) {
+	ds.ListLabelsForHostFunc = func(hid uint) ([]*fleet.Label, error) {
 		return expectedLabels, nil
 	}
-	expectedPacks := []*kolide.Pack{
+	expectedPacks := []*fleet.Pack{
 		{
 			Name: "pack1",
 		},
@@ -83,14 +77,14 @@ func TestHostDetails(t *testing.T) {
 			Name: "pack2",
 		},
 	}
-	ds.ListPacksForHostFunc = func(hid uint) ([]*kolide.Pack, error) {
+	ds.ListPacksForHostFunc = func(hid uint) ([]*fleet.Pack, error) {
 		return expectedPacks, nil
 	}
-	ds.LoadHostSoftwareFunc = func(host *kolide.Host) error {
+	ds.LoadHostSoftwareFunc = func(host *fleet.Host) error {
 		return nil
 	}
 
-	hostDetail, err := svc.getHostDetails(ctx, host)
+	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host)
 	require.NoError(t, err)
 	assert.Equal(t, expectedLabels, hostDetail.Labels)
 	assert.Equal(t, expectedPacks, hostDetail.Packs)
@@ -98,34 +92,32 @@ func TestHostDetails(t *testing.T) {
 
 func TestRefetchHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := &Service{ds: ds}
+	svc := newTestService(ds, nil, nil)
 
-	host := &kolide.Host{ID: 3}
-	ctx := context.Background()
+	host := &fleet.Host{ID: 3}
 
-	ds.HostFunc = func(hid uint) (*kolide.Host, error) {
+	ds.HostFunc = func(hid uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(host *kolide.Host) error {
+	ds.SaveHostFunc = func(host *fleet.Host) error {
 		assert.True(t, host.RefetchRequested)
 		return nil
 	}
 
-	require.NoError(t, svc.RefetchHost(ctx, host.ID))
+	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserAdmin), host.ID))
 }
 
 func TestAddHostsToTeamByFilter(t *testing.T) {
 	ds := new(mock.Store)
-	svc := &Service{ds: ds}
-	ctx := context.Background()
+	svc := newTestService(ds, nil, nil)
 
 	expectedHostIDs := []uint{1, 2, 4}
 	expectedTeam := (*uint)(nil)
 
-	ds.ListHostsFunc = func(opt kolide.HostListOptions) ([]*kolide.Host, error) {
-		var hosts []*kolide.Host
+	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
 		for _, id := range expectedHostIDs {
-			hosts = append(hosts, &kolide.Host{ID: id})
+			hosts = append(hosts, &fleet.Host{ID: id})
 		}
 		return hosts, nil
 	}
@@ -135,23 +127,22 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(ctx, expectedTeam, kolide.HostListOptions{}, nil))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
 }
 
 func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	ds := new(mock.Store)
-	svc := &Service{ds: ds}
-	ctx := context.Background()
+	svc := newTestService(ds, nil, nil)
 
 	expectedHostIDs := []uint{6}
 	expectedTeam := ptr.Uint(1)
 	expectedLabel := ptr.Uint(2)
 
-	ds.ListHostsInLabelFunc = func(lid uint, opt kolide.HostListOptions) ([]*kolide.Host, error) {
+	ds.ListHostsInLabelFunc = func(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		assert.Equal(t, *expectedLabel, lid)
-		var hosts []*kolide.Host
+		var hosts []*fleet.Host
 		for _, id := range expectedHostIDs {
-			hosts = append(hosts, &kolide.Host{ID: id})
+			hosts = append(hosts, &fleet.Host{ID: id})
 		}
 		return hosts, nil
 	}
@@ -160,21 +151,20 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(ctx, expectedTeam, kolide.HostListOptions{}, expectedLabel))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), expectedTeam, fleet.HostListOptions{}, expectedLabel))
 }
 
 func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds := new(mock.Store)
-	svc := &Service{ds: ds}
-	ctx := context.Background()
+	svc := newTestService(ds, nil, nil)
 
-	ds.ListHostsFunc = func(opt kolide.HostListOptions) ([]*kolide.Host, error) {
-		return []*kolide.Host{}, nil
+	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{}, nil
 	}
 	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
 		t.Error("add hosts func should not have been called")
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(ctx, nil, kolide.HostListOptions{}, nil))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), nil, fleet.HostListOptions{}, nil))
 }

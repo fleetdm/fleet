@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) ApplyPackSpecs(specs []*kolide.PackSpec) (err error) {
+func (d *Datastore) ApplyPackSpecs(specs []*fleet.PackSpec) (err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		for _, spec := range specs {
 			if err := applyPackSpec(tx, spec); err != nil {
@@ -23,7 +23,7 @@ func (d *Datastore) ApplyPackSpecs(specs []*kolide.PackSpec) (err error) {
 	return err
 }
 
-func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
+func applyPackSpec(tx *sqlx.Tx, spec *fleet.PackSpec) error {
 	if spec.Name == "" {
 		return errors.New("pack name must not be empty")
 	}
@@ -96,7 +96,7 @@ func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
 			INSERT INTO pack_targets (pack_id, type, target_id)
 			VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))
 		`
-		if _, err := tx.Exec(query, packID, kolide.TargetLabel, l); err != nil {
+		if _, err := tx.Exec(query, packID, fleet.TargetLabel, l); err != nil {
 			return errors.Wrap(err, "adding label to pack")
 		}
 	}
@@ -104,7 +104,7 @@ func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
 	return nil
 }
 
-func (d *Datastore) GetPackSpecs() (specs []*kolide.PackSpec, err error) {
+func (d *Datastore) GetPackSpecs() (specs []*fleet.PackSpec, err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic specs
 		query := "SELECT id, name, description, platform, disabled FROM packs"
@@ -119,7 +119,7 @@ SELECT l.name
 FROM labels l JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 `
-			if err := tx.Select(&spec.Targets.Labels, query, spec.ID, kolide.TargetLabel); err != nil {
+			if err := tx.Select(&spec.Targets.Labels, query, spec.ID, fleet.TargetLabel); err != nil {
 				return errors.Wrap(err, "get pack targets")
 			}
 		}
@@ -148,10 +148,10 @@ WHERE pack_id = ?
 	return specs, nil
 }
 
-func (d *Datastore) GetPackSpec(name string) (spec *kolide.PackSpec, err error) {
+func (d *Datastore) GetPackSpec(name string) (spec *fleet.PackSpec, err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic spec
-		var specs []*kolide.PackSpec
+		var specs []*fleet.PackSpec
 		query := "SELECT id, name, description, platform, disabled FROM packs WHERE name = ?"
 		if err := tx.Select(&specs, query, name); err != nil {
 			return errors.Wrap(err, "get packs")
@@ -171,7 +171,7 @@ SELECT l.name
 FROM labels l JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 `
-		if err := tx.Select(&spec.Targets.Labels, query, spec.ID, kolide.TargetLabel); err != nil {
+		if err := tx.Select(&spec.Targets.Labels, query, spec.ID, fleet.TargetLabel); err != nil {
 			return errors.Wrap(err, "get pack targets")
 		}
 
@@ -197,14 +197,14 @@ WHERE pack_id = ?
 	return spec, nil
 }
 
-func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide.Pack, bool, error) {
+func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
 	db := d.getTransaction(opts)
 	sqlStatement := `
 		SELECT *
 			FROM packs
 			WHERE name = ?
 	`
-	var pack kolide.Pack
+	var pack fleet.Pack
 	err := db.Get(&pack, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -217,7 +217,7 @@ func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide
 }
 
 // NewPack creates a new Pack
-func (d *Datastore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kolide.Pack, error) {
+func (d *Datastore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
 	db := d.getTransaction(opts)
 
 	query := `
@@ -237,7 +237,7 @@ func (d *Datastore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kol
 }
 
 // SavePack stores changes to pack
-func (d *Datastore) SavePack(pack *kolide.Pack) error {
+func (d *Datastore) SavePack(pack *fleet.Pack) error {
 	query := `
 			UPDATE packs
 			SET name = ?, platform = ?, disabled = ?, description = ?
@@ -258,15 +258,15 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 	return nil
 }
 
-// DeletePack deletes a kolide.Pack so that it won't show up in results.
+// DeletePack deletes a fleet.Pack so that it won't show up in results.
 func (d *Datastore) DeletePack(name string) error {
 	return d.deleteEntityByName("packs", name)
 }
 
-// Pack fetch kolide.Pack with matching ID
-func (d *Datastore) Pack(pid uint) (*kolide.Pack, error) {
+// Pack fetch fleet.Pack with matching ID
+func (d *Datastore) Pack(pid uint) (*fleet.Pack, error) {
 	query := `SELECT * FROM packs WHERE id = ?`
-	pack := &kolide.Pack{}
+	pack := &fleet.Pack{}
 	err := d.db.Get(pack, query, pid)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Pack").WithID(pid)
@@ -277,10 +277,10 @@ func (d *Datastore) Pack(pid uint) (*kolide.Pack, error) {
 	return pack, nil
 }
 
-// ListPacks returns all kolide.Pack records limited and sorted by kolide.ListOptions
-func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+// ListPacks returns all fleet.Pack records limited and sorted by fleet.ListOptions
+func (d *Datastore) ListPacks(opt fleet.ListOptions) ([]*fleet.Pack, error) {
 	query := `SELECT * FROM packs`
-	packs := []*kolide.Pack{}
+	packs := []*fleet.Pack{}
 	err := d.db.Select(&packs, appendListOptionsToSQL(query, opt))
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing packs")
@@ -288,8 +288,8 @@ func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	return packs, nil
 }
 
-// AddLabelToPack associates a kolide.Label with a kolide.Pack
-func (d *Datastore) AddLabelToPack(lid uint, pid uint, opts ...kolide.OptionalArg) error {
+// AddLabelToPack associates a fleet.Label with a fleet.Pack
+func (d *Datastore) AddLabelToPack(lid uint, pid uint, opts ...fleet.OptionalArg) error {
 	db := d.getTransaction(opts)
 
 	query := `
@@ -297,7 +297,7 @@ func (d *Datastore) AddLabelToPack(lid uint, pid uint, opts ...kolide.OptionalAr
 			VALUES ( ?, ?, ? )
 			ON DUPLICATE KEY UPDATE id=id
 	`
-	_, err := db.Exec(query, pid, kolide.TargetLabel, lid)
+	_, err := db.Exec(query, pid, fleet.TargetLabel, lid)
 	if err != nil {
 		return errors.Wrap(err, "adding label to pack")
 	}
@@ -305,14 +305,14 @@ func (d *Datastore) AddLabelToPack(lid uint, pid uint, opts ...kolide.OptionalAr
 	return nil
 }
 
-// AddHostToPack associates a kolide.Host with a kolide.Pack
+// AddHostToPack associates a fleet.Host with a fleet.Pack
 func (d *Datastore) AddHostToPack(hid, pid uint) error {
 	query := `
 		INSERT INTO pack_targets ( pack_id, type, target_id )
 			VALUES ( ?, ?, ? )
 			ON DUPLICATE KEY UPDATE id=id
 	`
-	_, err := d.db.Exec(query, pid, kolide.TargetHost, hid)
+	_, err := d.db.Exec(query, pid, fleet.TargetHost, hid)
 	if err != nil {
 		return errors.Wrap(err, "adding host to pack")
 	}
@@ -320,14 +320,14 @@ func (d *Datastore) AddHostToPack(hid, pid uint) error {
 	return nil
 }
 
-// RemoreLabelFromPack will remove the association between a kolide.Label and
-// a kolide.Pack
+// RemoreLabelFromPack will remove the association between a fleet.Label and
+// a fleet.Pack
 func (d *Datastore) RemoveLabelFromPack(lid, pid uint) error {
 	query := `
 		DELETE FROM pack_targets
 			WHERE target_id = ? AND pack_id = ? AND type = ?
 	`
-	_, err := d.db.Exec(query, lid, pid, kolide.TargetLabel)
+	_, err := d.db.Exec(query, lid, pid, fleet.TargetLabel)
 	if err == sql.ErrNoRows {
 		return notFound("PackTarget").WithMessage(fmt.Sprintf("label ID: %d, pack ID: %d", lid, pid))
 	} else if err != nil {
@@ -336,14 +336,14 @@ func (d *Datastore) RemoveLabelFromPack(lid, pid uint) error {
 	return nil
 }
 
-// RemoveHostFromPack will remove the association between a kolide.Host and a
-// kolide.Pack
+// RemoveHostFromPack will remove the association between a fleet.Host and a
+// fleet.Pack
 func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
 	query := `
 		DELETE FROM pack_targets
 			WHERE target_id = ? AND pack_id = ? AND type = ?
 	`
-	_, err := d.db.Exec(query, hid, pid, kolide.TargetHost)
+	_, err := d.db.Exec(query, hid, pid, fleet.TargetHost)
 	if err == sql.ErrNoRows {
 		return notFound("PackTarget").WithMessage(fmt.Sprintf("host ID: %d, pack ID: %d", hid, pid))
 	} else if err != nil {
@@ -352,8 +352,8 @@ func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
 	return nil
 }
 
-// ListLabelsForPack will return a list of kolide.Label records associated with kolide.Pack
-func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
+// ListLabelsForPack will return a list of fleet.Label records associated with fleet.Pack
+func (d *Datastore) ListLabelsForPack(pid uint) ([]*fleet.Label, error) {
 	query := `
 	SELECT
 		l.id,
@@ -372,16 +372,16 @@ func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
 		pt.pack_id = ?
 	`
 
-	labels := []*kolide.Label{}
+	labels := []*fleet.Label{}
 
-	if err := d.db.Select(&labels, query, kolide.TargetLabel, pid); err != nil && err != sql.ErrNoRows {
+	if err := d.db.Select(&labels, query, fleet.TargetLabel, pid); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing labels for pack")
 	}
 
 	return labels, nil
 }
 
-func (d *Datastore) ListPacksForHost(hid uint) ([]*kolide.Pack, error) {
+func (d *Datastore) ListPacksForHost(hid uint) ([]*fleet.Pack, error) {
 	query := `
 		SELECT DISTINCT packs.*
 		FROM
@@ -402,14 +402,14 @@ func (d *Datastore) ListPacksForHost(hid uint) ([]*kolide.Pack, error) {
 		) packs
 	`
 
-	packs := []*kolide.Pack{}
-	if err := d.db.Select(&packs, query, kolide.TargetLabel, hid, kolide.TargetHost, hid); err != nil && err != sql.ErrNoRows {
+	packs := []*fleet.Pack{}
+	if err := d.db.Select(&packs, query, fleet.TargetLabel, hid, fleet.TargetHost, hid); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing hosts in pack")
 	}
 	return packs, nil
 }
 
-func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, error) {
+func (d *Datastore) ListHostsInPack(pid uint, opt fleet.ListOptions) ([]uint, error) {
 	query := `
 		SELECT DISTINCT h.id
 		FROM hosts h
@@ -427,13 +427,13 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, e
 	`
 
 	hosts := []uint{}
-	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), kolide.TargetLabel, kolide.TargetHost, pid); err != nil && err != sql.ErrNoRows {
+	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), fleet.TargetLabel, fleet.TargetHost, pid); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing hosts in pack")
 	}
 	return hosts, nil
 }
 
-func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, error) {
+func (d *Datastore) ListExplicitHostsInPack(pid uint, opt fleet.ListOptions) ([]uint, error) {
 	query := `
 		SELECT DISTINCT h.id
 		FROM hosts h
@@ -445,7 +445,7 @@ func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([
 		WHERE pt.pack_id = ?
 	`
 	hosts := []uint{}
-	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), kolide.TargetHost, pid); err != nil && err != sql.ErrNoRows {
+	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), fleet.TargetHost, pid); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing explicit hosts in pack")
 	}
 	return hosts, nil
