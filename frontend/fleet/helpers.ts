@@ -1,4 +1,4 @@
-import { filter, flatMap, omit, pick, size } from "lodash";
+import { flatMap, omit, pick, size } from "lodash";
 import md5 from "js-md5";
 import moment from "moment";
 
