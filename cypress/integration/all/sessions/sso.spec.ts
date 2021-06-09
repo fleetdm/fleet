@@ -3,7 +3,7 @@ describe("SSO Sessions", () => {
     cy.setup();
   });
 
-  it("Can login with username/password", () => {
+  it("Non-SSO user can login with username/password", () => {
     cy.login();
     cy.setupSSO((enable_idp_login = true));
     cy.logout();
@@ -12,8 +12,8 @@ describe("SSO Sessions", () => {
     cy.contains(/forgot password/i);
 
     // Log in
-    cy.get("input").first().type("test@example.com");
-    cy.get("input").last().type("admin123#");
+    cy.get("input").first().type("admin@example.com");
+    cy.get("input").last().type("user123#");
     cy.contains("button", "Login").click();
 
     // Verify dashboard
