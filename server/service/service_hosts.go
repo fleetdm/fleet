@@ -23,7 +23,9 @@ func (svc Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]
 }
 
 func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
