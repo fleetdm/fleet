@@ -25,6 +25,7 @@ var _ kolide.QueryResultStore = &redisQueryResults{}
 func NewRedisPool(server, password string, database int, useTLS bool) *redisc.Cluster {
 	//Create the Cluster
 	cluster := redisc.Cluster{
+<<<<<<< HEAD
 		StartupNodes: []string{fmt.Sprintf(server)},
 		DialOptions: []redis.DialOption{
 			redis.DialDatabase(database),
@@ -69,6 +70,52 @@ func NewRedisPool(server, password string, database int, useTLS bool) *redisc.Cl
 					},
 				}, nil
         },
+=======
+			StartupNodes: []string{fmt.Sprintf(server)},
+			DialOptions: []redis.DialOption{
+					redis.DialDatabase(database),
+					redis.DialUseTLS(useTLS),
+					redis.DialConnectTimeout(5*time.Second),
+					redis.DialReadTimeout(5*time.Second),
+					redis.DialWriteTimeout(5*time.Second),
+					redis.DialKeepAlive(5*time.Second),
+			},
+			CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
+							return &redis.Pool{
+									MaxIdle: 3,
+									IdleTimeout: 240 * time.Second,
+									Dial: func() (redis.Conn, error) {
+											c, err := redis.Dial(
+													"tcp",
+													server,
+													redis.DialDatabase(database),
+													redis.DialUseTLS(useTLS),
+													redis.DialConnectTimeout(5*time.Second),
+													redis.DialKeepAlive(10*time.Second),
+													// Read/Write timeouts not set here because we may see results
+													// only rarely on the pub/sub channel.
+											)
+											if err != nil {
+													return nil, err
+											}
+											if password != "" {
+													if _, err := c.Do("AUTH", password); err != nil {
+															c.Close()
+															return nil, err
+													}
+											}
+											return c, err
+									},
+									TestOnBorrow: func (c redis.Conn, t time.Time) error {
+											if time.Since(t) < time.Minute {
+													return nil
+											}
+											_, err := c.Do("PING")
+											return err
+									},
+							}, nil
+				},
+>>>>>>> ace51922075010a25922fe65cdaa629a0d431ebf
 	}
 
 	cluster.Refresh()
