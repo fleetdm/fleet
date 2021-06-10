@@ -109,11 +109,11 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	}
 
 	// Add team targets
-	for _, lid := range targets.TeamIDs {
+	for _, tid := range targets.TeamIDs {
 		_, err = svc.ds.NewDistributedQueryCampaignTarget(&fleet.DistributedQueryCampaignTarget{
 			Type:                       fleet.TargetTeam,
 			DistributedQueryCampaignID: campaign.ID,
-			TargetID:                   lid,
+			TargetID:                   tid,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "adding team target")
