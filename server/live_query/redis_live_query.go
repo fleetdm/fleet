@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 )
