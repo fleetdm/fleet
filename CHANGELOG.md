@@ -14,13 +14,13 @@ There are several known issues that will be fixed for the stable release of Flee
 
 * Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Basic customers. Check out the list below for the new functionality included with Teams:
 
-  * Add ability to enroll hosts to one team using team specific enroll secrets.
+* Add ability to enroll hosts to one team using team specific enroll secrets.
 
-  * Add ability to manually transfer hosts to a different team in the Fleet UI.
+* Add ability to manually transfer hosts to a different team in the Fleet UI.
 
-  * Add ability to apply unique agent options to each team. Note that "osquery options" have been renamed to "agent options."
+* Add ability to apply unique agent options to each team. Note that "osquery options" have been renamed to "agent options."
 
-  * Add ability to grant users access to one or more teams. This allows you to define a user's access to specific groups of hosts in Fleet.
+* Add ability to grant users access to one or more teams. This allows you to define a user's access to specific groups of hosts in Fleet.
 
 ### Upgrade plan
 
