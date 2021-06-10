@@ -27,12 +27,14 @@ Your Fleet server's two main purposes are:
 
 The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
 
-> Fleet does not support Redis Cluster. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
+> Fleet does not support Redis Cluster or Redis Sentinel. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
 
 Since Fleet is a web application, when you run Fleet there are some other configurations that are worth defining, such as:
 
 - The TLS certificates that Fleet should use to terminate TLS.
 - The [JWT](https://jwt.io/) Key which is used to sign and verify session tokens.
+
+When deploying Fleet, mitigate DoS attacks as you would when deploying any app.
 
 Since Fleet is an osquery TLS server, you are also able to define configurations that can customize your experience there, such as:
 

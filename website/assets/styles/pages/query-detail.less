@@ -1,5 +1,101 @@
 #query-detail {
 
-  // …
+  h5 {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  h6 {
+    font-family: 'Nunito';
+    font-size: 16px;
+    line-height: 25px;
+  }
+
+  p {
+    &.platform, &.purpose {
+      margin-bottom: 8px;
+    }
+  }
+
+  a {
+    font-size: 18px;
+    color: @core-vibrant-blue;
+  }
+
+  img {
+    &.logo {
+      height: 24px;
+      width: 24px;
+    }
+  }
+
+  .query-tip {
+    background-color: @ui-off-white;
+
+    .lightbulb {
+      height: 24px;
+      width: auto;
+      margin-left: 4px;
+      margin-right: 20px;
+    }
+
+  }
+
+  .query-sidebar {
+    border-color: #E2E4EA;
+
+  }
+
+  .avatar-frame {
+    width: 24px;
+    height: 24px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 50%;
+    &:hover {
+      cursor: pointer;
+    }
+
+    img {
+      display: inline;
+      margin: 0 auto;
+      height: 100%;
+      width: auto;
+    }
+  }
+
+  .divider {
+    border-bottom: 1px solid;
+    border-color: #E2E4EA;
+  }
+
+  .platforms, .purpose, .contributors, .contribute {
+    min-height: 36px;
+    p, a {
+      font-family: 'Nunito';
+      font-size: 16px;
+      line-height: 24px;
+    }
+  }
+
+  .remediation {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    p {
+      font-family: 'Nunito';
+      font-size: 16px;
+      line-height: 24px;
+    }
+  }
+
+  @media (max-width: 575px) {
+
+    h2 {
+      font-size: 28px;
+      line-height: 36px;
+    }
+
+  }
 
 }

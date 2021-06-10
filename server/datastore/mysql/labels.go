@@ -345,7 +345,7 @@ func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[ui
 
 		_, err := d.db.Exec(sql, vals...)
 		if err != nil {
-			return errors.Wrap(err, "insert label query executions")
+			return errors.Wrapf(err, "insert label query executions (%v)", vals)
 		}
 	}
 

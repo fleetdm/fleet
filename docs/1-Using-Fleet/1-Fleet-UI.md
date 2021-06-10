@@ -6,7 +6,7 @@
 
 The Fleet application allows you to query hosts that you have installed osquery on. To run a new query, navigate to "Queries" from the top nav, and then hit the "Create new query" button from the Queries page. From here, you can compose your query, view SQL table documentation via the sidebar, select arbitrary hosts (or groups of hosts), and execute your query. As results are returned, they will populate the interface in real time. You can use the integrated filtering tool to perform useful initial analytics and easily export the entire dataset for offline analysis.
 
-![Distributed new query with local filter](../images/distributed-new-query-with-local-filter.png)
+![Distributed new query with local filter](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/distributed-new-query-with-local-filter.png)
 
 After you've composed a query that returns the information you were looking for, you may choose to save the query. You can still continue to execute the query on whatever set of hosts you would like after you have saved the query.
 

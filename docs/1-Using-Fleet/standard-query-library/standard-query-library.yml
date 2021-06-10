@@ -7,7 +7,7 @@ spec:
   description: Count the number of Apple applications installed on the machine.
   query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
   purpose: Informational
-  remediation: N/A
+  contributors: mike-j-thomas,noahtalerman,mikermcneil
 ---
 apiVersion: v1
 kind: query
@@ -17,7 +17,6 @@ spec:
   description: Retrieves the OpenSSL version.
   query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
   purpose: Detection
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -27,7 +26,6 @@ spec:
   description: Gatekeeper tries to ensure only trusted software is run on a mac machine.
   query: SELECT * FROM gatekeeper WHERE assessments_enabled = 0;
   purpose: Detection
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -47,7 +45,6 @@ spec:
   description: List authorized_keys for each user on the system.
   query: SELECT * FROM users CROSS JOIN authorized_keys USING (uid);
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -58,7 +55,6 @@ spec:
   description: List authorized_keys for each user on the system.
   query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -69,7 +65,6 @@ spec:
   description: Retrieve application, system, and mobile app crash logs.
   query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -79,7 +74,6 @@ spec:
   description: List installed Chrome Extensions for all users.
   query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -89,7 +83,6 @@ spec:
   description: Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -99,7 +92,6 @@ spec:
   description: Get the installed homebrew package database.
   query: SELECT * FROM homebrew_packages;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -109,7 +101,6 @@ spec:
   description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -119,7 +110,6 @@ spec:
   description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -129,7 +119,6 @@ spec:
   description: Retrieves the list of installed Safari Extensions for all users in the target system.
   query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -139,7 +128,6 @@ spec:
   description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -149,7 +137,6 @@ spec:
   description:
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -159,7 +146,6 @@ spec:
   description: Displays the percentage of free space available on the primary disk partition.
   query: SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -169,7 +155,6 @@ spec:
   description: Shows system mounted devices and filesystems (not process specific).
   query: SELECT device, device_alias, path, type, blocks_size FROM mounts;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -179,7 +164,6 @@ spec:
   description: Shows system mounted devices and filesystems (not process specific).
   query: SELECT * FROM os_version;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -189,7 +173,6 @@ spec:
   description: Shows information about the host platform
   query: SELECT vendor, version, date, revision from platform_info;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -199,7 +182,6 @@ spec:
   description: Shows applications and binaries set as user/login startup items.
   query: SELECT * FROM startup_items;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -209,7 +191,6 @@ spec:
   description: Get a list of system logins and logouts.
   query: SELECT * FROM last;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -219,7 +200,6 @@ spec:
   description: Get current users with active shell/console on the system and associated process
   query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -230,7 +210,6 @@ spec:
   description: Shows the system uptime.
   query: SELECT * FROM uptime;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -240,7 +219,6 @@ spec:
   description: Shows all USB devices that are actively plugged into the host system.
   query: SELECT * FROM usb_devices;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -250,7 +228,6 @@ spec:
   description: Shows information about the wifi network that a host is currently connected to.
   query: SELECT * FROM wifi_status;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -260,7 +237,6 @@ spec:
   description:
   query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -270,7 +246,6 @@ spec:
   description: Disk encryption status and information.
   query: SELECT * FROM disk_encryption;
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -281,9 +256,7 @@ spec:
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
   purpose: Detection
-  remediation:
-    - User awareness about the impact of SSH Keys
-    - Rotate the identified Keys
+  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -294,9 +267,7 @@ spec:
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   purpose: Detection
-  remediation:
-    - User awareness about the impact of SSH Keys
-    - Rotate the identified Keys
+  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -307,7 +278,6 @@ spec:
   description: Line parsed values from system and user cron/tab.
   query: SELECT * FROM crontab;
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -318,7 +288,6 @@ spec:
   description: suid binaries in common locations.
   query: SELECT * FROM suid_bin;
   purpose: Informational
-  remediation: N/A
 ---
 apiVersion: v1
 kind: query
@@ -328,9 +297,7 @@ spec:
   description: Detect any processes that run with LD_PRELOAD environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
   purpose: Detection
-  remediation:
-    - Identify the process/binary detected
-    - Confirm with system owner
+  remediation: Identify the process/binary detected and confirm with the system's owner.
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -341,9 +308,7 @@ spec:
   description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
   purpose: Detection
-  remediation:
-    - Identify the process/binary detected
-    - Confirm with system owner
+  remediation: Identify the process/binary detected and confirm with the system's owner.
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -354,7 +319,6 @@ spec:
   description: Line-parsed /etc/hosts
   query: SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -365,7 +329,6 @@ spec:
   description: Network interfaces MAC address
   query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -376,7 +339,6 @@ spec:
   description: Local user accounts (including domain accounts that have logged on locally (Windows)).
   query: SELECT uid, gid, username, description,directory, shell FROM users;
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -387,7 +349,6 @@ spec:
   description: Domain Joined environment normally have root or other service account only and users are SSH-ing using their Domain Accounts.
   query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
   purpose: Detection
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -401,7 +362,6 @@ spec:
     (SELECT username FROM users WHERE uid=p.uid) AS username
     FROM processes as p WHERE cmdline like 'nmap%';
   purpose: Detection
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -412,7 +372,6 @@ spec:
   description: Docker images information, can be used on normal system or a kubenode.
   query: SELECT * FROM docker_images;
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -423,7 +382,6 @@ spec:
   description: Docker containers information, can be used on normal system or a kubenode.
   query: SELECT * FROM docker_containers;
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -434,5 +392,4 @@ spec:
   description: Docker containers Processes, can be used on normal system or a kubenode.
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
   purpose: Informational
-  remediation: N/A
   contributors: anelshaer
