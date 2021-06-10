@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/pubsub"
-	"github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
