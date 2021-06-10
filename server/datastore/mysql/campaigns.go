@@ -76,11 +76,14 @@ func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*fleet.HostTarge
 	labelIDs := []uint{}
 	teamIDs := []uint{}
 	for _, target := range targets {
-		if target.Type == fleet.TargetHost {
+		switch target.Type {
+		case fleet.TargetHost:
 			hostIDs = append(hostIDs, target.TargetID)
-		} else if target.Type == fleet.TargetLabel {
+		case fleet.TargetLabel:
 			labelIDs = append(labelIDs, target.TargetID)
-		} else {
+		case fleet.TargetTeam:
+			teamIDs = append(teamIDs, target.TargetID)
+		default:
 			return nil, errors.Errorf("invalid target type: %d", target.Type)
 		}
 	}
