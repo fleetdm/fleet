@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	downloadUrl = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
+	downloadUrl        = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
+	licenseKeyFlagName = "license-key"
 )
 
 func previewCommand() *cli.Command {
@@ -39,6 +40,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.StringFlag{
+				Name:  licenseKeyFlagName,
+				Usage: "License key to enable Fleet Basic (optional)",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if err := checkDocker(); err != nil {
@@ -74,7 +79,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Starting Docker containers...")
-			out, err = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01").CombinedOutput()
+			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
+			cmd.Env = append(cmd.Env, "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
@@ -88,7 +95,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// Start fleet02 (UI server) after fleet01 (agent/fleetctl server)
 			// has finished starting up so that there is no conflict with
 			// running database migrations.
-			out, err = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "fleet02").CombinedOutput()
+			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "fleet02")
+			cmd.Env = append(cmd.Env, "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
@@ -172,7 +181,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Starting simulated hosts...")
-			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans")
+			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
 			cmd.Env = append(cmd.Env,
 				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
