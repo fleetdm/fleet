@@ -59,7 +59,7 @@ class ConfirmationPage extends Component {
       handleSubmit,
       formData: {
         email,
-        server_url: kolideWebAddress,
+        server_url: fleetWebAddress,
         org_name: orgName,
         username,
       },
@@ -91,9 +91,9 @@ class ConfirmationPage extends Component {
                 <td>
                   <span
                     className={`${baseClass}__table-url`}
-                    title={kolideWebAddress}
+                    title={fleetWebAddress}
                   >
-                    {kolideWebAddress}
+                    {fleetWebAddress}
                   </span>
                 </td>
               </tr>

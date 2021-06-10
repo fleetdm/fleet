@@ -4,7 +4,7 @@ import classnames from "classnames";
 
 import AdminDetails from "components/forms/RegistrationForm/AdminDetails";
 import ConfirmationPage from "components/forms/RegistrationForm/ConfirmationPage";
-import KolideDetails from "components/forms/RegistrationForm/KolideDetails";
+import FleetDetails from "components/forms/RegistrationForm/FleetDetails";
 import OrgDetails from "components/forms/RegistrationForm/OrgDetails";
 
 const baseClass = "user-registration";
@@ -86,14 +86,14 @@ class RegistrationForm extends Component {
       `${baseClass}__field-wrapper--org`
     );
 
-    const kolideDetailsContainerClass = classnames(
+    const fleetDetailsContainerClass = classnames(
       `${baseClass}__container`,
-      `${baseClass}__container--kolide`
+      `${baseClass}__container--fleet`
     );
 
-    const kolideDetailsClass = classnames(
+    const fleetDetailsClass = classnames(
       `${baseClass}__field-wrapper`,
-      `${baseClass}__field-wrapper--kolide`
+      `${baseClass}__field-wrapper--fleet`
     );
 
     const confirmationContainerClass = classnames(
@@ -138,12 +138,12 @@ class RegistrationForm extends Component {
               currentPage={isCurrentPage(2)}
             />
           </div>
-          <div className={kolideDetailsContainerClass}>
+          <div className={fleetDetailsContainerClass}>
             <h2>Set Fleet URL</h2>
-            <KolideDetails
+            <FleetDetails
               formData={formData}
               handleSubmit={onPageFormSubmit}
-              className={kolideDetailsClass}
+              className={fleetDetailsClass}
               currentPage={isCurrentPage(3)}
             />
           </div>

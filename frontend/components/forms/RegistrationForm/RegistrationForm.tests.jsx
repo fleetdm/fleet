@@ -18,10 +18,10 @@ describe("RegistrationForm - component", () => {
     expect(form.text()).toContain("Organization details");
   });
 
-  it("renders KolideDetails on the third page", () => {
+  it("renders FleetDetails on the third page", () => {
     const form = mount(<RegistrationForm page={3} />);
 
-    expect(form.find("KolideDetails").length).toEqual(1);
+    expect(form.find("FleetDetails").length).toEqual(1);
     expect(form.text()).toContain("Set Fleet URL");
   });
 
