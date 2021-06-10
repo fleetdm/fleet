@@ -157,7 +157,6 @@ describe("SelectTargetsDropdown - component", () => {
       const node = Component.instance();
 
       Test.Mocks.targetMock(defaultParams, apiResponseWithoutTargets);
-      debugger;
       expect.assertions(3);
       return node.fetchTargets().then(() => {
         expect(Component.state("isEmpty")).toEqual(true);
