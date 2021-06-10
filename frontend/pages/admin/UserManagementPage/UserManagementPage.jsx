@@ -230,7 +230,12 @@ export class UserManagementPage extends Component {
   };
 
   onActionSelect = (action, user) => {
-    const { toggleEditUserModal, toggleDeleteUserModal, resetPassword } = this;
+    const {
+      toggleEditUserModal,
+      toggleDeleteUserModal,
+      resetPassword,
+      goToUserSettingsPage,
+    } = this;
     switch (action) {
       case "edit":
         toggleEditUserModal(user);
@@ -240,6 +245,9 @@ export class UserManagementPage extends Component {
         break;
       case "passwordReset":
         resetPassword(user);
+        break;
+      case "editMyAccount":
+        goToUserSettingsPage();
         break;
       default:
         return null;
@@ -301,6 +309,13 @@ export class UserManagementPage extends Component {
     );
   };
 
+  goToUserSettingsPage = () => {
+    const { USER_SETTINGS } = paths;
+    const { dispatch } = this.props;
+
+    dispatch(push(USER_SETTINGS));
+  };
+
   goToAppConfigPage = (evt) => {
     evt.preventDefault();
 
@@ -311,7 +326,13 @@ export class UserManagementPage extends Component {
   };
 
   renderEditUserModal = () => {
-    const { currentUser, inviteErrors, config, teams } = this.props;
+    const {
+      currentUser,
+      inviteErrors,
+      config,
+      teams,
+      isBasicTier,
+    } = this.props;
     const { showEditUserModal, userEditing } = this.state;
     const { onEditUser, toggleEditUserModal, getUser } = this;
 
@@ -337,6 +358,7 @@ export class UserManagementPage extends Component {
           canUseSSO={config.enable_sso}
           availableTeams={teams}
           submitText={"Save"}
+          isBasicTier={isBasicTier}
         />
       </Modal>
     );

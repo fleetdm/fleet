@@ -186,6 +186,15 @@ const generateActionDropdownOptions = (
   id: number,
   currentUserId: number
 ): IDropdownOption[] => {
+  if (id === currentUserId) {
+    return [
+      {
+        label: "Edit my account",
+        disabled: false,
+        value: "editMyAccount",
+      },
+    ];
+  }
   return [
     {
       label: "Edit",

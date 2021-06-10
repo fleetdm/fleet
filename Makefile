@@ -212,12 +212,11 @@ e2e-reset-db:
 	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --mysql_database=e2e
 
 e2e-setup:
-	./build/fleetctl config set --context e2e --address https://localhost:8642
-	./build/fleetctl config set --context e2e --tls-skip-verify true
-	./build/fleetctl setup --context e2e --email=test@example.com --username=test --password=admin123# --org-name='Fleet Test'
-	./build/fleetctl user create --context e2e --username=user1 --email=user1@example.com --sso=true
-	./build/fleetctl user create --context e2e --email=test+1@example.com --username=test1 --password=admin123#
-	./build/fleetctl user create --context e2e --email=test+2@example.com --username=test2 --password=admin123#
+	./build/fleetctl config set --context e2e --address https://localhost:8642 --tls-skip-verify true
+	./build/fleetctl setup --context e2e --email=admin@example.com --username=admin --password=user123# --org-name='Fleet Test'
+	./build/fleetctl user create --context e2e --email=maintainer@example.com --username=maintainer --password=user123# --global-role=maintainer
+	./build/fleetctl user create --context e2e --email=observer@example.com --username=observer --password=user123# --global-role=observer
+	./build/fleetctl user create --context e2e --username=sso_user --email=sso_user@example.com --sso=true
 
 e2e-serve-core:
 	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=localhost:8642 

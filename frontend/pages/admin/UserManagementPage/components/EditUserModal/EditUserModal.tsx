@@ -15,6 +15,7 @@ interface IEditUserModalProps {
   defaultSSOEnabled?: boolean;
   availableTeams: ITeam[];
   validationErrors: any[];
+  isBasicTier: boolean;
 }
 
 const baseClass = "edit-user-modal";
@@ -29,6 +30,7 @@ const EditUserModal = (props: IEditUserModalProps) => {
     defaultTeams,
     defaultSSOEnabled,
     availableTeams,
+    isBasicTier,
     validationErrors,
   } = props;
 
@@ -49,6 +51,7 @@ const EditUserModal = (props: IEditUserModalProps) => {
         canUseSSO={defaultSSOEnabled}
         availableTeams={availableTeams}
         submitText={"Save"}
+        isBasicTier={isBasicTier}
       />
     </Modal>
   );

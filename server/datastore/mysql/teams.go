@@ -192,9 +192,10 @@ func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
 				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
 			FROM teams t
-			WHERE %s
+			WHERE %s AND %s
 		`,
 		d.whereOmitIDs("t.id", omit),
+		d.whereFilterTeams(filter, "t"),
 	)
 	sql, params := searchLike(sql, nil, matchQuery, teamSearchColumns...)
 	sql += "\nLIMIT 5"
@@ -204,6 +205,7 @@ func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit
 	}
 	return teams, nil
 }
+
 func (d *Datastore) TeamEnrollSecrets(teamID uint) ([]*fleet.EnrollSecret, error) {
 	sql := `
 		SELECT * FROM enroll_secrets

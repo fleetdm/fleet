@@ -16,17 +16,19 @@ describe("Manage Users", () => {
 
     cy.wait("@getUsers");
 
-    cy.findByText("test@example.com").should("exist");
-    cy.findByText("test+1@example.com").should("exist");
-    cy.findByText("test+2@example.com").should("exist");
+    cy.findByText("admin@example.com").should("exist");
+    cy.findByText("maintainer@example.com").should("exist");
+    cy.findByText("observer@example.com").should("exist");
+    cy.findByText("sso_user@example.com").should("exist");
 
-    cy.findByPlaceholderText("Search").type("test@example.com");
+    cy.findByPlaceholderText("Search").type("admin");
 
     cy.wait("@getUsers");
 
-    cy.findByText("test@example.com").should("exist");
-    cy.findByText("test+1@example.com").should("not.exist");
-    cy.findByText("test+2@example.com").should("not.exist");
+    cy.findByText("admin@example.com").should("exist");
+    cy.findByText("maintainer@example.com").should("not.exist");
+    cy.findByText("observer@example.com").should("not.exist");
+    cy.findByText("sso_user@example.com").should("not.exist");
   });
 
   // it('Creating a user', () => {
