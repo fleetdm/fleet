@@ -1353,7 +1353,7 @@ sudo systemctl restart fleet.service
 
 ## Configuring Single Sign On
 
-Fleet supports SAML single sign on capability. This feature is convenient for users and offloads responsibility for user authentication to a third party identity provider such as Salesforce or Onelogin. Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding. Fleet only supports SP-initiated SAML login and not IDP-initiated login.
+Fleet supports SAML single sign on capability. This feature is convenient for users and offloads responsibility for user authentication to a third party identity provider such as Salesforce or Onelogin. Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding. Fleet supports both SP-initiated SAML login and IDP-initiated login, however IDP-iniated login must be enabled in the web interface's SAML Single Sign On Options.
 
 ### Identity Provider (IDP) Configuration
 
