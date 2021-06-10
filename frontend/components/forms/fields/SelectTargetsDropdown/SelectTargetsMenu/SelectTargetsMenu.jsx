@@ -13,7 +13,8 @@ const baseClass = "target-list";
 const SelectTargetsMenuWrapper = (
   onMoreInfoClick,
   moreInfoTarget,
-  handleBackToResults
+  handleBackToResults,
+  isBasicTier
 ) => {
   const SelectTargetsMenu = ({
     focusedOption,
@@ -103,16 +104,20 @@ const SelectTargetsMenuWrapper = (
       return options.find((option) => option.count !== 0) !== undefined;
     };
 
+    const renderTargetGroups = (
+      <>
+        {renderTargets("all")}
+        {isBasicTier && renderTargets("teams")}
+        {renderTargets("labels")}
+        {renderTargets("hosts")}
+      </>
+    );
+
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__options`}>
           {hasHostTargets ? (
-            <>
-              {renderTargets("all")}
-              {renderTargets("teams")}
-              {renderTargets("labels")}
-              {renderTargets("hosts")}
-            </>
+            renderTargetGroups
           ) : (
             <>
               <div className={`${baseClass}__no-hosts`}>
@@ -145,6 +150,7 @@ const SelectTargetsMenuWrapper = (
     valueArray: PropTypes.arrayOf(targetInterface),
     valueKey: PropTypes.string,
     onOptionRef: PropTypes.func,
+    isBasicTier: PropTypes.bool,
   };
 
   return SelectTargetsMenu;

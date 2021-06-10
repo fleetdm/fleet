@@ -11,7 +11,13 @@ import queryActions from "redux/nodes/entities/queries/actions";
 import ConnectedQueryPage, {
   QueryPage,
 } from "pages/queries/QueryPage/QueryPage";
-import { hostStub, queryStub, labelStub, userStub } from "test/stubs";
+import {
+  hostStub,
+  queryStub,
+  labelStub,
+  userStub,
+  configStub,
+} from "test/stubs";
 
 const {
   connectedComponent,
@@ -34,6 +40,7 @@ describe("QueryPage - component", () => {
   const store = {
     app: {
       isSmallNav: false,
+      config: configStub,
     },
     components: {
       QueryPages: {
@@ -205,6 +212,7 @@ describe("QueryPage - component", () => {
     const mockStoreWithQuery = reduxMockStore({
       app: {
         isSmallNav: false,
+        config: configStub,
       },
       components: {
         QueryPages: {

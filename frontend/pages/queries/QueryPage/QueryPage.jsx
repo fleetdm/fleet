@@ -70,6 +70,7 @@ export class QueryPage extends Component {
     requestHost: PropTypes.bool,
     hostId: PropTypes.string,
     currentUser: userInterface,
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -608,7 +609,7 @@ export class QueryPage extends Component {
       runQueryMilliseconds,
       liveQueryError,
     } = this.state;
-    const { selectedTargets } = this.props;
+    const { selectedTargets, isBasicTier } = this.props;
     const queryId = this.props.query.id;
 
     return (
@@ -625,6 +626,7 @@ export class QueryPage extends Component {
         queryTimerMilliseconds={runQueryMilliseconds}
         disableRun={liveQueryError !== undefined}
         queryId={queryId}
+        isBasicTier={isBasicTier}
       />
     );
   };
@@ -858,6 +860,9 @@ const mapStateToProps = (state, ownProps) => {
     .findBy({ id: parseInt(hostId, 10) });
   const requestHost = hostId !== undefined && relatedHost === undefined;
   const currentUser = state.auth.user;
+  const config = state.app.config;
+
+  const isBasicTier = permissionUtils.isBasicTier(config);
 
   return {
     errors,
@@ -870,6 +875,7 @@ const mapStateToProps = (state, ownProps) => {
     hostId,
     title,
     currentUser,
+    isBasicTier,
   };
 };
 
