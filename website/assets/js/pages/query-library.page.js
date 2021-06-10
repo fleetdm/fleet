@@ -96,15 +96,22 @@ parasails.registerPage('query-library', {
       this.searchString = this.inputTextValue;
     },
 
-    _search: function (library, searchString) {
-      const searchTerms = _.isString(searchString)
-        ? searchString.toLowerCase().split(' ')
-        : [];
-      return library.filter((item) => {
-        const description = _.isString(item.description)
-          ? item.description.toLowerCase()
-          : '';
-        return searchTerms.some((term) => description.includes(term));
+    _search: function (queries, searchString) {
+      if (_.isEmpty(searchString)) {
+        return queries;
+      }
+
+      const normalize = (value) => _.isString(value) ? value.toLowerCase() : '';
+      const searchTerms = normalize(searchString).split(' ');
+
+      return queries.filter((query) => {
+        let textToSearch = normalize(query.name) + ', ' + normalize(query.description);
+        if (query.contributors) {
+          query.contributors.forEach((contributor) => {
+            textToSearch += ', ' + normalize(contributor.name) + ', ' + normalize(contributor.handle);
+          });
+        }
+        return (searchTerms.some((term) => textToSearch.includes(term)));
       });
     },
 
