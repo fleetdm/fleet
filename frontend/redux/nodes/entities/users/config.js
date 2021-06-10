@@ -6,6 +6,7 @@ const { USERS } = schemas;
 
 export default new Config({
   createFunc: Fleet.users.create,
+  destroyFunc: Fleet.users.destroy,
   entityName: "users",
   loadAllFunc: Fleet.users.loadAll,
   schema: USERS,
