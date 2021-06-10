@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/pubsub"
+	"github.com/mna/redisc"
 	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newPool(t *testing.T) *redis.Pool {
+func newPool(t *testing.T) *redisc.Cluster {
 	if _, ok := os.LookupEnv("REDIS_TEST"); ok {
 		var (
 			addr     = "127.0.0.1:6379"
