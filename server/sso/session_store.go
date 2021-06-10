@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 )
 
@@ -33,12 +34,12 @@ type SessionStore interface {
 }
 
 // NewSessionStore creates a SessionStore
-func NewSessionStore(pool *redis.Pool) SessionStore {
+func NewSessionStore(pool *redisc.Cluster) SessionStore {
 	return &store{pool}
 }
 
 type store struct {
-	pool *redis.Pool
+	pool *redisc.Cluster
 }
 
 func (s *store) create(requestID, originalURL, metadata string, lifetimeSecs uint) error {
