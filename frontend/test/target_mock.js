@@ -6,12 +6,14 @@ const defaultParams = {
   selected: {
     hosts: [],
     labels: [],
+    teams: [],
   },
 };
 const defaultResponse = {
   targets: {
     hosts: [],
     labels: [],
+    teams: [],
   },
 };
 

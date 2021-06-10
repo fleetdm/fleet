@@ -101,15 +101,17 @@ describe("SelectTargetsDropdown - component", () => {
       targets: {
         hosts: [],
         labels: [Test.Stubs.labelStub],
+        teams: [],
       },
     };
     const apiResponseWithoutTargets = {
       targets: {
         hosts: [],
         labels: [],
+        teams: [],
       },
     };
-    const defaultSelectedTargets = { hosts: [], labels: [] };
+    const defaultSelectedTargets = { hosts: [], labels: [], teams: [] };
     const defaultParams = {
       query: "",
       query_id: 1,
@@ -155,7 +157,6 @@ describe("SelectTargetsDropdown - component", () => {
       const node = Component.instance();
 
       Test.Mocks.targetMock(defaultParams, apiResponseWithoutTargets);
-
       expect.assertions(3);
       return node.fetchTargets().then(() => {
         expect(Component.state("isEmpty")).toEqual(true);

@@ -43,7 +43,13 @@ describe("Kolide - API client (packs)", () => {
   describe("#create", () => {
     it("calls the correct endpoint with the correct parameters", () => {
       const { description, name } = packStub;
-      const params = { description, name, host_ids: [], label_ids: [] };
+      const params = {
+        description,
+        name,
+        host_ids: [],
+        label_ids: [],
+        team_ids: [],
+      };
       const request = packMocks.create.valid(bearerToken, params);
 
       Fleet.setBearerToken(bearerToken);
@@ -79,6 +85,7 @@ describe("Kolide - API client (packs)", () => {
         name: "New Pack Name",
         host_ids: [host2.id, hostStub.id],
         label_ids: [label2.id, labelStub.id],
+        team_ids: [],
       };
       const request = packMocks.update.valid(
         bearerToken,
