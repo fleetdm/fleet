@@ -72,7 +72,7 @@ module.exports = {
         // Talk to GitHub and get additional information about each contributor.
         let githubDataByUsername = {};
         await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
-          githubDataByUsername[username] = await sails.helpers.http.get('https://api.github.com/users/' + encodeURIComponent(username), {}, { 'User-Agent': 'Awesome-Octocat-App', Accept: 'application/vnd.github.v3+json' });
+          githubDataByUsername[username] = await sails.helpers.http.get('https://api.github.com/users/' + encodeURIComponent(username), {}, { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' });
         });//∞
 
         // Now expand queries with relevant profile data for the contributors.
