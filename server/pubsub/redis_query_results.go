@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/gomodule/redigo/redis"
+	"github.com/nma/redisc"
 	"github.com/pkg/errors"
 )
 
 type redisQueryResults struct {
 	// connection pool
-	pool             *redis.Pool
+	pool             *redisc.Cluster
 	duplicateResults bool
 }
 
@@ -21,46 +21,63 @@ var _ kolide.QueryResultStore = &redisQueryResults{}
 
 // NewRedisPool creates a Redis connection pool using the provided server
 // address, password and database.
-func NewRedisPool(server, password string, database int, useTLS bool) *redis.Pool {
-	return &redis.Pool{
-		MaxIdle:     3,
-		IdleTimeout: 240 * time.Second,
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial(
-				"tcp",
-				server,
-				redis.DialDatabase(database),
-				redis.DialUseTLS(useTLS),
-				redis.DialConnectTimeout(5*time.Second),
-				redis.DialKeepAlive(10*time.Second),
-				// Read/Write timeouts not set here because we may see results
-				// only rarely on the pub/sub channel.
-			)
-
-			if err != nil {
-				return nil, err
-			}
-			if password != "" {
-				if _, err := c.Do("AUTH", password); err != nil {
-					c.Close()
-					return nil, err
-				}
-			}
-			return c, err
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			if time.Since(t) < time.Minute {
-				return nil
-			}
-			_, err := c.Do("PING")
-			return err
-		},
+func NewRedisPool(server, password string, database int, useTLS bool) *redisc.Cluster {
+	//Create the Cluster
+	cluster := redisc.Cluster{
+			StartupNodes: []string{fmt.Sprintf(server)},
+			DialOptions: []redis.DialOption{
+					redis.DialDatabase(database),
+					redis.DialUseTLS(useTLS),
+					redis.DialConnectTimeout(5*time.Second),
+					redis.DialReadTimeout(5*time.Second),
+					redis.DialWriteTimeout(5*time.Second),
+					redis.DialKeepAlive(5*time.Second),
+			},
+			CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
+							return &redis.Pool{
+									MaxIdle: 3,
+									IdleTimeout: 240 * time.Second,
+									Dial: func() (redis.Conn, error) {
+											c, err := redis.Dial(
+													"tcp",
+													server,
+													redis.DialDatabase(database),
+													redis.DialUseTLS(useTLS),
+													redis.DialConnectTimeout(5*time.Second),
+													redis.DialKeepAlive(10*time.Second),
+													// Read/Write timeouts not set here because we may see results
+													// only rarely on the pub/sub channel.
+											)
+											if err != nil {
+													return nil, err
+											}
+											if password != "" {
+													if _, err := c.Do("AUTH", password); err != nil {
+															c.Close()
+															return nil, err
+													}
+											}
+											return c, err
+									},
+									TestOnBorrow: func (c redis.Conn, t time.Time) error {
+											if time.Since(t) < time.Minute {
+													return nil
+											}
+											_, err := c.Do("PING")
+											return err
+									},
+							}, nil
+				},
 	}
+
+	cluster.Refresh()
+
+	return &cluster
 }
 
 // NewRedisQueryResults creats a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisQueryResults(pool *redis.Pool, duplicateResults bool) *redisQueryResults {
+func NewRedisQueryResults(pool *redisc.Cluster, duplicateResults bool) *redisQueryResults {
 	return &redisQueryResults{pool: pool, duplicateResults: duplicateResults}
 }
 
