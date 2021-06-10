@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nma/redisc"
+	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 )
 

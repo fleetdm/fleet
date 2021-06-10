@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/nma/redisc"
+	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 )
 
