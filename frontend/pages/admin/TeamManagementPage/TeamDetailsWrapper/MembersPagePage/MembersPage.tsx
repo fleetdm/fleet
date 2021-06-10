@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // @ts-ignore
 import memoize from "memoize-one";
@@ -32,6 +32,7 @@ interface IMembersPageProps {
   params: {
     team_id: string;
   };
+  isBasicTier: boolean;
 }
 
 interface IRootState {
@@ -68,6 +69,7 @@ let tableQueryData = {};
 const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const {
     params: { team_id },
+    isBasicTier,
   } = props;
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
@@ -201,7 +203,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       tableQueryData = { ...queryData, teamId };
       fetchUsers(queryData);
     },
-    [fetchUsers]
+    [fetchUsers, teamId]
   );
 
   const onActionSelection = (action: string, user: IUser): void => {
@@ -257,6 +259,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           defaultSSOEnabled={userEditing?.sso_enabled}
           availableTeams={teams}
           validationErrors={[]}
+          isBasicTier={isBasicTier}
         />
       ) : null}
       {showRemoveMemberModal ? (

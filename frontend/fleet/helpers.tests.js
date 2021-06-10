@@ -149,12 +149,13 @@ describe("Kolide API - helpers", () => {
   describe("#formatSelectedTargetsForApi", () => {
     const { formatSelectedTargetsForApi } = helpers;
 
-    it("splits targets into labels and hosts", () => {
+    it("splits targets into labels, hosts, and teams", () => {
       const targets = [host1, host2, label1, label2];
 
       expect(formatSelectedTargetsForApi(targets)).toEqual({
         hosts: [6, 5],
         labels: [1, 2],
+        teams: [],
       });
     });
 
@@ -164,6 +165,7 @@ describe("Kolide API - helpers", () => {
       expect(formatSelectedTargetsForApi(targets, true)).toEqual({
         host_ids: [6, 5],
         label_ids: [1, 2],
+        team_ids: [],
       });
     });
   });

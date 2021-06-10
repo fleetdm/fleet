@@ -174,12 +174,13 @@ export const formatSelectedTargetsForApi = (
   const targets = selectedTargets || [];
   const hosts = flatMap(targets, filterTarget("hosts"));
   const labels = flatMap(targets, filterTarget("labels"));
+  const teams = flatMap(targets, filterTarget("teams"));
 
   if (appendID) {
-    return { host_ids: hosts, label_ids: labels };
+    return { host_ids: hosts, label_ids: labels, team_ids: teams };
   }
 
-  return { hosts, labels };
+  return { hosts, labels, teams };
 };
 
 export const formatScheduledQueryForServer = (scheduledQuery: any) => {

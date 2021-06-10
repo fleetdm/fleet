@@ -1,4 +1,3 @@
-import React from "react";
 import { mount } from "enzyme";
 
 import { connectedComponent, reduxMockStore } from "test/helpers";
@@ -14,15 +13,6 @@ const currentUser = {
   username: "gnardog",
   teams: [],
   global_role: "admin",
-};
-const invitedUser = {
-  email: "test+4@example.com",
-  global_role: "observer",
-  id: 6,
-  invited_by: 1,
-  name: "test 4",
-  sso_enabled: false,
-  teams: [],
 };
 const store = {
   app: {

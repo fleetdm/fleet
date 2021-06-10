@@ -45,7 +45,7 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
     osquery_options: yaml.dump(team.agent_options),
   };
 
-  const onSaveOsqueryOptionsFormSubmit = (updatedForm: any) => {
+  const onSaveOsqueryOptionsFormSubmit = (updatedForm: any): void | false => {
     const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {
       dispatch(renderFlash("error", error.reason));
@@ -60,6 +60,7 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
         dispatch(renderFlash("error", errors.stack));
       });
   };
+
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>

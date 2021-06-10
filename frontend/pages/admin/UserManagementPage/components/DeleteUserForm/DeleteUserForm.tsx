@@ -9,7 +9,7 @@ interface IDeleteUserForm {
   onCancel: () => void;
 }
 
-const DeleteUserForm = (props: IDeleteUserForm) => {
+const DeleteUserForm = (props: IDeleteUserForm): JSX.Element => {
   const { name, onDelete, onCancel } = props;
 
   return (

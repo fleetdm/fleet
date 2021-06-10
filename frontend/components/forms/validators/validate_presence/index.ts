@@ -1,3 +1,3 @@
-export default (actual: any) => {
+export default (actual: any): boolean => {
   return !!actual;
 };

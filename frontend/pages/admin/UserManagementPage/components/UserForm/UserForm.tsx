@@ -1,4 +1,3 @@
-import { create } from "domain";
 import React, { Component, FormEvent } from "react";
 
 import { ITeam } from "interfaces/team";
@@ -28,17 +27,17 @@ enum UserTeamType {
 const globalUserRoles = [
   {
     disabled: false,
-    label: "observer",
+    label: "Observer",
     value: "observer",
   },
   {
     disabled: false,
-    label: "maintainer",
+    label: "Maintainer",
     value: "maintainer",
   },
   {
     disabled: false,
-    label: "admin",
+    label: "Admin",
     value: "admin",
   },
 ];
@@ -64,6 +63,7 @@ interface ICreateUserFormProps {
   currentUserId?: number;
   defaultGlobalRole?: string | null;
   defaultTeams?: ITeam[];
+  isBasicTier: boolean;
   validationErrors: any[]; // TODO: proper interface for validationErrors
 }
 
@@ -97,6 +97,8 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       },
       isGlobalUser: props.defaultGlobalRole !== null,
     };
+
+    const { isBasicTier } = props;
   }
 
   onInputChange = (formField: string): ((value: string) => void) => {
@@ -218,25 +220,28 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     const {
       formData: { global_role },
     } = this.state;
+    const { isBasicTier } = this.props;
     return (
       <>
-        <InfoBanner className={`${baseClass}__user-permissions-info`}>
-          <p>
-            Global users can only be members of the top level team and can
-            manage or observe all users, entities, and settings in Fleet.
-          </p>
-          <a
-            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Learn more about user permissions
-            <img src={OpenNewTabIcon} alt="open new tab" />
-          </a>
-        </InfoBanner>
+        {isBasicTier && (
+          <InfoBanner className={`${baseClass}__user-permissions-info`}>
+            <p>
+              Global users can only be members of the top level team and can
+              manage or observe all users, entities, and settings in Fleet.
+            </p>
+            <a
+              href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Learn more about user permissions
+              <img src={OpenNewTabIcon} alt="open new tab" />
+            </a>
+          </InfoBanner>
+        )}
         <p className={`${baseClass}__label`}>Role</p>
         <Dropdown
-          value={global_role || "observer"}
+          value={global_role || "Observer"}
           className={`${baseClass}__global-role-dropdown`}
           options={globalUserRoles}
           searchable={false}
@@ -248,10 +253,11 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
 
   renderTeamsForm = (): JSX.Element => {
     const { onSelectedTeamChange } = this;
-    const { availableTeams } = this.props;
+    const { availableTeams, isBasicTier } = this.props;
     const {
       formData: { teams },
     } = this.state;
+
     return (
       <>
         <InfoBanner className={`${baseClass}__user-permissions-info`}>
@@ -283,7 +289,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       formData: { email, name, sso_enabled },
       isGlobalUser,
     } = this.state;
-    const { onCancel, submitText } = this.props;
+    const { onCancel, submitText, isBasicTier } = this.props;
     const {
       onFormSubmit,
       onInputChange,
@@ -292,6 +298,13 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       renderGlobalRoleForm,
       renderTeamsForm,
     } = this;
+
+    if (!isBasicTier && !isGlobalUser) {
+      console.log(
+        `Note: Fleet Core UI does not have teams options.\n
+        User ${name} is already assigned to a team and cannot be reassigned without access to Fleet Basic UI.`
+      );
+    }
 
     return (
       <form className={baseClass}>
@@ -325,33 +338,35 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             Password authentication will be disabled for this user.
           </p>
         </div>
-
-        <div className={`${baseClass}__selected-teams-container`}>
-          <div className={`${baseClass}__team-radios`}>
-            <p className={`${baseClass}__label`}>Team</p>
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label={"Global user"}
-              id={"global-user"}
-              checked={isGlobalUser}
-              value={UserTeamType.GlobalUser}
-              name={"userTeamType"}
-              onChange={onIsGlobalUserChange}
-            />
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label={"Assign teams"}
-              id={"assign-teams"}
-              checked={!isGlobalUser}
-              value={UserTeamType.AssignTeams}
-              name={"userTeamType"}
-              onChange={onIsGlobalUserChange}
-            />
+        {isBasicTier && (
+          <div className={`${baseClass}__selected-teams-container`}>
+            <div className={`${baseClass}__team-radios`}>
+              <p className={`${baseClass}__label`}>Team</p>
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label={"Global user"}
+                id={"global-user"}
+                checked={isGlobalUser}
+                value={UserTeamType.GlobalUser}
+                name={"userTeamType"}
+                onChange={onIsGlobalUserChange}
+              />
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label={"Assign teams"}
+                id={"assign-teams"}
+                checked={!isGlobalUser}
+                value={UserTeamType.AssignTeams}
+                name={"userTeamType"}
+                onChange={onIsGlobalUserChange}
+              />
+            </div>
+            <div className={`${baseClass}__teams-form-container`}>
+              {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
+            </div>
           </div>
-          <div className={`${baseClass}__teams-form-container`}>
-            {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
-          </div>
-        </div>
+        )}
+        {!isBasicTier && renderGlobalRoleForm()}
 
         <div className={`${baseClass}__btn-wrap`}>
           <Button
