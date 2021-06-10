@@ -400,7 +400,6 @@ export class QueryPage extends Component {
       window,
     } = global;
     const { queryResultsToggle, queryPosition } = this.state;
-    const { dispatch } = this.props;
     window.scrollTo(0, 0);
     const {
       parentNode: { parentNode: parent },

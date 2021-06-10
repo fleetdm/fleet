@@ -215,6 +215,8 @@ export class ManageQueriesPage extends Component {
         </Button>
       );
     }
+
+    return null;
   };
 
   renderModal = () => {

@@ -2,7 +2,6 @@ import React from "react";
 import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
 
-import helpers from "fleet/helpers";
 import Button from "components/buttons/Button/Button";
 
 interface ILinkCellProps<T> {

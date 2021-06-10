@@ -77,9 +77,7 @@ class QueryDetailsSidePanel extends Component {
       ) {
         return "Run query";
       }
-      if (permissionUtils.isOnlyObserver(currentUser) && !observer_can_run) {
-        return "Show query";
-      }
+      return "Show query";
     };
 
     return (

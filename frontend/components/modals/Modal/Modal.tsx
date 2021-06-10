@@ -11,7 +11,7 @@ interface IModalProps {
 }
 
 class Modal extends Component<IModalProps> {
-  render() {
+  render(): JSX.Element {
     const { children, className, onExit, title } = this.props;
     const modalContainerClassName = classnames(
       `${baseClass}__modal_container`,

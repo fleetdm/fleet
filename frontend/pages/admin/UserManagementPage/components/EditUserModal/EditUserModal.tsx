@@ -20,7 +20,7 @@ interface IEditUserModalProps {
 
 const baseClass = "edit-user-modal";
 
-const EditUserModal = (props: IEditUserModalProps) => {
+const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
   const {
     onCancel,
     onSubmit,

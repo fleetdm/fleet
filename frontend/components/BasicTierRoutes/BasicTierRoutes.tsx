@@ -5,8 +5,6 @@ import { push } from "react-router-redux";
 import { IConfig } from "interfaces/config";
 import permissionUtils from "utilities/permissions";
 import paths from "router/paths";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 
 interface IBasicTierRoutes {
   children: JSX.Element;
@@ -20,7 +18,7 @@ interface IRootState {
 
 const { FLEET_403 } = paths;
 
-const BasicTierRoutes = (props: IBasicTierRoutes) => {
+const BasicTierRoutes = (props: IBasicTierRoutes): JSX.Element | null => {
   const { children } = props;
 
   const dispatch = useDispatch();

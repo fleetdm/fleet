@@ -1,7 +1,6 @@
 import React from "react";
 import FileSave from "file-saver";
 import { mount } from "enzyme";
-import nock from "nock";
 import { noop } from "lodash";
 
 import convertToCSV from "utilities/convert_to_csv";

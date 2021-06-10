@@ -1,4 +1,3 @@
-import { create } from "domain";
 import React, { Component, FormEvent } from "react";
 
 import { ITeam } from "interfaces/team";

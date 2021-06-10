@@ -252,6 +252,7 @@ export class UserManagementPage extends Component {
       default:
         return null;
     }
+    return null;
   };
 
   getUser = (type, id) => {

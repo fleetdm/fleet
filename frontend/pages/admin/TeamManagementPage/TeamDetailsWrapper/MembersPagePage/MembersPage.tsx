@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // @ts-ignore
 import memoize from "memoize-one";
@@ -203,7 +203,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       tableQueryData = { ...queryData, teamId };
       fetchUsers(queryData);
     },
-    [fetchUsers]
+    [fetchUsers, teamId]
   );
 
   const onActionSelection = (action: string, user: IUser): void => {
