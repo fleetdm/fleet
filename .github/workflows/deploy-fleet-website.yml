@@ -2,7 +2,7 @@ name: Deploy Fleet website
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -68,6 +68,6 @@ jobs:
     - run: echo "Unshallowing local repository…"
     - run: git fetch --prune --unshallow
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
-    - run: git push heroku +${GITHUB_REF##*/}:master
+    - run: git push heroku +${GITHUB_REF##*/}:master  # note that Heroku, at least as of Jun 10 2021, still uses "master" on their end
     - name: 🌐 https://fleetdm.com
       run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
