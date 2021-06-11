@@ -8,5 +8,5 @@ export default PropTypes.shape({
   org_name: PropTypes.string,
   org_web_url: PropTypes.string,
   org_logo_url: PropTypes.string,
-  kolide_web_address: PropTypes.string,
+  fleet_web_address: PropTypes.string,
 });

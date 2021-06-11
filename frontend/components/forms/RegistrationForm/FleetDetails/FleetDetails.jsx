@@ -4,13 +4,13 @@ import PropTypes from "prop-types";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import Button from "components/buttons/Button";
-import helpers from "components/forms/RegistrationForm/KolideDetails/helpers";
+import helpers from "components/forms/RegistrationForm/FleetDetails/helpers";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 
 const formFields = ["server_url"];
 const { validate } = helpers;
 
-class KolideDetails extends Component {
+class FleetDetails extends Component {
   static propTypes = {
     className: PropTypes.string,
     currentPage: PropTypes.bool,
@@ -68,7 +68,7 @@ class KolideDetails extends Component {
   }
 }
 
-export default Form(KolideDetails, {
+export default Form(FleetDetails, {
   fields: formFields,
   validate,
 });
