@@ -53,6 +53,20 @@ Cypress.Commands.add("logout", () => {
   });
 });
 
+Cypress.Commands.add("seedQueries", (queries) => {
+  queries.forEach((queryForm) => {
+    const { name, query, description, observer_can_run } = queryForm;
+    cy.request({
+      url: "/v1/fleet/queries",
+      method: "POST",
+      body: { name, query, description, observer_can_run },
+      auth: {
+        bearer: window.localStorage.getItem("FLEET::auth_token"),
+      },
+    });
+  });
+});
+
 Cypress.Commands.add("setupSMTP", () => {
   const body = {
     smtp_settings: {
