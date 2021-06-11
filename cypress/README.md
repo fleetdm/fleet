@@ -14,7 +14,7 @@ allow you to view the current test suite, as well as start writing new test.
 As much as possible, build from a user's perspective. Use .within cypress command as needed to scope a command within a specific element (e.g. <table>, <nav>).
 
 As much as possible, assert that the code is only selecting 1 item or that the final assertion is the appropriate count.
-### Prioritizization of selecting elements
+### Prioritization of selecting elements
 
 1. By **element tag** using elements (e.g. buttons), we can target text within. Confirm what the user is seeing with target text. If this is not specific enough, add on Role.
 2. By **role** using default or explicitly assigned roles of elements. If this is not specific enough, add on element class. 
