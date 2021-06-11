@@ -1,19 +1,23 @@
 # Releasing Fleet
 
+Note: Please prefix versions with `v` (eg. `v4.0.0`) in git tags, Helm charts, and NPM configs.
+
 1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last Fleet release. Update the NPM [package.json](../../tools/fleetctl-npm/package.json) with the new version number (do not yet `npm publish`). Update the [Helm chart](../../charts/fleet/Chart.yaml) and [values file](../../charts/fleet/values.yaml) with the new version number.
 
-Commit these changes via Pull Request and pull the changes on the `master` branch locally. Check that `HEAD` of the `master` branch points to the commit with these changes.
+Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that `HEAD` of the `main` branch points to the commit with these changes.
 
 2. Tag and push the new release in Git:
 
-``` shell
-git tag <VERSION>
-git push origin <VERSION>
+```shell
+git tag v<VERSION>
+git push origin v<VERSION>
 ```
+
+Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here is to push the new tag to the `github.com/fleetdm/fleet` repository.
 
 3. Build the new binary bundle (ensure working tree is clean because this will effect the version string built into the binary):
 
-``` shell
+```shell
 make binary-bundle
 ```
 
@@ -51,7 +55,7 @@ Upload `fleet.zip`, `fleetctl-*.tar.gz`, and `fleetctl.exe.zip`. Click "Publish 
 
 5. Push the new version to Docker Hub (ensure working tree is clean because this will effect the version string built into the binary):
 
-``` shell
+```shell
 make docker-push-release
 ```
 
@@ -62,4 +66,3 @@ make docker-push-release
 Announce the release via blog post (on Medium) and Twitter (linking to blog post).
 
 8. Crack open a beer and wonder why we haven't yet automated this process. Cheers!
-
