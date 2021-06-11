@@ -70,28 +70,6 @@ Cypress.Commands.add("seedQueries", () => {
       description: "List authorized_keys for each user on the system.",
       observer_can_run: false,
     },
-    {
-      name: "Get crashes",
-      query:
-        "SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);",
-      description: "Retrieve application, system, and mobile app crash logs.",
-      observer_can_run: false,
-    },
-    {
-      name: "Get installed Chrome Extensions",
-      query:
-        "SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);",
-      description: "List installed Chrome Extensions for all users.",
-      observer_can_run: false,
-    },
-    {
-      name: "Get installed Safari extensions",
-      query:
-        "SELECT safari_extensions.* FROM users join safari_extensions USING (uid);",
-      description:
-        "Retrieves the list of installed Safari Extensions for all users in the target system.",
-      observer_can_run: false,
-    },
   ];
 
   queries.forEach((queryForm) => {
