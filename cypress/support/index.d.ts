@@ -1,13 +1,6 @@
 // load type definitions that come with Cypress module
 // <reference types="cypress" />
 
-interface IQuery {
-  name: string,
-  query: string,
-  description: string,
-  observer_can_run: boolean,
-}
-
 declare namespace Cypress {
   interface Chainable {
     /**
@@ -26,9 +19,9 @@ declare namespace Cypress {
     logout(): Chainable<Element>;
 
     /**
-     * Custom command to log out the current user.
+     * Custom command to add new queries by default.
      */
-    seedQueries(queries: Array<IQuery>): Chainable<Element>;
+    seedQueries(): Chainable<Element>;
 
     /**
      * Custom command to add a new user in Fleet (via fleetctl).
