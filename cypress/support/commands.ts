@@ -53,6 +53,38 @@ Cypress.Commands.add("logout", () => {
   });
 });
 
+Cypress.Commands.add("seedQueries", () => {
+  const queries = [
+    {
+      name: "Detect presence of authorized SSH keys",
+      query:
+        "SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid)",
+      description:
+        "Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.",
+      observer_can_run: true,
+    },
+    {
+      name: "Get authorized keys for Domain Joined Accounts",
+      query:
+        "SELECT * FROM users CROSS JOIN authorized_keys USING(uid) WHERE username IN (SELECT distinct(username) FROM last);",
+      description: "List authorized_keys for each user on the system.",
+      observer_can_run: false,
+    },
+  ];
+
+  queries.forEach((queryForm) => {
+    const { name, query, description, observer_can_run } = queryForm;
+    cy.request({
+      url: "/v1/fleet/queries",
+      method: "POST",
+      body: { name, query, description, observer_can_run },
+      auth: {
+        bearer: window.localStorage.getItem("FLEET::auth_token"),
+      },
+    });
+  });
+});
+
 Cypress.Commands.add("setupSMTP", () => {
   const body = {
     smtp_settings: {
