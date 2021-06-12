@@ -27,13 +27,13 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 ### Culture
 
-### All remote
+##### All remote
 Fleet is an all-remote company, with teammates spread across 3 continents and 5 time zones.
 
-### Openness
+##### Openness
 The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow.  We perform better with an audience, and our audience performs better with us.
 
-### Spending company money
+##### Spending company money
 As we continue to expand our own company policies, we use [GitLab's expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
 
 In brief, this means that as a Fleet team member, you may:
@@ -44,9 +44,16 @@ In brief, this means that as a Fleet team member, you may:
 
 For more detailed information about __spending guidelines and limits__, please read [GitLab's expense policy](https://about.gitlab.com/handbook/spending-company-money/)
 
+##### Meetings
+
+* At Fleet, meetings start whether you're there or not. Nevertheless, being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
+* It's okay to spend the first minute or two of a meeting to be present and make small talk, if you want.  Being all-remote, it's easy to miss out on hallway chatter and human connections that happen in meatspace.  Use this time together during the first minute to say "hi".  Then you can jump right in to the topics being discussed.
+* Turning on your camera allows for more complete and intuitive verbal and non-verbal communication.  When joining meetings with other people from outside of Fleet who you might not be familiar with yet, feel free to turn your camera off to give yourself time to adjust.  When you lead a meeting with folks from outside the Fleet team, turn your camera on.
+
+
 ### Fleet website
 
-### How to export images
+##### How to export images
 In Figma:
 1. Select the layers you want to export.
 2. Confirm export settings and naming convention:
@@ -56,12 +63,12 @@ In Figma:
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
-### When can I merge a change to the website?
+##### When can I merge a change to the website?
 When merging a PR to master, bear in mind that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), then please do not merge.
 
 Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and level of quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width. 
 
-### The "Deploy Fleet Website" GitHub action failed
+##### The "Deploy Fleet Website" GitHub action failed
 If the action fails, please complete the following steps:
 1. Head to the fleetdm-website app in the [Heroku dashboard](https://heroku.com) and select the "Activity" tab.
 2. Select "Roll back to here" on the second to most recent deploy.
