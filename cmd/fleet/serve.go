@@ -35,7 +35,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"github.com/throttled/throttled/store/redigostore"
+	"github.com/throttled/throttled/v2/store/redigostore"
 	"google.golang.org/grpc"
 )
 
