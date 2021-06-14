@@ -126,7 +126,7 @@ export class UserManagementPage extends Component {
     let userUpdatedFlashMessage = "User updated";
 
     if (userData.email !== formData.email) {
-      userUpdatedFlashMessage += `. A confirmation email was sent from ${currentUser.email} to ${formData.email}.`;
+      userUpdatedFlashMessage += `: A confirmation email was sent from ${currentUser.email} to ${formData.email}`;
     }
 
     return dispatch(userActions.silentUpdate(userData, formData))
