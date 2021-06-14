@@ -27,7 +27,9 @@ if (Cypress.env("FLEET_TIER") === "basic") {
 
       // find way to add host
       cy.contains("button", /add new host/i).click();
-      cy.findByText("select a team").should("exist");
+      cy.get(".modal__modal_container").within(() => {
+        cy.findByLabelText("select a team").should("exist");
+      });
       cy.contains("button", /done/i).click();
 
       // Can delete and create query on host

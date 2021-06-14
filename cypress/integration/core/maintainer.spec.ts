@@ -94,6 +94,7 @@ if (Cypress.env("FLEET_TIER") === "core") {
 
       cy.findByRole("button", { name: /save query pack/i }).click();
 
+      // Is this redundant?
       cy.visit("/packs/manage");
 
       cy.findByText(/errors and crashes/i).click();
