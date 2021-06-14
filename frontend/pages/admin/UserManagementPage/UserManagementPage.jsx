@@ -109,6 +109,7 @@ export class UserManagementPage extends Component {
             renderFlash("success", `Successfully edited ${userEditing?.name}`)
           );
           toggleEditUserModal();
+          window.scrollTo(0, 0);
         })
         .catch(() => {
           dispatch(
@@ -118,13 +119,21 @@ export class UserManagementPage extends Component {
             )
           );
           toggleEditUserModal();
+          window.scrollTo(0, 0);
         });
+    }
+
+    let userUpdatedFlashMessage = "User updated";
+
+    if (userData.email !== formData.email) {
+      userUpdatedFlashMessage += `. A confirmation email was sent from ${currentUser.email} to ${formData.email}.`;
     }
 
     return dispatch(userActions.silentUpdate(userData, formData))
       .then(() => {
-        dispatch(renderFlash("success", "User updated"));
+        dispatch(renderFlash("success", userUpdatedFlashMessage));
         toggleEditUserModal();
+        window.scrollTo(0, 0);
       })
       .catch(() => {
         dispatch(
@@ -134,6 +143,7 @@ export class UserManagementPage extends Component {
           )
         );
         toggleEditUserModal();
+        window.scrollTo(0, 0);
       });
   };
 
@@ -151,12 +161,14 @@ export class UserManagementPage extends Component {
           renderFlash("success", `Successfully created ${formData.name}.`)
         );
         this.toggleCreateUserModal();
+        window.scrollTo(0, 0);
       })
       .catch(() => {
         dispatch(
           renderFlash("error", "Could not create user. Please try again.")
         );
         this.toggleCreateUserModal();
+        window.scrollTo(0, 0);
       });
   };
 
@@ -176,6 +188,7 @@ export class UserManagementPage extends Component {
           dispatch(
             renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
           );
+          window.scrollTo(0, 0);
         })
         .catch(() => {
           dispatch(
@@ -184,6 +197,7 @@ export class UserManagementPage extends Component {
               `Could not delete ${userEditing?.name}. Please try again.`
             )
           );
+          window.scrollTo(0, 0);
         });
       toggleDeleteUserModal();
     } else {
@@ -199,6 +213,7 @@ export class UserManagementPage extends Component {
             )
           );
         });
+      window.scrollTo(0, 0);
       toggleDeleteUserModal();
     }
   };
