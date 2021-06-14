@@ -13,7 +13,7 @@
 - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
 - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
 - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
-- [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-"unknown-column"-error-when-upgrading-fleet)
+- [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
