@@ -98,8 +98,7 @@ describe("AdminDetails - form", () => {
 
       expect(onSubmitSpy).not.toHaveBeenCalled();
       expect(form.state().errors).toMatchObject({
-        password:
-          "Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol",
+        password: "Password must meet the criteria below",
       });
     });
 

@@ -25,8 +25,7 @@ const validate = (formData) => {
   }
 
   if (password && passwordConfirmation && !validPassword(password)) {
-    errors.password =
-      "Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol";
+    errors.password = "Password must meet the criteria below";
   }
 
   if (
