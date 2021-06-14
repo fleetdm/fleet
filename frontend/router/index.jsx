@@ -79,7 +79,7 @@ const routes = (
                 <Route path="options" component={AgentOptionsPage} />
               </Route>
             </Route>
-            <Route path="hosts">
+            <Route path="hosts" component={ManageHostsPage}>
               <Route path="manage" component={ManageHostsPage} />
               <Route
                 path="manage/labels/:label_id"
@@ -89,7 +89,7 @@ const routes = (
               <Route path=":host_id" component={HostDetailsPage} />
             </Route>
             <Route component={AuthGlobalAdminMaintainerRoutes}>
-              <Route path="packs" component={PackPageWrapper}>
+              <Route path="packs" component={AllPacksPage}>
                 <Route path="manage" component={AllPacksPage} />
                 <Route path="new" component={PackComposerPage} />
                 <Route path=":id">
@@ -98,7 +98,7 @@ const routes = (
                 </Route>
               </Route>
             </Route>
-            <Route path="queries" component={QueryPageWrapper}>
+            <Route path="queries" component={ManageQueriesPage}>
               <Route path="manage" component={ManageQueriesPage} />
               <Route component={AuthAnyMaintainerGlobalAdminRoutes}>
                 <Route path="new" component={QueryPage} />
