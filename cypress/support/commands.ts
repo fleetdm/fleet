@@ -75,7 +75,7 @@ Cypress.Commands.add("seedQueries", () => {
   queries.forEach((queryForm) => {
     const { name, query, description, observer_can_run } = queryForm;
     cy.request({
-      url: "/v1/fleet/queries",
+      url: "/api/v1/fleet/queries",
       method: "POST",
       body: { name, query, description, observer_can_run },
       auth: {
