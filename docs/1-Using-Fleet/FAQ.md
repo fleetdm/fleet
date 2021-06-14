@@ -13,6 +13,7 @@
 - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
 - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
 - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
+- [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-"unknown-column"-error-when-upgrading-fleet)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -122,3 +123,9 @@ You can accomplish this by adding specific labels as targets of your pack. First
 When your hosts enroll to Fleet, they will become a member of the label and, because the label is a target of your pack, these hosts will automatically become targets of the pack. 
 
 You can also do this by setting the `targets` field in the [YAML configuration file](./2-fleetctl-CLI.md#query-packs) that manages the packs that are added to your Fleet instance. 
+
+## How do I resolve an "unknown column" error when upgrading Fleet?
+
+The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
+
+Check out the [documentation on running database migrations](https://github.com/fleetdm/fleet/blob/edf1c47298e9355c0a8c29a429db41bcf273cddf/docs/1-Using-Fleet/7-Updating-Fleet.md#running-database-migrations) to resolve this issue.
