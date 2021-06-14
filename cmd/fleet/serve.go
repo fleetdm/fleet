@@ -215,7 +215,10 @@ the way that the Fleet server works.
 				}
 			}
 
-			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password, config.Redis.Database, config.Redis.UseTLS)
+			redisPool, err := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password, config.Redis.Database, config.Redis.UseTLS)
+			if err != nil {
+				initFatal(err, "initialize Redis")
+			}
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)

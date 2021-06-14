@@ -22,9 +22,9 @@ var _ kolide.QueryResultStore = &redisQueryResults{}
 
 // NewRedisPool creates a Redis connection pool using the provided server
 // address, password and database.
-func NewRedisPool(server, password string, database int, useTLS bool) *redisc.Cluster {
+func NewRedisPool(server, password string, database int, useTLS bool) (*redisc.Cluster, error) {
 	//Create the Cluster
-	cluster := redisc.Cluster{
+	cluster := &redisc.Cluster{
 		StartupNodes: []string{
 			fmt.Sprint(server),
 		},
@@ -65,9 +65,11 @@ func NewRedisPool(server, password string, database int, useTLS bool) *redisc.Cl
 		},
 	}
 
-	cluster.Refresh()
+	if err := cluster.Refresh(); err != nil {
+		return nil, errors.Wrap(err, "refresh cluster")
+	}
 
-	return &cluster
+	return cluster, nil
 }
 
 // NewRedisQueryResults creats a new Redis implementation of the

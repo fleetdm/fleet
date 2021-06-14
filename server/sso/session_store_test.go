@@ -20,10 +20,11 @@ func newPool(t *testing.T) *redisc.Cluster {
 			useTLS   = false
 		)
 
-		p := pubsub.NewRedisPool(addr, password, database, useTLS)
-		_, err := p.Get().Do("PING")
+		pool, err := pubsub.NewRedisPool(addr, password, database, useTLS)
+		require.NoError(t, err)
+		_, err = pool.Get().Do("PING")
 		require.Nil(t, err)
-		return p
+		return pool
 	}
 	return nil
 }
