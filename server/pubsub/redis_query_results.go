@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/server/kolide"
@@ -65,11 +66,15 @@ func NewRedisPool(server, password string, database int, useTLS bool) (*redisc.C
 		},
 	}
 
-	if err := cluster.Refresh(); err != nil {
+	if err := cluster.Refresh(); err != nil && !isClusterDisabled(err) {
 		return nil, errors.Wrap(err, "refresh cluster")
 	}
 
 	return cluster, nil
+}
+
+func isClusterDisabled(err error) bool {
+	return strings.Contains(err.Error(), "ERR This instance has cluster support disabled")
 }
 
 // NewRedisQueryResults creats a new Redis implementation of the
