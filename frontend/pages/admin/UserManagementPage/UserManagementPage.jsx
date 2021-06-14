@@ -366,7 +366,13 @@ export class UserManagementPage extends Component {
   };
 
   renderCreateUserModal = () => {
-    const { currentUser, inviteErrors, config, teams } = this.props;
+    const {
+      currentUser,
+      inviteErrors,
+      config,
+      teams,
+      isBasicTier,
+    } = this.props;
     const { showCreateUserModal } = this.state;
     const { onCreateUserSubmit, toggleCreateUserModal } = this;
 
@@ -388,6 +394,7 @@ export class UserManagementPage extends Component {
           defaultGlobalRole={"observer"}
           defaultTeams={[]}
           submitText={"Create"}
+          isBasicTier={isBasicTier}
         />
       </Modal>
     );
