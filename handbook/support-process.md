@@ -24,6 +24,10 @@ The Roundup meeting at Fleet provides time to discuss action items from that are
 
 - The individual on-call is responsible to either schedule a 10 minute call or join the 🧩 Product meeting to ask questions they were unable to answer. If a response is needed quicker, you can always DM Fleet team members in Slack. This way, people get answers within 1 business day.
 
+- If you do not understand the question or comment raised, request more details to best understand the next steps.
+
+- If an appropriate response is outside your scope, please post to #oncall-chatter, an internal slack channel designed to filter community support questions to the Fleet team.
+
 ## Sources
 
 There are three sources that the individual on-call should monitor for activity:
@@ -32,7 +36,7 @@ There are three sources that the individual on-call should monitor for activity:
 
 2. Community chatroom - https://osquery.slack.com, #fleet channel
 
-3. GitHub issue tracker - https://github.com/fleetdm/fleet/issues
+3. GitHub issues and pull requests - [Github Triage: Community contributions with no milestones or assignees](https://github.com/issues?q=is%3Aopen+archived%3Afalse+org%3Afleetdm+no%3Amilestone+no%3Aassignee+sort%3Aupdated-desc+)
 
 ## Roundup preparation
 
