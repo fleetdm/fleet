@@ -1,6 +1,17 @@
 # Cypress Testing
 
 Cypress tests are designed solely for end-to-end testing. If this is your first time developing or running end-to-end tests, [Fleet testing documentation](https://github.com/fleetdm/fleet/blob/main/docs/4-Contribution/2-Testing.md) includes git instructions for test preparation and running tests.
+## Fleet Cypress directories
+
+### Integration directory
+Cypress tests the integration of [entire features](integration/all/app) of the app.
+
+With the roll out of teams, Cypress tests the user interface of each role of a user on the Basic Tier ([Fleet Basic Documentation](integration/basic/README.md)) and Core Tier ([Fleet Core Documentation](integration/basic/README.md)).
+
+### Support directory
+[Commands](support/commands.ts) that are shared across tests are located in the support directory.
+
+
 ## Opening Cypress locally
 
 To open simply run:
@@ -8,7 +19,7 @@ To open simply run:
 `yarn cypress:open`
 
 This will open up cypress locally and
-allow you to view the current test suite, as well as start writing new tests. 
+allow you to view the current test suite, as well as start writing new tests.
 ## Building best practices
 
 As much as possible, build from a user's perspective. Use `.within` cypress command as needed to scope a command within a specific element (e.g. table, nav).
