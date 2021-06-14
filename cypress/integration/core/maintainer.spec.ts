@@ -4,6 +4,7 @@ if (Cypress.env("FLEET_TIER") === "core") {
       cy.setup();
       cy.login();
       cy.seedCore();
+      cy.seedQueries();
       cy.logout();
     });
 

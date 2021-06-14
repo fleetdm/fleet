@@ -4,6 +4,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.setup();
       cy.login();
       cy.seedBasic();
+      cy.seedQueries();
       cy.logout();
     });
 
@@ -15,7 +16,9 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.contains("All hosts");
 
       // Settings and Teams restrictions
-      cy.findByText(/teams/i).should("exist");
+      cy.find("nav").within(() => {
+        cy.findByText(/teams/i).should("exist");
+      });
       cy.findByText(/settings/i).should("not.exist");
       cy.visit("/settings/organization");
       cy.findByText(/you do not have permissions/i).should("exist");
