@@ -59,7 +59,7 @@ require (
 	github.com/spf13/viper v1.0.2
 	github.com/stretchr/testify v1.7.0
 	github.com/theupdateframework/go-tuf v0.0.0-20201230183259-aee6270feb55
-	github.com/throttled/throttled/v2 v2.7.2
+	github.com/throttled/throttled/v2 v2.8.0
 	github.com/urfave/cli/v2 v2.3.0
 	go.opencensus.io v0.20.2 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
@@ -73,4 +73,3 @@ require (
 	gopkg.in/yaml.v2 v2.2.7
 )
 
-replace github.com/throttled/throttled/v2 v2.7.2 => github.com/fleetdm/throttled/v2 v2.7.3-0.20210611232555-e08fbdec1e43

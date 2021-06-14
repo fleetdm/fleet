@@ -282,6 +282,8 @@ github.com/throttled/throttled v2.2.5+incompatible h1:65UB52X0qNTYiT0Sohp8qLYVFw
 github.com/throttled/throttled v2.2.5+incompatible/go.mod h1:0BjlrEGQmvxps+HuXLsyRdqpSRvJpq0PNIsOtqP9Nos=
 github.com/throttled/throttled/v2 v2.7.2 h1:UHk0GmVH5Zk1YiY2Di/C8WdtJ9E0wjjfkEiuS/e0pns=
 github.com/throttled/throttled/v2 v2.7.2/go.mod h1:q1QyZVQXxb2NUfJ+Hjucmlrsrz9s/jt2ilMwSMo7a2I=
+github.com/throttled/throttled/v2 v2.8.0 h1:B5VfdM8BE+ClI2Ji238SbNOTWfYcocvuAhgT27lvwrE=
+github.com/throttled/throttled/v2 v2.8.0/go.mod h1:q1QyZVQXxb2NUfJ+Hjucmlrsrz9s/jt2ilMwSMo7a2I=
 github.com/urfave/cli/v2 v2.3.0 h1:qph92Y649prgesehzOrQjdWyxFOp/QVM+6imKHad91M=
 github.com/urfave/cli/v2 v2.3.0 h1:qph92Y649prgesehzOrQjdWyxFOp/QVM+6imKHad91M=
 github.com/urfave/cli/v2 v2.3.0/go.mod h1:LJmUH05zAU44vOAcrfzZQKsZbVcdbOG8rtL3/XcUArI=
