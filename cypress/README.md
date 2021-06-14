@@ -11,7 +11,7 @@ This will open up cypress locally and
 allow you to view the current test suite, as well as start writing new test. 
 ## Bulding best practices
 
-As much as possible, build from a user's perspective. Use .within cypress command as needed to scope a command within a specific element (e.g. <table>, <nav>).
+As much as possible, build from a user's perspective. Use `.within` cypress command as needed to scope a command within a specific element (e.g. table, nav).
 
 As much as possible, assert that the code is only selecting 1 item or that the final assertion is the appropriate count.
 ### Prioritization of selecting elements
