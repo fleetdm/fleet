@@ -80,5 +80,18 @@ declare namespace Cypress {
      * requests.
      */
     seedFigma(): Chainable<Element>;
+
+    /**
+     * Custom command to add Docker osquery host.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
+     */
+    addDockerHost(): Chainable;
+
+    /**
+     * Custom command to stop any running Docker hosts.
+     */
+    stopDockerHost(): Chainable;
   }
 }
