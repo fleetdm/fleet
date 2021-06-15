@@ -11,8 +11,7 @@ export default (formData) => {
   } = formData;
 
   if (newPassword && newPasswordConfirmation && !validPassword(newPassword)) {
-    errors.new_password =
-      "Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol";
+    errors.new_password = "Password must meet the criteria below";
   }
 
   if (!oldPassword) {
