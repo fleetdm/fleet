@@ -89,7 +89,7 @@ func getAssetURL() template.URL {
 	v := version.Version().Version
 	tag := strings.Split(v, "-")[0]
 	if tag == "unknown" {
-		tag = "master"
+		tag = "main"
 	}
 
 	return template.URL("https://github.com/fleetdm/fleet/blob/" + tag)
