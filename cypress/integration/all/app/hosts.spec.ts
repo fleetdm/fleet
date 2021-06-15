@@ -31,7 +31,6 @@ describe("Hosts page", () => {
 
     // Possibly in some environments the host will not yet be enrolled? Do we
     // need some retry logic here?
-    cy.wait(10000);
     cy.visit("/");
     // Go to host details page
     cy.get('button[title="Online"]').click();
