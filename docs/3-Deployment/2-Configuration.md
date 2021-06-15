@@ -1378,11 +1378,11 @@ Several items are required to configure an IDP to provide SSO services to Fleet.
 
   #### Example Salesforce IDP Configuration
 
-  ![Example Salesforce IDP Configuration](../images/salesforce-idp-setup.png)
+  ![Example Salesforce IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/salesforce-idp-setup.png)
 
   #### Example Okta IDP Configuration
 
-  ![Example Okta IDP Configuration](../images/okta-idp-setup.png)
+  ![Example Okta IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
 The IDP will generate an issuer URI and a metadata URL that will be used to configure
 Fleet as a service provider.
@@ -1410,7 +1410,7 @@ found in App Settings. If your IDP supports dynamic configuration, like Okta, yo
 
 #### Example Fleet SSO Configuration
 
-![Example SSO Configuration](../images/sso-setup.png)
+![Example SSO Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/sso-setup.png)
 
 ### Creating SSO users in Fleet
 
