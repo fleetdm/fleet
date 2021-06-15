@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useEffect } from "react";
 import classnames from "classnames";
-import { useEffect } from "react";
 
 const baseClass = "modal";
 
@@ -20,12 +19,12 @@ const Modal = ({ children, onExit, title, className }: IModalProps) => {
     };
 
     document.addEventListener("keydown", closeWithEscapeKey);
-    
+
     return () => {
       document.removeEventListener("keydown", closeWithEscapeKey);
     };
   }, []);
-  
+
   const modalContainerClassName = classnames(
     `${baseClass}__modal_container`,
     className
