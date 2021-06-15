@@ -32,7 +32,7 @@ The Roundup meeting at Fleet provides time to discuss action items from that are
 
 Typically, the *questions*, *bug reports*, and *feature requests* raised by members of the community will be missing helpful context, recreation steps, or motivations respectively.
 
-❓ For questions that you immediately don't know the answer to, it's helpful to ask follow up questions to receive additional context. 
+❓ For questions that you don't immediately know the answer to, it's helpful to ask follow up questions to receive additional context. 
 
 - Let's say a community member asks the question "How do I do X in Fleet?" A follow question could be "what are you attempting to accomplish by doing X?" 
 - This way, you now has additional details when the primary question is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
