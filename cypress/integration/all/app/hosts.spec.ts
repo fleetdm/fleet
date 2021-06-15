@@ -34,8 +34,7 @@ describe("Hosts page", () => {
     cy.waitUntil(
       () => {
         cy.visit("/");
-        cy.get('button[title="Online"]');
-        return true;
+        return Cypress.$('button[title="Online"]').length > 0;
       },
       { timeout: 30000, interval: 1000 }
     );
