@@ -67,7 +67,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			Message: "Validation Failed",
 			Errors:  baseError(err.Error()),
 		}
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		enc.Encode(ve)
 		return
 	}

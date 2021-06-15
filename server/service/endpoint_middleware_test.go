@@ -62,25 +62,12 @@ import (
 // 		request interface{}
 // 	}{
 // 		{
-// 			endpoint: mustBeAdmin(e),
-// 			wantErr:  fleet.ErrNoContext,
-// 		},
-// 		{
 // 			endpoint: canReadUser(e),
 // 			wantErr:  fleet.ErrNoContext,
 // 		},
 // 		{
 // 			endpoint: canModifyUser(e),
 // 			wantErr:  fleet.ErrNoContext,
-// 		},
-// 		{
-// 			endpoint: mustBeAdmin(e),
-// 			vc:       &viewer.Viewer{User: admin1, Session: admin1Session},
-// 		},
-// 		{
-// 			endpoint: mustBeAdmin(e),
-// 			vc:       &viewer.Viewer{User: user1, Session: user1Session},
-// 			wantErr:  permissionError{message: "must be an admin"},
 // 		},
 // 		{
 // 			endpoint: canModifyUser(e),

@@ -93,19 +93,6 @@ func authViewer(ctx context.Context, sessionKey string, svc fleet.Service) (*vie
 	return &viewer.Viewer{User: user, Session: session}, nil
 }
 
-func mustBeAdmin(next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		vc, ok := viewer.FromContext(ctx)
-		if !ok {
-			return nil, fleet.ErrNoContext
-		}
-		if !vc.CanPerformAdminActions() {
-			return nil, fleet.NewPermissionError("must be an admin")
-		}
-		return next(ctx, request)
-	}
-}
-
 func canPerformActions(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
