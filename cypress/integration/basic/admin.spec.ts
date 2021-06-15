@@ -5,6 +5,8 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.login();
       cy.seedBasic();
       cy.setupSMTP();
+      cy.seedQueries();
+      cy.addDockerHost();
       cy.logout();
     });
 
@@ -18,8 +20,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       // On the hosts page, they should…
 
       // See the “Teams” column in the Hosts table
-      // cy.findByRole("columnheader", { name: "Team" });
-      // ^^TODO this test depends on seeding hosts because the table is not displayed if there are no hosts
+      cy.get("thead").contains(/team/i).should("exist");
 
       // See and select the “Add new host” button
       cy.contains("button", /add new host/i).click();
@@ -35,9 +36,9 @@ if (Cypress.env("FLEET_TIER") === "basic") {
 
       // On the Host details page, they should…
       // See the “Team” information below the hostname
-      // cy.visit("/hosts/2");
+      // cy.visit("/hosts/1");
       // cy.findByText(/team/i).next().contains("Apples");
-      // ^^TODO this test depends on seeding hosts
+      // ^^TODO this test depends on seeding hosts and assigning hosts to teams
 
       // On the Queries - new / edit / run page, they should…
       // See the “Teams” section in the Select target picker. This picker is summoned when the “Select targets” field is selected.
