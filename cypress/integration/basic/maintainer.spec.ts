@@ -6,6 +6,11 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.seedBasic();
       cy.seedQueries();
       cy.logout();
+      cy.addDockerHost();
+    });
+
+    afterEach(() => {
+      cy.stopDockerHost();
     });
 
     it("Can perform the appropriate actions", () => {
