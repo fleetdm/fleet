@@ -17,6 +17,7 @@ import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
 import AddHostsRedirectModal from "./components/AddHostsModal/AddHostsRedirectModal";
 
+import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import PencilIcon from "../../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../../assets/images/icon-trash-14x14@2x.png";
 
@@ -159,17 +160,22 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
       </div>
     );
   }
+  const hostsCount = team.host_count;
+  const hostsTotalDisplay = hostsCount === 1 ? "1 host" : `${hostsCount} hosts`;
 
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__nav-header`}>
-        <Link className={`${baseClass}__back-link`} to={PATHS.ADMIN_TEAMS}>
-          Back to teams
+        <Link to={PATHS.ADMIN_TEAMS} className={`${baseClass}__back-link`}>
+          <img src={BackChevron} alt="back chevron" id="back-chevron" />
+          <span>Back to teams</span>
         </Link>
         <div className={`${baseClass}__team-header`}>
           <div className={`${baseClass}__team-details`}>
             <h1>{team.name}</h1>
-            <span className={`${baseClass}__host-count`}>0 hosts</span>
+            <span className={`${baseClass}__host-count`}>
+              {hostsTotalDisplay}
+            </span>
           </div>
           <div className={`${baseClass}__team-actions`}>
             <Button onClick={toggleAddHostsRedirectModal}>Add hosts</Button>
