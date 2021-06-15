@@ -232,3 +232,38 @@ Cypress.Commands.add("addUser", (username, options = {}) => {
     { timeout: 5000 }
   );
 });
+
+Cypress.Commands.add("addDockerHost", () => {
+  const serverPort = new URL(Cypress.config().baseUrl).port;
+  // Get enroll secret
+  cy.request({
+    url: "/api/v1/fleet/spec/enroll_secret",
+    auth: {
+      bearer: window.localStorage.getItem("FLEET::auth_token"),
+    },
+  }).then(({ body }) => {
+    const enrollSecret = body.specs.secrets[0].secret;
+
+    // Start up docker-compose with enroll secret
+    cy.exec(
+      "docker-compose -f tools/osquery/docker-compose.yml up -d ubuntu20-osquery",
+      {
+        env: {
+          ENROLL_SECRET: enrollSecret,
+          FLEET_SERVER: `host.docker.internal:${serverPort}`,
+        },
+      }
+    );
+  });
+});
+
+Cypress.Commands.add("stopDockerHost", () => {
+  // Start up docker-compose with enroll secret
+  cy.exec("docker-compose -f tools/osquery/docker-compose.yml stop", {
+    env: {
+      // Not that ENROLL_SECRET must be specified or docker-compose errors,
+      // even when just trying to shut down the hosts.
+      ENROLL_SECRET: "invalid",
+    },
+  });
+});

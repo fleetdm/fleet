@@ -4,6 +4,11 @@ describe("Hosts page", () => {
   beforeEach(() => {
     cy.setup();
     cy.login();
+    cy.addDockerHost();
+  });
+
+  afterEach(() => {
+    cy.stopDockerHost();
   });
 
   it("Add new host", () => {
@@ -23,5 +28,12 @@ describe("Hosts page", () => {
     }).then((contents) => {
       cy.get("input[disabled]").should("have.value", contents);
     });
+
+    // Possibly in some environments the host will not yet be enrolled? Do we
+    // need some retry logic here?
+    cy.visit("/");
+    // Go to host details page
+    cy.get('button[title="Online"]').click();
+    cy.get("span.status").contains("online");
   });
 });
