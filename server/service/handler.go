@@ -150,16 +150,16 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		// canPerformActions if that is appropriate).
 		Me:                   authenticatedUser(svc, canPerformActions(makeGetSessionUserEndpoint(svc))),
 		ChangePassword:       authenticatedUser(svc, canPerformActions(makeChangePasswordEndpoint(svc))),
-		GetUser:              authenticatedUser(svc, canReadUser(makeGetUserEndpoint(svc))),
+		GetUser:              authenticatedUser(svc, makeGetUserEndpoint(svc)),
 		ListUsers:            authenticatedUser(svc, canPerformActions(makeListUsersEndpoint(svc))),
-		ModifyUser:           authenticatedUser(svc, canModifyUser(makeModifyUserEndpoint(svc))),
-		DeleteUser:           authenticatedUser(svc, canModifyUser(makeDeleteUserEndpoint(svc))),
+		ModifyUser:           authenticatedUser(svc, makeModifyUserEndpoint(svc)),
+		DeleteUser:           authenticatedUser(svc, makeDeleteUserEndpoint(svc)),
 		RequirePasswordReset: authenticatedUser(svc, makeRequirePasswordResetEndpoint(svc)),
 		CreateUser:           authenticatedUser(svc, makeCreateUserEndpoint(svc)),
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
 		PerformRequiredPasswordReset:          authenticatedUser(svc, canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
-		GetSessionsForUserInfo:                authenticatedUser(svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
+		GetSessionsForUserInfo:                authenticatedUser(svc, makeGetInfoAboutSessionsForUserEndpoint(svc)),
 		DeleteSessionsForUser:                 authenticatedUser(svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
 		GetSessionInfo:                        authenticatedUser(svc, makeGetInfoAboutSessionEndpoint(svc)),
 		DeleteSession:                         authenticatedUser(svc, makeDeleteSessionEndpoint(svc)),

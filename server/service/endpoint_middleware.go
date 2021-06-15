@@ -106,20 +106,6 @@ func canPerformActions(next endpoint.Endpoint) endpoint.Endpoint {
 	}
 }
 
-func canReadUser(next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		vc, ok := viewer.FromContext(ctx)
-		if !ok {
-			return nil, fleet.ErrNoContext
-		}
-		uid := requestUserIDFromContext(ctx)
-		if !vc.CanPerformReadActionOnUser(uid) {
-			return nil, fleet.NewPermissionError("no read permissions on user")
-		}
-		return next(ctx, request)
-	}
-}
-
 func canModifyUser(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
