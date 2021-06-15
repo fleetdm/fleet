@@ -40,7 +40,7 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by memb
 🦟 For bug reports, it's helpful to ask for recreation steps so you're later able to verify the bug exists.
 
 - Let's say a community member submits a bug report. An example follow up question could be "Can you please walk me through how you encountered this issue so that I can attempt to recreate it?"
-- This way, you now have steps the verify whether the bug exists in Fleet or if the issue is specific to the community member's environment. If the later, you now have additional information for further investigation and question asking.
+- This way, you now have steps the verify whether the bug exists in Fleet or if the issue is specific to the community member's environment. If the latter, you now have additional information for further investigation and question asking.
 
 💡 For feature requests, it's helpful to ask follow up questions in an attempt to understand the "why?" or underlying motivation behind the request.
 
