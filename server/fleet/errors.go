@@ -29,14 +29,6 @@ type ErrWithLogFields interface {
 	LogFields() []interface{}
 }
 
-// ErrWithStatusCode is an interface for errors that should set a specific HTTP
-// status when encoding.
-type ErrWithStatusCode interface {
-	error
-	// StatusCode returns the HTTP status code that should be returned.
-	StatusCode() int
-}
-
 // ErrWithRetryAfter is an interface for errors that should set a specific HTTP
 // Header Retry-After value (see
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
@@ -169,7 +161,7 @@ func (e PermissionError) PermissionError() []map[string]string {
 type LicenseError struct{}
 
 func (e LicenseError) Error() string {
-	return "requires Fleet Basic license"
+	return "Requires Fleet Basic license"
 }
 
 func (e LicenseError) StatusCode() int {
