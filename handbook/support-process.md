@@ -24,9 +24,30 @@ The Roundup meeting at Fleet provides time to discuss action items from that are
 
 - The individual on-call is responsible to either schedule a 10 minute call or join the 🧩 Product meeting to ask questions they were unable to answer. If a response is needed quicker, you can always DM Fleet team members in Slack. This way, people get answers within 1 business day.
 
-- If you do not understand the question or comment raised, request more details to best understand the next steps.
+- If you do not understand the question or comment raised, [request more details](#requesting-more-details) to best understand the next steps.
 
 - If an appropriate response is outside your scope, please post to #oncall-chatter, an internal slack channel designed to filter community support questions to the Fleet team.
+
+#### Requesting more details
+
+Typically, the *questions*, *bug reports*, and *feature requests* raised by members of the community will be missing helpful context, recreation steps, or motivations respectively.
+
+For questions that you immediately don't know the answer to, it's helpful to ask follow up questions to receive additional context. 
+
+- Let's say a community member asks the question "How do I do X in Fleet?" A follow question could be "what are you attempting to accomplish by doing X?" 
+- This way, you now has additional details when the primary question is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
+
+For bug reports, it's helpful to ask for recreation steps so you're later able to verify the bug exists.
+
+- Let's say a community member submits a bug report. An example follow up question could be "Can you please walk me through how you encountered this issue so that I can attempt to recreate it?"
+- This way, you now have steps the verify whether the bug exists in Fleet or if the issue is specific to the community member's environment. If the later, you now have additional information for further investigation and question asking.
+
+For feature requests, it's helpful to ask follow up questions in an attempt to understand the "why?" or underlying motivation behind the request.
+
+- Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?." 
+- Both of these questions provide helpful context on the underlying motivation behind the feature request when it is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
+
+
 
 ## Sources
 
