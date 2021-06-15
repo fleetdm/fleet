@@ -95,7 +95,7 @@ export class UserManagementPage extends Component {
   }
 
   onEditUser = (formData) => {
-    const { currentUser, dispatch } = this.props;
+    const { currentUser, config, dispatch } = this.props;
     const { userEditing } = this.state;
     const { toggleEditUserModal, getUser } = this;
 
@@ -126,7 +126,7 @@ export class UserManagementPage extends Component {
     let userUpdatedFlashMessage = "User updated";
 
     if (userData.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${currentUser.email} to ${formData.email}`;
+      userUpdatedFlashMessage += `: A confirmation email was sent from ${config.sender_address} to ${formData.email}`;
     }
 
     return dispatch(userActions.silentUpdate(userData, formData))
