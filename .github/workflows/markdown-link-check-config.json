@@ -23,9 +23,6 @@
         },
         {
             "pattern": "osquery.io/schema"
-        },
-        {
-            "patter": "github.com/issues"
         }
     ],
     "retryOn429": true,
