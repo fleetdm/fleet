@@ -40,7 +40,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
         cy.findByText("Team").should("exist");
       });
 
-      // Can see teams in create, edit, and run query
+      // Query pages: Can see teams UI for create, edit, and run query
       cy.visit("/queries/manage");
 
       cy.findByRole("button", { name: /create new query/i }).click();

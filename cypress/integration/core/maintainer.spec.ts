@@ -50,7 +50,7 @@ if (Cypress.env("FLEET_TIER") === "core") {
       cy.contains("button", /query/i).click();
       cy.contains("button", /create custom query/i).click();
 
-      // Can create, edit, and run query
+      // Queries pages: Can create, edit, and run query
       cy.visit("/queries/manage");
       cy.get("thead").within(() => {
         cy.findByText(/observers can run/i).should("exist");
@@ -62,7 +62,6 @@ if (Cypress.env("FLEET_TIER") === "core") {
         .click()
         .type("Query all window crashes");
 
-      // Using class selector because third party element doesn't work with Cypress Testing Selector Library
       cy.get(".ace_scroller")
         .click({ force: true })
         .type("{selectall}{backspace}SELECT * FROM windows_crashes;");
@@ -90,7 +89,7 @@ if (Cypress.env("FLEET_TIER") === "core") {
 
       cy.findByRole("button", { name: /edit or run query/i }).click();
 
-      // Can create, edit, delete a pack
+      // Packs pages: Can create, edit, delete a pack
       cy.visit("/packs/manage");
 
       cy.findByRole("button", { name: /create new pack/i }).click();
