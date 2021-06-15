@@ -29,9 +29,17 @@ describe("Hosts page", () => {
       cy.get("input[disabled]").should("have.value", contents);
     });
 
-    // Possibly in some environments the host will not yet be enrolled? Do we
-    // need some retry logic here?
-    cy.visit("/");
+    // Wait until the host becomes available (usually immediate in local
+    // testing, but may vary by environment).
+    cy.waitUntil(
+      () => {
+        cy.visit("/");
+        cy.get('button[title="Online"]');
+        return true;
+      },
+      { timeout: 30000, interval: 1000 }
+    );
+
     // Go to host details page
     cy.get('button[title="Online"]').click();
     cy.get("span.status").contains("online");
