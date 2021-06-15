@@ -31,7 +31,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       // TODO: Check Team Apples is in Select a team dropdown
       cy.contains("button", /done/i).click();
 
-      // Host details page: Can see team information
+      // Host details page: Can see team UI
       cy.get("tbody").within(() => {
         // Test host text varies
         cy.findByRole("button").click();

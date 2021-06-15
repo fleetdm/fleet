@@ -5,8 +5,8 @@ if (Cypress.env("FLEET_TIER") === "core") {
       cy.login();
       cy.seedCore();
       cy.seedQueries();
-      cy.logout();
       cy.addDockerHost();
+      cy.logout();
     });
 
     afterEach(() => {
@@ -20,37 +20,41 @@ if (Cypress.env("FLEET_TIER") === "core") {
       // Ensure page is loaded
       cy.contains("All hosts");
 
-      // Settings and Teams restrictions
-      cy.findByText(/teams/i).should("not.exist");
+      // Settings restrictions
       cy.findByText(/settings/i).should("not.exist");
       cy.visit("/settings/organization");
       cy.findByText(/you do not have permissions/i).should("exist");
 
+      // Host manage page: No team UI, can add host and label
       cy.visit("/hosts/manage");
-
-      // find way to add host
+      cy.findByText(/teams/i).should("not.exist");
       cy.contains("button", /add new host/i).click();
       cy.findByText("select a team").should("not.exist");
       cy.contains("button", /done/i).click();
 
-      // Can delete and create query on host
-      //--click on host--
-      // cy.contains("button", /delete/i).click();
-      // cy.contains("button", /cancel/i).click();
-
-      // host must be online
-      // cy.contains("button", /query/i).click();
-      // cy.contains("button", /create new query/i).click();
-
-      // sent to new query page
-      // cy.findByText("create new query").should("not.exist");
-
       cy.contains("button", /add new label/i).click();
       cy.contains("button", /cancel/i).click();
 
+      // Host details page: No team UI, can delete and create new query
+      cy.get("tbody").within(() => {
+        // Test host text varies
+        cy.findByRole("button").click();
+      });
+      cy.get(".title").within(() => {
+        cy.findByText(/team/i).should("not.exist");
+      });
+
+      cy.contains("button", /delete/i).click();
+      cy.contains("button", /cancel/i).click();
+
+      cy.contains("button", /query/i).click();
+      cy.contains("button", /create custom query/i).click();
+
       // Can create, edit, and run query
       cy.visit("/queries/manage");
-      cy.findByText(/observers can run/i).should("exist");
+      cy.get("thead").within(() => {
+        cy.findByText(/observers can run/i).should("exist");
+      });
 
       cy.findByRole("button", { name: /create new query/i }).click();
 
@@ -70,6 +74,8 @@ if (Cypress.env("FLEET_TIER") === "core") {
       cy.findByRole("button", { name: /save/i }).click();
 
       cy.findByRole("button", { name: /save as new/i }).click();
+
+      cy.findByLabelText(/observers can run/i).click({ force: true });
 
       cy.get(".target-select").within(() => {
         cy.findByText(/Label name, host name, IP address, etc./i).click();
@@ -99,24 +105,11 @@ if (Cypress.env("FLEET_TIER") === "core") {
 
       cy.findByRole("button", { name: /save query pack/i }).click();
 
-      // Is this redundant?
       cy.visit("/packs/manage");
 
       cy.findByText(/errors and crashes/i).click();
 
-      cy.findByText(/edit pack/i).click();
-
-      cy.findByLabelText(/query pack title/i)
-        .click()
-        .type("{selectall}{backspace}Server errors");
-
-      cy.findByLabelText(/description/i)
-        .click()
-        .type("{selectall}{backspace}See all server errors.");
-
-      cy.findByRole("button", { name: /save/i }).click();
-
-      cy.visit("/packs/manage");
+      cy.findByRole("link", { name: /edit pack/i }).should("exist");
 
       cy.get("#select-pack-1").check({ force: true });
 
