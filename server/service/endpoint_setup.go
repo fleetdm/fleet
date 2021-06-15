@@ -10,19 +10,19 @@ import (
 )
 
 type setupRequest struct {
-	Admin           *fleet.UserPayload `json:"admin"`
-	OrgInfo         *fleet.OrgInfo     `json:"org_info"`
-	ServerURL *string            `json:"server_url,omitempty"`
-	EnrollSecret    *string            `json:"osquery_enroll_secret,omitempty"`
+	Admin        *fleet.UserPayload `json:"admin"`
+	OrgInfo      *fleet.OrgInfo     `json:"org_info"`
+	ServerURL    *string            `json:"server_url,omitempty"`
+	EnrollSecret *string            `json:"osquery_enroll_secret,omitempty"`
 }
 
 type setupResponse struct {
-	Admin           *fleet.User    `json:"admin,omitempty"`
-	OrgInfo         *fleet.OrgInfo `json:"org_info,omitempty"`
-	ServerURL *string        `json:"server_url"`
-	EnrollSecret    *string        `json:"osquery_enroll_secret"`
-	Token           *string        `json:"token,omitempty"`
-	Err             error          `json:"error,omitempty"`
+	Admin        *fleet.User    `json:"admin,omitempty"`
+	OrgInfo      *fleet.OrgInfo `json:"org_info,omitempty"`
+	ServerURL    *string        `json:"server_url"`
+	EnrollSecret *string        `json:"osquery_enroll_secret"`
+	Token        *string        `json:"token,omitempty"`
+	Err          error          `json:"error,omitempty"`
 }
 
 func (r setupResponse) error() error { return r.Err }
@@ -85,7 +85,7 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			ServerURL: &config.ServerURL,
-			Token:           token,
+			Token:     token,
 		}, nil
 	}
 }
