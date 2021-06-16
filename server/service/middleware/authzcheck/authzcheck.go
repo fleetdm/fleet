@@ -34,14 +34,14 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 			// appropriately).
 			var authFailedError *fleet.AuthFailedError
 			var authRequiredError *fleet.AuthRequiredError
-			if errors.As(err, &authFailedError) || errors.As(err, &authRequiredError) {
+			if errors.As(err, &authFailedError) || errors.As(err, &authRequiredError) || errors.Is(err, fleet.ErrPasswordResetRequired) {
 				return nil, err
 			}
 
 			// If authorization was not checked, return a response that will
 			// marshal to a generic error and log that the check was missed.
 			if !authzctx.Checked {
-				return nil, authz.CheckMissing
+				return nil, authz.CheckMissingWithResponse(response)
 			}
 
 			return response, err

@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	ErrNoContext      = errors.New("context key not set")
-	ErrMissingLicense = &LicenseError{}
+	ErrNoContext             = errors.New("context key not set")
+	ErrPasswordResetRequired = &passwordResetRequiredError{}
+	ErrMissingLicense        = &licenseError{}
 )
 
 // ErrWithInternal is an interface for errors that include extra "internal"
@@ -157,13 +158,23 @@ func (e PermissionError) PermissionError() []map[string]string {
 	return forbidden
 }
 
-// LicenseError is returned when the application is not properly licensed.
-type LicenseError struct{}
+// licenseError is returned when the application is not properly licensed.
+type licenseError struct{}
 
-func (e LicenseError) Error() string {
+func (e licenseError) Error() string {
 	return "Requires Fleet Basic license"
 }
 
-func (e LicenseError) StatusCode() int {
+func (e licenseError) StatusCode() int {
 	return http.StatusPaymentRequired
+}
+
+type passwordResetRequiredError struct{}
+
+func (e passwordResetRequiredError) Error() string {
+	return "password reset required"
+}
+
+func (e passwordResetRequiredError) StatusCode() int {
+	return http.StatusUnauthorized
 }

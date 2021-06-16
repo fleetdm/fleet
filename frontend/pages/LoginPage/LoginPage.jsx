@@ -69,8 +69,15 @@ export class LoginPage extends Component {
     const { HOME } = paths;
     const redirectTime = 1500;
     return dispatch(loginUser(formData))
-      .then(() => {
+      .then((user) => {
         this.setState({ loginVisible: false });
+
+        // Redirect to password reset page if user is forced to reset password.
+        // Any other requests will fail.
+        if (user.force_password_reset) {
+          return dispatch(push(paths.RESET_PASSWORD));
+        }
+
         setTimeout(() => {
           const nextLocation = redirectLocation || HOME;
           dispatch(clearRedirectLocation);

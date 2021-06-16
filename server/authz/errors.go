@@ -57,16 +57,27 @@ func (e *Forbidden) LogFields() []interface{} {
 	}
 }
 
-type checkMissing struct{}
-
 // CheckMissing is the error to return when no authorization check was performed
 // by the service.
-var CheckMissing = &checkMissing{}
+type CheckMissing struct {
+	response interface{}
+}
 
-func (e *checkMissing) Error() string {
+// CheckMissingWithResponse creats a new error indicating the authorization
+// check was missed, and including the response for further anaylis by the error
+// encoder.
+func CheckMissingWithResponse(response interface{}) *CheckMissing {
+	return &CheckMissing{response: response}
+}
+
+func (e *CheckMissing) Error() string {
 	return ForbiddenErrorMessage
 }
 
-func (e *checkMissing) Internal() string {
+func (e *CheckMissing) Internal() string {
 	return "Missing authorization check"
+}
+
+func (e *CheckMissing) Response() interface{} {
+	return e.response
 }

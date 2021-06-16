@@ -25,9 +25,11 @@ type jsonError struct {
 // a generic "name" field. The frontend client always expects errors in a
 // []map[string]string format.
 func baseError(err string) []map[string]string {
-	return []map[string]string{map[string]string{
-		"name":   "base",
-		"reason": err},
+	return []map[string]string{
+		{
+			"name":   "base",
+			"reason": err,
+		},
 	}
 }
 

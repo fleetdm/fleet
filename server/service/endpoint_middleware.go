@@ -60,7 +60,11 @@ func getNodeKey(r interface{}) (string, error) {
 func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		// first check if already successfully set
-		if _, ok := viewer.FromContext(ctx); ok {
+		if v, ok := viewer.FromContext(ctx); ok {
+			if v.User.AdminForcedPasswordReset {
+				return nil, fleet.ErrPasswordResetRequired
+			}
+
 			return next(ctx, request)
 		}
 
@@ -73,6 +77,10 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		v, err := authViewer(ctx, string(sessionKey), svc)
 		if err != nil {
 			return nil, err
+		}
+
+		if v.User.AdminForcedPasswordReset {
+			return nil, fleet.ErrPasswordResetRequired
 		}
 
 		ctx = viewer.NewContext(ctx, *v)
