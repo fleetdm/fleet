@@ -22,7 +22,7 @@ class ApiOnlyUser extends Component {
           </div>
           <div className="login-button-wrap">
             <Button
-              TO={PATHS.LOGIN}
+              onClick={(event) => (window.location.href = PATHS.LOGIN)}
               variant="brand"
               className={`${baseClass}__login-button`}
             >
