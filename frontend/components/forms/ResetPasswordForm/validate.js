@@ -16,8 +16,7 @@ const validate = (formData) => {
     !validateEquality(newPassword, newPasswordConfirmation);
 
   if (!validPassword(newPassword)) {
-    errors.new_password =
-      "Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol";
+    errors.new_password = "Password must meet the criteria below";
   }
 
   if (!validatePresence(newPasswordConfirmation)) {
@@ -30,7 +29,7 @@ const validate = (formData) => {
   }
 
   if (noMatch) {
-    errors.new_password_confirmation = "Passwords Do Not Match";
+    errors.new_password_confirmation = "Passwords do not match";
   }
 
   const valid = !size(errors);

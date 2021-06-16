@@ -11,7 +11,8 @@ import (
 func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.AppConfigPayload) (*fleet.AppConfig, error) {
 	invalid := &fleet.InvalidArgumentError{}
 	var serverURLString string
-	if payload.ServerSettings == nil {
+	if payload.ServerSettings == nil || payload.ServerSettings.ServerURL == nil ||
+		*payload.ServerSettings.ServerURL == "" {
 		invalid.Append("server_url", "missing required argument")
 	} else {
 		serverURLString = cleanupURL(*payload.ServerSettings.ServerURL)

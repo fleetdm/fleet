@@ -167,6 +167,7 @@
     "babel-loader": "^8.2.1",
     "css-loader": "0.28.11",
     "cypress": "^6.9.1",
+    "cypress-wait-until": "^1.7.1",
     "enzyme": "^3.11.0",
     "enzyme-adapter-react-16": "^1.15.6",
     "eslint": "^7.20.0",

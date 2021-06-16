@@ -8,10 +8,18 @@
   }
 
   &__back-link {
-    color: $core-vibrant-blue;
+    display: flex;
+    align-items: center;
+    height: 16px;
     font-size: $x-small;
+    color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
+  }
+
+  #back-chevron {
+    width: 16px;
+    margin-right: $pad-small;
   }
 
   &__nav-header {
