@@ -6,7 +6,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.seedBasic();
       cy.setupSMTP();
       cy.seedQueries();
-      cy.addDockerHost();
+      cy.addDockerHost("apples");
       cy.logout();
     });
     afterEach(() => {
@@ -31,17 +31,15 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
       cy.get(".Select-control").click();
       cy.findByText(/no team/i).should("exist");
-      // cy.findByText(/apples/i).should("exist");
-      // cy.findByText(/oranges/i).should("exist");
-      // ^^TODO add back these assertions after dropdown bug is fixed
+      cy.findByText(/apples/i).should("exist");
+      cy.findByText(/oranges/i).should("exist");
 
       cy.contains("button", /done/i).click();
 
       // On the Host details page, they should…
       // See the “Team” information below the hostname
-      // cy.visit("/hosts/1");
-      // cy.findByText(/team/i).next().contains("Apples");
-      // ^^TODO this test depends on seeding hosts and assigning hosts to teams
+      cy.visit("/hosts/1");
+      cy.findByText(/team/i).next().contains("Apples");
 
       // On the Queries - new / edit / run page, they should…
       // See the “Teams” section in the Select target picker. This picker is summoned when the “Select targets” field is selected.
