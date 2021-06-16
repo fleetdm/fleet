@@ -57,6 +57,8 @@ func getNodeKey(r interface{}) (string, error) {
 
 // authenticatedUser wraps an endpoint, requires that the Fleet user is
 // authenticated, and populates the context with a Viewer struct for that user.
+//
+// If auth fails or the user must reset their password, an error is returned.
 func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		// first check if already successfully set
@@ -101,33 +103,6 @@ func authViewer(ctx context.Context, sessionKey string, svc fleet.Service) (*vie
 	return &viewer.Viewer{User: user, Session: session}, nil
 }
 
-func canPerformActions(next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		vc, ok := viewer.FromContext(ctx)
-		if !ok {
-			return nil, fleet.ErrNoContext
-		}
-		if !vc.CanPerformActions() {
-			return nil, fleet.NewPermissionError("no read permissions")
-		}
-		return next(ctx, request)
-	}
-}
-
-func canModifyUser(next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		vc, ok := viewer.FromContext(ctx)
-		if !ok {
-			return nil, fleet.ErrNoContext
-		}
-		uid := requestUserIDFromContext(ctx)
-		if !vc.CanPerformWriteActionOnUser(uid) {
-			return nil, fleet.NewPermissionError("no write permissions on user")
-		}
-		return next(ctx, request)
-	}
-}
-
 func canPerformPasswordReset(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
@@ -139,12 +114,4 @@ func canPerformPasswordReset(next endpoint.Endpoint) endpoint.Endpoint {
 		}
 		return next(ctx, request)
 	}
-}
-
-func requestUserIDFromContext(ctx context.Context) uint {
-	userID, ok := ctx.Value("request-id").(uint)
-	if !ok {
-		return 0
-	}
-	return userID
 }

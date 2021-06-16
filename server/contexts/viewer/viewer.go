@@ -93,34 +93,6 @@ func (v Viewer) CanPerformActions() bool {
 	return false
 }
 
-// CanPerformAdminActions indicates whether or not the current user can perform
-// administrative actions.
-func (v Viewer) CanPerformAdminActions() bool {
-	// TODO this needs revisiting for teams!
-	if v.User != nil {
-		return v.CanPerformActions()
-	}
-	return false
-}
-
-// CanPerformReadActionOnUser returns a bool indicating the current user's
-// ability to perform read actions on the given user
-func (v Viewer) CanPerformReadActionOnUser(uid uint) bool {
-	if v.User != nil {
-		return v.CanPerformActions() || (v.IsLoggedIn() && v.IsUserID(uid))
-	}
-	return false
-}
-
-// CanPerformWriteActionOnUser returns a bool indicating the current user's
-// ability to perform write actions on the given user
-func (v Viewer) CanPerformWriteActionOnUser(uid uint) bool {
-	if v.User != nil {
-		return (v.IsLoggedIn() && v.IsUserID(uid)) || v.CanPerformAdminActions()
-	}
-	return false
-}
-
 // CanPerformPasswordReset returns a bool indicating the current user's
 // ability to perform a password reset (in the case they have been required by
 // the admin).
