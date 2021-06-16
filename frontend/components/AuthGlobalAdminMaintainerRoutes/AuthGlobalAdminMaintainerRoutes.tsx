@@ -40,7 +40,7 @@ const AuthGlobalAdminMaintainerRoutes = (
     !permissionUtils.isGlobalMaintainer(user)
   ) {
     dispatch(push(HOME));
-    dispatch(renderFlash("error", "test"));
+    dispatch(renderFlash("error", "You do not have permissions for that page"));
     return null;
   }
   return <>{children}</>;
