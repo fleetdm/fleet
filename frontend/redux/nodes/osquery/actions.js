@@ -34,11 +34,11 @@ export const getOsqueryOptions = () => {
   };
 };
 
-export const updateOsqueryOptions = (osqueryOptionsData, teamId) => {
+export const updateOsqueryOptions = (osqueryOptionsData, endpoint) => {
   return (dispatch) => {
     dispatch(loadOsqueryOptions);
     return Fleet.osqueryOptions
-      .update(osqueryOptionsData, teamId)
+      .update(osqueryOptionsData, endpoint)
       .then((osqueryOptions) => {
         const yamlOptions = yaml.safeLoad(osqueryOptionsData.osquery_options);
         dispatch(osqueryOptionsSuccess(yamlOptions));

@@ -1,4 +1,35 @@
 .app-config-form {
+  &__config-docs {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: $pad-medium;
+    border-radius: $border-radius;
+    border: 1px solid #d9d9fe;
+    background-color: $ui-vibrant-blue-10;
+    margin-bottom: $pad-medium;
+    font-size: $x-small;
+
+    p {
+      margin: 0;
+      font-size: $x-small;
+    }
+
+    a {
+      color: $core-vibrant-blue;
+      font-size: $x-small;
+      font-weight: $bold;
+      text-decoration: none;
+      margin-left: $pad-medium;
+    }
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-left: $pad-small;
+    }
+  }
+
   &__enroll-secret-label {
     font-size: 15px;
 
@@ -80,6 +111,11 @@
         }
       }
     }
+  }
+
+  &__section-description {
+    font-size: $x-small;
+    color: $core-fleet-black;
   }
 
   &__inputs {
@@ -173,5 +209,14 @@
         margin: 0 10px;
       }
     }
+  }
+
+  &__component-label {
+    margin: 24px 0 0;
+    font-size: $x-small;
+  }
+
+  &__yaml {
+    width: calc(100% - 2px); // because the outline extended beyond the sticky page description
   }
 }

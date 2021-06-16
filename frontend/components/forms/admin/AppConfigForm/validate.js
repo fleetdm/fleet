@@ -1,4 +1,5 @@
 import { size } from "lodash";
+import validateYaml from "components/forms/validators/validate_yaml";
 
 export default (formData) => {
   const errors = {};
@@ -19,6 +20,7 @@ export default (formData) => {
     idp_name: idpName,
     host_expiry_enabled: hostExpiryEnabled,
     host_expiry_window: hostExpiryWindow = 0,
+    agent_options: agentOptions,
   } = formData;
 
   if (enableSSO) {
@@ -69,6 +71,16 @@ export default (formData) => {
     if (isNaN(hostExpiryWindow) || Number(hostExpiryWindow) <= 0) {
       errors.host_expiry_window =
         "Host Expiry Window must be a positive number";
+    }
+  }
+
+  if (agentOptions) {
+    const { error: yamlError, valid: yamlValid } = validateYaml(
+      formData.osquery_options
+    );
+
+    if (!yamlValid) {
+      errors.agent_options = constructErrorString(yamlError);
     }
   }
 

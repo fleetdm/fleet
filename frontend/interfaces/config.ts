@@ -4,6 +4,7 @@ export default PropTypes.shape({
   live_query_disabled: PropTypes.bool,
   authentication_method: PropTypes.string,
   authentication_type: PropTypes.string,
+  agent_options: PropTypes.string,
   configured: PropTypes.bool,
   domain: PropTypes.string,
   enable_ssl_tls: PropTypes.bool,
@@ -26,6 +27,7 @@ export interface IConfig {
   live_query_disabled: boolean;
   authentication_method: string;
   authentication_type: string;
+  agent_options: string;
   configured: boolean;
   domain: string;
   enable_ssl_tls: boolean;
