@@ -9,6 +9,9 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.addDockerHost();
       cy.logout();
     });
+    afterEach(() => {
+      cy.stopDockerHost();
+    });
 
     it("Can perform the appropriate basic-tier admin actions", () => {
       cy.login("anna@organization.com", "user123#");

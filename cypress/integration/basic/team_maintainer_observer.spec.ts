@@ -8,6 +8,9 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.addDockerHost();
       cy.logout();
     });
+    afterEach(() => {
+      cy.stopDockerHost();
+    });
 
     it("Can perform the appropriate team observer actions", () => {
       cy.login("marco@organization.com", "user123#");
