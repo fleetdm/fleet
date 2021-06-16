@@ -131,7 +131,7 @@ FEATURE REQUEST: (Who is the individual submitting the feature request? Where do
 
 #### Questions
 
-- Is this question already answered in our docs / website? If so, link to the specific section of the docs/website ± summarize for them.
+- Is this question already answered in our docs / website? If so, link to the specific section of the docs/website ± summarize for them. For commonly asked questions, check out the `FAQ.md` file in each top-level section of the [docs](../docs/README.md) (Using-Fleet, Deployment, etc.).
 
 - Do you think you know the answer? If so, make a PR to the docs/website. Link the person to your PR.
 
