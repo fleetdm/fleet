@@ -261,6 +261,7 @@ type AppConfigPayload struct {
 	SMTPSettings       *SMTPSettingsPayload `json:"smtp_settings"`
 	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
 	HostSettings       *HostSettings        `json:"host_settings"`
+	AgentOptions       *AgentOptions        `json:"agent_options"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest *bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings

@@ -21,6 +21,7 @@ type appConfigResponse struct {
 	SSOSettings        *fleet.SSOSettingsPayload  `json:"sso_settings,omitempty"`
 	HostExpirySettings *fleet.HostExpirySettings  `json:"host_expiry_settings,omitempty"`
 	HostSettings       *fleet.HostSettings        `json:"host_settings,omitempty"`
+	AgentOptions       *fleet.AgentOptions        `json:"agent_options,omitempty"`
 	License            *fleet.LicenseInfo         `json:"license,omitempty"`
 	Err                error                       `json:"error,omitempty"`
 }
@@ -44,6 +45,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 		var smtpSettings *fleet.SMTPSettingsPayload
 		var ssoSettings *fleet.SSOSettingsPayload
 		var hostExpirySettings *fleet.HostExpirySettings
+		var agentOptions *fleet.AgentOptions
 		// only admin can see smtp, sso, and host expiry settings
 		if vc.CanPerformAdminActions() {
 			smtpSettings = smtpSettingsFromAppConfig(config)
@@ -64,6 +66,9 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				HostExpiryEnabled: &config.HostExpiryEnabled,
 				HostExpiryWindow:  &config.HostExpiryWindow,
 			}
+			agentOptions = &fleet.AgentOptions{
+				Config: config.AgentOptions,
+			}
 		}
 		response := appConfigResponse{
 			OrgInfo: &fleet.OrgInfo{
@@ -81,6 +86,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				AdditionalQueries: config.AdditionalQueries,
 			},
 			License: license,
+			AgentOptions: agentOptions,
 		}
 		return response, nil
 	}
@@ -116,6 +122,9 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			HostExpirySettings: &fleet.HostExpirySettings{
 				HostExpiryEnabled: &config.HostExpiryEnabled,
 				HostExpiryWindow:  &config.HostExpiryWindow,
+			},
+			AgentOptions: &fleet.AgentOptions{
+				Config: config.AgentOptions,
 			},
 		}
 		if response.SMTPSettings.SMTPPassword != nil {
