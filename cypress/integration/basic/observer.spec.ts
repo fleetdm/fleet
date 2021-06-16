@@ -55,8 +55,9 @@ if (Cypress.env("FLEET_TIER") === "basic") {
 
       cy.findByText("All hosts which have enrolled in Fleet").should("exist");
 
-      // TODO: can see the "Team" column in the Hosts table
-      // cy.contains(".table-container .data-table__table th", "Team").should("be.visible");
+      cy.contains(".table-container .data-table__table th", "Team").should(
+        "be.visible"
+      );
     });
 
     it("Should verify hidden items on Hosts page", () => {
@@ -65,9 +66,6 @@ if (Cypress.env("FLEET_TIER") === "basic") {
 
       cy.findByText("Packs").should("not.exist");
       cy.findByText("Queries").should("not.exist");
-
-      // TODO: can see the "Team" column in the Hosts table
-      // cy.contains(".table-container .data-table__table th", "Team").should("be.visible");
     });
   });
 }
