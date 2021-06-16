@@ -135,17 +135,7 @@ func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *flee
 		return false
 	}
 	// if a user is changing own email need a password no matter what
-	if vc.UserID() == uid {
-		return true
-	}
-	// if an admin is changing another users email no password needed
-	if vc.CanPerformAdminActions() {
-		return false
-	}
-	// should never get here because a non admin can't change the email of another
-	// user
-	invalid.Append("auth", "this user can't change another user's email")
-	return false
+	return vc.UserID() == uid
 }
 
 func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newPass string) error {

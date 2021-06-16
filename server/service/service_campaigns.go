@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fleetdm/fleet/server/authz"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/ptr"
@@ -158,14 +159,14 @@ type campaignStatus struct {
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
 	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRun); err != nil {
 		level.Info(svc.logger).Log("err", "stream results authorization failed")
-		conn.WriteJSONError("forbidden")
+		conn.WriteJSONError(authz.ForbiddenErrorMessage)
 		return
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		level.Info(svc.logger).Log("err", "stream results viewer missing")
-		conn.WriteJSONError("forbidden")
+		conn.WriteJSONError(authz.ForbiddenErrorMessage)
 		return
 	}
 
@@ -183,7 +184,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			"expected", campaign.UserID,
 			"got", vc.User.ID,
 		)
-		conn.WriteJSONError("forbidden")
+		conn.WriteJSONError(authz.ForbiddenErrorMessage)
 		return
 	}
 

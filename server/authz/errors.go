@@ -6,6 +6,13 @@ import (
 	"github.com/fleetdm/fleet/server/fleet"
 )
 
+const (
+	// ForbiddenErrorMessage is the error message that should be returned to
+	// clients when an action is forbidden. It is intentionally vague to prevent
+	// disclosing information that a client should not have access to.
+	ForbiddenErrorMessage = "forbidden"
+)
+
 // Forbidden is the error type for authorization errors
 type Forbidden struct {
 	internal string
@@ -28,10 +35,10 @@ func ForbiddenWithInternal(internal string, subject *fleet.User, object, action 
 
 // Error implements the error interface.
 func (e *Forbidden) Error() string {
-	return "forbidden"
+	return ForbiddenErrorMessage
 }
 
-// StatusCode implements the service.ErrWithStatusCode interface.
+// StatusCode implements the go-kit http StatusCoder interface.
 func (e *Forbidden) StatusCode() int {
 	return http.StatusForbidden
 }
@@ -48,4 +55,29 @@ func (e *Forbidden) LogFields() []interface{} {
 		"object", e.object,
 		"action", e.action,
 	}
+}
+
+// CheckMissing is the error to return when no authorization check was performed
+// by the service.
+type CheckMissing struct {
+	response interface{}
+}
+
+// CheckMissingWithResponse creats a new error indicating the authorization
+// check was missed, and including the response for further anaylis by the error
+// encoder.
+func CheckMissingWithResponse(response interface{}) *CheckMissing {
+	return &CheckMissing{response: response}
+}
+
+func (e *CheckMissing) Error() string {
+	return ForbiddenErrorMessage
+}
+
+func (e *CheckMissing) Internal() string {
+	return "Missing authorization check"
+}
+
+func (e *CheckMissing) Response() interface{} {
+	return e.response
 }
