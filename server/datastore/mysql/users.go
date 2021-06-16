@@ -25,12 +25,13 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
       	gravatar_url,
       	position,
         sso_enabled,
+		api_only,
 		global_role
-      ) VALUES (?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
       `
 	result, err := d.db.Exec(sqlStatement, user.Password, user.Salt, user.Name,
 		user.Username, user.Email,
-		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled,
+		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled, user.APIOnly,
 		user.GlobalRole)
 	if err != nil {
 		return nil, errors.Wrap(err, "create new user")
@@ -124,12 +125,13 @@ func (d *Datastore) SaveUser(user *fleet.User) error {
       	gravatar_url = ?,
       	position = ?,
         sso_enabled = ?,
+        api_only = ?,
 		global_role = ?
       WHERE id = ?
       `
 	result, err := d.db.Exec(sqlStatement, user.Username, user.Password,
 		user.Salt, user.Name, user.Email,
-		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled,
+		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled, user.APIOnly,
 		user.GlobalRole, user.ID)
 	if err != nil {
 		return errors.Wrap(err, "save user")
