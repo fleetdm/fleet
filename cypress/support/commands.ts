@@ -234,6 +234,7 @@ Cypress.Commands.add("addUser", (username, options = {}) => {
   );
 });
 
+// Ability to add a docker host to a team using args if ran after seedBasic()
 Cypress.Commands.add("addDockerHost", (team = "") => {
   const serverPort = new URL(Cypress.config().baseUrl).port;
   // Get enroll secret
@@ -250,7 +251,6 @@ Cypress.Commands.add("addDockerHost", (team = "") => {
       bearer: window.localStorage.getItem("FLEET::auth_token"),
     },
   }).then(({ body }) => {
-    console.log("body:", body);
     const enrollSecret =
       team === "" ? body.specs.secrets[0].secret : body.secrets[0].secret;
 
