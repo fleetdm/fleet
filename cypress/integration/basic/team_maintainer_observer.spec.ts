@@ -20,6 +20,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
 
       // See hosts
       // cy.findByText(/kinda empty in here/i).should("not.exist");
+      // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
       // See the “Teams” column in the Hosts table
       // cy.get("thead").contains(/team/i).should("exist");
@@ -27,6 +28,9 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       // NOT see the “Packs” and “Settings” navigation items
       cy.findByText(/packs/i).should("not.exist");
       cy.findByText(/settings/i).should("not.exist");
+
+      // NOT see and select "add new label"
+      cy.findByRole("button", { name: /new label/i }).should("not.exist");
 
       // On the Host details page, they should…
 
@@ -37,11 +41,11 @@ if (Cypress.env("FLEET_TIER") === "basic") {
 
       // NOT see and select the “Delete” button
       // cy.findByText(/delete/i).should("not.exist");
-      // ^^ TODO confirm if this is restriction only applies to hosts where they are not a maintainer
+      // ^^ TODO this is restriction only applies to hosts where they are not a maintainer
 
       // NOT see and select the “Query” button
       // cy.findByText(/query/i).should("not.exist");
-      // ^^ TODO confirm if this is restriction only applies to hosts where they are not a maintainer
+      // ^^ TODO this is restriction only applies to hosts where they are not a maintainer
 
       // On the Queries manage page, they should…
       cy.visit("/queries/manage");
@@ -110,6 +114,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
 
       // See the “Teams” column in the Hosts table
       // cy.get("thead").contains(/team/i).should("exist");
+      // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
       // See and select the “Add new host” button
       cy.findByText(/add new host/i).click();
@@ -127,19 +132,17 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       });
       cy.findByRole("button", { name: /done/i }).click();
 
-      // See and select "add new label"
-      // cy.findByRole("button", { name: /new label/i }).click();
-      // cy.findByRole("button", { name: /cancel/i }).click();
-
       // On the Host details page, they should…
       // cy.visit("/hosts/1");
+      // ^^TODO hosts details page returning 403 likely because we need new forEach script/command for admin to assign team after the host is added
 
-      // See and select the “Create new query” button in the Select a query modal. This modal appears after the user selects the “Query” button      
+      // See and select the “Create new query” button in the Select a query modal. This modal appears after the user selects the “Query” button
       // cy.findByRole("button", { name: /query/i }).click();
       // cy.findByRole("button", { name: /create custom query/i }).should("exist");
       // cy.get(".modal__ex").within(() => {
       //   cy.findByRole("button").click();
       // });
+      // ^^TODO hosts details page returning 403 likely because we need new forEach script/command for admin to assign team after the host is added
 
       // On the Queries manage page, they should…
       cy.visit("/queries/manage");
