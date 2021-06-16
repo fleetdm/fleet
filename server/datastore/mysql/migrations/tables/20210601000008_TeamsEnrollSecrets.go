@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20210527151852, Down_20210527151852)
+	MigrationClient.AddMigration(Up_20210601000008, Down_20210601000008)
 }
 
-func Up_20210527151852(tx *sql.Tx) error {
+func Up_20210601000008(tx *sql.Tx) error {
 	// Add team_id
 	sql := `
 		ALTER TABLE enroll_secrets
@@ -51,6 +51,6 @@ func Up_20210527151852(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20210527151852(tx *sql.Tx) error {
+func Down_20210601000008(tx *sql.Tx) error {
 	return nil
 }

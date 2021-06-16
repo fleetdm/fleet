@@ -11,10 +11,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20210510111225, Down_20210510111225)
+	MigrationClient.AddMigration(Up_20210601000006, Down_20210601000006)
 }
 
-func Up_20210510111225(tx *sql.Tx) error {
+func Up_20210601000006(tx *sql.Tx) error {
 	existingOptions, err := copyOptions(tx)
 	if err != nil {
 		return errors.Wrap(err, "get existing options")
@@ -80,6 +80,6 @@ type optionsRow struct {
 	Options            string `db:"options"`
 }
 
-func Down_20210510111225(tx *sql.Tx) error {
+func Down_20210601000006(tx *sql.Tx) error {
 	return nil
 }
