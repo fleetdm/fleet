@@ -50,19 +50,19 @@ if (Cypress.env("FLEET_TIER") === "basic") {
     });
 
     // Pseudo code for team observer only
-    // TODO: Create team observer in create_basic and build test according to new manual QA
-    // it("Can perform the appropriate basic team observer only actions", () => {
-    //   cy.login("TEAMOBSERVERONLY@organization.com", "user123#");
-    //   cy.visit("/hosts/manage");
+    // TODO: Rebuild this test according to new manual QA
+    it("Can perform the appropriate basic team observer only actions", () => {
+      cy.login("toni@organization.com", "user123#");
+      cy.visit("/hosts/manage");
 
-    //   cy.findByText("All hosts which have enrolled in Fleet").should("exist");
+      cy.findByText("All hosts which have enrolled in Fleet").should("exist");
 
-    //   cy.findByText("Packs").should("not.exist");
-    //   cy.findByText("Settings").should("not.exist");
+      cy.findByText("Packs").should("not.exist");
+      cy.findByText("Settings").should("not.exist");
 
-    //   cy.contains(".table-container .data-table__table th", "Team").should(
-    //     "be.visible"
-    //   );
-    // });
+      cy.contains(".table-container .data-table__table th", "Team").should(
+        "be.visible"
+      );
+    });
   });
 }
