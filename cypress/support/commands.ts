@@ -234,16 +234,25 @@ Cypress.Commands.add("addUser", (username, options = {}) => {
   );
 });
 
-Cypress.Commands.add("addDockerHost", () => {
+Cypress.Commands.add("addDockerHost", (team = "") => {
   const serverPort = new URL(Cypress.config().baseUrl).port;
   // Get enroll secret
+  let enrollSecretURL = "/api/v1/fleet/spec/enroll_secret";
+  if (team === "apples") {
+    enrollSecretURL = "/api/v1/fleet/teams/1/secrets";
+  } else if (team === "oranges") {
+    enrollSecretURL = "/api/v1/fleet/teams/2/secrets";
+  }
+
   cy.request({
-    url: "/api/v1/fleet/spec/enroll_secret",
+    url: enrollSecretURL,
     auth: {
       bearer: window.localStorage.getItem("FLEET::auth_token"),
     },
   }).then(({ body }) => {
-    const enrollSecret = body.specs.secrets[0].secret;
+    console.log("body:", body);
+    const enrollSecret =
+      team === "" ? body.specs.secrets[0].secret : body.secrets[0].secret;
 
     // Start up docker-compose with enroll secret
     cy.exec(
