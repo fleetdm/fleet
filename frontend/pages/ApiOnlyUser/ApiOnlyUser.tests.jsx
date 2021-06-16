@@ -1,1 +1,0 @@
-describe("ApiOnlyUser - component", () => {});

@@ -17,7 +17,7 @@ class ApiOnlyUser extends Component {
               You attempted to access Fleet with an API only user.
             </p>
             <p className={`${baseClass}__sub-lead-text`}>
-              This user doesn't have access to the Fleet UI.
+              This user doesn&apos;t have access to the Fleet UI.
             </p>
           </div>
           <div className="login-button-wrap">
