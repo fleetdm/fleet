@@ -1,36 +1,16 @@
 import React, { Component } from "react";
-import PropTypes from "prop-types";
-
-import { hideBackgroundImage } from "redux/nodes/app/actions";
-import { ssoSettings } from "redux/nodes/auth/actions";
 
 import Button from "components/buttons/Button";
 import PATHS from "router/paths";
+import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
 const baseClass = "api-only-user";
 
 class ApiOnlyUser extends Component {
-  // static propTypes = {
-  //   dispatch: PropTypes.func,
-  // };
-
-  // componentWillMount() {
-  //   const { dispatch } = this.props;
-
-  //   dispatch(ssoSettings()).catch(() => false);
-
-  //   dispatch(hideBackgroundImage);
-  // }
-
-  // componentWillUnmount() {
-  //   const { dispatch } = this.props;
-
-  //   dispatch(hideBackgroundImage);
-  // }
-
   render() {
     return (
       <div className="api-only-user">
+        <img alt="Fleet" src={fleetLogoText} className={`${baseClass}__logo`} />
         <div className={`${baseClass}__wrap`}>
           <div className={`${baseClass}__lead-wrapper`}>
             <p className={`${baseClass}__lead-text`}>
