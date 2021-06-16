@@ -4335,6 +4335,36 @@ Replaces the active global enroll secrets with the secrets specified.
 {}
 ```
 
+### Get enroll secret for a team
+
+Returns the valid team enroll secret.
+
+`GET /api/v1/fleet/teams/{id}/secrets`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/teams/1/secrets`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "secrets": [
+    {
+      "created_at": "2021-06-16T22:05:49Z",
+      "secret": "aFtH2Nq09hrvi73ErlWNQfa7M53D3rPR",
+      "team_id": 1
+    }
+  ]
+}
+```
+
 ### Create invite
 
 `POST /api/v1/fleet/invites`
