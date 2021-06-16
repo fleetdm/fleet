@@ -4,6 +4,7 @@ import { connect } from "react-redux";
 import { noop } from "lodash";
 import yaml from "js-yaml";
 
+import endpoints from "fleet/endpoints";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import osqueryOptionsActions from "redux/nodes/osquery/actions";
 import validateYaml from "components/forms/validators/validate_yaml";
@@ -31,6 +32,7 @@ export class OsqueryOptionsPage extends Component {
   onSaveOsqueryOptionsFormSubmit = (formData) => {
     const { dispatch } = this.props;
     const { error } = validateYaml(formData.osquery_options);
+    const { OSQUERY_OPTIONS } = endpoints;
 
     if (error) {
       dispatch(renderFlash("error", error));
@@ -38,7 +40,9 @@ export class OsqueryOptionsPage extends Component {
       return false;
     }
 
-    dispatch(osqueryOptionsActions.updateOsqueryOptions(formData))
+    dispatch(
+      osqueryOptionsActions.updateOsqueryOptions(formData, OSQUERY_OPTIONS)
+    )
       .then(() => {
         dispatch(renderFlash("success", "Osquery options updated!"));
 

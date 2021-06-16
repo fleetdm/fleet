@@ -2,6 +2,7 @@ import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import yaml from "js-yaml";
 import { ITeam } from "interfaces/team";
+import endpoints from "fleet/endpoints";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -46,12 +47,18 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
   };
 
   const onSaveOsqueryOptionsFormSubmit = (updatedForm: any): void | false => {
+    const { TEAMS_AGENT_OPTIONS } = endpoints; 
     const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {
       dispatch(renderFlash("error", error.reason));
       return false;
     }
-    dispatch(osqueryOptionsActions.updateOsqueryOptions(updatedForm, teamId))
+    dispatch(
+      osqueryOptionsActions.updateOsqueryOptions(
+        updatedForm,
+        TEAMS_AGENT_OPTIONS(teamId)
+      )
+    )
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
         window.scrollTo(0, 0);
