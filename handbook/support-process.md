@@ -48,6 +48,14 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by memb
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when it is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
 
+#### Closing issues
+
+It is often a good idea to let the original poster (OP) close their issue themselves, since they are usually well equipped to decide whether the issue is resolved.   In some cases, circling back with the OP can be impractical, and for the sake of speed issues might get closed.
+
+Keep in mind that this can feel jarring to the OP.  The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this.)
+
+To provide another way of tracking status without closing issues altogether, consider using the green labels that begin with "+".  To explore them, type `+` from GitHub's label picker.
+
 
 ## Sources
 
