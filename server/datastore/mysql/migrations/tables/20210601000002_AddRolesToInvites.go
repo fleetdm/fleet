@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20210401164226, Down_20210401164226)
+	MigrationClient.AddMigration(Up_20210601000002, Down_20210601000002)
 }
 
-func Up_20210401164226(tx *sql.Tx) error {
+func Up_20210601000002(tx *sql.Tx) error {
 	// Invites <> Teams mapping
 	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS invite_teams (
 		invite_id INT UNSIGNED NOT NULL,
@@ -32,6 +32,6 @@ func Up_20210401164226(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20210401164226(tx *sql.Tx) error {
+func Down_20210601000002(tx *sql.Tx) error {
 	return nil
 }
