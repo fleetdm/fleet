@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/fleet"
@@ -100,7 +99,6 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 		if err != nil {
 			return appConfigResponse{Err: err}, nil
 		}
-		fmt.Println(req)
 		response := appConfigResponse{
 			OrgInfo: &fleet.OrgInfo{
 				OrgName:    &config.OrgName,
