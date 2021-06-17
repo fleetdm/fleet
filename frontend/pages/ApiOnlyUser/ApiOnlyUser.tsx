@@ -1,9 +1,10 @@
 import React from "react";
 import { useDispatch } from "react-redux";
-import { push } from "react-router-redux";
-
+// import { push } from "react-router-redux";
+// @ts-ignore
+import { logoutUser } from "redux/nodes/auth/actions";
 import Button from "components/buttons/Button";
-import paths from "router/paths";
+// import paths from "router/paths";
 // @ts-ignore
 import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
@@ -11,8 +12,8 @@ const baseClass = "api-only-user";
 
 const ApiOnlyUser = (): JSX.Element => {
   const dispatch = useDispatch();
-  const { LOGIN } = paths;
-  const handleClick = (event: any) => dispatch(push(LOGIN));
+  // const { LOGIN } = paths;
+  const handleClick = (event: any) => dispatch(logoutUser());
 
   return (
     <div className={baseClass}>
