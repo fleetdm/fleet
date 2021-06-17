@@ -26,6 +26,7 @@ import UserForm from "./components/UserForm";
 import EmptyUsers from "./components/EmptyUsers";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserForm from "./components/DeleteUserForm";
+import ResetPasswordModal from "./components/ResetPasswordModal";
 
 const baseClass = "user-management";
 
@@ -78,6 +79,7 @@ export class UserManagementPage extends Component {
       showCreateUserModal: false,
       showEditUserModal: false,
       showDeleteUserModal: false,
+      showResetPasswordModal: false,
       userEditing: null,
       usersEditing: [],
     };
@@ -248,8 +250,8 @@ export class UserManagementPage extends Component {
     const {
       toggleEditUserModal,
       toggleDeleteUserModal,
-      resetPassword,
       goToUserSettingsPage,
+      toggleResetPasswordUserModal,
     } = this;
     switch (action) {
       case "edit":
@@ -259,7 +261,7 @@ export class UserManagementPage extends Component {
         toggleDeleteUserModal(user);
         break;
       case "passwordReset":
-        resetPassword(user);
+        toggleResetPasswordUserModal(user);
         break;
       case "editMyAccount":
         goToUserSettingsPage();
@@ -304,23 +306,33 @@ export class UserManagementPage extends Component {
     });
   };
 
+  toggleResetPasswordUserModal = (user) => {
+    const { showResetPasswordModal } = this.state;
+    this.setState({
+      showResetPasswordModal: !showResetPasswordModal,
+      userEditing: !showResetPasswordModal ? user : null,
+    });
+  };
+
   combineUsersAndInvites = memoize((users, invites, currentUserId) => {
     return combineDataSets(users, invites, currentUserId);
   });
 
   resetPassword = (user) => {
     const { dispatch } = this.props;
+    const { toggleResetPasswordUserModal } = this;
     const { requirePasswordReset } = userActions;
 
     return dispatch(requirePasswordReset(user.id, { require: true })).then(
       () => {
-        return dispatch(
+        dispatch(
           renderFlash(
             "success",
             "User required to reset password",
             requirePasswordReset(user.id, { require: false }) // this is an undo action.
           )
         );
+        toggleResetPasswordUserModal();
       }
     );
   };
@@ -436,6 +448,22 @@ export class UserManagementPage extends Component {
     );
   };
 
+  renderResetPasswordModal = () => {
+    const { showResetPasswordModal, userEditing } = this.state;
+    const { toggleResetPasswordUserModal, resetPassword } = this;
+
+    if (!showResetPasswordModal) return null;
+
+    return (
+      <ResetPasswordModal
+        user={userEditing}
+        modalBaseClass={baseClass}
+        onResetConfirm={resetPassword}
+        onResetCancel={toggleResetPasswordUserModal}
+      />
+    );
+  };
+
   renderSmtpWarning = () => {
     const { appConfigLoading, config } = this.props;
     const { goToAppConfigPage } = this;
@@ -470,6 +498,7 @@ export class UserManagementPage extends Component {
       renderCreateUserModal,
       renderEditUserModal,
       renderDeleteUserModal,
+      renderResetPasswordModal,
       renderSmtpWarning,
       toggleCreateUserModal,
       onTableQueryChange,
@@ -518,6 +547,7 @@ export class UserManagementPage extends Component {
         {renderCreateUserModal()}
         {renderEditUserModal()}
         {renderDeleteUserModal()}
+        {renderResetPasswordModal()}
       </div>
     );
   }
