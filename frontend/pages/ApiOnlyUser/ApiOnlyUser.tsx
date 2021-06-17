@@ -1,19 +1,39 @@
 import React from "react";
-import { useDispatch } from "react-redux";
-// import { push } from "react-router-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
+import { push } from "react-router-redux";
 // @ts-ignore
 import { logoutUser } from "redux/nodes/auth/actions";
 import Button from "components/buttons/Button";
-// import paths from "router/paths";
+import paths from "router/paths";
+import { IUser } from "interfaces/user";
 // @ts-ignore
 import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
 const baseClass = "api-only-user";
+interface IRootState {
+  auth: {
+    user: IUser;
+  };
+}
 
 const ApiOnlyUser = (): JSX.Element => {
   const dispatch = useDispatch();
-  // const { LOGIN } = paths;
+  const { LOGIN, HOME } = paths;
   const handleClick = (event: any) => dispatch(logoutUser());
+
+  // These are showing up empty. Need to be able to get state loaded in from redux store.
+  // const auth = useSelector((state: any) => state.auth);
+  // const app = useSelector((state: any) => state.app);
+  // console.log("state.auth:", auth);
+  // console.log("state.app:", app);
+
+  const user = useSelector((state: IRootState) => state.auth.user);
+
+  if (!user) {
+    dispatch(push(LOGIN));
+  } else if (user && !user.api_only) {
+    dispatch(push(HOME));
+  }
 
   return (
     <div className={baseClass}>
