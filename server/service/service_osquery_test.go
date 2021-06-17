@@ -434,7 +434,7 @@ func TestGetClientConfig(t *testing.T) {
 		}
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AgentOptions: json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`)}, nil
+		return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`))}, nil
 	}
 	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return nil
@@ -1658,7 +1658,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 			ctx := hostctx.NewContext(context.Background(), tt.initHost)
 
 			ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{AgentOptions: json.RawMessage(`{"config":` + string(tt.configOptions) + `}`)}, nil
+				return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":` + string(tt.configOptions) + `}`))}, nil
 			}
 
 			saveHostCalled := false
