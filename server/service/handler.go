@@ -141,35 +141,30 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		CallbackSSO:          makeCallbackSSOEndpoint(svc, urlPrefix),
 		SSOSettings:          makeSSOSettingsEndpoint(svc),
 
-		// Authenticated user endpoints
-		// Each of these endpoints should have exactly one
-		// authorization check around the make.*Endpoint method. At a
-		// minimum, canPerformActions. Some endpoints use
-		// stricter/different checks and should NOT also use
-		// canPerformActions (these other checks should also call
-		// canPerformActions if that is appropriate).
-		Me:                   authenticatedUser(svc, canPerformActions(makeGetSessionUserEndpoint(svc))),
-		ChangePassword:       authenticatedUser(svc, canPerformActions(makeChangePasswordEndpoint(svc))),
-		GetUser:              authenticatedUser(svc, canReadUser(makeGetUserEndpoint(svc))),
-		ListUsers:            authenticatedUser(svc, canPerformActions(makeListUsersEndpoint(svc))),
-		ModifyUser:           authenticatedUser(svc, canModifyUser(makeModifyUserEndpoint(svc))),
-		DeleteUser:           authenticatedUser(svc, canModifyUser(makeDeleteUserEndpoint(svc))),
-		RequirePasswordReset: authenticatedUser(svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
-		CreateUser:           authenticatedUser(svc, mustBeAdmin(makeCreateUserEndpoint(svc))),
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
-		PerformRequiredPasswordReset:          authenticatedUser(svc, canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
-		GetSessionsForUserInfo:                authenticatedUser(svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
-		DeleteSessionsForUser:                 authenticatedUser(svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
-		GetSessionInfo:                        authenticatedUser(svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
-		DeleteSession:                         authenticatedUser(svc, mustBeAdmin(makeDeleteSessionEndpoint(svc))),
-		GetAppConfig:                          authenticatedUser(svc, canPerformActions(makeGetAppConfigEndpoint(svc))),
-		ModifyAppConfig:                       authenticatedUser(svc, mustBeAdmin(makeModifyAppConfigEndpoint(svc))),
-		ApplyEnrollSecretSpec:                 authenticatedUser(svc, mustBeAdmin(makeApplyEnrollSecretSpecEndpoint(svc))),
-		GetEnrollSecretSpec:                   authenticatedUser(svc, canPerformActions(makeGetEnrollSecretSpecEndpoint(svc))),
-		CreateInvite:                          authenticatedUser(svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
-		ListInvites:                           authenticatedUser(svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
-		DeleteInvite:                          authenticatedUser(svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),
+		PerformRequiredPasswordReset: canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc)),
+
+		// Standard user authentication routes
+		Me:                                    authenticatedUser(svc, makeGetSessionUserEndpoint(svc)),
+		ChangePassword:                        authenticatedUser(svc, makeChangePasswordEndpoint(svc)),
+		GetUser:                               authenticatedUser(svc, makeGetUserEndpoint(svc)),
+		ListUsers:                             authenticatedUser(svc, makeListUsersEndpoint(svc)),
+		ModifyUser:                            authenticatedUser(svc, makeModifyUserEndpoint(svc)),
+		DeleteUser:                            authenticatedUser(svc, makeDeleteUserEndpoint(svc)),
+		RequirePasswordReset:                  authenticatedUser(svc, makeRequirePasswordResetEndpoint(svc)),
+		CreateUser:                            authenticatedUser(svc, makeCreateUserEndpoint(svc)),
+		GetSessionsForUserInfo:                authenticatedUser(svc, makeGetInfoAboutSessionsForUserEndpoint(svc)),
+		DeleteSessionsForUser:                 authenticatedUser(svc, makeDeleteSessionsForUserEndpoint(svc)),
+		GetSessionInfo:                        authenticatedUser(svc, makeGetInfoAboutSessionEndpoint(svc)),
+		DeleteSession:                         authenticatedUser(svc, makeDeleteSessionEndpoint(svc)),
+		GetAppConfig:                          authenticatedUser(svc, makeGetAppConfigEndpoint(svc)),
+		ModifyAppConfig:                       authenticatedUser(svc, makeModifyAppConfigEndpoint(svc)),
+		ApplyEnrollSecretSpec:                 authenticatedUser(svc, makeApplyEnrollSecretSpecEndpoint(svc)),
+		GetEnrollSecretSpec:                   authenticatedUser(svc, makeGetEnrollSecretSpecEndpoint(svc)),
+		CreateInvite:                          authenticatedUser(svc, makeCreateInviteEndpoint(svc)),
+		ListInvites:                           authenticatedUser(svc, makeListInvitesEndpoint(svc)),
+		DeleteInvite:                          authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
 		GetQuery:                              authenticatedUser(svc, makeGetQueryEndpoint(svc)),
 		ListQueries:                           authenticatedUser(svc, makeListQueriesEndpoint(svc)),
 		CreateQuery:                           authenticatedUser(svc, makeCreateQueryEndpoint(svc)),
@@ -221,23 +216,23 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		GetCarve:                              authenticatedUser(svc, makeGetCarveEndpoint(svc)),
 		GetCarveBlock:                         authenticatedUser(svc, makeGetCarveBlockEndpoint(svc)),
 		Version:                               authenticatedUser(svc, makeVersionEndpoint(svc)),
-		// TODO permissions for teams endpoints
-		CreateTeam:             authenticatedUser(svc, makeCreateTeamEndpoint(svc)),
-		ModifyTeam:             authenticatedUser(svc, makeModifyTeamEndpoint(svc)),
-		ModifyTeamAgentOptions: authenticatedUser(svc, makeModifyTeamAgentOptionsEndpoint(svc)),
-		DeleteTeam:             authenticatedUser(svc, makeDeleteTeamEndpoint(svc)),
-		ListTeams:              authenticatedUser(svc, makeListTeamsEndpoint(svc)),
-		ListTeamUsers:          authenticatedUser(svc, makeListTeamUsersEndpoint(svc)),
-		AddTeamUsers:           authenticatedUser(svc, makeAddTeamUsersEndpoint(svc)),
-		DeleteTeamUsers:        authenticatedUser(svc, makeDeleteTeamUsersEndpoint(svc)),
-		TeamEnrollSecrets:      authenticatedUser(svc, makeTeamEnrollSecretsEndpoint(svc)),
+		CreateTeam:                            authenticatedUser(svc, makeCreateTeamEndpoint(svc)),
+		ModifyTeam:                            authenticatedUser(svc, makeModifyTeamEndpoint(svc)),
+		ModifyTeamAgentOptions:                authenticatedUser(svc, makeModifyTeamAgentOptionsEndpoint(svc)),
+		DeleteTeam:                            authenticatedUser(svc, makeDeleteTeamEndpoint(svc)),
+		ListTeams:                             authenticatedUser(svc, makeListTeamsEndpoint(svc)),
+		ListTeamUsers:                         authenticatedUser(svc, makeListTeamUsersEndpoint(svc)),
+		AddTeamUsers:                          authenticatedUser(svc, makeAddTeamUsersEndpoint(svc)),
+		DeleteTeamUsers:                       authenticatedUser(svc, makeDeleteTeamUsersEndpoint(svc)),
+		TeamEnrollSecrets:                     authenticatedUser(svc, makeTeamEnrollSecretsEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
 		StatusLiveQuery:   authenticatedUser(svc, makeStatusLiveQueryEndpoint(svc)),
 
 		// Osquery endpoints
-		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
+		EnrollAgent: makeEnrollAgentEndpoint(svc),
+		// Authenticated osquery endpoints
 		GetClientConfig:               authenticatedHost(svc, makeGetClientConfigEndpoint(svc)),
 		GetDistributedQueries:         authenticatedHost(svc, makeGetDistributedQueriesEndpoint(svc)),
 		SubmitDistributedQueryResults: authenticatedHost(svc, makeSubmitDistributedQueryResultsEndpoint(svc)),

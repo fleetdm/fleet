@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20210315111056, Down_20210315111056)
+	MigrationClient.AddMigration(Up_20210601000001, Down_20210601000001)
 }
 
-func Up_20210315111056(tx *sql.Tx) error {
+func Up_20210601000001(tx *sql.Tx) error {
 	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS teams (
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -49,6 +49,6 @@ func Up_20210315111056(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20210315111056(tx *sql.Tx) error {
+func Down_20210601000001(tx *sql.Tx) error {
 	return nil
 }

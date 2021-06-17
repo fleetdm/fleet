@@ -13,7 +13,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.stopDockerHost();
     });
 
-    it("Can perform the appropriate actions", () => {
+    it("Can perform the appropriate basic global maintainer actions", () => {
       cy.login("mary@organization.com", "user123#");
       cy.visit("/");
 

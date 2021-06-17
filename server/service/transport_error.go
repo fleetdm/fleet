@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/server/fleet"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/pkg/errors"
 )
 
@@ -24,9 +25,11 @@ type jsonError struct {
 // a generic "name" field. The frontend client always expects errors in a
 // []map[string]string format.
 func baseError(err string) []map[string]string {
-	return []map[string]string{map[string]string{
-		"name":   "base",
-		"reason": err},
+	return []map[string]string{
+		{
+			"name":   "base",
+			"reason": err,
+		},
 	}
 }
 
@@ -67,7 +70,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			Message: "Validation Failed",
 			Errors:  baseError(err.Error()),
 		}
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		enc.Encode(ve)
 		return
 	}
@@ -139,7 +142,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	// Get specific status code if it is available from this error type,
 	// defaulting to HTTP 500
 	status := http.StatusInternalServerError
-	if e, ok := err.(fleet.ErrWithStatusCode); ok {
+	if e, ok := err.(kithttp.StatusCoder); ok {
 		status = e.StatusCode()
 	}
 

@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20210406113434, Down_20210406113434)
+	MigrationClient.AddMigration(Up_20210601000003, Down_20210601000003)
 }
 
-func Up_20210406113434(tx *sql.Tx) error {
+func Up_20210601000003(tx *sql.Tx) error {
 	// Old admins become global admins
 	query := `
 		UPDATE users
@@ -69,6 +69,6 @@ func Up_20210406113434(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20210406113434(tx *sql.Tx) error {
+func Down_20210601000003(tx *sql.Tx) error {
 	return nil
 }

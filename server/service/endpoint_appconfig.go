@@ -23,7 +23,7 @@ type appConfigResponse struct {
 	HostSettings       *fleet.HostSettings        `json:"host_settings,omitempty"`
 	AgentOptions       *fleet.AgentOptions        `json:"agent_options,omitempty"`
 	License            *fleet.LicenseInfo         `json:"license,omitempty"`
-	Err                error                       `json:"error,omitempty"`
+	Err                error                      `json:"error,omitempty"`
 }
 
 func (r appConfigResponse) error() error { return r.Err }
@@ -42,12 +42,13 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
+
 		var smtpSettings *fleet.SMTPSettingsPayload
 		var ssoSettings *fleet.SSOSettingsPayload
 		var hostExpirySettings *fleet.HostExpirySettings
 		var agentOptions *fleet.AgentOptions
 		// only admin can see smtp, sso, and host expiry settings
-		if vc.CanPerformAdminActions() {
+		if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
 			smtpSettings = smtpSettingsFromAppConfig(config)
 			if smtpSettings.SMTPPassword != nil {
 				*smtpSettings.SMTPPassword = "********"
@@ -77,7 +78,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			ServerSettings: &fleet.ServerSettings{
-				ServerURL:   &config.ServerURL,
+				ServerURL:         &config.ServerURL,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings:       smtpSettings,
@@ -106,7 +107,7 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			ServerSettings: &fleet.ServerSettings{
-				ServerURL:   &config.ServerURL,
+				ServerURL:         &config.ServerURL,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings: smtpSettingsFromAppConfig(config),
@@ -187,7 +188,7 @@ func makeApplyEnrollSecretSpecEndpoint(svc fleet.Service) endpoint.Endpoint {
 
 type getEnrollSecretSpecResponse struct {
 	Spec *fleet.EnrollSecretSpec `json:"specs"`
-	Err  error                    `json:"error,omitempty"`
+	Err  error                   `json:"error,omitempty"`
 }
 
 func (r getEnrollSecretSpecResponse) error() error { return r.Err }
