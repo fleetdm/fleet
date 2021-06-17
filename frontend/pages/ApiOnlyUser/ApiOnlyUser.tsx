@@ -9,20 +9,20 @@ import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
 const baseClass = "api-only-user";
 
-const ApiOnlyUser = (): JSX.Element | null => {
+const ApiOnlyUser = (): JSX.Element => {
   const dispatch = useDispatch();
   const { LOGIN } = paths;
   const handleClick = (event: any) => dispatch(push(LOGIN));
 
   return (
-    <div className="api-only-user">
+    <div className={baseClass}>
       <img alt="Fleet" src={fleetLogoText} className={`${baseClass}__logo`} />
       <div className={`${baseClass}__wrap`}>
         <div className={`${baseClass}__lead-wrapper`}>
           <p className={`${baseClass}__lead-text`}>
             You attempted to access Fleet with an API only user.
           </p>
-          <p className={`${baseClass}__sub-lead-text`}>
+          <p className={`${baseClass}__sub-lead-text cool`}>
             This user doesn&apos;t have access to the Fleet UI.
           </p>
         </div>
