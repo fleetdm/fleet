@@ -174,7 +174,7 @@ type AppConfig struct {
 	AdditionalQueries *json.RawMessage `db:"additional_queries"`
 
 	// AgentOptions is the global agent options, including overrides.
-	AgentOptions AgentOptions `db:"agent_options"`
+	AgentOptions *json.RawMessage `db:"agent_options"`
 }
 
 func (c AppConfig) AuthzType() string {
@@ -261,7 +261,7 @@ type AppConfigPayload struct {
 	SMTPSettings       *SMTPSettingsPayload `json:"smtp_settings"`
 	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
 	HostSettings       *HostSettings        `json:"host_settings"`
-	AgentOptions       *AgentOptions        `json:"agent_options"`
+	AgentOptions       *json.RawMessage     `json:"agent_options"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest *bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
