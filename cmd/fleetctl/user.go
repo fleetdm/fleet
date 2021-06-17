@@ -22,6 +22,7 @@ const (
 	passwordFlagName   = "password"
 	emailFlagName      = "email"
 	ssoFlagName        = "sso"
+	apiOnlyFlagName    = "api-only"
 )
 
 func userCommand() *cli.Command {
@@ -58,11 +59,15 @@ func createUserCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:  ssoFlagName,
-				Usage: "Enable user login via SSO (default false)",
+				Usage: "Enable user login via SSO",
+			},
+			&cli.BoolFlag{
+				Name:  apiOnlyFlagName,
+				Usage: "Make \"API-only\" user",
 			},
 			&cli.StringFlag{
 				Name:  globalRoleFlagName,
-				Usage: "Global role to assign to user (default observer)",
+				Usage: "Global role to assign to user (default \"observer\")",
 			},
 			&cli.StringSliceFlag{
 				Name:    "team",
@@ -84,6 +89,7 @@ func createUserCommand() *cli.Command {
 			password := c.String(passwordFlagName)
 			email := c.String(emailFlagName)
 			sso := c.Bool(ssoFlagName)
+			apiOnly := c.Bool(apiOnlyFlagName)
 			globalRoleString := c.String(globalRoleFlagName)
 			teamStrings := c.StringSlice(teamFlagName)
 
@@ -153,6 +159,7 @@ func createUserCommand() *cli.Command {
 				Email:                    &email,
 				SSOEnabled:               &sso,
 				AdminForcedPasswordReset: &force_reset,
+				APIOnly:                  &apiOnly,
 				GlobalRole:               globalRole,
 				Teams:                    &teams,
 			})

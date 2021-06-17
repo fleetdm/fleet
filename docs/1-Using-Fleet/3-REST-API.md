@@ -1406,6 +1406,7 @@ None.
       "force_password_reset": false,
       "gravatar_url": "",
       "sso_enabled": false,
+      "api_only": false,
       "teams": [
         {
           "id": 1,
@@ -1563,13 +1564,14 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 #### Parameters
 
-| Name        | Type   | In   | Description                                                                                                                                                                                                                                                                                                                                            |
-| ----------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| username    | string | body | **Required**. The user's username.                                                                                                                                                                                                                                                                                                                     |
-| email       | string | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                |
-| password    | string | body | **Required**. The user's password.                                                                                                                                                                                                                                                                                                                     |
-| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
-| teams       | array  | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                            |
+| ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| username    | string  | body | **Required**. The user's username.                                                                                                                                                                                                                                                                                                                     |
+| email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                |
+| password    | string  | body | **Required**. The user's password.                                                                                                                                                                                                                                                                                                                     |
+| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
+| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
+| teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -1612,6 +1614,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "api_only": false,
     "global_role": null,
     "teams": [
       {
@@ -1752,6 +1755,7 @@ Returns all information about a specific user.
 | position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                   |
 | email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                      |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
+| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
 | global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
 | teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
@@ -1785,6 +1789,7 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "api_only": false,
     "teams": []
   }
 }
