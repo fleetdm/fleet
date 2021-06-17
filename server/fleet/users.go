@@ -108,6 +108,7 @@ type User struct {
 	// SSOEnabled if true, the user may only log in via SSO
 	SSOEnabled bool    `json:"sso_enabled" db:"sso_enabled"`
 	GlobalRole *string `json:"global_role" db:"global_role"`
+	APIOnly    bool    `json:"api_only" db:"api_only"`
 
 	// Teams is the teams this user has roles in.
 	Teams []UserTeam `json:"teams"`
@@ -145,6 +146,7 @@ type UserPayload struct {
 	SSOEnabled               *bool       `json:"sso_enabled,omitempty"`
 	GlobalRole               *string     `json:"global_role,omitempty"`
 	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
+	APIOnly                  *bool       `json:"api_only,omitempty"`
 	Teams                    *[]UserTeam `json:"teams,omitempty"`
 }
 
@@ -174,6 +176,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.AdminForcedPasswordReset != nil {
 		user.AdminForcedPasswordReset = *p.AdminForcedPasswordReset
+	}
+	if p.APIOnly != nil {
+		user.APIOnly = *p.APIOnly
 	}
 	if p.Teams != nil {
 		user.Teams = *p.Teams
