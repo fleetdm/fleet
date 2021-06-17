@@ -16,6 +16,7 @@ export default PropTypes.shape({
 export interface IUser {
   email: string;
   force_password_reset: boolean;
+  test_only: boolean;
   global_role: string | null;
   gravatar_url: string;
   id: number;

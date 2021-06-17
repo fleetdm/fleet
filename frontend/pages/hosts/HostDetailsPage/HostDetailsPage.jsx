@@ -550,12 +550,6 @@ export class HostDetailsPage extends Component {
                 <span className="info__header">OS</span>
                 <span className="info__data">{titleData.os_version}</span>
               </div>
-              <div className="info__item info__item--title">
-                <span className="info__header">Enroll secret</span>
-                <span className="info__data">
-                  {titleData.enroll_secret_name}
-                </span>
-              </div>
             </div>
           </div>
           {renderActionButtons()}
