@@ -119,9 +119,10 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
       host_expiry_enabled,
       host_expiry_window,
       live_query_disabled,
-      additional_queries
+      additional_queries,
+	  agent_options
     )
-    VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+    VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
     ON DUPLICATE KEY UPDATE
       org_name = VALUES(org_name),
       org_logo_url = VALUES(org_logo_url),
@@ -151,7 +152,8 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
       host_expiry_enabled = VALUES(host_expiry_enabled),
       host_expiry_window = VALUES(host_expiry_window),
       live_query_disabled = VALUES(live_query_disabled),
-      additional_queries = VALUES(additional_queries)
+      additional_queries = VALUES(additional_queries),
+	  agent_options = VALUES(agent_options)
     `
 
 	_, err = d.db.Exec(insertStatement,
@@ -184,6 +186,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 		info.HostExpiryWindow,
 		info.LiveQueryDisabled,
 		info.AdditionalQueries,
+		info.AgentOptions,
 	)
 
 	return err

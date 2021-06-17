@@ -13,6 +13,9 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Slider from "components/forms/fields/Slider";
 import validate from "components/forms/admin/AppConfigForm/validate";
 import IconToolTip from "components/IconToolTip";
+import InfoBanner from "components/InfoBanner/InfoBanner";
+import YamlAce from "components/YamlAce";
+import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const authMethodOptions = [
   { label: "Plain", value: "authmethod_plain" },
@@ -52,6 +55,7 @@ const formFields = [
   "host_expiry_enabled",
   "host_expiry_window",
   "live_query_disabled",
+  "agent_options",
 ];
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = (
@@ -101,6 +105,7 @@ class AppConfigForm extends Component {
       host_expiry_enabled: formFieldInterface.isRequired,
       host_expiry_window: formFieldInterface.isRequired,
       live_query_disabled: formFieldInterface.isRequired,
+      agent_options: formFieldInterface.isRequired,
     }).isRequired,
     enrollSecret: enrollSecretInterface.isRequired,
     handleSubmit: PropTypes.func.isRequired,
@@ -400,6 +405,7 @@ class AppConfigForm extends Component {
             />
           </div>
         </div>
+
         <div className={`${baseClass}__section`}>
           <h2>
             <a id="osquery-enrollment-secrets">Osquery Enrollment Secrets</a>
@@ -411,6 +417,44 @@ class AppConfigForm extends Component {
             <EnrollSecretTable secrets={enrollSecret} />
           </div>
         </div>
+
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="agent-options">Global agent options</a>
+          </h2>
+          <div className={`${baseClass}__yaml`}>
+            <p className={`${baseClass}__section-description`}>
+              This code will be used by osquery when it checks for configuration
+              options.
+              <br />
+              <b>
+                Changes to these configuration options will be applied to all
+                hosts in your organization that do not belong to any team.
+              </b>
+            </p>
+            <InfoBanner className={`${baseClass}__config-docs`}>
+              How do global agent options interact with team-level agent
+              options?&nbsp;
+              <a
+                href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Learn more about agent options&nbsp;
+                <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+              </a>
+            </InfoBanner>
+            <p className={`${baseClass}__component-label`}>
+              <b>YAML</b>
+            </p>
+            <YamlAce
+              {...fields.agent_options}
+              error={fields.agent_options.error}
+              wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            />
+          </div>
+        </div>
+
         <div className={`${baseClass}__section`}>
           <h2>
             <a
