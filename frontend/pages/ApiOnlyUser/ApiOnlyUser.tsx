@@ -22,7 +22,7 @@ const ApiOnlyUser = (): JSX.Element => {
           <p className={`${baseClass}__lead-text`}>
             You attempted to access Fleet with an API only user.
           </p>
-          <p className={`${baseClass}__sub-lead-text cool`}>
+          <p className={`${baseClass}__sub-lead-text`}>
             This user doesn&apos;t have access to the Fleet UI.
           </p>
         </div>
