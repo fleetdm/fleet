@@ -6,7 +6,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.seedBasic();
       cy.setupSMTP();
       cy.seedQueries();
-      cy.addDockerHost();
+      cy.addDockerHost("oranges");
       cy.logout();
     });
     afterEach(() => {
