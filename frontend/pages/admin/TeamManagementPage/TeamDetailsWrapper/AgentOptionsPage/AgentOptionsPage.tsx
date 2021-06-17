@@ -47,7 +47,7 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
   };
 
   const onSaveOsqueryOptionsFormSubmit = (updatedForm: any): void | false => {
-    const { TEAMS_AGENT_OPTIONS } = endpoints; 
+    const { TEAMS_AGENT_OPTIONS } = endpoints;
     const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {
       dispatch(renderFlash("error", error.reason));
