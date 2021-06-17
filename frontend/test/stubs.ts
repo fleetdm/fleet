@@ -171,6 +171,7 @@ export const userStub: IUser = {
   id: 1,
   email: "hi@gnar.dog",
   force_password_reset: false,
+  api_only: false,
   global_role: "admin",
   gravatar_url: "https://image.com",
   name: "Gnar Mike",
