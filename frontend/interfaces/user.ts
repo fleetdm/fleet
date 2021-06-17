@@ -4,6 +4,7 @@ import teamInterface, { ITeam } from "./team";
 export default PropTypes.shape({
   email: PropTypes.string,
   force_password_reset: PropTypes.bool,
+  api_only: PropTypes.bool,
   global_role: PropTypes.string,
   gravatar_url: PropTypes.string,
   id: PropTypes.number,
@@ -16,7 +17,7 @@ export default PropTypes.shape({
 export interface IUser {
   email: string;
   force_password_reset: boolean;
-  test_only: boolean;
+  api_only: boolean;
   global_role: string | null;
   gravatar_url: string;
   id: number;
