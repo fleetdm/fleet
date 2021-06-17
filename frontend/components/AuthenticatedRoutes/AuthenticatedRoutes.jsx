@@ -8,7 +8,6 @@ import paths from "router/paths";
 import redirectLocationInterface from "interfaces/redirect_location";
 import { setRedirectLocation } from "redux/nodes/redirectLocation/actions";
 import userInterface from "interfaces/user";
-import permissionUtils from "utilities/permissions";
 
 export class AuthenticatedRoutes extends Component {
   static propTypes = {
@@ -35,7 +34,7 @@ export class AuthenticatedRoutes extends Component {
       return redirectToPasswordReset();
     }
 
-    if (permissionUtils.isApiUserOnly(user)) {
+    if (user && user.api_only) {
       return redirectToApiUserOnly();
     }
 
@@ -60,7 +59,7 @@ export class AuthenticatedRoutes extends Component {
       return redirectToPasswordReset();
     }
 
-    if (permissionUtils.isApiUserOnly(user)) {
+    if (user && user.api_only) {
       return redirectToApiUserOnly();
     }
 

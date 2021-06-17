@@ -9,10 +9,6 @@ export const isBasicTier = (config: IConfig): boolean => {
   return config.tier === "basic";
 };
 
-export const isApiOnlyUser = (user: IUser): boolean => {
-  return user.api_only;
-};
-
 export const isGlobalAdmin = (user: IUser): boolean => {
   return user.global_role === "admin";
 };
