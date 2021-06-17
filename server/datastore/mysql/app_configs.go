@@ -186,6 +186,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 		info.HostExpiryWindow,
 		info.LiveQueryDisabled,
 		info.AdditionalQueries,
+		info.AgentOptions,
 	)
 
 	return err

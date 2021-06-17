@@ -33,7 +33,7 @@ func (svc *Service) AgentOptionsForHost(ctx context.Context, host *fleet.Host) (
 	}
 
 	var options fleet.AgentOptions
-	if err := json.Unmarshal(appConfig.AgentOptions, &options); err != nil {
+	if err := json.Unmarshal(appConfig.AgentOptions.Config, &options); err != nil {
 		return nil, errors.Wrap(err, "unmarshal global agent options")
 	}
 

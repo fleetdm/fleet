@@ -67,7 +67,8 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				HostExpiryWindow:  &config.HostExpiryWindow,
 			}
 			agentOptions = &fleet.AgentOptions{
-				Config: config.AgentOptions,
+				Config: config.AgentOptions.Config,
+				Overrides: config.AgentOptions.Overrides,
 			}
 		}
 		response := appConfigResponse{
@@ -124,7 +125,8 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				HostExpiryWindow:  &config.HostExpiryWindow,
 			},
 			AgentOptions: &fleet.AgentOptions{
-				Config: config.AgentOptions,
+				Config: config.AgentOptions.Config,
+				Overrides: config.AgentOptions.Overrides,
 			},
 		}
 		if response.SMTPSettings.SMTPPassword != nil {

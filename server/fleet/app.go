@@ -174,7 +174,7 @@ type AppConfig struct {
 	AdditionalQueries *json.RawMessage `db:"additional_queries"`
 
 	// AgentOptions is the global agent options, including overrides.
-	AgentOptions json.RawMessage `db:"agent_options"`
+	AgentOptions AgentOptions `db:"agent_options"`
 }
 
 func (c AppConfig) AuthzType() string {

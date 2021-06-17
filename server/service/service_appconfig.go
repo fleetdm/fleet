@@ -186,7 +186,10 @@ func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppCon
 
 	if p.AgentOptions != nil {
 		if p.AgentOptions.Config != nil {
-			config.AgentOptions = *&p.AgentOptions.Config
+			config.AgentOptions.Config = *&p.AgentOptions.Config
+		}
+		if p.AgentOptions.Overrides.Platforms != nil {
+			config.AgentOptions.Overrides = *&p.AgentOptions.Overrides
 		}
 	}
 
