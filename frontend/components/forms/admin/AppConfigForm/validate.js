@@ -1,5 +1,6 @@
 import { size } from "lodash";
 import validateYaml from "components/forms/validators/validate_yaml";
+import constructErrorString from "utilities/yaml";
 
 export default (formData) => {
   const errors = {};
@@ -76,7 +77,7 @@ export default (formData) => {
 
   if (agentOptions) {
     const { error: yamlError, valid: yamlValid } = validateYaml(
-      formData.osquery_options
+      formData.agent_options
     );
 
     if (!yamlValid) {

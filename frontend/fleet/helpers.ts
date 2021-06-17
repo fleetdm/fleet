@@ -116,6 +116,7 @@ export const formatConfigDataForServer = (config: any): any => {
     "host_expiry_enabled",
     "host_expiry_window",
   ]);
+  const agentOptionsSettingsAttrs = pick(config, ["agent_options"]);
 
   const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
   const serverSettings = size(serverSettingsAttrs) && {
@@ -130,6 +131,9 @@ export const formatConfigDataForServer = (config: any): any => {
   const hostExpirySettings = size(hostExpirySettingsAttrs) && {
     host_expiry_settings: hostExpirySettingsAttrs,
   };
+  const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
+    agent_options_settings: agentOptionsSettingsAttrs,
+  };
 
   if (hostExpirySettings) {
     hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
@@ -143,6 +147,7 @@ export const formatConfigDataForServer = (config: any): any => {
     ...smtpSettings,
     ...ssoSettings,
     ...hostExpirySettings,
+    ...agentOptionsSettings,
   };
 };
 

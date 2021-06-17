@@ -105,6 +105,7 @@ class AppConfigForm extends Component {
       host_expiry_enabled: formFieldInterface.isRequired,
       host_expiry_window: formFieldInterface.isRequired,
       live_query_disabled: formFieldInterface.isRequired,
+      agent_options: formFieldInterface.isRequired,
     }).isRequired,
     enrollSecret: enrollSecretInterface.isRequired,
     handleSubmit: PropTypes.func.isRequired,
@@ -447,7 +448,7 @@ class AppConfigForm extends Component {
               <b>YAML</b>
             </p>
             <YamlAce
-              {...fields.osquery_options}
+              {...fields.agent_options}
               error={fields.agent_options.error}
               wrapperClassName={`${baseClass}__text-editor-wrapper`}
             />

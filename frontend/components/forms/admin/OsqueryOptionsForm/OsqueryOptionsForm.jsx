@@ -7,7 +7,7 @@ import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import YamlAce from "components/YamlAce";
 import validateYaml from "components/forms/validators/validate_yaml";
-import constructErrorString from "./helpers";
+import constructErrorString from "utilities/yaml";
 
 const baseClass = "osquery-options-form";
 
