@@ -117,92 +117,6 @@ func (mw loggingMiddleware) DeletePack(ctx context.Context, name string) error {
 	return err
 }
 
-func (mw loggingMiddleware) AddLabelToPack(ctx context.Context, lid uint, pid uint) error {
-	var (
-		err error
-	)
-
-	defer func(begin time.Time) {
-		_ = mw.loggerInfo(err).Log(
-			"method", "AddLabelToPack",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	err = mw.Service.AddLabelToPack(ctx, lid, pid)
-	return err
-}
-
-func (mw loggingMiddleware) RemoveLabelFromPack(ctx context.Context, lid uint, pid uint) error {
-	var (
-		err error
-	)
-
-	defer func(begin time.Time) {
-		_ = mw.loggerInfo(err).Log(
-			"method", "RemoveLabelFromPack",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	err = mw.Service.RemoveLabelFromPack(ctx, lid, pid)
-	return err
-}
-
-func (mw loggingMiddleware) ListLabelsForPack(ctx context.Context, pid uint) ([]*fleet.Label, error) {
-	var (
-		labels []*fleet.Label
-		err    error
-	)
-
-	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log(
-			"method", "ListLabelsForPack",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	labels, err = mw.Service.ListLabelsForPack(ctx, pid)
-	return labels, err
-}
-
-func (mw loggingMiddleware) AddHostToPack(ctx context.Context, hid uint, pid uint) error {
-	var (
-		err error
-	)
-
-	defer func(begin time.Time) {
-		_ = mw.loggerInfo(err).Log(
-			"method", "AddHostToPack",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	err = mw.Service.AddHostToPack(ctx, hid, pid)
-	return err
-}
-
-func (mw loggingMiddleware) RemoveHostFromPack(ctx context.Context, hid uint, pid uint) error {
-	var (
-		err error
-	)
-
-	defer func(begin time.Time) {
-		_ = mw.loggerInfo(err).Log(
-			"method", "RemoveHostFromPack",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	err = mw.Service.RemoveHostFromPack(ctx, hid, pid)
-	return err
-}
-
 func (mw loggingMiddleware) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 	var (
 		packs []*fleet.Pack
@@ -219,24 +133,6 @@ func (mw loggingMiddleware) ListPacksForHost(ctx context.Context, hid uint) ([]*
 
 	packs, err = mw.Service.ListPacksForHost(ctx, hid)
 	return packs, err
-}
-
-func (mw loggingMiddleware) ListHostsInPack(ctx context.Context, pid uint, opt fleet.ListOptions) ([]uint, error) {
-	var (
-		hosts []uint
-		err   error
-	)
-
-	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log(
-			"method", "ListHostsInPack",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	hosts, err = mw.Service.ListHostsInPack(ctx, pid, opt)
-	return hosts, err
 }
 
 func (mw loggingMiddleware) GetPackSpec(ctx context.Context, name string) (spec *fleet.PackSpec, err error) {

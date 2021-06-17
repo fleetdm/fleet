@@ -19,7 +19,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		}
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeManual && spec.Hosts == nil {
 			// Hosts list doesn't need to contain anything, but it should at least not be nil.
-			return errors.Errorf("label %s is declared as manual but contains not `hosts key`", spec.Name)
+			return errors.Errorf("label %s is declared as manual but contains no `hosts key`", spec.Name)
 		}
 	}
 	return svc.ds.ApplyLabelSpecs(specs)

@@ -156,62 +156,6 @@ func testLabels(t *testing.T, db fleet.Datastore) {
 	assert.Len(t, labels, 1)
 }
 
-func testManagingLabelsOnPacks(t *testing.T, ds fleet.Datastore) {
-	pack := &fleet.PackSpec{
-		ID:   1,
-		Name: "pack1",
-	}
-	err := ds.ApplyPackSpecs([]*fleet.PackSpec{pack})
-	require.Nil(t, err)
-
-	labels, err := ds.ListLabelsForPack(pack.ID)
-	require.Nil(t, err)
-	assert.Len(t, labels, 0)
-
-	mysqlLabel := &fleet.LabelSpec{
-		ID:    1,
-		Name:  "MySQL Monitoring",
-		Query: "select pid from processes where name = 'mysqld';",
-	}
-	err = ds.ApplyLabelSpecs([]*fleet.LabelSpec{mysqlLabel})
-	require.Nil(t, err)
-
-	pack.Targets = fleet.PackSpecTargets{
-		Labels: []string{
-			mysqlLabel.Name,
-		},
-	}
-	err = ds.ApplyPackSpecs([]*fleet.PackSpec{pack})
-	require.Nil(t, err)
-
-	labels, err = ds.ListLabelsForPack(pack.ID)
-	require.Nil(t, err)
-	if assert.Len(t, labels, 1) {
-		assert.Equal(t, "MySQL Monitoring", labels[0].Name)
-	}
-
-	osqueryLabel := &fleet.LabelSpec{
-		ID:    2,
-		Name:  "Osquery Monitoring",
-		Query: "select pid from processes where name = 'osqueryd';",
-	}
-	err = ds.ApplyLabelSpecs([]*fleet.LabelSpec{mysqlLabel, osqueryLabel})
-	require.Nil(t, err)
-
-	pack.Targets = fleet.PackSpecTargets{
-		Labels: []string{
-			mysqlLabel.Name,
-			osqueryLabel.Name,
-		},
-	}
-	err = ds.ApplyPackSpecs([]*fleet.PackSpec{pack})
-	require.Nil(t, err)
-
-	labels, err = ds.ListLabelsForPack(pack.ID)
-	require.Nil(t, err)
-	assert.Len(t, labels, 2)
-}
-
 func testSearchLabels(t *testing.T, db fleet.Datastore) {
 	specs := []*fleet.LabelSpec{
 		&fleet.LabelSpec{

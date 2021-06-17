@@ -27,21 +27,7 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		return nil, err
 	}
 
-	hosts, err := svc.ListExplicitHostsInPack(ctx, pack.ID, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	labels, err := svc.ListLabelsForPack(ctx, pack.ID)
-	labelIDs := make([]uint, len(labels))
-	for i, label := range labels {
-		labelIDs[i] = label.ID
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	hostMetrics, err := svc.CountHostsInTargets(ctx, nil, fleet.HostTargets{HostIDs: hosts, LabelIDs: labelIDs})
+	hostMetrics, err := svc.CountHostsInTargets(ctx, nil, fleet.HostTargets{HostIDs: pack.HostIDs, LabelIDs: pack.LabelIDs})
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +36,8 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		Pack:            pack,
 		QueryCount:      uint(len(queries)),
 		TotalHostsCount: hostMetrics.TotalHosts,
-		HostIDs:         hosts,
-		LabelIDs:        labelIDs,
+		HostIDs:         pack.HostIDs,
+		LabelIDs:        pack.LabelIDs,
 	}, nil
 }
 
