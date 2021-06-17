@@ -15,25 +15,6 @@ export const osqueryOptionsFailure = (errors) => {
   return { type: OSQUERY_OPTIONS_FAILURE, payload: { errors } };
 };
 
-export const getOsqueryOptions = () => {
-  return (dispatch) => {
-    dispatch(loadOsqueryOptions);
-
-    return Fleet.osqueryOptions
-      .loadAll()
-      .then((osqueryOptions) => {
-        dispatch(osqueryOptionsSuccess(osqueryOptions));
-
-        return osqueryOptions;
-      })
-      .catch((errors) => {
-        dispatch(osqueryOptionsFailure(errors));
-
-        throw errors;
-      });
-  };
-};
-
 export const updateOsqueryOptions = (osqueryOptionsData, endpoint) => {
   return (dispatch) => {
     dispatch(loadOsqueryOptions);
@@ -54,6 +35,5 @@ export const updateOsqueryOptions = (osqueryOptionsData, endpoint) => {
 };
 
 export default {
-  getOsqueryOptions,
   updateOsqueryOptions,
 };

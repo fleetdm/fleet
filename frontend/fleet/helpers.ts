@@ -1,6 +1,7 @@
 import { flatMap, omit, pick, size } from "lodash";
 import md5 from "js-md5";
 import moment from "moment";
+import yaml from "js-yaml";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = [
@@ -116,7 +117,8 @@ export const formatConfigDataForServer = (config: any): any => {
     "host_expiry_enabled",
     "host_expiry_window",
   ]);
-  const agentOptionsSettingsAttrs = pick(config, ["agent_options"]);
+  // because agent_options is already an object
+  const agentOptionsSettingsAttrs = config.agent_options;
 
   const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
   const serverSettings = size(serverSettingsAttrs) && {
@@ -132,7 +134,7 @@ export const formatConfigDataForServer = (config: any): any => {
     host_expiry_settings: hostExpirySettingsAttrs,
   };
   const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
-    agent_options_settings: agentOptionsSettingsAttrs,
+    agent_options: yaml.load(agentOptionsSettingsAttrs),
   };
 
   if (hostExpirySettings) {
@@ -148,6 +150,32 @@ export const formatConfigDataForServer = (config: any): any => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...agentOptionsSettings,
+  };
+};
+
+// TODO: Finalize interface for config - see frontend\interfaces\config.ts
+export const frontendFormattedConfig = (config: any) => {
+  const {
+    org_info: orgInfo,
+    server_settings: serverSettings,
+    smtp_settings: smtpSettings,
+    sso_settings: ssoSettings,
+    host_expiry_settings: hostExpirySettings,
+    license,
+  } = config;
+
+  if (config.agent_options) {
+    config.agent_options = yaml.dump(config.agent_options);
+  }
+
+  return {
+    ...orgInfo,
+    ...serverSettings,
+    ...smtpSettings,
+    ...ssoSettings,
+    ...hostExpirySettings,
+    ...license,
+    agent_options: config.agent_options,
   };
 };
 
@@ -343,4 +371,5 @@ export default {
   secondsToHms,
   labelSlug,
   setupData,
+  frontendFormattedConfig,
 };
