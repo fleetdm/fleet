@@ -70,4 +70,4 @@ Documentation on conducting the manual QA pass can be found here: https://github
 
 ## Release day
 
-Documentation on completing the release process can be found here: https://github.com/fleetdm/fleet/blob/f725a4e7f5ef994ecf18145fa284497dcfbb4333/docs/4-Contribution/5-Releasing-Fleet.md 
+Documentation on completing the release process can be found here: https://github.com/fleetdm/fleet/blob/f725a4e7f5ef994ecf18145fa284497dcfbb4333/docs/3-Contributing/5-Releasing-Fleet.md 
