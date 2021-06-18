@@ -123,6 +123,7 @@ export const packStub = {
   disabled: false,
   host_ids: [],
   label_ids: [],
+  team_ids: [],
 };
 
 export const queryStub = {

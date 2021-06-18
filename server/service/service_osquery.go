@@ -209,13 +209,13 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 
 	baseConfig, err := svc.AgentOptionsForHost(ctx, &host)
 	if err != nil {
-		return nil, osqueryError{message: "internal error: fetching base config: " + err.Error()}
+		return nil, osqueryError{message: "internal error: fetch base config: " + err.Error()}
 	}
 
 	var config map[string]interface{}
 	err = json.Unmarshal(baseConfig, &config)
 	if err != nil {
-		return nil, osqueryError{message: "internal error: parsing base configuration: " + err.Error()}
+		return nil, osqueryError{message: "internal error: parse base configuration: " + err.Error()}
 	}
 
 	packs, err := svc.ds.ListPacksForHost(host.ID)

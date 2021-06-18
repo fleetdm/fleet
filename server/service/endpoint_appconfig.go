@@ -22,7 +22,7 @@ type appConfigResponse struct {
 	SSOSettings        *fleet.SSOSettingsPayload  `json:"sso_settings,omitempty"`
 	HostExpirySettings *fleet.HostExpirySettings  `json:"host_expiry_settings,omitempty"`
 	HostSettings       *fleet.HostSettings        `json:"host_settings,omitempty"`
-	AgentOptions       *json.RawMessage        	  `json:"agent_options,omitempty"`
+	AgentOptions       *json.RawMessage           `json:"agent_options,omitempty"`
 	License            *fleet.LicenseInfo         `json:"license,omitempty"`
 	Err                error                      `json:"error,omitempty"`
 }

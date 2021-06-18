@@ -4,12 +4,15 @@ import { connect } from "react-redux";
 import { filter, includes, isEqual, noop, size, find } from "lodash";
 import { push } from "react-router-redux";
 
+import permissionUtils from "utilities/permissions";
 import deepDifference from "utilities/deep_difference";
 import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
 import hostActions from "redux/nodes/entities/hosts/actions";
 import hostInterface from "interfaces/host";
 import labelActions from "redux/nodes/entities/labels/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
 import labelInterface from "interfaces/label";
+import teamInterface from "interfaces/team";
 import packActions from "redux/nodes/entities/packs/actions";
 import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePanel";
 import packInterface from "interfaces/pack";
@@ -34,7 +37,9 @@ export class EditPackPage extends Component {
     packHosts: PropTypes.arrayOf(hostInterface),
     packID: PropTypes.string,
     packLabels: PropTypes.arrayOf(labelInterface),
+    packTeams: PropTypes.arrayOf(teamInterface),
     scheduledQueries: PropTypes.arrayOf(queryInterface),
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -60,6 +65,7 @@ export class EditPackPage extends Component {
       packHosts,
       packID,
       packLabels,
+      packTeams,
       scheduledQueries,
     } = this.props;
     const { load } = packActions;
@@ -77,6 +83,10 @@ export class EditPackPage extends Component {
       if (!packLabels || packLabels.length !== pack.label_ids.length) {
         dispatch(labelActions.loadAll());
       }
+
+      if (!packTeams || packTeams.length !== pack.team_ids.length) {
+        dispatch(teamActions.loadAll());
+      }
     }
 
     if (!size(scheduledQueries)) {
@@ -90,7 +100,13 @@ export class EditPackPage extends Component {
     return false;
   }
 
-  componentWillReceiveProps({ dispatch, pack, packHosts, packLabels }) {
+  componentWillReceiveProps({
+    dispatch,
+    pack,
+    packHosts,
+    packLabels,
+    packTeams,
+  }) {
     if (!isEqual(pack, this.props.pack)) {
       if (!packHosts || packHosts.length !== pack.host_ids.length) {
         dispatch(hostActions.loadAll());
@@ -98,6 +114,10 @@ export class EditPackPage extends Component {
 
       if (!packLabels || packLabels.length !== pack.label_ids.length) {
         dispatch(labelActions.loadAll());
+      }
+
+      if (!packTeams || packTeams.length !== pack.team_ids.length) {
+        dispatch(teamActions.loadAll());
       }
     }
 
@@ -241,10 +261,12 @@ export class EditPackPage extends Component {
       pack,
       packHosts,
       packLabels,
+      packTeams,
       scheduledQueries,
+      isBasicTier,
     } = this.props;
 
-    const packTargets = [...packHosts, ...packLabels];
+    const packTargets = [...packHosts, ...packLabels, ...packTeams];
 
     if (!pack || isLoadingPack || isLoadingScheduledQueries) {
       return false;
@@ -263,6 +285,7 @@ export class EditPackPage extends Component {
             pack={pack}
             packTargets={packTargets}
             targetsCount={targetsCount}
+            isBasicTier={isBasicTier}
           />
           <ScheduledQueriesListWrapper
             onRemoveScheduledQueries={handleRemoveScheduledQueries}
@@ -307,6 +330,12 @@ const mapStateToProps = (state, { params, route }) => {
         return includes(pack.label_ids, label.id);
       })
     : [];
+  const packTeams = pack
+    ? filter(state.entities.teams.data, (team) => {
+        return includes(pack.team_ids, team.id);
+      })
+    : [];
+  const isBasicTier = permissionUtils.isBasicTier(state.app.config);
 
   return {
     allQueries,
@@ -317,7 +346,9 @@ const mapStateToProps = (state, { params, route }) => {
     packHosts,
     packID,
     packLabels,
+    packTeams,
     scheduledQueries,
+    isBasicTier,
   };
 };
 

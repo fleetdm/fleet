@@ -18,6 +18,7 @@ type packResponse struct {
 	// IDs of hosts which were explicitly selected.
 	HostIDs  []uint `json:"host_ids"`
 	LabelIDs []uint `json:"label_ids"`
+	TeamIDs  []uint `json:"team_ids"`
 }
 
 func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack) (*packResponse, error) {
@@ -27,21 +28,11 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		return nil, err
 	}
 
-	hosts, err := svc.ListExplicitHostsInPack(ctx, pack.ID, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	labels, err := svc.ListLabelsForPack(ctx, pack.ID)
-	labelIDs := make([]uint, len(labels))
-	for i, label := range labels {
-		labelIDs[i] = label.ID
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	hostMetrics, err := svc.CountHostsInTargets(ctx, nil, fleet.HostTargets{HostIDs: hosts, LabelIDs: labelIDs})
+	hostMetrics, err := svc.CountHostsInTargets(
+		ctx,
+		nil,
+		fleet.HostTargets{HostIDs: pack.HostIDs, LabelIDs: pack.LabelIDs, TeamIDs: pack.TeamIDs},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +41,9 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		Pack:            pack,
 		QueryCount:      uint(len(queries)),
 		TotalHostsCount: hostMetrics.TotalHosts,
-		HostIDs:         hosts,
-		LabelIDs:        labelIDs,
+		HostIDs:         pack.HostIDs,
+		LabelIDs:        pack.LabelIDs,
+		TeamIDs:         pack.TeamIDs,
 	}, nil
 }
 

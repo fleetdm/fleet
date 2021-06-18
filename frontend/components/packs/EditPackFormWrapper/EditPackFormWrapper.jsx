@@ -21,6 +21,7 @@ class EditPackFormWrapper extends Component {
     pack: packInterface.isRequired,
     packTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
+    isBasicTier: PropTypes.bool,
   };
 
   render() {
@@ -34,6 +35,7 @@ class EditPackFormWrapper extends Component {
       pack,
       packTargets,
       targetsCount,
+      isBasicTier,
     } = this.props;
 
     if (isEdit) {
@@ -45,6 +47,7 @@ class EditPackFormWrapper extends Component {
           onCancel={onCancelEditPack}
           onFetchTargets={onFetchTargets}
           targetsCount={targetsCount}
+          isBasicTier={isBasicTier}
         />
       );
     }
@@ -73,6 +76,7 @@ class EditPackFormWrapper extends Component {
           selectedTargets={packTargets}
           targetsCount={targetsCount}
           disabled
+          isBasicTier={isBasicTier}
           className={`${baseClass}__select-targets`}
         />
       </div>
