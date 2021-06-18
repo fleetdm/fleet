@@ -14,7 +14,6 @@ export interface IFormFieldProps {
   type: string;
 }
 
-// class FormField extends Component {
 const FormField = ({
   children,
   className,
