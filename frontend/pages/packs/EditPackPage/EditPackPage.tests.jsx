@@ -3,7 +3,12 @@ import { mount } from "enzyme";
 import { noop } from "lodash";
 
 import { connectedComponent, reduxMockStore } from "test/helpers";
-import { packStub, queryStub, scheduledQueryStub } from "test/stubs";
+import {
+  packStub,
+  queryStub,
+  scheduledQueryStub,
+  configStub,
+} from "test/stubs";
 import ConnectedEditPackPage, {
   EditPackPage,
 } from "pages/packs/EditPackPage/EditPackPage";
@@ -12,6 +17,7 @@ import labelActions from "redux/nodes/entities/labels/actions";
 import packActions from "redux/nodes/entities/packs/actions";
 import queryActions from "redux/nodes/entities/queries/actions";
 import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
 
 describe("EditPackPage - component", () => {
   beforeEach(() => {
@@ -21,15 +27,18 @@ describe("EditPackPage - component", () => {
     jest.spyOn(labelActions, "loadAll").mockImplementation(() => spyResponse);
     jest.spyOn(packActions, "load").mockImplementation(() => spyResponse);
     jest.spyOn(queryActions, "loadAll").mockImplementation(() => spyResponse);
+    jest.spyOn(teamActions, "loadAll").mockImplementation(() => spyResponse);
     jest
       .spyOn(scheduledQueryActions, "loadAll")
       .mockImplementation(() => spyResponse);
   });
 
   const store = {
+    app: { config: configStub },
     entities: {
       hosts: { loading: false, data: {} },
       labels: { loading: false, data: {} },
+      teams: { loading: false, data: {} },
       packs: {
         loading: false,
         data: {
@@ -49,6 +58,7 @@ describe("EditPackPage - component", () => {
   describe("rendering", () => {
     it("does not render when packs are loading", () => {
       const packsLoadingStore = {
+        app: store.app,
         entities: {
           ...store.entities,
           packs: { ...store.entities.packs, loading: true },
@@ -67,6 +77,7 @@ describe("EditPackPage - component", () => {
 
     it("does not render when scheduled queries are loading", () => {
       const scheduledQueriesLoadingStore = {
+        app: store.app,
         entities: {
           ...store.entities,
           scheduled_queries: {
@@ -88,6 +99,7 @@ describe("EditPackPage - component", () => {
 
     it("does not render when there is no pack", () => {
       const noPackStore = {
+        app: store.app,
         entities: {
           ...store.entities,
           packs: { data: {}, loading: false },
@@ -130,6 +142,7 @@ describe("EditPackPage - component", () => {
         isEdit: false,
         packHosts: [],
         packLabels: [],
+        packTeams: [],
         scheduledQueries: [],
       };
 
@@ -155,6 +168,7 @@ describe("EditPackPage - component", () => {
       packHosts: [],
       packID: String(packStub.id),
       packLabels: [],
+      packTeams: [],
       scheduledQueries: [scheduledQuery],
     };
 
@@ -206,6 +220,7 @@ describe("EditPackPage - component", () => {
       packHosts: [],
       packID: String(packStub.id),
       packLabels: [],
+      packTeams: [],
       scheduledQueries: [scheduledQuery],
     };
     const pushAction = {
