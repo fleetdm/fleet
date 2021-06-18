@@ -15,7 +15,9 @@
     }
 
     &--error {
-      color: $ui-error;
+      border: 1px solid $core-vibrant-red;
+      box-sizing: border-box;
+      border-radius: 4px;
     }
   }
 
@@ -41,7 +43,14 @@
     }
 
     &--error {
-      border-bottom-color: $ui-error;
+      color: $core-vibrant-red;
+      border: 1px solid $core-vibrant-red;
+      box-sizing: border-box;
+      border-radius: 4px;
+    }
+
+    &--password {
+      letter-spacing: 4px;
     }
   }
 
@@ -53,6 +62,7 @@
 
   &__errors {
     font-size: $x-small;
+    font-weight: $bold;
   }
 
   &__hint {

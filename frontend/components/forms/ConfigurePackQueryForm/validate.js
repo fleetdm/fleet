@@ -10,11 +10,11 @@ const validate = (formData) => {
   }
 
   if (!formData.interval) {
-    errors.interval = "Interval must be present";
+    errors.interval = "Frequency (seconds) must be present";
   }
 
   if (formData.interval && !validateNumericality(formData.interval)) {
-    errors.interval = "Interval must be a number";
+    errors.interval = "Frequency must be a number";
   }
 
   if (!formData.logging_type) {

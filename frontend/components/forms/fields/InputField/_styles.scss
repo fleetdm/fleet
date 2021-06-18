@@ -25,10 +25,10 @@
   }
 
   &--error {
-    transition: background 150ms ease-in-out, color 150ms ease-in-out;
-    border-color: $ui-error;
-    background-color: $ui-error;
-    color: $core-white;
+    color: $core-vibrant-red;
+    border: 1px solid $core-vibrant-red;
+    box-sizing: border-box;
+    border-radius: 4px;
 
     &:focus {
       border-bottom-color: $ui-error;
@@ -55,7 +55,7 @@
     margin-bottom: $pad-xsmall;
 
     &--error {
-      color: $ui-error;
+      font-weight: $bold;
     }
   }
 
