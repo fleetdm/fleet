@@ -1,9 +1,8 @@
-import React, { Component, useEffect } from "react";
-import PropTypes from "prop-types";
+import React, { useEffect } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
-import formDataInterface, {
+import {
   IRegistrationFormData,
 } from "interfaces/registration_form_data";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -17,34 +16,12 @@ interface IConfirmationPageProps {
   handleSubmit: any; // TODO: meant to be an event; figure out type for this
 }
 
-// class ConfirmationPage extends Component {
 const ConfirmationPage = ({
   className,
   currentPage,
   formData,
   handleSubmit,
 }: IConfirmationPageProps) => {
-  // static propTypes = {
-  //   className: PropTypes.string,
-  //   currentPage: PropTypes.bool,
-  //   formData: formDataInterface,
-  //   handleSubmit: PropTypes.func,
-  // };
-
-  // componentDidUpdate(prevProps) {
-  //   const { currentPage } = this.props;
-  //   if (currentPage && currentPage !== prevProps.currentPage) {
-  //     // Component has a transition duration of 300ms set in
-  //     // RegistrationForm/_styles.scss. We need to wait 300ms before
-  //     // calling .focus() to preserve smooth transition.
-  //     setTimeout(() => {
-  //       // wanted to use React ref here instead of class but ref is already used
-  //       // in Button.tsx, which could break other button uses
-  //       document.querySelector(`.${baseClass} button.button--brand`).focus();
-  //     }, 300);
-  //   }
-  // }
-
   useEffect(() => {
     if (currentPage) {
       // Component has a transition duration of 300ms set in
@@ -82,19 +59,6 @@ const ConfirmationPage = ({
     );
   };
 
-  // render() {
-  // const { importOsqueryConfig } = this;
-  // const {
-  //   className,
-  //   currentPage,
-  //   handleSubmit,
-  //   formData: {
-  //     email,
-  //     server_url: fleetWebAddress,
-  //     org_name: orgName,
-  //     username,
-  //   },
-  // } = this.props;
   const {
     email,
     fleet_web_address: fleetWebAddress,
@@ -150,7 +114,6 @@ const ConfirmationPage = ({
       </Button>
     </form>
   );
-  // }
 };
 
 export default ConfirmationPage;

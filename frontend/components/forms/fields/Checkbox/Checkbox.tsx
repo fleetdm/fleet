@@ -1,5 +1,4 @@
-import React, { Component } from "react";
-// import PropTypes from "prop-types";
+import React from "react";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
 
@@ -9,7 +8,7 @@ import { IFormFieldProps } from "components/forms/FormField/FormField";
 const baseClass = "kolide-checkbox";
 
 interface ICheckboxProps {
-  children?: JSX.Element | Array<JSX.Element>;
+  children?: JSX.Element | Array<JSX.Element> | string;
   className?: string;
   disabled?: boolean;
   name?: string;
@@ -19,7 +18,6 @@ interface ICheckboxProps {
   indeterminate?: boolean;
 }
 
-// class Checkbox extends Component {
 const Checkbox = (props: ICheckboxProps) => {
   const {
     children,
@@ -31,39 +29,11 @@ const Checkbox = (props: ICheckboxProps) => {
     wrapperClassName,
     indeterminate,
   } = props;
-  // static propTypes = {
-  //   children: PropTypes.node,
-  //   className: PropTypes.string,
-  //   disabled: PropTypes.bool,
-  //   name: PropTypes.string,
-  //   onChange: PropTypes.func,
-  //   value: PropTypes.bool,
-  //   wrapperClassName: PropTypes.string,
-  //   indeterminate: PropTypes.bool,
-  // };
-
-  // static defaultProps = {
-  //   disabled: false,
-  //   onChange: noop,
-  // };
 
   const handleChange = () => {
-    // const { onChange, value } = this.props;
-
     return onChange(!value);
   };
 
-  // render() {
-  // const { handleChange } = this;
-  // const {
-  //   children,
-  //   className,
-  //   disabled,
-  //   name,
-  //   value,
-  //   wrapperClassName,
-  //   indeterminate,
-  // } = this.props;
   const checkBoxClass = classnames(baseClass, className);
   const formFieldProps = {
     ...pick(props, ["hint", "label", "error", "name"]),
@@ -96,7 +66,6 @@ const Checkbox = (props: ICheckboxProps) => {
       </label>
     </FormField>
   );
-  // }
 };
 
 export default Checkbox;

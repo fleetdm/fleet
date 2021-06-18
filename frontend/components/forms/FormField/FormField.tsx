@@ -24,27 +24,7 @@ const FormField = ({
   name,
   type,
 }: IFormFieldProps) => {
-  // static propTypes = {
-  //   children: PropTypes.node,
-  //   className: PropTypes.string,
-  //   error: PropTypes.string,
-  //   hint: PropTypes.oneOfType([
-  //     PropTypes.array,
-  //     PropTypes.node,
-  //     PropTypes.string,
-  //   ]),
-  //   label: PropTypes.oneOfType([
-  //     PropTypes.array,
-  //     PropTypes.string,
-  //     PropTypes.node,
-  //   ]),
-  //   name: PropTypes.string,
-  //   type: PropTypes.string,
-  // };
-
   const renderLabel = () => {
-    // const { error, label, name } = this.props;
-
     const labelWrapperClasses = classnames(`${baseClass}__label`, {
       [`${baseClass}__label--error`]: !isEmpty(error),
     });
@@ -61,18 +41,12 @@ const FormField = ({
   };
 
   const renderHint = () => {
-    // const { hint } = this.props;
-
     if (hint) {
       return <span className={`${baseClass}__hint`}>{hint}</span>;
     }
 
     return false;
   };
-
-  // render() {
-  // const { renderLabel, renderHint } = this;
-  // const { children, className, type } = this.props;
 
   const formFieldClass = classnames(
     baseClass,
@@ -89,7 +63,6 @@ const FormField = ({
       {renderHint()}
     </div>
   );
-  // }
 };
 
 export default FormField;
