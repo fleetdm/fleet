@@ -48,9 +48,6 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 ### Known issues
 
-* ~~Query packs cannot be targeted to teams.~~
-* ~~Global agent options (osquery options cannot be updated in the Fleet UI.~~
-* ~~Migration order prevents upgrade from 3.13.0 to 4.0.0-rc1~~
 
 There are currently no known issues in this release. However, we recommend only upgrading to Fleet 4.0.0-rc2 for testing purposes. Please file a GitHub issue for any issues discovered when testing Fleet 4.0.0!
 
