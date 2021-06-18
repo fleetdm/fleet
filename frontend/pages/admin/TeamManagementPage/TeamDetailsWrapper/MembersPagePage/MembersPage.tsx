@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 // @ts-ignore
 import memoize from "memoize-one";
 
+import { IConfig } from "interfaces/config";
 import { IUser } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { Link } from "react-router";
@@ -32,10 +33,12 @@ interface IMembersPageProps {
   params: {
     team_id: string;
   };
-  isBasicTier: boolean;
 }
 
 interface IRootState {
+  app: {
+    config: IConfig;
+  };
   entities: {
     users: {
       loading: boolean;
@@ -69,11 +72,13 @@ let tableQueryData = {};
 const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const {
     params: { team_id },
-    isBasicTier,
   } = props;
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
 
+  const isBasicTier = useSelector((state: IRootState) => {
+    return state.app.config.tier === "basic";
+  });
   const loadingTableData = useSelector(
     (state: IRootState) => state.entities.users.loading
   );
