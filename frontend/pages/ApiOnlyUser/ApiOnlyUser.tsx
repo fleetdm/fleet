@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
-
+// @ts-ignore
+import { fetchCurrentUser, logoutUser } from "redux/nodes/auth/actions";
 import Button from "components/buttons/Button";
 import paths from "router/paths";
 // @ts-ignore
@@ -9,13 +10,23 @@ import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
 const baseClass = "api-only-user";
 
-const ApiOnlyUser = (): JSX.Element | null => {
+const ApiOnlyUser = (): JSX.Element => {
   const dispatch = useDispatch();
-  const { LOGIN } = paths;
-  const handleClick = (event: any) => dispatch(push(LOGIN));
+  const { LOGIN, HOME } = paths;
+  const handleClick = (event: any) => dispatch(logoutUser());
+
+  useEffect(() => {
+    dispatch(fetchCurrentUser()).then((user: any) => {
+      if (!user) {
+        dispatch(push(LOGIN));
+      } else if (user && !user.payload.user.api_only) {
+        dispatch(push(HOME));
+      }
+    });
+  }, []);
 
   return (
-    <div className="api-only-user">
+    <div className={baseClass}>
       <img alt="Fleet" src={fleetLogoText} className={`${baseClass}__logo`} />
       <div className={`${baseClass}__wrap`}>
         <div className={`${baseClass}__lead-wrapper`}>
