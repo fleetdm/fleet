@@ -48,6 +48,10 @@
       box-sizing: border-box;
       border-radius: 4px;
     }
+
+    &--password {
+      letter-spacing: 4px;
+    }
   }
 
   &__label {
