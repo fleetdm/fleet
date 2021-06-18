@@ -5,7 +5,6 @@ import { push } from "react-router-redux";
 import { fetchCurrentUser, logoutUser } from "redux/nodes/auth/actions";
 import Button from "components/buttons/Button";
 import paths from "router/paths";
-import { IUser } from "interfaces/user";
 // @ts-ignore
 import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
