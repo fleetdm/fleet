@@ -217,7 +217,7 @@ export class UserSettingsPage extends Component {
     return (
       <Modal title="Confirm email update" onExit={onToggleEmailModal}>
         <div className={`${baseClass}__confirm-update`}>
-          To change your email you must confirm your password.
+          To update your email you must confirm your password.
         </div>
         <ChangeEmailForm
           formData={updatedUser}
