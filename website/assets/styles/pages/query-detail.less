@@ -71,10 +71,10 @@
 
   .platforms, .purpose, .contributors, .contribute {
     min-height: 36px;
+    line-height: 24px;
     p, a {
       font-family: 'Nunito';
       font-size: 16px;
-      line-height: 24px;
     }
   }
 
@@ -88,6 +88,19 @@
       line-height: 24px;
     }
   }
+
+  @media (max-width: 700px) {
+
+    .contribute {
+      flex-wrap: wrap;
+      min-height: 24px;
+      h5 {
+        padding: 6px 0px 6px 0px;
+      }
+    }
+
+  }
+
 
   @media (max-width: 575px) {
 

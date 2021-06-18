@@ -7,7 +7,7 @@
     margin-bottom: $pad-xsmall;
 
     &--error {
-      color: $ui-error;
+      font-weight: $bold;
     }
   }
 
@@ -15,8 +15,10 @@
     &--error {
       &.Select {
         .Select-control {
-          border-color: $ui-error;
-          background-color: $ui-error;
+          color: $core-vibrant-red;
+          border: 1px solid $core-vibrant-red;
+          box-sizing: border-box;
+          border-radius: 4px;
         }
 
         .Select-arrow {

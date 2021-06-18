@@ -8,7 +8,7 @@ import {
   getEnrollSecret,
 } from "redux/nodes/app/actions";
 import { configStub } from "test/stubs";
-import { frontendFormattedConfig } from "redux/nodes/app/helpers";
+import { frontendFormattedConfig } from "fleet/helpers";
 import Fleet from "fleet";
 import { reduxMockStore } from "test/helpers";
 import mocks from "test/mocks";

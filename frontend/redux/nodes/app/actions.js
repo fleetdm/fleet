@@ -1,7 +1,8 @@
 import Fleet from "fleet";
+import yaml from "js-yaml";
 
 import formatApiErrors from "utilities/format_api_errors";
-import { frontendFormattedConfig } from "redux/nodes/app/helpers";
+import { frontendFormattedConfig } from "fleet/helpers";
 
 export const CONFIG_FAILURE = "CONFIG_FAILURE";
 export const CONFIG_START = "CONFIG_START";
@@ -57,6 +58,7 @@ export const getConfig = () => {
 export const updateConfig = (configData) => {
   return (dispatch) => {
     dispatch(loadConfig);
+
     return Fleet.config
       .update(configData)
       .then((config) => {

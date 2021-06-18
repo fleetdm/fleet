@@ -22,6 +22,7 @@ class EditPackForm extends Component {
     onCancel: PropTypes.func.isRequired,
     onFetchTargets: PropTypes.func,
     targetsCount: PropTypes.number,
+    isBasicTier: PropTypes.bool,
   };
 
   render() {
@@ -32,6 +33,7 @@ class EditPackForm extends Component {
       onCancel,
       onFetchTargets,
       targetsCount,
+      isBasicTier,
     } = this.props;
 
     return (
@@ -58,6 +60,7 @@ class EditPackForm extends Component {
           onSelect={fields.targets.onChange}
           selectedTargets={fields.targets.value}
           targetsCount={targetsCount}
+          isBasicTier={isBasicTier}
         />
         <div className={`${baseClass}__pack-buttons`}>
           <Button onClick={onCancel} type="button" variant="inverse">

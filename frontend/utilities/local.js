@@ -16,6 +16,11 @@ const local = {
 
     return localStorage.setItem(`FLEET::${itemName}`, value);
   },
+  removeItem: (itemName) => {
+    const { localStorage } = window;
+
+    localStorage.removeItem(`FLEET::${itemName}`);
+  },
 };
 
 export const authToken = () => {

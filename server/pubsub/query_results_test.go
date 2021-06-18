@@ -68,9 +68,11 @@ func setupRedis(t *testing.T) (store *redisQueryResults, teardown func()) {
 		dupResults = false
 	)
 
-	store = NewRedisQueryResults(NewRedisPool(addr, password, database, useTLS), dupResults)
+	pool, err := NewRedisPool(addr, password, database, useTLS)
+	require.NoError(t, err)
+	store = NewRedisQueryResults(pool, dupResults)
 
-	_, err := store.pool.Get().Do("PING")
+	_, err = store.pool.Get().Do("PING")
 	require.Nil(t, err)
 
 	teardown = func() {

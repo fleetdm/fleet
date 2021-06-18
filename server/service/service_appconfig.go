@@ -184,6 +184,10 @@ func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppCon
 		}
 	}
 
+	if p.AgentOptions != nil {
+		config.AgentOptions = p.AgentOptions
+	}
+
 	populateSMTP := func(p *fleet.SMTPSettingsPayload) {
 		if p.SMTPAuthenticationMethod != nil {
 			switch *p.SMTPAuthenticationMethod {

@@ -15,7 +15,7 @@ import (
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
-	"github.com/throttled/throttled/store/memstore"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 type testResource struct {

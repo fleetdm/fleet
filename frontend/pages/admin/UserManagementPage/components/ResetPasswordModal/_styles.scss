@@ -1,0 +1,22 @@
+.reset-password-modal {
+  margin-top: $pad-large;
+
+  p {
+    margin-bottom: 40px;
+    font-size: $small;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+
+  &__btn {
+    font-size: $small;
+    height: 38px;
+    margin-bottom: 5px;
+    margin-left: 15px;
+    padding: 0;
+    width: 120px;
+  }
+}

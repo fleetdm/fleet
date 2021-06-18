@@ -80,7 +80,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			fmt.Println("Starting Docker containers...")
 			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
-			cmd.Env = append(cmd.Env, "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
@@ -96,7 +96,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// has finished starting up so that there is no conflict with
 			// running database migrations.
 			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "fleet02")
-			cmd.Env = append(cmd.Env, "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
@@ -183,7 +183,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			fmt.Println("Starting simulated hosts...")
 			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(cmd.Env,
+			cmd.Env = append(os.Environ(),
 				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
 				"FLEET_URL="+address,
 			)
@@ -364,7 +364,7 @@ func previewStopCommand() *cli.Command {
 
 			cmd := exec.Command("docker-compose", "stop")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(cmd.Env,
+			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
 				// stopping because docker-compose will error otherwise.
 				"ENROLL_SECRET=empty",
@@ -413,7 +413,7 @@ func previewResetCommand() *cli.Command {
 
 			cmd := exec.Command("docker-compose", "rm", "-sf")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(cmd.Env,
+			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
 				// stopping because docker-compose will error otherwise.
 				"ENROLL_SECRET=empty",

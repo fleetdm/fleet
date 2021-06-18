@@ -22,7 +22,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/throttled/throttled/store/memstore"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 func TestLogin(t *testing.T) {

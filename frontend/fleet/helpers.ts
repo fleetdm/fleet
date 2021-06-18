@@ -1,6 +1,7 @@
 import { flatMap, omit, pick, size } from "lodash";
 import md5 from "js-md5";
 import moment from "moment";
+import yaml from "js-yaml";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = [
@@ -116,6 +117,8 @@ export const formatConfigDataForServer = (config: any): any => {
     "host_expiry_enabled",
     "host_expiry_window",
   ]);
+  // because agent_options is already an object
+  const agentOptionsSettingsAttrs = config.agent_options;
 
   const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
   const serverSettings = size(serverSettingsAttrs) && {
@@ -130,6 +133,9 @@ export const formatConfigDataForServer = (config: any): any => {
   const hostExpirySettings = size(hostExpirySettingsAttrs) && {
     host_expiry_settings: hostExpirySettingsAttrs,
   };
+  const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
+    agent_options: yaml.load(agentOptionsSettingsAttrs),
+  };
 
   if (hostExpirySettings) {
     hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
@@ -143,6 +149,33 @@ export const formatConfigDataForServer = (config: any): any => {
     ...smtpSettings,
     ...ssoSettings,
     ...hostExpirySettings,
+    ...agentOptionsSettings,
+  };
+};
+
+// TODO: Finalize interface for config - see frontend\interfaces\config.ts
+export const frontendFormattedConfig = (config: any) => {
+  const {
+    org_info: orgInfo,
+    server_settings: serverSettings,
+    smtp_settings: smtpSettings,
+    sso_settings: ssoSettings,
+    host_expiry_settings: hostExpirySettings,
+    license,
+  } = config;
+
+  if (config.agent_options) {
+    config.agent_options = yaml.dump(config.agent_options);
+  }
+
+  return {
+    ...orgInfo,
+    ...serverSettings,
+    ...smtpSettings,
+    ...ssoSettings,
+    ...hostExpirySettings,
+    ...license,
+    agent_options: config.agent_options,
   };
 };
 
@@ -246,6 +279,20 @@ export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
   return scheduledQuery;
 };
 
+export const formatTeamForClient = (team: any): any => {
+  if (team.display_text === undefined) {
+    team.display_text = team.name;
+  }
+  return team;
+};
+
+export const formatPackForClient = (pack: any): any => {
+  pack.host_ids ||= [];
+  pack.label_ids ||= [];
+  pack.team_ids ||= [];
+  return pack;
+};
+
 const setupData = (formData: any) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
@@ -322,6 +369,7 @@ export const secondsToHms = (d: number): string => {
   const sDisplay = s > 0 ? s + (s === 1 ? " sec " : " secs ") : "";
   return hDisplay + mDisplay + sDisplay;
 };
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -338,4 +386,5 @@ export default {
   secondsToHms,
   labelSlug,
   setupData,
+  frontendFormattedConfig,
 };

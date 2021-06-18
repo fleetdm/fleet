@@ -209,9 +209,11 @@ The Fleet repo includes tools to start test osquery hosts. Please see the docume
 
 #### Manually testing email with MailHog
 
-To intercept sent emails while running a Fleet development environment, make sure that you've set the SMTP address to `localhost:1025` and leave the username and password blank. Then, visit http://localhost:8025 in a web browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
+To intercept sent emails while running a Fleet development environment, first, in the Fleet UI, navigate to the Organization settings page under Admin. 
 
-When Fleet sends emails, the contents of the messages are available in the MailHog UI.
+Then, in the "SMTP Options" section, enter any email address in the "Sender Address" field, set the "SMTP Server" to `localhost` on port `1025`, and set "Authentication Type" to `None`. Note that you may use any active or inactive sender address.
+
+Visit [locahost:8025](http://localhost:8025) to view Mailhog's admin interface which will display all emails sent using the simulated mail server.
 
 ## Database Backup/Restore
 

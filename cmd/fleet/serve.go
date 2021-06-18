@@ -37,7 +37,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"github.com/throttled/throttled/store/redigostore"
+	"github.com/throttled/throttled/v2/store/redigostore"
 	"google.golang.org/grpc"
 )
 
@@ -179,7 +179,10 @@ the way that the Fleet server works.
 				}
 			}
 
-			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password, config.Redis.Database, config.Redis.UseTLS)
+			redisPool, err := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password, config.Redis.Database, config.Redis.UseTLS)
+			if err != nil {
+				initFatal(err, "initialize Redis")
+			}
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)

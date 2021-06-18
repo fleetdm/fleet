@@ -205,7 +205,7 @@ sudo yum install osquery
 
 You will need to set the osquery enroll secret and osquery server certificate. If you head over to the manage hosts page on your Fleet instance (which should be [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage)), you should be able to click "Add New Hosts" and see a modal like the following:
 
-![Add New Host](../images/add-new-host-modal.png)
+![Add New Host](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/add-new-host-modal.png)
 
 If you select "Fetch Fleet Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your CentOS host at `/var/osquery/server.pem`.
 
@@ -377,7 +377,7 @@ If you're having trouble with the above steps, check the official [downloads](ht
 
 You will need to set the osquery enroll secret and osquery server certificate. If you head over to the manage hosts page on your Fleet instance (which should be [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage)), you should be able to click "Add New Hosts" and see a modal like the following:
 
-![Add New Host](../images/add-new-host-modal.png)
+![Add New Host](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/add-new-host-modal.png)
 
 If you select "Fetch Fleet Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your Ubuntu host at `/var/osquery/server.pem`.
 

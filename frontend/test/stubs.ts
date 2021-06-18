@@ -123,6 +123,7 @@ export const packStub = {
   disabled: false,
   host_ids: [],
   label_ids: [],
+  team_ids: [],
 };
 
 export const queryStub = {
@@ -171,6 +172,7 @@ export const userStub: IUser = {
   id: 1,
   email: "hi@gnar.dog",
   force_password_reset: false,
+  api_only: false,
   global_role: "admin",
   gravatar_url: "https://image.com",
   name: "Gnar Mike",

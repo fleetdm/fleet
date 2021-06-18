@@ -65,14 +65,13 @@ func (d *Datastore) ApplyQueries(authorID uint, queries []*fleet.Query) (err err
 }
 
 func (d *Datastore) QueryByName(name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-	db := d.getTransaction(opts)
 	sqlStatement := `
 		SELECT *
 			FROM queries
 			WHERE name = ?
 	`
 	var query fleet.Query
-	err := db.Get(&query, sqlStatement, name)
+	err := d.db.Get(&query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("Query").WithName(name)
@@ -89,8 +88,6 @@ func (d *Datastore) QueryByName(name string, opts ...fleet.OptionalArg) (*fleet.
 
 // NewQuery creates a New Query.
 func (d *Datastore) NewQuery(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-	db := d.getTransaction(opts)
-
 	sqlStatement := `
 		INSERT INTO queries (
 			name,
@@ -101,7 +98,7 @@ func (d *Datastore) NewQuery(query *fleet.Query, opts ...fleet.OptionalArg) (*fl
 			observer_can_run
 		) VALUES ( ?, ?, ?, ?, ?, ? )
 	`
-	result, err := db.Exec(sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
+	result, err := d.db.Exec(sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
 
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Query", 0)

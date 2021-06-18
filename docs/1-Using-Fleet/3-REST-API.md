@@ -62,29 +62,9 @@ All of these objects are put together and distributed to the appropriate osquery
 - [Initiate SSO](#initiate-sso)
 - [SSO callback](#sso-callback)
 
-All API requests to the Fleet server require API token authentication unless noted in the documentation.
+All API requests to the Fleet server require API token authentication unless noted in the documentation. API tokens are tied to your Fleet user account.
 
-To get an API token, send a request to the [login endpoint](#log-in):
-
-```
-{
-  "token": "<your token>",
-  "user": {
-    "created_at": "2020-11-13T22:57:12Z",
-    "updated_at": "2020-11-13T22:57:12Z",
-    "id": 1,
-    "username": "jane",
-    "name": "",
-    "email": "janedoe@example.com",
-    "enabled": true,
-    "force_password_reset": false,
-    "gravatar_url": "",
-    "sso_enabled": false,
-    "global_role": "admin",
-    "teams: []
-  }
-}
-```
+To get an API token, retrieve it from the "Account settings" > "Get API token" in the Fleet UI (`/profile`). Or, you can send a request to the [login API endpoint](#log-in) to get your token.
 
 Then, use that API token to authenticate all subsequent API requests by sending it in the "Authorization" request header, prefixed with "Bearer ":
 
@@ -99,6 +79,8 @@ Authorization: Bearer <your token>
 Authenticates the user with the specified credentials. Use the token returned from this endpoint to authenticate further API requests.
 
 `POST /api/v1/fleet/login`
+
+> This API endpoint is not available to SSO users, since username/password login is disabled for SSO users. To get an API token for an SSO user, you can use the Fleet UI.
 
 #### Parameters
 
