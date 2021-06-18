@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
@@ -18,7 +17,6 @@ func (svc *Service) AgentOptionsForHost(ctx context.Context, host *fleet.Host) (
 		}
 
 		if team.AgentOptions != nil && len(*team.AgentOptions) > 0 {
-			fmt.Println(string(*team.AgentOptions))
 			var options fleet.AgentOptions
 			if err := json.Unmarshal(*team.AgentOptions, &options); err != nil {
 				return nil, errors.Wrap(err, "unmarshal team agent options")

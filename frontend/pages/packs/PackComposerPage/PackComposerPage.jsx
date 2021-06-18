@@ -33,7 +33,6 @@ export class PackComposerPage extends Component {
 
   onFetchTargets = (query, targetsResponse) => {
     const { targets_count: selectedTargetsCount } = targetsResponse;
-    console.log(targetsResponse);
 
     this.setState({ selectedTargetsCount });
 
