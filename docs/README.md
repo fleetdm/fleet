@@ -8,7 +8,7 @@ Resources for using the Fleet UI, fleetctl CLI, and Fleet REST API.
 ### [Deploying](./2-Deploying/README.md)
 Resources for installing Fleet's infrastructure dependencies, configuring Fleet, deploying osquery to hosts, and viewing example deployment scenarios.
 
-### [Contributing](./4-Contributing/README.md)
+### [Contributing](./3-Contributing/README.md)
 If you're interested in interacting with the Fleet source code, you'll find information on modifying and building the code here.
 
 ---
