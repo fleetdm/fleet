@@ -21,7 +21,7 @@ The upgrade from kolide/fleet to fleetdm/fleet works the same as any minor versi
 
 Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for FleetDM Fleet versions.
 
-To migrate from Kolide Fleet to FleetDM Fleet, please follow the steps outlined in the [Updating Fleet section](./7-Updating-Fleet.md) of the documentation.
+To migrate from Kolide Fleet to FleetDM Fleet, please follow the steps outlined in the [Updating Fleet section](./8-Updating-Fleet.md) of the documentation.
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
@@ -39,7 +39,7 @@ In the coming months, Fleet will introduce the [Teams feature](https://github.co
 
 ## How often do labels refresh? Is the refresh frequency configurable?
 
-The update frequency for labels is configurable with the [—osquery_label_update_interval](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#osquery_label_update_interval) flag (default 1 hour).
+The update frequency for labels is configurable with the [—osquery_label_update_interval](../2-Deploying/2-Configuration.md#osquery_label_update_interval) flag (default 1 hour).
 
 ## How do I revoke the authorization tokens for a user?
 
@@ -51,7 +51,7 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 
 ## How do I monitor a Fleet server?
 
-Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./5-Monitoring-Fleet.md) documentation for details.
+Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./6-Monitoring-Fleet.md) documentation for details.
 
 ## Why is the “Add User” button disabled?
 
@@ -76,7 +76,7 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled Queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../3-Deployment/2-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
+Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../2-Deploying/2-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
 
 It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
 
@@ -84,7 +84,7 @@ It is possible to configure osqueryd to log query results outside of Fleet. For 
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+The [logger configuration options](../2-Deploying/2-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
 
 ### Troubleshooting
 
@@ -94,7 +94,7 @@ Expecting results, but not seeing anything in the logs?
 - Check whether the query is scheduled in differential mode. If so, new results will only be logged when the result set changes.
 - Ensure that the query is scheduled to run on the intended platforms, and that the tables queried are supported by those platforms.
 - Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
-- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../3-Deployment/2-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
+- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../2-Deploying/2-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
 
 ## Why aren’t my live queries being logged?
 
@@ -110,7 +110,7 @@ As an example, let's say you want to retrieve a host's OS version, installed sof
 
 Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](./3-REST-API.md#list-hosts).
 
-The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](../3-Deployment/2-Configuration.md#feature-flags).
+The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](../2-Deploying/2-Configuration.md#feature-flags).
 
 Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./3-REST-API.md#get-host).
 
@@ -128,4 +128,4 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
 
-Check out the [documentation on running database migrations](https://github.com/fleetdm/fleet/blob/edf1c47298e9355c0a8c29a429db41bcf273cddf/docs/1-Using-Fleet/7-Updating-Fleet.md#running-database-migrations) to resolve this issue.
+Check out the [documentation on running database migrations](./8-Updating-Fleet.md#running-database-migrations) to resolve this issue.
