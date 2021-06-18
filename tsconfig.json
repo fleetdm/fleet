@@ -5,6 +5,7 @@
     "target": "ES2016",
     "sourceMap": true,
     "jsx": "react",
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "./frontend/**/*"

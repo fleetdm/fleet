@@ -9,7 +9,7 @@ interface IButtonProps {
   children: React.ReactChild;
   className?: string;
   disabled?: boolean;
-  onClick: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  onClick?: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   size?: string;
   tabIndex?: number;
   type?: "button" | "submit" | "reset";
