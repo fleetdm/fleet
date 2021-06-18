@@ -36,7 +36,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Use strictly `fleet` in Fleet's configuration, API routes, and environment variables. This means that you must update all usage of `kolide` in these items. The backwards compatibility introduced in Fleet 3.8.0 is no longer valid in Fleet 4.0.0.
 
-* Change configuration option `server_tlsprofile` to `server_tls_compatability`. This options previously had an inconsistent key name.
+* Change configuration option `server_tlsprofile` to `server_tls_compatability`. This option previously had an inconsistent key name.
 
 * Replace the use of the `api/v1/fleet/spec/osquery/options` with `api/v1/fleet/config`. In Fleet 4.0.0, "osquery options" are now called "agent options." The new agent options are moved to the Fleet application config spec file and the `api/v1/fleet/config` API endpoint.
 
