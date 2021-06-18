@@ -48,7 +48,7 @@ export default (client: any) => {
       page = 0,
       perPage = 100,
       globalFilter = "",
-    }: ITeamSearchOptions) => {
+    }: ITeamSearchOptions = {}) => {
       const { TEAMS } = endpoints;
 
       // TODO: add this query param logic to client class

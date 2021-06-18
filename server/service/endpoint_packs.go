@@ -43,6 +43,7 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		TotalHostsCount: hostMetrics.TotalHosts,
 		HostIDs:         pack.HostIDs,
 		LabelIDs:        pack.LabelIDs,
+		TeamIDs:         pack.TeamIDs,
 	}, nil
 }
 

@@ -78,8 +78,8 @@ const (
 )
 
 type Target struct {
-	Type     TargetType
-	TargetID uint
+	Type     TargetType `db:"type"`
+	TargetID uint       `db:"target_id"`
 }
 
 func (t Target) AuthzType() string {

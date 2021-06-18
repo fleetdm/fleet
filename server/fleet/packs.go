@@ -130,8 +130,8 @@ type PackSpecQuery struct {
 
 // PackTarget targets a pack to a host, label, or team.
 type PackTarget struct {
-	ID     uint
-	PackID uint
+	ID     uint `db:"id"`
+	PackID uint `db:"pack_id"`
 	Target
 }
 

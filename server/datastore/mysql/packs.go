@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -209,7 +210,11 @@ func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.P
 		if err == sql.ErrNoRows {
 			return nil, false, nil
 		}
-		return nil, false, errors.Wrap(err, "fetching packs by name")
+		return nil, false, errors.Wrap(err, "fetch pack by name")
+	}
+
+	if err := d.loadPackTargets(&pack); err != nil {
+		return nil, false, err
 	}
 
 	return &pack, true, nil
@@ -217,42 +222,144 @@ func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.P
 
 // NewPack creates a new Pack
 func (d *Datastore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
-	query := `
-	INSERT INTO packs
-		(name, description, platform, disabled)
-		VALUES ( ?, ?, ?, ? )
-	`
+	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		query := `
+			INSERT INTO packs
+			(name, description, platform, disabled)
+			VALUES ( ?, ?, ?, ? )
+		`
+		result, err := d.db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled)
+		if err != nil {
+			return errors.Wrap(err, "insert pack")
+		}
 
-	result, err := d.db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled)
-	if err != nil {
-		return nil, errors.Wrap(err, "inserting pack")
+		id, _ := result.LastInsertId()
+		pack.ID = uint(id)
+
+		if err := d.replacePackTargets(tx, pack); err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return pack, nil
+}
+
+func (d *Datastore) replacePackTargets(tx *sqlx.Tx, pack *fleet.Pack) error {
+	sql := `DELETE FROM pack_targets WHERE pack_id = ?`
+	if _, err := tx.Exec(sql, pack.ID); err != nil {
+		return errors.Wrap(err, "delete pack targets")
 	}
 
-	id, _ := result.LastInsertId()
-	pack.ID = uint(id)
-	return pack, nil
+	// Insert hosts
+	if len(pack.HostIDs) > 0 {
+		var args []interface{}
+		for _, id := range pack.HostIDs {
+			args = append(args, pack.ID, fleet.TargetHost, id)
+		}
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?,?),", len(pack.HostIDs)),
+			",",
+		)
+		sql = fmt.Sprintf(`
+			INSERT INTO pack_targets (pack_id, type, target_id)
+			VALUES %s
+		`, values)
+		if _, err := tx.Exec(sql, args...); err != nil {
+			return errors.Wrap(err, "insert host targets")
+		}
+	}
+
+	// Insert labels
+	if len(pack.LabelIDs) > 0 {
+		var args []interface{}
+		for _, id := range pack.LabelIDs {
+			args = append(args, pack.ID, fleet.TargetLabel, id)
+		}
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?,?),", len(pack.LabelIDs)),
+			",",
+		)
+		sql = fmt.Sprintf(`
+			INSERT INTO pack_targets (pack_id, type, target_id)
+			VALUES %s
+		`, values)
+		if _, err := tx.Exec(sql, args...); err != nil {
+			return errors.Wrap(err, "insert label targets")
+		}
+	}
+
+	// Insert teams
+	if len(pack.TeamIDs) > 0 {
+		var args []interface{}
+		for _, id := range pack.TeamIDs {
+			args = append(args, pack.ID, fleet.TargetTeam, id)
+		}
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?,?),", len(pack.TeamIDs)),
+			",",
+		)
+		sql = fmt.Sprintf(`
+			INSERT INTO pack_targets (pack_id, type, target_id)
+			VALUES %s
+		`, values)
+		if _, err := tx.Exec(sql, args...); err != nil {
+			return errors.Wrap(err, "insert team targets")
+		}
+	}
+
+	return nil
+}
+
+func (d *Datastore) loadPackTargets(pack *fleet.Pack) error {
+	var targets []fleet.PackTarget
+	sql := `SELECT * FROM pack_targets WHERE pack_id = ?`
+	if err := d.db.Select(&targets, sql, pack.ID); err != nil {
+		return errors.Wrap(err, "select pack targets")
+	}
+
+	pack.HostIDs, pack.LabelIDs, pack.TeamIDs = []uint{}, []uint{}, []uint{}
+	for _, target := range targets {
+		switch target.Type {
+		case fleet.TargetHost:
+			pack.HostIDs = append(pack.HostIDs, target.TargetID)
+		case fleet.TargetLabel:
+			pack.LabelIDs = append(pack.LabelIDs, target.TargetID)
+		case fleet.TargetTeam:
+			pack.TeamIDs = append(pack.TeamIDs, target.TargetID)
+		default:
+			return errors.Errorf("unknown target type: %d", target.Type)
+		}
+	}
+
+	return nil
 }
 
 // SavePack stores changes to pack
 func (d *Datastore) SavePack(pack *fleet.Pack) error {
-	query := `
+	return d.withRetryTxx(func(tx *sqlx.Tx) error {
+		query := `
 			UPDATE packs
 			SET name = ?, platform = ?, disabled = ?, description = ?
 			WHERE id = ?
 	`
 
-	results, err := d.db.Exec(query, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
-	if err != nil {
-		return errors.Wrap(err, "updating pack")
-	}
-	rowsAffected, err := results.RowsAffected()
-	if err != nil {
-		return errors.Wrap(err, "rows affected updating packs")
-	}
-	if rowsAffected == 0 {
-		return notFound("Pack").WithID(pack.ID)
-	}
-	return nil
+		results, err := d.db.Exec(query, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
+		if err != nil {
+			return errors.Wrap(err, "updating pack")
+		}
+		rowsAffected, err := results.RowsAffected()
+		if err != nil {
+			return errors.Wrap(err, "rows affected updating packs")
+		}
+		if rowsAffected == 0 {
+			return notFound("Pack").WithID(pack.ID)
+		}
+
+		return d.replacePackTargets(tx, pack)
+	})
 }
 
 // DeletePack deletes a fleet.Pack so that it won't show up in results.
@@ -268,7 +375,11 @@ func (d *Datastore) Pack(pid uint) (*fleet.Pack, error) {
 	if err == sql.ErrNoRows {
 		return nil, notFound("Pack").WithID(pid)
 	} else if err != nil {
-		return nil, errors.Wrap(err, "getting pack")
+		return nil, errors.Wrap(err, "get pack")
+	}
+
+	if err := d.loadPackTargets(pack); err != nil {
+		return nil, err
 	}
 
 	return pack, nil
@@ -282,105 +393,22 @@ func (d *Datastore) ListPacks(opt fleet.ListOptions) ([]*fleet.Pack, error) {
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing packs")
 	}
+
+	for _, pack := range packs {
+		if err := d.loadPackTargets(pack); err != nil {
+			return nil, err
+		}
+	}
+
 	return packs, nil
-}
-
-// AddLabelToPack associates a fleet.Label with a fleet.Pack
-func (d *Datastore) AddLabelToPack(lid uint, pid uint, opts ...fleet.OptionalArg) error {
-	query := `
-		INSERT INTO pack_targets ( pack_id, type, target_id )
-			VALUES ( ?, ?, ? )
-			ON DUPLICATE KEY UPDATE id=id
-	`
-	_, err := d.db.Exec(query, pid, fleet.TargetLabel, lid)
-	if err != nil {
-		return errors.Wrap(err, "adding label to pack")
-	}
-
-	return nil
-}
-
-// AddHostToPack associates a fleet.Host with a fleet.Pack
-func (d *Datastore) AddHostToPack(hid, pid uint) error {
-	query := `
-		INSERT INTO pack_targets ( pack_id, type, target_id )
-			VALUES ( ?, ?, ? )
-			ON DUPLICATE KEY UPDATE id=id
-	`
-	_, err := d.db.Exec(query, pid, fleet.TargetHost, hid)
-	if err != nil {
-		return errors.Wrap(err, "adding host to pack")
-	}
-
-	return nil
-}
-
-// RemoreLabelFromPack will remove the association between a fleet.Label and
-// a fleet.Pack
-func (d *Datastore) RemoveLabelFromPack(lid, pid uint) error {
-	query := `
-		DELETE FROM pack_targets
-			WHERE target_id = ? AND pack_id = ? AND type = ?
-	`
-	_, err := d.db.Exec(query, lid, pid, fleet.TargetLabel)
-	if err == sql.ErrNoRows {
-		return notFound("PackTarget").WithMessage(fmt.Sprintf("label ID: %d, pack ID: %d", lid, pid))
-	} else if err != nil {
-		return errors.Wrap(err, "removing label from pack")
-	}
-	return nil
-}
-
-// RemoveHostFromPack will remove the association between a fleet.Host and a
-// fleet.Pack
-func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
-	query := `
-		DELETE FROM pack_targets
-			WHERE target_id = ? AND pack_id = ? AND type = ?
-	`
-	_, err := d.db.Exec(query, hid, pid, fleet.TargetHost)
-	if err == sql.ErrNoRows {
-		return notFound("PackTarget").WithMessage(fmt.Sprintf("host ID: %d, pack ID: %d", hid, pid))
-	} else if err != nil {
-		return errors.Wrap(err, "removing host from pack")
-	}
-	return nil
-}
-
-// ListLabelsForPack will return a list of fleet.Label records associated with fleet.Pack
-func (d *Datastore) ListLabelsForPack(pid uint) ([]*fleet.Label, error) {
-	query := `
-	SELECT
-		l.id,
-		l.created_at,
-		l.updated_at,
-		l.name
-	FROM
-		labels l
-	JOIN
-		pack_targets pt
-	ON
-		pt.target_id = l.id
-	WHERE
-		pt.type = ?
-			AND
-		pt.pack_id = ?
-	`
-
-	labels := []*fleet.Label{}
-
-	if err := d.db.Select(&labels, query, fleet.TargetLabel, pid); err != nil && err != sql.ErrNoRows {
-		return nil, errors.Wrap(err, "listing labels for pack")
-	}
-
-	return labels, nil
 }
 
 func (d *Datastore) ListPacksForHost(hid uint) ([]*fleet.Pack, error) {
 	query := `
 		SELECT DISTINCT packs.*
 		FROM
-		((SELECT p.* FROM packs p
+		((SELECT p.*
+		FROM packs p
 		JOIN pack_targets pt
 		JOIN label_membership lm
 		ON (
@@ -394,55 +422,17 @@ func (d *Datastore) ListPacksForHost(hid uint) ([]*fleet.Pack, error) {
 		FROM packs p
 		JOIN pack_targets pt
 		ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = ?))
+		UNION ALL
+		(SELECT p.*
+		FROM packs p
+		JOIN pack_targets pt
+		ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = (SELECT team_id FROM hosts WHERE id = ?)))
 		) packs
 	`
 
 	packs := []*fleet.Pack{}
-	if err := d.db.Select(&packs, query, fleet.TargetLabel, hid, fleet.TargetHost, hid); err != nil && err != sql.ErrNoRows {
+	if err := d.db.Select(&packs, query, fleet.TargetLabel, hid, fleet.TargetHost, hid, fleet.TargetTeam, hid); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing hosts in pack")
 	}
 	return packs, nil
-}
-
-func (d *Datastore) ListHostsInPack(pid uint, opt fleet.ListOptions) ([]uint, error) {
-	query := `
-		SELECT DISTINCT h.id
-		FROM hosts h
-		JOIN pack_targets pt
-		JOIN label_membership lm
-		ON (
-		  pt.target_id = lm.label_id
-		  AND lm.host_id = h.id
-		  AND pt.type = ?
-		) OR (
-		  pt.target_id = h.id
-		  AND pt.type = ?
-		)
-		WHERE pt.pack_id = ?
-	`
-
-	hosts := []uint{}
-	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), fleet.TargetLabel, fleet.TargetHost, pid); err != nil && err != sql.ErrNoRows {
-		return nil, errors.Wrap(err, "listing hosts in pack")
-	}
-	return hosts, nil
-}
-
-func (d *Datastore) ListExplicitHostsInPack(pid uint, opt fleet.ListOptions) ([]uint, error) {
-	query := `
-		SELECT DISTINCT h.id
-		FROM hosts h
-		JOIN pack_targets pt
-		ON (
-		  pt.target_id = h.id
-		  AND pt.type = ?
-		)
-		WHERE pt.pack_id = ?
-	`
-	hosts := []uint{}
-	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), fleet.TargetHost, pid); err != nil && err != sql.ErrNoRows {
-		return nil, errors.Wrap(err, "listing explicit hosts in pack")
-	}
-	return hosts, nil
-
 }

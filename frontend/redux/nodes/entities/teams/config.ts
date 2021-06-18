@@ -5,6 +5,7 @@ import Fleet from "fleet";
 import Config from "redux/nodes/entities/base/config";
 // @ts-ignore
 import schemas from "redux/nodes/entities/base/schemas";
+import { formatTeamForClient } from "fleet/helpers";
 
 const { TEAMS } = schemas;
 
@@ -14,6 +15,7 @@ export default new Config({
   entityName: "teams",
   loadFunc: Fleet.teams.load,
   loadAllFunc: Fleet.teams.loadAll,
+  parseEntityFunc: formatTeamForClient,
   schema: TEAMS,
   updateFunc: Fleet.teams.update,
 });

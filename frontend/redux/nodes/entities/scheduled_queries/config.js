@@ -1,4 +1,4 @@
-import helpers from "fleet/helpers";
+import { formatScheduledQueryForClient } from "fleet/helpers";
 import Fleet from "fleet";
 import Config from "redux/nodes/entities/base/config";
 import schemas from "redux/nodes/entities/base/schemas";
@@ -10,7 +10,7 @@ export default new Config({
   destroyFunc: Fleet.scheduledQueries.destroy,
   entityName: "scheduled_queries",
   loadAllFunc: Fleet.scheduledQueries.loadAll,
-  parseEntityFunc: helpers.formatScheduledQueryForClient,
+  parseEntityFunc: formatScheduledQueryForClient,
   schema,
   updateFunc: Fleet.scheduledQueries.update,
 });

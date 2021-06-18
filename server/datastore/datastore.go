@@ -26,7 +26,7 @@ var TestFunctions = [...]func(*testing.T, fleet.Datastore){
 	testSaveQuery,
 	testListQuery,
 	testDeletePack,
-	testModifyPack,
+	testSavePack,
 	testEnrollHost,
 	testAuthenticateHost,
 	testAuthenticateHostCaseSensitive,

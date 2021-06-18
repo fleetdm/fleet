@@ -279,6 +279,20 @@ export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
   return scheduledQuery;
 };
 
+export const formatTeamForClient = (team: any): any => {
+  if (team.display_text === undefined) {
+    team.display_text = team.name;
+  }
+  return team;
+};
+
+export const formatPackForClient = (pack: any): any => {
+  pack.host_ids ||= [];
+  pack.label_ids ||= [];
+  pack.team_ids ||= [];
+  return pack;
+};
+
 const setupData = (formData: any) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
@@ -355,6 +369,7 @@ export const secondsToHms = (d: number): string => {
   const sDisplay = s > 0 ? s + (s === 1 ? " sec " : " secs ") : "";
   return hDisplay + mDisplay + sDisplay;
 };
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
