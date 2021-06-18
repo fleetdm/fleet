@@ -55,7 +55,7 @@ export const getConfig = () => {
       });
   };
 };
-export const updateConfig = (configData) => {
+export const updateConfig = (configData, prevConfig) => {
   return (dispatch) => {
     dispatch(loadConfig);
 
@@ -63,8 +63,16 @@ export const updateConfig = (configData) => {
       .update(configData)
       .then((config) => {
         const formattedConfig = frontendFormattedConfig(config);
+        // We merge the previous config with the new config
+        // because the new config does not include the 'tier'
+        // property
+        const formattedConfigWithTier = Object.assign(
+          {},
+          prevConfig,
+          formattedConfig
+        );
 
-        dispatch(configSuccess(formattedConfig));
+        dispatch(configSuccess(formattedConfigWithTier));
 
         return formattedConfig;
       })
