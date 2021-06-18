@@ -21,6 +21,7 @@ import FleetIcon from "components/icons/FleetIcon";
 import InputField from "components/forms/fields/InputField";
 import { logoutUser, updateUser } from "redux/nodes/auth/actions";
 import Modal from "components/modals/Modal";
+import configInterface from "interfaces/config";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import versionActions from "redux/nodes/version/actions";
@@ -31,6 +32,7 @@ const baseClass = "user-settings";
 
 export class UserSettingsPage extends Component {
   static propTypes = {
+    config: configInterface,
     dispatch: PropTypes.func.isRequired,
     version: PropTypes.shape({
       version: PropTypes.string,
@@ -164,7 +166,7 @@ export class UserSettingsPage extends Component {
   };
 
   handleSubmit = (formData) => {
-    const { dispatch, user } = this.props;
+    const { dispatch, user, config } = this.props;
     const updatedUser = deepDifference(formData, user);
 
     if (updatedUser.email && !updatedUser.password) {
@@ -173,11 +175,13 @@ export class UserSettingsPage extends Component {
 
     return dispatch(updateUser(user, updatedUser))
       .then(() => {
+        let accountUpdatedFlashMessage = "Account updated";
         if (updatedUser.email) {
+          accountUpdatedFlashMessage += `: A confirmation email was sent from ${config.sender_address} to ${updatedUser.email}`;
           this.setState({ pendingEmail: updatedUser.email });
         }
 
-        dispatch(renderFlash("success", "Account updated!"));
+        dispatch(renderFlash("success", accountUpdatedFlashMessage));
 
         return true;
       })
@@ -211,10 +215,10 @@ export class UserSettingsPage extends Component {
     }
 
     return (
-      <Modal
-        title="To change your email you must supply your password"
-        onExit={onToggleEmailModal}
-      >
+      <Modal title="Confirm email update" onExit={onToggleEmailModal}>
+        <div className={`${baseClass}__confirm-update`}>
+          To change your email you must confirm your password.
+        </div>
         <ChangeEmailForm
           formData={updatedUser}
           handleSubmit={emailSubmit}
@@ -376,9 +380,10 @@ export class UserSettingsPage extends Component {
 const mapStateToProps = (state) => {
   const { data: version } = state.version;
   const { errors, user } = state.auth;
+  const { config } = state.app;
   const { errors: userErrors } = state.entities.users;
 
-  return { version, errors, user, userErrors };
+  return { version, errors, user, userErrors, config };
 };
 
 export default connect(mapStateToProps)(UserSettingsPage);
