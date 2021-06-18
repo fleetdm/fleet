@@ -178,7 +178,6 @@ func (d *Datastore) getLabelHostnames(label *fleet.LabelSpec) error {
 
 // NewLabel creates a new fleet.Label
 func (d *Datastore) NewLabel(label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
-	db := d.getTransaction(opts)
 	query := `
 	INSERT INTO labels (
 		name,
@@ -189,7 +188,7 @@ func (d *Datastore) NewLabel(label *fleet.Label, opts ...fleet.OptionalArg) (*fl
 		label_membership_type
 	) VALUES ( ?, ?, ?, ?, ?, ?)
 	`
-	result, err := db.Exec(
+	result, err := d.db.Exec(
 		query,
 		label.Name,
 		label.Description,

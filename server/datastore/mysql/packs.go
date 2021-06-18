@@ -198,14 +198,13 @@ WHERE pack_id = ?
 }
 
 func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
-	db := d.getTransaction(opts)
 	sqlStatement := `
 		SELECT *
 			FROM packs
 			WHERE name = ?
 	`
 	var pack fleet.Pack
-	err := db.Get(&pack, sqlStatement, name)
+	err := d.db.Get(&pack, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -218,15 +217,13 @@ func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.P
 
 // NewPack creates a new Pack
 func (d *Datastore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
-	db := d.getTransaction(opts)
-
 	query := `
 	INSERT INTO packs
 		(name, description, platform, disabled)
 		VALUES ( ?, ?, ?, ? )
 	`
 
-	result, err := db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled)
+	result, err := d.db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting pack")
 	}
@@ -290,14 +287,12 @@ func (d *Datastore) ListPacks(opt fleet.ListOptions) ([]*fleet.Pack, error) {
 
 // AddLabelToPack associates a fleet.Label with a fleet.Pack
 func (d *Datastore) AddLabelToPack(lid uint, pid uint, opts ...fleet.OptionalArg) error {
-	db := d.getTransaction(opts)
-
 	query := `
 		INSERT INTO pack_targets ( pack_id, type, target_id )
 			VALUES ( ?, ?, ? )
 			ON DUPLICATE KEY UPDATE id=id
 	`
-	_, err := db.Exec(query, pid, fleet.TargetLabel, lid)
+	_, err := d.db.Exec(query, pid, fleet.TargetLabel, lid)
 	if err != nil {
 		return errors.Wrap(err, "adding label to pack")
 	}

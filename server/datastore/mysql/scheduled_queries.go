@@ -40,8 +40,6 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) 
 }
 
 func (d *Datastore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	db := d.getTransaction(opts)
-
 	// This query looks up the query name using the ID (for backwards
 	// compatibility with the UI)
 	query := `
@@ -61,7 +59,7 @@ func (d *Datastore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.Op
 		FROM queries
 		WHERE id = ?
 		`
-	result, err := db.Exec(query, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
+	result, err := d.db.Exec(query, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "insert scheduled query")
 	}
@@ -75,7 +73,7 @@ func (d *Datastore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.Op
 		Name  string
 	}{}
 
-	err = db.Select(&metadata, query, sq.QueryID)
+	err = d.db.Select(&metadata, query, sq.QueryID)
 	if err != nil && err == sql.ErrNoRows {
 		return nil, notFound("Query").WithID(sq.QueryID)
 	} else if err != nil {

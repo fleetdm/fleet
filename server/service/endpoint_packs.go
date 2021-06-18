@@ -18,6 +18,7 @@ type packResponse struct {
 	// IDs of hosts which were explicitly selected.
 	HostIDs  []uint `json:"host_ids"`
 	LabelIDs []uint `json:"label_ids"`
+	TeamIDs  []uint `json:"team_ids"`
 }
 
 func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack) (*packResponse, error) {
@@ -27,7 +28,11 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		return nil, err
 	}
 
-	hostMetrics, err := svc.CountHostsInTargets(ctx, nil, fleet.HostTargets{HostIDs: pack.HostIDs, LabelIDs: pack.LabelIDs})
+	hostMetrics, err := svc.CountHostsInTargets(
+		ctx,
+		nil,
+		fleet.HostTargets{HostIDs: pack.HostIDs, LabelIDs: pack.LabelIDs, TeamIDs: pack.TeamIDs},
+	)
 	if err != nil {
 		return nil, err
 	}

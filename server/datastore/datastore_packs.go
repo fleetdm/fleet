@@ -26,18 +26,23 @@ func testDeletePack(t *testing.T, ds fleet.Datastore) {
 	assert.NotNil(t, err)
 }
 
-func testNewPack(t *testing.T, ds fleet.Datastore) {
-	pack := &fleet.Pack{
-		Name: "foo",
+func testModifyPack(t *testing.T, ds fleet.Datastore) {
+	expectedPack := &fleet.Pack{
+		Name:     "foo",
+		HostIDs:  []uint{1},
+		LabelIDs: []uint{1},
+		TeamIDs:  []uint{1},
 	}
 
-	pack, err := ds.NewPack(pack)
+	pack, err := ds.NewPack(expectedPack)
 	require.NoError(t, err)
 	assert.NotEqual(t, uint(0), pack.ID)
+	test.EqualSkipTimestampsID(t, expectedPack, pack)
 
 	pack, err = ds.Pack(pack.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "foo", pack.Name)
+	test.EqualSkipTimestampsID(t, expectedPack, pack)
 }
 
 func testGetPackByName(t *testing.T, ds fleet.Datastore) {

@@ -46,23 +46,6 @@ type Datastore struct {
 	config config.MysqlConfig
 }
 
-type dbfunctions interface {
-	Exec(query string, args ...interface{}) (sql.Result, error)
-	Get(dest interface{}, query string, args ...interface{}) error
-	Select(dest interface{}, query string, args ...interface{}) error
-}
-
-func (d *Datastore) getTransaction(opts []fleet.OptionalArg) dbfunctions {
-	var result dbfunctions = d.db
-	for _, opt := range opts {
-		switch t := opt().(type) {
-		case dbfunctions:
-			result = t
-		}
-	}
-	return result
-}
-
 type txFn func(*sqlx.Tx) error
 
 // retryableError determines whether a MySQL error can be retried. By default
