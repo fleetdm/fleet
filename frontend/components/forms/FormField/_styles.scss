@@ -9,13 +9,17 @@
     margin-bottom: $pad-xsmall;
 
     &--error {
-      color: $ui-error;
+      font-weight: $bold;
     }
   }
 
   &__hint {
+    font-size: $x-small;
+    font-style: italic;
     font-weight: $regular;
-    color: $core-fleet-blue;
+    line-height: 20px;
+    display: inline-block;
+    margin-top: $pad-small;
 
     code {
       color: $core-vibrant-blue;
