@@ -20,15 +20,15 @@ html, body {
   position: absolute;
   left: 0;
   right: 0;
+  .dropdown:hover > .dropdown-menu {
+    display: block;
+  }
   .header-btn {
     color: #ffffff;
     cursor: unset;
     font-family: @navigation-font;
     font-weight: @bold;
   }
-  // .header-btn[aria-expanded='true'] {
-  //   color: #6a67fe;
-  // }
   .header-link {
     color: #ffffff;
     font-weight: @bold;
@@ -104,6 +104,9 @@ html, body {
   left: 0;
   right: 0;
   border-bottom: 1px solid #e2e4ea;
+  .dropdown:hover > .dropdown-menu {
+    display: block;
+  }
   .header-btn {
     color: #192147;
     cursor: unset;

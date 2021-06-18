@@ -29,6 +29,7 @@ module.exports = {
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO));
 
         let queriesWithProblematicRemediations = [];
+        let queriesWithProblematicContributors = [];
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
@@ -38,6 +39,12 @@ module.exports = {
           } else if (query.remediation === undefined) {
             query.remediation = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
           }
+
+          // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
+          if (!query.contributors || (query.contributors !== undefined && !_.isString(query.contributors)) || query.contributors.split(',').some((contributor) => contributor.match('^[^A-za-z0-9].*|[^A-Za-z0-9-]|.*[^A-za-z0-9]$'))) {
+            queriesWithProblematicContributors.push(query);
+          }
+
           return query;
         });
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
@@ -48,6 +55,41 @@ module.exports = {
         if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
           throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
         }//•
+        // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
+        if (queriesWithProblematicContributors.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "contributors" of a query should be a single string of valid GitHub user names (e.g. "zwass", or "zwass,noahtalerman,mikermcneil").  But one or more queries have an invalid "contributors" value: ' + _.pluck(queriesWithProblematicContributors, 'slug').sort());
+        }//•
+
+        // Get a distinct list of all GitHub usernames from all of our queries.
+        // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
+        const githubUsernames = queries.reduce((list, query) => {
+          if (!queriesWithProblematicContributors.find((element) => element.slug === query.slug)) {
+            list = _.union(list, query.contributors.split(','));
+          }
+          return list;
+        }, []);
+
+        // Talk to GitHub and get additional information about each contributor.
+        let githubDataByUsername = {};
+        await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+          githubDataByUsername[username] = await sails.helpers.http.get('https://api.github.com/users/' + encodeURIComponent(username), {}, { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' });
+        });//∞
+
+        // Now expand queries with relevant profile data for the contributors.
+        for (let query of queries) {
+          let usernames = query.contributors.split(',');
+          let contributorProfiles = [];
+          for (let username of usernames) {
+            contributorProfiles.push({
+              name: githubDataByUsername[username].name,
+              handle: githubDataByUsername[username].login,
+              avatarUrl: githubDataByUsername[username].avatar_url,
+              htmlUrl: githubDataByUsername[username].html_url,
+            });
+          }
+          query.contributors = contributorProfiles;
+        }
+
         // Attach to Sails app configuration.
         builtStaticContent.queries = queries;
         builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;

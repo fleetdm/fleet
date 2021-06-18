@@ -32,9 +32,11 @@ func setupRedisLiveQuery(t *testing.T) (store *redisLiveQuery, teardown func()) 
 		useTLS   = false
 	)
 
-	store = NewRedisLiveQuery(pubsub.NewRedisPool(addr, password, database, useTLS))
+	pool, err := pubsub.NewRedisPool(addr, password, database, useTLS)
+	require.NoError(t, err)
+	store = NewRedisLiveQuery(pool)
 
-	_, err := store.pool.Get().Do("PING")
+	_, err = store.pool.Get().Do("PING")
 	require.NoError(t, err)
 
 	teardown = func() {

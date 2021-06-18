@@ -1,60 +1,92 @@
 <div id="query-library" v-cloak>
 
   <div class="d-flex justify-content-center">
-    <div class="col-6-grow justify-content-center my-5 library">
+    <div class="container justify-content-center library">
       <h2 class="mb-3">Standard query library</h2>
-      <p class="pb-3 description">Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery.</p>
+      <p class="pb-3 description">Fleet's standard query library includes a growing collection of useful queries
+        for organizations deploying Fleet and osquery.</p>
       <div class="p-0 m-0">
-        <div class="d-sm-none">
-          <div class="d-flex search-mobile"> 
-            <input class="mobile" v-model="inputTextValue" placeholder="Search queries" @keydown.self="delayInput(setSearchString, 500, 'defaultTimer')()"/>
+        <div class="d-md-none">
+          <div class="d-flex">
+            <div class="input-group search-mobile">
+              <div class="input-group-prepend border-right-0">
+                <span class="input-group-text bg-transparent border-right-0 pl-2 pr-1"><img class="search" alt="search"
+                    src="/images/icon-search-16x16@2x.png"></span>
+              </div>
+              <input class="form-control border-left-0 px-0" placeholder="Search queries" aria-label="Search queries"
+                v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+            </div>
           </div>
           <div class="d-flex select-mobile">
             <div class="select-mobile-border">
               <select class="select-purpose mobile font-weight-bold" v-model="selectedPurpose">
-                <option value="all" selected>All queries</option>
-                <option value="information">Informational queries</option>
-                <option value="detection">Detection queries</option>   
+                <option value="all queries" selected>All queries</option>
+                <option value="informational">Informational queries</option>
+                <option value="detection">Detection queries</option>
               </select>
             </div>
           </div>
           <div class="d-flex select-mobile">
             <div class="select-mobile-border">
               <select class="select-purpose mobile font-weight-bold" v-model="selectedPlatform">
-                <option value="all" selected>All platforms</option>
+                <option value="all platforms" selected>All platforms</option>
                 <option value="macOS">macOS</option>
                 <option value="Windows">Windows</option>
                 <option value="Linux">Linux</option>
+                <option value="FreeBSD">FreeBSD</option>
               </select>
             </div>
-          </div>              
+          </div>
         </div>
 
-        <div class="filter-and-search-bar d-none d-sm-flex row justify-content-between">
-          <div class="d-flex col col-xs-7 px-0">
-            <div class="filter-purpose">
-              <span>Show
-                <select class="mr-1 select-purpose" v-model="selectedPurpose">
-                  <option value="all" selected>all queries</option>
-                  <option value="information">information</option>
-                  <option value="detection">detection</option>
-                </select>
-              </span>
+        <div class="filter-and-search-bar d-none d-md-flex row align-items-center justify-content-between mb-3">
+          <div class="d-flex px-0 align-items-center filters">
+            <div class="d-flex">
+              <div class="dropdown flex-wrap filter purpose">
+                <p class="d-inline-flex mb-0">Show</p>
+                <button class="btn btn-secondary btn-sm dropdown-toggle px-1 py-0" type="button"
+                  id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  {{selectedPurpose}}
+                </button>
+                <div class="dropdown-menu px-2 py-1" aria-labelledby="dropdownMenuSelectPurpose">
+                  <button class="dropdown-item p-3" type="button" @click="clickSelectPurpose('all queries')">all
+                    queries</button>
+                  <button class="dropdown-item p-3" type="button"
+                    @click="clickSelectPurpose('informational')">informational</button>
+                  <button class="dropdown-item p-3" type="button"
+                    @click="clickSelectPurpose('detection')">detection</button>
+                </div>
+              </div>
             </div>
-            <div class="filter-platform">
-              <span> compatible with
-                <select class="mr-1 select-platform" v-model="selectedPlatform">
-                  <option value="all" selected>all platforms</option>
-                  <option value="macOS">macOS</option>
-                  <option value="Windows">Windows</option>
-                  <option value="Linux">Linux</option>
-                </select>
-              </span>
+            <div class="d-flex">
+              <div class="dropdown d-flex flex-wrap filter platform">
+                <p class="d-inline-flex flex-wrap pl-1 mb-0">compatible with</p>
+                <button class="btn btn-secondary btn-sm dropdown-toggle pl-2 pr-1 py-0" type="button"
+                  id="dropdownMenuSelectPlatform" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  {{selectedPlatform}}
+                </button>
+                <div class="dropdown-menu px-2 py-1" aria-labelledby="dropdownMenuSelectPlatform">
+                  <button class="dropdown-item p-3" type="button" @click="clickSelectPlatform('all platforms')">all platforms</button>
+                  <button class="dropdown-item p-3" type="button" @click="clickSelectPlatform('macOS')">macOS</button>
+                  <button class="dropdown-item p-3" type="button"
+                    @click="clickSelectPlatform('Windows')">Windows</button>
+                  <button class="dropdown-item p-3" type="button" @click="clickSelectPlatform('Linux')">Linux</button>
+                  <button class="dropdown-item p-3" type="button"
+                    @click="clickSelectPlatform('FreeBSD')">FreeBSD</button>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="col col-xs-5 px-0 justify-content-end">
-            <div class="search d-flex justify-content-end">              
-              <input v-model="inputTextValue" placeholder="Search queries" @keydown.self="delayInput(setSearchString, 500, 'defaultTimer')()"/>
+          <div class="d-flex px-0">
+            <div class="d-flex justify-content-end">
+              <div class="input-group search">
+                <div class="input-group-prepend border-right-0 search">
+                  <span class="input-group-text bg-transparent border-right-0 pl-2 pr-1"><img class="search"
+                      alt="search" src="/images/icon-search-16x16@2x.png"></span>
+                </div>
+                <input class="form-control border-left-0 px-0" placeholder="Search queries" aria-label="Search queries"
+                  v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+              </div>
             </div>
           </div>
         </div>
@@ -65,25 +97,34 @@
             <div class="card results" @click="clickCard(query.slug)">
               <div class="card-body query-card">
                 <div class="row justify-content-between align-items-center">
-                  <div class="col-sm-9 col-md-10">
+                  <div class="col-sm-9 col-md-9">
                     <h5 class="card-title m-0">{{query.name}}</h5>
                     <p class="font-italic mb-1 p-0 description">{{query.description}}</p>
                     <div class="contributors" v-if="query.contributors && query.contributors.length">
                       <div class="d-flex mb-2 mb-sm-1 align-items-center">
-                        <div v-for="contributor in query.contributors.split(',')">
+                        <div v-for="contributor in query.contributors">
                           <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
-                            <img alt="GitHub profile image" :alt="contributor" :src="getAvatarUrl(contributorsDictionary[contributor])"/>
+                            <img alt="a GitHub user avatar" :alt="contributor" :src="contributor.avatarUrl" />
                           </div>
                         </div>
-                        <p class="mb-0 ml-1">contributed by {{getContributorsString(query.contributors.split(','), contributorsDictionary)}}</p>
+                        <p class="mb-0 ml-1">contributed by {{getContributorsString(query.contributors)}}</p>
                       </div>
                     </div>
                   </div>
-                  <div class="col-sm-3 col-md-2">
+                  <div class="col-sm-3 col-md-auto">
                     <div class="text-sm-right m-0">
-                      <span v-if="query.platforms.includes('macOS')"><img class="d-inline mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo" src="/images/os-macos-black-16x16@2x.png" alt="macOS"/></span>
-                      <span v-if="query.platforms.includes('Windows')"><img class="d-inline mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo" src="/images/os-windows-black-16x16@2x.png" alt="Windows"/></span>
-                      <span v-if="query.platforms.includes('Linux')"><img class="d-inline mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo" src="/images/os-linux-black-16x16@2x.png" alt="Linux"/></span>
+                      <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
+                        src="/images/os-macos-black-16x16@2x.png" alt="macOS"
+                        v-if="query.platforms.includes('macOS')" />
+                      <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
+                        src="/images/os-windows-black-16x16@2x.png" alt="Windows"
+                        v-if="query.platforms.includes('Windows')" />
+                      <img class="d-inline-flex mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo"
+                        src="/images/os-linux-black-16x16@2x.png" alt="Linux"
+                        v-if="query.platforms.includes('Linux')" />
+                      <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
+                        src="/images/os-freebsd-black-16x16@2x.png" alt="FreeBSD"
+                        v-if="query.platforms.includes('FreeBSD')" />
                     </div>
                   </div>
                 </div>
@@ -92,14 +133,18 @@
             </div>
           </div>
         </div>
-      </div>    
+      </div>
     </div>
   </div>
   <div class="d-flex justify-content-center p-3">
     <div class="card call-to-action col-6-grow my-5 library">
       <div class="card-body">
-          <h3 class="mb-3">Contributors</h3>
-          <p><strong>Want to add your own query?</strong> Please submit a pull request <a href="https://github.com/fleetdm/fleet/edit/master/docs/1-Using-Fleet/standard-query-library/standard-query-library.yml" >over on GitHub</a>.</p>
+        <h3 class="mb-3">Contributors</h3>
+        <p><strong>Want to add your own query?</strong> Please submit a pull request
+          <a href="https://github.com/fleetdm/fleet/edit/main/docs/1-Using-Fleet/standard-query-library/standard-query-library.yml">
+            over on GitHub
+          </a>.
+        </p>
       </div>
     </div>
   </div>
