@@ -35,7 +35,7 @@ const authMiddleware = (store) => (next) => (action) => {
   if (type === LOGOUT_SUCCESS || type === LOGIN_FAILURE) {
     const { LOGIN } = PATHS;
 
-    local.clear();
+    local.removeItem("auth_token");
     Fleet.setBearerToken(null);
     store.dispatch(push(LOGIN));
   }
