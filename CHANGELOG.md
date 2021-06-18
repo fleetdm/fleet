@@ -34,7 +34,7 @@ Teams adds the ability to separate hosts into exclusive groups. This way, users 
 
 Fleet 4.0.0 is a major release and introduces several breaking changes and database migrations. 
 
-* Use strictly `fleet` in Fleet's configuration, API routes, and environment variables. This means that you must update all usage of `kolide` in these items. The backwards compatibility introduced in Fleet 3.8.0 is no longer valid in Fleet 4.0.0.
+* Use strictly `fleet` in Fleet's configuration, API routes, and environment variables. Users must update all usage of `kolide` in these items (deprecated since Fleet 3.8.0).
 
 * Change configuration option `server_tlsprofile` to `server_tls_compatability`. This option previously had an inconsistent key name.
 
