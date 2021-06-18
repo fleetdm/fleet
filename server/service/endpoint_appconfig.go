@@ -85,7 +85,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			HostSettings: &fleet.HostSettings{
 				AdditionalQueries: config.AdditionalQueries,
 			},
-			License: license,
+			License:      license,
 			AgentOptions: agentOptions,
 		}
 		return response, nil
@@ -98,6 +98,10 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 		config, err := svc.ModifyAppConfig(ctx, req.Payload)
 		if err != nil {
 			return appConfigResponse{Err: err}, nil
+		}
+		license, err := svc.License(ctx)
+		if err != nil {
+			return nil, err
 		}
 		response := appConfigResponse{
 			OrgInfo: &fleet.OrgInfo{
@@ -123,6 +127,7 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				HostExpiryEnabled: &config.HostExpiryEnabled,
 				HostExpiryWindow:  &config.HostExpiryWindow,
 			},
+			License:      license,
 			AgentOptions: config.AgentOptions,
 		}
 		if response.SMTPSettings.SMTPPassword != nil {
