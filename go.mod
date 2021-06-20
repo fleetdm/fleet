@@ -43,6 +43,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.8 // indirect
 	github.com/mitchellh/mapstructure v0.0.0-20180220230111-00c29f56e238 // indirect
+	github.com/mna/redisc v1.2.1
 	github.com/olekukonko/tablewriter v0.0.0-20180506121414-d4647c9c7a84
 	github.com/patrickmn/sortutil v0.0.0-20120526081524-abeda66eb583
 	github.com/pelletier/go-toml v1.1.0 // indirect
@@ -56,10 +57,9 @@ require (
 	github.com/spf13/jwalterweatherman v0.0.0-20180109140146-7c0cea34c8ec // indirect
 	github.com/spf13/pflag v1.0.1 // indirect
 	github.com/spf13/viper v1.0.2
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/theupdateframework/go-tuf v0.0.0-20201230183259-aee6270feb55
-	github.com/throttled/throttled v2.2.5+incompatible
-	github.com/throttled/throttled/v2 v2.7.2
+	github.com/throttled/throttled/v2 v2.8.0
 	github.com/urfave/cli/v2 v2.3.0
 	go.opencensus.io v0.20.2 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
@@ -72,3 +72,4 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v2 v2.2.7
 )
+

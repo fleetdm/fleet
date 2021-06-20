@@ -15,7 +15,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-	"github.com/throttled/throttled/store/memstore"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 func TestAPIRoutes(t *testing.T) {
