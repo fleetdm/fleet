@@ -17,8 +17,8 @@ module.exports.routes = {
   'GET /company/contact':    { action:   'view-contact' },
   'GET /get-started':        { action:   'view-pricing' },
 
-  'GET /install':            'https://github.com/fleetdm/fleet/blob/master/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
-  '/documentation':          'https://github.com/fleetdm/fleet/tree/master/docs',
+  'GET /install':            'https://github.com/fleetdm/fleet/blob/main/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
+  '/documentation':          'https://github.com/fleetdm/fleet/tree/main/docs',
   '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
 
