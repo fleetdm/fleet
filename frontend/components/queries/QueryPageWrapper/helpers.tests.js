@@ -72,7 +72,7 @@ describe("QueryPageWrapper - helpers", () => {
             expect(flashMessageAction).toBeTruthy();
             expect(flashMessageAction.payload).toMatchObject({
               alertType: "error",
-              message: "Resource not found",
+              message: "The query you requested does not exist in Fleet.",
             });
 
             done();
