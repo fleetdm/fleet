@@ -1,79 +1,37 @@
 import React, { Component } from "react";
-import FleetIcon from "components/icons/FleetIcon";
+import PropTypes from "prop-types";
 
+import FleetIcon from "components/icons/FleetIcon";
 import softwareInterface from "interfaces/software";
 
 const baseClass = "software-vulnerabilities";
 
 class SoftwareVulnerabilities extends Component {
   static propTypes = {
-    software: softwareInterface.isRequired,
+    software: PropTypes.arrayOf(softwareInterface),
   };
 
   render() {
     const { software } = this.props;
-
-    const softwarez = [
-      {
-        id: 1,
-        name: "Figma.app",
-        version: "4.2.0",
-        source: "apps",
-        generated_cpe: "",
-        vulnerabilities: [],
-      },
-      {
-        id: 2,
-        name: "Google Chrome.app",
-        version: "91.0.4472.101",
-        source: "apps",
-        generated_cpe: "cpe:2.3:a:google:chrome:91.0.4472.77:*:*:*:*:*:*:*",
-        vulnerabilities: [
-          {
-            cve: "CVE-2013-6662",
-            details_link: "https://nvd.nist.gov/vuln/detail/CVE-2013-6662",
-          },
-          {
-            cve: "CVE-2014-6662",
-            details_link: "https://nvd.nist.gov/vuln/detail/CVE-2014-6662",
-          },
-          {
-            cve: "CVE-2015-6662",
-            details_link: "https://nvd.nist.gov/vuln/detail/CVE-2015-6662",
-          },
-        ],
-      },
-      {
-        id: 3,
-        name: "Make Believe.app",
-        version: "91.0.4472.101",
-        source: "apps",
-        generated_cpe: "cpe:2.3:a:google:chrome:91.0.4472.77:*:*:*:*:*:*:*",
-        vulnerabilities: [
-          {
-            cve: "CVE-2016-6662",
-            details_link: "https://nvd.nist.gov/vuln/detail/CVE-2016-6662",
-          },
-        ],
-      },
-    ];
 
     let vulsList = [];
 
     const vulnerabilitiesListMaker = (softwarezz) => {
       softwarezz.forEach((software) => {
         let softwareName = software.name;
-        software.vulnerabilities.forEach((vulnerability) => {
-          vulsList.push({
-            name: softwareName,
-            cve: vulnerability.cve,
-            details_link: vulnerability.details_link,
+        if (software.vulnerabilities) {
+          software.vulnerabilities.forEach((vulnerability) => {
+            vulsList.push({
+              name: softwareName,
+              cve: vulnerability.cve,
+              details_link: vulnerability.details_link,
+            });
           });
-        });
+        }
       });
     };
 
-    vulnerabilitiesListMaker(softwarez);
+    vulnerabilitiesListMaker(software);
 
     const renderVulsCount = (list) => {
       if (list.length === 1) {
@@ -96,6 +54,12 @@ class SoftwareVulnerabilities extends Component {
       );
     };
 
+    // No software vulnerabilities
+    if (!software.vulnerabilities) {
+      return null;
+    }
+
+    // Software vulnerabilities
     return (
       <div className={`${baseClass}`}>
         <div className={`${baseClass}__count`}>

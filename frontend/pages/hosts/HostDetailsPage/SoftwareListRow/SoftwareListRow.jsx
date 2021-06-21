@@ -46,9 +46,6 @@ class SoftwareListRow extends Component {
           />
         );
       }
-
-      // TODO: delete this hardcoded return once API returns correctly
-      return <IssueIconToolTip text={"3 vulnerabilities detected"} />;
     };
 
     return (
