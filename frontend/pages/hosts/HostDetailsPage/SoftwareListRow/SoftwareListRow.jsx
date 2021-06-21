@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import IssueIconToolTip from "components/IconToolTip/IssueIconTooltip";
 
 import softwareInterface from "interfaces/software";
 
@@ -11,7 +12,7 @@ class SoftwareListRow extends Component {
 
   render() {
     const { software } = this.props;
-    const { name, source, version } = software;
+    const { name, source, version, vulnerabilities } = software;
 
     const TYPE_CONVERSION = {
       apt_sources: "Package (APT)",
@@ -35,8 +36,24 @@ class SoftwareListRow extends Component {
 
     const type = TYPE_CONVERSION[source] || "Unknown";
 
+    const vulnerabilitiesIcon = (vulnerabilities) => {
+      if (vulnerabilities && vulnerabilities.length === 1) {
+        return <IssueIconToolTip text={"1 vulnerability detected"} />;
+      } else if (vulnerabilities) {
+        return (
+          <IssueIconToolTip
+            text={`${vulnerabilities.length} vulnerability detected`}
+          />
+        );
+      }
+
+      // TODO: delete this hardcoded return once API returns correctly
+      return <IssueIconToolTip text={"3 vulnerabilities detected"} />;
+    };
+
     return (
       <tr>
+        <td className={`${baseClass}__name`}>{vulnerabilitiesIcon()}</td>
         <td className={`${baseClass}__name`}>{name}</td>
         <td className={`${baseClass}__type`}>{type}</td>
         <td className={`${baseClass}__installed-version`}>{version}</td>

@@ -337,6 +337,7 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
+
         {host.software.length === 0 ? (
           <div className="results">
             <p className="results__header">
@@ -352,6 +353,7 @@ export class HostDetailsPage extends Component {
             <table className={wrapperClassName}>
               <thead>
                 <tr>
+                  <th></th>
                   <th>Name</th>
                   <th>Type</th>
                   <th>Installed Version</th>
