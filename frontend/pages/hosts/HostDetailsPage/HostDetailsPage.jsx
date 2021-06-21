@@ -12,6 +12,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
+import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 
 import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
@@ -330,6 +331,68 @@ export class HostDetailsPage extends Component {
     );
   };
 
+  renderUsers = () => {
+    const { host } = this.props;
+    // const { users } = host;
+    const wrapperClassName = `${baseClass}__table`;
+
+    // dummy data (delete when API works)
+    const users = [
+      {
+        id: 1,
+        uid: 1,
+        username: "daemon",
+        type: "",
+        groupname: "daemon",
+      },
+      {
+        ic: 2,
+        uid: 501,
+        username: "noahtalerman",
+        type: "",
+        groupname: "staff",
+      },
+      {
+        id: 3,
+        uic: 502,
+        username: "postgres",
+        type: "",
+        groupname: "daemon",
+      },
+    ];
+
+    return (
+      <div className="section section--users">
+        <p className="section__header">Recent system users</p>
+        {users.length === 0 ? (
+          <p className="results__data">No users were detected on this host.</p>
+        ) : (
+          <div className={`${baseClass}__wrapper`}>
+            <table className={wrapperClassName}>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Group name</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!!users.length &&
+                  users.map((hostUser) => {
+                    return (
+                      <HostUsersListRow
+                        key={`host-users-row-${hostUser.id}`}
+                        hostUser={hostUser}
+                      />
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   renderSoftware = () => {
     const { host } = this.props;
     const wrapperClassName = `${baseClass}__table`;
@@ -437,6 +500,7 @@ export class HostDetailsPage extends Component {
       renderLabels,
       renderSoftware,
       renderPacks,
+      renderUsers,
       renderRefetch,
     } = this;
 
@@ -615,6 +679,7 @@ export class HostDetailsPage extends Component {
         </div>
         {renderLabels()}
         {renderPacks()}
+        {renderUsers()}
         {/* The Software inventory feature is behind a feature flag
         so we only render the sofware section if the feature is enabled */}
         {host.software && renderSoftware()}
