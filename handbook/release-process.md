@@ -66,8 +66,8 @@ At this point, the individual managing the release should reserve 30 minutes to 
 
 After all changes required for release have been merged into the `master` branch, the individual tasked with managing the release should perform a manual quality assurance pass. 
 
-Documentation on conducting the manual QA pass can be found here: https://github.com/fleetdm/fleet/blob/f725a4e7f5ef994ecf18145fa284497dcfbb4333/handbook/manual-qa.md 
+Documentation on conducting the manual QA pass can be found [here](./manual-qa.md). 
 
 ## Release day
 
-Documentation on completing the release process can be found here: https://github.com/fleetdm/fleet/blob/f725a4e7f5ef994ecf18145fa284497dcfbb4333/docs/3-Contributing/5-Releasing-Fleet.md 
+Documentation on completing the release process can be found [here](../docs/3-Contributing/5-Releasing-Fleet.md).  
