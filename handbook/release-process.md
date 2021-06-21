@@ -27,7 +27,7 @@ One week before the release date, the individual tasked with managing the releas
 
 The Changelog section of the release issue acts as a short term roadmap and will be used as the public facing Changelog included in the release.
 
-To construct the Changelog, first, head to the [commit history for fleetdm/fleet](https://github.com/fleetdm/fleet/commits/master). Next, navigate to the commit made to prepare for the previous release. This commit is usually titled something like “Prepare for `<release number>`.” Finally, add a bullet point to the Changelog for each commit, according to the following:
+To construct the Changelog, first, head to the [commit history for fleetdm/fleet](https://github.com/fleetdm/fleet/commits/main). Next, navigate to the commit made to prepare for the previous release. This commit is usually titled something like “Prepare for `<release number>`.” Finally, add a bullet point to the Changelog for each commit, according to the following:
 
 1. Only include changes that are relevant to Fleet users. This is because the Changelog serves as a tool to both inform _and_ excite users of Fleet. This means that changes made to the development infrastructure, documentation, and contribution experience shouldn’t be included.
 2. Each bullet should start with a verb. For example, “Add,” or “Fix.”
