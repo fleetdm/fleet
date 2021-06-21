@@ -333,64 +333,42 @@ export class HostDetailsPage extends Component {
 
   renderUsers = () => {
     const { host } = this.props;
-    // const { users } = host;
+    const { users } = host;
     const wrapperClassName = `${baseClass}__table`;
 
-    // dummy data (delete when API works)
-    const users = [
-      {
-        id: 1,
-        uid: 1,
-        username: "daemon",
-        type: "",
-        groupname: "daemon",
-      },
-      {
-        ic: 2,
-        uid: 501,
-        username: "noahtalerman",
-        type: "",
-        groupname: "staff",
-      },
-      {
-        id: 3,
-        uic: 502,
-        username: "postgres",
-        type: "",
-        groupname: "daemon",
-      },
-    ];
-
-    return (
-      <div className="section section--users">
-        <p className="section__header">Recent system users</p>
-        {users.length === 0 ? (
-          <p className="results__data">No users were detected on this host.</p>
-        ) : (
-          <div className={`${baseClass}__wrapper`}>
-            <table className={wrapperClassName}>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Group name</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!!users.length &&
-                  users.map((hostUser) => {
-                    return (
-                      <HostUsersListRow
-                        key={`host-users-row-${hostUser.id}`}
-                        hostUser={hostUser}
-                      />
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
+    if (users) {
+      return (
+        <div className="section section--users">
+          <p className="section__header">Users</p>
+          {users.length === 0 ? (
+            <p className="results__data">
+              No users were detected on this host.
+            </p>
+          ) : (
+            <div className={`${baseClass}__wrapper`}>
+              <table className={wrapperClassName}>
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!!users.length &&
+                    users.map((hostUser) => {
+                      return (
+                        <HostUsersListRow
+                          key={`host-users-row-${hostUser.id}`}
+                          hostUser={hostUser}
+                        />
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+    }
   };
 
   renderSoftware = () => {
