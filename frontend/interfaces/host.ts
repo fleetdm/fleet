@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import hostUserInterface, { IHostUser } from "./host_users";
 
 export default PropTypes.shape({
   detail_updated_at: PropTypes.string,
@@ -15,6 +16,7 @@ export default PropTypes.shape({
   uptime: PropTypes.number,
   uuid: PropTypes.string,
   seen_time: PropTypes.string,
+  users: PropTypes.arrayOf(hostUserInterface),
 });
 
 export interface IHost {
@@ -32,4 +34,5 @@ export interface IHost {
   uptime: number;
   uuid: string;
   seen_time: string;
+  users: IHostUser[];
 }
