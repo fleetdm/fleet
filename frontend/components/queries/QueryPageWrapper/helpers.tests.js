@@ -51,7 +51,7 @@ describe("QueryPageWrapper - helpers", () => {
           expect(locationChangeAction).toBeTruthy();
           expect(locationChangeAction.payload).toEqual({
             method: "push",
-            args: ["/queries/new"],
+            args: ["/queries/manage"],
           });
 
           done();
