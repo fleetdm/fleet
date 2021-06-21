@@ -72,16 +72,18 @@ describe("QueryPageWrapper - helpers", () => {
             expect(flashMessageAction).toBeTruthy();
 
             if (
-              /no rows in result set/gi.test(flashMessageAction.payload.message)
+              flashMessageAction.payload.message.includes(
+                "no rows in result set"
+              )
             ) {
               expect(flashMessageAction.payload).toMatchObject({
                 alertType: "error",
-                message: "Resource not found",
+                message: "The query you requested does not exist in Fleet.",
               });
             } else {
               expect(flashMessageAction.payload).toMatchObject({
                 alertType: "error",
-                message: "The query you requested does not exist in Fleet.",
+                message: "Resource not found",
               });
             }
 

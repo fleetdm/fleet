@@ -10,7 +10,7 @@ export const fetchQuery = (dispatch, queryID) => {
     const { MANAGE_QUERIES } = PATHS;
     let errorMessage = join(values(omit(errors, "http_status")), ", ");
 
-    if (!/no rows in result set/gi.test(errorMessage)) {
+    if (errorMessage.includes("no rows in result set")) {
       errorMessage = "The query you requested does not exist in Fleet.";
     }
 
