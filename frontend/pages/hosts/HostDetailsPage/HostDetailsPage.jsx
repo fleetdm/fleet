@@ -13,6 +13,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities";
 
 import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
@@ -434,26 +435,7 @@ export class HostDetailsPage extends Component {
           </div>
         ) : (
           <>
-            <div className={`${baseClass}__vul-wrapper`}>
-              <div className={`${baseClass}__vul-count`}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                >
-                  <path
-                    d="M0 8C0 12.4183 3.5817 16 8 16C12.4183 16 16 12.4183 16 8C16 3.5817 12.4183 0 8 0C3.5817 0 0 3.5817 0 8ZM14 8C14 11.3137 11.3137 14 8 14C4.6863 14 2 11.3137 2 8C2 4.6863 4.6863 2 8 2C11.3137 2 14 4.6863 14 8ZM7 12V10H9V12H7ZM7 4V9H9V4H7Z"
-                    fill="#8B8FA2"
-                  />
-                </svg>{" "}
-                {renderVulsCount(vulsList)}
-              </div>
-              <div className={`${baseClass}__vul-list`}>
-                <ul>{vulsList.map((vul, index) => renderVul(vul, index))}</ul>
-              </div>
-            </div>
+            <SoftwareVulnerabilities software={host.software} />
             <div className={`${baseClass}__wrapper`}>
               <table className={wrapperClassName}>
                 <thead>
