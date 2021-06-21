@@ -39,7 +39,7 @@ describe("QueryPageWrapper - helpers", () => {
     });
 
     describe("when the API call is unsuccessful", () => {
-      it("pushes to the new query page", (done) => {
+      it("pushes to the manage queries page", (done) => {
         queryMocks.load.invalid(bearerToken, queryID);
         const mockStore = reduxMockStore();
 
@@ -70,10 +70,20 @@ describe("QueryPageWrapper - helpers", () => {
             });
 
             expect(flashMessageAction).toBeTruthy();
-            expect(flashMessageAction.payload).toMatchObject({
-              alertType: "error",
-              message: "The query you requested does not exist in Fleet.",
-            });
+
+            if (
+              /no rows in result set/gi.test(flashMessageAction.payload.message)
+            ) {
+              expect(flashMessageAction.payload).toMatchObject({
+                alertType: "error",
+                message: "Resource not found",
+              });
+            } else {
+              expect(flashMessageAction.payload).toMatchObject({
+                alertType: "error",
+                message: "The query you requested does not exist in Fleet.",
+              });
+            }
 
             done();
           })
