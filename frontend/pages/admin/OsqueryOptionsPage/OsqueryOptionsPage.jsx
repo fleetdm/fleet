@@ -73,7 +73,7 @@ export class OsqueryOptionsPage extends Component {
             overrides option.
           </p>
           <a
-            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+            href="https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
             target="_blank"
             rel="noreferrer"
           >

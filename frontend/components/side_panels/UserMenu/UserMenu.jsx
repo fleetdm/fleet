@@ -35,7 +35,7 @@ class UserMenu extends Component {
         label: "Documentation",
         onClick: () =>
           window.open(
-            "https://github.com/fleetdm/fleet/blob/master/docs/README.md",
+            "https://github.com/fleetdm/fleet/blob/main/docs/README.md",
             "_blank"
           ),
       },

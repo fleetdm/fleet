@@ -31,6 +31,6 @@ assignees: ''
 ### More info
 <!-- Any ideas?  -->
 
-<!-- If this is an issue with the Fleet UI: Please also [answer this question](https://github.com/fleetdm/fleet/blob/master/CONTRIBUTING.md#6-is-this-an-issue-with-the-fleet-ui). -->
+<!-- If this is an issue with the Fleet UI: Please also [answer this question](https://github.com/fleetdm/fleet/blob/main/CONTRIBUTING.md#6-is-this-an-issue-with-the-fleet-ui). -->
 
-<!-- If this is a performance issue: Please [follow these steps](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/6-Monitoring-Fleet.md#debugging-performance-issues) to generate and attach a debug archive. -->
+<!-- If this is a performance issue: Please [follow these steps](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/6-Monitoring-Fleet.md#debugging-performance-issues) to generate and attach a debug archive. -->
