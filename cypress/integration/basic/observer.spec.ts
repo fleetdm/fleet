@@ -5,7 +5,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.login();
       cy.seedBasic();
       cy.seedQueries();
-      cy.addDockerHost();
+      cy.addDockerHost("apples");
       cy.logout();
     });
 
@@ -49,25 +49,20 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       });
     });
 
-    it("Should verify Teams on Hosts page", () => {
-      cy.login("marco@organization.com", "user123#");
+    // Pseudo code for team observer only
+    // TODO: Rebuild this test according to new manual QA
+    it("Can perform the appropriate basic team observer only actions", () => {
+      cy.login("toni@organization.com", "user123#");
       cy.visit("/hosts/manage");
 
       cy.findByText("All hosts which have enrolled in Fleet").should("exist");
 
-      // TODO: can see the "Team" column in the Hosts table
-      // cy.contains(".table-container .data-table__table th", "Team").should("be.visible");
-    });
-
-    it("Should verify hidden items on Hosts page", () => {
-      cy.login("marco@organization.com", "user123#");
-      cy.visit("/hosts/manage");
-
       cy.findByText("Packs").should("not.exist");
-      cy.findByText("Queries").should("not.exist");
+      cy.findByText("Settings").should("not.exist");
 
-      // TODO: can see the "Team" column in the Hosts table
-      // cy.contains(".table-container .data-table__table th", "Team").should("be.visible");
+      cy.contains(".table-container .data-table__table th", "Team").should(
+        "be.visible"
+      );
     });
   });
 }
