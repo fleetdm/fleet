@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 
+import IconToolTip from "components/IconToolTip";
 import Button from "components/buttons/Button";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
@@ -43,17 +44,22 @@ class UserSettingsForm extends Component {
 
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
-        <InputField
-          {...fields.username}
-          autofocus
-          label="Username (required)"
-        />
+        <InputField {...fields.name} autofocus label="Full Name (required)" />
         <InputField
           {...fields.email}
           label="Email (required)"
           hint={renderEmailHint()}
         />
-        <InputField {...fields.name} label="Full Name" />
+        {fields.username && (
+          <>
+            <InputField
+              {...fields.username}
+              disabled
+              label="Username"
+              hint="Username is no longer supported in Fleet."
+            />
+          </>
+        )}
         <InputField {...fields.position} label="Position" />
         <div className={`${baseClass}__button-wrap`}>
           <Button onClick={onCancel} variant="inverse">
