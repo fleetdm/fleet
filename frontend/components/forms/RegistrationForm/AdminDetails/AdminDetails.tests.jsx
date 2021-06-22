@@ -110,13 +110,13 @@ describe("AdminDetails - form", () => {
         .find({ name: "password_confirmation" })
         .find("input");
       const passwordField = form.find({ name: "password" }).find("input");
-      const usernameField = form.find({ name: "username" }).find("input");
+      const nameField = form.find({ name: "name" }).find("input");
       const htmlForm = form.find("form");
 
       fillInFormInput(emailField, "hi@gnar.dog");
       fillInFormInput(passwordField, "p@ssw0rd");
       fillInFormInput(passwordConfirmationField, "p@ssw0rd");
-      fillInFormInput(usernameField, "gnardog");
+      fillInFormInput(nameField, "Gnar Dog");
       htmlForm.simulate("submit");
 
       expect(onSubmitSpy).toHaveBeenCalled();
