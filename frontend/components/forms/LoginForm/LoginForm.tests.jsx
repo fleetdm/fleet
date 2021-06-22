@@ -69,7 +69,7 @@ describe("LoginForm - component", () => {
     submitBtn.simulate("click");
 
     expect(form.state().errors).toMatchObject({
-      username: "Username or email field must be completed",
+      username: "Email field must be completed",
     });
     expect(submitSpy).not.toHaveBeenCalled();
   });

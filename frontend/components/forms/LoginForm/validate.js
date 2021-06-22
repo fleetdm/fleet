@@ -6,7 +6,7 @@ const validate = (formData) => {
   const { password, username } = formData;
 
   if (!validatePresence(username)) {
-    errors.username = "Username or email field must be completed";
+    errors.username = "Email field must be completed";
   }
 
   if (!validatePresence(password)) {
