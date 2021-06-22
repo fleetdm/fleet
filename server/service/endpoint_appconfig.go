@@ -78,6 +78,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			ServerSettings: &fleet.ServerSettings{
 				ServerURL:         &config.ServerURL,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
+				EnableAnalytics:   &config.EnableAnalytics,
 			},
 			SMTPSettings:       smtpSettings,
 			SSOSettings:        ssoSettings,
@@ -111,6 +112,7 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			ServerSettings: &fleet.ServerSettings{
 				ServerURL:         &config.ServerURL,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
+				EnableAnalytics:   &config.EnableAnalytics,
 			},
 			SMTPSettings: smtpSettingsFromAppConfig(config),
 			SSOSettings: &fleet.SSOSettingsPayload{
