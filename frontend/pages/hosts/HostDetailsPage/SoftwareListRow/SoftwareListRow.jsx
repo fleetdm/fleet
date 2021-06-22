@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import IssueIconToolTip from "components/IssueIconTooltip";
+import IconToolTip from "components/IconTooltip";
 
 import softwareInterface from "interfaces/software";
 
@@ -38,11 +38,13 @@ class SoftwareListRow extends Component {
 
     const vulnerabilitiesIcon = () => {
       if (vulnerabilities && vulnerabilities.length === 1) {
-        return <IssueIconToolTip text={"1 vulnerability detected"} />;
+        return <IconToolTip text={"1 vulnerability detected"} issue isHtml />;
       } else if (vulnerabilities) {
         return (
-          <IssueIconToolTip
+          <IconToolTip
             text={`${vulnerabilities.length} vulnerabilities detected`}
+            issue
+            isHtml
           />
         );
       }
