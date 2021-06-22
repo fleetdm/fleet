@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/platform"
@@ -224,15 +223,17 @@ func (u *Updater) Download(repoPath, localPath string) error {
 		return errors.Wrap(err, "close tmp file")
 	}
 
-	if runtime.GOOS == constant.PlatformName {
+	// Attempt to exec the new binary only if the platform matches. This will
+	// always fail if the binary doesn't match the platform, so there's not
+	// really anything we can check.
+	if u.opt.Platform == constant.PlatformName {
 		out, err := exec.Command(tmp.Name(), "--version").CombinedOutput()
 		if err != nil {
-
 			return errors.Wrapf(err, "exec new version: %s", string(out))
 		}
 	}
 
-	if runtime.GOOS == "windows" {
+	if constant.PlatformName == "windows" {
 		// Remove old file first
 		if err := os.Rename(localPath, localPath+".old"); err != nil && !os.IsNotExist(err) {
 			return errors.Wrap(err, "rename old")
