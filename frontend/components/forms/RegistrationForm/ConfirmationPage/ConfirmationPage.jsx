@@ -102,7 +102,11 @@ class ConfirmationPage extends Component {
 
           {importOsqueryConfig()}
         </div>
-
+        <p>
+          Fleet Device Management Inc. periodically collects anonymous
+          information about your instance. Sending usage statistics from your
+          Fleet instance is optional and can be disabled in settings.
+        </p>
         <Button
           type="submit"
           tabIndex={tabIndex}
