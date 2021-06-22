@@ -113,7 +113,7 @@ func batchHostnames(hostnames []string) [][]string {
 func (d *Datastore) GetLabelSpecs() ([]*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	// Get basic specs
-	query := "SELECT name, description, query, platform, label_type, label_membership_type FROM labels"
+	query := "SELECT id, name, description, query, platform, label_type, label_membership_type FROM labels"
 	if err := d.db.Select(&specs, query); err != nil {
 		return nil, errors.Wrap(err, "get labels")
 	}
