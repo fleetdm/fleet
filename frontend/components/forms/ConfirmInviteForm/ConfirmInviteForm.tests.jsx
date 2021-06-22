@@ -19,7 +19,6 @@ describe("ConfirmInviteForm - component", () => {
     .find("input");
   const passwordInput = form.find({ name: "password" }).find("input");
   const submitBtn = form.find("button");
-  const usernameInput = form.find({ name: "username" }).find("input");
 
   it("renders", () => {
     expect(form.length).toEqual(1);
@@ -41,7 +40,6 @@ describe("ConfirmInviteForm - component", () => {
 
   it("calls the handleSubmit prop with the invite_token when valid", () => {
     fillInFormInput(nameInput, "Gnar Dog");
-    fillInFormInput(usernameInput, "gnardog");
     fillInFormInput(passwordInput, "p@ssw0rd");
     fillInFormInput(passwordConfirmationInput, "p@ssw0rd");
     submitBtn.simulate("click");
@@ -49,7 +47,6 @@ describe("ConfirmInviteForm - component", () => {
     expect(handleSubmitSpy).toHaveBeenCalledWith({
       ...formData,
       name: "Gnar Dog",
-      username: "gnardog",
       password: "p@ssw0rd",
       password_confirmation: "p@ssw0rd",
     });
@@ -68,23 +65,6 @@ describe("ConfirmInviteForm - component", () => {
 
       expect(form.state().errors).toMatchObject({
         name: "Full name must be present",
-      });
-    });
-  });
-
-  describe("username input", () => {
-    it("changes form state on change", () => {
-      fillInFormInput(usernameInput, "gnardog");
-
-      expect(form.state().formData).toMatchObject({ username: "gnardog" });
-    });
-
-    it("validates the field must be present", () => {
-      fillInFormInput(usernameInput, "");
-      submitBtn.simulate("click");
-
-      expect(form.state().errors).toMatchObject({
-        username: "Username must be present",
       });
     });
   });
