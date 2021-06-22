@@ -39,9 +39,7 @@ describe("User invite and activation", () => {
 
     cy.visit(inviteLink);
 
-    cy.findByLabelText(/username/i)
-      .click()
-      .type("ash.ketchum");
+    cy.findByLabelText(/name/i).click().type("Ash Ketchum");
 
     // ^$ exact match
     cy.findByLabelText(/^password$/i)
