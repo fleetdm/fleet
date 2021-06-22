@@ -14,10 +14,57 @@ class SoftwareVulnerabilities extends Component {
   render() {
     const { softwareList } = this.props;
 
+    // TODO: This is test data, change softwarez back to softwareList on line 66
+    // and delete line 19 through 62 of fake data
+    const softwarez = [
+      {
+        id: 1,
+        name: "Figma.app",
+        version: "4.2.0",
+        source: "apps",
+        generated_cpe: "",
+        vulnerabilities: [],
+      },
+      {
+        id: 2,
+        name: "Google Chrome.app",
+        version: "91.0.4472.101",
+        source: "apps",
+        generated_cpe: "cpe:2.3:a:google:chrome:91.0.4472.77:*:*:*:*:*:*:*",
+        vulnerabilities: [
+          {
+            cve: "CVE-2013-6662",
+            details_link: "https://nvd.nist.gov/vuln/detail/CVE-2013-6662",
+          },
+          {
+            cve: "CVE-2014-6662",
+            details_link: "https://nvd.nist.gov/vuln/detail/CVE-2014-6662",
+          },
+          {
+            cve: "CVE-2015-6662",
+            details_link: "https://nvd.nist.gov/vuln/detail/CVE-2015-6662",
+          },
+        ],
+      },
+      {
+        id: 3,
+        name: "Make Believe.app",
+        version: "91.0.4472.101",
+        source: "apps",
+        generated_cpe: "cpe:2.3:a:google:chrome:91.0.4472.77:*:*:*:*:*:*:*",
+        vulnerabilities: [
+          {
+            cve: "CVE-2016-6662",
+            details_link: "https://nvd.nist.gov/vuln/detail/CVE-2016-6662",
+          },
+        ],
+      },
+    ];
+
     const vulsList = [];
 
     const vulnerabilitiesListMaker = () => {
-      softwareList.forEach((software) => {
+      softwarez.forEach((software) => {
         if (software.vulnerabilities) {
           software.vulnerabilities.forEach((vulnerability) => {
             vulsList.push({
@@ -54,7 +101,7 @@ class SoftwareVulnerabilities extends Component {
     };
 
     // No software vulnerabilities
-    if (!softwareList.vulnerabilities) {
+    if (vulsList.length === 0) {
       return null;
     }
 

@@ -46,6 +46,8 @@ class SoftwareListRow extends Component {
           />
         );
       }
+      // TODO: This is test icon, delete this hardcoded in icon
+      return <IssueIconToolTip text={"3 vulnerabilities detected"} />;
     };
 
     return (
