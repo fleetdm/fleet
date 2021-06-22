@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import IssueIconToolTip from "components/IconToolTip/IssueIconTooltip";
+import IssueIconToolTip from "components/IssueIconTooltip";
 
 import softwareInterface from "interfaces/software";
 
