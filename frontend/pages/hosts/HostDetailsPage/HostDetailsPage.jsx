@@ -7,7 +7,6 @@ import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { isEmpty, noop, pick, reduce } from "lodash";
 
-import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
@@ -352,12 +351,12 @@ export class HostDetailsPage extends Component {
           </div>
         ) : (
           <>
-            <SoftwareVulnerabilities software={host.software} />
+            <SoftwareVulnerabilities softwareList={host.software} />
             <div className={`${baseClass}__wrapper`}>
               <table className={wrapperClassName}>
                 <thead>
                   <tr>
-                    <th></th>
+                    <th />
                     <th>Name</th>
                     <th>Type</th>
                     <th>Installed Version</th>

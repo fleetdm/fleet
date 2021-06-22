@@ -8,21 +8,20 @@ const baseClass = "software-vulnerabilities";
 
 class SoftwareVulnerabilities extends Component {
   static propTypes = {
-    software: PropTypes.arrayOf(softwareInterface),
+    softwareList: PropTypes.arrayOf(softwareInterface),
   };
 
   render() {
-    const { software } = this.props;
+    const { softwareList } = this.props;
 
-    let vulsList = [];
+    const vulsList = [];
 
-    const vulnerabilitiesListMaker = (softwarezz) => {
-      softwarezz.forEach((software) => {
-        let softwareName = software.name;
+    const vulnerabilitiesListMaker = () => {
+      softwareList.forEach((software) => {
         if (software.vulnerabilities) {
           software.vulnerabilities.forEach((vulnerability) => {
             vulsList.push({
-              name: softwareName,
+              name: software.name,
               cve: vulnerability.cve,
               details_link: vulnerability.details_link,
             });
@@ -31,7 +30,7 @@ class SoftwareVulnerabilities extends Component {
       });
     };
 
-    vulnerabilitiesListMaker(software);
+    vulnerabilitiesListMaker();
 
     const renderVulsCount = (list) => {
       if (list.length === 1) {
@@ -55,7 +54,7 @@ class SoftwareVulnerabilities extends Component {
     };
 
     // No software vulnerabilities
-    if (!software.vulnerabilities) {
+    if (!softwareList.vulnerabilities) {
       return null;
     }
 

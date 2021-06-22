@@ -36,7 +36,7 @@ class SoftwareListRow extends Component {
 
     const type = TYPE_CONVERSION[source] || "Unknown";
 
-    const vulnerabilitiesIcon = (vulnerabilities) => {
+    const vulnerabilitiesIcon = () => {
       if (vulnerabilities && vulnerabilities.length === 1) {
         return <IssueIconToolTip text={"1 vulnerability detected"} />;
       } else if (vulnerabilities) {
