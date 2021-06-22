@@ -190,7 +190,7 @@ type LabelQueryExecution struct {
 }
 
 type LabelSpec struct {
-	ID                  uint
+	ID                  uint                `json:"id"`
 	Name                string              `json:"name"`
 	Description         string              `json:"description"`
 	Query               string              `json:"query"`
