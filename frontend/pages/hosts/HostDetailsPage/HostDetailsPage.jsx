@@ -353,15 +353,14 @@ export class HostDetailsPage extends Component {
                   </tr>
                 </thead>
                 <tbody>
-                  {!!users.length &&
-                    users.map((hostUser) => {
-                      return (
-                        <HostUsersListRow
-                          key={`host-users-row-${hostUser.id}`}
-                          hostUser={hostUser}
-                        />
-                      );
-                    })}
+                  {users.map((hostUser) => {
+                    return (
+                      <HostUsersListRow
+                        key={`host-users-row-${hostUser.id}`}
+                        hostUser={hostUser}
+                      />
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
