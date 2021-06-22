@@ -42,12 +42,10 @@ class SoftwareListRow extends Component {
       } else if (vulnerabilities) {
         return (
           <IssueIconToolTip
-            text={`${vulnerabilities.length} vulnerability detected`}
+            text={`${vulnerabilities.length} vulnerabilities detected`}
           />
         );
       }
-      // TODO: This is test icon, delete this hardcoded in icon
-      return <IssueIconToolTip text={"3 vulnerabilities detected"} />;
     };
 
     return (
