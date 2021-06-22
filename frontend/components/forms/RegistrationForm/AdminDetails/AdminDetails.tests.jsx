@@ -8,9 +8,9 @@ import { fillInFormInput, itBehavesLikeAFormInputElement } from "test/helpers";
 describe("AdminDetails - form", () => {
   let form = mount(<AdminDetails handleSubmit={noop} />);
 
-  describe("username input", () => {
+  describe("full name input", () => {
     it("renders an input field", () => {
-      itBehavesLikeAFormInputElement(form, "username");
+      itBehavesLikeAFormInputElement(form, "name");
     });
   });
 
@@ -45,7 +45,7 @@ describe("AdminDetails - form", () => {
         email: "Email must be present",
         password: "Password must be present",
         password_confirmation: "Password confirmation must be present",
-        username: "Username must be present",
+        name: "Full name must be present",
       });
     });
 
