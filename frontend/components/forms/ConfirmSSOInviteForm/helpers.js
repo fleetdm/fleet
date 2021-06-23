@@ -8,10 +8,6 @@ const validate = (formData) => {
     errors.name = "Full name must be present";
   }
 
-  if (!username) {
-    errors.username = "Username must be present";
-  }
-
   const valid = !size(errors);
 
   return { valid, errors };
