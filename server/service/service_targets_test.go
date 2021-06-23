@@ -20,7 +20,7 @@ func TestSearchTargets(t *testing.T) {
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
 	hosts := []*fleet.Host{
-		{HostName: "foo.local"},
+		{Hostname: "foo.local"},
 	}
 	labels := []*fleet.Label{
 		{

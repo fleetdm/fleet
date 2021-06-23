@@ -109,7 +109,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 	assert.Equal(t, "Mac OS X 10.14.5", gotHost.OSVersion)
 	assert.Equal(t, "darwin", gotHost.Platform)
 	assert.Equal(t, "2.12.0", gotHost.OsqueryVersion)
-	assert.Equal(t, "zwass.local", gotHost.HostName)
+	assert.Equal(t, "zwass.local", gotHost.Hostname)
 	assert.Equal(t, "froobling_uuid", gotHost.UUID)
 }
 
@@ -118,7 +118,7 @@ func TestAuthenticateHost(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 
 	var gotKey string
-	host := fleet.Host{ID: 1, HostName: "foobar"}
+	host := fleet.Host{ID: 1, Hostname: "foobar"}
 	ds.AuthenticateHostFunc = func(key string) (*fleet.Host, error) {
 		gotKey = key
 		return &host, nil
@@ -134,13 +134,13 @@ func TestAuthenticateHost(t *testing.T) {
 	assert.Equal(t, "test", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 
-	host = fleet.Host{ID: 7, HostName: "foobar"}
+	host = fleet.Host{ID: 7, Hostname: "foobar"}
 	_, err = svc.AuthenticateHost(context.Background(), "floobar")
 	require.Nil(t, err)
 	assert.Equal(t, "floobar", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 	// Host checks in twice
-	host = fleet.Host{ID: 7, HostName: "foobar"}
+	host = fleet.Host{ID: 7, Hostname: "foobar"}
 	_, err = svc.AuthenticateHost(context.Background(), "floobar")
 	require.Nil(t, err)
 	assert.Equal(t, "floobar", gotKey)
@@ -257,11 +257,11 @@ func TestHostDetailQueries(t *testing.T) {
 			},
 		},
 
-		Platform:         "rhel",
-		DetailUpdateTime: mockClock.Now(),
-		NodeKey:          "test_key",
-		HostName:         "test_hostname",
-		UUID:             "test_uuid",
+		Platform:        "rhel",
+		DetailUpdatedAt: mockClock.Now(),
+		NodeKey:         "test_key",
+		Hostname:        "test_hostname",
+		UUID:            "test_uuid",
 	}
 
 	svc := &Service{clock: mockClock, config: config.TestConfig(), ds: ds}
@@ -338,8 +338,8 @@ func TestLabelQueries(t *testing.T) {
 	assert.NotZero(t, acc)
 
 	// Simulate the detail queries being added
-	host.DetailUpdateTime = mockClock.Now().Add(-1 * time.Minute)
-	host.HostName = "zwass.local"
+	host.DetailUpdatedAt = mockClock.Now().Add(-1 * time.Minute)
+	host.Hostname = "zwass.local"
 	ctx = hostctx.NewContext(ctx, *host)
 
 	queries, acc, err = svc.GetDistributedQueries(ctx)
@@ -381,7 +381,7 @@ func TestLabelQueries(t *testing.T) {
 		map[string]string{},
 	)
 	assert.Nil(t, err)
-	host.LabelUpdateTime = mockClock.Now()
+	host.LabelUpdatedAt = mockClock.Now()
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
 	if assert.Len(t, gotResults, 1) {
@@ -401,7 +401,7 @@ func TestLabelQueries(t *testing.T) {
 		map[string]string{},
 	)
 	assert.Nil(t, err)
-	host.LabelUpdateTime = mockClock.Now()
+	host.LabelUpdatedAt = mockClock.Now()
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
 	if assert.Len(t, gotResults, 2) {
@@ -648,8 +648,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, "1.8.2", gotHost.OsqueryVersion)
 
 	// system_info
-	assert.Equal(t, int64(17179869184), gotHost.PhysicalMemory)
-	assert.Equal(t, "computer.local", gotHost.HostName)
+	assert.Equal(t, int64(17179869184), gotHost.Memory)
+	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
 
 	// os_version
@@ -663,8 +663,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, uint(0), gotHost.DistributedInterval)
 	assert.Equal(t, uint(0), gotHost.LoggerTLSPeriod)
 
-	host.HostName = "computer.local"
-	host.DetailUpdateTime = mockClock.Now()
+	host.Hostname = "computer.local"
+	host.DetailUpdatedAt = mockClock.Now()
 	mockClock.AddTime(1 * time.Minute)
 
 	// Now no detail queries should be required
@@ -823,8 +823,8 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, "1.8.2", gotHost.OsqueryVersion)
 
 	// system_info
-	assert.Equal(t, int64(17179869184), gotHost.PhysicalMemory)
-	assert.Equal(t, "computer.local", gotHost.HostName)
+	assert.Equal(t, int64(17179869184), gotHost.Memory)
+	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
 
 	// os_version
@@ -838,9 +838,9 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, uint(5), gotHost.DistributedInterval)
 	assert.Equal(t, uint(60), gotHost.LoggerTLSPeriod)
 
-	host.HostName = "computer.local"
+	host.Hostname = "computer.local"
 	host.Platform = "darwin"
-	host.DetailUpdateTime = mockClock.Now()
+	host.DetailUpdatedAt = mockClock.Now()
 	mockClock.AddTime(1 * time.Minute)
 
 	// Now no detail queries should be required

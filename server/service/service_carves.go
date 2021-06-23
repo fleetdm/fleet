@@ -50,7 +50,7 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 
 	now := time.Now().UTC()
 	carve := &fleet.CarveMetadata{
-		Name:       fmt.Sprintf("%s-%s-%s", host.HostName, now.Format(time.RFC3339), payload.RequestId),
+		Name:       fmt.Sprintf("%s-%s-%s", host.Hostname, now.Format(time.RFC3339), payload.RequestId),
 		HostId:     host.ID,
 		BlockCount: payload.BlockCount,
 		BlockSize:  payload.BlockSize,

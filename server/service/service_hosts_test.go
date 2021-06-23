@@ -24,7 +24,7 @@ func TestListHosts(t *testing.T) {
 	assert.Len(t, hosts, 0)
 
 	_, err = ds.NewHost(&fleet.Host{
-		HostName: "foo",
+		Hostname: "foo",
 	})
 	assert.Nil(t, err)
 
@@ -40,7 +40,7 @@ func TestDeleteHost(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 
 	host, err := ds.NewHost(&fleet.Host{
-		HostName: "foo",
+		Hostname: "foo",
 	})
 	assert.Nil(t, err)
 	assert.NotZero(t, host.ID)

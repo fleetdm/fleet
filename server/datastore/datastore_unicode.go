@@ -28,16 +28,16 @@ func testUnicode(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, "測試", label.Name)
 
 	host, err := ds.NewHost(&fleet.Host{
-		HostName:         "🍌",
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
+		Hostname:        "🍌",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
 	})
 	require.Nil(t, err)
 
 	host, err = ds.Host(host.ID)
 	require.Nil(t, err)
-	assert.Equal(t, "🍌", host.HostName)
+	assert.Equal(t, "🍌", host.Hostname)
 
 	user, err := ds.NewUser(&fleet.User{Username: "🍱", Password: []byte{}})
 	require.Nil(t, err)

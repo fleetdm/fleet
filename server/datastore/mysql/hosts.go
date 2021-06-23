@@ -12,22 +12,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-var hostSearchColumns = []string{"host_name", "uuid", "hardware_serial", "primary_ip"}
+var hostSearchColumns = []string{"hostname", "uuid", "hardware_serial", "primary_ip"}
 
 func (d *Datastore) NewHost(host *fleet.Host) (*fleet.Host, error) {
 	sqlStatement := `
 	INSERT INTO hosts (
 		osquery_host_id,
-		detail_update_time,
-		label_update_time,
+		detail_updated_at,
+		label_updated_at,
 		node_key,
-		host_name,
+		hostname,
 		uuid,
 		platform,
 		osquery_version,
 		os_version,
 		uptime,
-		physical_memory,
+		memory,
 		seen_time,
 		team_id
 	)
@@ -36,16 +36,16 @@ func (d *Datastore) NewHost(host *fleet.Host) (*fleet.Host, error) {
 	result, err := d.db.Exec(
 		sqlStatement,
 		host.OsqueryHostID,
-		host.DetailUpdateTime,
-		host.LabelUpdateTime,
+		host.DetailUpdatedAt,
+		host.LabelUpdatedAt,
 		host.NodeKey,
-		host.HostName,
+		host.Hostname,
 		host.UUID,
 		host.Platform,
 		host.OsqueryVersion,
 		host.OSVersion,
 		host.Uptime,
-		host.PhysicalMemory,
+		host.Memory,
 		host.SeenTime,
 		host.TeamID,
 	)
@@ -57,20 +57,19 @@ func (d *Datastore) NewHost(host *fleet.Host) (*fleet.Host, error) {
 	return host, nil
 }
 
-// TODO needs test
 func (d *Datastore) SaveHost(host *fleet.Host) error {
 	sqlStatement := `
 		UPDATE hosts SET
-			detail_update_time = ?,
-			label_update_time = ?,
+			detail_updated_at = ?,
+			label_updated_at = ?,
 			node_key = ?,
-			host_name = ?,
+			hostname = ?,
 			uuid = ?,
 			platform = ?,
 			osquery_version = ?,
 			os_version = ?,
 			uptime = ?,
-			physical_memory = ?,
+			memory = ?,
 			cpu_type = ?,
 			cpu_subtype = ?,
 			cpu_brand = ?,
@@ -95,16 +94,16 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 		WHERE id = ?
 	`
 	_, err := d.db.Exec(sqlStatement,
-		host.DetailUpdateTime,
-		host.LabelUpdateTime,
+		host.DetailUpdatedAt,
+		host.LabelUpdatedAt,
 		host.NodeKey,
-		host.HostName,
+		host.Hostname,
 		host.UUID,
 		host.Platform,
 		host.OsqueryVersion,
 		host.OSVersion,
 		host.Uptime,
-		host.PhysicalMemory,
+		host.Memory,
 		host.CPUType,
 		host.CPUSubtype,
 		host.CPUBrand,
@@ -288,9 +287,9 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 		h.osquery_host_id,
 		h.created_at,
 		h.updated_at,
-		h.detail_update_time,
+		h.detail_updated_at,
 		h.node_key,
-		h.host_name,
+		h.hostname,
 		h.uuid,
 		h.platform,
 		h.osquery_version,
@@ -299,7 +298,7 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 		h.platform_like,
 		h.code_name,
 		h.uptime,
-		h.physical_memory,
+		h.memory,
 		h.cpu_type,
 		h.cpu_subtype,
 		h.cpu_brand,
@@ -317,7 +316,7 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 		h.config_tls_refresh,
 		h.primary_ip,
 		h.primary_mac,
-		h.label_update_time,
+		h.label_updated_at,
 		h.team_id,
 		h.refetch_requested,
 		t.name AS team_name
@@ -379,7 +378,7 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 func (d *Datastore) CleanupIncomingHosts(now time.Time) error {
 	sqlStatement := `
 		DELETE FROM hosts
-		WHERE host_name = '' AND osquery_version = ''
+		WHERE hostname = '' AND osquery_version = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 	`
 	if _, err := d.db.Exec(sqlStatement, now); err != nil {
@@ -435,7 +434,7 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey string, teamID *uint, cool
 		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 
 		var id int64
-		err := tx.Get(&host, `SELECT id, last_enroll_time FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
+		err := tx.Get(&host, `SELECT id, last_enrolled_at FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return errors.Wrap(err, "check existing")
@@ -444,8 +443,8 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey string, teamID *uint, cool
 			// Create new host record
 			sqlInsert := `
 				INSERT INTO hosts (
-					detail_update_time,
-					label_update_time,
+					detail_updated_at,
+					label_updated_at,
 					osquery_host_id,
 					seen_time,
 					node_key,
@@ -464,7 +463,7 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey string, teamID *uint, cool
 			// Prevent hosts from enrolling too often with the same identifier.
 			// Prior to adding this we saw many hosts (probably VMs) with the
 			// same identifier competing for enrollment and causing perf issues.
-			if cooldown > 0 && time.Since(host.LastEnrollTime) < cooldown {
+			if cooldown > 0 && time.Since(host.LastEnrolledAt) < cooldown {
 				return backoff.Permanent(fmt.Errorf("host identified by %s enrolling too often", osqueryHostID))
 			}
 			id = int64(host.ID)
@@ -473,7 +472,7 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey string, teamID *uint, cool
 				UPDATE hosts
 				SET node_key = ?,
 				team_id = ?,
-				last_enroll_time = NOW()
+				last_enrolled_at = NOW()
 				WHERE osquery_host_id = ?
 			`
 			_, err := tx.Exec(sqlUpdate, nodeKey, teamID, osqueryHostID)
@@ -513,10 +512,10 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*fleet.Host, error) {
 			osquery_host_id,
 			created_at,
 			updated_at,
-			detail_update_time,
-			label_update_time,
+			detail_updated_at,
+			label_updated_at,
 			node_key,
-			host_name,
+			hostname,
 			uuid,
 			platform,
 			osquery_version,
@@ -525,7 +524,7 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*fleet.Host, error) {
 			platform_like,
 			code_name,
 			uptime,
-			physical_memory,
+			memory,
 			cpu_type,
 			cpu_subtype,
 			cpu_brand,
@@ -616,7 +615,7 @@ func (d *Datastore) searchHostsWithOmits(filter fleet.TeamFilter, query string, 
 			FROM hosts
 			WHERE
 			(
-				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+				MATCH (hostname, uuid) AGAINST (? IN BOOLEAN MODE)
 				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
 			)
 			AND id NOT IN (?) AND %s
@@ -691,7 +690,7 @@ func (d *Datastore) SearchHosts(filter fleet.TeamFilter, query string, omit ...u
 			FROM hosts
 			WHERE
 			(
-				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+				MATCH (hostname, uuid) AGAINST (? IN BOOLEAN MODE)
 				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
 			) AND %s
 			LIMIT 10
@@ -714,7 +713,7 @@ func (d *Datastore) HostIDsByName(filter fleet.TeamFilter, hostnames []string) (
 
 	sqlStatement := fmt.Sprintf(`
 			SELECT id FROM hosts
-			WHERE host_name IN (?) AND %s
+			WHERE hostname IN (?) AND %s
 		`, d.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
@@ -735,7 +734,7 @@ func (d *Datastore) HostIDsByName(filter fleet.TeamFilter, hostnames []string) (
 func (d *Datastore) HostByIdentifier(identifier string) (*fleet.Host, error) {
 	sql := `
 		SELECT * FROM hosts
-		WHERE ? IN (host_name, osquery_host_id, node_key, uuid)
+		WHERE ? IN (hostname, osquery_host_id, node_key, uuid)
 		LIMIT 1
 	`
 	host := &fleet.Host{}

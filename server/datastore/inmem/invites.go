@@ -49,14 +49,14 @@ func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) 
 	// Apply ordering
 	if opt.OrderKey != "" {
 		var fields = map[string]string{
-			"id":                 "ID",
-			"created_at":         "CreatedAt",
-			"updated_at":         "UpdatedAt",
-			"detail_update_time": "DetailUpdateTime",
-			"email":              "Email",
-			"admin":              "Admin",
-			"name":               "Name",
-			"position":           "Position",
+			"id":                "ID",
+			"created_at":        "CreatedAt",
+			"updated_at":        "UpdatedAt",
+			"detail_updated_at": "DetailUpdatedAt",
+			"email":             "Email",
+			"admin":             "Admin",
+			"name":              "Name",
+			"position":          "Position",
 		}
 		if err := sortResults(invites, opt, fields); err != nil {
 			return nil, err
