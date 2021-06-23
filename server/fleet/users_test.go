@@ -11,15 +11,15 @@ import (
 func TestValidatePassword(t *testing.T) {
 
 	var passwordTests = []struct {
-		Username, Password, Email string
-		Admin, PasswordReset      bool
+		Password, Email      string
+		Admin, PasswordReset bool
 	}{
-		{"marpaia", "foobar", "mike@fleet.co", true, false},
-		{"jason", "bar0baz!?", "jason@fleet.co", true, false},
+		{"foobar", "mike@fleet.co", true, false},
+		{"bar0baz!?", "jason@fleet.co", true, false},
 	}
 
 	for _, tt := range passwordTests {
-		user := newTestUser(t, tt.Username, tt.Password, tt.Email)
+		user := newTestUser(t, tt.Password, tt.Email)
 
 		err := user.ValidatePassword(tt.Password)
 		assert.Nil(t, err)
@@ -29,7 +29,7 @@ func TestValidatePassword(t *testing.T) {
 	}
 }
 
-func newTestUser(t *testing.T, username, password, email string) *User {
+func newTestUser(t *testing.T, password, email string) *User {
 	var (
 		salt = "test-salt"
 		cost = 10

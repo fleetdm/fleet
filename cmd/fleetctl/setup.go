@@ -13,7 +13,6 @@ import (
 func setupCommand() *cli.Command {
 	var (
 		flEmail    string
-		flUsername string
 		flPassword string
 		flOrgName  string
 	)
@@ -28,13 +27,6 @@ func setupCommand() *cli.Command {
 				Value:       "",
 				Destination: &flEmail,
 				Usage:       "Email of the admin user to create",
-			},
-			&cli.StringFlag{
-				Name:        "username",
-				EnvVars:     []string{"USERNAME"},
-				Value:       "",
-				Destination: &flUsername,
-				Usage:       "Username of the admin user to create",
 			},
 			&cli.StringFlag{
 				Name:        "password",
@@ -63,10 +55,6 @@ func setupCommand() *cli.Command {
 			if flEmail == "" {
 				return errors.Errorf("Email of the admin user to create must be provided")
 			}
-			if flUsername == "" {
-				fmt.Println("No username supplied, using email as username")
-				flUsername = flEmail
-			}
 			if flPassword == "" {
 				fmt.Print("Password: ")
 				passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
@@ -88,7 +76,7 @@ func setupCommand() *cli.Command {
 
 			}
 
-			token, err := fleet.Setup(flEmail, flUsername, flPassword, flOrgName)
+			token, err := fleet.Setup(flEmail, flPassword, flOrgName)
 			if err != nil {
 				switch err.(type) {
 				case service.SetupAlreadyErr:

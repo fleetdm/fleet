@@ -40,20 +40,20 @@ func (mw loggingMiddleware) CreateUser(ctx context.Context, p fleet.UserPayload)
 
 func (mw loggingMiddleware) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	var (
-		users    []*fleet.User
-		err      error
-		username = "none"
+		users []*fleet.User
+		err   error
+		email = "<none>"
 	)
 
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		username = vc.Email()
+		email = vc.Email()
 	}
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "ListUsers",
-			"user", username,
+			"user", email,
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -65,20 +65,20 @@ func (mw loggingMiddleware) ListUsers(ctx context.Context, opt fleet.UserListOpt
 
 func (mw loggingMiddleware) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*fleet.User, error) {
 	var (
-		user     *fleet.User
-		err      error
-		username = "none"
+		user  *fleet.User
+		err   error
+		email = "<none>"
 	)
 
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		username = vc.Email()
+		email = vc.Email()
 	}
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "RequirePasswordReset",
-			"user", username,
+			"user", email,
 			"err", err,
 			"took", time.Since(begin),
 		)

@@ -18,7 +18,6 @@ const (
 	adminFlagName      = "admin"
 	globalRoleFlagName = "global-role"
 	teamFlagName       = "team"
-	usernameFlagName   = "username"
 	passwordFlagName   = "password"
 	emailFlagName      = "email"
 	ssoFlagName        = "sso"
@@ -43,11 +42,6 @@ func createUserCommand() *cli.Command {
 
    If a password is required and not provided by flag, the command will prompt for password input through stdin.`,
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:     usernameFlagName,
-				Usage:    "Username for new user (required)",
-				Required: true,
-			},
 			&cli.StringFlag{
 				Name:     emailFlagName,
 				Usage:    "Email for new user (required)",
@@ -85,7 +79,6 @@ func createUserCommand() *cli.Command {
 				return err
 			}
 
-			username := c.String(usernameFlagName)
 			password := c.String(passwordFlagName)
 			email := c.String(emailFlagName)
 			sso := c.Bool(ssoFlagName)
@@ -154,9 +147,9 @@ func createUserCommand() *cli.Command {
 			// the user will be stuck in a bad state and not be able to log in.
 			force_reset := !sso
 			err = client.CreateUser(fleet.UserPayload{
-				Username:                 &username,
 				Password:                 &password,
 				Email:                    &email,
+				Name:                     &email,
 				SSOEnabled:               &sso,
 				AdminForcedPasswordReset: &force_reset,
 				APIOnly:                  &apiOnly,

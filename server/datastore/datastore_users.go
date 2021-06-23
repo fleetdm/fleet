@@ -12,11 +12,11 @@ import (
 
 func testCreateUser(t *testing.T, ds fleet.Datastore) {
 	var createTests = []struct {
-		username, password, email   string
+		password, email             string
 		isAdmin, passwordReset, sso bool
 	}{
-		{"marpaia", "foobar", "mike@fleet.co", true, false, true},
-		{"jason", "foobar", "jason@fleet.co", true, false, false},
+		{"foobar", "mike@fleet.co", true, false, true},
+		{"foobar", "jason@fleet.co", true, false, false},
 	}
 
 	for _, tt := range createTests {
@@ -54,17 +54,17 @@ func testUserByID(t *testing.T, ds fleet.Datastore) {
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	var createTests = []struct {
-		username, password, email string
-		isAdmin, passwordReset    bool
+		password, email        string
+		isAdmin, passwordReset bool
 	}{
-		{"marpaia", "foobar", "mike@fleet.co", true, false},
-		{"jason", "foobar", "jason@fleet.co", false, false},
+		{"foobar", "mike@fleet.co", true, false},
+		{"foobar", "jason@fleet.co", false, false},
 	}
 
 	var users []*fleet.User
 	for _, tt := range createTests {
 		u := &fleet.User{
-			Name:                     tt.username,
+			Name:                     tt.email,
 			Password:                 []byte(tt.password),
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
@@ -136,7 +136,7 @@ func testListUsers(t *testing.T, ds fleet.Datastore) {
 	require.Len(t, users, 1)
 	assert.Equal(t, "jason@fleet.co", users[0].Email)
 
-	users, err = ds.ListUsers(fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "paia"}})
+	users, err = ds.ListUsers(fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "ike"}})
 	assert.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "mike@fleet.co", users[0].Email)

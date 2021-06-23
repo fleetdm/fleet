@@ -133,7 +133,6 @@ type UserListOptions struct {
 
 // UserPayload is used to modify an existing user
 type UserPayload struct {
-	Username                 *string     `json:"username,omitempty"`
 	Name                     *string     `json:"name,omitempty"`
 	Email                    *string     `json:"email,omitempty"`
 	Password                 *string     `json:"password,omitempty"`

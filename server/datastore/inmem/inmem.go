@@ -221,7 +221,7 @@ func (d *Datastore) createDevPacksAndQueries() error {
 }
 
 // Bootstrap a few users when using the in-memory database.
-// Each user's default password will just be their username.
+// Each user's default password will just be their email.
 func (d *Datastore) createDevUsers() error {
 	users := []fleet.User{
 		{
