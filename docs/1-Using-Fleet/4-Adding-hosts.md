@@ -89,7 +89,7 @@ For your convenience, osqueryd supports putting all of your flags into a single 
 osqueryd --flagfile=/etc/osquery/fleet.flags
 ```
 
-#### Note for flag file on Windows
+#### Flag file on Windows
 
 Ensure that paths to files in the flag file are absolute, and not quoted. For example in `C:\Program Files\osquery\osquery.flags`:
 
