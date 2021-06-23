@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -112,7 +113,7 @@ func batchHostnames(hostnames []string) [][]string {
 func (d *Datastore) GetLabelSpecs() ([]*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	// Get basic specs
-	query := "SELECT name, description, query, platform, label_type, label_membership_type FROM labels"
+	query := "SELECT id, name, description, query, platform, label_type, label_membership_type FROM labels"
 	if err := d.db.Select(&specs, query); err != nil {
 		return nil, errors.Wrap(err, "get labels")
 	}
@@ -318,13 +319,21 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 }
 
 func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, updated time.Time) error {
+	// Sort the results to have generated SQL queries ordered to minimize
+	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
+	orderedIDs := make([]uint, 0, len(results))
+	for labelID, _ := range results {
+		orderedIDs = append(orderedIDs, labelID)
+	}
+	sort.Slice(orderedIDs, func(i, j int) bool { return orderedIDs[i] < orderedIDs[j] })
+
 	// Loop through results, collecting which labels we need to insert/update,
 	// and which we need to delete
 	vals := []interface{}{}
 	bindvars := []string{}
 	removes := []uint{}
-
-	for labelID, matches := range results {
+	for _, labelID := range orderedIDs {
+		matches := results[labelID]
 		if matches {
 			// Add/update row
 			bindvars = append(bindvars, "(?,?,?)")

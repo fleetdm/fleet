@@ -404,27 +404,27 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	}
 
 	expectedSpecs := []*fleet.LabelSpec{
-		&fleet.LabelSpec{
+		{
 			Name:        "foo",
 			Query:       "select * from foo",
 			Description: "foo description",
 			Platform:    "darwin",
 		},
-		&fleet.LabelSpec{
+		{
 			Name:  "bar",
 			Query: "select * from bar",
 		},
-		&fleet.LabelSpec{
+		{
 			Name:  "bing",
 			Query: "select * from bing",
 		},
-		&fleet.LabelSpec{
+		{
 			Name:                "All Hosts",
 			Query:               "SELECT 1",
 			LabelType:           fleet.LabelTypeBuiltIn,
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 		},
-		&fleet.LabelSpec{
+		{
 			Name:                "Manual Label",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 			Hosts: []string{
@@ -453,14 +453,14 @@ func testApplyLabelSpecsRoundtrip(t *testing.T, ds fleet.Datastore) {
 
 	specs, err := ds.GetLabelSpecs()
 	require.Nil(t, err)
-	assert.Equal(t, expectedSpecs, specs)
+	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
 
 	// Should be idempotent
 	err = ds.ApplyLabelSpecs(expectedSpecs)
 	require.Nil(t, err)
 	specs, err = ds.GetLabelSpecs()
 	require.Nil(t, err)
-	assert.Equal(t, expectedSpecs, specs)
+	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
 }
 
 func testLabelIDsByName(t *testing.T, ds fleet.Datastore) {

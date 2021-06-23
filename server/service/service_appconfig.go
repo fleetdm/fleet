@@ -41,6 +41,9 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfigPayload) 
 	}
 	fromPayload := appConfigFromAppConfigPayload(p, *config)
 
+	// Usage analytics are on by default in new installations.
+	fromPayload.EnableAnalytics = true
+
 	newConfig, err := svc.ds.NewAppConfig(fromPayload)
 	if err != nil {
 		return nil, err
@@ -135,11 +138,16 @@ func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppCon
 	if p.OrgInfo != nil && p.OrgInfo.OrgName != nil {
 		config.OrgName = *p.OrgInfo.OrgName
 	}
-	if p.ServerSettings != nil && p.ServerSettings.ServerURL != nil {
-		config.ServerURL = cleanupURL(*p.ServerSettings.ServerURL)
-	}
-	if p.ServerSettings != nil && p.ServerSettings.LiveQueryDisabled != nil {
-		config.LiveQueryDisabled = *p.ServerSettings.LiveQueryDisabled
+	if p.ServerSettings != nil {
+		if p.ServerSettings.ServerURL != nil {
+			config.ServerURL = cleanupURL(*p.ServerSettings.ServerURL)
+		}
+		if p.ServerSettings.LiveQueryDisabled != nil {
+			config.LiveQueryDisabled = *p.ServerSettings.LiveQueryDisabled
+		}
+		if p.ServerSettings.EnableAnalytics != nil {
+			config.EnableAnalytics = *p.ServerSettings.EnableAnalytics
+		}
 	}
 
 	if p.SSOSettings != nil {
