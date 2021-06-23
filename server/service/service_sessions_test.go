@@ -17,39 +17,38 @@ func TestAuthenticate(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 	svc := newTestService(ds, nil, nil)
-	users := createTestUsers(t, ds)
+	createTestUsers(t, ds)
 
 	var loginTests = []struct {
-		username string
+		name     string
+		email    string
 		password string
-		user     fleet.User
 		wantErr  error
 	}{
 		{
-			user:     users["admin1"],
-			username: testUsers["admin1"].Username,
+			name:     "admin1",
+			email:    testUsers["admin1"].Email,
 			password: testUsers["admin1"].PlaintextPassword,
 		},
 		{
-			user:     users["user1"],
-			username: testUsers["user1"].Email,
+			name:     "user1",
+			email:    testUsers["user1"].Email,
 			password: testUsers["user1"].PlaintextPassword,
 		},
 	}
 
 	for _, tt := range loginTests {
-		t.Run(tt.username, func(st *testing.T) {
-			user := tt.user
-			loggedIn, token, err := svc.Login(test.UserContext(test.UserAdmin), tt.username, tt.password)
+		t.Run(tt.email, func(st *testing.T) {
+			loggedIn, token, err := svc.Login(test.UserContext(test.UserAdmin), tt.email, tt.password)
 			require.Nil(st, err, "login unsuccessful")
-			assert.Equal(st, user.ID, loggedIn.ID)
+			assert.Equal(st, tt.email, loggedIn.Email)
 			assert.NotEmpty(st, token)
 
-			sessions, err := svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), user.ID)
+			sessions, err := svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), loggedIn.ID)
 			require.Nil(st, err)
 			require.Len(st, sessions, 1, "user should have one session")
 			session := sessions[0]
-			assert.Equal(st, user.ID, session.UserID)
+			assert.NotZero(st, session.UserID)
 			assert.WithinDuration(st, time.Now(), session.AccessedAt, 3*time.Second,
 				"access time should be set with current time at session creation")
 		})

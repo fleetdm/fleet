@@ -21,7 +21,6 @@ func testCreateUser(t *testing.T, ds fleet.Datastore) {
 
 	for _, tt := range createTests {
 		u := &fleet.User{
-			Username:                 tt.username,
 			Password:                 []byte(tt.password),
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
@@ -30,11 +29,10 @@ func testCreateUser(t *testing.T, ds fleet.Datastore) {
 		user, err := ds.NewUser(u)
 		assert.Nil(t, err)
 
-		verify, err := ds.User(tt.username)
+		verify, err := ds.UserByEmail(tt.email)
 		assert.Nil(t, err)
 
 		assert.Equal(t, user.ID, verify.ID)
-		assert.Equal(t, tt.username, verify.Username)
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
@@ -66,7 +64,6 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	var users []*fleet.User
 	for _, tt := range createTests {
 		u := &fleet.User{
-			Username:                 tt.username,
 			Name:                     tt.username,
 			Password:                 []byte(tt.password),
 			AdminForcedPasswordReset: tt.passwordReset,
@@ -97,7 +94,7 @@ func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 		err = ds.SaveUser(user)
 		assert.Nil(t, err)
 
-		verify, err := ds.User(user.Username)
+		verify, err := ds.UserByID(user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.Password, verify.Password)
 	}
@@ -109,7 +106,7 @@ func testEmailAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		err := ds.SaveUser(user)
 		assert.Nil(t, err)
 
-		verify, err := ds.User(user.Username)
+		verify, err := ds.UserByID(user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.Email, verify.Email)
 	}
@@ -121,7 +118,7 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		err := ds.SaveUser(user)
 		assert.Nil(t, err)
 
-		verify, err := ds.User(user.Username)
+		verify, err := ds.UserByID(user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.GlobalRole, verify.GlobalRole)
 	}
@@ -236,7 +233,6 @@ func testUserCreateWithTeams(t *testing.T, ds fleet.Datastore) {
 	}
 
 	u := &fleet.User{
-		Username: "1",
 		Password: []byte("foo"),
 		Teams: []fleet.UserTeam{
 			{

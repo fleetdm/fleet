@@ -235,7 +235,6 @@ func (d *Datastore) createDevUsers() error {
 			},
 
 			Name:     "Admin User",
-			Username: "admin",
 			Email:    "admin@fleet.co",
 			Position: "Director of Security",
 		},
@@ -250,14 +249,13 @@ func (d *Datastore) createDevUsers() error {
 			},
 
 			Name:     "Normal User",
-			Username: "user",
 			Email:    "user@fleet.co",
 			Position: "Security Engineer",
 		},
 	}
 	for _, user := range users {
 		user := user
-		err := user.SetPassword(user.Username, d.config.Auth.SaltKeySize, d.config.Auth.BcryptCost)
+		err := user.SetPassword(user.Email, d.config.Auth.SaltKeySize, d.config.Auth.BcryptCost)
 		if err != nil {
 			return nil
 		}

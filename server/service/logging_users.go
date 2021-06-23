@@ -12,19 +12,19 @@ func (mw loggingMiddleware) CreateUser(ctx context.Context, p fleet.UserPayload)
 	var (
 		user         *fleet.User
 		err          error
-		username     = "none"
+		email        = "<none>"
 		loggedInUser = "unauthenticated"
 	)
 
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "CreateUser",
-			"user", username,
+			"user", email,
 			"created_by", loggedInUser,
 			"err", err,
 			"took", time.Since(begin),
@@ -33,7 +33,7 @@ func (mw loggingMiddleware) CreateUser(ctx context.Context, p fleet.UserPayload)
 
 	user, err = mw.Service.CreateUser(ctx, p)
 	if user != nil {
-		username = user.Username
+		email = user.Email
 	}
 	return user, err
 }
@@ -47,7 +47,7 @@ func (mw loggingMiddleware) ListUsers(ctx context.Context, opt fleet.UserListOpt
 
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		username = vc.Username()
+		username = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -72,7 +72,7 @@ func (mw loggingMiddleware) RequirePasswordReset(ctx context.Context, uid uint, 
 
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		username = vc.Username()
+		username = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -93,19 +93,19 @@ func (mw loggingMiddleware) CreateUserFromInvite(ctx context.Context, p fleet.Us
 	var (
 		user         *fleet.User
 		err          error
-		username     = "none"
+		email        = "<none>"
 		loggedInUser = "unauthenticated"
 	)
 
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "CreateUserFromInvite",
-			"user", username,
+			"user", email,
 			"created_by", loggedInUser,
 			"err", err,
 			"took", time.Since(begin),
@@ -115,16 +115,16 @@ func (mw loggingMiddleware) CreateUserFromInvite(ctx context.Context, p fleet.Us
 	user, err = mw.Service.CreateUserFromInvite(ctx, p)
 
 	if user != nil {
-		username = user.Username
+		email = user.Email
 	}
 	return user, err
 }
 
 func (mw loggingMiddleware) ModifyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
 	var (
-		user     *fleet.User
-		err      error
-		username = "none"
+		user  *fleet.User
+		err   error
+		email = "<none>"
 	)
 
 	vc, ok := viewer.FromContext(ctx)
@@ -135,8 +135,8 @@ func (mw loggingMiddleware) ModifyUser(ctx context.Context, userID uint, p fleet
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "ModifyUser",
-			"user", username,
-			"modified_by", vc.Username(),
+			"user", email,
+			"modified_by", vc.Email(),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -145,7 +145,7 @@ func (mw loggingMiddleware) ModifyUser(ctx context.Context, userID uint, p fleet
 	user, err = mw.Service.ModifyUser(ctx, userID, p)
 
 	if user != nil {
-		username = user.Username
+		email = user.Email
 	}
 
 	return user, err
@@ -158,7 +158,7 @@ func (mw loggingMiddleware) ChangePassword(ctx context.Context, oldPass, newPass
 	)
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		requestedBy = vc.Username()
+		requestedBy = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -196,7 +196,7 @@ func (mw loggingMiddleware) RequestPasswordReset(ctx context.Context, email stri
 	)
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		requestedBy = vc.Username()
+		requestedBy = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -220,7 +220,7 @@ func (mw loggingMiddleware) PerformRequiredPasswordReset(ctx context.Context, pa
 	)
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
-		resetBy = vc.Username()
+		resetBy = vc.Email()
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(

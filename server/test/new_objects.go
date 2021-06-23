@@ -110,12 +110,11 @@ func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now t
 	return h
 }
 
-func NewUser(t *testing.T, ds fleet.Datastore, name, username, email string, admin bool) *fleet.User {
+func NewUser(t *testing.T, ds fleet.Datastore, name, email string, admin bool) *fleet.User {
 	u, err := ds.NewUser(&fleet.User{
 		Password: []byte("garbage"),
 		Salt:     "garbage",
 		Name:     name,
-		Username: username,
 		Email:    email,
 	})
 

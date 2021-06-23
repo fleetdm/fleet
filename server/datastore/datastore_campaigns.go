@@ -20,7 +20,7 @@ func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTar
 }
 
 func testDistributedQueryCampaign(t *testing.T, ds fleet.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	mockClock := clock.NewMockClock()
 
@@ -71,7 +71,7 @@ func testDistributedQueryCampaign(t *testing.T, ds fleet.Datastore) {
 }
 
 func testCleanupDistributedQueryCampaigns(t *testing.T, ds fleet.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	mockClock := clock.NewMockClock()
 

@@ -12,7 +12,6 @@ import (
 // UserStore contains methods for managing users in a datastore
 type UserStore interface {
 	NewUser(user *User) (*User, error)
-	User(username string) (*User, error)
 	ListUsers(opt UserListOptions) ([]*User, error)
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
@@ -97,7 +96,6 @@ type UserService interface {
 type User struct {
 	UpdateCreateTimestamps
 	ID                       uint   `json:"id"`
-	Username                 string `json:"username"`
 	Password                 []byte `json:"-"`
 	Salt                     string `json:"-"`
 	Name                     string `json:"name"`
@@ -153,9 +151,9 @@ type UserPayload struct {
 // User creates a user from payload.
 func (p UserPayload) User(keySize, cost int) (*User, error) {
 	user := &User{
-		Name: 		*p.Name,
-		Email:    *p.Email,
-		Teams:    []UserTeam{},
+		Name:  *p.Name,
+		Email: *p.Email,
+		Teams: []UserTeam{},
 	}
 	if err := user.SetPassword(*p.Password, keySize, cost); err != nil {
 		return nil, err

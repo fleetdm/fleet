@@ -37,7 +37,6 @@ func newTestUser(t *testing.T, username, password, email string) *User {
 	withSalt := []byte(fmt.Sprintf("%s%s", password, salt))
 	hashed, _ := bcrypt.GenerateFromPassword(withSalt, cost)
 	return &User{
-		Username: username,
 		Salt:     salt,
 		Password: hashed,
 		Email:    email,

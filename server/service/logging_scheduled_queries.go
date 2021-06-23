@@ -54,7 +54,7 @@ func (mw loggingMiddleware) ScheduleQuery(ctx context.Context, sq *fleet.Schedul
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -78,7 +78,7 @@ func (mw loggingMiddleware) DeleteScheduledQuery(ctx context.Context, id uint) e
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -102,8 +102,7 @@ func (mw loggingMiddleware) ModifyScheduledQuery(ctx context.Context, id uint, p
 	)
 
 	if vc, ok := viewer.FromContext(ctx); ok {
-
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {

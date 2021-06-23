@@ -15,7 +15,7 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type loginRequest struct {
-	Username string // can be username or email
+	Email    string
 	Password string
 }
 
@@ -30,7 +30,7 @@ func (r loginResponse) error() error { return r.Err }
 func makeLoginEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(loginRequest)
-		user, token, err := svc.Login(ctx, req.Username, req.Password)
+		user, token, err := svc.Login(ctx, req.Email, req.Password)
 		if err != nil {
 			return loginResponse{Err: err}, nil
 		}

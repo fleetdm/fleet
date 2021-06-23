@@ -17,7 +17,7 @@ func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, que
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		var numHosts uint = 0
@@ -45,7 +45,7 @@ func (mw loggingMiddleware) NewDistributedQueryCampaignByNames(ctx context.Conte
 		err          error
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		var numHosts uint = 0
@@ -73,7 +73,7 @@ func (mw loggingMiddleware) StreamCampaignResults(ctx context.Context, conn *web
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(

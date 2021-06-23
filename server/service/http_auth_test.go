@@ -51,27 +51,27 @@ func TestLogin(t *testing.T) {
 
 	server := httptest.NewServer(r)
 	var loginTests = []struct {
-		username string
+		email    string
 		status   int
 		password string
 	}{
 		{
-			username: "admin1",
+			email:    "admin1@example.com",
 			password: testUsers["admin1"].PlaintextPassword,
 			status:   http.StatusOK,
 		},
 		{
-			username: "user1",
+			email:    "user1@example.com",
 			password: testUsers["user1"].PlaintextPassword,
 			status:   http.StatusOK,
 		},
 		{
-			username: "nosuchuser",
+			email:    "nosuchuser@example.com",
 			password: "nosuchuser",
 			status:   http.StatusUnauthorized,
 		},
 		{
-			username: "admin1",
+			email:    "admin1@example.com",
 			password: "badpassword",
 			status:   http.StatusUnauthorized,
 		},
@@ -79,10 +79,10 @@ func TestLogin(t *testing.T) {
 
 	for _, tt := range loginTests {
 		// test sessions
-		testUser := users[tt.username]
+		testUser := users[tt.email]
 
 		params := loginRequest{
-			Username: tt.username,
+			Email:    tt.email,
 			Password: tt.password,
 		}
 		j, err := json.Marshal(&params)
@@ -107,7 +107,7 @@ func TestLogin(t *testing.T) {
 		}
 
 		require.NotNil(t, jsn.User)
-		assert.Equal(t, tt.username, jsn.User.Username)
+		assert.Equal(t, tt.email, jsn.User.Email)
 
 		// ensure that a session was created for our test user and stored
 		sessions, err := ds.ListSessionsForUser(testUser.ID)

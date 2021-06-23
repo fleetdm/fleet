@@ -112,12 +112,6 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 
-	// the method assumes that the correct authorization
-	// has been validated higher up the stack
-	if p.Username != nil {
-		user.Username = *p.Username
-	}
-
 	if p.Name != nil {
 		user.Name = *p.Name
 	}
