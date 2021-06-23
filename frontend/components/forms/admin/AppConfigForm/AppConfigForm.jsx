@@ -56,6 +56,7 @@ const formFields = [
   "host_expiry_window",
   "live_query_disabled",
   "agent_options",
+  "enable_analytics",
 ];
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = (
@@ -106,6 +107,7 @@ class AppConfigForm extends Component {
       host_expiry_window: formFieldInterface.isRequired,
       live_query_disabled: formFieldInterface.isRequired,
       agent_options: formFieldInterface.isRequired,
+      enable_analytics: formFieldInterface.isRequired,
     }).isRequired,
     enrollSecret: enrollSecretInterface.isRequired,
     handleSubmit: PropTypes.func.isRequired,
@@ -462,21 +464,27 @@ class AppConfigForm extends Component {
           </h2>
           <p className={`${baseClass}__section-description`}>
             Help us improve Fleet by sending us anonymous usage statistics.
-            <br /><br />
-            This information helps our team better understand feature adoption and usage, and allows us to see how Fleet is adding value, so that we can make better product decisions.
-            <br /><br />
+            <br />
+            <br />
+            This information helps our team better understand feature adoption
+            and usage, and allows us to see how Fleet is adding value, so that
+            we can make better product decisions.
+            <br />
+            <br />
             <a
-                href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
-                className={`${baseClass}__learn-more`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Learn more about usage statistics&nbsp;
-                <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
-              </a>
+              href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+              className={`${baseClass}__learn-more`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Learn more about usage statistics&nbsp;
+              <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+            </a>
           </p>
-          <div className={`${baseClass}__inputs`}>
-            <Checkbox {...fields.enable_sso}>Enable usage statistics</Checkbox>
+          <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
+            <Checkbox {...fields.enable_analytics}>
+              Enable usage statistics
+            </Checkbox>
           </div>
         </div>
 

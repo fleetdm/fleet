@@ -88,6 +88,7 @@ export const formatConfigDataForServer = (config: any): any => {
     "server_url",
     "osquery_enroll_secret",
     "live_query_disabled",
+    "enable_analytics",
   ]);
   const smtpSettingsAttrs = pick(config, [
     "authentication_method",
