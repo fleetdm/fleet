@@ -437,8 +437,9 @@ class AppConfigForm extends Component {
               options?&nbsp;
               <a
                 href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+                className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
               >
                 Learn more about agent options&nbsp;
                 <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
@@ -452,6 +453,30 @@ class AppConfigForm extends Component {
               error={fields.agent_options.error}
               wrapperClassName={`${baseClass}__text-editor-wrapper`}
             />
+          </div>
+        </div>
+
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="usage-stats">Usage statistics</a>
+          </h2>
+          <p className={`${baseClass}__section-description`}>
+            Help us improve Fleet by sending us anonymous usage statistics.
+            <br /><br />
+            This information helps our team better understand feature adoption and usage, and allows us to see how Fleet is adding value, so that we can make better product decisions.
+            <br /><br />
+            <a
+                href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+                className={`${baseClass}__learn-more`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Learn more about usage statistics&nbsp;
+                <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+              </a>
+          </p>
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox {...fields.enable_sso}>Enable usage statistics</Checkbox>
           </div>
         </div>
 
