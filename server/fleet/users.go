@@ -153,7 +153,7 @@ type UserPayload struct {
 // User creates a user from payload.
 func (p UserPayload) User(keySize, cost int) (*User, error) {
 	user := &User{
-		Username: *p.Username,
+		Name: 		*p.Name,
 		Email:    *p.Email,
 		Teams:    []UserTeam{},
 	}
@@ -162,9 +162,6 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 
 	// add optional fields
-	if p.Name != nil {
-		user.Name = *p.Name
-	}
 	if p.GravatarURL != nil {
 		user.GravatarURL = *p.GravatarURL
 	}
