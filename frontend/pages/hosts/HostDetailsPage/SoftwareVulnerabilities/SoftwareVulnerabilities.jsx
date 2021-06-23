@@ -36,9 +36,7 @@ class SoftwareVulnerabilities extends Component {
       if (list.length === 1) {
         return "1 vulnerability detected";
       }
-      if (list.length > 1) {
-        return `${list.length} vulnerabilities detected`;
-      }
+      return `${list.length} vulnerabilities detected`;
     };
 
     const renderVul = (vul, index) => {
@@ -46,7 +44,7 @@ class SoftwareVulnerabilities extends Component {
         <li key={index}>
           Read more about{" "}
           <a href={vul.details_link} target="_blank" rel="noopener noreferrer">
-            <em>{vul.name}</em> {vul.cve} vulnerability{" "}
+            <em>{vul.name}</em> {vul.cve} vulnerability &nbsp;
             <FleetIcon name="external-link" />
           </a>
         </li>
@@ -73,7 +71,8 @@ class SoftwareVulnerabilities extends Component {
               d="M0 8C0 12.4183 3.5817 16 8 16C12.4183 16 16 12.4183 16 8C16 3.5817 12.4183 0 8 0C3.5817 0 0 3.5817 0 8ZM14 8C14 11.3137 11.3137 14 8 14C4.6863 14 2 11.3137 2 8C2 4.6863 4.6863 2 8 2C11.3137 2 14 4.6863 14 8ZM7 12V10H9V12H7ZM7 4V9H9V4H7Z"
               fill="#8B8FA2"
             />
-          </svg>{" "}
+          </svg>
+          &nbsp;
           {renderVulsCount(vulsList)}
         </div>
         <div className={`${baseClass}__list`}>
