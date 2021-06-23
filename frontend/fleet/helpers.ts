@@ -377,10 +377,11 @@ export const syntaxHighlight = (json: JSON): string => {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+  /* eslint-disable no-useless-escape */
   return jsonStr.replace(
     /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
     function (match) {
-      var cls = "number";
+      let cls = "number";
       if (/^"/.test(match)) {
         if (/:$/.test(match)) {
           cls = "key";
@@ -392,9 +393,10 @@ export const syntaxHighlight = (json: JSON): string => {
       } else if (/null/.test(match)) {
         cls = "null";
       }
-      return '<span class="' + cls + '">' + match + "</span>";
+      return `<span class="${cls}">${match}</span>`;
     }
   );
+  /* eslint-enable no-useless-escape */
 };
 
 export default {

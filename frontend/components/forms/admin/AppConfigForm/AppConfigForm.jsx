@@ -119,7 +119,7 @@ class AppConfigForm extends Component {
   constructor(props) {
     super(props);
 
-    this.state = { 
+    this.state = {
       showAdvancedOptions: false,
       showUsageStatsPreviewModal: false,
     };
@@ -133,6 +133,13 @@ class AppConfigForm extends Component {
     this.setState({ showAdvancedOptions: !showAdvancedOptions });
 
     return false;
+  };
+
+  toggleUsageStatsPreviewModal = () => {
+    const { showUsageStatsPreviewModal } = this.state;
+    this.setState({
+      showUsageStatsPreviewModal: !showUsageStatsPreviewModal,
+    });
   };
 
   renderAdvancedOptions = () => {
@@ -207,27 +214,20 @@ class AppConfigForm extends Component {
     );
   };
 
-  toggleUsageStatsPreviewModal = () => {
-    const { showUsageStatsPreviewModal } = this.state;
-    this.setState({
-      showUsageStatsPreviewModal: !showUsageStatsPreviewModal,
-    });
-  };
-
   renderUsageStatsPreviewModal = () => {
     const { toggleUsageStatsPreviewModal } = this;
     const { showUsageStatsPreviewModal } = this.state;
-    
+
     if (!showUsageStatsPreviewModal) {
       return null;
-    } 
+    }
 
     const json = {
-      "anonymous_identifier": 1,
-      "fleet_version": "x.x.x",
-      "hosts_enrolled_count": 12345
+      anonymous_identifier: 1,
+      fleet_version: "x.x.x",
+      hosts_enrolled_count: 12345,
     };
-    
+
     return (
       <Modal
         title="Usage statistics"
@@ -235,14 +235,14 @@ class AppConfigForm extends Component {
         className={`${baseClass}__usage-stats-preview-modal`}
       >
         <p>An example JSON payload sent to Fleet Device Management Inc.</p>
-        <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }}></pre>
+        <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
         <div className="flex-end">
           <Button type="button" onClick={toggleUsageStatsPreviewModal}>
             Done
           </Button>
         </div>
       </Modal>
-    )
+    );
   };
 
   render() {
@@ -270,7 +270,9 @@ class AppConfigForm extends Component {
                 label="Organization avatar URL"
               />
             </div>
-            <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
+            <div
+              className={`${baseClass}__details ${baseClass}__avatar-preview`}
+            >
               <OrgLogoIcon src={fields.org_logo_url.value} />
             </div>
           </div>
@@ -357,7 +359,11 @@ class AppConfigForm extends Component {
             </div>
 
             <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.metadata} label="Metadata" type="textarea" />
+              <InputField
+                {...fields.metadata}
+                label="Metadata"
+                type="textarea"
+              />
             </div>
             <div className={`${baseClass}__details`}>
               <IconToolTip
@@ -373,8 +379,8 @@ class AppConfigForm extends Component {
                 label="Metadata URL"
                 hint={
                   <span>
-                    If available from the identity provider, this is the preferred
-                    means of providing metadata.
+                    If available from the identity provider, this is the
+                    preferred means of providing metadata.
                   </span>
                 }
               />
@@ -472,8 +478,8 @@ class AppConfigForm extends Component {
             </h2>
             <div className={`${baseClass}__yaml`}>
               <p className={`${baseClass}__section-description`}>
-                This code will be used by osquery when it checks for configuration
-                options.
+                This code will be used by osquery when it checks for
+                configuration options.
                 <br />
                 <b>
                   Changes to these configuration options will be applied to all
@@ -490,7 +496,11 @@ class AppConfigForm extends Component {
                   rel="noopener noreferrer"
                 >
                   Learn more about agent options&nbsp;
-                  <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+                  <img
+                    className="icon"
+                    src={OpenNewTabIcon}
+                    alt="open new tab"
+                  />
                 </a>
               </InfoBanner>
               <p className={`${baseClass}__component-label`}>
@@ -533,7 +543,11 @@ class AppConfigForm extends Component {
               </Checkbox>
             </div>
             <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
-              <Button type="button" variant="inverse" onClick={toggleUsageStatsPreviewModal}>
+              <Button
+                type="button"
+                variant="inverse"
+                onClick={toggleUsageStatsPreviewModal}
+              >
                 Preview payload
               </Button>
             </div>

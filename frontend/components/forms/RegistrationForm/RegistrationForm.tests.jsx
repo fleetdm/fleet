@@ -29,6 +29,6 @@ describe("RegistrationForm - component", () => {
     const form = mount(<RegistrationForm page={4} />);
 
     expect(form.find("ConfirmationPage").length).toEqual(1);
-    expect(form.text()).toContain("You're all set");
+    expect(form.text()).toContain("Success");
   });
 });
