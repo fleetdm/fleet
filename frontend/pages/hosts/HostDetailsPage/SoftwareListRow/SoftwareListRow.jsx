@@ -40,15 +40,17 @@ class SoftwareListRow extends Component {
       if (vulnerabilities.length === 0) {
         return null;
       }
-      
-      const vulText = vulnerabilities.length === 1 ? "vulnerability" : "vulnerabilities";
+
+      const vulText =
+        vulnerabilities.length === 1 ? "vulnerability" : "vulnerabilities";
+
       return (
-          <IconToolTip
-            text={`${vulnerabilities.length} ${vulText} detected`}
-            issue
-            isHtml
-          />
-        );
+        <IconToolTip
+          text={`${vulnerabilities.length} ${vulText} detected`}
+          issue
+          isHtml
+        />
+      );
     };
 
     return (
