@@ -403,15 +403,14 @@ export class HostDetailsPage extends Component {
                   </tr>
                 </thead>
                 <tbody>
-                  {!!host.software.length &&
-                    host.software.map((software) => {
-                      return (
-                        <SoftwareListRow
-                          key={`software-row-${software.id}`}
-                          software={software}
-                        />
-                      );
-                    })}
+                  {host.software.map((software) => {
+                    return (
+                      <SoftwareListRow
+                        key={`software-row-${software.id}`}
+                        software={software}
+                      />
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
