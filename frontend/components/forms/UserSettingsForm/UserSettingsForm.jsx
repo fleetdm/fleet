@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 
-import IconToolTip from "components/IconToolTip";
+import ReactTooltip from "react-tooltip";
 import Button from "components/buttons/Button";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
@@ -42,24 +42,29 @@ class UserSettingsForm extends Component {
     const { fields, handleSubmit, onCancel } = this.props;
     const { renderEmailHint } = this;
 
+    const text =
+      "Fleet is transitioning to the use of email only<br/>for account uniqueness. Username will no <br/>longer surface anywhere in the Fleet product <br/>and will be replaced by full name.";
+
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
-        <InputField {...fields.name} autofocus label="Full Name (required)" />
+        {fields.username && (
+          <>
+            <div data-tip={text} data-multiline={true}>
+              <InputField {...fields.username} label="Username" />
+            </div>
+            <ReactTooltip
+              effect={"solid"}
+              data-multiline={true}
+              backgroundColor={"#3e4771"}
+            />
+          </>
+        )}
         <InputField
           {...fields.email}
           label="Email (required)"
           hint={renderEmailHint()}
         />
-        {fields.username && (
-          <>
-            <InputField
-              {...fields.username}
-              disabled
-              label="Username"
-              hint="Username is no longer supported in Fleet."
-            />
-          </>
-        )}
+        <InputField {...fields.name} autofocus label="Full Name (required)" />
         <InputField {...fields.position} label="Position" />
         <div className={`${baseClass}__button-wrap`}>
           <Button onClick={onCancel} variant="inverse">
