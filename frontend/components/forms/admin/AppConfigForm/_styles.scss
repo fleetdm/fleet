@@ -226,4 +226,12 @@
   &__yaml {
     width: calc(100% - 2px); // because the outline extended beyond the sticky page description
   }
+
+  &__usage-stats-preview-modal {
+    .flex-end {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
 }

@@ -371,6 +371,32 @@ export const secondsToHms = (d: number): string => {
   return hDisplay + mDisplay + sDisplay;
 };
 
+export const syntaxHighlight = (json: JSON): string => {
+  let jsonStr: string = JSON.stringify(json, undefined, 2);
+  jsonStr = jsonStr
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return jsonStr.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    function (match) {
+      var cls = "number";
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) {
+          cls = "key";
+        } else {
+          cls = "string";
+        }
+      } else if (/true|false/.test(match)) {
+        cls = "boolean";
+      } else if (/null/.test(match)) {
+        cls = "null";
+      }
+      return '<span class="' + cls + '">' + match + "</span>";
+    }
+  );
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -388,4 +414,5 @@ export default {
   labelSlug,
   setupData,
   frontendFormattedConfig,
+  syntaxHighlight,
 };
