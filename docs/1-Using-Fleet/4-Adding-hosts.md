@@ -89,6 +89,15 @@ For your convenience, osqueryd supports putting all of your flags into a single 
 osqueryd --flagfile=/etc/osquery/fleet.flags
 ```
 
+#### Note for flag file on Windows
+
+Ensure that paths to files in the flag file are absolute, and not quoted. For example in `C:\Program Files\osquery\osquery.flags`:
+
+```
+--tls_server_certs=C:\Program Files\osquery\fleet.pem
+--enroll_secret_path=C:\Program Files\osquery\secret.txt
+```
+
 ## Kolide osquery Launcher
 
 Kolide provides compiled releases of their launcher for all supported platforms. 
