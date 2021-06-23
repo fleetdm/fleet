@@ -83,7 +83,7 @@ class QueriesListRow extends Component {
             {observer_can_run.toString()}
           </td>
         )}
-        <td className={`${baseClass}__author-name`}>{authorName}</td>
+        <td className={`${baseClass}__author-name`}>{authorName || "---"}</td>
         <td>{lastModifiedDate}</td>
       </ClickableTableRow>
     );

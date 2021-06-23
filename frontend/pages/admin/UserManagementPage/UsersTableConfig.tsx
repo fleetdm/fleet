@@ -230,7 +230,7 @@ const enhanceUserData = (
 ): IUserTableData[] => {
   return users.map((user) => {
     return {
-      name: user.name,
+      name: user.name || "---",
       status: generateStatus("user", user),
       email: user.email,
       teams: generateTeam(user.teams, user.global_role),
@@ -245,7 +245,7 @@ const enhanceUserData = (
 const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
   return invites.map((invite) => {
     return {
-      name: invite.name,
+      name: invite.name || "---",
       status: generateStatus("invite", invite),
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),

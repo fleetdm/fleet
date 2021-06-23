@@ -140,7 +140,6 @@ const SelectedTeamsForm = (props: ISelectedTeamsFormProps): JSX.Element => {
                 onChange={(newValue: boolean) =>
                   updateSelectedTeams(teamItem.id, newValue, "checkbox")
                 }
-                testId={`${name}-checkbox`}
               >
                 {name}
               </Checkbox>

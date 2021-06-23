@@ -15,22 +15,12 @@
 
 Need to test Fleet Basic features locally?
 
-Use the following license key:
-
-```
-eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
-```
+Use the `--dev_license` flag to use the default development license key.
 
 For example:
 
 ```
-FLEET_LICENSE_KEY=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw ./build/fleet serve --dev
-```
-
-or
-
-```
-./build/fleet serve --dev --license_key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
+./build/fleet serve --dev --dev_license
 ```
 
 ## Simulated hosts
@@ -209,7 +199,7 @@ The Fleet repo includes tools to start test osquery hosts. Please see the docume
 
 #### Manually testing email with MailHog
 
-To intercept sent emails while running a Fleet development environment, first, in the Fleet UI, navigate to the Organization settings page under Admin. 
+To intercept sent emails while running a Fleet development environment, first, in the Fleet UI, navigate to the Organization settings page under Admin.
 
 Then, in the "SMTP Options" section, enter any email address in the "Sender Address" field, set the "SMTP Server" to `localhost` on port `1025`, and set "Authentication Type" to `None`. Note that you may use any active or inactive sender address.
 
@@ -305,20 +295,14 @@ Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
-The identity provider is configured with 2 users:
+The identity provider is configured with one user:
 
 ```
-Username: user1
-Email: user1@example.com
-Password: user1pass
-```
-
-and
-
-```
-Username: user2
-Email: user2@example.com
-Password: user2pass
+Username: sso_user
+Email: sso_user@example.com
+Password: user123#
 ```
 
 Use the Fleet UI to invite one of these users with the associated email. Be sure the "Enable Single Sign On" box is checked for that user. Now after accepting the invitation, you should be able to log in as that user by clicking "Sign On with SimpleSAML" on the login page.
+
+To add additional users, modify [tools/saml/users.php](../../tools/saml/users.php) and restart the `simplesaml` container.

@@ -169,6 +169,9 @@ type AppConfig struct {
 	// LiveQueryDisabled defines whether live queries are disabled.
 	LiveQueryDisabled bool `db:"live_query_disabled"`
 
+	// EnableAnalytics indicates whether usage analytics are enabled.
+	EnableAnalytics bool `db:"enable_analytics" json:"analytics"`
+
 	// AdditionalQueries is the set of additional queries that should be run
 	// when collecting details from hosts.
 	AdditionalQueries *json.RawMessage `db:"additional_queries"`
@@ -278,6 +281,7 @@ type OrgInfo struct {
 type ServerSettings struct {
 	ServerURL         *string `json:"server_url,omitempty"`
 	LiveQueryDisabled *bool   `json:"live_query_disabled,omitempty"`
+	EnableAnalytics   *bool   `json:"enable_analytics,omitempty"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
