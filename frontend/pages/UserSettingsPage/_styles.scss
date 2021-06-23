@@ -81,6 +81,10 @@
     margin: 4px 0 $pad-large;
   }
 
+  &__confirm-update {
+    margin-bottom: $pad-medium;
+  }
+
   &__reveal-secret {
     float: right;
     text-decoration: none;
