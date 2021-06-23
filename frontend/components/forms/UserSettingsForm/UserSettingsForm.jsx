@@ -49,12 +49,12 @@ class UserSettingsForm extends Component {
       <form onSubmit={handleSubmit} className={baseClass}>
         {fields.username && (
           <>
-            <div data-tip={text} data-multiline={true}>
+            <div data-tip={text} data-multiline>
               <InputField {...fields.username} label="Username" />
             </div>
             <ReactTooltip
               effect={"solid"}
-              data-multiline={true}
+              data-multiline
               backgroundColor={"#3e4771"}
             />
           </>
