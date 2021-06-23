@@ -37,17 +37,18 @@ class SoftwareListRow extends Component {
     const type = TYPE_CONVERSION[source] || "Unknown";
 
     const vulnerabilitiesIcon = () => {
-      if (vulnerabilities && vulnerabilities.length === 1) {
-        return <IconToolTip text={"1 vulnerability detected"} issue isHtml />;
-      } else if (vulnerabilities) {
-        return (
+      if (vulnerabilities.length === 0) {
+        return null;
+      }
+      
+      const vulText = vulnerabilities.length === 1 ? "vulnerability" : "vulnerabilities";
+      return (
           <IconToolTip
-            text={`${vulnerabilities.length} vulnerabilities detected`}
+            text={`${vulnerabilities.length} ${vulText} detected`}
             issue
             isHtml
           />
         );
-      }
     };
 
     return (
