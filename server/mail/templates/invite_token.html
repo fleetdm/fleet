@@ -9,24 +9,31 @@
     <style>
       body {
         font-family: "Nunito Sans", sans-serif;
+        margin: 0;
       }
 
       h1 {
-        font-weight: normal;
-        margin: 20px 0 40px 0;
+        font-weight: 700;
+        font-size: 24px;
+        line-height: 32px;
+        margin: 0;
+        padding-bottom: 32px;
       }
 
       p {
-        line-height: 2;
+        font-size: 16px;
+        line-height: 22px;
+        margin: 0;
+        padding-bottom: 32px;
       }
 
       a {
         text-decoration: none;
-        color: #4a90e2;
+        color: #6a67fe;
       }
 
       a:hover {
-        text-decoration: underline;
+        text-decoration: none;
       }
 
       @media only screen and (max-device-width: 480px) {
@@ -43,7 +50,7 @@
       }
     </style>
   </head>
-  <body>
+  <body style="color: #192147">
     <table
       align="center"
       border="0"
@@ -55,7 +62,6 @@
       style="
         background: #f9fafc;
         font-family: 'Nunito Sans', sans-serif;
-        color: #66696f;
         border-collapse: collapse;
       "
     >
@@ -67,82 +73,129 @@
             cellpadding="0"
             cellspacing="0"
             bgcolor="#ffffff"
-            style="margin: 20px 10px"
+            style="
+              margin: 20px 20px;
+              border: 1px solid #e2e4ea;
+              border-radius: 8px;
+            "
           >
             <tr>
               <td
                 colspan="2"
                 bgcolor="#ffffff"
-                style="padding: 20px; font-family: 'Nunito Sans', sans-serif"
+                style="
+                  padding-top: 40px;
+                  padding-left: 48px;
+                  font-family: 'Nunito Sans', sans-serif;
+                  border-radius: 8px 8px 0px 0px;
+                "
               >
-                <img
-                  src="{{.AssetURL}}/assets/images/fleet-logo-color@2x.png?raw=true"
-                  width="174"
-                  height="48"
-                />
+                <a href="https://fleetdm.com" target="_blank">
+                  <img
+                    alt="Fleet logo"
+                    src="./images/fleet-logo-blue-118x41@2x.png"
+                    style="height: 41px; width: 118px"
+                  />
+                </a>
               </td>
             </tr>
             <tr>
               <td
                 colspan="2"
-                style="padding: 60px; font-family: 'Nunito Sans', sans-serif"
+                style="
+                  padding-top: 48px;
+                  padding-bottom: 48px;
+                  padding-left: 48px;
+                  padding-right: 48px;
+                  font-family: 'Nunito Sans', sans-serif;
+                "
               >
-                <h1>You Have Been Invited To Fleet!</h1>
-                <p><strong>Hello,</strong></p>
+                <h1>You have been invited to Fleet!</h1>
+                <p>Hello,</p>
                 <p>
-                  {{.InvitedByUsername}} has invited you to join
-                  <strong>{{.OrgName}}</strong>. Please click the link below to
-                  accept the invitation and setup your account.
+                  <strong style="text-transform: capitalize;">{{.InvitedByUsername}} </strong>has invited you to join <strong>{{.OrgName}}</strong>.
                 </p>
-                <table bgcolor="#F9FAFC" height="100px" cellpadding="20px">
-                  <tr>
-                    <td style="font-family: 'Nunito Sans', sans-serif">
-                      {{if .SSOEnabled}}
-                      <a
-                        href="{{.BaseURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}"
-                        >{{.BaseURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}</a
-                      >
-                      {{else}}
-                      <a
-                        href="{{.BaseURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}"
-                        >{{.BaseURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}</a
-                      >
-                      {{end}}
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            <tr bgcolor="#9ca3ac">
-              <td
-                valign="middle"
-                align="left"
-                style="
-                  padding: 10px 20px;
-                  font-family: 'Nunito Sans', sans-serif;
-                  color: #fff;
-                "
-              >
+                <p>
+                  Please click the button below to accept the invitation and
+                  setup your account.
+                </p>
+
+                {{if .SSOEnabled}}
                 <a
-                  href="https://github.com/fleetdm/fleet/tree/main/docs"
-                  style="color: #fff; text-decoration: none"
-                  >Fleet Documentation</a
+                  href="{{.BaseURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}"
+                  target="_blank"
+                  style="
+                    font-weight: 700;
+                    color: #fff;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    -webkit-border-radius: 4px;
+                    background-color: #6a67fe;
+                    border-top: 8px solid #6a67fe;
+                    border-bottom: 8px solid #6a67fe;
+                    border-right: 16px solid #6a67fe;
+                    border-left: 16px solid #6a67fe;
+                    display: inline-block;
+                  "
                 >
-              </td>
-              <td
-                valign="middle"
-                align="right"
-                style="
-                  padding: 10px 20px;
-                  font-family: 'Nunito Sans', sans-serif;
-                "
-              >
-                <a href="https://fleetdm.com" style="text-decoration: none"
-                  ><img
-                    src="{{.AssetURL}}/assets/images/fleet-logo-text-all-white@2x.png?raw=true"
-                    width="122"
-                    height="33"
-                /></a>
+                  Accept invitation
+                </a>
+                {{else}}
+                <a
+                  href="{{.BaseURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}"
+                  target="_blank"
+                  style="
+                    font-weight: 700;
+                    color: #fff;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    -webkit-border-radius: 4px;
+                    background-color: #6a67fe;
+                    border-top: 8px solid #6a67fe;
+                    border-bottom: 8px solid #6a67fe;
+                    border-right: 16px solid #6a67fe;
+                    border-left: 16px solid #6a67fe;
+                    display: inline-block;
+                  "
+                >
+                  Accept invitation
+                </a>
+                {{end}}
+                
+                <div
+                  style="border-bottom: 1px solid #e2e4ea; padding-top: 32px"
+                ></div>
+                <div style="padding-top: 32px; padding-bottom: 32px">
+                  <a href="https://github.com/fleetdm/fleet" target="_blank">
+                    <img
+                      alt="Fleet logo"
+                      style="height: 20px; width: 20px; padding-right: 20px"
+                      src="./images/fleet-mark-color-40x40@2x.png"
+                    />
+                  </a>
+                  <a href="https://twitter.com/fleetctl" target="_blank">
+                    <img
+                      alt="Twitter logo"
+                      style="height: 20px; width: 25px; padding-right: 20px"
+                      src="./images/twitter-logo-50x40@2x.png"
+                    />
+                  </a>
+                  <a
+                    href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/"
+                    target="_blank"
+                  >
+                    <img
+                      alt="Slack logo"
+                      style="height: 20px; width: 20.5px"
+                      src="./images/slack-logo-41x40@2x.png"
+                    />
+                  </a>
+                </div>
+                <p style="font-size: 12px; line-height: 16px; padding: 0">
+                  © 2021 Fleet Device Management Inc. <br />
+                  All trademarks, service marks, and company names are the
+                  property of their respective owners.
+                </p>
               </td>
             </tr>
           </table>
