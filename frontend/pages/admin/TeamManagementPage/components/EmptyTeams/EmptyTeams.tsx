@@ -18,7 +18,7 @@ const EmptyUsers = (): JSX.Element => {
             <a
               href="https://github.com/fleetdm/fleet/pull/472"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
             >
               Read about teams
               <img src={OpenNewTabIcon} alt="open new tab" />
