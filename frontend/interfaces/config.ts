@@ -7,6 +7,7 @@ export default PropTypes.shape({
   agent_options: PropTypes.string,
   configured: PropTypes.bool,
   domain: PropTypes.string,
+  enable_analytics: PropTypes.bool,
   enable_ssl_tls: PropTypes.bool,
   enable_start_tls: PropTypes.bool,
   host_expiry_enabled: PropTypes.bool,
@@ -30,6 +31,7 @@ export interface IConfig {
   agent_options: string;
   configured: boolean;
   domain: string;
+  enable_analytics: boolean;
   enable_ssl_tls: boolean;
   enable_start_tls: boolean;
   host_expiry_enabled: boolean;
