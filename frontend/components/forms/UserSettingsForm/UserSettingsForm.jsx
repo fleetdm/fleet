@@ -17,7 +17,6 @@ class UserSettingsForm extends Component {
       email: formFieldInterface.isRequired,
       name: formFieldInterface.isRequired,
       position: formFieldInterface.isRequired,
-      username: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     pendingEmail: PropTypes.string,
@@ -42,29 +41,15 @@ class UserSettingsForm extends Component {
     const { fields, handleSubmit, onCancel } = this.props;
     const { renderEmailHint } = this;
 
-    const text =
-      "Fleet is transitioning to the use of email only<br/>for account uniqueness. Username will no <br/>longer surface anywhere in the Fleet product <br/>and will be replaced by full name.";
-
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
-        {fields.username && (
-          <>
-            <div data-tip={text} data-multiline>
-              <InputField {...fields.username} label="Username" />
-            </div>
-            <ReactTooltip
-              effect={"solid"}
-              data-multiline
-              backgroundColor={"#3e4771"}
-            />
-          </>
-        )}
         <InputField
           {...fields.email}
+          autofocus
           label="Email (required)"
           hint={renderEmailHint()}
         />
-        <InputField {...fields.name} autofocus label="Full Name (required)" />
+        <InputField {...fields.name} label="Full Name (required)" />
         <InputField {...fields.position} label="Position" />
         <div className={`${baseClass}__button-wrap`}>
           <Button onClick={onCancel} variant="inverse">
