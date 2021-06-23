@@ -293,17 +293,18 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 }
 
 func (svc *Service) ResetPassword(ctx context.Context, token, password string) error {
+	// skipauth: No viewer context available. The user is locked out of their
+	// account and authNZ is performed entirely by providing a valid password
+	// reset token.
+	svc.authz.SkipAuthorization(ctx)
+
 	reset, err := svc.ds.FindPassswordResetByToken(token)
 	if err != nil {
 		return errors.Wrap(err, "looking up reset by token")
 	}
-	user, err := svc.User(ctx, reset.UserID)
+	user, err := svc.ds.UserByID(reset.UserID)
 	if err != nil {
 		return errors.Wrap(err, "retrieving user")
-	}
-
-	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
-		return err
 	}
 
 	if user.SSOEnabled {
@@ -432,7 +433,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		return err
 	}
 
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.ds.AppConfig()
 	if err != nil {
 		return err
 	}
