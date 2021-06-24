@@ -70,6 +70,8 @@ documentation](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limit
 When Fleet encounters logs that are too big for Lambda, notifications will be
 output in the Fleet logs and those logs _will not_ be sent to Lambda.
 
+Queries with the `differential` logging type might result in a higher number of Lambda invocations. Keep this in mind when using Lambda, as you're charged based on the number of requests for your functions and the duration, the time it takes for your code to execute. The `differential` logging type is the default logging type in Fleet.
+
 ### PubSub
 
 - Plugin name: `pubsub`
