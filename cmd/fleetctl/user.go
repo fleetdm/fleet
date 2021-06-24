@@ -20,6 +20,7 @@ const (
 	teamFlagName       = "team"
 	passwordFlagName   = "password"
 	emailFlagName      = "email"
+	nameFlagName       = "name"
 	ssoFlagName        = "sso"
 	apiOnlyFlagName    = "api-only"
 )
@@ -45,6 +46,11 @@ func createUserCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:     emailFlagName,
 				Usage:    "Email for new user (required)",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     nameFlagName,
+				Usage:    "User's full name or nickname (required)",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -81,6 +87,7 @@ func createUserCommand() *cli.Command {
 
 			password := c.String(passwordFlagName)
 			email := c.String(emailFlagName)
+			name := c.String(nameFlagName)
 			sso := c.Bool(ssoFlagName)
 			apiOnly := c.Bool(apiOnlyFlagName)
 			globalRoleString := c.String(globalRoleFlagName)
@@ -149,7 +156,7 @@ func createUserCommand() *cli.Command {
 			err = client.CreateUser(fleet.UserPayload{
 				Password:                 &password,
 				Email:                    &email,
-				Name:                     &email,
+				Name:                     &name,
 				SSOEnabled:               &sso,
 				AdminForcedPasswordReset: &force_reset,
 				APIOnly:                  &apiOnly,

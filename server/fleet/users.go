@@ -154,6 +154,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 		Email: *p.Email,
 		Teams: []UserTeam{},
 	}
+	if p.Name != nil {
+		user.Name = *p.Name
+	}
 	if err := user.SetPassword(*p.Password, keySize, cost); err != nil {
 		return nil, err
 	}
