@@ -39,7 +39,7 @@ In the coming months, Fleet will introduce the [Teams feature](https://github.co
 
 ## How often do labels refresh? Is the refresh frequency configurable?
 
-The update frequency for labels is configurable with the [—osquery_label_update_interval](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#osquery_label_update_interval) flag (default 1 hour).
+The update frequency for labels is configurable with the [—osquery_label_update_interval](../3-Deployment/2-Configuration.md#osquery_label_update_interval) flag (default 1 hour).
 
 ## How do I revoke the authorization tokens for a user?
 
@@ -84,7 +84,7 @@ It is possible to configure osqueryd to log query results outside of Fleet. For 
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+The [logger configuration options](../3-Deployment/2-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
 
 ### Troubleshooting
 
