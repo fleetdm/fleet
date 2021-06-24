@@ -480,7 +480,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=host_name&query=2ce`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce`
 
 ##### Request query parameters
 
@@ -488,7 +488,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 {
   "page": 0,
   "per_page": 100,
-  "order_key": "host_name",
+  "order_key": "hostname",
 }
 ```
 

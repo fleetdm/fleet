@@ -89,7 +89,7 @@ func testLabels(t *testing.T, db fleet.Datastore) {
 
 	host, err = db.Host(host.ID)
 	require.NoError(t, err)
-	host.LabelUpdateTime = baseTime
+	host.LabelUpdatedAt = baseTime
 
 	// Now no queries should be returned
 	queries, err = db.LabelQueriesForHost(host, baseTime.Add(-1*time.Minute))
@@ -239,35 +239,35 @@ func testSearchLabelsLimit(t *testing.T, db fleet.Datastore) {
 
 func testListHostsInLabel(t *testing.T, db fleet.Datastore) {
 	h1, err := db.NewHost(&fleet.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		OsqueryHostID:    "1",
-		NodeKey:          "1",
-		UUID:             "1",
-		HostName:         "foo.local",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
 	})
 	require.Nil(t, err)
 
 	h2, err := db.NewHost(&fleet.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		OsqueryHostID:    "2",
-		NodeKey:          "2",
-		UUID:             "2",
-		HostName:         "bar.local",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		UUID:            "2",
+		Hostname:        "bar.local",
 	})
 	require.Nil(t, err)
 
 	h3, err := db.NewHost(&fleet.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		OsqueryHostID:    "3",
-		NodeKey:          "3",
-		UUID:             "3",
-		HostName:         "baz.local",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "3",
+		NodeKey:         "3",
+		UUID:            "3",
+		Hostname:        "baz.local",
 	})
 	require.Nil(t, err)
 
@@ -317,13 +317,13 @@ func testListUniqueHostsInLabels(t *testing.T, db fleet.Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 4; i++ {
 		h, err := db.NewHost(&fleet.Host{
-			DetailUpdateTime: time.Now(),
-			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now(),
-			OsqueryHostID:    strconv.Itoa(i),
-			NodeKey:          strconv.Itoa(i),
-			UUID:             strconv.Itoa(i),
-			HostName:         fmt.Sprintf("host_%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         strconv.Itoa(i),
+			UUID:            strconv.Itoa(i),
+			Hostname:        fmt.Sprintf("host_%d", i),
 		})
 		require.Nil(t, err)
 		require.NotNil(t, h)
@@ -392,13 +392,13 @@ func testChangeLabelDetails(t *testing.T, db fleet.Datastore) {
 func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(&fleet.Host{
-			DetailUpdateTime: time.Now(),
-			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now(),
-			OsqueryHostID:    strconv.Itoa(i),
-			NodeKey:          strconv.Itoa(i),
-			UUID:             strconv.Itoa(i),
-			HostName:         strconv.Itoa(i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         strconv.Itoa(i),
+			UUID:            strconv.Itoa(i),
+			Hostname:        strconv.Itoa(i),
 		})
 		require.Nil(t, err)
 	}

@@ -76,7 +76,7 @@ DELETE FROM label_membership WHERE label_id = ?
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
 				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT ?, id FROM hosts where host_name IN (?))
+INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT ?, id FROM hosts where hostname IN (?))
 `
 				sql, args, err := sqlx.In(sql, labelID, hostnames)
 				if err != nil {
@@ -161,7 +161,7 @@ WHERE name = ?
 
 func (d *Datastore) getLabelHostnames(label *fleet.LabelSpec) error {
 	sql := `
-		SELECT host_name
+		SELECT hostname
 		FROM hosts
 		WHERE id IN
 		(
@@ -268,7 +268,7 @@ func (d *Datastore) ListLabels(filter fleet.TeamFilter, opt fleet.ListOptions) (
 func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 	var rows *sql.Rows
 	var err error
-	if host.LabelUpdateTime.Before(cutoff) {
+	if host.LabelUpdatedAt.Before(cutoff) {
 		// Retrieve all labels (with matching platform) for this host
 		sql := `
 			SELECT id, query
@@ -291,7 +291,7 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 		rows, err = d.db.Query(
 			sql,
 			host.Platform,
-			host.LabelUpdateTime,
+			host.LabelUpdatedAt,
 			host.Platform,
 			fleet.LabelMembershipTypeDynamic,
 		)

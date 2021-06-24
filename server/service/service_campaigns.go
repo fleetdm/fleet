@@ -227,7 +227,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			if row == nil {
 				continue
 			}
-			row["host_hostname"] = res.Host.HostName
+			row["host_hostname"] = res.Host.Hostname
 			filteredRows = append(filteredRows, row)
 		}
 

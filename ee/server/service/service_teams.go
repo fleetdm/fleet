@@ -15,7 +15,14 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, err
 	}
 
-	team := &fleet.Team{}
+	// Copy team options from global options
+	globalConfig, err := svc.ds.AppConfig()
+	if err != nil {
+		return nil, err
+	}
+	team := &fleet.Team{
+		AgentOptions: globalConfig.AgentOptions,
+	}
 
 	if p.Name == nil {
 		return nil, fleet.NewInvalidArgumentError("name", "missing required argument")
@@ -39,7 +46,8 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		}
 		team.Secrets = []*fleet.EnrollSecret{{Secret: secret}}
 	}
-	team, err := svc.ds.NewTeam(team)
+
+	team, err = svc.ds.NewTeam(team)
 	if err != nil {
 		return nil, err
 	}

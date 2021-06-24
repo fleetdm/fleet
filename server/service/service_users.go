@@ -323,13 +323,13 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 
 	// delete password reset tokens for user
 	if err := svc.ds.DeletePasswordResetRequestsForUser(user.ID); err != nil {
-		return errors.Wrap(err, "deleting password reset requests")
+		return errors.Wrap(err, "delete password reset requests")
 	}
 
 	// Clear sessions so that any other browsers will have to log in with
 	// the new password
-	if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
-		return errors.Wrap(err, "deleting user sessions")
+	if err := svc.ds.DestroyAllSessionsForUser(user.ID); err != nil {
+		return errors.Wrap(err, "delete user sessions")
 	}
 
 	return nil

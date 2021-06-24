@@ -77,7 +77,7 @@ func makeSearchTargetsEndpoint(svc fleet.Service) endpoint.Endpoint {
 						Host:   host,
 						Status: host.Status(time.Now()),
 					},
-					host.HostName,
+					host.Hostname,
 				},
 			)
 		}

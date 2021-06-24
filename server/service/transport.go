@@ -145,17 +145,6 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 
 	}
 
-	// Special some keys so that the frontend can use consistent names.
-	// TODO #317 remove special cases
-	switch orderKey {
-	case "hostname":
-		orderKey = "host_name"
-	case "memory":
-		orderKey = "physical_memory"
-	case "detail_updated_at":
-		orderKey = "detail_update_time"
-	}
-
 	query := r.URL.Query().Get("query")
 
 	return fleet.ListOptions{

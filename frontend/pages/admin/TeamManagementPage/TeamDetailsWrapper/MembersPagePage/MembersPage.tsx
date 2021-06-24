@@ -228,7 +228,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__page-description`}>
-        Add and remove members from {team.name}.{" "}
+        Users can either be a member of team(s) or a global user.{" "}
         <Link to={PATHS.ADMIN_USERS}>Manage users with global access here</Link>
       </p>
       <TableContainer

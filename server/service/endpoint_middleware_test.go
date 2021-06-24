@@ -188,7 +188,7 @@ func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	expectedHost := fleet.Host{HostName: "foo!"}
+	expectedHost := fleet.Host{Hostname: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
 
 	ds.AuthenticateHostFunc = func(secret string) (*fleet.Host, error) {
