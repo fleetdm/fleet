@@ -44,25 +44,25 @@ var enrollTests = []struct {
 
 func testSaveHosts(t *testing.T, ds fleet.Datastore) {
 	host, err := ds.NewHost(&fleet.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		NodeKey:          "1",
-		UUID:             "1",
-		HostName:         "foo.local",
-		PrimaryIP:        "192.168.1.1",
-		PrimaryMac:       "30-65-EC-6F-C4-58",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	host.HostName = "bar.local"
+	host.Hostname = "bar.local"
 	err = ds.SaveHost(host)
 	require.Nil(t, err)
 
 	host, err = ds.Host(host.ID)
 	require.Nil(t, err)
-	assert.Equal(t, "bar.local", host.HostName)
+	assert.Equal(t, "bar.local", host.Hostname)
 	assert.Equal(t, "192.168.1.1", host.PrimaryIP)
 	assert.Equal(t, "30-65-EC-6F-C4-58", host.PrimaryMac)
 
@@ -95,14 +95,14 @@ func testSaveHosts(t *testing.T, ds fleet.Datastore) {
 
 func testSaveHostPackStats(t *testing.T, ds fleet.Datastore) {
 	host, err := ds.NewHost(&fleet.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		NodeKey:          "1",
-		UUID:             "1",
-		HostName:         "foo.local",
-		PrimaryIP:        "192.168.1.1",
-		PrimaryMac:       "30-65-EC-6F-C4-58",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -214,12 +214,12 @@ func testSaveHostPackStats(t *testing.T, ds fleet.Datastore) {
 
 func testDeleteHost(t *testing.T, ds fleet.Datastore) {
 	host, err := ds.NewHost(&fleet.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		NodeKey:          "1",
-		UUID:             "1",
-		HostName:         "foo.local",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
 	})
 	require.Nil(t, err)
 	require.NotNil(t, host)
@@ -235,13 +235,13 @@ func testListHosts(t *testing.T, ds fleet.Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 10; i++ {
 		host, err := ds.NewHost(&fleet.Host{
-			DetailUpdateTime: time.Now(),
-			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now(),
-			OsqueryHostID:    strconv.Itoa(i),
-			NodeKey:          fmt.Sprintf("%d", i),
-			UUID:             fmt.Sprintf("%d", i),
-			HostName:         fmt.Sprintf("foo.local%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
 		assert.Nil(t, err)
 		if err != nil {
@@ -279,13 +279,13 @@ func testListHosts(t *testing.T, ds fleet.Datastore) {
 
 func testListHostsFilterAdditional(t *testing.T, ds fleet.Datastore) {
 	h, err := ds.NewHost(&fleet.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		OsqueryHostID:    "foobar",
-		NodeKey:          "nodekey",
-		UUID:             "uuid",
-		HostName:         "foobar.local",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "foobar",
+		NodeKey:         "nodekey",
+		UUID:            "uuid",
+		Hostname:        "foobar.local",
 	})
 	require.Nil(t, err)
 
@@ -317,13 +317,13 @@ func testListHostsFilterAdditional(t *testing.T, ds fleet.Datastore) {
 func testListHostsStatus(t *testing.T, ds fleet.Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(&fleet.Host{
-			DetailUpdateTime: time.Now(),
-			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:    strconv.Itoa(i),
-			NodeKey:          fmt.Sprintf("%d", i),
-			UUID:             fmt.Sprintf("%d", i),
-			HostName:         fmt.Sprintf("foo.local%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
 		assert.Nil(t, err)
 		if err != nil {
@@ -354,14 +354,14 @@ func testListHostsQuery(t *testing.T, ds fleet.Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 10; i++ {
 		host, err := ds.NewHost(&fleet.Host{
-			DetailUpdateTime: time.Now(),
-			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now(),
-			OsqueryHostID:    strconv.Itoa(i),
-			NodeKey:          fmt.Sprintf("%d", i),
-			UUID:             fmt.Sprintf("uuid_00%d", i),
-			HostName:         fmt.Sprintf("hostname%%00%d", i),
-			HardwareSerial:   fmt.Sprintf("serial00%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("uuid_00%d", i),
+			Hostname:        fmt.Sprintf("hostname%%00%d", i),
+			HardwareSerial:  fmt.Sprintf("serial00%d", i),
 		})
 		require.NoError(t, err)
 		host.PrimaryIP = fmt.Sprintf("192.168.1.%d", i)
@@ -470,35 +470,35 @@ func testAuthenticateHostCaseSensitive(t *testing.T, ds fleet.Datastore) {
 
 func testSearchHosts(t *testing.T, ds fleet.Datastore) {
 	_, err := ds.NewHost(&fleet.Host{
-		OsqueryHostID:    "1234",
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		NodeKey:          "1",
-		UUID:             "1",
-		HostName:         "foo.local",
+		OsqueryHostID:   "1234",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
 	})
 	require.Nil(t, err)
 
 	h2, err := ds.NewHost(&fleet.Host{
-		OsqueryHostID:    "5679",
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		NodeKey:          "2",
-		UUID:             "2",
-		HostName:         "bar.local",
+		OsqueryHostID:   "5679",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		Hostname:        "bar.local",
 	})
 	require.Nil(t, err)
 
 	h3, err := ds.NewHost(&fleet.Host{
-		OsqueryHostID:    "99999",
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		NodeKey:          "3",
-		UUID:             "abc-def-ghi",
-		HostName:         "foo-bar.local",
+		OsqueryHostID:   "99999",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "3",
+		UUID:            "abc-def-ghi",
+		Hostname:        "foo-bar.local",
 	})
 	require.Nil(t, err)
 
@@ -517,12 +517,12 @@ func testSearchHosts(t *testing.T, ds fleet.Datastore) {
 	host, err := ds.SearchHosts(filter, "foo", h3.ID)
 	require.Nil(t, err)
 	require.Len(t, host, 1)
-	assert.Equal(t, "foo.local", host[0].HostName)
+	assert.Equal(t, "foo.local", host[0].Hostname)
 
 	host, err = ds.SearchHosts(filter, "foo", h3.ID, h2.ID)
 	require.Nil(t, err)
 	require.Len(t, host, 1)
-	assert.Equal(t, "foo.local", host[0].HostName)
+	assert.Equal(t, "foo.local", host[0].Hostname)
 
 	host, err = ds.SearchHosts(filter, "abc")
 	require.Nil(t, err)
@@ -562,13 +562,13 @@ func testSearchHostsLimit(t *testing.T, ds fleet.Datastore) {
 
 	for i := 0; i < 15; i++ {
 		_, err := ds.NewHost(&fleet.Host{
-			DetailUpdateTime: time.Now(),
-			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now(),
-			OsqueryHostID:    fmt.Sprintf("host%d", i),
-			NodeKey:          fmt.Sprintf("%d", i),
-			UUID:             fmt.Sprintf("%d", i),
-			HostName:         fmt.Sprintf("foo.%d.local", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   fmt.Sprintf("host%d", i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.%d.local", i),
 		})
 		require.Nil(t, err)
 	}
@@ -591,12 +591,12 @@ func testGenerateHostStatusStatistics(t *testing.T, ds fleet.Datastore) {
 
 	// Online
 	h, err := ds.NewHost(&fleet.Host{
-		ID:               1,
-		OsqueryHostID:    "1",
-		NodeKey:          "1",
-		DetailUpdateTime: mockClock.Now().Add(-30 * time.Second),
-		LabelUpdateTime:  mockClock.Now().Add(-30 * time.Second),
-		SeenTime:         mockClock.Now().Add(-30 * time.Second),
+		ID:              1,
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		DetailUpdatedAt: mockClock.Now().Add(-30 * time.Second),
+		LabelUpdatedAt:  mockClock.Now().Add(-30 * time.Second),
+		SeenTime:        mockClock.Now().Add(-30 * time.Second),
 	})
 	require.Nil(t, err)
 	h.DistributedInterval = 15
@@ -605,12 +605,12 @@ func testGenerateHostStatusStatistics(t *testing.T, ds fleet.Datastore) {
 
 	// Online
 	h, err = ds.NewHost(&fleet.Host{
-		ID:               2,
-		OsqueryHostID:    "2",
-		NodeKey:          "2",
-		DetailUpdateTime: mockClock.Now().Add(-1 * time.Minute),
-		LabelUpdateTime:  mockClock.Now().Add(-1 * time.Minute),
-		SeenTime:         mockClock.Now().Add(-1 * time.Minute),
+		ID:              2,
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
+		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Minute),
+		SeenTime:        mockClock.Now().Add(-1 * time.Minute),
 	})
 	require.Nil(t, err)
 	h.DistributedInterval = 60
@@ -619,12 +619,12 @@ func testGenerateHostStatusStatistics(t *testing.T, ds fleet.Datastore) {
 
 	// Offline
 	h, err = ds.NewHost(&fleet.Host{
-		ID:               3,
-		OsqueryHostID:    "3",
-		NodeKey:          "3",
-		DetailUpdateTime: mockClock.Now().Add(-1 * time.Hour),
-		LabelUpdateTime:  mockClock.Now().Add(-1 * time.Hour),
-		SeenTime:         mockClock.Now().Add(-1 * time.Hour),
+		ID:              3,
+		OsqueryHostID:   "3",
+		NodeKey:         "3",
+		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
+		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Hour),
+		SeenTime:        mockClock.Now().Add(-1 * time.Hour),
 	})
 	require.Nil(t, err)
 	h.DistributedInterval = 300
@@ -633,12 +633,12 @@ func testGenerateHostStatusStatistics(t *testing.T, ds fleet.Datastore) {
 
 	// MIA
 	h, err = ds.NewHost(&fleet.Host{
-		ID:               4,
-		OsqueryHostID:    "4",
-		NodeKey:          "4",
-		DetailUpdateTime: mockClock.Now().Add(-35 * (24 * time.Hour)),
-		LabelUpdateTime:  mockClock.Now().Add(-35 * (24 * time.Hour)),
-		SeenTime:         mockClock.Now().Add(-35 * (24 * time.Hour)),
+		ID:              4,
+		OsqueryHostID:   "4",
+		NodeKey:         "4",
+		DetailUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
+		LabelUpdatedAt:  mockClock.Now().Add(-35 * (24 * time.Hour)),
+		SeenTime:        mockClock.Now().Add(-35 * (24 * time.Hour)),
 	})
 	require.Nil(t, err)
 
@@ -664,13 +664,13 @@ func testMarkHostSeen(t *testing.T, ds fleet.Datastore) {
 	aDayAgo := mockClock.Now().Add(-24 * time.Hour).UTC()
 
 	h1, err := ds.NewHost(&fleet.Host{
-		ID:               1,
-		OsqueryHostID:    "1",
-		UUID:             "1",
-		NodeKey:          "1",
-		DetailUpdateTime: aDayAgo,
-		LabelUpdateTime:  aDayAgo,
-		SeenTime:         aDayAgo,
+		ID:              1,
+		OsqueryHostID:   "1",
+		UUID:            "1",
+		NodeKey:         "1",
+		DetailUpdatedAt: aDayAgo,
+		LabelUpdatedAt:  aDayAgo,
+		SeenTime:        aDayAgo,
 	})
 	assert.Nil(t, err)
 
@@ -700,24 +700,24 @@ func testMarkHostsSeen(t *testing.T, ds fleet.Datastore) {
 	aDayAgo := mockClock.Now().Add(-24 * time.Hour).UTC()
 
 	h1, err := ds.NewHost(&fleet.Host{
-		ID:               1,
-		OsqueryHostID:    "1",
-		UUID:             "1",
-		NodeKey:          "1",
-		DetailUpdateTime: aDayAgo,
-		LabelUpdateTime:  aDayAgo,
-		SeenTime:         aDayAgo,
+		ID:              1,
+		OsqueryHostID:   "1",
+		UUID:            "1",
+		NodeKey:         "1",
+		DetailUpdatedAt: aDayAgo,
+		LabelUpdatedAt:  aDayAgo,
+		SeenTime:        aDayAgo,
 	})
 	require.Nil(t, err)
 
 	h2, err := ds.NewHost(&fleet.Host{
-		ID:               2,
-		OsqueryHostID:    "2",
-		UUID:             "2",
-		NodeKey:          "2",
-		DetailUpdateTime: aDayAgo,
-		LabelUpdateTime:  aDayAgo,
-		SeenTime:         aDayAgo,
+		ID:              2,
+		OsqueryHostID:   "2",
+		UUID:            "2",
+		NodeKey:         "2",
+		DetailUpdatedAt: aDayAgo,
+		LabelUpdatedAt:  aDayAgo,
+		SeenTime:        aDayAgo,
 	})
 	require.Nil(t, err)
 
@@ -757,26 +757,26 @@ func testCleanupIncomingHosts(t *testing.T, ds fleet.Datastore) {
 	mockClock := clock.NewMockClock()
 
 	h1, err := ds.NewHost(&fleet.Host{
-		ID:               1,
-		OsqueryHostID:    "1",
-		UUID:             "1",
-		NodeKey:          "1",
-		DetailUpdateTime: mockClock.Now(),
-		LabelUpdateTime:  mockClock.Now(),
-		SeenTime:         mockClock.Now(),
+		ID:              1,
+		OsqueryHostID:   "1",
+		UUID:            "1",
+		NodeKey:         "1",
+		DetailUpdatedAt: mockClock.Now(),
+		LabelUpdatedAt:  mockClock.Now(),
+		SeenTime:        mockClock.Now(),
 	})
 	require.Nil(t, err)
 
 	h2, err := ds.NewHost(&fleet.Host{
-		ID:               2,
-		OsqueryHostID:    "2",
-		UUID:             "2",
-		NodeKey:          "2",
-		HostName:         "foobar",
-		OsqueryVersion:   "3.2.3",
-		DetailUpdateTime: mockClock.Now(),
-		LabelUpdateTime:  mockClock.Now(),
-		SeenTime:         mockClock.Now(),
+		ID:              2,
+		OsqueryHostID:   "2",
+		UUID:            "2",
+		NodeKey:         "2",
+		Hostname:        "foobar",
+		OsqueryVersion:  "3.2.3",
+		DetailUpdatedAt: mockClock.Now(),
+		LabelUpdatedAt:  mockClock.Now(),
+		SeenTime:        mockClock.Now(),
 	})
 	require.Nil(t, err)
 
@@ -802,13 +802,13 @@ func testCleanupIncomingHosts(t *testing.T, ds fleet.Datastore) {
 func testHostIDsByName(t *testing.T, ds fleet.Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(&fleet.Host{
-			DetailUpdateTime: time.Now(),
-			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now(),
-			OsqueryHostID:    fmt.Sprintf("host%d", i),
-			NodeKey:          fmt.Sprintf("%d", i),
-			UUID:             fmt.Sprintf("%d", i),
-			HostName:         fmt.Sprintf("foo.%d.local", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   fmt.Sprintf("host%d", i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.%d.local", i),
 		})
 		require.Nil(t, err)
 	}
@@ -822,19 +822,19 @@ func testHostIDsByName(t *testing.T, ds fleet.Datastore) {
 
 func testHostAdditional(t *testing.T, ds fleet.Datastore) {
 	_, err := ds.NewHost(&fleet.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		OsqueryHostID:    "foobar",
-		NodeKey:          "nodekey",
-		UUID:             "uuid",
-		HostName:         "foobar.local",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "foobar",
+		NodeKey:         "nodekey",
+		UUID:            "uuid",
+		Hostname:        "foobar.local",
 	})
 	require.Nil(t, err)
 
 	h, err := ds.AuthenticateHost("nodekey")
 	require.Nil(t, err)
-	assert.Equal(t, "foobar.local", h.HostName)
+	assert.Equal(t, "foobar.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
 	// Additional not yet set
@@ -850,7 +850,7 @@ func testHostAdditional(t *testing.T, ds fleet.Datastore) {
 	// Additional should not be loaded for authenticatehost
 	h, err = ds.AuthenticateHost("nodekey")
 	require.Nil(t, err)
-	assert.Equal(t, "foobar.local", h.HostName)
+	assert.Equal(t, "foobar.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
 	h, err = ds.Host(h.ID)
@@ -860,13 +860,13 @@ func testHostAdditional(t *testing.T, ds fleet.Datastore) {
 	// Update besides additional. Additional should be unchanged.
 	h, err = ds.AuthenticateHost("nodekey")
 	require.Nil(t, err)
-	h.HostName = "baz.local"
+	h.Hostname = "baz.local"
 	err = ds.SaveHost(h)
 	require.Nil(t, err)
 
 	h, err = ds.AuthenticateHost("nodekey")
 	require.Nil(t, err)
-	assert.Equal(t, "baz.local", h.HostName)
+	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
 	h, err = ds.Host(h.ID)
@@ -883,7 +883,7 @@ func testHostAdditional(t *testing.T, ds fleet.Datastore) {
 
 	h, err = ds.AuthenticateHost("nodekey")
 	require.Nil(t, err)
-	assert.Equal(t, "baz.local", h.HostName)
+	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
 	h, err = ds.Host(h.ID)
@@ -894,13 +894,13 @@ func testHostAdditional(t *testing.T, ds fleet.Datastore) {
 func testHostByIdentifier(t *testing.T, ds fleet.Datastore) {
 	for i := 1; i <= 10; i++ {
 		_, err := ds.NewHost(&fleet.Host{
-			DetailUpdateTime: time.Now(),
-			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now(),
-			OsqueryHostID:    fmt.Sprintf("osquery_host_id_%d", i),
-			NodeKey:          fmt.Sprintf("node_key_%d", i),
-			UUID:             fmt.Sprintf("uuid_%d", i),
-			HostName:         fmt.Sprintf("hostname_%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   fmt.Sprintf("osquery_host_id_%d", i),
+			NodeKey:         fmt.Sprintf("node_key_%d", i),
+			UUID:            fmt.Sprintf("uuid_%d", i),
+			Hostname:        fmt.Sprintf("hostname_%d", i),
 		})
 		require.Nil(t, err)
 	}

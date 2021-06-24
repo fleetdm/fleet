@@ -47,7 +47,7 @@ func (c *goqueryClient) CheckHost(query string) (gqhosts.Host, error) {
 	var host *fleet.Host
 	for _, h := range res.Hosts {
 		// We allow hosts to be looked up by hostname in addition to UUID
-		if query == h.UUID || query == h.HostName || query == h.ComputerName {
+		if query == h.UUID || query == h.Hostname || query == h.ComputerName {
 			host = h
 			break
 		}
@@ -57,7 +57,7 @@ func (c *goqueryClient) CheckHost(query string) (gqhosts.Host, error) {
 		return gqhosts.Host{}, fmt.Errorf("host %s not found", query)
 	}
 
-	c.hostnameByUUID[host.UUID] = host.HostName
+	c.hostnameByUUID[host.UUID] = host.Hostname
 
 	return gqhosts.Host{
 		UUID:         host.UUID,

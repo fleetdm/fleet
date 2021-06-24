@@ -225,19 +225,19 @@ func (d *Datastore) ListHostsInPack(pid uint, opt fleet.ListOptions) ([]uint, er
 	// Apply ordering
 	if opt.OrderKey != "" {
 		var fields = map[string]string{
-			"id":                 "ID",
-			"created_at":         "CreatedAt",
-			"updated_at":         "UpdatedAt",
-			"detail_update_time": "DetailUpdateTime",
-			"hostname":           "HostName",
-			"uuid":               "UUID",
-			"platform":           "Platform",
-			"osquery_version":    "OsqueryVersion",
-			"os_version":         "OSVersion",
-			"uptime":             "Uptime",
-			"memory":             "PhysicalMemory",
-			"mac":                "PrimaryMAC",
-			"ip":                 "PrimaryIP",
+			"id":                "ID",
+			"created_at":        "CreatedAt",
+			"updated_at":        "UpdatedAt",
+			"detail_updated_at": "DetailUpdatedAt",
+			"hostname":          "Hostname",
+			"uuid":              "UUID",
+			"platform":          "Platform",
+			"osquery_version":   "OsqueryVersion",
+			"os_version":        "OSVersion",
+			"uptime":            "Uptime",
+			"memory":            "Memory",
+			"mac":               "PrimaryMAC",
+			"ip":                "PrimaryIP",
 		}
 		if err := sortResults(hosts, opt, fields); err != nil {
 			return nil, err
@@ -273,19 +273,19 @@ func (d *Datastore) ListExplicitHostsInPack(pid uint, opt fleet.ListOptions) ([]
 	// Apply ordering
 	if opt.OrderKey != "" {
 		var fields = map[string]string{
-			"id":                 "ID",
-			"created_at":         "CreatedAt",
-			"updated_at":         "UpdatedAt",
-			"detail_update_time": "DetailUpdateTime",
-			"hostname":           "HostName",
-			"uuid":               "UUID",
-			"platform":           "Platform",
-			"osquery_version":    "OsqueryVersion",
-			"os_version":         "OSVersion",
-			"uptime":             "Uptime",
-			"memory":             "PhysicalMemory",
-			"mac":                "PrimaryMAC",
-			"ip":                 "PrimaryIP",
+			"id":                "ID",
+			"created_at":        "CreatedAt",
+			"updated_at":        "UpdatedAt",
+			"detail_updated_at": "DetailUpdatedAt",
+			"hostname":          "Hostname",
+			"uuid":              "UUID",
+			"platform":          "Platform",
+			"osquery_version":   "OsqueryVersion",
+			"os_version":        "OSVersion",
+			"uptime":            "Uptime",
+			"memory":            "Memory",
+			"mac":               "PrimaryMAC",
+			"ip":                "PrimaryIP",
 		}
 		if err := sortResults(hosts, opt, fields); err != nil {
 			return nil, err

@@ -28,7 +28,7 @@ func newJsonWriter() *jsonWriter {
 
 func (w *jsonWriter) WriteResult(res fleet.DistributedQueryResult) error {
 	out := resultOutput{
-		HostIdentifier: res.Host.HostName,
+		HostIdentifier: res.Host.Hostname,
 		Rows:           res.Rows,
 		Error:          res.Error,
 	}
@@ -72,7 +72,7 @@ func (w *prettyWriter) WriteResult(res fleet.DistributedQueryResult) error {
 	// Extract columns from the results in the appropriate order
 	for _, res := range w.results {
 		for _, row := range res.Rows {
-			cols := []string{res.Host.HostName}
+			cols := []string{res.Host.Hostname}
 			for _, col := range columns {
 				cols = append(cols, row[col])
 			}

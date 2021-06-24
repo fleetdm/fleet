@@ -121,14 +121,14 @@ type Host struct {
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
 	OsqueryHostID    string        `json:"-" db:"osquery_host_id"`
-	DetailUpdateTime time.Time     `json:"detail_updated_at" db:"detail_update_time"` // Time that the host details were last updated
-	LabelUpdateTime  time.Time     `json:"label_updated_at" db:"label_update_time"`   // Time that the host details were last updated
-	LastEnrollTime   time.Time     `json:"last_enrolled_at" db:"last_enroll_time"`    // Time that the host last enrolled
-	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                  // Time that the host was last "seen"
+	DetailUpdatedAt  time.Time     `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
+	LabelUpdatedAt   time.Time     `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
+	LastEnrolledAt   time.Time     `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
+	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
 	RefetchRequested bool          `json:"refetch_requested" db:"refetch_requested"`
 	NodeKey          string        `json:"-" db:"node_key"`
-	HostName         string        `json:"hostname" db:"host_name"` // there is a fulltext index on this field
-	UUID             string        `json:"uuid" db:"uuid"`          // there is a fulltext index on this field
+	Hostname         string        `json:"hostname" db:"hostname"` // there is a fulltext index on this field
+	UUID             string        `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
 	Platform         string        `json:"platform"`
 	OsqueryVersion   string        `json:"osquery_version" db:"osquery_version"`
 	OSVersion        string        `json:"os_version" db:"os_version"`
@@ -136,7 +136,7 @@ type Host struct {
 	PlatformLike     string        `json:"platform_like" db:"platform_like"`
 	CodeName         string        `json:"code_name" db:"code_name"`
 	Uptime           time.Duration `json:"uptime"`
-	PhysicalMemory   int64         `json:"memory" sql:"type:bigint" db:"physical_memory"`
+	Memory           int64         `json:"memory" sql:"type:bigint" db:"memory"`
 	// system_info fields
 	CPUType          string `json:"cpu_type" db:"cpu_type"`
 	CPUSubtype       string `json:"cpu_subtype" db:"cpu_subtype"`
