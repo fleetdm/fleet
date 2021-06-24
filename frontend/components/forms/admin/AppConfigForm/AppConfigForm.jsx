@@ -490,7 +490,7 @@ class AppConfigForm extends Component {
                 How do global agent options interact with team-level agent
                 options?&nbsp;
                 <a
-                  href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/1-Fleet-UI.md#configuring-agent-options"
+                  href="https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/1-Fleet-UI.md#configuring-agent-options"
                   className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
                   target="_blank"
                   rel="noopener noreferrer"
