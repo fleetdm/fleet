@@ -115,7 +115,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error creating Fleet API client handler")
 			}
 
-			token, err := fleet.Setup(email, password, "Fleet Preview")
+			token, err := fleet.Setup(email, "Admin", password, "Fleet Preview")
 			if err != nil {
 				switch errors.Cause(err).(type) {
 				case service.SetupAlreadyErr:

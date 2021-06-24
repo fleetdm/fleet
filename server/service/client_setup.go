@@ -10,10 +10,11 @@ import (
 
 // Setup attempts to setup the current Fleet instance. If setup is successful,
 // an auth token is returned.
-func (c *Client) Setup(email, password, org string) (string, error) {
+func (c *Client) Setup(email, name, password, org string) (string, error) {
 	params := setupRequest{
 		Admin: &fleet.UserPayload{
 			Email:    &email,
+			Name:     &name,
 			Password: &password,
 		},
 		OrgInfo: &fleet.OrgInfo{

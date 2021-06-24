@@ -72,7 +72,7 @@ fleetctl config set --address https://fleet.corp.example.com
 Now that we've configured our local CLI context, lets go ahead and create our admin account:
 
 ```
-fleetctl setup --email mike@arpaia.co
+fleetctl setup --email zwass@example.com --name 'Zach' --org-name 'Fleet Test'
 Password:
 [+] Fleet setup successful and context configured!
 ```
