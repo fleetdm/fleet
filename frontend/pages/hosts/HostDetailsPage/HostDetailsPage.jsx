@@ -17,6 +17,7 @@ import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
 import queryActions from "redux/nodes/entities/queries/actions";
+import teamInterface from "interfaces/team";
 import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import { push } from "react-router-redux";
@@ -40,6 +41,7 @@ import {
 } from "fleet/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
+import TransferHostModal from "./TransferHostModal";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
@@ -53,8 +55,11 @@ export class HostDetailsPage extends Component {
     isLoadingHost: PropTypes.bool,
     queries: PropTypes.arrayOf(queryInterface),
     queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    isGlobalAdmin: PropTypes.bool,
     isBasicTier: PropTypes.bool,
     isOnlyObserver: PropTypes.bool,
+    canTransferTeam: PropTypes.bool,
+    teams: PropTypes.arrayOf(teamInterface),
   };
 
   static defaultProps = {
@@ -68,6 +73,7 @@ export class HostDetailsPage extends Component {
     this.state = {
       showDeleteHostModal: false,
       showQueryHostModal: false,
+      showTransferHostModal: false,
       showRefetchLoadingSpinner: false,
     };
   }
@@ -133,6 +139,34 @@ export class HostDetailsPage extends Component {
     return dispatch(push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`));
   };
 
+  onTransferHostSubmit = (team) => {
+    const { toggleTransferHostModal } = this;
+    const { dispatch, hostID } = this.props;
+    const teamId = team.id === "no-team" ? null : team.id;
+    dispatch(hostActions.transferToTeam(teamId, hostID))
+      .then(() => {
+        const successMessage =
+          teamId === null
+            ? `Hosts successfully removed from teams.`
+            : `Hosts successfully transferred to  ${team.name}.`;
+        dispatch(renderFlash("success", successMessage));
+        dispatch(getHosts());
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", "Could not transfer hosts. Please try again.")
+        );
+      });
+    toggleTransferHostModal();
+  };
+
+  clearHostUpdates() {
+    if (this.timeout) {
+      global.window.clearTimeout(this.timeout);
+      this.timeout = null;
+    }
+  }
+
   toggleQueryHostModal = () => {
     return () => {
       const { showQueryHostModal } = this.state;
@@ -151,6 +185,18 @@ export class HostDetailsPage extends Component {
 
       this.setState({
         showDeleteHostModal: !showDeleteHostModal,
+      });
+
+      return false;
+    };
+  };
+
+  toggleTransferHostModal = () => {
+    return () => {
+      const { showTransferHostModal } = this.state;
+
+      this.setState({
+        showTransferHostModal: !showTransferHostModal,
       });
 
       return false;
@@ -196,7 +242,11 @@ export class HostDetailsPage extends Component {
   };
 
   renderActionButtons = () => {
-    const { toggleDeleteHostModal, toggleQueryHostModal } = this;
+    const {
+      toggleDeleteHostModal,
+      toggleQueryHostModal,
+      toggleTransferHostModal,
+    } = this;
     const { host, isOnlyObserver } = this.props;
 
     const isOnline = host.status === "online";
@@ -209,6 +259,15 @@ export class HostDetailsPage extends Component {
 
     return (
       <div className={`${baseClass}__action-button-container`}>
+        {canTransferTeam &&
+          <Button
+            onClick={toggleTransferHostModal()}
+            variant="inverse"
+            className={`${baseClass}__transfer-button`}
+          >
+            Transfer
+          </Button>
+        }
         <div data-tip data-for="query" data-tip-disable={isOnline}>
           <Button
             onClick={toggleQueryHostModal()}
@@ -469,9 +528,11 @@ export class HostDetailsPage extends Component {
       queryErrors,
       isBasicTier,
     } = this.props;
-    const { showQueryHostModal } = this.state;
+    const { showQueryHostModal, showTransferHostModal } = this.state;
     const {
+      onTransferHostSubmit,
       toggleQueryHostModal,
+      toggleTransferHostModal,
       renderDeleteHostModal,
       renderActionButtons,
       renderLabels,
@@ -670,6 +731,15 @@ export class HostDetailsPage extends Component {
             queryErrors={queryErrors}
           />
         )}
+        {showTransferHostModal && (
+          <TransferHostModal
+            host={host}
+            onCancel={toggleTransferHostModal}
+            onSubmit={onTransferHostSubmit}
+            teams={teams}
+            isGlobalAdmin={isGlobalAdmin}
+          />
+        )}
       </div>
     );
   }
@@ -683,8 +753,13 @@ const mapStateToProps = (state, ownProps) => {
   const { loading: isLoadingHost } = state.entities.hosts;
   const config = state.app.config;
   const currentUser = state.auth.user;
+  const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
   const isBasicTier = permissionUtils.isBasicTier(config);
   const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
+  const teams = memoizedGetEntity(state.entities.teams.data);
+  const canTransferTeam =
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser);
 
   return {
     host,
@@ -692,9 +767,11 @@ const mapStateToProps = (state, ownProps) => {
     isLoadingHost,
     queries,
     queryErrors,
+    isGlobalAdmin,
     isBasicTier,
     isOnlyObserver,
-  };
+    teams,
+    canTransferTeam,
 };
 
 export default connect(mapStateToProps)(HostDetailsPage);
