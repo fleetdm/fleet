@@ -5,11 +5,13 @@ export default PropTypes.shape({
   name: PropTypes.string,
   version: PropTypes.string,
   id: PropTypes.number,
-  vulnerabilities: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number,
-    uid: PropTypes.number,
-    username: PropTypes.string,
-    type: PropTypes.string,
-    groupname: PropTypes.string,
-  })),
+  vulnerabilities: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number,
+      uid: PropTypes.number,
+      username: PropTypes.string,
+      type: PropTypes.string,
+      groupname: PropTypes.string,
+    })
+  ),
 });
