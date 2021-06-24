@@ -1,6 +1,7 @@
 # Fleet UI
 - [Running queries](#running-queries)
 - [Scheduling queries](#scheduling-queries)
+- [Configuring agent options](#configuring-agent-options)
 
 ## Running queries
 
@@ -46,3 +47,34 @@ To add queries to a pack, use the right-hand sidebar. You can take an existing s
 
 Once you've scheduled queries and curated your packs, you can read our guide to [Working With Osquery Logs](../1-Using-Fleet/5-Osquery-logs.md).
 
+## Configuring agent options
+
+The Fleet application allows you to specify options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options.
+
+### Global agent options
+
+Global agent options are applied to all hosts enrolled in Fleet.
+
+Only user's with the Admin role can edit global agent options.
+
+To configure global agent options, head to **Settings > Organization settings > Global agent options**.
+
+![Global agent options](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/global-agent-options.png)
+ 
+### Team level agent options
+
+`Applies only to Fleet Basic`
+
+```
+ℹ️  In Fleet 4.0, Teams were introduced.
+```
+
+Team agent options are applied to all hosts assigned to a specific team in Fleet.
+
+Team agent options *override* global agent options. 
+
+Let's say you have two teams in Fleet. One team is named "Workstations" and the other named "Servers." If you edit the agent options for the "Workstations" team, the hosts assigned to this team will now receive these agent options *instead of* the global agent options. The hosts assigned to the "Servers" team will still receive the global agent options.
+
+To configure team agent options, head to **Settings > Teams > `Team-name-here` > Agent options**.
+
+![Team agent options](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/team-agent-options.png)

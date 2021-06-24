@@ -12,7 +12,7 @@
 - [Multiple enroll secrets](#multiple-enroll-secrets)
 
 Fleet is powered by the open source osquery tool. To connect a host to Fleet, you have three general options: 
-- You can use [Orbit for osquery](https://github.com/fleet/orbit)
+- You can use [Orbit for osquery](https://github.com/fleetdm/orbit)
 - You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads
 - You can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher).
 
@@ -87,6 +87,15 @@ For your convenience, osqueryd supports putting all of your flags into a single 
 
 ```
 osqueryd --flagfile=/etc/osquery/fleet.flags
+```
+
+#### Flag file on Windows
+
+Ensure that paths to files in the flag file are absolute, and not quoted. For example in `C:\Program Files\osquery\osquery.flags`:
+
+```
+--tls_server_certs=C:\Program Files\osquery\fleet.pem
+--enroll_secret_path=C:\Program Files\osquery\secret.txt
 ```
 
 ## Kolide osquery Launcher
