@@ -528,7 +528,7 @@ class AppConfigForm extends Component {
               <br />
               <br />
               <a
-                href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+                href="https://github.com/fleetdm/fleet/blob/teams/docs/1-Using-Fleet/10-Usage-statistics.md"
                 className={`${baseClass}__learn-more`}
                 target="_blank"
                 rel="noopener noreferrer"
