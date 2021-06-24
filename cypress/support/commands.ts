@@ -222,14 +222,14 @@ Cypress.Commands.add("seedFigma", () => {
   });
 });
 
-Cypress.Commands.add("addUser", (username, options = {}) => {
+Cypress.Commands.add("addUser", (options = {}) => {
   let { password, email, globalRole } = options;
   password ||= "test123#";
-  email ||= `${username}@example.com`;
+  email ||= `admin@example.com`;
   globalRole ||= "admin";
 
   cy.exec(
-    `./build/fleetctl user create --context e2e --username "${username}" --password "${password}" --email "${email}" --global-role "${globalRole}"`,
+    `./build/fleetctl user create --context e2e --password "${password}" --email "${email}" --global-role "${globalRole}"`,
     { timeout: 5000 }
   );
 });

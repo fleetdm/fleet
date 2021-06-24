@@ -10,7 +10,6 @@ create_user_endpoint="api/v1/fleet/users/admin"
 # Create Anna
 data='{
   "name": "Anna",
-  "username": "Anna",
   "email": "anna@organization.com",
   "password": "user123#",
   "invited_by": 1,
@@ -21,7 +20,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Mary
 data='{
   "name": "Mary",
-  "username": "Mary",
   "email": "mary@organization.com",
   "password": "user123#",
   "invited_by": 1,
@@ -32,7 +30,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Oliver
 data='{
   "name": "Oliver",
-  "username": "Oliver",
   "email": "oliver@organization.com",
   "password": "user123#",
   "invited_by": 1,

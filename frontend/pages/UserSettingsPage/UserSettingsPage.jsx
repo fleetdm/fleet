@@ -39,7 +39,7 @@ export class UserSettingsPage extends Component {
       go_version: PropTypes.string,
     }),
     errors: PropTypes.shape({
-      username: PropTypes.string,
+      email: PropTypes.string,
       base: PropTypes.string,
     }),
     user: userInterface,

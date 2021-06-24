@@ -1,6 +1,7 @@
 Using `curl` and `jq` to interact with the fleet API.
 
 First, create a `env` file with the following contents:
+
 ```
 export SERVER_URL=https://localhost:8080 # your fleet server url and port
 export CURL_FLAGS='-k -s' # set insecure flag
@@ -21,7 +22,6 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
     "created_at": "2018-04-10T02:07:46Z",
     "updated_at": "2018-04-10T02:07:46Z",
     "id": 1,
-    "username": "admin",
     "name": "admin",
     "email": "admin@acme.co",
     "admin": true,
@@ -65,4 +65,3 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
 # get scheduled queries in a pack
 ./tools/api/fleet/packs/scheduled 2 | jq '.scheduled[]|{"name": .name, "schedule_id": .id, "query_id": .query_id}'
 ```
-

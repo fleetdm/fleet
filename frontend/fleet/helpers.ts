@@ -4,13 +4,7 @@ import moment from "moment";
 import yaml from "js-yaml";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
-const ADMIN_ATTRS = [
-  "email",
-  "name",
-  "password",
-  "password_confirmation",
-  "username",
-];
+const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
 export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;

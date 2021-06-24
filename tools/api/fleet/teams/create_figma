@@ -31,7 +31,6 @@ create_user_endpoint="api/v1/fleet/users/admin"
 # Create Andre Verot
 data='{
   "name": "Andre Verot",
-  "username": "Andre Verot",
   "email": "andre@thecompany.com",
   "password": "user123#",
   "invited_by": 1,
@@ -48,7 +47,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Joanne Jackson
 data='{
   "name": "Joanne Jackson",
-  "username": "Joanne Jackson",
   "email": "jo@thecompany.com",
   "password": "user123#",
   "invited_by": 1,
@@ -65,7 +63,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Cheryl Gardner
 data='{
   "name": "Cheryl Gardner",
-  "username": "Cheryl Gardner",
   "email": "cheryl87@domain.tld",
   "password": "user123#",
   "invited_by": 1,
@@ -82,7 +79,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Lisa Walsh
 data='{
   "name": "Lisa Walsh",
-  "username": "Lisa Walsh",
   "email": "lisa_walsh@domain.com",
   "password": "user123#",
   "invited_by": 1,
@@ -107,7 +103,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Christopher Mitchell
 data='{
   "name": "Christopher Mitchell",
-  "username": "Christopher Mitchell",
   "email": "christopher98@thecompany.com",
   "password": "user123#",
   "invited_by": 1,
@@ -118,7 +113,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Kai Boucher
 data='{
   "name": "Kai Boucher",
-  "username": "Kai Boucher",
   "email": "boucher_@thecompany.com",
   "password": "user123#",
   "invited_by": 1,
@@ -129,7 +123,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Henry Lewis
 data='{
   "name": "Henry Lewis",
-  "username": "Henry Lewis",
   "email": "henry.lewis@thecompany.com",
   "password": "user123#",
   "invited_by": 1,
@@ -146,7 +139,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Shintaro Sato
 data='{
   "name": "Shintaro Sato",
-  "username": "Shintaro Sato",
   "email": "shin-sato@thecompany.com",
   "password": "user123#",
   "invited_by": 1,
@@ -167,7 +159,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Rosie Thomas
 data='{
   "name": "Rosie Thomas",
-  "username": "Rosie Thomas",
   "email": "rosie@thecompany.com",
   "password": "user123#",
   "invited_by": 1,
@@ -178,7 +169,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Pat Moreno
 data='{
   "name": "Pat Moreno",
-  "username": "Pat Moreno",
   "email": "pat-moreno@thecompany.com",
   "password": "user123#",
   "invited_by": 1,
@@ -195,7 +185,6 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 # Create Mohammad Patel
 data='{
   "name": "Mohammad Patel",
-  "username": "Mohammad Patel",
   "email": "mo-patel@thecompany.com",
   "password": "user123#",
   "invited_by": 1,
