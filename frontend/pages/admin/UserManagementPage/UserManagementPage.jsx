@@ -67,7 +67,6 @@ export class UserManagementPage extends Component {
     userErrors: PropTypes.shape({
       base: PropTypes.string,
       name: PropTypes.string,
-      username: PropTypes.string,
     }),
     teams: PropTypes.arrayOf(teamInterface),
   };

@@ -39,12 +39,12 @@ func testUnicode(t *testing.T, ds fleet.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, "🍌", host.Hostname)
 
-	user, err := ds.NewUser(&fleet.User{Username: "🍱", Password: []byte{}})
+	user, err := ds.NewUser(&fleet.User{Name: "🍱", Email: "test@example.com", Password: []byte{}})
 	require.Nil(t, err)
 
-	user, err = ds.User(user.Username)
+	user, err = ds.UserByID(user.ID)
 	require.Nil(t, err)
-	assert.Equal(t, "🍱", user.Username)
+	assert.Equal(t, "🍱", user.Name)
 
 	pack := test.NewPack(t, ds, "👨🏾‍🚒")
 

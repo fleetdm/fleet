@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
@@ -148,7 +147,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	}
 
 	// Get and log in user
-	user, err := svc.userByEmailOrUsername(auth.UserID())
+	user, err := svc.ds.UserByEmail(auth.UserID())
 	if err != nil {
 		return nil, errors.Wrap(err, "find user in sso callback")
 	}
@@ -167,7 +166,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	return result, nil
 }
 
-func (svc *Service) Login(ctx context.Context, username, password string) (*fleet.User, string, error) {
+func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.User, string, error) {
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -181,7 +180,7 @@ func (svc *Service) Login(ctx context.Context, username, password string) (*flee
 		}
 	}(time.Now())
 
-	user, err := svc.userByEmailOrUsername(username)
+	user, err := svc.ds.UserByEmail(email)
 	if _, ok := err.(fleet.NotFoundError); ok {
 		return nil, "", fleet.NewAuthFailedError("user not found")
 	}
@@ -203,13 +202,6 @@ func (svc *Service) Login(ctx context.Context, username, password string) (*flee
 	}
 
 	return user, token, nil
-}
-
-func (svc *Service) userByEmailOrUsername(username string) (*fleet.User, error) {
-	if strings.Contains(username, "@") {
-		return svc.ds.UserByEmail(username)
-	}
-	return svc.ds.User(username)
 }
 
 // makeSession is a helper that creates a new session after authentication

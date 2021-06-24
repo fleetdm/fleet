@@ -13,7 +13,7 @@ class UserMenu extends Component {
     user: PropTypes.shape({
       gravatarURL: PropTypes.string,
       name: PropTypes.string,
-      username: PropTypes.string.isRequired,
+      email: PropTypes.string.isRequired,
       position: PropTypes.string,
     }).isRequired,
   };

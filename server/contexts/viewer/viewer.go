@@ -39,11 +39,11 @@ func (v Viewer) UserID() uint {
 	return 0
 }
 
-// Username is a helper that enables quick access to the username of the current
+// Email is a helper that enables quick access to the email of the current
 // user.
-func (v Viewer) Username() string {
+func (v Viewer) Email() string {
 	if v.User != nil {
-		return v.User.Username
+		return v.User.Email
 	}
 	return ""
 }

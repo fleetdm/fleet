@@ -139,7 +139,7 @@ export const ssoSettings = () => {
   };
 };
 
-// formData should be { username: <string>, password: <string> }
+// formData should be { email: <string>, password: <string> }
 export const loginUser = (formData) => {
   return (dispatch) => {
     return new Promise((resolve, reject) => {

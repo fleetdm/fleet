@@ -11,7 +11,7 @@ declare namespace Cypress {
     /**
      * Custom command to login the user programmatically using the fleet API.
      */
-    login(username?: string, password?: string): Chainable<Element>;
+    login(email?: string, password?: string): Chainable<Element>;
 
     /**
      * Custom command to log out the current user.
@@ -26,10 +26,11 @@ declare namespace Cypress {
     /**
      * Custom command to add a new user in Fleet (via fleetctl).
      */
-    addUser(
-      username: string,
-      options?: { username?: string; password?: string; globalRole?: string }
-    ): Chainable<Element>;
+    addUser(options?: {
+      email?: string;
+      password?: string;
+      globalRole?: string;
+    }): Chainable<Element>;
 
     /**
      * Custom command to setup the SMTP configuration for this testing environment.

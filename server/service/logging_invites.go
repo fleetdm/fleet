@@ -21,7 +21,7 @@ func (mw loggingMiddleware) InviteNewUser(ctx context.Context, payload fleet.Inv
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "InviteNewUser",
-			"created_by", vc.Username(),
+			"created_by", vc.Email(),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -42,7 +42,7 @@ func (mw loggingMiddleware) DeleteInvite(ctx context.Context, id uint) error {
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "DeleteInvite",
-			"deleted_by", vc.Username(),
+			"deleted_by", vc.Email(),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -63,7 +63,7 @@ func (mw loggingMiddleware) ListInvites(ctx context.Context, opt fleet.ListOptio
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "Invites",
-			"called_by", vc.Username(),
+			"called_by", vc.Email(),
 			"err", err,
 			"took", time.Since(begin),
 		)

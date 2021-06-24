@@ -82,13 +82,13 @@ func TestDecodeLoginRequest(t *testing.T) {
 		assert.Nil(t, err)
 
 		params := r.(loginRequest)
-		assert.Equal(t, "foo", params.Username)
+		assert.Equal(t, "foo", params.Email)
 		assert.Equal(t, "bar", params.Password)
 	}).Methods("POST")
-	t.Run("lowercase username", func(t *testing.T) {
+	t.Run("lowercase email", func(t *testing.T) {
 		var body bytes.Buffer
 		body.Write([]byte(`{
-        "username": "foo",
+        "email": "foo",
         "password": "bar"
     }`))
 
@@ -97,10 +97,10 @@ func TestDecodeLoginRequest(t *testing.T) {
 			httptest.NewRequest("POST", "/api/v1/fleet/login", &body),
 		)
 	})
-	t.Run("uppercase username", func(t *testing.T) {
+	t.Run("uppercase email", func(t *testing.T) {
 		var body bytes.Buffer
 		body.Write([]byte(`{
-        "username": "Foo",
+        "email": "Foo",
         "password": "bar"
     }`))
 

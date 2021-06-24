@@ -102,6 +102,38 @@
             <tr>
               <td
                 colspan="2"
+                style="padding: 60px; font-family: 'Nunito Sans', sans-serif"
+              >
+                <h1>You Have Been Invited To Fleet!</h1>
+                <p><strong>Hello,</strong></p>
+                <p>
+                  {{.InvitedBy}} has invited you to join
+                  <strong>{{.OrgName}}</strong>. Please click the link below to
+                  accept the invitation and setup your account.
+                </p>
+                <table bgcolor="#F9FAFC" height="100px" cellpadding="20px">
+                  <tr>
+                    <td style="font-family: 'Nunito Sans', sans-serif">
+                      {{if .SSOEnabled}}
+                      <a
+                        href="{{.BaseURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}"
+                        >{{.BaseURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}</a
+                      >
+                      {{else}}
+                      <a
+                        href="{{.BaseURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}"
+                        >{{.BaseURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}</a
+                      >
+                      {{end}}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr bgcolor="#9ca3ac">
+              <td
+                valign="middle"
+                align="left"
                 style="
                   padding-top: 48px;
                   padding-bottom: 48px;

@@ -106,7 +106,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			fmt.Println("Initializing server...")
 			const (
 				address  = "https://localhost:8412"
-				username = "admin"
+				email    = "admin@example.com"
 				password = "admin123#"
 			)
 
@@ -115,7 +115,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error creating Fleet API client handler")
 			}
 
-			token, err := fleet.Setup(username, username, password, "Fleet Preview")
+			token, err := fleet.Setup(email, "Admin", password, "Fleet Preview")
 			if err != nil {
 				switch errors.Cause(err).(type) {
 				case service.SetupAlreadyErr:
@@ -129,7 +129,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			contextConfig := Context{
 				Address:       address,
-				Email:         username,
+				Email:         email,
 				Token:         token,
 				TLSSkipVerify: true,
 			}
@@ -152,7 +152,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Fleet UI is now available at http://localhost:1337.")
-			fmt.Println("Username:", username)
+			fmt.Println("Email:", email)
 			fmt.Println("Password:", password)
 
 			// Create client and get enroll secret
@@ -161,7 +161,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error making fleetctl client")
 			}
 
-			token, err = client.Login(username, password)
+			token, err = client.Login(email, password)
 			if err != nil {
 				return errors.Wrap(err, "fleetctl login failed")
 			}

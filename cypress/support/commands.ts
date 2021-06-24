@@ -31,10 +31,10 @@ Cypress.Commands.add("setup", () => {
   cy.exec("make e2e-reset-db e2e-setup", { timeout: 20000 });
 });
 
-Cypress.Commands.add("login", (username, password) => {
-  username ||= "admin";
+Cypress.Commands.add("login", (email, password) => {
+  email ||= "admin@example.com";
   password ||= "user123#";
-  cy.request("POST", "/api/v1/fleet/login", { username, password }).then(
+  cy.request("POST", "/api/v1/fleet/login", { email, password }).then(
     (resp) => {
       window.localStorage.setItem("FLEET::auth_token", resp.body.token);
     }
@@ -222,14 +222,14 @@ Cypress.Commands.add("seedFigma", () => {
   });
 });
 
-Cypress.Commands.add("addUser", (username, options = {}) => {
+Cypress.Commands.add("addUser", (options = {}) => {
   let { password, email, globalRole } = options;
   password ||= "test123#";
-  email ||= `${username}@example.com`;
+  email ||= `admin@example.com`;
   globalRole ||= "admin";
 
   cy.exec(
-    `./build/fleetctl user create --context e2e --username "${username}" --password "${password}" --email "${email}" --global-role "${globalRole}"`,
+    `./build/fleetctl user create --context e2e --password "${password}" --email "${email}" --global-role "${globalRole}"`,
     { timeout: 5000 }
   );
 });

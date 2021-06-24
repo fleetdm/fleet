@@ -13,18 +13,16 @@ var (
 	nilViewer       = Viewer{}
 	noSessionViewer = Viewer{
 		User: &fleet.User{
-			ID:       41,
-			Name:     "No Session",
-			Username: "nosession",
+			ID:   41,
+			Name: "No Session",
 		},
 	}
 
 	// Regular users
 	userViewer = Viewer{
 		User: &fleet.User{
-			ID:       45,
-			Name:     "Regular User",
-			Username: "user",
+			ID:   45,
+			Name: "Regular User",
 		},
 		Session: &fleet.Session{
 			ID:     4,
@@ -36,7 +34,6 @@ var (
 		User: &fleet.User{
 			ID:                       47,
 			Name:                     "Regular User Needs Password Reset",
-			Username:                 "reset_user",
 			AdminForcedPasswordReset: true,
 		},
 		Session: &fleet.Session{
@@ -48,9 +45,8 @@ var (
 	// Admin users
 	adminViewer = Viewer{
 		User: &fleet.User{
-			ID:       42,
-			Name:     "The Admin",
-			Username: "admin",
+			ID:   42,
+			Name: "The Admin",
 		},
 		Session: &fleet.Session{
 			ID:     1,
@@ -61,7 +57,6 @@ var (
 		User: &fleet.User{
 			ID:                       44,
 			Name:                     "The Admin Requires Password Reset",
-			Username:                 "reset_admin",
 			AdminForcedPasswordReset: true,
 		},
 		Session: &fleet.Session{

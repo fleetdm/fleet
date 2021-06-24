@@ -61,7 +61,7 @@ const ConfirmationPage = ({
     email,
     fleet_web_address: fleetWebAddress,
     org_name: orgName,
-    username,
+    name,
   } = formData;
   const tabIndex = currentPage ? 1 : -1;
 
@@ -74,8 +74,8 @@ const ConfirmationPage = ({
           <caption>Administrator configuration</caption>
           <tbody>
             <tr>
-              <th>Username:</th>
-              <td>{username}</td>
+              <th>Full name:</th>
+              <td>{name}</td>
             </tr>
             <tr>
               <th>Email:</th>

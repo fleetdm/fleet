@@ -4,11 +4,11 @@ import Base from "fleet/base";
 
 export default (client) => {
   return {
-    create: ({ username, password }) => {
+    create: ({ email, password }) => {
       const { LOGIN } = endpoints;
       const endpoint = client.baseURL + LOGIN;
 
-      return Base.post(endpoint, JSON.stringify({ username, password })).then(
+      return Base.post(endpoint, JSON.stringify({ email, password })).then(
         (response) => {
           const { user } = response;
           const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);

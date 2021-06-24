@@ -72,7 +72,7 @@ Then, use that API token to authenticate all subsequent API requests by sending 
 Authorization: Bearer <your token>
 ```
 
-> For SSO users, username/password login is disabled. The API token can instead be retrieved from the "My account" page in the UI (/profile). On this page, choose "Get API token".
+> For SSO users, email/password login is disabled. The API token can instead be retrieved from the "My account" page in the UI (/profile). On this page, choose "Get API token".
 
 ### Log in
 
@@ -80,13 +80,13 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 `POST /api/v1/fleet/login`
 
-> This API endpoint is not available to SSO users, since username/password login is disabled for SSO users. To get an API token for an SSO user, you can use the Fleet UI.
+> This API endpoint is not available to SSO users, since email/password login is disabled for SSO users. To get an API token for an SSO user, you can use the Fleet UI.
 
 #### Parameters
 
 | Name     | Type   | In   | Description                                   |
 | -------- | ------ | ---- | --------------------------------------------- |
-| username | string | body | **Required**. The user's email.               |
+| email    | string | body | **Required**. The user's email.               |
 | password | string | body | **Required**. The user's plain text password. |
 
 #### Example
@@ -97,7 +97,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 ```
 {
-  "username": "janedoe@example.com",
+  "email": "janedoe@example.com",
   "password": "VArCjNW7CfsxGp67"
 }
 ```
@@ -112,8 +112,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
     "created_at": "2020-11-13T22:57:12Z",
     "updated_at": "2020-11-13T22:57:12Z",
     "id": 1,
-    "username": "jane",
-    "name": "",
+    "name": "Jane Doe",
     "email": "janedoe@example.com",
     "enabled": true,
     "force_password_reset": false,
@@ -294,8 +293,7 @@ Retrieves the user data for the authenticated user.
     "created_at": "2020-11-13T22:57:12Z",
     "updated_at": "2020-11-16T23:49:41Z",
     "id": 1,
-    "username": "jane",
-    "name": "",
+    "name": "Jane Doe",
     "email": "janedoe@example.com",
     "global_role": "admin",
     "enabled": true,
@@ -337,8 +335,7 @@ Resets the password of the authenticated user. Requires that `force_password_res
     "created_at": "2020-11-13T22:57:12Z",
     "updated_at": "2020-11-17T00:09:23Z",
     "id": 1,
-    "username": "jane",
-    "name": "",
+    "name": "Jane Doe",
     "email": "janedoe@example.com",
     "enabled": true,
     "force_password_reset": false,
@@ -1380,8 +1377,7 @@ None.
       "created_at": "2020-12-10T03:52:53Z",
       "updated_at": "2020-12-10T03:52:53Z",
       "id": 1,
-      "username": "janedoe",
-      "name": "",
+      "name": "Jane Doe",
       "email": "janedoe@example.com",
       "global_role": null,
       "enabled": true,
@@ -1413,7 +1409,7 @@ None.
   "errors": [
     {
       "name": "base",
-      "reason": "username or email and password do not match"
+      "reason": "Authentication failed"
     }
   ]
 }
@@ -1432,7 +1428,6 @@ Creates a user account after an invited user provides registration information a
 | email                 | string | body | **Required**. The email address of the user.                                                                                                                                                                                                                                                                                                           |
 | invite_token          | string | body | **Required**. Token provided to the user in the invitation email.                                                                                                                                                                                                                                                                                      |
 | name                  | string | body | The name of the user.                                                                                                                                                                                                                                                                                                                                  |
-| username              | string | body | **Required**. The username chosen by the user                                                                                                                                                                                                                                                                                                          |
 | password              | string | body | **Required**. The password chosen by the user.                                                                                                                                                                                                                                                                                                         |
 | password_confirmation | string | body | **Required**. Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                         |
 | global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
@@ -1449,7 +1444,6 @@ Creates a user account after an invited user provides registration information a
   "email": "janedoe@example.com",
   "invite_token": "SjdReDNuZW5jd3dCbTJtQTQ5WjJTc2txWWlEcGpiM3c=",
   "name": "janedoe",
-  "username": "janedoe",
   "password": "test-123",
   "password_confirmation": "test-123",
   "teams": [
@@ -1475,7 +1469,6 @@ Creates a user account after an invited user provides registration information a
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 2,
-    "username": "janedoe",
     "name": "janedoe",
     "email": "janedoe@example.com",
     "enabled": true,
@@ -1498,7 +1491,7 @@ Creates a user account after an invited user provides registration information a
   "errors": [
     {
       "name": "base",
-      "reason": "username or email and password do not match"
+      "reason": "Authentication failed"
     }
   ]
 }
@@ -1531,7 +1524,7 @@ The same error will be returned whenever one of the required parameters fails th
   "message": "Validation Failed",
   "errors": [
     {
-      "name": "username",
+      "name": "name",
       "reason": "cannot be empty"
     }
   ]
@@ -1548,7 +1541,6 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 | Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                            |
 | ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| username    | string  | body | **Required**. The user's username.                                                                                                                                                                                                                                                                                                                     |
 | email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                |
 | password    | string  | body | **Required**. The user's password.                                                                                                                                                                                                                                                                                                                     |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
@@ -1563,17 +1555,17 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 ```
 {
-  "username": "janedoe",
+  "name": "Jane Doe",
   "email": "janedoe@example.com",
   "password": "test-123",
   "teams": [
     {
-      “id”: 2,
-      “role: “observer”
+      "id": 2,
+      "role: "observer"
     },
     {
-      “id”: 3,
-      “role: “maintainer”
+      "id": 3,
+      "role: "maintainer"
     },
   ]
 }
@@ -1589,8 +1581,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 5,
-    "username": "janedoe",
-    "name": "",
+    "name": "Jane Doe",
     "email": "janedoe@example.com",
     "enabled": true,
     "force_password_reset": false,
@@ -1600,31 +1591,15 @@ Creates a user account without requiring an invitation, the user is enabled imme
     "global_role": null,
     "teams": [
       {
-        “id”: 2,
-        “role: “observer”
+        "id": 2,
+        "role: "observer"
       },
       {
-        “id”: 3,
-        “role: “maintainer”
+        "id": 3,
+        "role: "maintainer"
       },
     ]
   }
-}
-```
-
-##### Failed authentication
-
-`Status: 401 Authentication Failed`
-
-```
-{
-  "message": "Authentication Failed",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "username or email and password do not match"
-    }
-  ]
 }
 ```
 
@@ -1678,8 +1653,7 @@ Returns all information about a specific user.
     "created_at": "2020-12-10T05:20:25Z",
     "updated_at": "2020-12-10T05:24:27Z",
     "id": 2,
-    "username": "janedoe",
-    "name": "janedoe",
+    "name": "Jane Doe",
     "email": "janedoe@example.com",
     "global_role": "admin",
     "enabled": true,
@@ -1688,22 +1662,6 @@ Returns all information about a specific user.
     "sso_enabled": false,
     "teams": []
   }
-}
-```
-
-##### Failed authentication
-
-`Status: 401 Authentication Failed`
-
-```
-{
-  "message": "Authentication Failed",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "username or email and password do not match"
-    }
-  ]
 }
 ```
 
@@ -1733,7 +1691,6 @@ Returns all information about a specific user.
 | ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | id          | integer | path | **Required**. The user's id.                                                                                                                                                                                                                                                                                                                           |
 | name        | string  | body | The user's name.                                                                                                                                                                                                                                                                                                                                       |
-| username    | string  | body | The user's username.                                                                                                                                                                                                                                                                                                                                   |
 | position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                   |
 | email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                      |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
@@ -1764,7 +1721,6 @@ Returns all information about a specific user.
     "created_at": "2021-02-03T16:11:06Z",
     "updated_at": "2021-02-03T16:11:06Z",
     "id": 2,
-    "username": "jdoe",
     "name": "Jane Doe",
     "email": "janedoe@example.com",
     "global_role": "admin",
@@ -1785,14 +1741,14 @@ Returns all information about a specific user.
 
 ```
 {
-  “teams”: [
+  "teams": [
     {
-      “id”: 1,
-      “role: “observer”
+      "id": 1,
+      "role: "observer"
     },
     {
-      “id”: 2
-      “role”: “maintainer”
+      "id": 2
+      "role": "maintainer"
     }
   ]
 }
@@ -1808,7 +1764,6 @@ Returns all information about a specific user.
     "created_at": "2021-02-03T16:11:06Z",
     "updated_at": "2021-02-03T16:11:06Z",
     "id": 2,
-    "username": "jdoe",
     "name": "Jane Doe",
     "email": "janedoe@example.com",
     "enabled": true,
@@ -1818,12 +1773,12 @@ Returns all information about a specific user.
     "global_role": "admin"
     "teams": [
       {
-        “id”: 2,
-        “role: “observer”
+        "id": 2,
+        "role: "observer"
       },
       {
-        “id”: 3,
-        “role: “maintainer”
+        "id": 3,
+        "role: "maintainer"
       },
     ]
   }
@@ -1889,7 +1844,6 @@ The selected user is logged out of Fleet and required to reset their password du
     "created_at": "2021-02-23T22:23:34Z",
     "updated_at": "2021-02-23T22:28:52Z",
     "id": 2,
-    "username": "janedoe",
     "name": "Jane Doe",
     "email": "janedoe@example.com",
     "force_password_reset": true,
@@ -4378,12 +4332,12 @@ None.
   "global_role": "admin"
   "teams": [
     {
-      “id”: 2,
-      “role: “observer”
+      "id": 2,
+      "role: "observer"
     },
     {
-      “id”: 3,
-      “role: “maintainer”
+      "id": 3,
+      "role: "maintainer"
     },
   ]
 }
@@ -4406,12 +4360,12 @@ None.
     "sso_enabled": false,
     "teams": [
       {
-        “id”: 2,
-        “role: “observer”
+        "id": 2,
+        "role: "observer"
       },
       {
-        “id”: 3,
-        “role: “maintainer”
+        "id": 3,
+        "role: "maintainer"
       },
     ]
   }
@@ -4736,13 +4690,13 @@ _Available in Fleet Basic_
 {
   "teams: [
     {
-      “name”: “workstations”,
-      “id”: 1.
-      “user_ids”: [],
-      “host_ids”: [],
+      "name": "workstations",
+      "id": 1.
+      "user_ids": [],
+      "host_ids": [],
       "user_count": 0,
       "host_count": 0,
-      “agent_options”: {
+      "agent_options": {
         "spec": {
           "config": {
             "options": {
@@ -4767,13 +4721,13 @@ _Available in Fleet Basic_
       }
     },
     {
-      “name”: "servers",
-      “id”: 2,
-      “user_ids”: [],
-      “host_ids”: [],
+      "name": "servers",
+      "id": 2,
+      "user_ids": [],
+      "host_ids": [],
       "user_count": 0,
       "host_count": 0,
-      “agent_options”: {
+      "agent_options": {
         "spec": {
           "config": {
             "options": {
@@ -4833,13 +4787,13 @@ _Available in Fleet Basic_
 {
   "teams: [
     {
-      “name”: “workstations”,
-      “id”: 1
-      “user_ids”: [],
-      “host_ids”: [],
+      "name": "workstations",
+      "id": 1
+      "user_ids": [],
+      "host_ids": [],
       "user_count": 0,
       "host_count": 0,
-      “agent_options”: {
+      "agent_options": {
         "spec": {
           "config": {
             "options": {
@@ -4901,13 +4855,13 @@ _Available in Fleet Basic_
 ```
 {
   "team": {
-    “name”: “Workstations”,
-    “id”: 1
-    “user_ids”: [1, 17, 22, 32],
-    “host_ids”: [],
+    "name": "Workstations",
+    "id": 1
+    "user_ids": [1, 17, 22, 32],
+    "host_ids": [],
     "user_count": 4,
     "host_count": 0,
-    “agent_options”: {
+    "agent_options": {
       "spec": {
         "config": {
           "options": {
@@ -4953,13 +4907,13 @@ _Available in Fleet Basic_
 ```
 {
   "team": {
-    “name”: “Workstations”,
-    “id”: 1
-    “user_ids”: [1, 17, 22, 32],
-    “host_ids”: [3, 6, 7, 8, 9, 20, 32, 44],
+    "name": "Workstations",
+    "id": 1
+    "user_ids": [1, 17, 22, 32],
+    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
-    “agent_options”: {
+    "agent_options": {
       "spec": {
         "config": {
           "options": {
@@ -4994,7 +4948,7 @@ _Available in Fleet Basic_
 
 ```
 {
-  “agent_options”: {
+  "agent_options": {
     "spec": {
       "config": {
         "options": {
@@ -5027,13 +4981,13 @@ _Available in Fleet Basic_
 ```
 {
   "team": {
-    “name”: “Workstations”,
-    “id”: 1
-    “user_ids”: [1, 17, 22, 32],
-    “host_ids”: [3, 6, 7, 8, 9, 20, 32, 44],
+    "name": "Workstations",
+    "id": 1
+    "user_ids": [1, 17, 22, 32],
+    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
-    “agent_options”: {
+    "agent_options": {
       "spec": {
         "config": {
           "options": {

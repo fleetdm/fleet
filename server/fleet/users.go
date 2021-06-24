@@ -12,7 +12,6 @@ import (
 // UserStore contains methods for managing users in a datastore
 type UserStore interface {
 	NewUser(user *User) (*User, error)
-	User(username string) (*User, error)
 	ListUsers(opt UserListOptions) ([]*User, error)
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
@@ -97,7 +96,6 @@ type UserService interface {
 type User struct {
 	UpdateCreateTimestamps
 	ID                       uint   `json:"id"`
-	Username                 string `json:"username"`
 	Password                 []byte `json:"-"`
 	Salt                     string `json:"-"`
 	Name                     string `json:"name"`
@@ -135,7 +133,6 @@ type UserListOptions struct {
 
 // UserPayload is used to modify an existing user
 type UserPayload struct {
-	Username                 *string     `json:"username,omitempty"`
 	Name                     *string     `json:"name,omitempty"`
 	Email                    *string     `json:"email,omitempty"`
 	Password                 *string     `json:"password,omitempty"`
@@ -153,18 +150,18 @@ type UserPayload struct {
 // User creates a user from payload.
 func (p UserPayload) User(keySize, cost int) (*User, error) {
 	user := &User{
-		Username: *p.Username,
-		Email:    *p.Email,
-		Teams:    []UserTeam{},
+		Name:  *p.Name,
+		Email: *p.Email,
+		Teams: []UserTeam{},
+	}
+	if p.Name != nil {
+		user.Name = *p.Name
 	}
 	if err := user.SetPassword(*p.Password, keySize, cost); err != nil {
 		return nil, err
 	}
 
 	// add optional fields
-	if p.Name != nil {
-		user.Name = *p.Name
-	}
 	if p.GravatarURL != nil {
 		user.GravatarURL = *p.GravatarURL
 	}

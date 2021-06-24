@@ -56,39 +56,34 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
 	for _, u := range testUsers {
 		user := &fleet.User{
-			Name:     "Test Name " + u.Username,
-			Username: u.Username,
-			Email:    u.Email,
+			Name:  "Test Name " + u.Email,
+			Email: u.Email,
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)
 		user, err = ds.NewUser(user)
 		require.Nil(t, err)
-		users[user.Username] = *user
+		users[user.Email] = *user
 	}
 	return users
 }
 
 var testUsers = map[string]struct {
-	Username          string
 	Email             string
 	PlaintextPassword string
 	GlobalRole        *string
 }{
 	"admin1": {
-		Username:          "admin1",
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "admin1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleAdmin),
 	},
 	"user1": {
-		Username:          "user1",
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "user1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleMaintainer),
 	},
 	"user2": {
-		Username:          "user2",
 		PlaintextPassword: "bazfoo1234!",
 		Email:             "user2@example.com",
 		GlobalRole:        ptr.String(fleet.RoleObserver),

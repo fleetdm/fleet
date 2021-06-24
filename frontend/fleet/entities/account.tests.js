@@ -21,7 +21,6 @@ describe("Kolide - API client (account)", () => {
         org_name: "The Gnar Co.",
         password: "p@ssw0rd",
         password_confirmation: "p@ssw0rd",
-        username: "gnardog",
       };
       const request = accountMocks.create.valid(formData);
 

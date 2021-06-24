@@ -29,7 +29,7 @@ Interactively prompts for email and password if not specified in the flags or en
 				EnvVars:     []string{"EMAIL"},
 				Value:       "",
 				Destination: &flEmail,
-				Usage:       "Email or username to use to log in",
+				Usage:       "Email to use to log in",
 			},
 			&cli.StringFlag{
 				Name:        "password",
@@ -52,7 +52,7 @@ Interactively prompts for email and password if not specified in the flags or en
 			// CLI history.
 			if flEmail == "" {
 				fmt.Println("Log in using the standard Fleet credentials.")
-				fmt.Print("Email/Username: ")
+				fmt.Print("Email: ")
 				_, err := fmt.Scanln(&flEmail)
 				if err != nil {
 					return errors.Wrap(err, "error reading email")
