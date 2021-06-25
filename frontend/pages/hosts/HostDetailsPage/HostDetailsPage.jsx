@@ -20,6 +20,7 @@ import queryActions from "redux/nodes/entities/queries/actions";
 import teamInterface from "interfaces/team";
 import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
+import hostActions from "redux/nodes/entities/hosts/actions";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
 import {
@@ -143,7 +144,7 @@ export class HostDetailsPage extends Component {
     const { toggleTransferHostModal } = this;
     const { dispatch, hostID } = this.props;
     const teamId = team.id === "no-team" ? null : team.id;
-    dispatch(hostActions.transferToTeam(teamId, hostID))
+    dispatch(hostActions.transferToTeam(teamId, [parseInt(hostID)]))
       .then(() => {
         const successMessage =
           teamId === null
@@ -201,6 +202,24 @@ export class HostDetailsPage extends Component {
 
       return false;
     };
+  };
+
+  renderTransferHostModal = () => {
+    const { toggleTransferHostModal, onTransferHostSubmit } = this;
+    const { teams, isGlobalAdmin, host } = this.props;
+    const { showTransferHostModal } = this.state;
+
+    if (!showTransferHostModal) return null;
+
+    return (
+      <TransferHostModal
+        host={host}
+        onCancel={toggleTransferHostModal}
+        onSubmit={onTransferHostSubmit}
+        teams={teams}
+        isGlobalAdmin={isGlobalAdmin}
+      />
+    );
   };
 
   renderDeleteHostModal = () => {
@@ -527,15 +546,12 @@ export class HostDetailsPage extends Component {
       queries,
       queryErrors,
       isBasicTier,
-      isGlobalAdmin,
-      teams,
     } = this.props;
-    const { showQueryHostModal, showTransferHostModal } = this.state;
+    const { showQueryHostModal } = this.state;
     const {
-      onTransferHostSubmit,
       toggleQueryHostModal,
-      toggleTransferHostModal,
       renderDeleteHostModal,
+      renderTransferHostModal,
       renderActionButtons,
       renderLabels,
       renderSoftware,
@@ -733,15 +749,7 @@ export class HostDetailsPage extends Component {
             queryErrors={queryErrors}
           />
         )}
-        {showTransferHostModal && (
-          <TransferHostModal
-            host={host}
-            onCancel={toggleTransferHostModal}
-            onSubmit={onTransferHostSubmit}
-            teams={teams}
-            isGlobalAdmin={isGlobalAdmin}
-          />
-        )}
+        {renderTransferHostModal()}
       </div>
     );
   }
@@ -760,8 +768,9 @@ const mapStateToProps = (state, ownProps) => {
   const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
   const teams = memoizedGetEntity(state.entities.teams.data);
   const canTransferTeam =
-    permissionUtils.isGlobalAdmin(currentUser) ||
-    permissionUtils.isGlobalMaintainer(currentUser);
+    isBasicTier &&
+    (permissionUtils.isGlobalAdmin(currentUser) ||
+      permissionUtils.isGlobalMaintainer(currentUser));
 
   return {
     host,

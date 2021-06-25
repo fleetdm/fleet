@@ -64,7 +64,7 @@ const TransferHostModal = (props: ITransferHostModal): JSX.Element => {
       <form className={`${baseClass}__form`}>
         <Dropdown
           wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
-          label={"Transfer selected hosts to:"}
+          label={"Transfer host to:"}
           value={selectedTeam && selectedTeam.id}
           options={createTeamDropdownOptions()}
           onChange={onChangeSelectTeam}
