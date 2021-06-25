@@ -59,7 +59,7 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by memb
 
 After [requesting more details](#requesting-more-details), please add the milestone associated with the current time we are along the roadmap timeline. For example, if the current date is June 25, 2021, we would add the H1 2021 milestone to the issue.
 
-Feature request issues automatically include the "idea" label. The "idea" label provides the signal that this issue is an item the Fleet team would like to discuss at a later date. The time of discussion is indicated by the issues milestones.
+Feature request issues automatically include the "idea" label. The "idea" label provides the signal that this issue is an item the Fleet team would like to discuss at a later date. The time of discussion is indicated by the issue's milestones.
 
 #### Closing issues
 
