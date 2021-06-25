@@ -32,7 +32,7 @@ class ConfirmInviteForm extends Component {
           <InputFieldWithIcon
             {...fields.name}
             autofocus
-            placeholder="Full Name"
+            placeholder="Full name"
           />
           <InputFieldWithIcon
             {...fields.password}

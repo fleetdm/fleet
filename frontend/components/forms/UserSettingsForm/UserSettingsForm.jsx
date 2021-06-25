@@ -49,7 +49,7 @@ class UserSettingsForm extends Component {
           label="Email (required)"
           hint={renderEmailHint()}
         />
-        <InputField {...fields.name} label="Full Name (required)" />
+        <InputField {...fields.name} label="Full name (required)" />
         <InputField {...fields.position} label="Position" />
         <div className={`${baseClass}__button-wrap`}>
           <Button onClick={onCancel} variant="inverse">
