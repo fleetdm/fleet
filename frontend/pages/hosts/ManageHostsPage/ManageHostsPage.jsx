@@ -203,7 +203,12 @@ export class ManageHostsPage extends PureComponent {
     return dispatch(labelActions.update(selectedLabel, updateAttrs))
       .then(() => {
         dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
-
+        dispatch(
+          renderFlash(
+            "success",
+            "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
+          )
+        );
         return false;
       })
       .catch(() => false);
@@ -234,7 +239,12 @@ export class ManageHostsPage extends PureComponent {
 
     return dispatch(labelActions.create(formData)).then(() => {
       dispatch(push(PATHS.MANAGE_HOSTS));
-
+      dispatch(
+        renderFlash(
+          "success",
+          "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
+        )
+      );
       return false;
     });
   };
