@@ -189,13 +189,11 @@ export class EditPackPage extends Component {
       .then(() => {
         this.setState({ selectedScheduledQuery: null, selectedQuery: null });
         dispatch(renderFlash("success", "Scheduled Query updated!"));
-        window.scrollTo(0, 0);
       })
       .catch(() => {
         dispatch(
           renderFlash("error", "Unable to update your Scheduled Query.")
         );
-        window.scrollTo(0, 0);
       });
   };
 
@@ -218,7 +216,6 @@ export class EditPackPage extends Component {
     return Promise.all(promises).then(() => {
       this.setState({ selectedScheduledQuery: null, selectedQuery: null });
       dispatch(renderFlash("success", "Scheduled queries removed"));
-      window.scrollTo(0, 0);
     });
   };
 
@@ -233,7 +230,6 @@ export class EditPackPage extends Component {
     dispatch(create(scheduledQueryData)).catch(() => {
       dispatch(renderFlash("error", "Unable to schedule your query."));
     });
-    window.scrollTo(0, 0);
 
     return false;
   };

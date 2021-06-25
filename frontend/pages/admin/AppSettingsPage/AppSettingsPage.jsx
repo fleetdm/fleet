@@ -26,7 +26,7 @@ class AppSettingsPage extends Component {
 
     dispatch(updateConfig(diff))
       .then(() => {
-        dispatch(renderFlash("success", "Settings updated!"));
+        dispatch(renderFlash("success", "Settings updated."));
 
         return false;
       })
@@ -38,7 +38,6 @@ class AppSettingsPage extends Component {
         return false;
       });
 
-    window.scrollTo(0, 0);
     return false;
   };
 
