@@ -158,6 +158,7 @@ export class HostDetailsPage extends Component {
           renderFlash("error", "Could not transfer hosts. Please try again.")
         );
       });
+    console.log("onTransferHostSubmit");
     toggleTransferHostModal();
   };
 
@@ -169,9 +170,10 @@ export class HostDetailsPage extends Component {
   }
 
   toggleQueryHostModal = () => {
+    console.log("toggleQUERYHostModal");
     return () => {
+      console.log("RETURN of toggleQUERYHostModal");
       const { showQueryHostModal } = this.state;
-
       this.setState({
         showQueryHostModal: !showQueryHostModal,
       });
@@ -193,8 +195,13 @@ export class HostDetailsPage extends Component {
   };
 
   toggleTransferHostModal = () => {
+    console.log("toggleTRANSFERHostModal");
+
     return () => {
+      console.log("RETURN toggleTRANSFERHostModal");
+
       const { showTransferHostModal } = this.state;
+      console.log("showTransferHostModal:", showTransferHostModal);
 
       this.setState({
         showTransferHostModal: !showTransferHostModal,
@@ -202,24 +209,6 @@ export class HostDetailsPage extends Component {
 
       return false;
     };
-  };
-
-  renderTransferHostModal = () => {
-    const { toggleTransferHostModal, onTransferHostSubmit } = this;
-    const { teams, isGlobalAdmin, host } = this.props;
-    const { showTransferHostModal } = this.state;
-
-    if (!showTransferHostModal) return null;
-
-    return (
-      <TransferHostModal
-        host={host}
-        onCancel={toggleTransferHostModal}
-        onSubmit={onTransferHostSubmit}
-        teams={teams}
-        isGlobalAdmin={isGlobalAdmin}
-      />
-    );
   };
 
   renderDeleteHostModal = () => {
@@ -546,12 +535,15 @@ export class HostDetailsPage extends Component {
       queries,
       queryErrors,
       isBasicTier,
+      isGlobalAdmin,
+      teams,
     } = this.props;
-    const { showQueryHostModal } = this.state;
+    const { showQueryHostModal, showTransferHostModal } = this.state;
     const {
       toggleQueryHostModal,
+      toggleTransferHostModal,
       renderDeleteHostModal,
-      renderTransferHostModal,
+      onTransferHostSubmit,
       renderActionButtons,
       renderLabels,
       renderSoftware,
@@ -743,13 +735,21 @@ export class HostDetailsPage extends Component {
         {showQueryHostModal && (
           <SelectQueryModal
             host={host}
-            toggleQueryHostModal={toggleQueryHostModal}
+            onCancel={toggleQueryHostModal}
             queries={queries}
             dispatch={dispatch}
             queryErrors={queryErrors}
           />
         )}
-        {renderTransferHostModal()}
+        {showTransferHostModal && (
+          <TransferHostModal
+            host={host}
+            onCancel={toggleTransferHostModal()}
+            onSubmit={onTransferHostSubmit}
+            teams={teams}
+            isGlobalAdmin={isGlobalAdmin}
+          />
+        )}
       </div>
     );
   }
