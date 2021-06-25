@@ -221,6 +221,25 @@ export class UserManagementPage extends Component {
     }
   };
 
+  onResetSessions = () => {
+    const { dispatch } = this.props;
+    const { userEditing } = this.state;
+    const { toggleResetSessionsUserModal } = this;
+    dispatch(userActions.deleteSessions(userEditing))
+      .then(() => {
+        dispatch(renderFlash("success", "Sessions reset"));
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            "Could not reset sessions for the selected user. Please try again."
+          )
+        );
+      });
+    toggleResetSessionsUserModal();
+  };
+
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component calls this handler.
   onTableQueryChange = (queryData) => {
@@ -348,24 +367,6 @@ export class UserManagementPage extends Component {
         toggleResetPasswordUserModal();
       }
     );
-  };
-
-  resetSessions = (user) => {
-    const { dispatch } = this.props;
-    const { toggleResetSessionsUserModal } = this;
-    const { resetSessions } = userActions; // TODO
-
-    // TODO
-    return dispatch(resetSessions(user.id, { require: true })).then(() => {
-      dispatch(
-        renderFlash(
-          "success",
-          "User sessions will be reset",
-          resetSessions(user.id, { require: false }) // this is an undo action. // TODO doees this apply?
-        )
-      );
-      toggleResetSessionsUserModal();
-    });
   };
 
   goToUserSettingsPage = () => {
@@ -498,7 +499,7 @@ export class UserManagementPage extends Component {
   // TODO wire this up and get styles working
   renderResetSessionsModal = () => {
     const { showResetSessionsModal, userEditing } = this.state;
-    const { toggleResetSessionsUserModal, resetSessions } = this;
+    const { toggleResetSessionsUserModal, onResetSessions } = this;
 
     if (!showResetSessionsModal) return null;
 
@@ -506,7 +507,7 @@ export class UserManagementPage extends Component {
       <ResetSessionsModal
         user={userEditing}
         modalBaseClass={baseClass}
-        onResetConfirm={resetSessions}
+        onResetConfirm={onResetSessions}
         onResetCancel={toggleResetSessionsUserModal}
       />
     );

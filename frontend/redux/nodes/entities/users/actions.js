@@ -77,6 +77,25 @@ export const confirmEmailChange = (user, token) => {
   };
 };
 
+export const deleteSessions = (user) => {
+  const { successAction, destroyFailure, destroySuccess } = actions;
+
+  return (dispatch) => {
+    return Fleet.users
+      .deleteSessions(user)
+      .then((userResponse) => {
+        return dispatch(successAction(userResponse, destroySuccess));
+      })
+      .catch((response) => {
+        const errorsObject = formatErrorResponse(response);
+
+        dispatch(destroyFailure(errorsObject));
+
+        throw errorsObject;
+      });
+  };
+};
+
 export const enableUser = (user, { enabled }) => {
   const { successAction, updateFailure, updateSuccess } = actions;
 
@@ -114,12 +133,6 @@ export const requirePasswordReset = (userId, { require }) => {
   };
 };
 
-export const resetSessions = (userId) => {
-  return () => {
-    console.log("resetting sessions for: ", userId);
-  };
-};
-
 export const updateAdmin = (user, { admin }) => {
   const { successAction, updateFailure, updateSuccess } = actions;
 
@@ -145,6 +158,6 @@ export default {
   confirmEmailChange,
   enableUser,
   requirePasswordReset,
-  resetSessions,
+  deleteSessions,
   updateAdmin,
 };
