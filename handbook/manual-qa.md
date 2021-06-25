@@ -6,14 +6,13 @@ All steps should be conducted during each QA pass.
 
 As new features are added to Fleet, new steps and flows will be added.
 
-> Note: Currently, the testing focuses on the Fleet UI. As this document grows, more testing procedures for the fleetctl CLI tool will be added.
-
-
 ## Collecting bugs
 
 The goal of manual QA is to catch unexpected behavior prior to release. 
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the flows, record a list of the bugs you encounter in this new issue. Each item in this list should contain one sentence describing the bug and a screenshot if the item is a frontend bug.
+
+## Fleet UI
 
 ### Clear your local MySQL database
 
@@ -103,3 +102,59 @@ Refresh the page to confirm that the agent options have been updated.
 ### My account flow
 
 Head to the My account page by selecting the dropdown icon next to your avatar in the top navigation. Select "My account" and successfully update your password.
+
+## `fleetctl` CLI
+
+### Set up flow
+
+Successfully set up Fleet by running the `fleetctl setup` command.
+
+You may have to wipe your local MySQL database in order to successfully set up Fleet. Check out the [Clear your local MySQL database](#clear-your-local-mysql-database) section of this document for instructions.
+
+### Login and logout flow
+
+Successfully login by running the `fleetctl login` command.
+
+Successfully logout by running the `fleetctl logout` command. Then, log in again.
+
+### Hosts
+
+Run the `fleetctl get hosts` command.
+
+You should see your local machine returned. If your host isn't showing up, you may have to reenroll your local machine. Check out the [Orbit for osquery documentation](../docs/2-Orbit-osquery/README.md#packaging) for instructions on generating and installing an Orbit package.
+
+### Query flow
+
+Apply the standard query library by running the following command:
+
+`fleetctl apply -f docs/1-Using-Fleet/standard-query-library/standard-query-library.yml`
+
+Make sure all queries were successfully added by running the following command:
+
+`fleetctl get queries`
+
+Run the "Get the version of the resident operating system" query against your local machine by running the following command:
+
+`fleetctl query --hosts <your-local-machine-here> --query Get the version of the resident operating system`
+
+### Pack flow
+
+Apply a pack by running the following command:
+
+`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
+
+Make sure the pack was successfully added by running the following command:
+
+`fleetctl get packs`
+
+### Organization settings flow
+
+Apply organization settings by running the following command:
+
+`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
+
+### Manage users flow
+
+Create a new user by running the `fleetctl user create` command.
+
+Logout of your current user and log in with the newly created user.
