@@ -157,7 +157,7 @@ export class UserManagementPage extends Component {
         dispatch(
           renderFlash(
             "success",
-            `An invitation email was sent from ${config.sender_address} to ${formData.email}`
+            `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
           )
         );
         this.toggleCreateUserModal();
