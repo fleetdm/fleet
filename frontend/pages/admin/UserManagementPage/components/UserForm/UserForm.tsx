@@ -314,7 +314,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           error={errors.name}
           name="name"
           onChange={onInputChange("name")}
-          placeholder="Full Name"
+          placeholder="Full name"
           value={name}
         />
         <InputFieldWithIcon

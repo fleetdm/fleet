@@ -32,7 +32,7 @@ class ConfirmSSOInviteForm extends Component {
           <InputFieldWithIcon
             {...fields.name}
             autofocus
-            placeholder="Full Name"
+            placeholder="Full name"
           />
         </div>
         <div className="confirm-invite-button-wrap">
