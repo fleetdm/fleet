@@ -187,7 +187,7 @@ const generateActionDropdownOptions = (
   isInvitePending: boolean,
   isSSOEnabled: boolean
 ): IDropdownOption[] => {
-  const dropdownOptions = [
+  let dropdownOptions = [
     {
       label: "Edit",
       disabled: isInvitePending,
@@ -209,8 +209,11 @@ const generateActionDropdownOptions = (
       value: "delete",
     },
   ];
-  if (isSSOEnabled) {
-    dropdownOptions.splice(1, 1);
+  if (isCurrentUser || isSSOEnabled) {
+    // remove "Require password reset" from dropdownOptions
+    dropdownOptions = dropdownOptions.filter(
+      (option) => option.label !== "Require password reset"
+    );
   }
   return dropdownOptions;
 };

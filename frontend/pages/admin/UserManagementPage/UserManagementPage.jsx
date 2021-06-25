@@ -27,7 +27,7 @@ import EmptyUsers from "./components/EmptyUsers";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserForm from "./components/DeleteUserForm";
 import ResetPasswordModal from "./components/ResetPasswordModal";
-import ResetSessionsModal from "./components/ResetSessionsModal"; // TODO get styles working
+import ResetSessionsModal from "./components/ResetSessionsModal";
 
 const baseClass = "user-management";
 
@@ -496,7 +496,6 @@ export class UserManagementPage extends Component {
     );
   };
 
-  // TODO wire this up and get styles working
   renderResetSessionsModal = () => {
     const { showResetSessionsModal, userEditing } = this.state;
     const { toggleResetSessionsUserModal, onResetSessions } = this;
