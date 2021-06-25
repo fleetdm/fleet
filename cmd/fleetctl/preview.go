@@ -174,7 +174,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			fmt.Println("Starting simulated hosts...")
 			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(cmd.Env,
+			cmd.Env = append(os.Environ(),
 				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
 				"FLEET_URL="+address,
 			)
@@ -355,7 +355,7 @@ func previewStopCommand() *cli.Command {
 
 			cmd := exec.Command("docker-compose", "stop")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(cmd.Env,
+			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
 				// stopping because docker-compose will error otherwise.
 				"ENROLL_SECRET=empty",
@@ -404,7 +404,7 @@ func previewResetCommand() *cli.Command {
 
 			cmd := exec.Command("docker-compose", "rm", "-sf")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(cmd.Env,
+			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
 				// stopping because docker-compose will error otherwise.
 				"ENROLL_SECRET=empty",
