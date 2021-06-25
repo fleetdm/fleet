@@ -344,6 +344,14 @@ export const humanHostDetailUpdated = (detailUpdated: string): string => {
   return moment(detailUpdated).fromNow();
 };
 
+export const hostTeamName = (team: string): string => {
+  if (!team) {
+    return "No team";
+  }
+
+  return team;
+};
+
 export const humanQueryLastRun = (lastRun: string): string => {
   // Handles the case when a query has never been ran.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
@@ -405,6 +413,7 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  hostTeamName,
   humanQueryLastRun,
   secondsToHms,
   labelSlug,

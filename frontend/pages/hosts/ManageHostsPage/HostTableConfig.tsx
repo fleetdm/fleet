@@ -16,6 +16,7 @@ import {
   humanHostUptime,
   humanHostLastSeen,
   humanHostDetailUpdated,
+  hostTeamName,
 } from "fleet/helpers";
 import { IConfig } from "interfaces/config";
 import { IUser } from "interfaces/user";
@@ -107,9 +108,16 @@ const allHostTableHeaders: IHostDataColumn[] = [
   },
   {
     title: "Team",
-    Header: "Team",
+    Header: (cellProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
     accessor: "team_name",
-    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps) => (
+      <TextCell value={cellProps.cell.value} formatter={hostTeamName} />
+    ),
   },
   {
     title: "Status",
