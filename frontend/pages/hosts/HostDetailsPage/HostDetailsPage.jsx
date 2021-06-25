@@ -15,7 +15,7 @@ import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 
 import permissionUtils from "utilities/permissions";
-import entityGetter from "redux/utilities/entityGetter";
+import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
 import queryActions from "redux/nodes/entities/queries/actions";
 import teamInterface from "interfaces/team";
 import queryInterface from "interfaces/query";
@@ -247,7 +247,7 @@ export class HostDetailsPage extends Component {
       toggleQueryHostModal,
       toggleTransferHostModal,
     } = this;
-    const { host, isOnlyObserver } = this.props;
+    const { host, isOnlyObserver, canTransferTeam } = this.props;
 
     const isOnline = host.status === "online";
     const isOffline = host.status === "offline";
@@ -259,7 +259,7 @@ export class HostDetailsPage extends Component {
 
     return (
       <div className={`${baseClass}__action-button-container`}>
-        {canTransferTeam &&
+        {canTransferTeam && (
           <Button
             onClick={toggleTransferHostModal()}
             variant="inverse"
@@ -267,7 +267,7 @@ export class HostDetailsPage extends Component {
           >
             Transfer
           </Button>
-        }
+        )}
         <div data-tip data-for="query" data-tip-disable={isOnline}>
           <Button
             onClick={toggleQueryHostModal()}
@@ -527,6 +527,8 @@ export class HostDetailsPage extends Component {
       queries,
       queryErrors,
       isBasicTier,
+      isGlobalAdmin,
+      teams,
     } = this.props;
     const { showQueryHostModal, showTransferHostModal } = this.state;
     const {
@@ -772,6 +774,7 @@ const mapStateToProps = (state, ownProps) => {
     isOnlyObserver,
     teams,
     canTransferTeam,
+  };
 };
 
 export default connect(mapStateToProps)(HostDetailsPage);
