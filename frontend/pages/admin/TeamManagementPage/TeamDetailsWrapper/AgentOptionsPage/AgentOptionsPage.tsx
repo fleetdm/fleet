@@ -61,7 +61,6 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
     )
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
-        window.scrollTo(0, 0);
       })
       .catch((errors: { [key: string]: any }) => {
         dispatch(renderFlash("error", errors.stack));

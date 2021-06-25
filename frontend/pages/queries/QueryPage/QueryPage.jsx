@@ -401,7 +401,6 @@ export class QueryPage extends Component {
       window,
     } = global;
     const { queryResultsToggle, queryPosition } = this.state;
-    window.scrollTo(0, 0);
     const {
       parentNode: { parentNode: parent },
     } = evt.currentTarget;
