@@ -114,6 +114,12 @@ export const requirePasswordReset = (userId, { require }) => {
   };
 };
 
+export const resetSessions = (userId) => {
+  return () => {
+    console.log("resetting sessions for: ", userId);
+  };
+};
+
 export const updateAdmin = (user, { admin }) => {
   const { successAction, updateFailure, updateSuccess } = actions;
 
@@ -139,5 +145,6 @@ export default {
   confirmEmailChange,
   enableUser,
   requirePasswordReset,
+  resetSessions,
   updateAdmin,
 };

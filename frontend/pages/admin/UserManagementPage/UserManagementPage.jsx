@@ -27,6 +27,7 @@ import EmptyUsers from "./components/EmptyUsers";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserForm from "./components/DeleteUserForm";
 import ResetPasswordModal from "./components/ResetPasswordModal";
+import ResetSessionsModal from "./components/ResetSessionsModal"; // TODO get styles working
 
 const baseClass = "user-management";
 
@@ -79,6 +80,7 @@ export class UserManagementPage extends Component {
       showEditUserModal: false,
       showDeleteUserModal: false,
       showResetPasswordModal: false,
+      showResetSessionsModal: false,
       userEditing: null,
       usersEditing: [],
     };
@@ -251,6 +253,7 @@ export class UserManagementPage extends Component {
       toggleDeleteUserModal,
       goToUserSettingsPage,
       toggleResetPasswordUserModal,
+      toggleResetSessionsUserModal,
     } = this;
     switch (action) {
       case "edit":
@@ -261,6 +264,9 @@ export class UserManagementPage extends Component {
         break;
       case "passwordReset":
         toggleResetPasswordUserModal(user);
+        break;
+      case "resetSessions":
+        toggleResetSessionsUserModal(user);
         break;
       case "editMyAccount":
         goToUserSettingsPage();
@@ -313,6 +319,14 @@ export class UserManagementPage extends Component {
     });
   };
 
+  toggleResetSessionsUserModal = (user) => {
+    const { showResetSessionsModal } = this.state;
+    this.setState({
+      showResetSessionsModal: !showResetSessionsModal,
+      userEditing: !showResetSessionsModal ? user : null,
+    });
+  };
+
   combineUsersAndInvites = memoize((users, invites, currentUserId) => {
     return combineDataSets(users, invites, currentUserId);
   });
@@ -334,6 +348,24 @@ export class UserManagementPage extends Component {
         toggleResetPasswordUserModal();
       }
     );
+  };
+
+  resetSessions = (user) => {
+    const { dispatch } = this.props;
+    const { toggleResetSessionsUserModal } = this;
+    const { resetSessions } = userActions; // TODO
+
+    // TODO
+    return dispatch(resetSessions(user.id, { require: true })).then(() => {
+      dispatch(
+        renderFlash(
+          "success",
+          "User sessions will be reset",
+          resetSessions(user.id, { require: false }) // this is an undo action. // TODO doees this apply?
+        )
+      );
+      toggleResetSessionsUserModal();
+    });
   };
 
   goToUserSettingsPage = () => {
@@ -463,6 +495,23 @@ export class UserManagementPage extends Component {
     );
   };
 
+  // TODO wire this up and get styles working
+  renderResetSessionsModal = () => {
+    const { showResetSessionsModal, userEditing } = this.state;
+    const { toggleResetSessionsUserModal, resetSessions } = this;
+
+    if (!showResetSessionsModal) return null;
+
+    return (
+      <ResetSessionsModal
+        user={userEditing}
+        modalBaseClass={baseClass}
+        onResetConfirm={resetSessions}
+        onResetCancel={toggleResetSessionsUserModal}
+      />
+    );
+  };
+
   renderSmtpWarning = () => {
     const { appConfigLoading, config } = this.props;
     const { goToAppConfigPage } = this;
@@ -498,6 +547,7 @@ export class UserManagementPage extends Component {
       renderEditUserModal,
       renderDeleteUserModal,
       renderResetPasswordModal,
+      renderResetSessionsModal,
       renderSmtpWarning,
       toggleCreateUserModal,
       onTableQueryChange,
@@ -546,6 +596,8 @@ export class UserManagementPage extends Component {
         {renderCreateUserModal()}
         {renderEditUserModal()}
         {renderDeleteUserModal()}
+        {renderResetSessionsModal()}
+
         {renderResetPasswordModal()}
       </div>
     );
