@@ -11,6 +11,11 @@ const tar = require("tar");
 
 const { version } = require("./package.json");
 
+// Strip any v4.0.0-1 style suffix (but not -rc1) so that the correct package is
+// downloaded if there is a mistake in the NPM publish and we need to release a
+// -1, etc. (because NPM packages are immutable and can't be fixed after a mistake).
+const strippedVersion = version.replace(/-[0-9]+/i, "");
+
 const binDir = path.join(__dirname, "install");
 // Determine the install directory by version so that we can detect when we need
 // to upgrade to a new version.
@@ -33,7 +38,7 @@ const binName = platform() === "windows" ? "fleetctl.exe" : "fleetctl";
 const binPath = path.join(installDir, binName);
 
 const install = async () => {
-  const url = `https://github.com/fleetdm/fleet/releases/download/${version}/fleetctl-${version}-${platform()}.tar.gz`;
+  const url = `https://github.com/fleetdm/fleet/releases/download/${strippedVersion}/fleetctl-${strippedVersion}-${platform()}.tar.gz`;
 
   fs.mkdirSync(installDir, { recursive: true });
 
