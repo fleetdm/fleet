@@ -57,7 +57,7 @@ archives:
     builds:
       - fleet
       - fleetctl
-    name_template: fleet-{{.Version}}-{{.Os}}
+    name_template: fleet_{{.Version}}_{{.Os}}
     replacements:
       darwin: macos
     format_overrides:
@@ -67,14 +67,14 @@ archives:
   - id: fleetctl
     builds:
       - fleetctl
-    name_template: fleetctl-{{.Version}}-{{.Os}}
+    name_template: fleetctl_{{.Version}}_{{.Os}}
     replacements:
       darwin: macos
 
   - id: fleetctl-zip
     builds:
       - fleetctl
-    name_template: fleetctl-{{.Version}}-{{.Os}}
+    name_template: fleetctl_{{.Version}}_{{.Os}}
     format: zip
     replacements:
       darwin: macos
