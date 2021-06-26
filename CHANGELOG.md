@@ -1,3 +1,7 @@
+## Fleet 4.0.0 RC3 (Jun 25, 2021)
+
+Primarily a test of the new release workflows. Relevant changelog will be updated for Fleet 4.0. 
+
 ## Fleet 4.0.0 RC2 (Jun 18, 2021)
 
 The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
