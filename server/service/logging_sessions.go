@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw loggingMiddleware) Login(ctx context.Context, email, password string) (user *fleet.User, token string, err error) {

@@ -1,4 +1,4 @@
-module github.com/fleetdm/fleet
+module github.com/fleetdm/fleet/v4
 
 go 1.16
 

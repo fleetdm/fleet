@@ -5,7 +5,7 @@ package host
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type key int

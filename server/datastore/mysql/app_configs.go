@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VividCortex/mysqlerr"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"

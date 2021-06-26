@@ -2,9 +2,9 @@ package service
 
 import (
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/server/authz"
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 )

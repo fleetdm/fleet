@@ -1,6 +1,6 @@
 package appstate
 
-import "github.com/fleetdm/fleet/server/fleet"
+import "github.com/fleetdm/fleet/v4/server/fleet"
 
 // Labels is the set of builtin labels that should be populated in the
 // datastore

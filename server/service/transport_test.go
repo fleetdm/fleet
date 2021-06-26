@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 )
 

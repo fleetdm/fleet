@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw metricsMiddleware) SSOSettings(ctx context.Context) (settings *fleet.SSOSettings, err error) {
