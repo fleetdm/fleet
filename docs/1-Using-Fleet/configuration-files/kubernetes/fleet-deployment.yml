@@ -43,11 +43,6 @@ spec:
               secretKeyRef:
                 name: fleet-cache-redis
                 key: redis-password
-          - name: FLEET_AUTH_JWT_KEY
-            valueFrom:
-              secretKeyRef:
-                name: fleet-server-auth-key
-                key: fleet-server-auth-key
           - name: FLEET_SERVER_ADDRESS
             value: "0.0.0.0:443"
           - name: FLEET_SERVER_CERT

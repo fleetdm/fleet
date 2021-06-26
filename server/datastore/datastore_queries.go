@@ -5,19 +5,19 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testApplyQueries(t *testing.T, ds kolide.Datastore) {
+func testApplyQueries(t *testing.T, ds fleet.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
-	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
-	groob := test.NewUser(t, ds, "Victor", "groob", "victor@kolide.co", true)
-	expectedQueries := []*kolide.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
+	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+	groob := test.NewUser(t, ds, "Victor", "victor@fleet.co", true)
+	expectedQueries := []*fleet.Query{
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", ObserverCanRun: true},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
 
@@ -25,7 +25,7 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 	err := ds.ApplyQueries(zwass.ID, expectedQueries)
 	require.Nil(t, err)
 
-	queries, err := ds.ListQueries(kolide.ListOptions{})
+	queries, err := ds.ListQueries(fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, queries, len(expectedQueries))
 	for i, q := range queries {
@@ -34,6 +34,7 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 		assert.Equal(t, comp.Description, q.Description)
 		assert.Equal(t, comp.Query, q.Query)
 		assert.Equal(t, &zwass.ID, q.AuthorID)
+		assert.Equal(t, comp.ObserverCanRun, q.ObserverCanRun)
 	}
 
 	// Victor modifies a query (but also pushes the same version of the
@@ -42,7 +43,7 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 	err = ds.ApplyQueries(groob.ID, expectedQueries)
 	require.Nil(t, err)
 
-	queries, err = ds.ListQueries(kolide.ListOptions{})
+	queries, err = ds.ListQueries(fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, queries, len(expectedQueries))
 	for i, q := range queries {
@@ -55,12 +56,12 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 
 	// Zach adds a third query (but does not re-apply the others)
 	expectedQueries = append(expectedQueries,
-		&kolide.Query{Name: "trouble", Description: "Look out!", Query: "select * from time"},
+		&fleet.Query{Name: "trouble", Description: "Look out!", Query: "select * from time"},
 	)
-	err = ds.ApplyQueries(zwass.ID, []*kolide.Query{expectedQueries[2]})
+	err = ds.ApplyQueries(zwass.ID, []*fleet.Query{expectedQueries[2]})
 	require.Nil(t, err)
 
-	queries, err = ds.ListQueries(kolide.ListOptions{})
+	queries, err = ds.ListQueries(fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, queries, len(expectedQueries))
 	for i, q := range queries {
@@ -74,10 +75,10 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, &zwass.ID, queries[2].AuthorID)
 }
 
-func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+func testDeleteQuery(t *testing.T, ds fleet.Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
-	query := &kolide.Query{
+	query := &fleet.Query{
 		Name:     "foo",
 		Query:    "bar",
 		AuthorID: &user.ID,
@@ -95,8 +96,8 @@ func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
 	assert.NotNil(t, err)
 }
 
-func testGetQueryByName(t *testing.T, ds kolide.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+func testGetQueryByName(t *testing.T, ds fleet.Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
 	actual, err := ds.QueryByName("q1")
 	require.Nil(t, err)
@@ -105,18 +106,18 @@ func testGetQueryByName(t *testing.T, ds kolide.Datastore) {
 
 	actual, err = ds.QueryByName("xxx")
 	assert.Error(t, err)
-	assert.True(t, kolide.IsNotFound(err))
+	assert.True(t, fleet.IsNotFound(err))
 }
 
-func testDeleteQueries(t *testing.T, ds kolide.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+func testDeleteQueries(t *testing.T, ds fleet.Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	q1 := test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
 	q2 := test.NewQuery(t, ds, "q2", "select * from processes", user.ID, true)
 	q3 := test.NewQuery(t, ds, "q3", "select 1", user.ID, true)
 	q4 := test.NewQuery(t, ds, "q4", "select * from osquery_info", user.ID, true)
 
-	queries, err := ds.ListQueries(kolide.ListOptions{})
+	queries, err := ds.ListQueries(fleet.ListOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 4)
 
@@ -124,7 +125,7 @@ func testDeleteQueries(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), deleted)
 
-	queries, err = ds.ListQueries(kolide.ListOptions{})
+	queries, err = ds.ListQueries(fleet.ListOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
 
@@ -132,7 +133,7 @@ func testDeleteQueries(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), deleted)
 
-	queries, err = ds.ListQueries(kolide.ListOptions{})
+	queries, err = ds.ListQueries(fleet.ListOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 1)
 
@@ -140,16 +141,16 @@ func testDeleteQueries(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), deleted)
 
-	queries, err = ds.ListQueries(kolide.ListOptions{})
+	queries, err = ds.ListQueries(fleet.ListOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 0)
 
 }
 
-func testSaveQuery(t *testing.T, ds kolide.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+func testSaveQuery(t *testing.T, ds fleet.Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
-	query := &kolide.Query{
+	query := &fleet.Query{
 		Name:     "foo",
 		Query:    "bar",
 		AuthorID: &user.ID,
@@ -160,6 +161,7 @@ func testSaveQuery(t *testing.T, ds kolide.Datastore) {
 	assert.NotEqual(t, 0, query.ID)
 
 	query.Query = "baz"
+	query.ObserverCanRun = true
 	err = ds.SaveQuery(query)
 
 	require.Nil(t, err)
@@ -169,13 +171,14 @@ func testSaveQuery(t *testing.T, ds kolide.Datastore) {
 	require.NotNil(t, queryVerify)
 	assert.Equal(t, "baz", queryVerify.Query)
 	assert.Equal(t, "Zach", queryVerify.AuthorName)
+	assert.True(t, queryVerify.ObserverCanRun)
 }
 
-func testListQuery(t *testing.T, ds kolide.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+func testListQuery(t *testing.T, ds fleet.Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	for i := 0; i < 10; i++ {
-		_, err := ds.NewQuery(&kolide.Query{
+		_, err := ds.NewQuery(&fleet.Query{
 			Name:     fmt.Sprintf("name%02d", i),
 			Query:    fmt.Sprintf("query%02d", i),
 			Saved:    true,
@@ -185,7 +188,7 @@ func testListQuery(t *testing.T, ds kolide.Datastore) {
 	}
 
 	// One unsaved query should not be returned
-	_, err := ds.NewQuery(&kolide.Query{
+	_, err := ds.NewQuery(&fleet.Query{
 		Name:     "unsaved",
 		Query:    "select * from time",
 		Saved:    false,
@@ -193,25 +196,25 @@ func testListQuery(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	opts := kolide.ListOptions{}
+	opts := fleet.ListOptions{}
 	results, err := ds.ListQueries(opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 10, len(results))
 }
 
-func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
-	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
-	queries := []*kolide.Query{
+func testLoadPacksForQueries(t *testing.T, ds fleet.Datastore) {
+	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+	queries := []*fleet.Query{
 		{Name: "q1", Query: "select * from time"},
 		{Name: "q2", Query: "select * from osquery_info"},
 	}
 	err := ds.ApplyQueries(zwass.ID, queries)
 	require.Nil(t, err)
 
-	specs := []*kolide.PackSpec{
-		&kolide.PackSpec{Name: "p1"},
-		&kolide.PackSpec{Name: "p2"},
-		&kolide.PackSpec{Name: "p3"},
+	specs := []*fleet.PackSpec{
+		&fleet.PackSpec{Name: "p1"},
+		&fleet.PackSpec{Name: "p2"},
+		&fleet.PackSpec{Name: "p3"},
 	}
 	err = ds.ApplyPackSpecs(specs)
 	require.Nil(t, err)
@@ -224,11 +227,11 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Empty(t, q1.Packs)
 
-	specs = []*kolide.PackSpec{
-		&kolide.PackSpec{
+	specs = []*fleet.PackSpec{
+		&fleet.PackSpec{
 			Name: "p2",
-			Queries: []kolide.PackSpecQuery{
-				kolide.PackSpecQuery{
+			Queries: []fleet.PackSpecQuery{
+				fleet.PackSpecQuery{
 					Name:      "q0",
 					QueryName: queries[0].Name,
 					Interval:  60,
@@ -249,20 +252,20 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Empty(t, q1.Packs)
 
-	specs = []*kolide.PackSpec{
-		&kolide.PackSpec{
+	specs = []*fleet.PackSpec{
+		&fleet.PackSpec{
 			Name: "p1",
-			Queries: []kolide.PackSpecQuery{
-				kolide.PackSpecQuery{
+			Queries: []fleet.PackSpecQuery{
+				fleet.PackSpecQuery{
 					QueryName: queries[1].Name,
 					Interval:  60,
 				},
 			},
 		},
-		&kolide.PackSpec{
+		&fleet.PackSpec{
 			Name: "p3",
-			Queries: []kolide.PackSpecQuery{
-				kolide.PackSpecQuery{
+			Queries: []fleet.PackSpecQuery{
+				fleet.PackSpecQuery{
 					QueryName: queries[1].Name,
 					Interval:  60,
 				},
@@ -286,16 +289,16 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 		assert.Equal(t, "p3", q1.Packs[1].Name)
 	}
 
-	specs = []*kolide.PackSpec{
-		&kolide.PackSpec{
+	specs = []*fleet.PackSpec{
+		&fleet.PackSpec{
 			Name: "p3",
-			Queries: []kolide.PackSpecQuery{
-				kolide.PackSpecQuery{
+			Queries: []fleet.PackSpecQuery{
+				fleet.PackSpecQuery{
 					Name:      "q0",
 					QueryName: queries[0].Name,
 					Interval:  60,
 				},
-				kolide.PackSpecQuery{
+				fleet.PackSpecQuery{
 					Name:      "q1",
 					QueryName: queries[1].Name,
 					Interval:  60,
@@ -323,9 +326,9 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
-func testDuplicateNewQuery(t *testing.T, ds kolide.Datastore) {
-	user := test.NewUser(t, ds, "Mike Arpaia", "marpaia", "mike@kolide.co", true)
-	q1, err := ds.NewQuery(&kolide.Query{
+func testDuplicateNewQuery(t *testing.T, ds fleet.Datastore) {
+	user := test.NewUser(t, ds, "Mike Arpaia", "mike@fleet.co", true)
+	q1, err := ds.NewQuery(&fleet.Query{
 		Name:     "foo",
 		Query:    "select * from time;",
 		AuthorID: &user.ID,
@@ -333,12 +336,12 @@ func testDuplicateNewQuery(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.NotZero(t, q1.ID)
 
-	_, err = ds.NewQuery(&kolide.Query{
+	_, err = ds.NewQuery(&fleet.Query{
 		Name:  "foo",
 		Query: "select * from osquery_info;",
 	})
 
 	// Note that we can't do the actual type assertion here because existsError
 	// is private to the individual datastore implementations
-	assert.Contains(t, err.Error(), "already exists in the datastore")
+	assert.Contains(t, err.Error(), "already exists")
 }

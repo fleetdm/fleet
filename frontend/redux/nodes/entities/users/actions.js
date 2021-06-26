@@ -1,4 +1,4 @@
-import Kolide from "kolide";
+import Fleet from "fleet";
 
 import config from "redux/nodes/entities/users/config";
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
@@ -38,7 +38,7 @@ export const changePassword = (
   return (dispatch) => {
     dispatch(updateRequest());
 
-    return Kolide.users
+    return Fleet.users
       .changePassword({ new_password: newPassword, old_password: oldPassword })
       .then(() => {
         return dispatch(successAction(user, updateSuccess));
@@ -59,7 +59,7 @@ export const confirmEmailChange = (user, token) => {
   return (dispatch) => {
     dispatch(loadRequest());
 
-    return Kolide.users
+    return Fleet.users
       .confirmEmailChange(user, token)
       .then((updatedUser) => {
         dispatch(successAction(updatedUser, updateSuccess));
@@ -81,7 +81,7 @@ export const enableUser = (user, { enabled }) => {
   const { successAction, updateFailure, updateSuccess } = actions;
 
   return (dispatch) => {
-    return Kolide.users
+    return Fleet.users
       .enable(user, { enabled })
       .then((userResponse) => {
         return dispatch(successAction(userResponse, updateSuccess));
@@ -96,10 +96,10 @@ export const enableUser = (user, { enabled }) => {
   };
 };
 
-export const requirePasswordReset = (user, { require }) => {
+export const requirePasswordReset = (userId, { require }) => {
   return (dispatch) => {
-    return Kolide.users
-      .requirePasswordReset(user, { require })
+    return Fleet.users
+      .requirePasswordReset(userId, { require })
       .then((updatedUser) => {
         dispatch(requirePasswordResetSuccess(updatedUser));
 
@@ -118,7 +118,7 @@ export const updateAdmin = (user, { admin }) => {
   const { successAction, updateFailure, updateSuccess } = actions;
 
   return (dispatch) => {
-    return Kolide.users
+    return Fleet.users
       .updateAdmin(user, { admin })
       .then((userResponse) => {
         return dispatch(successAction(userResponse, updateSuccess));

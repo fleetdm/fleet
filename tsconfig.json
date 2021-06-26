@@ -2,14 +2,18 @@
   "extends": "@tsconfig/recommended/tsconfig.json",
   "compilerOptions": {
     "baseUrl": "./frontend",
+    "target": "ES2016",
     "sourceMap": true,
     "jsx": "react",
-    "types": ["cypress", "@testing-library/cypress"]
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "./frontend/**/*"
   ],
   "exclude": [
     "node_modules"
+  ],
+  "typeRoots": [
+    "./node_modules/@types", "./typings"
   ]
 }

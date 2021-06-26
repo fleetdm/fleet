@@ -8,9 +8,9 @@ import { fillInFormInput, itBehavesLikeAFormInputElement } from "test/helpers";
 describe("AdminDetails - form", () => {
   let form = mount(<AdminDetails handleSubmit={noop} />);
 
-  describe("username input", () => {
+  describe("full name input", () => {
     it("renders an input field", () => {
-      itBehavesLikeAFormInputElement(form, "username");
+      itBehavesLikeAFormInputElement(form, "name");
     });
   });
 
@@ -45,7 +45,7 @@ describe("AdminDetails - form", () => {
         email: "Email must be present",
         password: "Password must be present",
         password_confirmation: "Password confirmation must be present",
-        username: "Username must be present",
+        name: "Full name must be present",
       });
     });
 
@@ -98,8 +98,7 @@ describe("AdminDetails - form", () => {
 
       expect(onSubmitSpy).not.toHaveBeenCalled();
       expect(form.state().errors).toMatchObject({
-        password:
-          "Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol",
+        password: "Password must meet the criteria below",
       });
     });
 
@@ -111,13 +110,13 @@ describe("AdminDetails - form", () => {
         .find({ name: "password_confirmation" })
         .find("input");
       const passwordField = form.find({ name: "password" }).find("input");
-      const usernameField = form.find({ name: "username" }).find("input");
+      const nameField = form.find({ name: "name" }).find("input");
       const htmlForm = form.find("form");
 
       fillInFormInput(emailField, "hi@gnar.dog");
       fillInFormInput(passwordField, "p@ssw0rd");
       fillInFormInput(passwordConfirmationField, "p@ssw0rd");
-      fillInFormInput(usernameField, "gnardog");
+      fillInFormInput(nameField, "Gnar Dog");
       htmlForm.simulate("submit");
 
       expect(onSubmitSpy).toHaveBeenCalled();

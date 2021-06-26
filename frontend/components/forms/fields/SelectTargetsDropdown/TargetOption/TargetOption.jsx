@@ -2,7 +2,6 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-import KolideIcon from "components/icons/KolideIcon";
 import targetInterface from "interfaces/target";
 import TargetIcon from "./TargetIcon";
 
@@ -49,6 +48,7 @@ class TargetOption extends Component {
     const { display_text: displayText, target_type: targetType } = target;
     const { handleSelect, renderTargetDetail } = this;
     const wrapperClassName = classnames(`${baseClass}__wrapper`, {
+      "is-team": targetType === "teams",
       "is-label": targetType === "labels",
       "is-host": targetType === "hosts",
     });
@@ -61,7 +61,9 @@ class TargetOption extends Component {
         >
           <div>
             <TargetIcon target={target} />
-            <span className={`${baseClass}__label-label`}>{displayText}</span>
+            <span className={`${baseClass}__label-label`}>
+              {displayText !== "All Hosts" ? displayText : "All hosts"}
+            </span>
           </div>
           {renderTargetDetail()}
         </button>

@@ -3,11 +3,11 @@ package mysql
 import (
 	"database/sql"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) ListScheduledQueriesInPack(id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+func (d *Datastore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT
 			sq.id,
@@ -30,7 +30,7 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts kolide.ListOptions)
 		WHERE sq.pack_id = ?
 	`
 	query = appendListOptionsToSQL(query, opts)
-	results := []*kolide.ScheduledQuery{}
+	results := []*fleet.ScheduledQuery{}
 
 	if err := d.db.Select(&results, query, id); err != nil {
 		return nil, errors.Wrap(err, "listing scheduled queries")
@@ -39,9 +39,7 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts kolide.ListOptions)
 	return results, nil
 }
 
-func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.OptionalArg) (*kolide.ScheduledQuery, error) {
-	db := d.getTransaction(opts)
-
+func (d *Datastore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 	// This query looks up the query name using the ID (for backwards
 	// compatibility with the UI)
 	query := `
@@ -61,7 +59,7 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.
 		FROM queries
 		WHERE id = ?
 		`
-	result, err := db.Exec(query, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
+	result, err := d.db.Exec(query, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "insert scheduled query")
 	}
@@ -75,7 +73,7 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.
 		Name  string
 	}{}
 
-	err = db.Select(&metadata, query, sq.QueryID)
+	err = d.db.Select(&metadata, query, sq.QueryID)
 	if err != nil && err == sql.ErrNoRows {
 		return nil, notFound("Query").WithID(sq.QueryID)
 	} else if err != nil {
@@ -92,7 +90,7 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.
 	return sq, nil
 }
 
-func (d *Datastore) SaveScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+func (d *Datastore) SaveScheduledQuery(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	query := `
 		UPDATE scheduled_queries
 			SET pack_id = ?, query_id = ?, ` + "`interval`" + ` = ?, snapshot = ?, removed = ?, platform = ?, version = ?, shard = ?, denylist = ?
@@ -116,7 +114,7 @@ func (d *Datastore) DeleteScheduledQuery(id uint) error {
 	return d.deleteEntity("scheduled_queries", id)
 }
 
-func (d *Datastore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {
+func (d *Datastore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT
 			sq.id,
@@ -140,7 +138,7 @@ func (d *Datastore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {
 		ON sq.query_name = q.name
 		WHERE sq.id = ?
 	`
-	sq := &kolide.ScheduledQuery{}
+	sq := &fleet.ScheduledQuery{}
 	if err := d.db.Get(sq, query, id); err != nil {
 		return nil, errors.Wrap(err, "select scheduled query")
 	}

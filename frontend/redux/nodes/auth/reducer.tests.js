@@ -2,9 +2,9 @@ import configureStore from "redux-mock-store";
 import { find } from "lodash";
 import thunk from "redux-thunk";
 
-import apiHelpers from "kolide/helpers";
+import apiHelpers from "fleet/helpers";
 import authMiddleware from "redux/middlewares/auth";
-import kolide from "kolide";
+import Fleet from "fleet";
 import local from "utilities/local";
 import {
   loginRequest,
@@ -41,7 +41,7 @@ describe("Auth - reducer", () => {
   describe("loginUser action", () => {
     const bearerToken = "expected-bearer-token";
     const formData = {
-      username: "username",
+      email: "username@example.com",
       password: "p@ssw0rd",
     };
     const middlewares = [thunk, authMiddleware];
@@ -95,7 +95,7 @@ describe("Auth - reducer", () => {
       store
         .dispatch(loginUser(formData))
         .then(() => {
-          expect(kolide.bearerToken).toEqual(bearerToken);
+          expect(Fleet.bearerToken).toEqual(bearerToken);
           done();
         })
         .catch(done);
@@ -123,7 +123,7 @@ describe("Auth - reducer", () => {
 
     beforeEach(() => {
       local.setItem("auth_token", bearerToken);
-      kolide.setBearerToken(bearerToken);
+      Fleet.setBearerToken(bearerToken);
     });
 
     it("calls the api logout endpoint", (done) => {
@@ -156,7 +156,7 @@ describe("Auth - reducer", () => {
       store
         .dispatch(logoutUser())
         .then(() => {
-          expect(kolide.bearerToken).toBeFalsy();
+          expect(Fleet.bearerToken).toBeFalsy();
           done();
         })
         .catch(done);
@@ -179,7 +179,7 @@ describe("Auth - reducer", () => {
   describe("perform required password reset", () => {
     const user = {
       id: 1,
-      email: "zwass@kolide.co",
+      email: "zwass@Fleet.co",
       force_password_reset: true,
     };
 

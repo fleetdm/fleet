@@ -1,4 +1,39 @@
 .app-config-form {
+  &__config-docs {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: $pad-medium;
+    border-radius: $border-radius;
+    border: 1px solid #d9d9fe;
+    background-color: $ui-vibrant-blue-10;
+    margin-bottom: $pad-medium;
+    font-size: $x-small;
+
+    p {
+      margin: 0;
+      font-size: $x-small;
+    }
+
+  }
+  
+  &__learn-more {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    font-weight: $bold;
+    text-decoration: none;
+    
+    &--inline {
+      margin-left: $pad-medium;
+    }
+    img {
+      width: 12px;
+      height: 12px;
+      margin-left: $pad-small;
+    }
+  }
+
+
   &__enroll-secret-label {
     font-size: 15px;
 
@@ -30,24 +65,25 @@
 
   &__section {
     @include clearfix;
-    margin: 0 0 30px;
+    margin: 0 0 $pad-xlarge;
 
-    .upcarat {
+    .upcarat::after {
       content: url("../assets/images/icon-collapse-black-16x16@2x.png");
-      width: 16px;
-      height: 16px;
+      transform: scale(0.5);
       border-radius: 0px;
-      top: 5px;
-      margin: 4px;
+      position: relative;
+      top: 8px;
+      margin: $pad-xsmall;
     }
 
-    .downcarat {
+    .downcarat::after {
       content: url("../assets/images/icon-chevron-black-16x16@2x.png");
-      width: 16px;
-      height: 16px;
+      transform: scale(0.5);
       border-radius: 0px;
-      top: 5px;
-      margin: 4px;
+      position: relative;
+      top: 8px;
+      margin: $pad-xsmall;
+      margin-right: 18px;
     }
 
     h2 {
@@ -81,6 +117,11 @@
     }
   }
 
+  &__section-description {
+    font-size: $x-small;
+    color: $core-fleet-black;
+  }
+
   &__inputs {
     width: 60%;
     float: left;
@@ -109,6 +150,9 @@
           float: none;
         }
       }
+    }
+    &--usage {
+      margin-top: 24px;
     }
   }
 
@@ -171,6 +215,23 @@
       .button {
         margin: 0 10px;
       }
+    }
+  }
+
+  &__component-label {
+    margin: 24px 0 0;
+    font-size: $x-small;
+  }
+
+  &__yaml {
+    width: calc(100% - 2px); // because the outline extended beyond the sticky page description
+  }
+
+  &__usage-stats-preview-modal {
+    .flex-end {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
     }
   }
 }

@@ -13,7 +13,8 @@ const baseClass = "target-list";
 const SelectTargetsMenuWrapper = (
   onMoreInfoClick,
   moreInfoTarget,
-  handleBackToResults
+  handleBackToResults,
+  isBasicTier
 ) => {
   const SelectTargetsMenu = ({
     focusedOption,
@@ -99,12 +100,35 @@ const SelectTargetsMenuWrapper = (
       return targetsOutput;
     };
 
+    const hasHostTargets = () => {
+      return options.find((option) => option.count !== 0) !== undefined;
+    };
+
+    const renderTargetGroups = (
+      <>
+        {renderTargets("all")}
+        {isBasicTier && renderTargets("teams")}
+        {renderTargets("labels")}
+        {renderTargets("hosts")}
+      </>
+    );
+
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__options`}>
-          {renderTargets("all")}
-          {renderTargets("labels")}
-          {renderTargets("hosts")}
+          {hasHostTargets ? (
+            renderTargetGroups
+          ) : (
+            <>
+              <div className={`${baseClass}__no-hosts`}>
+                <div className={`${baseClass}__no-hosts-heading`}>
+                  You have no hosts to run this query against.
+                </div>
+                Expecting to see hosts? Try again in a few seconds as the system
+                catches up.
+              </div>
+            </>
+          )}
         </div>
         <TargetDetails
           target={moreInfoTarget}
@@ -126,6 +150,7 @@ const SelectTargetsMenuWrapper = (
     valueArray: PropTypes.arrayOf(targetInterface),
     valueKey: PropTypes.string,
     onOptionRef: PropTypes.func,
+    isBasicTier: PropTypes.bool,
   };
 
   return SelectTargetsMenu;

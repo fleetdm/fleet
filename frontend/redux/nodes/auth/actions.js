@@ -1,6 +1,6 @@
 import { configSuccess } from "redux/nodes/app/actions";
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
-import Kolide from "kolide";
+import Fleet from "fleet";
 import local from "utilities/local";
 import userActions from "redux/nodes/entities/users/actions";
 
@@ -51,7 +51,7 @@ export const loginFailure = (errors) => {
 export const fetchCurrentUser = () => {
   return (dispatch) => {
     dispatch(loginRequest);
-    return Kolide.users
+    return Fleet.users
       .me()
       .then((user) => {
         return dispatch(loginSuccess({ user }));
@@ -86,7 +86,7 @@ export const ssoRedirectFailure = ({ errors }) => {
 export const ssoRedirect = (formData) => {
   return (dispatch) => {
     dispatch(ssoRedirectRequest);
-    return Kolide.sessions
+    return Fleet.sessions
       .initializeSSO(formData)
       .then((response) => {
         return dispatch(ssoRedirectSuccess(response.url));
@@ -123,7 +123,7 @@ export const ssoSettingsFailure = ({ errors }) => {
 export const ssoSettings = () => {
   return (dispatch) => {
     dispatch(ssoSettingsRequest);
-    return Kolide.sessions
+    return Fleet.sessions
       .ssoSettings()
       .then((response) => {
         return dispatch(ssoSettingsSuccess(response.settings));
@@ -139,13 +139,13 @@ export const ssoSettings = () => {
   };
 };
 
-// formData should be { username: <string>, password: <string> }
+// formData should be { email: <string>, password: <string> }
 export const loginUser = (formData) => {
   return (dispatch) => {
     return new Promise((resolve, reject) => {
       dispatch(loginRequest);
 
-      return Kolide.sessions
+      return Fleet.sessions
         .create(formData)
         .then((response) => {
           dispatch(loginSuccess(response));
@@ -165,18 +165,18 @@ export const loginUser = (formData) => {
 
 export const setup = (registrationFormData) => {
   return (dispatch) => {
-    return Kolide.account.create(registrationFormData).then((response) => {
+    return Fleet.account.create(registrationFormData).then((response) => {
       const { token } = response;
 
       dispatch(
         configSuccess({
-          kolide_server_url: response.kolide_server_url,
+          server_url: response.server_url,
           ...response.org_info,
         })
       );
 
       local.setItem("auth_token", token);
-      Kolide.setBearerToken(token);
+      Fleet.setBearerToken(token);
 
       return dispatch(fetchCurrentUser());
     });
@@ -230,7 +230,7 @@ export const logoutUser = () => {
   return (dispatch) => {
     dispatch(logoutRequest);
 
-    return Kolide.sessions
+    return Fleet.sessions
       .destroy()
       .then(() => dispatch(logoutSuccess))
       .catch((error) => {
@@ -263,7 +263,7 @@ export const performRequiredPasswordReset = (resetParams) => {
   return (dispatch) => {
     dispatch(performRequiredPasswordResetRequest);
 
-    return Kolide.users
+    return Fleet.users
       .performRequiredPasswordReset(resetParams)
       .then((updatedUser) => {
         dispatch(performRequiredPasswordResetSuccess(updatedUser));

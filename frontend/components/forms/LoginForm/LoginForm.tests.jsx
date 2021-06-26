@@ -32,17 +32,17 @@ describe("LoginForm - component", () => {
     expect(form.find("InputFieldWithIcon").length).toEqual(2);
   });
 
-  it("updates component state when the username field is changed", () => {
+  it("updates component state when the email field is changed", () => {
     const form = mount(
       <LoginForm handleSubmit={noop} ssoSettings={settings} />
     );
-    const username = "hi@thegnar.co";
+    const email = "hi@thegnar.co";
 
-    const usernameField = form.find({ name: "username" });
-    fillInFormInput(usernameField, username);
+    const emailField = form.find({ name: "email" });
+    fillInFormInput(emailField, email);
 
     const { formData } = form.state();
-    expect(formData).toMatchObject({ username });
+    expect(formData).toMatchObject({ email });
   });
 
   it("updates component state when the password field is changed", () => {
@@ -69,7 +69,7 @@ describe("LoginForm - component", () => {
     submitBtn.simulate("click");
 
     expect(form.state().errors).toMatchObject({
-      username: "Username or email field must be completed",
+      email: "Email field must be completed",
     });
     expect(submitSpy).not.toHaveBeenCalled();
   });
@@ -80,16 +80,16 @@ describe("LoginForm - component", () => {
     const form = mount(
       <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
-    const usernameField = form.find({ name: "username" });
+    const emailField = form.find({ name: "email" });
     const passwordField = form.find({ name: "password" });
     const submitBtn = form.find("button");
 
-    fillInFormInput(usernameField, "my@email.com");
+    fillInFormInput(emailField, "my@email.com");
     fillInFormInput(passwordField, "p@ssw0rd");
     submitBtn.simulate("submit");
 
     expect(submitSpy).toHaveBeenCalledWith({
-      username: "my@email.com",
+      email: "my@email.com",
       password: "p@ssw0rd",
     });
   });

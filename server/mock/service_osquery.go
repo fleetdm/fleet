@@ -6,20 +6,20 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-var _ kolide.OsqueryService = (*TLSService)(nil)
+var _ fleet.OsqueryService = (*TLSService)(nil)
 
 type EnrollAgentFunc func(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error)
 
-type AuthenticateHostFuncI func(ctx context.Context, nodeKey string) (host *kolide.Host, err error)
+type AuthenticateHostFuncI func(ctx context.Context, nodeKey string) (host *fleet.Host, err error)
 
 type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{}, err error)
 
 type GetDistributedQueriesFunc func(ctx context.Context) (queries map[string]string, accelerate uint, err error)
 
-type SubmitDistributedQueryResultsFunc func(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus, messages map[string]string) (err error)
+type SubmitDistributedQueryResultsFunc func(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string) (err error)
 
 type SubmitStatusLogsFunc func(ctx context.Context, logs []json.RawMessage) (err error)
 
@@ -53,7 +53,7 @@ func (s *TLSService) EnrollAgent(ctx context.Context, enrollSecret string, hostI
 	return s.EnrollAgentFunc(ctx, enrollSecret, hostIdentifier, hostDetails)
 }
 
-func (s *TLSService) AuthenticateHost(ctx context.Context, nodeKey string) (host *kolide.Host, err error) {
+func (s *TLSService) AuthenticateHost(ctx context.Context, nodeKey string) (host *fleet.Host, err error) {
 	s.AuthenticateHostFuncInvoked = true
 	return s.AuthenticateHostFunc(ctx, nodeKey)
 }
@@ -68,7 +68,7 @@ func (s *TLSService) GetDistributedQueries(ctx context.Context) (queries map[str
 	return s.GetDistributedQueriesFunc(ctx)
 }
 
-func (s *TLSService) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus, messages map[string]string) (err error) {
+func (s *TLSService) SubmitDistributedQueryResults(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string) (err error) {
 	s.SubmitDistributedQueryResultsFuncInvoked = true
 	return s.SubmitDistributedQueryResultsFunc(ctx, results, statuses, messages)
 }

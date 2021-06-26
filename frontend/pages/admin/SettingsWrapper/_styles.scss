@@ -1,7 +1,7 @@
 @import "../../../../node_modules/react-tabs/style/react-tabs.scss";
 
 .settings-wrapper {
-  padding: 25px 30px 50px; // different to pad sticky subnav properly
+  padding: 25px $pad-xlarge 50px; // different to pad sticky subnav properly
 
   &__nav-header {
     padding-top: 15px;

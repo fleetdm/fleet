@@ -7,6 +7,7 @@ export default PropTypes.shape({
   id: PropTypes.number,
   interval: PropTypes.number,
   last_excuted: PropTypes.string,
+  observer_can_run: PropTypes.bool,
 });
 
 export interface IQuery {
@@ -16,4 +17,5 @@ export interface IQuery {
   id: number;
   interval: number;
   last_excuted: string;
+  observer_can_run: boolean;
 }

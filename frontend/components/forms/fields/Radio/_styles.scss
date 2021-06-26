@@ -1,0 +1,55 @@
+// build with the help of this article, with some of our own modifications
+// https://moderncss.dev/pure-css-custom-styled-radio-buttons/
+
+.radio {
+  font-size: $x-small;
+  display: flex;
+  align-items: center;
+
+  &__input {
+    display: flex;
+
+    input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      margin: 0;
+
+      & + .radio__control::before {
+        position: absolute;
+        content: "";
+        width: 10px;
+        height: 10px;
+        box-shadow: inset 1em 1em $core-vibrant-blue;
+        border-radius: 50%;
+        top: 5px;
+        left: 5px;
+        transition: 180ms transform ease-in-out;
+        transform: scale(0);
+      }
+
+      &:checked + .radio__control::before {
+        transform: scale(1);
+      }
+
+      &:focus + .radio__control {
+        border-color: $core-vibrant-blue;
+      }
+    }
+  }
+
+  &__control {
+    position: relative;
+    display: flex;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid $ui-fleet-blue-15;
+    transform: translateY(-0.05em);
+  }
+
+  &__label {
+    margin-left: $pad-xsmall;
+    line-height: 1;
+  }
+}

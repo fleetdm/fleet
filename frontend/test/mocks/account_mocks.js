@@ -1,5 +1,5 @@
 import createRequestMock from "test/mocks/create_request_mock";
-import helpers from "kolide/helpers";
+import helpers from "fleet/helpers";
 
 export default {
   create: {

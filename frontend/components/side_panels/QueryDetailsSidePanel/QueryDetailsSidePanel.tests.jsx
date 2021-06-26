@@ -3,12 +3,16 @@ import { mount } from "enzyme";
 import { noop } from "lodash";
 
 import QueryDetailsSidePanel from "components/side_panels/QueryDetailsSidePanel";
-import { queryStub } from "test/stubs";
+import { queryStub, userStub } from "test/stubs";
 
 describe("QueryDetailsSidePanel - component", () => {
   it("renders", () => {
     const component = mount(
-      <QueryDetailsSidePanel onEditQuery={noop} query={queryStub} />
+      <QueryDetailsSidePanel
+        onEditQuery={noop}
+        query={queryStub}
+        currentUser={userStub}
+      />
     );
 
     expect(component.length).toEqual(1);
@@ -16,9 +20,13 @@ describe("QueryDetailsSidePanel - component", () => {
 
   it("renders a read-only Kolide Ace component with the query text", () => {
     const component = mount(
-      <QueryDetailsSidePanel onEditQuery={noop} query={queryStub} />
+      <QueryDetailsSidePanel
+        onEditQuery={noop}
+        query={queryStub}
+        currentUser={userStub}
+      />
     );
-    const aceEditor = component.find("KolideAce");
+    const aceEditor = component.find("FleetAce");
 
     expect(aceEditor.length).toEqual(1);
     expect(aceEditor.prop("value")).toEqual(queryStub.query);
@@ -28,7 +36,11 @@ describe("QueryDetailsSidePanel - component", () => {
   it("calls the onEditQuery prop when Edit/Run Query is clicked", () => {
     const spy = jest.fn();
     const component = mount(
-      <QueryDetailsSidePanel onEditQuery={spy} query={queryStub} />
+      <QueryDetailsSidePanel
+        onEditQuery={spy}
+        query={queryStub}
+        currentUser={userStub}
+      />
     );
     const button = component.find("Button");
 

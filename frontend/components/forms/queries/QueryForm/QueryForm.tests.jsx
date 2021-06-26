@@ -38,7 +38,12 @@ describe("QueryForm - component", () => {
 
   it("renders InputFields for the query name and description", () => {
     const form = mount(
-      <QueryForm {...defaultProps} query={query} queryText={queryText} />
+      <QueryForm
+        {...defaultProps}
+        query={query}
+        queryText={queryText}
+        hasSavePermissions
+      />
     );
     const inputFields = form.find("InputField");
 
@@ -54,6 +59,7 @@ describe("QueryForm - component", () => {
         {...defaultProps}
         formData={{ ...query, query: queryText }}
         onUpdate={updateSpy}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -76,6 +82,7 @@ describe("QueryForm - component", () => {
         {...defaultProps}
         formData={{ ...query, query: queryText }}
         onUpdate={spy}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -97,7 +104,11 @@ describe("QueryForm - component", () => {
 
   it("enables the Save Changes button when the name input changes", () => {
     const form = mount(
-      <QueryForm {...defaultProps} formData={{ ...query, query: queryText }} />
+      <QueryForm
+        {...defaultProps}
+        formData={{ ...query, query: queryText }}
+        hasSavePermissions
+      />
     );
     const inputFields = form.find("InputField");
     const nameInput = inputFields.find('input[name="name"]');
@@ -124,7 +135,11 @@ describe("QueryForm - component", () => {
 
   it("enables the Save Changes button when the description input changes", () => {
     const form = mount(
-      <QueryForm {...defaultProps} formData={{ ...query, query: queryText }} />
+      <QueryForm
+        {...defaultProps}
+        formData={{ ...query, query: queryText }}
+        hasSavePermissions
+      />
     );
     const inputFields = form.find("InputField");
     const descriptionInput = inputFields.find({ name: "description" });
@@ -155,6 +170,7 @@ describe("QueryForm - component", () => {
         {...defaultProps}
         formData={{ ...query, query: queryText }}
         handleSubmit={onSaveAsNewSpy}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -183,6 +199,7 @@ describe("QueryForm - component", () => {
         {...defaultProps}
         formData={{ ...query, query: queryText }}
         handleSubmit={onSaveAsNewSpy}
+        hasSavePermissions
       />
     );
     const inputFields = form.find("InputField");
@@ -199,7 +216,7 @@ describe("QueryForm - component", () => {
     expect(onSaveAsNewSpy).not.toHaveBeenCalled();
     expect(form.state()).toMatchObject({
       errors: {
-        name: "Title must be present",
+        name: "Query name must be present",
       },
     });
   });

@@ -24,6 +24,7 @@ class PackForm extends Component {
     handleSubmit: PropTypes.func,
     onFetchTargets: PropTypes.func,
     selectedTargetsCount: PropTypes.number,
+    isBasicTier: PropTypes.bool,
   };
 
   render() {
@@ -34,13 +35,14 @@ class PackForm extends Component {
       handleSubmit,
       onFetchTargets,
       selectedTargetsCount,
+      isBasicTier,
     } = this.props;
 
     const packFormClass = classnames(baseClass, className);
 
     return (
       <form className={packFormClass} onSubmit={handleSubmit}>
-        <h1>New Pack</h1>
+        <h1>New pack</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
         <InputField
           {...fields.name}
@@ -51,7 +53,7 @@ class PackForm extends Component {
         <InputField
           {...fields.description}
           inputWrapperClass={`${baseClass}__pack-description`}
-          label="Query pack description"
+          label="Description"
           placeholder="Add a description of your pack"
           type="textarea"
         />
@@ -63,6 +65,7 @@ class PackForm extends Component {
             onFetchTargets={onFetchTargets}
             selectedTargets={fields.targets.value}
             targetsCount={selectedTargetsCount}
+            isBasicTier={isBasicTier}
           />
         </div>
         <div className={`${baseClass}__pack-buttons`}>

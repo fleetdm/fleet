@@ -6,35 +6,37 @@
     margin: 0;
     font-size: $small;
 
-    .kolidecon {
+    .fleeticon {
       color: $core-fleet-blue;
       margin-right: 6px;
     }
   }
 
   &__label {
-    font-size: $medium;
+    font-size: $x-small;
     font-weight: $bold;
-    margin: $pad-large 0 $pad-medium;
+    margin: $pad-large 0 $pad-small;
   }
 
   &__description {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
     color: $core-fleet-black;
     word-wrap: break-word;
+    margin: $pad-small 0;
   }
 
   &__query-preview {
     margin-bottom: 12px;
 
-    .kolide-ace__label {
+    .fleet-ace__label {
       display: none;
     }
   }
 
   .button {
     width: 100%;
+    margin-top: $pad-medium;
   }
 
   &__packs {
@@ -46,7 +48,7 @@
   &__pack-name {
     @include ellipsis(240px);
     text-decoration: none;
-    font-size: $small;
+    font-size: $x-small;
     vertical-align: middle;
     color: $core-vibrant-blue;
   }

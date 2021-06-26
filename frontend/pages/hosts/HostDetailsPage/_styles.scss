@@ -42,6 +42,10 @@
         color: $core-fleet-black;
         font-weight: $bold;
       }
+
+      &__no-team {
+        color: $ui-fleet-black-50;
+      }
     }
 
     .list {

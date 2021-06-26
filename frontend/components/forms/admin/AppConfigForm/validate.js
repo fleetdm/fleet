@@ -1,10 +1,12 @@
 import { size } from "lodash";
+import validateYaml from "components/forms/validators/validate_yaml";
+import constructErrorString from "utilities/yaml";
 
 export default (formData) => {
   const errors = {};
   const {
     authentication_type: authType,
-    kolide_server_url: kolideServerUrl,
+    server_url: kolideServerUrl,
     org_name: orgName,
     enable_smtp: enableSMTP,
     password: smtpPassword,
@@ -19,6 +21,7 @@ export default (formData) => {
     idp_name: idpName,
     host_expiry_enabled: hostExpiryEnabled,
     host_expiry_window: hostExpiryWindow = 0,
+    agent_options: agentOptions,
   } = formData;
 
   if (enableSSO) {
@@ -34,7 +37,7 @@ export default (formData) => {
   }
 
   if (!kolideServerUrl) {
-    errors.kolide_server_url = "Fleet Server URL must be present";
+    errors.server_url = "Fleet Server URL must be present";
   }
 
   if (!orgName) {
@@ -69,6 +72,16 @@ export default (formData) => {
     if (isNaN(hostExpiryWindow) || Number(hostExpiryWindow) <= 0) {
       errors.host_expiry_window =
         "Host Expiry Window must be a positive number";
+    }
+  }
+
+  if (agentOptions) {
+    const { error: yamlError, valid: yamlValid } = validateYaml(
+      formData.agent_options
+    );
+
+    if (!yamlValid) {
+      errors.agent_options = constructErrorString(yamlError);
     }
   }
 

@@ -7,7 +7,7 @@
     margin-bottom: $pad-xsmall;
 
     &--error {
-      color: $ui-error;
+      font-weight: $bold;
     }
   }
 
@@ -15,8 +15,10 @@
     &--error {
       &.Select {
         .Select-control {
-          border-color: $ui-error;
-          background-color: $ui-error;
+          color: $core-vibrant-red;
+          border: 1px solid $core-vibrant-red;
+          box-sizing: border-box;
+          border-radius: 4px;
         }
 
         .Select-arrow {
@@ -44,13 +46,20 @@
   .Select-control {
     border: 1px solid $ui-fleet-blue-15;
     background-color: $ui-light-grey;
-    border-radius: 4px;
+    border-radius: $border-radius;
     height: 40px;
+
+    .Select-value {
+      font-size: $x-small;
+      border-radius: 4px;
+      background-color: $ui-off-white;
+      border: solid 1px $core-dark-blue-grey;
+    }
   }
 
   .Select-value {
     font-size: $x-small;
-    border-radius: 4px;
+    border-radius: $border-radius;
     background-color: $ui-off-white;
     border: solid 1px $core-dark-blue-grey;
 
@@ -90,6 +99,8 @@
     > .Select-control {
       .Select-value {
         line-height: 38px;
+        margin-top: 4px;
+        border: none;
       }
     }
   }
@@ -98,7 +109,7 @@
     content: url("../assets/images/icon-chevron-black-16x16@2x.png");
     height: 16px;
     width: 16px;
-    margin-top: 6px;
+    margin-top: 8px;
     margin-left: -4px;
     border: none;
 
@@ -112,7 +123,7 @@
       content: url("../assets/images/icon-collapse-black-16x16@2x.png");
       height: 16px;
       width: 16px;
-      margin-top: 11px;
+      margin-top: 14px;
       margin-left: -3px;
       border: none;
 
@@ -161,7 +172,7 @@
   .Select-menu-outer {
     margin-top: $pad-xsmall;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
-    border-radius: 4px;
+    border-radius: $border-radius;
     z-index: 6;
     overflow: hidden;
     border: 0;
@@ -200,7 +211,8 @@
     color: $ui-gray;
   }
 
-  .Select-placeholder {
+  .Select-placeholder,
+  .Select-input {
     color: $core-fleet-blue;
     font-size: $small;
     line-height: 40px;
@@ -218,6 +230,7 @@
 
     .Select-multi-value-wrapper {
       flex-grow: 1;
+      padding: $pad-xsmall;
     }
 
     .Select-arrow-zone {

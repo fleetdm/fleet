@@ -4,7 +4,7 @@ import classnames from "classnames";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import ClickableTableRow from "components/ClickableTableRow";
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import { isEqual, find } from "lodash";
 import scheduledQueryInterface from "interfaces/scheduled_query";
 
@@ -130,7 +130,7 @@ class ScheduledQueriesListItem extends Component {
         <td>{version ? `${version}+` : "Any"}</td>
         <td>{shard}</td>
         <td>
-          <KolideIcon name={loggingTypeString()} />
+          <FleetIcon name={loggingTypeString()} />
         </td>
       </ClickableTableRow>
     );

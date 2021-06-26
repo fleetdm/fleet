@@ -1,17 +1,18 @@
 .manage-queries-page {
-  &__delete-queries-btn {
-    font-size: 15px;
-    font-weight: $regular;
-  }
-
   &__header-wrap {
     display: flex;
     justify-content: space-between;
+    align-items: center;
   }
 
   &__ctas {
-    flex-grow: 1;
-    text-align: right;
+    display: flex;
+    align-items: center;
+    font-size: $x-small;
+  }
+
+  &__selected-count {
+    padding: 0 $pad-medium;
   }
 
   &__query-count {
@@ -24,16 +25,10 @@
 
   &__filter-and-cta {
     display: flex;
-    margin-bottom: $pad-small;
-
-    .form-field {
-      margin: 0;
-    }
 
     input {
       &[name="query-filter"] {
         width: 100%;
-        margin-top: $pad-large;
       }
     }
   }
@@ -41,22 +36,27 @@
   &__filter-queries {
     flex-grow: 1;
     position: relative;
+    margin-top: $pad-xlarge;
+    margin-bottom: $pad-large;
 
-    .input-field {
-      padding-left: 42px;
+    &::before {
+      display: inline-block;
+      position: absolute;
+      padding: 5px 0 0 0; // centers spin
+      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
+      transform: scale(0.5);
+      height: 20px;
+      top: 3px;
+      left: 8px;
     }
 
-    .kolidecon {
-      position: absolute;
-      top: 36px;
-      left: 9px;
-      font-size: 18px;
-      color: $ui-gray;
+    .input-field {
+      padding-left: 44px;
     }
   }
 
   &__title {
-    margin: 0 0 12px;
+    margin: 0 0 $pad-medium;
   }
 
   &__wrapper {
@@ -74,16 +74,15 @@
   }
 
   &__empty-label {
-    font-size: $medium;
+    font-size: $x-small;
     font-weight: $bold;
-    padding: 20px 20px 0;
-    margin: $pad-large 0;
+    padding: $pad-xlarge $pad-large 0;
+    margin: $pad-small 0;
   }
 
   &__empty-description {
-    font-size: $small;
-    font-style: italic;
-    padding: 0 20px;
+    font-size: $x-small;
+    padding: 0 $pad-large;
     margin: 0;
   }
 }

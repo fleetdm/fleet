@@ -6,7 +6,7 @@ import URL_PREFIX from "./url_prefix";
 export default {
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
-  ADMIN_OSQUERY: `${URL_PREFIX}/settings/osquery`,
+  ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (pack: IPack): string => {
     return `${URL_PREFIX}/packs/${pack.id}/edit`;
@@ -19,12 +19,20 @@ export default {
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   HOME: `${URL_PREFIX}/`,
+  API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
+  FLEET_403: `${URL_PREFIX}/403`,
   FLEET_500: `${URL_PREFIX}/500`,
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
+  },
+  TEAM_DETAILS_MEMBERS: (teamId: number): string => {
+    return `${URL_PREFIX}/settings/teams/${teamId}/members`;
+  },
+  TEAM_DETAILS_OPTIONS: (teamId: number): string => {
+    return `${URL_PREFIX}/settings/teams/${teamId}/options`;
   },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,

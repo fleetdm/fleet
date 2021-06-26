@@ -17,12 +17,13 @@
 
   &__select-targets {
     float: left;
+    font-weight: $bold;
   }
 
   &__targets-count {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
-    color: $core-vibrant-blue;
+    color: $core-fleet-black;
   }
 
   &.Select {
@@ -68,7 +69,8 @@
 
     .Select-input {
       height: 46px;
-      margin: 0 0 0 $pad-medium;
+      margin: 0;
+      padding: 0 0 0 $pad-medium;
 
       > input {
         line-height: 30px;
@@ -79,7 +81,7 @@
     }
 
     .Select-placeholder {
-      line-height: 46px;
+      line-height: 50px;
       font-size: $small;
       padding: 0 $pad-medium;
     }
@@ -107,7 +109,7 @@
 
       .Select-value {
         line-height: 34px;
-        border: 1px solid $core-fleet-black;
+        border: 1px solid $core-dark-blue-grey;
         margin-top: 5px;
         margin-bottom: 0;
       }
@@ -133,7 +135,7 @@
       position: relative;
 
       &::after {
-        @extend %kolidecon;
+        @extend %fleeticon;
         content: "\f03c";
         font-size: 150px;
         position: absolute;
@@ -176,8 +178,8 @@
 
     .Select-value-label {
       font-size: $small;
-      font-weight: $regular;
-      color: $core-fleet-black;
+      color: $core-dark-blue-grey;
+      font-size: $x-small;
       padding: 0 0 0 $pad-medium;
       line-height: 34px;
     }

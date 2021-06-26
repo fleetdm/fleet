@@ -5,14 +5,16 @@ import classnames from "classnames";
 
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
-import { noop, pick } from "lodash";
+import { isEmpty, noop, pick, reduce } from "lodash";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
+import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 
+import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
@@ -35,7 +37,7 @@ import {
   humanHostMemory,
   humanHostDetailUpdated,
   secondsToHms,
-} from "kolide/helpers";
+} from "fleet/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
 
@@ -51,6 +53,8 @@ export class HostDetailsPage extends Component {
     isLoadingHost: PropTypes.bool,
     queries: PropTypes.arrayOf(queryInterface),
     queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    isBasicTier: PropTypes.bool,
+    isOnlyObserver: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -193,10 +197,15 @@ export class HostDetailsPage extends Component {
 
   renderActionButtons = () => {
     const { toggleDeleteHostModal, toggleQueryHostModal } = this;
-    const { host } = this.props;
+    const { host, isOnlyObserver } = this.props;
 
     const isOnline = host.status === "online";
     const isOffline = host.status === "offline";
+
+    // Hide action buttons for global and team only observers
+    if (isOnlyObserver) {
+      return null;
+    }
 
     return (
       <div className={`${baseClass}__action-button-container`}>
@@ -322,6 +331,45 @@ export class HostDetailsPage extends Component {
     );
   };
 
+  renderUsers = () => {
+    const { host } = this.props;
+    const { users } = host;
+    const wrapperClassName = `${baseClass}__table`;
+
+    if (users) {
+      return (
+        <div className="section section--users">
+          <p className="section__header">Users</p>
+          {users.length === 0 ? (
+            <p className="results__data">
+              No users were detected on this host.
+            </p>
+          ) : (
+            <div className={`${baseClass}__wrapper`}>
+              <table className={wrapperClassName}>
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((hostUser) => {
+                    return (
+                      <HostUsersListRow
+                        key={`host-users-row-${hostUser.id}`}
+                        hostUser={hostUser}
+                      />
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+    }
+  };
+
   renderSoftware = () => {
     const { host } = this.props;
     const wrapperClassName = `${baseClass}__table`;
@@ -413,7 +461,14 @@ export class HostDetailsPage extends Component {
   };
 
   render() {
-    const { host, isLoadingHost, dispatch, queries, queryErrors } = this.props;
+    const {
+      host,
+      isLoadingHost,
+      dispatch,
+      queries,
+      queryErrors,
+      isBasicTier,
+    } = this.props;
     const { showQueryHostModal } = this.state;
     const {
       toggleQueryHostModal,
@@ -422,44 +477,56 @@ export class HostDetailsPage extends Component {
       renderLabels,
       renderSoftware,
       renderPacks,
+      renderUsers,
       renderRefetch,
     } = this;
 
-    const titleData = pick(host, [
-      "status",
-      "memory",
-      "host_cpu",
-      "os_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-    ]);
-    const aboutData = pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-    ]);
-    const osqueryData = pick(host, [
-      "config_tls_refresh",
-      "logger_tls_period",
-      "distributed_interval",
-    ]);
-    const data = [titleData, aboutData, osqueryData];
-    data.forEach((object) => {
-      Object.keys(object).forEach((key) => {
-        if (object[key] === "") {
-          object[key] = "--";
-        } else if (
-          key === "logger_tls_period" ||
-          key === "config_tls_refresh" ||
-          key === "distributed_interval"
-        ) {
-          object[key] = secondsToHms(object[key]);
-        }
-      });
-    });
+    const normalizeEmptyValues = (hostData) => {
+      return reduce(
+        hostData,
+        (result, value, key) => {
+          if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+            Object.assign(result, { [key]: value });
+          } else {
+            Object.assign(result, { [key]: "---" });
+          }
+          return result;
+        },
+        {}
+      );
+    };
+
+    const wrapKolideHelper = (helperFn, value) => {
+      return value === "---" ? value : helperFn(value);
+    };
+
+    const titleData = normalizeEmptyValues(
+      pick(host, [
+        "status",
+        "memory",
+        "host_cpu",
+        "os_version",
+        "enroll_secret_name",
+        "detail_updated_at",
+      ])
+    );
+    const aboutData = normalizeEmptyValues(
+      pick(host, [
+        "seen_time",
+        "uptime",
+        "last_enrolled_at",
+        "hardware_model",
+        "hardware_serial",
+        "primary_ip",
+      ])
+    );
+    const osqueryData = normalizeEmptyValues(
+      pick(host, [
+        "config_tls_refresh",
+        "logger_tls_period",
+        "distributed_interval",
+      ])
+    );
 
     const statusClassName = classnames("status", `status--${host.status}`);
 
@@ -467,6 +534,20 @@ export class HostDetailsPage extends Component {
       return <Spinner />;
     }
 
+    const hostTeam = () => {
+      return (
+        <div className="info__item info__item--title">
+          <span className="info__header">Team</span>
+          <span className={`info__data`}>
+            {host.team_name ? (
+              `${host.team_name}`
+            ) : (
+              <span className="info__no-team">No team</span>
+            )}
+          </span>
+        </div>
+      );
+    };
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
@@ -478,7 +559,9 @@ export class HostDetailsPage extends Component {
         <div className="section title">
           <div className="title__inner">
             <div className="hostname-container">
-              <h1 className="hostname">{host.hostname}</h1>
+              <h1 className="hostname">
+                {host.hostname ? host.hostname : "---"}
+              </h1>
               <p className="last-fetched">
                 {`Last fetched ${humanHostDetailUpdated(
                   titleData.detail_updated_at
@@ -493,10 +576,11 @@ export class HostDetailsPage extends Component {
                   {titleData.status}
                 </span>
               </div>
+              {isBasicTier ? hostTeam() : null}
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
                 <span className="info__data">
-                  {humanHostMemory(titleData.memory)}
+                  {wrapKolideHelper(humanHostMemory, titleData.memory)}
                 </span>
               </div>
               <div className="info__item info__item--title">
@@ -506,12 +590,6 @@ export class HostDetailsPage extends Component {
               <div className="info__item info__item--title">
                 <span className="info__header">OS</span>
                 <span className="info__data">{titleData.os_version}</span>
-              </div>
-              <div className="info__item info__item--title">
-                <span className="info__header">Enroll secret</span>
-                <span className="info__data">
-                  {titleData.enroll_secret_name}
-                </span>
               </div>
             </div>
           </div>
@@ -524,15 +602,21 @@ export class HostDetailsPage extends Component {
               <div className="info__block">
                 <span className="info__header">Created at</span>
                 <span className="info__data">
-                  {humanHostEnrolled(aboutData.last_enrolled_at)}
+                  {wrapKolideHelper(
+                    humanHostEnrolled,
+                    aboutData.last_enrolled_at
+                  )}
                 </span>
                 <span className="info__header">Updated at</span>
                 <span className="info__data">
-                  {humanHostLastSeen(titleData.detail_updated_at)}
+                  {wrapKolideHelper(
+                    humanHostLastSeen,
+                    titleData.detail_updated_at
+                  )}
                 </span>
                 <span className="info__header">Uptime</span>
                 <span className="info__data">
-                  {humanHostUptime(aboutData.uptime)}
+                  {wrapKolideHelper(humanHostUptime, aboutData.uptime)}
                 </span>
               </div>
             </div>
@@ -554,21 +638,25 @@ export class HostDetailsPage extends Component {
             <div className="info__block">
               <span className="info__header">Config TLS refresh</span>
               <span className="info__data">
-                {osqueryData.config_tls_refresh}
+                {wrapKolideHelper(secondsToHms, osqueryData.config_tls_refresh)}
               </span>
               <span className="info__header">Logger TLS period</span>
               <span className="info__data">
-                {osqueryData.logger_tls_period}
+                {wrapKolideHelper(secondsToHms, osqueryData.logger_tls_period)}
               </span>
               <span className="info__header">Distributed interval</span>
               <span className="info__data">
-                {osqueryData.distributed_interval}
+                {wrapKolideHelper(
+                  secondsToHms,
+                  osqueryData.distributed_interval
+                )}
               </span>
             </div>
           </div>
         </div>
         {renderLabels()}
         {renderPacks()}
+        {renderUsers()}
         {/* The Software inventory feature is behind a feature flag
         so we only render the sofware section if the feature is enabled */}
         {host.software && renderSoftware()}
@@ -593,12 +681,19 @@ const mapStateToProps = (state, ownProps) => {
   const { host_id: hostID } = ownProps.params;
   const host = entityGetter(state).get("hosts").findBy({ id: hostID });
   const { loading: isLoadingHost } = state.entities.hosts;
+  const config = state.app.config;
+  const currentUser = state.auth.user;
+  const isBasicTier = permissionUtils.isBasicTier(config);
+  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
+
   return {
     host,
     hostID,
     isLoadingHost,
     queries,
     queryErrors,
+    isBasicTier,
+    isOnlyObserver,
   };
 };
 

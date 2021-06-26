@@ -54,17 +54,15 @@ type ServerConfig struct {
 	Cert       string
 	Key        string
 	TLS        bool
-	TLSProfile string // TODO #271 set `yaml:"tls_compatibility"`
+	TLSProfile string `yaml:"tls_compatibility"`
 	URLPrefix  string `yaml:"url_prefix"`
 	Keepalive  bool   `yaml:"keepalive"`
 }
 
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
-	JwtKey      string `yaml:"jwt_key"`
-	JwtKeyPath  string `yaml:"jwt_key_path"`
-	BcryptCost  int    `yaml:"bcrypt_cost"`
-	SaltKeySize int    `yaml:"salt_key_size"`
+	BcryptCost  int `yaml:"bcrypt_cost"`
+	SaltKeySize int `yaml:"salt_key_size"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -155,11 +153,16 @@ type FilesystemConfig struct {
 	EnableLogCompression bool   `yaml:"enable_log_compression"`
 }
 
-// KolideConfig stores the application configuration. Each subcategory is
+// LicenseConfig defines configs related to licensing Fleet.
+type LicenseConfig struct {
+	Key string `yaml:"key"`
+}
+
+// FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
-type KolideConfig struct {
+type FleetConfig struct {
 	Mysql      MysqlConfig
 	Redis      RedisConfig
 	Server     ServerConfig
@@ -174,23 +177,24 @@ type KolideConfig struct {
 	S3         S3Config
 	PubSub     PubSubConfig
 	Filesystem FilesystemConfig
+	License    LicenseConfig
 }
 
 // addConfigs adds the configuration keys and default values that will be
-// filled into the KolideConfig struct
+// filled into the FleetConfig struct
 func (man Manager) addConfigs() {
 	// MySQL
 	man.addConfigString("mysql.protocol", "tcp",
 		"MySQL server communication protocol (tcp,unix,...)")
 	man.addConfigString("mysql.address", "localhost:3306",
 		"MySQL server address (host:port)")
-	man.addConfigString("mysql.username", "kolide",
+	man.addConfigString("mysql.username", "fleet",
 		"MySQL server username")
 	man.addConfigString("mysql.password", "",
 		"MySQL server password (prefer env variable for security)")
 	man.addConfigString("mysql.password_path", "",
 		"Path to file containg MySQL server password")
-	man.addConfigString("mysql.database", "kolide",
+	man.addConfigString("mysql.database", "fleet",
 		"MySQL database name")
 	man.addConfigString("mysql.tls_cert", "",
 		"MySQL TLS client certificate path")
@@ -219,9 +223,9 @@ func (man Manager) addConfigs() {
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
 		"Fleet server address (host:port)")
-	man.addConfigString("server.cert", "./tools/osquery/kolide.crt",
+	man.addConfigString("server.cert", "./tools/osquery/fleet.crt",
 		"Fleet TLS certificate path")
-	man.addConfigString("server.key", "./tools/osquery/kolide.key",
+	man.addConfigString("server.key", "./tools/osquery/fleet.key",
 		"Fleet TLS key path")
 	man.addConfigBool("server.tls", true,
 		"Enable TLS (required for osqueryd communication)")
@@ -234,10 +238,6 @@ func (man Manager) addConfigs() {
 		"Controls wether HTTP keep-alives are enabled.")
 
 	// Auth
-	man.addConfigString("auth.jwt_key", "",
-		"JWT session token key (required)")
-	man.addConfigString("auth.jwt_key_path", "",
-		"Path to file containg JWT session token key")
 	man.addConfigInt("auth.bcrypt_cost", 12,
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
@@ -254,7 +254,7 @@ func (man Manager) addConfigs() {
 	// Session
 	man.addConfigInt("session.key_size", 64,
 		"Size of generated session keys")
-	man.addConfigDuration("session.duration", 24*90*time.Hour,
+	man.addConfigDuration("session.duration", 4*time.Hour,
 		"Duration session keys remain valid (i.e. 24h)")
 
 	// Osquery
@@ -342,37 +342,17 @@ func (man Manager) addConfigs() {
 		"Enable automatic rotation for osquery log files")
 	man.addConfigBool("filesystem.enable_log_compression", false,
 		"Enable compression for the rotated osquery log files")
+
+	// License
+	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Basic features)")
 }
 
 // LoadConfig will load the config variables into a fully initialized
-// KolideConfig struct
-func (man Manager) LoadConfig() KolideConfig {
-	// Shim old style environment variables with a warning
-	// TODO #260 remove this on major version release
-	haveLogged := false
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "KOLIDE_") {
-			splits := strings.SplitN(e, "=", 2)
-			if len(splits) != 2 {
-				panic("env " + e + " does not contain 2 splits")
-			}
-
-			key, val := splits[0], splits[1]
-
-			if !haveLogged {
-				fmt.Println("Environment variables prefixed with KOLIDE_ are deprecated. Please migrate to FLEET_ prefixes.`")
-				haveLogged = true
-			}
-
-			if err := os.Setenv("FLEET"+strings.TrimPrefix(key, "KOLIDE"), val); err != nil {
-				panic(err)
-			}
-		}
-	}
-
+// FleetConfig struct
+func (man Manager) LoadConfig() FleetConfig {
 	man.loadConfigFile()
 
-	return KolideConfig{
+	return FleetConfig{
 		Mysql: MysqlConfig{
 			Protocol:        man.getConfigString("mysql.protocol"),
 			Address:         man.getConfigString("mysql.address"),
@@ -406,8 +386,6 @@ func (man Manager) LoadConfig() KolideConfig {
 			Keepalive:  man.getConfigBool("server.keepalive"),
 		},
 		Auth: AuthConfig{
-			JwtKey:      man.getConfigString("auth.jwt_key"),
-			JwtKeyPath:  man.getConfigString("auth.jwt_key_path"),
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
 			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
 		},
@@ -479,6 +457,9 @@ func (man Manager) LoadConfig() KolideConfig {
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
 		},
+		License: LicenseConfig{
+			Key: man.getConfigString("license.key"),
+		},
 	}
 }
 
@@ -501,7 +482,7 @@ func flagNameFromConfigKey(key string) string {
 
 // Manager manages the addition and retrieval of config values for Fleet
 // configs. It's only public API method is LoadConfig, which will return the
-// populated KolideConfig struct.
+// populated FleetConfig struct.
 type Manager struct {
 	viper    *viper.Viper
 	command  *cobra.Command
@@ -677,14 +658,13 @@ func (man Manager) loadConfigFile() {
 
 // TestConfig returns a barebones configuration suitable for use in tests.
 // Individual tests may want to override some of the values provided.
-func TestConfig() KolideConfig {
-	return KolideConfig{
+func TestConfig() FleetConfig {
+	return FleetConfig{
 		App: AppConfig{
 			TokenKeySize:              24,
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			JwtKey:      "CHANGEME",
 			BcryptCost:  6, // Low cost keeps tests fast
 			SaltKeySize: 24,
 		},

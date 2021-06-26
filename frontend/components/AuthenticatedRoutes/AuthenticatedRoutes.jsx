@@ -20,7 +20,11 @@ export class AuthenticatedRoutes extends Component {
 
   componentWillMount() {
     const { loading, user } = this.props;
-    const { redirectToLogin, redirectToPasswordReset } = this;
+    const {
+      redirectToLogin,
+      redirectToPasswordReset,
+      redirectToApiUserOnly,
+    } = this;
 
     if (!loading && !user) {
       return redirectToLogin();
@@ -28,6 +32,10 @@ export class AuthenticatedRoutes extends Component {
 
     if (user && user.force_password_reset) {
       return redirectToPasswordReset();
+    }
+
+    if (user && user.api_only) {
+      return redirectToApiUserOnly();
     }
 
     return false;
@@ -37,7 +45,11 @@ export class AuthenticatedRoutes extends Component {
     if (isEqual(this.props, nextProps)) return false;
 
     const { loading, user } = nextProps;
-    const { redirectToLogin, redirectToPasswordReset } = this;
+    const {
+      redirectToLogin,
+      redirectToPasswordReset,
+      redirectToApiUserOnly,
+    } = this;
 
     if (!loading && !user) {
       return redirectToLogin();
@@ -45,6 +57,10 @@ export class AuthenticatedRoutes extends Component {
 
     if (user && user.force_password_reset) {
       return redirectToPasswordReset();
+    }
+
+    if (user && user.api_only) {
+      return redirectToApiUserOnly();
     }
 
     return false;
@@ -63,6 +79,13 @@ export class AuthenticatedRoutes extends Component {
     const { RESET_PASSWORD } = paths;
 
     return dispatch(push(RESET_PASSWORD));
+  };
+
+  redirectToApiUserOnly = () => {
+    const { dispatch } = this.props;
+    const { API_ONLY_USER } = paths;
+
+    return dispatch(push(API_ONLY_USER));
   };
 
   render() {

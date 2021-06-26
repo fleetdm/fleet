@@ -5,19 +5,19 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw loggingMiddleware) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide.Label, error) {
+func (mw loggingMiddleware) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.Label, error) {
 	var (
-		label        *kolide.Label
+		label        *fleet.Label
 		err          error
 		loggedInUser = "unauthenticated"
 	)
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -33,16 +33,16 @@ func (mw loggingMiddleware) NewLabel(ctx context.Context, p kolide.LabelPayload)
 	return label, err
 }
 
-func (mw loggingMiddleware) ModifyLabel(ctx context.Context, id uint, p kolide.ModifyLabelPayload) (*kolide.Label, error) {
+func (mw loggingMiddleware) ModifyLabel(ctx context.Context, id uint, p fleet.ModifyLabelPayload) (*fleet.Label, error) {
 	var (
-		label        *kolide.Label
+		label        *fleet.Label
 		err          error
 		loggedInUser = "unauthenticated"
 	)
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -58,9 +58,9 @@ func (mw loggingMiddleware) ModifyLabel(ctx context.Context, id uint, p kolide.M
 	return label, err
 }
 
-func (mw loggingMiddleware) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
+func (mw loggingMiddleware) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	var (
-		labels []*kolide.Label
+		labels []*fleet.Label
 		err    error
 	)
 
@@ -76,9 +76,9 @@ func (mw loggingMiddleware) ListLabels(ctx context.Context, opt kolide.ListOptio
 	return labels, err
 }
 
-func (mw loggingMiddleware) GetLabel(ctx context.Context, id uint) (*kolide.Label, error) {
+func (mw loggingMiddleware) GetLabel(ctx context.Context, id uint) (*fleet.Label, error) {
 	var (
-		label *kolide.Label
+		label *fleet.Label
 		err   error
 	)
 
@@ -102,7 +102,7 @@ func (mw loggingMiddleware) DeleteLabel(ctx context.Context, name string) error 
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -118,7 +118,7 @@ func (mw loggingMiddleware) DeleteLabel(ctx context.Context, name string) error 
 	return err
 }
 
-func (mw loggingMiddleware) GetLabelSpec(ctx context.Context, name string) (spec *kolide.LabelSpec, err error) {
+func (mw loggingMiddleware) GetLabelSpec(ctx context.Context, name string) (spec *fleet.LabelSpec, err error) {
 	defer func(begin time.Time) {
 		_ = mw.loggerDebug(err).Log(
 			"method", "GetLabelSpec",
@@ -130,7 +130,7 @@ func (mw loggingMiddleware) GetLabelSpec(ctx context.Context, name string) (spec
 	return spec, err
 }
 
-func (mw loggingMiddleware) GetLabelSpecs(ctx context.Context) (specs []*kolide.LabelSpec, err error) {
+func (mw loggingMiddleware) GetLabelSpecs(ctx context.Context) (specs []*fleet.LabelSpec, err error) {
 	defer func(begin time.Time) {
 		_ = mw.loggerDebug(err).Log(
 			"method", "GetLabelSpecs",
@@ -142,14 +142,14 @@ func (mw loggingMiddleware) GetLabelSpecs(ctx context.Context) (specs []*kolide.
 	return specs, err
 }
 
-func (mw loggingMiddleware) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSpec) (err error) {
+func (mw loggingMiddleware) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
 	var (
 		loggedInUser = "unauthenticated"
 	)
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {

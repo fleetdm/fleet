@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/patrickmn/sortutil"
 )
 
-func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
+func (d *Datastore) NewHost(host *fleet.Host) (*fleet.Host, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -27,7 +27,7 @@ func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 	return host, nil
 }
 
-func (d *Datastore) SaveHost(host *kolide.Host) error {
+func (d *Datastore) SaveHost(host *fleet.Host) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -48,7 +48,7 @@ func (d *Datastore) DeleteHost(hid uint) error {
 	return nil
 }
 
-func (d *Datastore) Host(id uint) (*kolide.Host, error) {
+func (d *Datastore) Host(id uint) (*fleet.Host, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -60,7 +60,7 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	return host, nil
 }
 
-func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
+func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -71,7 +71,7 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 	}
 	sort.Ints(keys)
 
-	hosts := []*kolide.Host{}
+	hosts := []*fleet.Host{}
 	for _, k := range keys {
 		hosts = append(hosts, d.hosts[uint(k)])
 	}
@@ -79,19 +79,19 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 	// Apply ordering
 	if opt.OrderKey != "" {
 		var fields = map[string]string{
-			"id":                 "ID",
-			"created_at":         "CreatedAt",
-			"updated_at":         "UpdatedAt",
-			"detail_update_time": "DetailUpdateTime",
-			"hostname":           "HostName",
-			"uuid":               "UUID",
-			"platform":           "Platform",
-			"osquery_version":    "OsqueryVersion",
-			"os_version":         "OSVersion",
-			"uptime":             "Uptime",
-			"memory":             "PhysicalMemory",
-			"mac":                "PrimaryMAC",
-			"ip":                 "PrimaryIP",
+			"id":                "ID",
+			"created_at":        "CreatedAt",
+			"updated_at":        "UpdatedAt",
+			"detail_updated_at": "DetailUpdatedAt",
+			"hostname":          "Hostname",
+			"uuid":              "UUID",
+			"platform":          "Platform",
+			"osquery_version":   "OsqueryVersion",
+			"os_version":        "OSVersion",
+			"uptime":            "Uptime",
+			"memory":            "Memory",
+			"mac":               "PrimaryMAC",
+			"ip":                "PrimaryIP",
 		}
 		if err := sortResults(hosts, opt.ListOptions, fields); err != nil {
 			return nil, err
@@ -132,7 +132,7 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 	return hosts, nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, err error) {
+func (d *Datastore) GenerateHostStatusStatistics(filter fleet.TeamFilter, now time.Time) (online, offline, mia, new uint, err error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -143,9 +143,9 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 
 		status := host.Status(now)
 		switch status {
-		case kolide.StatusMIA:
+		case fleet.StatusMIA:
 			mia++
-		case kolide.StatusOffline:
+		case fleet.StatusOffline:
 			offline++
 		default:
 			online++
@@ -155,7 +155,7 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 	return online, offline, mia, new, nil
 }
 
-func (d *Datastore) EnrollHost(osQueryHostID, nodeKey, secretName string, cooldown time.Duration) (*kolide.Host, error) {
+func (d *Datastore) EnrollHost(osQueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -163,10 +163,10 @@ func (d *Datastore) EnrollHost(osQueryHostID, nodeKey, secretName string, cooldo
 		return nil, errors.New("missing host identifier from osquery for host enrollment")
 	}
 
-	host := kolide.Host{
-		OsqueryHostID:    osQueryHostID,
-		NodeKey:          nodeKey,
-		DetailUpdateTime: time.Unix(0, 0).Add(24 * time.Hour),
+	host := fleet.Host{
+		OsqueryHostID:   osQueryHostID,
+		NodeKey:         nodeKey,
+		DetailUpdatedAt: time.Unix(0, 0).Add(24 * time.Hour),
 	}
 
 	host.CreatedAt = time.Now().UTC()
@@ -187,7 +187,7 @@ func (d *Datastore) EnrollHost(osQueryHostID, nodeKey, secretName string, cooldo
 	return &host, nil
 }
 
-func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
+func (d *Datastore) AuthenticateHost(nodeKey string) (*fleet.Host, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -200,7 +200,7 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 	return nil, notFound("AuthenticateHost")
 }
 
-func (d *Datastore) MarkHostSeen(host *kolide.Host, t time.Time) error {
+func (d *Datastore) MarkHostSeen(host *fleet.Host, t time.Time) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -214,13 +214,13 @@ func (d *Datastore) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	return nil
 }
 
-func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {
+func (d *Datastore) SearchHosts(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 	omitLookup := map[uint]bool{}
 	for _, o := range omit {
 		omitLookup[o] = true
 	}
 
-	var results []*kolide.Host
+	var results []*fleet.Host
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -230,7 +230,7 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, err
 			break
 		}
 
-		if (strings.Contains(h.HostName, query) || strings.Contains(h.UUID, query)) && !omitLookup[h.ID] {
+		if (strings.Contains(h.Hostname, query) || strings.Contains(h.UUID, query)) && !omitLookup[h.ID] {
 			results = append(results, h)
 			continue
 		}

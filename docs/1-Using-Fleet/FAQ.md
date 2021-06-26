@@ -31,7 +31,7 @@ It’s standard deployment practice to have multiple Fleet servers behind a load
 
 ## Can I target my hosts using their enroll secrets?
 
-No, currently, there’s no way to retrieve the name of the enroll secret with a query. This means that there's no way to create a label using your hosts' enroll secrets and then use this label as a target for queries or query packs. 
+No, currently, there’s no way to retrieve the name of the enroll secret with a query. This means that there's no way to create a label using your hosts' enroll secrets and then use this label as a target for queries or query packs.
 
 Typically folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](./2-fleetctl-CLI.md#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries or query packs.
 
@@ -39,7 +39,7 @@ In the coming months, Fleet will introduce the [Teams feature](https://github.co
 
 ## How often do labels refresh? Is the refresh frequency configurable?
 
-The update frequency for labels is configurable with the [—osquery_label_update_interval](../2-Deploying/2-Configuration.md#osquery_label_update_interval) flag (default 1 hour).
+The update frequency for labels is configurable with the [—osquery_label_update_interval](../3-Deployment/2-Configuration.md#osquery_label_update_interval) flag (default 1 hour).
 
 ## How do I revoke the authorization tokens for a user?
 
@@ -66,7 +66,7 @@ Some folks like to enforce users with SAML SSO enabled to login only via the SSO
 There is no option in the Fleet UI for disabling password-based authentication.
 However, users that have SSO enabled in Fleet will not be able to log in via password-based authentication.
 
-If a user has SSO enabled, the Login page in the Fleet UI does displays the “Username” and “Password” fields but on attempted password-based login, this user will receive an “Authentication failed” message.
+If a user has SSO enabled, the Login page in the Fleet UI does displays the “Email” and “Password” fields but on attempted password-based login, this user will receive an “Authentication failed” message.
 
 ## Where are my query results?
 
@@ -76,7 +76,7 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled Queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../2-Deploying/2-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
+Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../3-Deployment/2-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
 
 It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
 
@@ -84,7 +84,7 @@ It is possible to configure osqueryd to log query results outside of Fleet. For 
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](../2-Deploying/2-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+The [logger configuration options](../3-Deployment/2-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
 
 ### Troubleshooting
 
@@ -94,7 +94,7 @@ Expecting results, but not seeing anything in the logs?
 - Check whether the query is scheduled in differential mode. If so, new results will only be logged when the result set changes.
 - Ensure that the query is scheduled to run on the intended platforms, and that the tables queried are supported by those platforms.
 - Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
-- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../2-Deploying/2-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
+- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../3-Deployment/2-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
 
 ## Why aren’t my live queries being logged?
 
@@ -110,19 +110,19 @@ As an example, let's say you want to retrieve a host's OS version, installed sof
 
 Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](./3-REST-API.md#list-hosts).
 
-The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](../2-Deploying/2-Configuration.md#feature-flags).
+The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](../3-Deployment/2-Configuration.md#feature-flags).
 
 Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./3-REST-API.md#get-host).
 
-It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options yaml file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts`  endpoint. [Check out an example configuration file with the additional_queries field](./2-fleetctl-CLI.md#fleet-configuration-options).
+It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options yaml file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](./2-fleetctl-CLI.md#fleet-configuration-options).
 
 ## How do I automatically add hosts to packs when the hosts enroll to Fleet?
 
 You can accomplish this by adding specific labels as targets of your pack. First, identify an already existing label or create a new label that will include the hosts you intend to enroll to Fleet. Next, add this label as a target of the pack in the Fleet UI.
 
-When your hosts enroll to Fleet, they will become a member of the label and, because the label is a target of your pack, these hosts will automatically become targets of the pack. 
+When your hosts enroll to Fleet, they will become a member of the label and, because the label is a target of your pack, these hosts will automatically become targets of the pack.
 
-You can also do this by setting the `targets` field in the [YAML configuration file](./2-fleetctl-CLI.md#query-packs) that manages the packs that are added to your Fleet instance. 
+You can also do this by setting the `targets` field in the [YAML configuration file](./2-fleetctl-CLI.md#query-packs) that manages the packs that are added to your Fleet instance.
 
 ## How do I resolve an "unknown column" error when upgrading Fleet?
 

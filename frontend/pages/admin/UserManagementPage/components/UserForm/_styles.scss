@@ -1,0 +1,72 @@
+.create-user-form {
+  &__sso-input {
+    margin-top: $pad-large;
+    margin-bottom: $pad-large;
+
+    .kolide-checkbox {
+      margin-top: 5px;
+
+      &__label {
+        font-size: $x-small;
+        font-weight: $bold;
+        color: $core-fleet-black;
+        padding-left: 12px;
+      }
+    }
+  }
+
+  &__label {
+    color: $core-fleet-black;
+    font-size: $x-small;
+    font-weight: $bold;
+    margin-bottom: $pad-xsmall;
+  }
+
+  &__user-permissions-info {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: $pad-xlarge;
+
+    p {
+      margin: 0 0 $pad-medium 0;
+    }
+
+    a {
+      color: $core-vibrant-blue;
+      font-size: $x-small;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-left: 6px;
+    }
+  }
+
+  &__selected-teams-container {
+    margin-bottom: $pad-xxlarge;
+  }
+
+  &__radio-input {
+    margin-bottom: $pad-medium;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+
+  &__invite-admin {
+    margin-bottom: 8px;
+  }
+
+  .sublabel {
+    margin: 0px;
+  }
+}

@@ -1,8 +1,8 @@
 package inmem
 
-import "github.com/fleetdm/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/fleet"
 
-func (d *Datastore) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, error) {
+func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -11,7 +11,7 @@ func (d *Datastore) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, err
 	return info, nil
 }
 
-func (d *Datastore) AppConfig() (*kolide.AppConfig, error) {
+func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -22,7 +22,7 @@ func (d *Datastore) AppConfig() (*kolide.AppConfig, error) {
 	return nil, notFound("AppConfig")
 }
 
-func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
+func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 

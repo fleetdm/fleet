@@ -6,10 +6,10 @@ import ConfirmationPage from "components/forms/RegistrationForm/ConfirmationPage
 
 describe("ConfirmationPage - form", () => {
   const formData = {
-    username: "jmeller",
-    email: "jason@kolide.co",
-    org_name: "Kolide",
-    kolide_server_url: "http://kolide.kolide.co",
+    name: "Rachel Perkins",
+    email: "rachel@fleet.com",
+    org_name: "Fleet",
+    fleet_web_address: "http://localhost:8080",
   };
 
   it("renders the user information", () => {
@@ -17,10 +17,10 @@ describe("ConfirmationPage - form", () => {
       <ConfirmationPage formData={formData} handleSubmit={noop} />
     );
 
-    expect(form.text()).toContain(formData.username);
+    expect(form.text()).toContain(formData.name);
     expect(form.text()).toContain(formData.email);
     expect(form.text()).toContain(formData.org_name);
-    expect(form.text()).toContain(formData.kolide_server_url);
+    expect(form.text()).toContain(formData.fleet_web_address);
   });
 
   it("submits the form", () => {

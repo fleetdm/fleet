@@ -11,8 +11,8 @@ import (
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/server/fleet"
+
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -22,14 +22,14 @@ type testResource struct {
 	server     *httptest.Server
 	adminToken string
 	userToken  string
-	ds         kolide.Datastore
+	ds         fleet.Datastore
 }
 
 type endpointService struct {
-	kolide.Service
+	fleet.Service
 }
 
-func (svc endpointService) SendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
+func (svc endpointService) sendTestEmail(ctx context.Context, config *fleet.AppConfig) error {
 	return nil
 }
 func setupEndpointTest(t *testing.T) *testResource {
@@ -40,29 +40,28 @@ func setupEndpointTest(t *testing.T) *testResource {
 	require.Nil(t, err)
 	require.Nil(t, test.ds.MigrateData())
 
-	devOrgInfo := &kolide.AppConfig{
-		OrgName:                "Kolide",
+	devOrgInfo := &fleet.AppConfig{
+		OrgName:                "Example",
 		OrgLogoURL:             "http://foo.bar/image.png",
 		SMTPPort:               465,
-		SMTPAuthenticationType: kolide.AuthTypeUserNamePassword,
+		SMTPAuthenticationType: fleet.AuthTypeUserNamePassword,
 		SMTPEnableTLS:          true,
 		SMTPVerifySSLCerts:     true,
 		SMTPEnableStartTLS:     true,
 	}
 	test.ds.NewAppConfig(devOrgInfo)
-	svc, _ := newTestService(test.ds, nil, nil)
+	svc := newTestService(test.ds, nil, nil)
 	svc = endpointService{svc}
 	createTestUsers(t, test.ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	jwtKey := "CHANGEME"
 	limitStore, _ := memstore.New(0)
 
-	routes := MakeHandler(svc, config.KolideConfig{Auth: config.AuthConfig{JwtKey: jwtKey}}, logger, limitStore)
+	routes := MakeHandler(svc, config.FleetConfig{}, logger, limitStore)
 
 	test.server = httptest.NewServer(routes)
 
 	userParam := loginRequest{
-		Username: "admin1",
+		Email:    "admin1",
 		Password: testUsers["admin1"].PlaintextPassword,
 	}
 
@@ -72,15 +71,15 @@ func setupEndpointTest(t *testing.T) *testResource {
 	resp, _ := http.Post(test.server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 
 	var jsn = struct {
-		User  *kolide.User `json:"user"`
-		Token string       `json:"token"`
-		Err   string       `json:"error,omitempty"`
+		User  *fleet.User `json:"user"`
+		Token string      `json:"token"`
+		Err   string      `json:"error,omitempty"`
 	}{}
 	json.NewDecoder(resp.Body).Decode(&jsn)
 	test.adminToken = jsn.Token
 
 	// log in non admin user
-	userParam.Username = "user1"
+	userParam.Email = "user1"
 	userParam.Password = testUsers["user1"].PlaintextPassword
 	marshalledUser, _ = json.Marshal(userParam)
 	requestBody = &nopCloser{bytes.NewBuffer(marshalledUser)}
@@ -91,24 +90,4 @@ func setupEndpointTest(t *testing.T) *testResource {
 	test.userToken = jsn.Token
 
 	return test
-}
-
-var testFunctions = [...]func(*testing.T, *testResource){
-	testGetAppConfig,
-	testModifyAppConfig,
-	testModifyAppConfigWithValidationFail,
-	testAdminUserSetAdmin,
-	testNonAdminUserSetAdmin,
-	testAdminUserSetEnabled,
-	testNonAdminUserSetEnabled,
-}
-
-func TestEndpoints(t *testing.T) {
-	for _, f := range testFunctions {
-		r := setupEndpointTest(t)
-		defer r.server.Close()
-		t.Run(test.FunctionName(f), func(t *testing.T) {
-			f(t, r)
-		})
-	}
 }

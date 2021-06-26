@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (mw loggingMiddleware) GetScheduledQueriesInPack(ctx context.Context, id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+func (mw loggingMiddleware) GetScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	var (
-		queries []*kolide.ScheduledQuery
+		queries []*fleet.ScheduledQuery
 		err     error
 	)
 
@@ -26,9 +26,9 @@ func (mw loggingMiddleware) GetScheduledQueriesInPack(ctx context.Context, id ui
 	return queries, err
 }
 
-func (mw loggingMiddleware) GetScheduledQuery(ctx context.Context, id uint) (*kolide.ScheduledQuery, error) {
+func (mw loggingMiddleware) GetScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
 	var (
-		query *kolide.ScheduledQuery
+		query *fleet.ScheduledQuery
 		err   error
 	)
 
@@ -45,16 +45,16 @@ func (mw loggingMiddleware) GetScheduledQuery(ctx context.Context, id uint) (*ko
 }
 
 //these ones too
-func (mw loggingMiddleware) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+func (mw loggingMiddleware) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	var (
-		query        *kolide.ScheduledQuery
+		query        *fleet.ScheduledQuery
 		err          error
 		loggedInUser = "unauthenticated"
 	)
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -78,7 +78,7 @@ func (mw loggingMiddleware) DeleteScheduledQuery(ctx context.Context, id uint) e
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -94,16 +94,15 @@ func (mw loggingMiddleware) DeleteScheduledQuery(ctx context.Context, id uint) e
 	return err
 }
 
-func (mw loggingMiddleware) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.ScheduledQueryPayload) (*kolide.ScheduledQuery, error) {
+func (mw loggingMiddleware) ModifyScheduledQuery(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
 	var (
-		query        *kolide.ScheduledQuery
+		query        *fleet.ScheduledQuery
 		err          error
 		loggedInUser = "unauthenticated"
 	)
 
 	if vc, ok := viewer.FromContext(ctx); ok {
-
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {

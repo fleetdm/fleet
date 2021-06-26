@@ -6,7 +6,6 @@ import { push } from "react-router-redux";
 
 import Button from "components/buttons/Button";
 import entityGetter from "redux/utilities/entityGetter";
-import KolideIcon from "components/icons/KolideIcon";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/modals/Modal";
 import packActions from "redux/nodes/entities/packs/actions";
@@ -18,6 +17,10 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
 import scheduledQueryInterface from "interfaces/scheduled_query";
 import PATHS from "router/paths";
+
+import DisableIcon from "../../../../assets/images/icon-action-close-16x15@2x.png";
+import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
+import EnableIcon from "../../../../assets/images/icon-action-check-16x15@2x.png";
 
 const baseClass = "all-packs-page";
 
@@ -221,33 +224,40 @@ export class AllPacksPage extends Component {
     const checkedPackCount = this.state.checkedPackIDs.length;
 
     if (checkedPackCount) {
-      const packText = checkedPackCount === 1 ? "Pack" : "Packs";
-
       return (
-        <div>
-          <p className={`${baseClass}__pack-count`}>
-            {checkedPackCount} {packText} Selected
-          </p>
+        <div className={`${baseClass}__bulk-action-container`}>
+          <span className={`${baseClass}__selected-count`}>
+            <strong>{checkedPackCount}</strong> selected
+          </span>
           <Button
-            className={`${btnClass} ${btnClass}--disable`}
+            className={`${btnClass}`}
             onClick={onBulkAction("disable")}
-            variant="unstyled"
+            variant="text-icon"
           >
-            <KolideIcon name="offline" /> Disable
+            <>
+              <img src={DisableIcon} alt="Disable pack icon" />
+              Disable
+            </>
           </Button>
           <Button
-            className={`${btnClass} ${btnClass}--enable`}
+            className={`${btnClass}`}
             onClick={onBulkAction("enable")}
-            variant="unstyled"
+            variant="text-icon"
           >
-            <KolideIcon name="success-check" /> Enable
+            <>
+              <img src={EnableIcon} alt="Enable pack icon" />
+              Enable
+            </>
           </Button>
           <Button
-            className={`${btnClass} ${btnClass}--delete`}
+            className={`${btnClass}`}
             onClick={onToggleModal}
-            variant="unstyled"
+            variant="text-icon"
           >
-            <KolideIcon name="trash" /> Delete
+            <>
+              <img src={DeleteIcon} alt="Delete pack icon" />
+              Delete
+            </>
           </Button>
         </div>
       );
@@ -337,9 +347,10 @@ export class AllPacksPage extends Component {
               placeholder="Filter packs"
               value={packFilter}
             />
-            <KolideIcon name="search" />
           </div>
-          <p className={`${baseClass}__pack-count`}>{packsTotalDisplay}</p>
+          <p className={`${baseClass}__pack-count`}>
+            <strong>{packsTotalDisplay}</strong>
+          </p>
           <PacksList
             allPacksChecked={allPacksChecked}
             checkedPackIDs={checkedPackIDs}

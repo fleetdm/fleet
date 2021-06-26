@@ -16,7 +16,16 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: "/api/v1/fleet/invites",
+        endpoint: "/api/v1/fleet/invites?page=0&per_page=100",
+        method: "get",
+        response: { invites: [] },
+      });
+    },
+    validWithParams: (bearerToken) => {
+      return createRequestMock({
+        bearerToken,
+        endpoint:
+          "/api/v1/fleet/invites?page=3&per_page=100&&order_key=name&order_direction=desc&query=testQuery",
         method: "get",
         response: { invites: [] },
       });

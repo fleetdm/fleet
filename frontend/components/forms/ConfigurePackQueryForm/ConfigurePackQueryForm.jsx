@@ -2,7 +2,6 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { pull } from "lodash";
 
-import KolideIcon from "components/icons/KolideIcon";
 import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
 import Form from "components/forms/Form";
@@ -137,14 +136,21 @@ export class ConfigurePackQueryForm extends Component {
 
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
-        <h2 className={`${baseClass}__title`}>configuration</h2>
+        <h2 className={`${baseClass}__title`}>Configuration</h2>
         <div className={`${baseClass}__fields`}>
+          <Dropdown
+            {...fields.logging_type}
+            options={loggingTypeOptions}
+            placeholder="- - -"
+            label="Logging"
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+          />
           <InputField
             {...fields.interval}
-            inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--interval`}
+            inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
             placeholder="- - -"
-            label="Interval"
-            hint="Seconds"
+            label="Frequency (seconds)"
+            // hint="Seconds"
             type="number"
           />
           <Dropdown
@@ -160,19 +166,8 @@ export class ConfigurePackQueryForm extends Component {
             {...fields.version}
             options={minOsqueryVersionOptions}
             placeholder="- - -"
-            label={[
-              "minimum ",
-              <KolideIcon name="osquery" key="min-osquery-vers" />,
-              " version",
-            ]}
+            label="Minimum osquery version"
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
-          />
-          <Dropdown
-            {...fields.logging_type}
-            options={loggingTypeOptions}
-            placeholder="- - -"
-            label="Logging"
-            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
           />
           <InputField
             {...fields.shard}

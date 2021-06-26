@@ -1,0 +1,19 @@
+.create-team-modal {
+  &__sandbox-info {
+    margin-top: $pad-medium;
+  }
+
+  &__info-header {
+    font-weight: $bold;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+    margin-top: $pad-xxlarge;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+}

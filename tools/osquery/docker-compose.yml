@@ -3,7 +3,7 @@ version: '2'
 
 x-default-settings:
   volumes: &default-volumes
-    - ./kolide.crt:/etc/osquery/kolide.crt
+    - ./fleet.crt:/etc/osquery/fleet.crt
     - ./example_osquery.flags:/etc/osquery/osquery.flags
   environment: &default-environment
     ENROLL_SECRET: "${ENROLL_SECRET:?ENROLL_SECRET must be set for server authentication}"
@@ -12,6 +12,8 @@ x-default-settings:
     core:
       hard:  1000000000
       soft:  1000000000
+  extra_hosts: &extra-hosts
+    - "host.docker.internal:host-gateway"
 
 services:
   ubuntu16-osquery:
@@ -20,6 +22,7 @@ services:
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
 
   ubuntu18-osquery:
     image: "dactiv/osquery:4.5.1-ubuntu18.04"
@@ -27,6 +30,7 @@ services:
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
 
   ubuntu20-osquery:
     image: "dactiv/osquery:4.5.1-ubuntu20.04"
@@ -34,6 +38,7 @@ services:
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
 
   centos6-osquery:
     image: "dactiv/osquery:4.5.1-centos6"
@@ -41,6 +46,7 @@ services:
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
 
   centos7-osquery:
     image: "dactiv/osquery:4.5.1-centos7"
@@ -48,6 +54,7 @@ services:
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
 
   centos8-osquery:
     image: "dactiv/osquery:4.5.1-centos8"
@@ -55,3 +62,4 @@ services:
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
+    extra_hosts: *extra-hosts

@@ -1,7 +1,7 @@
 .search-pack-query {
   &__title {
     @include ellipsis(250px);
-    font-size: 18px;
+    font-size: $x-small;
     font-weight: $bold;
     letter-spacing: -0.5px;
     color: $core-fleet-black;
@@ -12,22 +12,20 @@
     margin-bottom: 20px;
   }
 
-  .ace-kolide {
+  .ace-fleet {
     margin-bottom: 20px;
   }
 
   &__description {
-    margin: 0 0 30px;
+    margin: 0 0 $pad-xlarge;
     word-wrap: break-word;
 
     h2 {
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $bold;
       letter-spacing: -0.5px;
       color: $core-fleet-black;
-      border-bottom: 1px solid #eaeefb;
-      padding: 0 0 9px;
-      margin: 0 0 9px;
+      margin: 0 0 $pad-small;
     }
 
     p {

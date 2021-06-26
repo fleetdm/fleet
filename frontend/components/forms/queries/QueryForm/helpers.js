@@ -2,7 +2,9 @@ const formChanged = (fields, query) => {
   return (
     query.name !== fields.name.value ||
     query.description !== fields.description.value ||
-    query.query !== fields.query.value
+    query.query !== fields.query.value ||
+    // added 5/17
+    query.observer_can_run !== fields.observer_can_run.value
   );
 };
 
@@ -12,6 +14,11 @@ const canSaveAsNew = (fields, query = {}) => {
   }
 
   if (fields.name.value !== query.name) {
+    return true;
+  }
+
+  // added 5/17 canSaveAsNew returns true or false based on if observer can run has changed
+  if (fields.observer_can_run.value !== query.observer_can_run) {
     return true;
   }
 

@@ -1,7 +1,8 @@
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
+import permissionUtils from "utilities/permissions";
 
-export default (admin) => {
+export default (currentUser) => {
   const adminNavItems = [
     {
       icon: "settings",
@@ -33,6 +34,9 @@ export default (admin) => {
         pathname: PATHS.MANAGE_QUERIES,
       },
     },
+  ];
+
+  const globalMaintainerNavItems = [
     {
       icon: "packs",
       name: "Packs",
@@ -44,8 +48,12 @@ export default (admin) => {
     },
   ];
 
-  if (admin) {
-    return [...userNavItems, ...adminNavItems];
+  if (permissionUtils.isGlobalAdmin(currentUser)) {
+    return [...userNavItems, ...globalMaintainerNavItems, ...adminNavItems];
+  }
+
+  if (permissionUtils.isGlobalMaintainer(currentUser)) {
+    return [...userNavItems, ...globalMaintainerNavItems];
   }
 
   return userNavItems;

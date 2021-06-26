@@ -1,5 +1,5 @@
 .user-management {
-  padding: 30px;
+  padding: $pad-xlarge;
 
   &__page-description {
     font-size: $x-small;
@@ -99,9 +99,51 @@
     }
   }
 
-  @include breakpoint(smalldesk) {
-    &__position {
-      display: none;
+  .data-table {
+    &__status {
+      &--active {
+        &:before {
+          background-color: $ui-success;
+        }
+      }
+
+      &--no-access {
+        &:before {
+          background-color: $ui-offline;
+        }
+      }
+
+      &--invite-pending {
+        &:before {
+          background-color: $ui-warning;
+        }
+      }
     }
   }
+
+  .Select.is-focused:not(.is-open) > .Select-control {
+    border: none;
+    box-shadow: none;
+  }
+  
+  .Select.is-open {
+    .Select-arrow {
+      margin-top: 4px;
+    }
+  }
+
+  .Select-arrow {
+    margin-top: 4px;
+  }
+
+  .Select-control:hover {
+    box-shadow: none;
+  }
+
+  .Select-placeholder {
+    font-size: 14px;
+    margin-top: 2px;
+    padding-left: 0;
+  }
+
 }

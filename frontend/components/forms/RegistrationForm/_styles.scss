@@ -43,7 +43,7 @@
       opacity: 0;
     }
 
-    &--kolide {
+    &--fleet {
       left: calc(150% + 220px);
       top: unquote("max(56%, 480px)");
       opacity: 0;
@@ -88,7 +88,7 @@
         opacity: 1;
       }
 
-      .user-registration__container--kolide {
+      .user-registration__container--fleet {
         left: calc(100% + 220px);
         opacity: 0;
       }
@@ -110,7 +110,7 @@
         opacity: 0;
       }
 
-      .user-registration__container--kolide {
+      .user-registration__container--fleet {
         left: 0;
         margin: auto;
         opacity: 1;
@@ -133,7 +133,7 @@
         opacity: 0;
       }
 
-      .user-registration__container--kolide {
+      .user-registration__container--fleet {
         left: -600px;
         opacity: 0;
       }

@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/pkg/errors"
 )
 
@@ -24,9 +25,11 @@ type jsonError struct {
 // a generic "name" field. The frontend client always expects errors in a
 // []map[string]string format.
 func baseError(err string) []map[string]string {
-	return []map[string]string{map[string]string{
-		"name":   "base",
-		"reason": err},
+	return []map[string]string{
+		{
+			"name":   "base",
+			"reason": err,
+		},
 	}
 }
 
@@ -49,20 +52,6 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
-	type authenticationError interface {
-		error
-		AuthError() string
-	}
-	if e, ok := err.(authenticationError); ok {
-		ae := jsonError{
-			Message: "Authentication Failed",
-			Errors:  baseError(e.AuthError()),
-		}
-		w.WriteHeader(http.StatusUnauthorized)
-		enc.Encode(ae)
-		return
-	}
-
 	type permissionError interface {
 		PermissionError() []map[string]string
 	}
@@ -76,12 +65,12 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
-	if kolide.IsForeignKey(errors.Cause(err)) {
+	if fleet.IsForeignKey(errors.Cause(err)) {
 		ve := jsonError{
 			Message: "Validation Failed",
 			Errors:  baseError(err.Error()),
 		}
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		enc.Encode(ve)
 		return
 	}
@@ -153,13 +142,13 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	// Get specific status code if it is available from this error type,
 	// defaulting to HTTP 500
 	status := http.StatusInternalServerError
-	if e, ok := err.(ErrWithStatusCode); ok {
+	if e, ok := err.(kithttp.StatusCoder); ok {
 		status = e.StatusCode()
 	}
 
 	// See header documentation
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
-	if e, ok := err.(ErrWithRetryAfter); ok {
+	if e, ok := err.(fleet.ErrWithRetryAfter); ok {
 		w.Header().Add("Retry-After", strconv.Itoa(e.RetryAfter()))
 	}
 

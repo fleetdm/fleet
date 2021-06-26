@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 	"github.com/stretchr/testify/assert"
 )
 
-func testPasswordResetRequests(t *testing.T, db kolide.Datastore) {
+func testPasswordResetRequests(t *testing.T, db fleet.Datastore) {
 	createTestUsers(t, db)
 	now := time.Now().UTC()
 	tomorrow := now.Add(time.Hour * 24)
@@ -21,7 +21,7 @@ func testPasswordResetRequests(t *testing.T, db kolide.Datastore) {
 	}
 
 	for _, tt := range passwordResetTests {
-		r := &kolide.PasswordResetRequest{
+		r := &fleet.PasswordResetRequest{
 			UserID:    tt.userID,
 			ExpiresAt: tt.expires,
 			Token:     tt.token,

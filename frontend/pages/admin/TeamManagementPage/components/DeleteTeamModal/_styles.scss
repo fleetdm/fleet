@@ -1,0 +1,19 @@
+.delete-team-modal {
+  &__name {
+    font-weight: $bold;
+  }
+
+  &__warning {
+    color: $ui-error;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+    margin-top: $pad-xxlarge;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+}

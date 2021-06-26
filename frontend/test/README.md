@@ -64,7 +64,7 @@ const mocks = Test.Mocks;
 Documentation on request mocks can be found in the [Kolide Request Mock
 Documentation](./mocks/README.md)
 
-## [Stubs](./stubs.js)
+## [Stubs](./stubs.ts)
 
 ```js
 import Test from 'test';

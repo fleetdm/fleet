@@ -3,26 +3,46 @@ import PropTypes from "prop-types";
 import AceEditor from "react-ace";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
-import { sortBy } from "lodash";
 
-import AddHostModal from "components/hosts/AddHostModal";
 import Button from "components/buttons/Button";
 import configInterface from "interfaces/config";
 import HostSidePanel from "components/side_panels/HostSidePanel";
 import LabelForm from "components/forms/LabelForm";
 import Modal from "components/modals/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import TableContainer from "components/TableContainer";
 import labelInterface from "interfaces/label";
+import hostInterface from "interfaces/host";
+import teamInterface from "interfaces/team";
+import userInterface from "interfaces/user";
 import osqueryTableInterface from "interfaces/osquery_table";
 import statusLabelsInterface from "interfaces/status_labels";
 import enrollSecretInterface from "interfaces/enroll_secret";
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
+import { renderFlash } from "redux/nodes/notifications/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
-import entityGetter from "redux/utilities/entityGetter";
-import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
+import hostActions from "redux/nodes/entities/hosts/actions";
+import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
+import {
+  getLabels,
+  getHosts,
+} from "redux/nodes/components/ManageHostsPage/actions";
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
-import HostContainer from "./components/HostContainer";
+
+import permissionUtils from "utilities/permissions";
+import {
+  defaultHiddenColumns,
+  generateVisibleTableColumns,
+  generateAvailableTableHeaders,
+} from "./HostTableConfig";
+import AddHostModal from "./components/AddHostModal";
+import NoHosts from "./components/NoHosts";
+import EmptyHosts from "./components/EmptyHosts";
+import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
+import TransferHostModal from "./components/TransferHostModal";
+import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
 
 const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
@@ -44,22 +64,42 @@ export class ManageHostsPage extends PureComponent {
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
+    hosts: PropTypes.arrayOf(hostInterface),
+    loadingHosts: PropTypes.bool,
+    canAddNewHosts: PropTypes.bool,
+    canAddNewLabels: PropTypes.bool,
+    teams: PropTypes.arrayOf(teamInterface),
+    isGlobalAdmin: PropTypes.bool,
+    isBasicTier: PropTypes.bool,
+    currentUser: userInterface,
   };
 
   static defaultProps = {
     loadingLabels: false,
+    hosts: [],
   };
 
   constructor(props) {
     super(props);
 
+    // For now we persist hidden columns using localstorage. May do server side
+    // persistence later.
+    const storedHiddenColumns = JSON.parse(
+      localStorage.getItem("hostHiddenColumns")
+    );
+
     this.state = {
       labelQueryText: "",
-      pagedHosts: [],
       showAddHostModal: false,
       selectedHost: null,
       showDeleteLabelModal: false,
-      showHostContainerSpinner: false,
+      showEditColumnsModal: false,
+      showTransferHostModal: false,
+      hiddenColumns:
+        storedHiddenColumns !== null
+          ? storedHiddenColumns
+          : defaultHiddenColumns,
+      selectedHostIds: [],
     };
   }
 
@@ -68,53 +108,92 @@ export class ManageHostsPage extends PureComponent {
     dispatch(getLabels());
   }
 
+  componentDidUpdate(prevProps) {
+    const { dispatch, isBasicTier, canAddNewHosts } = this.props;
+    if (
+      isBasicTier !== prevProps.isBasicTier &&
+      isBasicTier &&
+      canAddNewHosts
+    ) {
+      dispatch(teamActions.loadAll({}));
+    }
+  }
+
   componentWillUnmount() {
     this.clearHostUpdates();
-    return false;
   }
 
   onAddLabelClick = (evt) => {
     evt.preventDefault();
-
     const { dispatch, selectedFilter } = this.props;
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${NEW_LABEL_HASH}`));
-
-    return false;
   };
 
   onEditLabelClick = (evt) => {
     evt.preventDefault();
-
     const { dispatch, selectedFilter } = this.props;
-    console.log(selectedFilter);
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${EDIT_LABEL_HASH}`));
+  };
 
-    return false;
+  onEditColumnsClick = () => {
+    this.setState({
+      showEditColumnsModal: true,
+    });
+  };
+
+  onCancelColumns = () => {
+    this.setState({
+      showEditColumnsModal: false,
+    });
+  };
+
+  onSaveColumns = (newHiddenColumns) => {
+    localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
+    this.setState({
+      hiddenColumns: newHiddenColumns,
+      showEditColumnsModal: false,
+    });
   };
 
   onCancelAddLabel = () => {
     const { dispatch, selectedFilter } = this.props;
-
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
-
-    return false;
   };
 
   onCancelEditLabel = () => {
     const { dispatch, selectedFilter } = this.props;
-
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
-
-    return false;
   };
 
   onAddHostClick = (evt) => {
     evt.preventDefault();
-
     const { toggleAddHostModal } = this;
     toggleAddHostModal();
+  };
 
-    return false;
+  onChangeTeam = (team) => {
+    const { dispatch } = this.props;
+    dispatch(teamActions.getEnrollSecrets(team));
+  };
+
+  // NOTE: this is called once on the initial rendering. The initial render of
+  // the TableContainer child component will call this handler.
+  onTableQueryChange = (queryData) => {
+    const { selectedFilter, dispatch } = this.props;
+    const {
+      pageIndex,
+      pageSize,
+      searchQuery,
+      sortHeader,
+      sortDirection,
+    } = queryData;
+    let sortBy = [];
+    if (sortHeader !== "") {
+      sortBy = [{ id: sortHeader, direction: sortDirection }];
+    }
+    dispatch(
+      getHosts(pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
+    );
   };
 
   onEditLabel = (formData) => {
@@ -124,7 +203,12 @@ export class ManageHostsPage extends PureComponent {
     return dispatch(labelActions.update(selectedLabel, updateAttrs))
       .then(() => {
         dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
-
+        dispatch(
+          renderFlash(
+            "success",
+            "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
+          )
+        );
         return false;
       })
       .catch(() => false);
@@ -155,7 +239,12 @@ export class ManageHostsPage extends PureComponent {
 
     return dispatch(labelActions.create(formData)).then(() => {
       dispatch(push(PATHS.MANAGE_HOSTS));
-
+      dispatch(
+        renderFlash(
+          "success",
+          "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
+        )
+      );
       return false;
     });
   };
@@ -172,6 +261,35 @@ export class ManageHostsPage extends PureComponent {
     });
   };
 
+  onTransferToTeamClick = (selectedHostIds) => {
+    const { toggleTransferHostModal } = this;
+    toggleTransferHostModal();
+    this.setState({ selectedHostIds });
+  };
+
+  onTransferHostSubmit = (team) => {
+    const { toggleTransferHostModal } = this;
+    const { dispatch } = this.props;
+    const { selectedHostIds } = this.state;
+    const teamId = team.id === "no-team" ? null : team.id;
+    dispatch(hostActions.transferToTeam(teamId, selectedHostIds))
+      .then(() => {
+        const successMessage =
+          teamId === null
+            ? `Hosts successfully removed from teams.`
+            : `Hosts successfully transferred to  ${team.name}.`;
+        dispatch(renderFlash("success", successMessage));
+        dispatch(getHosts());
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", "Could not transfer hosts. Please try again.")
+        );
+      });
+    toggleTransferHostModal();
+    this.setState({ selectedHostIds: [] });
+  };
+
   clearHostUpdates() {
     if (this.timeout) {
       global.window.clearTimeout(this.timeout);
@@ -179,32 +297,50 @@ export class ManageHostsPage extends PureComponent {
     }
   }
 
-  sortHosts = (hosts) => {
-    return sortBy(hosts, (h) => {
-      return h.hostname;
-    });
-  };
-
   toggleAddHostModal = () => {
     const { showAddHostModal } = this.state;
     this.setState({ showAddHostModal: !showAddHostModal });
-    return false;
   };
 
   toggleDeleteLabelModal = () => {
     const { showDeleteLabelModal } = this.state;
-
     this.setState({ showDeleteLabelModal: !showDeleteLabelModal });
-    return false;
+  };
+
+  toggleTransferHostModal = () => {
+    const { showTransferHostModal } = this.state;
+    this.setState({ showTransferHostModal: !showTransferHostModal });
+  };
+
+  renderEditColumnsModal = () => {
+    const { config, currentUser } = this.props;
+    const { showEditColumnsModal, hiddenColumns } = this.state;
+
+    if (!showEditColumnsModal) return null;
+
+    return (
+      <Modal
+        title="Edit Columns"
+        onExit={() => this.setState({ showEditColumnsModal: false })}
+        className={`${baseClass}__invite-modal`}
+      >
+        <EditColumnsModal
+          columns={generateAvailableTableHeaders(config, currentUser)}
+          hiddenColumns={hiddenColumns}
+          onSaveColumns={this.onSaveColumns}
+          onCancelColumns={this.onCancelColumns}
+        />
+      </Modal>
+    );
   };
 
   renderAddHostModal = () => {
-    const { toggleAddHostModal } = this;
+    const { toggleAddHostModal, onChangeTeam } = this;
     const { showAddHostModal } = this.state;
-    const { enrollSecret, config } = this.props;
+    const { enrollSecret, config, canAddNewHosts, teams } = this.props;
 
-    if (!showAddHostModal) {
-      return false;
+    if (!canAddNewHosts || !showAddHostModal) {
+      return null;
     }
 
     return (
@@ -214,6 +350,8 @@ export class ManageHostsPage extends PureComponent {
         className={`${baseClass}__invite-modal`}
       >
         <AddHostModal
+          teams={teams}
+          onChangeTeam={onChangeTeam}
           onReturnToApp={toggleAddHostModal}
           enrollSecret={enrollSecret}
           config={config}
@@ -246,6 +384,23 @@ export class ManageHostsPage extends PureComponent {
           </Button>
         </div>
       </Modal>
+    );
+  };
+
+  renderTransferHostModal = () => {
+    const { toggleTransferHostModal, onTransferHostSubmit } = this;
+    const { teams, isGlobalAdmin } = this.props;
+    const { showTransferHostModal } = this.state;
+
+    if (!showTransferHostModal) return null;
+
+    return (
+      <TransferHostModal
+        isGlobalAdmin={isGlobalAdmin}
+        teams={teams}
+        onSubmit={onTransferHostSubmit}
+        onCancel={toggleTransferHostModal}
+      />
     );
   };
 
@@ -293,7 +448,7 @@ export class ManageHostsPage extends PureComponent {
     return (
       <AceEditor
         editorProps={{ $blockScrolling: Infinity }}
-        mode="kolide"
+        mode="fleet"
         minLines={1}
         maxLines={20}
         name="label-header"
@@ -301,7 +456,7 @@ export class ManageHostsPage extends PureComponent {
         setOptions={{ wrap: true }}
         showGutter={false}
         showPrintMargin={false}
-        theme="kolide"
+        theme="fleet"
         value={query}
         width="100%"
         fontSize={14}
@@ -385,6 +540,7 @@ export class ManageHostsPage extends PureComponent {
       selectedFilter,
       selectedOsqueryTable,
       statusLabels,
+      canAddNewLabels,
     } = this.props;
     const { onAddLabelClick, onLabelClick, onOsqueryTableSelect } = this;
 
@@ -405,11 +561,62 @@ export class ManageHostsPage extends PureComponent {
           onLabelClick={onLabelClick}
           selectedFilter={selectedFilter}
           statusLabels={statusLabels}
+          canAddNewLabel={canAddNewLabels}
         />
       );
     }
 
     return SidePanel;
+  };
+
+  renderTable = () => {
+    const {
+      config,
+      currentUser,
+      selectedFilter,
+      selectedLabel,
+      hosts,
+      loadingHosts,
+    } = this.props;
+    const { hiddenColumns } = this.state;
+    const {
+      onTableQueryChange,
+      onEditColumnsClick,
+      onTransferToTeamClick,
+    } = this;
+
+    // The data has not been fetched yet.
+    if (selectedFilter === undefined || selectedLabel === undefined)
+      return null;
+
+    // Hosts have not been set up for this instance yet.
+    if (selectedFilter === "all-hosts" && selectedLabel.count === 0) {
+      return <NoHosts />;
+    }
+
+    return (
+      <TableContainer
+        columns={generateVisibleTableColumns(
+          hiddenColumns,
+          config,
+          currentUser
+        )}
+        data={hosts}
+        isLoading={loadingHosts}
+        defaultSortHeader={"hostname"}
+        defaultSortDirection={"desc"}
+        actionButtonText={"Edit columns"}
+        actionButtonIcon={EditColumnsIcon}
+        actionButtonVariant={"text-icon"}
+        additionalQueries={JSON.stringify([selectedFilter])}
+        inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
+        onActionButtonClick={onEditColumnsClick}
+        onSelectActionClick={onTransferToTeamClick}
+        onQueryChange={onTableQueryChange}
+        resultsTitle={"hosts"}
+        emptyComponent={EmptyHosts}
+      />
+    );
   };
 
   render() {
@@ -420,45 +627,44 @@ export class ManageHostsPage extends PureComponent {
       renderAddHostModal,
       renderDeleteLabelModal,
       renderQuery,
+      renderTable,
+      renderEditColumnsModal,
+      renderTransferHostModal,
+      onAddHostClick,
     } = this;
     const {
       isAddLabel,
       isEditLabel,
       loadingLabels,
       selectedLabel,
-      selectedFilter,
+      canAddNewHosts,
     } = this.props;
-
-    const { onAddHostClick } = this;
 
     return (
       <div className="has-sidebar">
         {renderForm()}
-
         {!isAddLabel && !isEditLabel && (
           <div className={`${baseClass} body-wrap`}>
             <div className="header-wrap">
               {renderHeader()}
-              <Button
-                onClick={onAddHostClick}
-                className={`${baseClass}__add-hosts button button--brand`}
-              >
-                <span>Add new host</span>
-              </Button>
+              {canAddNewHosts ? (
+                <Button
+                  onClick={onAddHostClick}
+                  className={`${baseClass}__add-hosts button button--brand`}
+                >
+                  <span>Add new host</span>
+                </Button>
+              ) : null}
             </div>
             {selectedLabel && renderQuery()}
-            <div className={`${baseClass}__list`}>
-              <HostContainer
-                selectedFilter={selectedFilter}
-                selectedLabel={selectedLabel}
-              />
-            </div>
+            {renderTable()}
           </div>
         )}
-
         {!loadingLabels && renderSidePanel()}
         {renderAddHostModal()}
+        {renderEditColumnsModal()}
         {renderDeleteLabelModal()}
+        {renderTransferHostModal()}
       </div>
     );
   }
@@ -483,6 +689,24 @@ const mapStateToProps = (state, { location, params }) => {
   const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
 
+  // NOTE: good opportunity for performance optimisation here later. This currently
+  // always generates a new array of hosts, when it could memoized version of the list.
+  const { entities: hosts } = entityGetter(state).get("hosts");
+
+  const { loading: loadingHosts } = state.entities.hosts;
+
+  const currentUser = state.auth.user;
+  const canAddNewHosts =
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser) ||
+    permissionUtils.isAnyTeamMaintainer(currentUser);
+  const canAddNewLabels =
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser);
+  const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
+  const isBasicTier = permissionUtils.isBasicTier(config);
+  const teams = memoizedGetEntity(state.entities.teams.data);
+
   return {
     selectedFilter,
     isAddLabel,
@@ -495,6 +719,14 @@ const mapStateToProps = (state, { location, params }) => {
     selectedOsqueryTable,
     statusLabels,
     config,
+    currentUser,
+    hosts,
+    loadingHosts,
+    canAddNewHosts,
+    canAddNewLabels,
+    isGlobalAdmin,
+    isBasicTier,
+    teams,
   };
 };
 

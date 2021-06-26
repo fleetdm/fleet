@@ -3,10 +3,10 @@ package inmem
 import (
 	"fmt"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/fleet"
 )
 
-func (d *Datastore) NewPasswordResetRequest(req *kolide.PasswordResetRequest) (*kolide.PasswordResetRequest, error) {
+func (d *Datastore) NewPasswordResetRequest(req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -15,7 +15,7 @@ func (d *Datastore) NewPasswordResetRequest(req *kolide.PasswordResetRequest) (*
 	return req, nil
 }
 
-func (d *Datastore) SavePasswordResetRequest(req *kolide.PasswordResetRequest) error {
+func (d *Datastore) SavePasswordResetRequest(req *fleet.PasswordResetRequest) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -27,7 +27,7 @@ func (d *Datastore) SavePasswordResetRequest(req *kolide.PasswordResetRequest) e
 	return nil
 }
 
-func (d *Datastore) DeletePasswordResetRequest(req *kolide.PasswordResetRequest) error {
+func (d *Datastore) DeletePasswordResetRequest(req *fleet.PasswordResetRequest) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -51,7 +51,7 @@ func (d *Datastore) DeletePasswordResetRequestsForUser(userID uint) error {
 	return nil
 }
 
-func (d *Datastore) FindPassswordResetByID(id uint) (*kolide.PasswordResetRequest, error) {
+func (d *Datastore) FindPassswordResetByID(id uint) (*fleet.PasswordResetRequest, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -62,10 +62,10 @@ func (d *Datastore) FindPassswordResetByID(id uint) (*kolide.PasswordResetReques
 	return nil, notFound("PasswordResetRequest").WithID(id)
 }
 
-func (d *Datastore) FindPassswordResetsByUserID(userID uint) ([]*kolide.PasswordResetRequest, error) {
+func (d *Datastore) FindPassswordResetsByUserID(userID uint) ([]*fleet.PasswordResetRequest, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	resets := make([]*kolide.PasswordResetRequest, 0)
+	resets := make([]*fleet.PasswordResetRequest, 0)
 
 	for _, pr := range d.passwordResets {
 		if pr.UserID == userID {
@@ -81,7 +81,7 @@ func (d *Datastore) FindPassswordResetsByUserID(userID uint) ([]*kolide.Password
 	return resets, nil
 }
 
-func (d *Datastore) FindPassswordResetByToken(token string) (*kolide.PasswordResetRequest, error) {
+func (d *Datastore) FindPassswordResetByToken(token string) (*fleet.PasswordResetRequest, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -94,7 +94,7 @@ func (d *Datastore) FindPassswordResetByToken(token string) (*kolide.PasswordRes
 	return nil, notFound("PasswordResetRequest")
 }
 
-func (d *Datastore) FindPassswordResetByTokenAndUserID(token string, userID uint) (*kolide.PasswordResetRequest, error) {
+func (d *Datastore) FindPassswordResetByTokenAndUserID(token string, userID uint) (*fleet.PasswordResetRequest, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 

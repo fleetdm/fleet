@@ -10,9 +10,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type TestingT interface {
+	assert.TestingT
+	Helper()
+}
+
 // ElementsMatchSkipID asserts that the elements match, skipping any field with
 // name "ID".
-func ElementsMatchSkipID(t assert.TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
+func ElementsMatchSkipID(t TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
+	t.Helper()
+
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
 		for _, ps := range p {
 			switch ps := ps.(type) {
@@ -27,6 +34,51 @@ func ElementsMatchSkipID(t assert.TestingT, listA, listB interface{}, msgAndArgs
 	return ElementsMatchWithOptions(t, listA, listB, []cmp.Option{opt}, msgAndArgs)
 }
 
+// ElementsMatchSkipTimestampsID asserts that the elements match, skipping any field with
+// name "ID", "CreatedAt", and "UpdatedAt". This is useful for comparing after DB insertion.
+func ElementsMatchSkipTimestampsID(t TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
+	t.Helper()
+
+	opt := cmp.FilterPath(func(p cmp.Path) bool {
+		for _, ps := range p {
+			switch ps := ps.(type) {
+			case cmp.StructField:
+				switch ps.Name() {
+				case "ID", "UpdateCreateTimestamps", "CreateTimestamp", "UpdateTimestamp", "CreatedAt", "UpdatedAt":
+					return true
+				}
+			}
+		}
+		return false
+	}, cmp.Ignore())
+	return ElementsMatchWithOptions(t, listA, listB, []cmp.Option{opt}, msgAndArgs)
+}
+
+// EqualSkipTimestampsID asserts that the structs are equal, skipping any field
+// with name "ID", "CreatedAt", and "UpdatedAt". This is useful for comparing
+// after DB insertion.
+func EqualSkipTimestampsID(t TestingT, a, b interface{}, msgAndArgs ...interface{}) (ok bool) {
+	t.Helper()
+
+	opt := cmp.FilterPath(func(p cmp.Path) bool {
+		for _, ps := range p {
+			switch ps := ps.(type) {
+			case cmp.StructField:
+				switch ps.Name() {
+				case "ID", "UpdateCreateTimestamps", "CreateTimestamp", "UpdateTimestamp", "CreatedAt", "UpdatedAt":
+					return true
+				}
+			}
+		}
+		return false
+	}, cmp.Ignore())
+
+	if !cmp.Equal(a, b, opt) {
+		return assert.Fail(t, cmp.Diff(a, b, opt), msgAndArgs...)
+	}
+	return true
+}
+
 // The below functions adapted from
 // https://github.com/stretchr/testify/blob/v1.7.0/assert/assertions.go#L895 by
 // utilizing the options provided in github.com/google/go-cmp/cmp
@@ -35,7 +87,7 @@ func ElementsMatchSkipID(t assert.TestingT, listA, listB interface{}, msgAndArgs
 // additional options as provided by the cmp package. This allows, for example,
 // comparing structs while ignoring fields. See assert.ElementsMatch
 // documentation for more details.
-func ElementsMatchWithOptions(t assert.TestingT, listA, listB interface{}, opts cmp.Options, msgAndArgs ...interface{}) (ok bool) {
+func ElementsMatchWithOptions(t TestingT, listA, listB interface{}, opts cmp.Options, msgAndArgs ...interface{}) (ok bool) {
 	if isEmpty(listA) && isEmpty(listB) {
 		return true
 	}
@@ -82,7 +134,7 @@ func isEmpty(object interface{}) bool {
 }
 
 // isList checks that the provided value is array or slice.
-func isList(t assert.TestingT, list interface{}, msgAndArgs ...interface{}) (ok bool) {
+func isList(t TestingT, list interface{}, msgAndArgs ...interface{}) (ok bool) {
 	kind := reflect.TypeOf(list).Kind()
 	if kind != reflect.Array && kind != reflect.Slice {
 		return assert.Fail(t, fmt.Sprintf("%q has an unsupported type %s, expecting array or slice", list, kind),

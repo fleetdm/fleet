@@ -13,7 +13,89 @@
     min-height: 400px;
   }
 
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    margin-bottom: $pad-medium;
+  }
+
   &__warning {
-    margin: 0;
+    margin: $pad-xlarge;
+    margin-bottom: 0;
+
+    &-title {
+      font-size: $small;
+      font-weight: $bold;
+      margin: 0;
+    }
+
+    span {
+      font-weight: $bold;
+    }
+    p {
+      margin: 0;
+      margin-top: $pad-xsmall;
+    }
+  }
+
+  &__observer-query-view {
+    width: 90%;
+    max-width: 1060px;
+    margin: 0 auto;
+    color: $core-fleet-black;
+
+    h1 {
+      font-size: $medium;
+    }
+    p {
+      font-size: $x-small;
+    }
+  }
+
+  &__observer-query-details {
+    padding: 0 2rem;
+
+    h1 {
+      margin: $pad-large 0;
+      font-size: $large;
+    }
+
+    p {
+      margin-bottom: $pad-small;
+    }
+
+    .sql-button {
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      font-size: $x-small;
+    }
+  }
+
+  &__query-preview {
+    margin-top: 15px;
+
+    .fleet-ace__label {
+      display: none;
+    }
+  }
+
+  &__back-link {
+    display: flex;
+    align-items: center;
+    height: 16px;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+
+    #back-chevron {
+      width: 16px;
+      margin-right: $pad-small;
+    }
+  }
+
+  .ace_content {
+    min-height: 500px !important;
   }
 }

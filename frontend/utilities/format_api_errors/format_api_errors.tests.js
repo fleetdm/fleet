@@ -9,7 +9,7 @@ describe("formatApiErrors", () => {
           reason: "is not the correct format",
         },
         {
-          name: "kolide_server_url",
+          name: "server_url",
           reason: "must be present",
         },
       ],
@@ -19,7 +19,7 @@ describe("formatApiErrors", () => {
   it("formats errors for the Form HOC", () => {
     expect(formatApiErrors(errorStub)).toEqual({
       email: "is not the correct format",
-      kolide_server_url: "must be present",
+      server_url: "must be present",
     });
   });
 });

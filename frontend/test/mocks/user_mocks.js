@@ -59,7 +59,16 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: "/api/v1/fleet/users",
+        endpoint: "/api/v1/fleet/users?page=0&per_page=100",
+        method: "get",
+        response: { users: [userStub] },
+      });
+    },
+    validWithParams: (bearerToken) => {
+      return createRequestMock({
+        bearerToken,
+        endpoint:
+          "/api/v1/fleet/users?page=3&per_page=100&&order_key=name&order_direction=desc&query=testQuery",
         method: "get",
         response: { users: [userStub] },
       });

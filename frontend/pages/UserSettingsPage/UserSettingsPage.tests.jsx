@@ -6,7 +6,7 @@ import ConnectedPage, {
   UserSettingsPage,
 } from "pages/UserSettingsPage/UserSettingsPage";
 import testHelpers from "test/helpers";
-import { userStub } from "test/stubs";
+import { userStub, configStub } from "test/stubs";
 import * as authActions from "redux/nodes/auth/actions";
 
 const { connectedComponent, fillInFormInput, reduxMockStore } = testHelpers;
@@ -14,6 +14,7 @@ const { connectedComponent, fillInFormInput, reduxMockStore } = testHelpers;
 describe("UserSettingsPage - component", () => {
   const store = {
     auth: { user: userStub },
+    app: { config: configStub },
     entities: { users: {} },
     version: { data: {} },
   };

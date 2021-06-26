@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import AceEditor from "react-ace";
 import { isEqual, sortBy } from "lodash";
 
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import queryInterface from "interfaces/query";
 import Dropdown from "components/forms/fields/Dropdown";
 
@@ -59,7 +59,7 @@ class SearchPackQuery extends Component {
     if (selectedQuery) {
       return (
         <h1 className={`${baseClass}__title`}>
-          <KolideIcon name="query" /> {selectedQuery.name}
+          <FleetIcon name="query" /> {selectedQuery.name}
         </h1>
       );
     }
@@ -73,7 +73,7 @@ class SearchPackQuery extends Component {
       return (
         <AceEditor
           editorProps={{ $blockScrolling: Infinity }}
-          mode="kolide"
+          mode="fleet"
           minLines={1}
           maxLines={3}
           name="pack-query"
@@ -81,7 +81,7 @@ class SearchPackQuery extends Component {
           setOptions={{ wrap: true }}
           showGutter={false}
           showPrintMargin={false}
-          theme="kolide"
+          theme="fleet"
           value={selectedQuery.query}
           width="100%"
           fontSize={14}
@@ -97,10 +97,8 @@ class SearchPackQuery extends Component {
     if (selectedQuery) {
       return (
         <div className={`${baseClass}__description`}>
-          <h2>description</h2>
-          <p>
-            {selectedQuery.description || <em>No description available.</em>}
-          </p>
+          <h2>Description</h2>
+          <p>{selectedQuery.description || <>No description available.</>}</p>
         </div>
       );
     }
@@ -119,10 +117,7 @@ class SearchPackQuery extends Component {
         <Dropdown
           options={queryDropdownOptions}
           onChange={onSelectQuery}
-          placeholder={[
-            <KolideIcon name="search" size="lg" key="search-pack-query" />,
-            " Select query",
-          ]}
+          placeholder={"Select query"}
         />
         {renderQuery()}
         {renderDescription()}

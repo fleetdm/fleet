@@ -5,17 +5,20 @@ import { filter, get, includes, pull } from "lodash";
 import { push } from "react-router-redux";
 
 import Button from "components/buttons/Button";
+import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/modals/Modal";
-import KolideIcon from "components/icons/KolideIcon";
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
 import PATHS from "router/paths";
 import QueryDetailsSidePanel from "components/side_panels/QueryDetailsSidePanel";
 import QueriesList from "components/queries/QueriesList";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
+import userInterface from "interfaces/user";
 import { renderFlash } from "redux/nodes/notifications/actions";
+
+import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
 
 const baseClass = "manage-queries-page";
 
@@ -25,6 +28,7 @@ export class ManageQueriesPage extends Component {
     loadingQueries: PropTypes.bool.isRequired,
     queries: PropTypes.arrayOf(queryInterface),
     selectedQuery: queryInterface,
+    currentUser: userInterface,
   };
 
   static defaultProps = {
@@ -183,29 +187,36 @@ export class ManageQueriesPage extends Component {
 
   renderCTAs = () => {
     const { goToNewQueryPage, onToggleModal } = this;
-    const btnClass = `${baseClass}__delete-queries-btn`;
+    const { currentUser } = this.props;
+
     const checkedQueryCount = this.state.checkedQueryIDs.length;
 
     if (checkedQueryCount) {
-      const queryText = checkedQueryCount === 1 ? "Query" : "Queries";
-
       return (
         <div className={`${baseClass}__ctas`}>
-          <p className={`${baseClass}__query-count`}>
-            {checkedQueryCount} {queryText} selected
-          </p>
-          <Button className={btnClass} onClick={onToggleModal} variant="alert">
-            Delete
+          <span className={`${baseClass}__selected-count`}>
+            <strong>{checkedQueryCount}</strong> selected
+          </span>
+          <Button onClick={onToggleModal} variant="text-icon">
+            <>
+              <img src={DeleteIcon} alt="Delete query icon" />
+              Delete
+            </>
           </Button>
         </div>
       );
     }
 
-    return (
-      <Button variant="brand" onClick={goToNewQueryPage}>
-        Create new query
-      </Button>
-    );
+    // Render option to create new query only for maintainers and admin
+    if (!permissionUtils.isOnlyObserver(currentUser)) {
+      return (
+        <Button variant="brand" onClick={goToNewQueryPage}>
+          Create new query
+        </Button>
+      );
+    }
+
+    return null;
   };
 
   renderModal = () => {
@@ -217,7 +228,7 @@ export class ManageQueriesPage extends Component {
     }
 
     return (
-      <Modal title="Delete Query" onExit={onToggleModal}>
+      <Modal title="Delete query" onExit={onToggleModal}>
         <p>Are you sure you want to delete the selected queries?</p>
         <div className={`${baseClass}__modal-btn-wrap`}>
           <Button onClick={onDeleteQueries} variant="alert">
@@ -233,7 +244,7 @@ export class ManageQueriesPage extends Component {
 
   renderSidePanel = () => {
     const { goToEditQueryPage } = this;
-    const { selectedQuery } = this.props;
+    const { selectedQuery, currentUser } = this.props;
 
     if (!selectedQuery) {
       // FIXME: Render QueryDetailsSidePanel when Fritz has completed the mock
@@ -251,6 +262,7 @@ export class ManageQueriesPage extends Component {
       <QueryDetailsSidePanel
         onEditQuery={goToEditQueryPage}
         query={selectedQuery}
+        currentUser={currentUser}
       />
     );
   };
@@ -268,12 +280,18 @@ export class ManageQueriesPage extends Component {
       renderModal,
       renderSidePanel,
     } = this;
-    const { loadingQueries, queries: allQueries, selectedQuery } = this.props;
+    const {
+      loadingQueries,
+      queries: allQueries,
+      selectedQuery,
+      currentUser,
+    } = this.props;
     const queries = getQueries();
     const queriesCount = queries.length;
     const queriesTotalDisplay =
       queriesCount === 1 ? "1 query" : `${queriesCount} queries`;
     const isQueriesAvailable = allQueries.length > 0;
+    const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
     if (loadingQueries) {
       return false;
@@ -294,7 +312,6 @@ export class ManageQueriesPage extends Component {
                 placeholder="Filter queries"
                 value={queriesFilter}
               />
-              <KolideIcon name="search" />
             </div>
           </div>
           <p className={`${baseClass}__query-count`}>{queriesTotalDisplay}</p>
@@ -307,6 +324,7 @@ export class ManageQueriesPage extends Component {
             onDblClickQuery={onDblClickQuery}
             queries={queries}
             selectedQuery={selectedQuery}
+            isOnlyObserver={isOnlyObserver}
           />
         </div>
         {renderSidePanel()}
@@ -323,8 +341,9 @@ const mapStateToProps = (state, { location }) => {
   const selectedQuery =
     selectedQueryID && queryEntities.findBy({ id: selectedQueryID });
   const { loading: loadingQueries } = state.entities.queries;
+  const currentUser = state.auth.user;
 
-  return { loadingQueries, queries, selectedQuery };
+  return { loadingQueries, queries, selectedQuery, currentUser };
 };
 
 export default connect(mapStateToProps)(ManageQueriesPage);

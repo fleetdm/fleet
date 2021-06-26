@@ -1,5 +1,5 @@
 .query-side-panel {
-  padding: 0 28px;
+  padding: 0 $pad-large;
 
   &__header {
     margin: 0 0 $pad-medium;
@@ -34,7 +34,7 @@
     margin: 0 0 $pad-large;
     padding: 0;
 
-    .kolidecon {
+    .fleeticon {
       font-size: 18px;
       margin-right: $pad-medium;
     }
@@ -106,7 +106,9 @@
   }
 
   &__name {
-    padding: 4px 8px 4px 0px;
+    border-radius: $border-radius;
+    margin-right: $pad-small;
+    font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
   }

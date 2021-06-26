@@ -2,12 +2,13 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { size } from "lodash";
 
+import Checkbox from "components/forms/fields/Checkbox";
 import DropdownButton from "components/buttons/DropdownButton";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import helpers from "components/forms/queries/QueryForm/helpers";
 import InputField from "components/forms/fields/InputField";
-import KolideAce from "components/KolideAce";
+import FleetAce from "components/FleetAce";
 import queryInterface from "interfaces/query";
 import validateQuery from "components/forms/validators/validate_query";
 
@@ -24,7 +25,7 @@ const validate = (formData) => {
   }
 
   if (!formData.name) {
-    errors.name = "Title must be present";
+    errors.name = "Query name must be present";
   }
 
   const valid = !size(errors);
@@ -39,14 +40,16 @@ class QueryForm extends Component {
       description: formFieldInterface.isRequired,
       name: formFieldInterface.isRequired,
       query: formFieldInterface.isRequired,
+      observer_can_run: formFieldInterface.isRequired,
     }).isRequired,
-    handleSubmit: PropTypes.func.isRequired,
+    handleSubmit: PropTypes.func,
     formData: queryInterface,
     onOsqueryTableSelect: PropTypes.func.isRequired,
     onRunQuery: PropTypes.func.isRequired,
     onUpdate: PropTypes.func.isRequired,
     queryIsRunning: PropTypes.bool,
     title: PropTypes.string,
+    hasSavePermissions: PropTypes.bool.isRequired,
   };
 
   static defaultProps = {
@@ -85,6 +88,7 @@ class QueryForm extends Component {
       description: fields.description.value,
       name: fields.name.value,
       query: fields.query.value,
+      observer_can_run: fields.observer_can_run.value,
     };
 
     const { valid, errors } = validate(formData);
@@ -144,6 +148,7 @@ class QueryForm extends Component {
       onRunQuery,
       queryIsRunning,
       title,
+      hasSavePermissions,
     } = this.props;
     const { errors } = this.state;
     const { onLoad, renderButtons } = this;
@@ -152,13 +157,15 @@ class QueryForm extends Component {
       <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
         <h1>{title}</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
-        <InputField
-          {...fields.name}
-          error={fields.name.error || errors.name}
-          inputClassName={`${baseClass}__query-title`}
-          label="Query title"
-        />
-        <KolideAce
+        {hasSavePermissions && (
+          <InputField
+            {...fields.name}
+            error={fields.name.error || errors.name}
+            inputClassName={`${baseClass}__query-name`}
+            label="Query name"
+          />
+        )}
+        <FleetAce
           {...fields.query}
           error={fields.query.error || errors.query}
           label="SQL"
@@ -168,19 +175,31 @@ class QueryForm extends Component {
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           handleSubmit={onRunQuery}
         />
-        <InputField
-          {...fields.description}
-          inputClassName={`${baseClass}__query-description`}
-          label="Description"
-          type="textarea"
-        />
-        {renderButtons()}
+        {hasSavePermissions && (
+          <>
+            <InputField
+              {...fields.description}
+              inputClassName={`${baseClass}__query-description`}
+              label="Description"
+              type="textarea"
+            />
+            <Checkbox
+              {...fields.observer_can_run}
+              wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+            >
+              Observers can run
+            </Checkbox>
+            Users with the Observer role will be able to run this query on hosts
+            where they have access.
+            {renderButtons()}
+          </>
+        )}
       </form>
     );
   }
 }
 
 export default Form(QueryForm, {
-  fields: ["description", "name", "query"],
+  fields: ["description", "name", "query", "observer_can_run"],
   validate,
 });

@@ -3,7 +3,7 @@
   align-items: stretch;
 
   h1 {
-    margin: 0 0 30px;
+    margin: 0 0 $pad-xlarge;
   }
 
   h2 {
@@ -21,7 +21,7 @@
     max-width: 350px;
     min-width: 350px;
     box-sizing: border-box;
-    padding: 30px;
+    padding: $pad-xlarge;
     background-color: $ui-light-grey;
     min-height: 100vh;
   }
@@ -51,7 +51,7 @@
   &__description {
     font-size: $x-small;
     font-style: italic;
-    margin: 4px 0;
+    margin: $pad-xsmall 0;
   }
 
   &__avatar {
@@ -64,7 +64,7 @@
   &__more-info-detail {
     color: $core-fleet-black;
 
-    .kolidecon {
+    .fleeticon {
       color: $ui-gray;
       font-size: 18px;
       margin-right: 11px;
@@ -79,6 +79,10 @@
     font-size: $x-small;
     font-style: italic;
     margin: 4px 0 $pad-large;
+  }
+
+  &__confirm-update {
+    margin-bottom: $pad-medium;
   }
 
   &__reveal-secret {

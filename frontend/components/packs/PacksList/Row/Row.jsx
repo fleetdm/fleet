@@ -6,7 +6,6 @@ import moment from "moment";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import ClickableTableRow from "components/ClickableTableRow";
-import KolideIcon from "components/icons/KolideIcon";
 import packInterface from "interfaces/pack";
 
 const baseClass = "packs-list-row";
@@ -45,15 +44,11 @@ class Row extends Component {
 
   renderStatusData = () => {
     const { disabled } = this.props.pack;
-    const iconClassName = classNames(`${baseClass}__status-icon`, {
-      [`${baseClass}__status-icon--enabled`]: !disabled,
-      [`${baseClass}__status-icon--disabled`]: disabled,
-    });
 
     if (disabled) {
       return (
         <td className={`${baseClass}__td`}>
-          <KolideIcon className={iconClassName} name="offline" />
+          <span className={`${baseClass}__disabled-icon`} />
           <span className={`${baseClass}__status-text`}>Disabled</span>
         </td>
       );
@@ -61,7 +56,7 @@ class Row extends Component {
 
     return (
       <td className={`${baseClass}__td`}>
-        <KolideIcon className={iconClassName} name="success-check" />
+        <span className={`${baseClass}__enabled-icon`} />
         <span className={`${baseClass}__status-text`}>Enabled</span>
       </td>
     );

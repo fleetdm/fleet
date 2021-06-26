@@ -2,7 +2,6 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { filter } from "lodash";
 
-import KolideIcon from "components/icons/KolideIcon";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import labelInterface from "interfaces/label";
@@ -19,6 +18,7 @@ class HostSidePanel extends Component {
     onLabelClick: PropTypes.func,
     selectedFilter: PropTypes.string,
     statusLabels: statusLabelsInterface,
+    canAddNewLabel: PropTypes.bool,
   };
 
   constructor(props) {
@@ -41,6 +41,7 @@ class HostSidePanel extends Component {
       onLabelClick,
       selectedFilter,
       statusLabels,
+      canAddNewLabel,
     } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
@@ -92,7 +93,6 @@ class HostSidePanel extends Component {
             value={labelFilter}
             inputWrapperClass={`${baseClass}__filter-labels`}
           />
-          <KolideIcon name="search" />
         </div>
         <PanelGroup
           groupItems={customLabels}
@@ -100,14 +100,15 @@ class HostSidePanel extends Component {
           selectedFilter={selectedFilter}
           type="label"
         />
-
-        <Button
-          variant="grey"
-          onClick={onAddLabelClick}
-          className={`${baseClass}__add-label-btn`}
-        >
-          Add new label
-        </Button>
+        {canAddNewLabel ? (
+          <Button
+            variant="grey"
+            onClick={onAddLabelClick}
+            className={`${baseClass}__add-label-btn`}
+          >
+            Add new label
+          </Button>
+        ) : null}
       </SecondarySidePanelContainer>
     );
   }
