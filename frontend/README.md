@@ -5,7 +5,7 @@ The Fleet front-end is a Single Page Application using React and Redux.
 ## Running the Fleet web app
 
 For details instruction on building and serving the Fleet web application
-consult the [Contribution documentation](../docs/4-Contribution/README.md)
+consult the [Contribution documentation](../docs/4-Contribution/README.md).
 
 ## Directory Structure
 
@@ -58,7 +58,7 @@ component's PropTypes.
 The default export of the `fleet` directory is the API client. More info can be
 found at the [API client documentation page](./fleet/README.md).
 
-### [layouts](https://github.com/fleetdm/fleet/tree/master/frontend/layouts)
+### [layouts](https://github.com/fleetdm/fleet/tree/main/frontend/layouts)
 
 The Fleet application has only 1 layout, the [Core Layout](./layouts/CoreLayout/CoreLayout.jsx).
 The Layout is rendered from the [router](./router/index.jsx) and are used to set up the general app UI (header, sidebar) and render child components.

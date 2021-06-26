@@ -33,7 +33,7 @@ Passwords are never stored in plaintext in the database. We store a `bcrypt`ed h
 
 ### Authentication tokens
 
-The size and expiration time of session tokens is admin-configurable. See [https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#session_duration](../3-Deployment/2-Configuration.md#session_duration).
+The size and expiration time of session tokens is admin-configurable. See [The documentation on session duration](../2-Deploying/2-Configuration.md#session_duration).
 
 It is possible to revoke all session tokens for a user by forcing a password reset.
 
@@ -43,7 +43,7 @@ By default, all traffic between user clients (such as the web browser and fleetc
 
 ## Broken access controls – how restrictions on what authorized users are allowed to do/access are enforced.
 
-Each session is associated with a viewer context that is used to determine the access granted to that user. Access controls can easily be applied as middleware in the routing table, so the access to a route is clearly defined in the same place where the route is attached to the server see [https://github.com/fleetdm/fleet/blob/master/server/service/handler.go#L114-L189](https://github.com/fleetdm/fleet/blob/master/server/service/handler.go#L114-L189).
+Each session is associated with a viewer context that is used to determine the access granted to that user. Access controls can easily be applied as middleware in the routing table, so the access to a route is clearly defined in the same place where the route is attached to the server see [https://github.com/fleetdm/fleet/blob/main/server/service/handler.go#L114-L189](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go#L114-L189).
 
 ## Cross-site scripting – ensure an attacker can’t execute scripts in the user’s browser
 

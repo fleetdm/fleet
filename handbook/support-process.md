@@ -2,11 +2,19 @@
 
 This living document outlines the customer and community support process at Fleet.
 
-The support process is accomplished via an on-call rotation and the weekly Roundup meeting.
+The support process is accomplished via an on-call rotation and the weekly on-call retro meeting.
 
 The individual on-call is responsible for responding to Slack comments, Slack threads, and GitHub issues raised by customers and the community.
 
-The Roundup meeting at Fleet provides time to discuss action items from that are collected during the support process. The individual on-call is responsible for preparing for and leading the Roundup meeting. The Roundup meeting occurs at a weekly cadence and usually falls on a Tuesday (EST time).
+The on-call retro meeting at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
+
+1. What went well?
+
+2. What could have gone better?
+
+3. What should we remember next time?
+
+This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
 
 ## Goals
 
@@ -47,6 +55,11 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by memb
 - Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?." 
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when it is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
+#### New feature request issues
+
+After [requesting more details](#requesting-more-details), please add the milestone associated with the current time we are along the roadmap timeline. For example, if the current date is June 25, 2021, we would add the H1 2021 milestone to the issue.
+
+Feature request issues automatically include the "idea" label. The "idea" label provides the signal that this issue is an item the Fleet team would like to discuss at a later date. The time of discussion is indicated by the issue's milestones.
 
 #### Closing issues
 
@@ -67,82 +80,10 @@ There are three sources that the individual on-call should monitor for activity:
 
 3. GitHub issues and pull requests - [Github Triage: Community contributions with no milestones or assignees](https://github.com/issues?q=is%3Aopen+archived%3Afalse+org%3Afleetdm+no%3Amilestone+no%3Aassignee+sort%3Aupdated-desc+)
 
-## Roundup preparation
+## Resources
 
-The Roundup meeting occurs at Fleet one every week. One to two days prior to the meeting, the individual on-call will revisit old threads and determine which items are actionable.
+There are several locations in Fleet's public and internal documentation that can be helpful when answering questions raised by the community:
 
-A list of all social channels to visit during Roundup preparation can be found in the [Community support spin Google doc](https://docs.google.com/document/d/1dPxB88SQeDdZkZjg7RMwzdq0umMSHCZ2B2UdiZ4ko5s/edit#).
+1. The frequently asked question (FAQ) documents in each section found in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/1-Using-Fleet/FAQ.md), [Deploying FAQ](../docs/2-Deploying/FAQ.md), and [Contributing FAQ](../docs/3-Contributing/FAQ.md).
 
-All pull requests, bugs, feature requests, and questions are candidates for discussion at the Roundup meeting. 
-
-The steps taken to determine if an item should be brought to the Roundup meeting are as follows:
-
-#### Pull requests
-
-- Would this pull request result in any current documentation becoming inaccurate or out of date?  If so, then make sure that the PR also covers those documentation changes.
-
-- Does this pull request seem low risk, e.g. a typo fix for the docs?  Could it possibly be merged on the spot during the roundup? If no, try to QA the change and verify it works.  If you aren't sure, work with the person who submitted it and other people who might be reading the PR to get answers.
-
-- If yes, then add to the [🐄 Roundup Google doc](https://docs.google.com/document/d/16n0xT9RVqnlNSGaTLXmPJp-KJT9JN3cEyXSbudqBiZQ/edit#heading=h.le0crozigvb) in the following format:
-
-```
-PULL REQUEST: (Who is the individual submitting the PR? Where do they work?)
-
-1. Include the title of the pull request here.
-
-2. Include a description of the changes here.
-
-3. Include reasoning on why you think it makes sense or does not make sense to merge these changes here.
-```
-
-#### Bugs
-
-- Wait... is this actually the intentional, documented behavior of the product? If so, gently, empathetically let the reporter know and link them to the docs.
-
-- Prove the bug exists. Record a Loom video proving the bug (shorter the better), or work with the reporter to gather up concise steps to reproduce, then verify the bug yourself if possible.
-
-- If you're able to reproduce the bug, let the reporter know-- share your attempted proof.
-
-- When you have a proof of the bug, add to the [🐄 Roundup Google doc](https://docs.google.com/document/d/16n0xT9RVqnlNSGaTLXmPJp-KJT9JN3cEyXSbudqBiZQ/edit#heading=h.le0crozigvb) in the following format:
-
-```
-BUG: (Who is the individual reporting the bug? Where do they work?)
-
-1. Expected behavior: Provide a short description of the expected behavior here.
-
-2. Actual behavior Provide a short description of the actual behavior here. Include a link to the Loom video that includes proof of the bug.
-```
-
-#### Feature requests
-
-- Wait... does this feature already exist in Fleet? If so, gently, empathetically let the reporter know and link them to the release notes if the feature was introduced in a recent release of Fleet.
-
-- Is there already an open PR and/or issue seeking to address this? If so, link the person to the PR and triage it as "Ready for roundup".
-
-- Otherwise reply to let the person know you'll discuss with the rest of the team and add to the [🐄 Roundup Google doc](https://docs.google.com/document/d/16n0xT9RVqnlNSGaTLXmPJp-KJT9JN3cEyXSbudqBiZQ/edit#heading=h.le0crozigvb) in the following format:
-
-```
-FEATURE REQUEST: (Who is the individual submitting the feature request? Where do they work?)
-
-1. What does the user want to be able to do in Fleet? Is the requested feature for fleetctl, REST API or the Fleet UI?
-
-2. Motivation: What is the use case or motivation behind the request? You may have to ask the reporter additional questions to uncover this information. For example, "why would it be helpful to have this ability in Fleet?"
-```
-
-#### Questions
-
-- Is this question already answered in our docs / website? If so, link to the specific section of the docs/website ± summarize for them. For commonly asked questions, check out the `FAQ.md` file in each top-level section of the [docs](../docs/README.md) (Using-Fleet, Deployment, etc.).
-
-- Do you think you know the answer? If so, make a PR to the docs/website. Link the person to your PR.
-
-- Otherwise if you don't know the answer, reply to let the person know you're working on it add to the [🐄 Roundup Google doc](https://docs.google.com/document/d/16n0xT9RVqnlNSGaTLXmPJp-KJT9JN3cEyXSbudqBiZQ/edit#heading=h.le0crozigvb) in the following format:
-
-```
-QUESTION: (Who is the individual asking the question? Where do they work?)
-
-1. Include the question here.
-
-2. Include your best guess answer here.
-
-3. Include the location in the Fleet documentation where inserting the future answer makes the most sense to you.
-```
+2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
