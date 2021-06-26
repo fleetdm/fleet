@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/ptr"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,8 +28,8 @@ func testCountHostsInTargets(t *testing.T, ds fleet.Datastore) {
 		hostCount += 1
 		h, err := ds.NewHost(&fleet.Host{
 			OsqueryHostID:       strconv.Itoa(hostCount),
-			DetailUpdateTime:    mockClock.Now(),
-			LabelUpdateTime:     mockClock.Now(),
+			DetailUpdatedAt:     mockClock.Now(),
+			LabelUpdatedAt:      mockClock.Now(),
 			SeenTime:            mockClock.Now(),
 			NodeKey:             strconv.Itoa(hostCount),
 			DistributedInterval: distributedInterval,
@@ -235,11 +235,11 @@ func testHostIDsInTargets(t *testing.T, ds fleet.Datastore) {
 	initHost := func() *fleet.Host {
 		hostCount += 1
 		h, err := ds.NewHost(&fleet.Host{
-			OsqueryHostID:    strconv.Itoa(hostCount),
-			NodeKey:          strconv.Itoa(hostCount),
-			DetailUpdateTime: time.Now(),
-			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now(),
+			OsqueryHostID:   strconv.Itoa(hostCount),
+			NodeKey:         strconv.Itoa(hostCount),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
 		})
 		require.Nil(t, err)
 		return h

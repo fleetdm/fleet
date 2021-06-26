@@ -10,7 +10,9 @@ describe("Setup", () => {
     cy.contains(/setup/i);
 
     // Page 1
-    cy.findByPlaceholderText(/username/i).type("test");
+    cy.findByPlaceholderText(/full name/i).type("Test name");
+
+    cy.findByPlaceholderText(/email/i).type("test@example.com");
 
     cy.findByPlaceholderText(/^password/i)
       .first()
@@ -19,8 +21,6 @@ describe("Setup", () => {
     cy.findByPlaceholderText(/confirm password/i)
       .last()
       .type("admin123#");
-
-    cy.findByPlaceholderText(/email/i).type("test@example.com");
 
     cy.contains("button:enabled", /next/i).click();
 

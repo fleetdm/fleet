@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,23 +28,23 @@ func testUnicode(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, "測試", label.Name)
 
 	host, err := ds.NewHost(&fleet.Host{
-		HostName:         "🍌",
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
+		Hostname:        "🍌",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
 	})
 	require.Nil(t, err)
 
 	host, err = ds.Host(host.ID)
 	require.Nil(t, err)
-	assert.Equal(t, "🍌", host.HostName)
+	assert.Equal(t, "🍌", host.Hostname)
 
-	user, err := ds.NewUser(&fleet.User{Username: "🍱", Password: []byte{}})
+	user, err := ds.NewUser(&fleet.User{Name: "🍱", Email: "test@example.com", Password: []byte{}})
 	require.Nil(t, err)
 
-	user, err = ds.User(user.Username)
+	user, err = ds.UserByID(user.ID)
 	require.Nil(t, err)
-	assert.Equal(t, "🍱", user.Username)
+	assert.Equal(t, "🍱", user.Name)
 
 	pack := test.NewPack(t, ds, "👨🏾‍🚒")
 

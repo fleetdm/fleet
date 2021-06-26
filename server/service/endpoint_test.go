@@ -9,9 +9,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
@@ -61,7 +61,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 	test.server = httptest.NewServer(routes)
 
 	userParam := loginRequest{
-		Username: "admin1",
+		Email:    "admin1",
 		Password: testUsers["admin1"].PlaintextPassword,
 	}
 
@@ -79,7 +79,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 	test.adminToken = jsn.Token
 
 	// log in non admin user
-	userParam.Username = "user1"
+	userParam.Email = "user1"
 	userParam.Password = testUsers["user1"].PlaintextPassword
 	marshalledUser, _ = json.Marshal(userParam)
 	requestBody = &nopCloser{bytes.NewBuffer(marshalledUser)}

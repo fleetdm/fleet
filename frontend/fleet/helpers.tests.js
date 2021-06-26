@@ -179,7 +179,6 @@ describe("Kolide API - helpers", () => {
       org_name: "The Gnar Co.",
       password: "p@ssw0rd",
       password_confirmation: "p@ssw0rd",
-      username: "gnardog",
     };
 
     it("formats the form data to send to the server", () => {
@@ -195,7 +194,6 @@ describe("Kolide API - helpers", () => {
           name: "Gnar Dog",
           password: "p@ssw0rd",
           password_confirmation: "p@ssw0rd",
-          username: "gnardog",
         },
       });
     });

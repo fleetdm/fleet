@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/bindata"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/bindata"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 

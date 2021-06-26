@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/patrickmn/sortutil"
 )
 
@@ -79,19 +79,19 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 	// Apply ordering
 	if opt.OrderKey != "" {
 		var fields = map[string]string{
-			"id":                 "ID",
-			"created_at":         "CreatedAt",
-			"updated_at":         "UpdatedAt",
-			"detail_update_time": "DetailUpdateTime",
-			"hostname":           "HostName",
-			"uuid":               "UUID",
-			"platform":           "Platform",
-			"osquery_version":    "OsqueryVersion",
-			"os_version":         "OSVersion",
-			"uptime":             "Uptime",
-			"memory":             "PhysicalMemory",
-			"mac":                "PrimaryMAC",
-			"ip":                 "PrimaryIP",
+			"id":                "ID",
+			"created_at":        "CreatedAt",
+			"updated_at":        "UpdatedAt",
+			"detail_updated_at": "DetailUpdatedAt",
+			"hostname":          "Hostname",
+			"uuid":              "UUID",
+			"platform":          "Platform",
+			"osquery_version":   "OsqueryVersion",
+			"os_version":        "OSVersion",
+			"uptime":            "Uptime",
+			"memory":            "Memory",
+			"mac":               "PrimaryMAC",
+			"ip":                "PrimaryIP",
 		}
 		if err := sortResults(hosts, opt.ListOptions, fields); err != nil {
 			return nil, err
@@ -164,9 +164,9 @@ func (d *Datastore) EnrollHost(osQueryHostID, nodeKey string, teamID *uint, cool
 	}
 
 	host := fleet.Host{
-		OsqueryHostID:    osQueryHostID,
-		NodeKey:          nodeKey,
-		DetailUpdateTime: time.Unix(0, 0).Add(24 * time.Hour),
+		OsqueryHostID:   osQueryHostID,
+		NodeKey:         nodeKey,
+		DetailUpdatedAt: time.Unix(0, 0).Add(24 * time.Hour),
 	}
 
 	host.CreatedAt = time.Now().UTC()
@@ -230,7 +230,7 @@ func (d *Datastore) SearchHosts(filter fleet.TeamFilter, query string, omit ...u
 			break
 		}
 
-		if (strings.Contains(h.HostName, query) || strings.Contains(h.UUID, query)) && !omitLookup[h.ID] {
+		if (strings.Contains(h.Hostname, query) || strings.Contains(h.UUID, query)) && !omitLookup[h.ID] {
 			results = append(results, h)
 			continue
 		}

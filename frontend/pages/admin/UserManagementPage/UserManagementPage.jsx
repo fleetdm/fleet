@@ -67,7 +67,6 @@ export class UserManagementPage extends Component {
     userErrors: PropTypes.shape({
       base: PropTypes.string,
       name: PropTypes.string,
-      username: PropTypes.string,
     }),
     teams: PropTypes.arrayOf(teamInterface),
   };
@@ -111,7 +110,6 @@ export class UserManagementPage extends Component {
             renderFlash("success", `Successfully edited ${userEditing?.name}`)
           );
           toggleEditUserModal();
-          window.scrollTo(0, 0);
         })
         .catch(() => {
           dispatch(
@@ -121,7 +119,6 @@ export class UserManagementPage extends Component {
             )
           );
           toggleEditUserModal();
-          window.scrollTo(0, 0);
         });
     }
 
@@ -135,7 +132,6 @@ export class UserManagementPage extends Component {
       .then(() => {
         dispatch(renderFlash("success", userUpdatedFlashMessage));
         toggleEditUserModal();
-        window.scrollTo(0, 0);
       })
       .catch(() => {
         dispatch(
@@ -145,12 +141,11 @@ export class UserManagementPage extends Component {
           )
         );
         toggleEditUserModal();
-        window.scrollTo(0, 0);
       });
   };
 
   onCreateUserSubmit = (formData) => {
-    const { dispatch } = this.props;
+    const { dispatch, config } = this.props;
     // Do some data formatting adding `invited_by` for the request to be correct.
     const requestData = {
       ...formData,
@@ -160,17 +155,18 @@ export class UserManagementPage extends Component {
     dispatch(inviteActions.create(requestData))
       .then(() => {
         dispatch(
-          renderFlash("success", `Successfully created ${formData.name}.`)
+          renderFlash(
+            "success",
+            `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
+          )
         );
         this.toggleCreateUserModal();
-        window.scrollTo(0, 0);
       })
       .catch(() => {
         dispatch(
           renderFlash("error", "Could not create user. Please try again.")
         );
         this.toggleCreateUserModal();
-        window.scrollTo(0, 0);
       });
   };
 
@@ -190,7 +186,6 @@ export class UserManagementPage extends Component {
           dispatch(
             renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
           );
-          window.scrollTo(0, 0);
         })
         .catch(() => {
           dispatch(
@@ -199,7 +194,6 @@ export class UserManagementPage extends Component {
               `Could not delete ${userEditing?.name}. Please try again.`
             )
           );
-          window.scrollTo(0, 0);
         });
       toggleDeleteUserModal();
     } else {
@@ -215,7 +209,6 @@ export class UserManagementPage extends Component {
             )
           );
         });
-      window.scrollTo(0, 0);
       toggleDeleteUserModal();
     }
   };

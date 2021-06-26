@@ -4,21 +4,21 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw loggingMiddleware) Login(ctx context.Context, username, password string) (user *fleet.User, token string, err error) {
+func (mw loggingMiddleware) Login(ctx context.Context, email, password string) (user *fleet.User, token string, err error) {
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
 			"method", "Login",
-			"user", username,
+			"user", email,
 			"err", err,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
 
-	user, token, err = mw.Service.Login(ctx, username, password)
+	user, token, err = mw.Service.Login(ctx, email, password)
 	return
 }
 

@@ -72,7 +72,7 @@ fleetctl config set --address https://fleet.corp.example.com
 Now that we've configured our local CLI context, lets go ahead and create our admin account:
 
 ```
-fleetctl setup --email mike@arpaia.co
+fleetctl setup --email zwass@example.com --name 'Zach' --org-name 'Fleet Test'
 Password:
 [+] Fleet setup successful and context configured!
 ```
@@ -81,7 +81,7 @@ It's possible to specify the password via the `--password` flag or the `$PASSWOR
 
 ### Connecting a host
 
-For the sake of this tutorial, I'm going to be using Kolide's osquery launcher to start osquery locally and connect it to Fleet. To learn more about connecting osquery to Fleet, see the [Adding Hosts to Fleet](../3-Deployment/3-Adding-hosts.md) documentation.
+For the sake of this tutorial, I'm going to be using Kolide's osquery launcher to start osquery locally and connect it to Fleet. To learn more about connecting osquery to Fleet, see the [Adding Hosts to Fleet](./4-Adding-hosts.md) documentation.
 
 To get your osquery enroll secret, run the following:
 
@@ -196,7 +196,7 @@ Once your local context is configured, you can use the above `fleetctl` normally
 
 Users that authenticate to Fleet via SSO should retrieve their API token from the UI and set it manually in their `fleetctl` configuration (instead of logging in via `fleetctl login`).
 
-1. Go to the "Account Settings" page in Fleet (https://fleet.corp.example.com/settings). Click the "Get API Token" button to bring up a modal with the API token.
+1. Go to the "My account" page in Fleet (https://fleet.corp.example.com/profile). Click the "Get API Token" button to bring up a modal with the API token.
 
 2. Set the API token in the `~/.fleet/config` file. The file should look like the following:
 
@@ -558,7 +558,7 @@ spec:
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
-File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#s3-file-carving-backend).
+File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](../3-Deployment/2-Configuration.md#s3-file-carving-backend).
 
 ### Configuration
 

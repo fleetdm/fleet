@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/websocket"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/websocket"
 )
 
 func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, querySQL string, queryID *uint, targets fleet.HostTargets) (*fleet.DistributedQueryCampaign, error) {
@@ -17,7 +17,7 @@ func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, que
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		var numHosts uint = 0
@@ -45,7 +45,7 @@ func (mw loggingMiddleware) NewDistributedQueryCampaignByNames(ctx context.Conte
 		err          error
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		var numHosts uint = 0
@@ -73,7 +73,7 @@ func (mw loggingMiddleware) StreamCampaignResults(ctx context.Context, conn *web
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(

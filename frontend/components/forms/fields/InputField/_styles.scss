@@ -21,7 +21,7 @@
   }
 
   &--disabled {
-    background-color: #f9f9f9;
+    color: $ui-fleet-black-50;
   }
 
   &--error {
@@ -35,10 +35,6 @@
       background-color: $core-white;
       color: $core-fleet-black;
     }
-  }
-
-  &--password {
-    letter-spacing: 7px;
   }
 
   &__textarea {

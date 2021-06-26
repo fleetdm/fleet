@@ -18,7 +18,6 @@ describe("UserSettingsForm - component", () => {
 
     itBehavesLikeAFormInputElement(form, "email");
     itBehavesLikeAFormInputElement(form, "name");
-    itBehavesLikeAFormInputElement(form, "username");
   });
 
   it("calls the handleSubmit props with form data", () => {
@@ -28,15 +27,12 @@ describe("UserSettingsForm - component", () => {
     const expectedFormData = {
       email: "email@example.com",
       name: "Jim Example",
-      username: "jimmyexamples",
     };
     const emailInput = form.find({ name: "email" }).find("input");
     const nameInput = form.find({ name: "name" }).find("input");
-    const usernameInput = form.find({ name: "username" }).find("input");
 
     fillInFormInput(emailInput, expectedFormData.email);
     fillInFormInput(nameInput, expectedFormData.name);
-    fillInFormInput(usernameInput, expectedFormData.username);
 
     form.find("form").simulate("submit");
 
@@ -47,7 +43,6 @@ describe("UserSettingsForm - component", () => {
     const user = {
       email: "email@example.com",
       name: "Jim Example",
-      username: "jimmyexamples",
     };
     const props = { ...defaultProps, formData: user };
     const form = mount(<UserSettingsForm {...props} />);

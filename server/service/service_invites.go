@@ -5,9 +5,9 @@ import (
 	"encoding/base64"
 	"html/template"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/mail"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/pkg/errors"
 )
 
@@ -67,18 +67,18 @@ func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayloa
 
 	invitedBy := inviter.Name
 	if invitedBy == "" {
-		invitedBy = inviter.Username
+		invitedBy = inviter.Email
 	}
 	inviteEmail := fleet.Email{
 		Subject: "You are Invited to Fleet",
 		To:      []string{invite.Email},
 		Config:  config,
 		Mailer: &mail.InviteMailer{
-			Invite:            invite,
-			BaseURL:           template.URL(config.ServerURL + svc.config.Server.URLPrefix),
-			AssetURL:          getAssetURL(),
-			OrgName:           config.OrgName,
-			InvitedByUsername: invitedBy,
+			Invite:    invite,
+			BaseURL:   template.URL(config.ServerURL + svc.config.Server.URLPrefix),
+			AssetURL:  getAssetURL(),
+			OrgName:   config.OrgName,
+			InvitedBy: invitedBy,
 		},
 	}
 

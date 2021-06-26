@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,8 +14,8 @@ import (
 func testApplyQueries(t *testing.T, ds fleet.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
-	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
-	groob := test.NewUser(t, ds, "Victor", "groob", "victor@fleet.co", true)
+	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+	groob := test.NewUser(t, ds, "Victor", "victor@fleet.co", true)
 	expectedQueries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo", ObserverCanRun: true},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
@@ -76,7 +76,7 @@ func testApplyQueries(t *testing.T, ds fleet.Datastore) {
 }
 
 func testDeleteQuery(t *testing.T, ds fleet.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	query := &fleet.Query{
 		Name:     "foo",
@@ -97,7 +97,7 @@ func testDeleteQuery(t *testing.T, ds fleet.Datastore) {
 }
 
 func testGetQueryByName(t *testing.T, ds fleet.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
 	actual, err := ds.QueryByName("q1")
 	require.Nil(t, err)
@@ -110,7 +110,7 @@ func testGetQueryByName(t *testing.T, ds fleet.Datastore) {
 }
 
 func testDeleteQueries(t *testing.T, ds fleet.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	q1 := test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
 	q2 := test.NewQuery(t, ds, "q2", "select * from processes", user.ID, true)
@@ -148,7 +148,7 @@ func testDeleteQueries(t *testing.T, ds fleet.Datastore) {
 }
 
 func testSaveQuery(t *testing.T, ds fleet.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	query := &fleet.Query{
 		Name:     "foo",
@@ -175,7 +175,7 @@ func testSaveQuery(t *testing.T, ds fleet.Datastore) {
 }
 
 func testListQuery(t *testing.T, ds fleet.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewQuery(&fleet.Query{
@@ -203,7 +203,7 @@ func testListQuery(t *testing.T, ds fleet.Datastore) {
 }
 
 func testLoadPacksForQueries(t *testing.T, ds fleet.Datastore) {
-	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "q1", Query: "select * from time"},
 		{Name: "q2", Query: "select * from osquery_info"},
@@ -327,7 +327,7 @@ func testLoadPacksForQueries(t *testing.T, ds fleet.Datastore) {
 }
 
 func testDuplicateNewQuery(t *testing.T, ds fleet.Datastore) {
-	user := test.NewUser(t, ds, "Mike Arpaia", "marpaia", "mike@fleet.co", true)
+	user := test.NewUser(t, ds, "Mike Arpaia", "mike@fleet.co", true)
 	q1, err := ds.NewQuery(&fleet.Query{
 		Name:     "foo",
 		Query:    "select * from time;",

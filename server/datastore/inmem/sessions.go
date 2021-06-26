@@ -3,7 +3,7 @@ package inmem
 import (
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (d *Datastore) SessionByKey(key string) (*fleet.Session, error) {

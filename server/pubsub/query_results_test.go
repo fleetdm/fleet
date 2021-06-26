@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -95,7 +95,7 @@ func testQueryResultsStoreErrors(t *testing.T, store fleet.QueryResultStore) {
 						UpdatedAt: time.Now().UTC(),
 					},
 				},
-				DetailUpdateTime: time.Now().UTC(),
+				DetailUpdatedAt: time.Now().UTC(),
 			},
 		},
 	)
@@ -132,8 +132,8 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 					},
 				},
 
-				DetailUpdateTime: time.Now().UTC(),
-				SeenTime:         time.Now().UTC(),
+				DetailUpdatedAt: time.Now().UTC(),
+				SeenTime:        time.Now().UTC(),
 			},
 		},
 		fleet.DistributedQueryResult{
@@ -150,8 +150,8 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 					},
 				},
 
-				DetailUpdateTime: time.Now().UTC(),
-				SeenTime:         time.Now().UTC(),
+				DetailUpdatedAt: time.Now().UTC(),
+				SeenTime:        time.Now().UTC(),
 			},
 		},
 		fleet.DistributedQueryResult{
@@ -168,8 +168,8 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 					},
 				},
 
-				DetailUpdateTime: time.Now().UTC(),
-				SeenTime:         time.Now().UTC(),
+				DetailUpdatedAt: time.Now().UTC(),
+				SeenTime:        time.Now().UTC(),
 			},
 		},
 	}
@@ -181,7 +181,7 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 	assert.Nil(t, err)
 
 	expected2 := []fleet.DistributedQueryResult{
-		fleet.DistributedQueryResult{
+		{
 			DistributedQueryCampaignID: 2,
 			Rows:                       []map[string]string{{"tim": "tom"}},
 			Host: fleet.Host{
@@ -195,11 +195,11 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 					},
 				},
 
-				DetailUpdateTime: time.Now().UTC(),
-				SeenTime:         time.Now().UTC(),
+				DetailUpdatedAt: time.Now().UTC(),
+				SeenTime:        time.Now().UTC(),
 			},
 		},
-		fleet.DistributedQueryResult{
+		{
 			DistributedQueryCampaignID: 2,
 			Rows:                       []map[string]string{{"slim": "slam"}},
 			Host: fleet.Host{
@@ -213,8 +213,8 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 					},
 				},
 
-				DetailUpdateTime: time.Now().UTC(),
-				SeenTime:         time.Now().UTC(),
+				DetailUpdatedAt: time.Now().UTC(),
+				SeenTime:        time.Now().UTC(),
 			},
 		},
 	}

@@ -49,6 +49,6 @@ Please join us in the #fleet channel on [osquery Slack](https://osquery.slack.co
 
 #### Contributing
 
-Contributions are welcome, whether you answer questions on Slack/GitHub/StackOverflow/Twitter, improve the documentation or website, write a tutorial, give a talk, start a local osquery meetup, troubleshoot reported issues, or [submit a patch](https://github.com/fleetdm/fleet/blob/master/CONTRIBUTING.md).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/master/CODE_OF_CONDUCT.md).
+Contributions are welcome, whether you answer questions on Slack/GitHub/StackOverflow/Twitter, improve the documentation or website, write a tutorial, give a talk, start a local osquery meetup, troubleshoot reported issues, or [submit a patch](https://github.com/fleetdm/fleet/blob/main/CONTRIBUTING.md).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
 
 <a href="https://fleetdm.com"><img alt="Banner featuring a futuristic cloud city with the Fleet logo" src="https://user-images.githubusercontent.com/618009/98254443-eaf21100-1f41-11eb-9e2c-63a0545601f3.jpg"/></a>

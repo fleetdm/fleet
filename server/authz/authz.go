@@ -14,9 +14,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	authz_ctx "github.com/fleetdm/fleet/server/contexts/authz"
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/pkg/errors"
 )

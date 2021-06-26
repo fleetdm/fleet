@@ -4,13 +4,7 @@ import moment from "moment";
 import yaml from "js-yaml";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
-const ADMIN_ATTRS = [
-  "email",
-  "name",
-  "password",
-  "password_confirmation",
-  "username",
-];
+const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
 export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
@@ -88,6 +82,7 @@ export const formatConfigDataForServer = (config: any): any => {
     "server_url",
     "osquery_enroll_secret",
     "live_query_disabled",
+    "enable_analytics",
   ]);
   const smtpSettingsAttrs = pick(config, [
     "authentication_method",
@@ -370,6 +365,34 @@ export const secondsToHms = (d: number): string => {
   return hDisplay + mDisplay + sDisplay;
 };
 
+export const syntaxHighlight = (json: JSON): string => {
+  let jsonStr: string = JSON.stringify(json, undefined, 2);
+  jsonStr = jsonStr
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  /* eslint-disable no-useless-escape */
+  return jsonStr.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    function (match) {
+      let cls = "number";
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) {
+          cls = "key";
+        } else {
+          cls = "string";
+        }
+      } else if (/true|false/.test(match)) {
+        cls = "boolean";
+      } else if (/null/.test(match)) {
+        cls = "null";
+      }
+      return `<span class="${cls}">${match}</span>`;
+    }
+  );
+  /* eslint-enable no-useless-escape */
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -387,4 +410,5 @@ export default {
   labelSlug,
   setupData,
   frontendFormattedConfig,
+  syntaxHighlight,
 };

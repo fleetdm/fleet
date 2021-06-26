@@ -500,6 +500,21 @@ How long invite tokens should be valid for.
   	invite_token_validity_period: 1d
   ```
 
+##### License
+
+###### `license_key`
+
+The license key provided to Fleet customers which provides access to Fleet Basic features.
+
+- Default value: none
+- Environment variable: `FLEET_LICENSE_KEY`
+- Config file format:
+
+  ```
+  license:
+    key: foobar
+  ```
+
 ##### Session
 
 ###### `session_key_size`

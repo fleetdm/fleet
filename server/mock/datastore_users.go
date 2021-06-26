@@ -2,13 +2,11 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/server/fleet"
+import "github.com/fleetdm/fleet/v4/server/fleet"
 
 var _ fleet.UserStore = (*UserStore)(nil)
 
 type NewUserFunc func(user *fleet.User) (*fleet.User, error)
-
-type UserFunc func(username string) (*fleet.User, error)
 
 type ListUsersFunc func(opt fleet.UserListOptions) ([]*fleet.User, error)
 
@@ -27,9 +25,6 @@ type ConfirmPendingEmailChangeFunc func(userID uint, token string) (string, erro
 type UserStore struct {
 	NewUserFunc        NewUserFunc
 	NewUserFuncInvoked bool
-
-	UserFunc        UserFunc
-	UserFuncInvoked bool
 
 	ListUsersFunc        ListUsersFunc
 	ListUsersFuncInvoked bool
@@ -56,11 +51,6 @@ type UserStore struct {
 func (s *UserStore) NewUser(user *fleet.User) (*fleet.User, error) {
 	s.NewUserFuncInvoked = true
 	return s.NewUserFunc(user)
-}
-
-func (s *UserStore) User(username string) (*fleet.User, error) {
-	s.UserFuncInvoked = true
-	return s.UserFunc(username)
 }
 
 func (s *UserStore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {

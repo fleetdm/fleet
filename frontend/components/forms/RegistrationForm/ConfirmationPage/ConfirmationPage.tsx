@@ -61,7 +61,7 @@ const ConfirmationPage = ({
     email,
     fleet_web_address: fleetWebAddress,
     org_name: orgName,
-    username,
+    name,
   } = formData;
   const tabIndex = currentPage ? 1 : -1;
 
@@ -74,8 +74,8 @@ const ConfirmationPage = ({
           <caption>Administrator configuration</caption>
           <tbody>
             <tr>
-              <th>Username:</th>
-              <td>{username}</td>
+              <th>Full name:</th>
+              <td>{name}</td>
             </tr>
             <tr>
               <th>Email:</th>
@@ -101,7 +101,11 @@ const ConfirmationPage = ({
 
         {importOsqueryConfig()}
       </div>
-
+      <p>
+        Fleet Device Management Inc. periodically collects anonymous information
+        about your instance. Sending usage statistics from your Fleet instance
+        is optional and can be disabled in settings.
+      </p>
       <Button
         type="submit"
         tabIndex={tabIndex}

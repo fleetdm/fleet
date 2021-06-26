@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/datastore/inmem"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/throttled/throttled/v2/store/memstore"

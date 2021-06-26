@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 
-	hostctx "github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/pubsub"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
@@ -551,11 +551,11 @@ var detailQueries = map[string]detailQuery{
 			}
 
 			var err error
-			host.PhysicalMemory, err = strconv.ParseInt(emptyToZero(rows[0]["physical_memory"]), 10, 64)
+			host.Memory, err = strconv.ParseInt(emptyToZero(rows[0]["physical_memory"]), 10, 64)
 			if err != nil {
 				return err
 			}
-			host.HostName = rows[0]["hostname"]
+			host.Hostname = rows[0]["hostname"]
 			host.UUID = rows[0]["uuid"]
 			host.CPUType = rows[0]["cpu_type"]
 			host.CPUSubtype = rows[0]["cpu_subtype"]
@@ -777,7 +777,7 @@ FROM python_packages;
 				if providedName == "" {
 					level.Debug(logger).Log(
 						"msg", "host reported scheduled query with empty name",
-						"host", host.HostName,
+						"host", host.Hostname,
 					)
 					continue
 				}
@@ -785,7 +785,7 @@ FROM python_packages;
 				if delimiter == "" {
 					level.Debug(logger).Log(
 						"msg", "host reported scheduled query with empty delimiter",
-						"host", host.HostName,
+						"host", host.Hostname,
 					)
 					continue
 				}
@@ -798,7 +798,7 @@ FROM python_packages;
 				if len(parts) != 2 {
 					level.Debug(logger).Log(
 						"msg", "could not split pack and query names",
-						"host", host.HostName,
+						"host", host.Hostname,
 						"name", providedName,
 						"delimiter", delimiter,
 					)
@@ -849,7 +849,7 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 		if name == "" {
 			level.Debug(logger).Log(
 				"msg", "host reported software with empty name",
-				"host", host.HostName,
+				"host", host.Hostname,
 				"version", version,
 				"source", source,
 			)
@@ -858,7 +858,7 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 		if source == "" {
 			level.Debug(logger).Log(
 				"msg", "host reported software with empty name",
-				"host", host.HostName,
+				"host", host.Hostname,
 				"version", version,
 				"name", name,
 			)
@@ -877,7 +877,7 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 // osqueryd to fill in the host details
 func (svc *Service) hostDetailQueries(host fleet.Host) (map[string]string, error) {
 	queries := make(map[string]string)
-	if host.DetailUpdateTime.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) && !host.RefetchRequested {
+	if host.DetailUpdatedAt.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) && !host.RefetchRequested {
 		// No need to update already fresh details
 		return queries, nil
 	}
@@ -952,7 +952,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	}
 
 	accelerate := uint(0)
-	if host.HostName == "" || host.Platform == "" {
+	if host.Hostname == "" || host.Platform == "" {
 		// Assume this host is just enrolling, and accelerate checkins
 		// (to allow for platform restricted labels to run quickly
 		// after platform is retrieved from details)
@@ -1119,7 +1119,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 	}
 
 	if len(labelResults) > 0 {
-		host.LabelUpdateTime = svc.clock.Now()
+		host.LabelUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordLabelQueryExecutions(&host, labelResults, svc.clock.Now())
 		if err != nil {
 			return osqueryError{message: "failed to save labels: " + err.Error()}
@@ -1127,7 +1127,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 	}
 
 	if detailUpdated {
-		host.DetailUpdateTime = svc.clock.Now()
+		host.DetailUpdatedAt = svc.clock.Now()
 		additionalJSON, err := json.Marshal(additionalResults)
 		if err != nil {
 			return osqueryError{message: "failed to marshal additional: " + err.Error()}

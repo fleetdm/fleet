@@ -148,7 +148,7 @@ class RegistrationForm extends Component {
             />
           </div>
           <div className={confirmationContainerClass}>
-            <h2>You&apos;re all set.</h2>
+            <h2>Success</h2>
             <ConfirmationPage
               formData={formData}
               handleSubmit={onSubmitConfirmation}

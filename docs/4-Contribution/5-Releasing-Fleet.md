@@ -15,15 +15,17 @@ git push origin v<VERSION>
 
 Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here is to push the new tag to the `github.com/fleetdm/fleet` repository.
 
-3. Build the new binary bundle (ensure working tree is clean because this will effect the version string built into the binary):
+GitHub Actions will automatically begin building the new release after the tag is pushed.
 
-```shell
-make binary-bundle
-```
+---
 
-Make note of the SHA256 checksum output at the end of this build command to paste into the release documentation on GitHub.
+Wait while GitHub Actions creates and uploads the artifacts...
 
-4. Create a new release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases). Select the newly pushed tag (GitHub should say "Existing tag"). Use the version number as the release title. Use the below template for the release description (replace items in <> with the appropriate values):
+---
+
+When the Actions Workflow has completed:
+
+3. Edit the draft release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases). Use the version number as the release title. Use the below template for the release description (replace items in <> with the appropriate values):
 
 ````
 ### Changes
@@ -32,7 +34,7 @@ Make note of the SHA256 checksum output at the end of this build command to past
 
 ### Upgrading
 
-Please visit our [update guide](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/7-Updating-Fleet.md) for upgrade instructions.
+Please visit our [update guide](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/8-Updating-Fleet.md) for upgrade instructions.
 
 ### Documentation
 
@@ -42,27 +44,14 @@ Documentation for this release can be found at https://github.com/fleetdm/fleet/
 
 **SHA256**
 ```
-<HASH VALUE>  fleet.zip
-<HASH VALUE>  fleetctl.exe.zip
-<HASH VALUE>  fleetctl-linux.tar.gz
-<HASH VALUE>  fleetctl-macos.tar.gz
-<HASH VALUE>  fleetctl-windows.tar.gz
+<COPY FROM checksums.txt>
 ```
-
 ````
 
-Upload `fleet.zip`, `fleetctl-*.tar.gz`, and `fleetctl.exe.zip`. Click "Publish Release".
+When editing is complete, publish the release.
 
-5. Push the new version to Docker Hub (ensure working tree is clean because this will effect the version string built into the binary):
+4. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the [fleetctl-npm](../../tools/fleetctl-npm/) directory. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
 
-```shell
-make docker-push-release
-```
-
-6. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the [fleetctl-npm](../../tools/fleetctl-npm/) directory. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
-
-7. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) and update the channel's topic with the link to this release. Using `@here` requires admin permissions, so typically this announcement will be done by `@zwass`.
+5. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) and update the channel's topic with the link to this release. Using `@here` requires admin permissions, so typically this announcement will be done by `@zwass`.
 
 Announce the release via blog post (on Medium) and Twitter (linking to blog post).
-
-8. Crack open a beer and wonder why we haven't yet automated this process. Cheers!

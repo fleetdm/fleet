@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/mna/redisc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

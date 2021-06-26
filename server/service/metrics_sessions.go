@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw metricsMiddleware) SSOSettings(ctx context.Context) (settings *fleet.SSOSettings, err error) {
@@ -38,7 +38,7 @@ func (mw metricsMiddleware) CallbackSSO(ctx context.Context, auth fleet.Auth) (s
 	return
 }
 
-func (mw metricsMiddleware) Login(ctx context.Context, username string, password string) (*fleet.User, string, error) {
+func (mw metricsMiddleware) Login(ctx context.Context, email string, password string) (*fleet.User, string, error) {
 	var (
 		user  *fleet.User
 		token string
@@ -49,7 +49,7 @@ func (mw metricsMiddleware) Login(ctx context.Context, username string, password
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	user, token, err = mw.Service.Login(ctx, username, password)
+	user, token, err = mw.Service.Login(ctx, email, password)
 	return user, token, err
 }
 

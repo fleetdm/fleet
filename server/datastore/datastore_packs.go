@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/ptr"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -102,7 +102,7 @@ func testListPacks(t *testing.T, ds fleet.Datastore) {
 }
 
 func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
-	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@example.com", true)
+	zwass := test.NewUser(t, ds, "Zach", "zwass@example.com", true)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},

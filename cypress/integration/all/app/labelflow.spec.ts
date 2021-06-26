@@ -46,6 +46,9 @@ describe("Label flow", () => {
 
     cy.findByRole("button", { name: /update label/i }).click();
 
+    // Close success notification
+    cy.get(".flash-message__remove").click();
+
     cy.findByRole("button", { name: /delete/i }).click();
 
     // Can't figure out how attach findByRole onto modal button

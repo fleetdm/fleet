@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
@@ -12,7 +12,7 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 	defer d.mtx.Unlock()
 
 	for _, in := range d.users {
-		if in.Username == user.Username {
+		if in.Email == user.Email {
 			return nil, alreadyExists("User", in.ID)
 		}
 	}
@@ -21,20 +21,6 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 	d.users[user.ID] = user
 
 	return user, nil
-}
-
-func (d *Datastore) User(username string) (*fleet.User, error) {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	for _, user := range d.users {
-		if user.Username == username {
-			return user, nil
-		}
-	}
-
-	return nil, notFound("User").
-		WithMessage(fmt.Sprintf("with username %s", username))
 }
 
 func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -59,7 +45,6 @@ func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) 
 			"id":         "ID",
 			"created_at": "CreatedAt",
 			"updated_at": "UpdatedAt",
-			"username":   "Username",
 			"name":       "Name",
 			"email":      "Email",
 			"admin":      "Admin",

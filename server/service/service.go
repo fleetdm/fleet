@@ -8,11 +8,11 @@ import (
 	"sync"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/server/authz"
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/logging"
-	"github.com/fleetdm/fleet/server/sso"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kit/version"
 	"github.com/pkg/errors"
@@ -95,7 +95,7 @@ func getAssetURL() template.URL {
 		tag = "main"
 	}
 
-	return template.URL("https://github.com/fleetdm/fleet/blob/" + tag)
+	return template.URL("https://github.com/fleetdm/fleet/v4/blob/" + tag)
 }
 
 // seenHostSet implements synchronized storage for the set of seen hosts.

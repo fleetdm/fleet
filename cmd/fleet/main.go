@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/v4/server/config"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
 )

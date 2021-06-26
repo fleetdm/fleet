@@ -7,6 +7,13 @@
     text-align: center;
   }
 
+  &__wrapper {
+    & + p {
+      margin-top: 40px;
+      font-size: $x-small;
+    }
+  }
+
   &__icon {
     color: $ui-success;
     font-size: 120px;
@@ -52,6 +59,7 @@
       font-size: $small;
       font-weight: $regular;
     }
+
   }
 
   &__table-url {

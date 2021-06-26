@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -19,7 +19,6 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
       	password,
       	salt,
       	name,
-      	username,
       	email,
       	admin_forced_password_reset,
       	gravatar_url,
@@ -27,11 +26,18 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
         sso_enabled,
 		api_only,
 		global_role
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?)
       `
-	result, err := d.db.Exec(sqlStatement, user.Password, user.Salt, user.Name,
-		user.Username, user.Email,
-		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled, user.APIOnly,
+	result, err := d.db.Exec(sqlStatement,
+		user.Password,
+		user.Salt,
+		user.Name,
+		user.Email,
+		user.AdminForcedPasswordReset,
+		user.GravatarURL,
+		user.Position,
+		user.SSOEnabled,
+		user.APIOnly,
 		user.GlobalRole)
 	if err != nil {
 		return nil, errors.Wrap(err, "create new user")
@@ -69,11 +75,6 @@ func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.Us
 	}
 
 	return user, nil
-}
-
-// User retrieves a user by name
-func (d *Datastore) User(username string) (*fleet.User, error) {
-	return d.findUser("username", username)
 }
 
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
@@ -116,7 +117,6 @@ func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
 func (d *Datastore) SaveUser(user *fleet.User) error {
 	sqlStatement := `
       UPDATE users SET
-      	username = ?,
       	password = ?,
       	salt = ?,
       	name = ?,
@@ -129,10 +129,18 @@ func (d *Datastore) SaveUser(user *fleet.User) error {
 		global_role = ?
       WHERE id = ?
       `
-	result, err := d.db.Exec(sqlStatement, user.Username, user.Password,
-		user.Salt, user.Name, user.Email,
-		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled, user.APIOnly,
-		user.GlobalRole, user.ID)
+	result, err := d.db.Exec(sqlStatement,
+		user.Password,
+		user.Salt,
+		user.Name,
+		user.Email,
+		user.AdminForcedPasswordReset,
+		user.GravatarURL,
+		user.Position,
+		user.SSOEnabled,
+		user.APIOnly,
+		user.GlobalRole,
+		user.ID)
 	if err != nil {
 		return errors.Wrap(err, "save user")
 	}

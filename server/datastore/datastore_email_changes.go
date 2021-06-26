@@ -3,7 +3,7 @@ package datastore
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +13,6 @@ func testChangeEmail(t *testing.T, ds fleet.Datastore) {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
 	user := &fleet.User{
-		Username: "bob",
 		Password: []byte("foobar"),
 		Email:    "bob@bob.com",
 	}
@@ -35,7 +34,6 @@ func testChangeEmail(t *testing.T, ds fleet.Datastore) {
 	err = ds.PendingEmailChange(user.ID, "other@bob.com", "uniquetoken")
 	require.Nil(t, err)
 	otheruser, err := ds.NewUser(&fleet.User{
-		Username: "fred",
 		Password: []byte("supersecret"),
 		Email:    "other@bobcom",
 	})

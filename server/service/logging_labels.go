@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw loggingMiddleware) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.Label, error) {
@@ -17,7 +17,7 @@ func (mw loggingMiddleware) NewLabel(ctx context.Context, p fleet.LabelPayload) 
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -42,7 +42,7 @@ func (mw loggingMiddleware) ModifyLabel(ctx context.Context, id uint, p fleet.Mo
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -102,7 +102,7 @@ func (mw loggingMiddleware) DeleteLabel(ctx context.Context, name string) error 
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -149,7 +149,7 @@ func (mw loggingMiddleware) ApplyLabelSpecs(ctx context.Context, specs []*fleet.
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	hostctx "github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/mock"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -188,7 +188,7 @@ func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	expectedHost := fleet.Host{HostName: "foo!"}
+	expectedHost := fleet.Host{Hostname: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
 
 	ds.AuthenticateHostFunc = func(secret string) (*fleet.Host, error) {

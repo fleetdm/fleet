@@ -5,15 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/ptr"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +24,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	require.Nil(t, err)
 	createTestUsers(t, ds)
 	svc := newTestService(ds, nil, nil)
-	admin1, err := ds.User("admin1")
+	admin1, err := ds.UserByEmail("admin1@example.com")
 	assert.Nil(t, err)
 	admin1Session, err := ds.NewSession(&fleet.Session{
 		UserID: admin1.ID,
@@ -422,30 +422,30 @@ func TestChangePassword(t *testing.T) {
 		wantErr     error
 	}{
 		{ // all good
-			user:        users["admin1"],
+			user:        users["admin1@example.com"],
 			oldPassword: "foobarbaz1234!",
 			newPassword: "12345cat!",
 		},
 		{ // prevent password reuse
-			user:        users["admin1"],
+			user:        users["admin1@example.com"],
 			oldPassword: "12345cat!",
 			newPassword: "foobarbaz1234!",
 			wantErr:     fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"),
 		},
 		{ // all good
-			user:        users["user1"],
+			user:        users["user1@example.com"],
 			oldPassword: "foobarbaz1234!",
 			newPassword: "newpassa1234!",
 		},
 		{ // bad old password
-			user:        users["user1"],
+			user:        users["user1@example.com"],
 			oldPassword: "wrong_password",
 			newPassword: "12345cat!",
 			anyErr:      true,
 		},
 		{ // missing old password
 			newPassword: "123cataaa!",
-			wantErr:     fleet.NewInvalidArgumentError("old_password", "cannot be empty"),
+			wantErr:     fleet.NewInvalidArgumentError("old_password", "Old password cannot be empty"),
 		},
 	}
 
@@ -468,7 +468,7 @@ func TestChangePassword(t *testing.T) {
 			}
 
 			// Attempt login after successful change
-			_, _, err = svc.Login(context.Background(), tt.user.Username, tt.newPassword)
+			_, _, err = svc.Login(context.Background(), tt.user.Email, tt.newPassword)
 			require.Nil(t, err, "should be able to login with new password")
 		})
 	}
@@ -499,7 +499,7 @@ func TestResetPassword(t *testing.T) {
 		},
 		{ // missing token
 			newPassword: "123cat!",
-			wantErr:     fleet.NewInvalidArgumentError("token", "cannot be empty field"),
+			wantErr:     fleet.NewInvalidArgumentError("token", "Token cannot be empty field"),
 		},
 	}
 
@@ -538,14 +538,14 @@ func TestRequirePasswordReset(t *testing.T) {
 	createTestUsers(t, ds)
 
 	for _, tt := range testUsers {
-		t.Run(tt.Username, func(t *testing.T) {
-			user, err := ds.User(tt.Username)
+		t.Run(tt.Email, func(t *testing.T) {
+			user, err := ds.UserByEmail(tt.Email)
 			require.Nil(t, err)
 
 			var sessions []*fleet.Session
 
 			// Log user in
-			_, _, err = svc.Login(test.UserContext(test.UserAdmin), tt.Username, tt.PlaintextPassword)
+			_, _, err = svc.Login(test.UserContext(test.UserAdmin), tt.Email, tt.PlaintextPassword)
 			require.Nil(t, err, "login unsuccessful")
 			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), user.ID)
 			require.Nil(t, err)
@@ -555,7 +555,7 @@ func TestRequirePasswordReset(t *testing.T) {
 			retUser, err := svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, true)
 			require.Nil(t, err)
 			assert.True(t, retUser.AdminForcedPasswordReset)
-			checkUser, err := ds.User(tt.Username)
+			checkUser, err := ds.UserByEmail(tt.Email)
 			require.Nil(t, err)
 			assert.True(t, checkUser.AdminForcedPasswordReset)
 			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), user.ID)
@@ -566,7 +566,7 @@ func TestRequirePasswordReset(t *testing.T) {
 			retUser, err = svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, false)
 			require.Nil(t, err)
 			assert.False(t, retUser.AdminForcedPasswordReset)
-			checkUser, err = ds.User(tt.Username)
+			checkUser, err = ds.UserByEmail(tt.Email)
 			require.Nil(t, err)
 			assert.False(t, checkUser.AdminForcedPasswordReset)
 
@@ -582,8 +582,8 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 	createTestUsers(t, ds)
 
 	for _, tt := range testUsers {
-		t.Run(tt.Username, func(t *testing.T) {
-			user, err := ds.User(tt.Username)
+		t.Run(tt.Email, func(t *testing.T) {
+			user, err := ds.UserByEmail(tt.Email)
 			require.Nil(t, err)
 
 			ctx := context.Background()
@@ -622,7 +622,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 			ctx = context.Background()
 
 			// Now user should be able to login with new password
-			u, _, err = svc.Login(ctx, tt.Username, "new_pass")
+			u, _, err = svc.Login(ctx, tt.Email, "new_pass")
 			require.Nil(t, err)
 			assert.False(t, u.AdminForcedPasswordReset)
 		})

@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
-  username: PropTypes.string,
+  name: PropTypes.string,
   password: PropTypes.string,
   password_confirmation: PropTypes.string,
   email: PropTypes.string,

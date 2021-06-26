@@ -17,15 +17,15 @@ module.exports.routes = {
   'GET /company/contact':    { action:   'view-contact' },
   'GET /get-started':        { action:   'view-pricing' },
 
-  'GET /install':            'https://github.com/fleetdm/fleet/blob/master/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
-  '/documentation':          'https://github.com/fleetdm/fleet/tree/master/docs',
+  'GET /install':            'https://github.com/fleetdm/fleet/blob/main/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
+  '/documentation':          'https://github.com/fleetdm/fleet/tree/main/docs',
   '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
 
   'GET /queries':            { action: 'view-query-library' },
   'GET /queries/:slug':      { action: 'view-query-detail' },
 
-  '/contribute':             'https://github.com/fleetdm/fleet/tree/master/docs/4-Contribution',
+  '/contribute':             'https://github.com/fleetdm/fleet/tree/main/docs/3-Contributing',
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   '/legal/terms': 'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
   '/security': 'https://github.com/fleetdm/fleet/security/policy',

@@ -7,7 +7,7 @@ import Button from "components/buttons/Button";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import helpers from "./helpers";
 
-const formFields = ["username", "password", "password_confirmation", "email"];
+const formFields = ["name", "password", "password_confirmation", "email"];
 const { validate } = helpers;
 
 class AdminDetails extends Component {
@@ -15,10 +15,10 @@ class AdminDetails extends Component {
     className: PropTypes.string,
     currentPage: PropTypes.bool,
     fields: PropTypes.shape({
+      name: formFieldInterface.isRequired,
       email: formFieldInterface.isRequired,
       password: formFieldInterface.isRequired,
       password_confirmation: formFieldInterface.isRequired,
-      username: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
   };
@@ -45,13 +45,18 @@ class AdminDetails extends Component {
       <form onSubmit={handleSubmit} className={className}>
         <div className="registration-fields">
           <InputFieldWithIcon
-            {...fields.username}
-            placeholder="Username"
+            {...fields.name}
+            placeholder="Full name"
             tabIndex={tabIndex}
             autofocus={currentPage}
             ref={(input) => {
               this.firstInput = input;
             }}
+          />
+          <InputFieldWithIcon
+            {...fields.email}
+            placeholder="Email"
+            tabIndex={tabIndex}
           />
           <InputFieldWithIcon
             {...fields.password}
@@ -66,11 +71,6 @@ class AdminDetails extends Component {
             {...fields.password_confirmation}
             placeholder="Confirm password"
             type="password"
-            tabIndex={tabIndex}
-          />
-          <InputFieldWithIcon
-            {...fields.email}
-            placeholder="Email"
             tabIndex={tabIndex}
           />
         </div>

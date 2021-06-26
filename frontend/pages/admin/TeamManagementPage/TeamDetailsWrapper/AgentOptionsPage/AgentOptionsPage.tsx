@@ -61,7 +61,6 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
     )
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
-        window.scrollTo(0, 0);
       })
       .catch((errors: { [key: string]: any }) => {
         dispatch(renderFlash("error", errors.stack));
@@ -80,7 +79,7 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
         <a
           href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
         >
           Go to Fleet docs{" "}
           <img className="icon" src={OpenNewTabIcon} alt="open new tab" />

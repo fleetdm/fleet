@@ -6,7 +6,6 @@ export const adminUserStub = {
   admin: true,
   email: "hi@gnar.dog",
   name: "Gnar Mike",
-  username: "gnardog",
 };
 
 export const configStub = {
@@ -177,7 +176,6 @@ export const userStub: IUser = {
   gravatar_url: "https://image.com",
   name: "Gnar Mike",
   sso_enabled: false,
-  username: "gnardog",
   teams: [{ ...userTeamStub }],
 };
 

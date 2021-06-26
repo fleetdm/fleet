@@ -41,7 +41,7 @@ describe("Auth - reducer", () => {
   describe("loginUser action", () => {
     const bearerToken = "expected-bearer-token";
     const formData = {
-      username: "username",
+      email: "username@example.com",
       password: "p@ssw0rd",
     };
     const middlewares = [thunk, authMiddleware];

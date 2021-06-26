@@ -6,6 +6,8 @@ import notificationInterface from "interfaces/notification";
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 
+import CloseIcon from "../../../../assets/images/icon-close-fleet-blue-16x16@2x.png";
+
 const baseClass = "flash-message";
 
 const FlashMessage = ({
@@ -42,11 +44,12 @@ const FlashMessage = ({
       </div>
       <div className={`${baseClass}__action`}>
         <div className={`${baseClass}__ex`}>
-          <Button
-            className={`${baseClass}__remove ${baseClass}__remove--${alertType}`}
-            variant="unstyled"
+          <button
+            className={`${baseClass}__remove ${baseClass}__remove--${alertType} button--unstyled`}
             onClick={onRemoveFlash}
-          />
+          >
+            <img src={CloseIcon} alt="close icon" />
+          </button>
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -14,7 +14,7 @@ import (
 type HostResponse struct {
 	*fleet.Host
 	Status      fleet.HostStatus `json:"status"`
-	DisplayText string            `json:"display_text"`
+	DisplayText string           `json:"display_text"`
 	Labels      []fleet.Label    `json:"labels,omitempty"`
 }
 
@@ -22,7 +22,7 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 	return &HostResponse{
 		Host:        host,
 		Status:      host.Status(time.Now()),
-		DisplayText: host.HostName,
+		DisplayText: host.Hostname,
 	}, nil
 }
 
@@ -31,14 +31,14 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 type HostDetailResponse struct {
 	fleet.HostDetail
 	Status      fleet.HostStatus `json:"status"`
-	DisplayText string            `json:"display_text"`
+	DisplayText string           `json:"display_text"`
 }
 
 func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
 	return &HostDetailResponse{
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
-		DisplayText: host.HostName,
+		DisplayText: host.Hostname,
 	}, nil
 }
 
@@ -223,9 +223,9 @@ func makeAddHostsToTeamEndpoint(svc fleet.Service) endpoint.Endpoint {
 type addHostsToTeamByFilterRequest struct {
 	TeamID  *uint `json:"team_id"`
 	Filters struct {
-		MatchQuery string            `json:"query"`
+		MatchQuery string           `json:"query"`
 		Status     fleet.HostStatus `json:"status"`
-		LabelID    *uint             `json:"label_id"`
+		LabelID    *uint            `json:"label_id"`
 	} `json:"filters"`
 }
 

@@ -11,7 +11,6 @@ export default PropTypes.shape({
   name: PropTypes.string,
   sso_enabled: PropTypes.bool,
   teams: PropTypes.arrayOf(teamInterface),
-  username: PropTypes.string,
 });
 
 export interface IUser {
@@ -24,7 +23,6 @@ export interface IUser {
   name: string;
   sso_enabled: boolean;
   teams: ITeam[];
-  username: string;
 }
 
 /**

@@ -3,15 +3,15 @@ package datastore
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/ptr"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func testListScheduledQueriesInPack(t *testing.T, ds fleet.Datastore) {
-	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
@@ -77,7 +77,7 @@ func testListScheduledQueriesInPack(t *testing.T, ds fleet.Datastore) {
 }
 
 func testNewScheduledQuery(t *testing.T, ds fleet.Datastore) {
-	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@fleet.co", true)
+	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 
@@ -93,7 +93,7 @@ func testNewScheduledQuery(t *testing.T, ds fleet.Datastore) {
 }
 
 func testScheduledQuery(t *testing.T, ds fleet.Datastore) {
-	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@fleet.co", true)
+	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "")
@@ -117,7 +117,7 @@ func testScheduledQuery(t *testing.T, ds fleet.Datastore) {
 }
 
 func testDeleteScheduledQuery(t *testing.T, ds fleet.Datastore) {
-	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@fleet.co", true)
+	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "")
@@ -134,7 +134,7 @@ func testDeleteScheduledQuery(t *testing.T, ds fleet.Datastore) {
 }
 
 func testCascadingDeletionOfQueries(t *testing.T, ds fleet.Datastore) {
-	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@fleet.co", true)
+	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},

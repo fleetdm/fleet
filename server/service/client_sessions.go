@@ -11,7 +11,7 @@ import (
 // an auth token is returned.
 func (c *Client) Login(email, password string) (string, error) {
 	params := loginRequest{
-		Username: email,
+		Email:    email,
 		Password: password,
 	}
 

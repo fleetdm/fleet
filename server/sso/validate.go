@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/beevik/etree"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	rtvalidator "github.com/mattermost/xml-roundtrip-validator"
 	"github.com/pkg/errors"
 	dsig "github.com/russellhaering/goxmldsig"

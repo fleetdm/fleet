@@ -15,7 +15,7 @@ describe("Kolide - API client (session)", () => {
 
   describe("#create", () => {
     it("calls the appropriate endpoint with the correct parameters", () => {
-      const params = { username: "admin", password: "secret" };
+      const params = { email: "admin@example.com", password: "secret" };
       const request = sessionMocks.create.valid(bearerToken, params);
 
       return Fleet.sessions.create(params).then(() => {

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/v4/server/config"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"

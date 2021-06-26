@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fleetdm/fleet/server/authz"
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/ptr"
-	"github.com/fleetdm/fleet/server/websocket"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/go-kit/kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/pkg/errors"
@@ -60,7 +60,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		queryString = query.Query
 	} else {
 		query = &fleet.Query{
-			Name:     fmt.Sprintf("distributed_%s_%d", vc.Username(), time.Now().Unix()),
+			Name:     fmt.Sprintf("distributed_%s_%d", vc.Email(), time.Now().Unix()),
 			Query:    queryString,
 			Saved:    false,
 			AuthorID: ptr.Uint(vc.UserID()),
@@ -227,7 +227,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			if row == nil {
 				continue
 			}
-			row["host_hostname"] = res.Host.HostName
+			row["host_hostname"] = res.Host.Hostname
 			filteredRows = append(filteredRows, row)
 		}
 

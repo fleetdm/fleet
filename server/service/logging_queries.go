@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw loggingMiddleware) GetQuerySpec(ctx context.Context, name string) (spec *fleet.QuerySpec, err error) {
@@ -50,8 +50,7 @@ func (mw loggingMiddleware) ListQueries(ctx context.Context, opt fleet.ListOptio
 		err          error
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
-
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerDebug(err).Log(
@@ -71,7 +70,7 @@ func (mw loggingMiddleware) GetQuery(ctx context.Context, id uint) (*fleet.Query
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerDebug(err).Log(
@@ -92,7 +91,7 @@ func (mw loggingMiddleware) NewQuery(ctx context.Context, p fleet.QueryPayload) 
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		if query == nil {
@@ -124,7 +123,7 @@ func (mw loggingMiddleware) ModifyQuery(ctx context.Context, id uint, p fleet.Qu
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		if query == nil {
@@ -155,7 +154,7 @@ func (mw loggingMiddleware) DeleteQuery(ctx context.Context, name string) error 
 	)
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(

@@ -63,7 +63,8 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       });
       // Access the Settings - Team details page
       cy.findByText(/apples/i).click();
-      cy.findByText(/Add and remove members from Apples/i).should("exist");
+      cy.findByText(/apples/i).should("exist");
+      cy.findByText(/manage users with global access here/i).should("exist");
 
       // See the “Team” section in the create user modal. This modal is summoned when the “Create user” button is selected
       cy.visit("/settings/organization");

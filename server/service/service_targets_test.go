@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/mock"
-	"github.com/fleetdm/fleet/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,7 @@ func TestSearchTargets(t *testing.T) {
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
 	hosts := []*fleet.Host{
-		{HostName: "foo.local"},
+		{Hostname: "foo.local"},
 	}
 	labels := []*fleet.Label{
 		{

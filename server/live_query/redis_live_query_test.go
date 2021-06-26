@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/pubsub"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

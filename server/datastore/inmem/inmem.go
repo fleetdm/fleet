@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/patrickmn/sortutil"
 )
 
@@ -221,7 +221,7 @@ func (d *Datastore) createDevPacksAndQueries() error {
 }
 
 // Bootstrap a few users when using the in-memory database.
-// Each user's default password will just be their username.
+// Each user's default password will just be their email.
 func (d *Datastore) createDevUsers() error {
 	users := []fleet.User{
 		{
@@ -235,7 +235,6 @@ func (d *Datastore) createDevUsers() error {
 			},
 
 			Name:     "Admin User",
-			Username: "admin",
 			Email:    "admin@fleet.co",
 			Position: "Director of Security",
 		},
@@ -250,14 +249,13 @@ func (d *Datastore) createDevUsers() error {
 			},
 
 			Name:     "Normal User",
-			Username: "user",
 			Email:    "user@fleet.co",
 			Position: "Security Engineer",
 		},
 	}
 	for _, user := range users {
 		user := user
-		err := user.SetPassword(user.Username, d.config.Auth.SaltKeySize, d.config.Auth.BcryptCost)
+		err := user.SetPassword(user.Email, d.config.Auth.SaltKeySize, d.config.Auth.BcryptCost)
 		if err != nil {
 			return nil
 		}
@@ -360,15 +358,15 @@ func (d *Datastore) createDevHosts() error {
 					UpdatedAt: time.Now().Add(-20 * time.Minute),
 				},
 			},
-			NodeKey:          "totally-legit",
-			HostName:         "jmeller-mbp.local",
-			UUID:             "1234-5678-9101",
-			Platform:         "darwin",
-			OsqueryVersion:   "2.0.0",
-			OSVersion:        "Mac OS X 10.11.6",
-			Uptime:           60 * time.Minute,
-			PhysicalMemory:   4145483776,
-			DetailUpdateTime: time.Now().Add(-20 * time.Minute),
+			NodeKey:         "totally-legit",
+			Hostname:        "jmeller-mbp.local",
+			UUID:            "1234-5678-9101",
+			Platform:        "darwin",
+			OsqueryVersion:  "2.0.0",
+			OSVersion:       "Mac OS X 10.11.6",
+			Uptime:          60 * time.Minute,
+			Memory:          4145483776,
+			DetailUpdatedAt: time.Now().Add(-20 * time.Minute),
 		},
 		{
 			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -380,15 +378,15 @@ func (d *Datastore) createDevHosts() error {
 				},
 			},
 
-			NodeKey:          "definitely-legit",
-			HostName:         "marpaia.local",
-			UUID:             "1234-5678-9102",
-			Platform:         "windows",
-			OsqueryVersion:   "2.0.0",
-			OSVersion:        "Windows 10.0.0",
-			Uptime:           60 * time.Minute,
-			PhysicalMemory:   17179869184,
-			DetailUpdateTime: time.Now().Add(-10 * time.Second),
+			NodeKey:         "definitely-legit",
+			Hostname:        "marpaia.local",
+			UUID:            "1234-5678-9102",
+			Platform:        "windows",
+			OsqueryVersion:  "2.0.0",
+			OSVersion:       "Windows 10.0.0",
+			Uptime:          60 * time.Minute,
+			Memory:          17179869184,
+			DetailUpdatedAt: time.Now().Add(-10 * time.Second),
 		},
 	}
 

@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"html/template"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // InviteMailer is used to build an email template for the invite email.
 type InviteMailer struct {
 	*fleet.Invite
-	BaseURL           template.URL
-	AssetURL          template.URL
-	InvitedByUsername string
-	OrgName           string
+	BaseURL   template.URL
+	AssetURL  template.URL
+	InvitedBy string
+	OrgName   string
 }
 
 func (i *InviteMailer) Message() ([]byte, error) {

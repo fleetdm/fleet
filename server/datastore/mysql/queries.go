@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -148,7 +148,7 @@ func (d *Datastore) DeleteQueries(ids []uint) (uint, error) {
 // Query returns a single Query identified by id, if such exists.
 func (d *Datastore) Query(id uint) (*fleet.Query, error) {
 	sql := `
-		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.username, '') AS author_name
+		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name
 		FROM queries q
 		LEFT JOIN users u
 			ON q.author_id = u.id

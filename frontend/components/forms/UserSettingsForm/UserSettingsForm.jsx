@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 
+import ReactTooltip from "react-tooltip";
 import Button from "components/buttons/Button";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
@@ -16,7 +17,6 @@ class UserSettingsForm extends Component {
       email: formFieldInterface.isRequired,
       name: formFieldInterface.isRequired,
       position: formFieldInterface.isRequired,
-      username: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     pendingEmail: PropTypes.string,
@@ -44,16 +44,12 @@ class UserSettingsForm extends Component {
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
         <InputField
-          {...fields.username}
-          autofocus
-          label="Username (required)"
-        />
-        <InputField
           {...fields.email}
+          autofocus
           label="Email (required)"
           hint={renderEmailHint()}
         />
-        <InputField {...fields.name} label="Full Name" />
+        <InputField {...fields.name} label="Full name (required)" />
         <InputField {...fields.position} label="Position" />
         <div className={`${baseClass}__button-wrap`}>
           <Button onClick={onCancel} variant="inverse">

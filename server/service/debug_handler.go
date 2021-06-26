@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/contexts/token"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"

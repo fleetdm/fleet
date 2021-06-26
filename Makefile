@@ -206,6 +206,25 @@ binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && cp windows/fleetctl.exe . && zip fleetctl.exe.zip fleetctl.exe
 	cd build/binary-bundle && shasum -a 256 fleet.zip fleetctl.exe.zip fleetctl-macos.tar.gz fleetctl-windows.tar.gz fleetctl-linux.tar.gz
 
+
+.pre-binary-arch:
+ifndef GOOS
+	@echo "GOOS is Empty. Try use to see valid GOOS/GOARCH platform: go tool dist list. Ex.: make binary-arch GOOS=linux GOARCH=arm64"
+	@exit 1;
+endif
+ifndef GOARCH
+	@echo "GOARCH is Empty. Try use to see valid GOOS/GOARCH platform: go tool dist list. Ex.: make binary-arch GOOS=linux GOARCH=arm64"
+	@exit 1;
+endif
+
+
+binary-arch: .pre-binary-arch .pre-binary-bundle .pre-fleet
+	mkdir -p build/binary-bundle/${GOARCH}-${GOOS}
+	CGO_ENABLED=0 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full -o build/binary-bundle/${GOARCH}-${GOOS}/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=0 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full -o build/binary-bundle/${GOARCH}-${GOOS}/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	cd build/binary-bundle/${GOARCH}-${GOOS} && tar -czf fleetctl-${GOARCH}-${GOOS}.tar.gz fleetctl fleet
+
+
 # Drop, create, and migrate the e2e test database
 e2e-reset-db:
 	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | mysql -uroot -ptoor'
@@ -213,10 +232,10 @@ e2e-reset-db:
 
 e2e-setup:
 	./build/fleetctl config set --context e2e --address https://localhost:8642 --tls-skip-verify true
-	./build/fleetctl setup --context e2e --email=admin@example.com --username=admin --password=user123# --org-name='Fleet Test'
-	./build/fleetctl user create --context e2e --email=maintainer@example.com --username=maintainer --password=user123# --global-role=maintainer
-	./build/fleetctl user create --context e2e --email=observer@example.com --username=observer --password=user123# --global-role=observer
-	./build/fleetctl user create --context e2e --username=sso_user --email=sso_user@example.com --sso=true
+	./build/fleetctl setup --context e2e --email=admin@example.com --password=user123# --org-name='Fleet Test' --name Admin
+	./build/fleetctl user create --context e2e --email=maintainer@example.com --name maintainer --password=user123# --global-role=maintainer
+	./build/fleetctl user create --context e2e --email=observer@example.com --name observer --password=user123# --global-role=observer
+	./build/fleetctl user create --context e2e --email=sso_user@example.com --name "SSO user" --sso=true
 
 e2e-serve-core:
 	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642 

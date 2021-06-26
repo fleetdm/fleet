@@ -27,7 +27,7 @@ One week before the release date, the individual tasked with managing the releas
 
 The Changelog section of the release issue acts as a short term roadmap and will be used as the public facing Changelog included in the release.
 
-To construct the Changelog, first, head to the [commit history for fleetdm/fleet](https://github.com/fleetdm/fleet/commits/master). Next, navigate to the commit made to prepare for the previous release. This commit is usually titled something like “Prepare for `<release number>`.” Finally, add a bullet point to the Changelog for each commit, according to the following:
+To construct the Changelog, first, head to the [commit history for fleetdm/fleet](https://github.com/fleetdm/fleet/commits/main). Next, navigate to the commit made to prepare for the previous release. This commit is usually titled something like “Prepare for `<release number>`.” Finally, add a bullet point to the Changelog for each commit, according to the following:
 
 1. Only include changes that are relevant to Fleet users. This is because the Changelog serves as a tool to both inform _and_ excite users of Fleet. This means that changes made to the development infrastructure, documentation, and contribution experience shouldn’t be included.
 2. Each bullet should start with a verb. For example, “Add,” or “Fix.”
@@ -66,8 +66,8 @@ At this point, the individual managing the release should reserve 30 minutes to 
 
 After all changes required for release have been merged into the `master` branch, the individual tasked with managing the release should perform a manual quality assurance pass. 
 
-Documentation on conducting the manual QA pass can be found here: https://github.com/fleetdm/fleet/blob/f725a4e7f5ef994ecf18145fa284497dcfbb4333/handbook/manual-qa.md 
+Documentation on conducting the manual QA pass can be found [here](./manual-qa.md). 
 
 ## Release day
 
-Documentation on completing the release process can be found here: https://github.com/fleetdm/fleet/blob/f725a4e7f5ef994ecf18145fa284497dcfbb4333/docs/4-Contribution/5-Releasing-Fleet.md 
+Documentation on completing the release process can be found [here](../docs/3-Contributing/5-Releasing-Fleet.md).  

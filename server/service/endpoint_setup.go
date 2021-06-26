@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/pkg/errors"
 )
@@ -74,7 +74,7 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 		// the login fails for some reason, ignore the error and don't return
 		// a token, forcing the user to log in manually
 		token := new(string)
-		_, *token, err = svc.Login(ctx, *req.Admin.Username, *req.Admin.Password)
+		_, *token, err = svc.Login(ctx, *req.Admin.Email, *req.Admin.Password)
 		if err != nil {
 			token = nil
 		}

@@ -232,7 +232,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             <a
               href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
             >
               Learn more about user permissions
               <img src={OpenNewTabIcon} alt="open new tab" />
@@ -268,7 +268,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           <a
             href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             Learn more about user permissions
             <img src={OpenNewTabIcon} alt="open new tab" />
@@ -314,7 +314,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           error={errors.name}
           name="name"
           onChange={onInputChange("name")}
-          placeholder="Full Name"
+          placeholder="Full name"
           value={name}
         />
         <InputFieldWithIcon

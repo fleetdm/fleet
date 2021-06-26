@@ -1,6 +1,6 @@
 package mock
 
-import "github.com/fleetdm/fleet/server/fleet"
+import "github.com/fleetdm/fleet/v4/server/fleet"
 
 func UserByEmailWithUser(u *fleet.User) UserByEmailFunc {
 	return func(email string) (*fleet.User, error) {

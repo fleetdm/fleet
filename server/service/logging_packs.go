@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw loggingMiddleware) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pack, error) {
@@ -17,7 +17,7 @@ func (mw loggingMiddleware) NewPack(ctx context.Context, p fleet.PackPayload) (*
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -42,7 +42,7 @@ func (mw loggingMiddleware) ModifyPack(ctx context.Context, id uint, p fleet.Pac
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -102,7 +102,7 @@ func (mw loggingMiddleware) DeletePack(ctx context.Context, name string) error {
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {
@@ -166,7 +166,7 @@ func (mw loggingMiddleware) ApplyPackSpecs(ctx context.Context, specs []*fleet.P
 
 	if vc, ok := viewer.FromContext(ctx); ok {
 
-		loggedInUser = vc.Username()
+		loggedInUser = vc.Email()
 	}
 
 	defer func(begin time.Time) {

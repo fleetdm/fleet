@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/contexts/token"
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	kithttp "github.com/go-kit/kit/transport/http"
 )

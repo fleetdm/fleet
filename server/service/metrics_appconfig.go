@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw metricsMiddleware) NewAppConfig(ctx context.Context, p fleet.AppConfigPayload) (*fleet.AppConfig, error) {

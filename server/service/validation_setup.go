@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/url"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.AppConfigPayload) (*fleet.AppConfig, error) {

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/sso"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/pkg/errors"
 )
 
@@ -47,7 +47,7 @@ func decodeLoginRequest(ctx context.Context, r *http.Request) (interface{}, erro
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
-	req.Username = strings.ToLower(req.Username)
+	req.Email = strings.ToLower(req.Email)
 	return req, nil
 }
 

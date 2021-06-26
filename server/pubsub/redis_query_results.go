@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
 	"github.com/pkg/errors"
