@@ -24,6 +24,8 @@ describe("DataTable - component", () => {
         data={data}
         isLoading={false}
         onSort={noop}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
       />
     );
 
@@ -61,6 +63,8 @@ describe("DataTable - component", () => {
         sortDirection={"desc"}
         isLoading={false}
         onSort={noop}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
       />
     );
 
@@ -82,6 +86,8 @@ describe("DataTable - component", () => {
         sortDirection={"desc"}
         isLoading={false}
         onSort={noop}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
       />
     );
 
@@ -111,6 +117,8 @@ describe("DataTable - component", () => {
         sortDirection={"desc"}
         isLoading={false}
         onSort={noop}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
       />
     );
 
@@ -129,6 +137,8 @@ describe("DataTable - component", () => {
         sortDirection={"asc"}
         isLoading={false}
         onSort={noop}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
       />
     );
 

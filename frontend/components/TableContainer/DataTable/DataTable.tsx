@@ -7,19 +7,33 @@ import Button from "../../buttons/Button";
 
 const baseClass = "data-table-container";
 
+interface IDataTableProps {
+  columns: any;
+  data: any;
+  isLoading: boolean;
+  sortHeader: any;
+  sortDirection: any;
+  onSort: any; // TODO: an event type
+  onSelectActionClick: any; // TODO: an event type
+  showMarkAllPages: boolean;
+  isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
+  toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
+}
+
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
-const DataTable = (props) => {
-  const {
-    columns: tableColumns,
-    data: tableData,
-    isLoading,
-    sortHeader,
-    sortDirection,
-    onSort,
-    onSelectActionClick,
-  } = props;
-
+const DataTable = ({
+  columns: tableColumns,
+  data: tableData,
+  isLoading,
+  sortHeader,
+  sortDirection,
+  onSort,
+  onSelectActionClick,
+  showMarkAllPages,
+  isAllPagesSelected,
+  toggleAllPagesSelected,
+}: IDataTableProps) => {
   const columns = useMemo(() => {
     return tableColumns;
   }, [tableColumns]);
@@ -70,9 +84,13 @@ const DataTable = (props) => {
   }, [sortBy, sortHeader, onSort, sortDirection]);
 
   const onSelectActionButtonClick = useCallback(() => {
-    const entityIds = selectedFlatRows.map((row) => row.original.id);
+    const entityIds = selectedFlatRows.map((row: any) => row.original.id);
     onSelectActionClick(entityIds);
   }, [onSelectActionClick, selectedFlatRows]);
+
+  const onToggleAllPagesClick = useCallback(() => {
+    toggleAllPagesSelected(!isAllPagesSelected);
+  }, [toggleAllRowsSelected]);
 
   const onClearSelectionClick = useCallback(() => {
     toggleAllRowsSelected(false);
@@ -102,6 +120,16 @@ const DataTable = (props) => {
                     <p>
                       <span>{selectedFlatRows.length}</span> selected
                     </p>
+                    {showMarkAllPages && (
+                      <Button
+                        onClick={onToggleAllPagesClick}
+                        variant={"text-link"}
+                      >
+                        {isAllPagesSelected
+                          ? "Deselect all matchin hosts"
+                          : "Select all matching hosts"}
+                      </Button>
+                    )}
                     <Button
                       onClick={onClearSelectionClick}
                       variant={"text-link"}

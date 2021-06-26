@@ -100,6 +100,7 @@ export class ManageHostsPage extends PureComponent {
           ? storedHiddenColumns
           : defaultHiddenColumns,
       selectedHostIds: [],
+      isAllMatchingHostsSelected: false,
     };
   }
 
@@ -300,6 +301,11 @@ export class ManageHostsPage extends PureComponent {
   toggleTransferHostModal = () => {
     const { showTransferHostModal } = this.state;
     this.setState({ showTransferHostModal: !showTransferHostModal });
+  };
+
+  toggleAllMatchingHosts = () => {
+    const { isAllMatchingHostsSelected } = this.state;
+    this.setState({ isAllMatchingHostsSelected: !isAllMatchingHostsSelected });
   };
 
   renderEditColumnsModal = () => {
@@ -568,11 +574,12 @@ export class ManageHostsPage extends PureComponent {
       hosts,
       loadingHosts,
     } = this.props;
-    const { hiddenColumns } = this.state;
+    const { hiddenColumns, isAllMatchingHostsSelected } = this.state;
     const {
       onTableQueryChange,
       onEditColumnsClick,
       onTransferToTeamClick,
+      toggleAllMatchingHosts,
     } = this;
 
     // The data has not been fetched yet.
@@ -605,6 +612,9 @@ export class ManageHostsPage extends PureComponent {
         onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
         emptyComponent={EmptyHosts}
+        showMarkAllPages={true}
+        isAllPagesSelected={isAllMatchingHostsSelected}
+        toggleAllPagesSelected={toggleAllMatchingHosts}
       />
     );
   };
