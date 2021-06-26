@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID *uint, targets fleet.HostTargets) (*fleet.TargetSearchResults, error) {

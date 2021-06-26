@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/health"
-	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/kit/log"
 	"github.com/kolide/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"

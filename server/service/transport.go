@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )

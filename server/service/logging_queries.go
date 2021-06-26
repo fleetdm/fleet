@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw loggingMiddleware) GetQuerySpec(ctx context.Context, name string) (spec *fleet.QuerySpec, err error) {

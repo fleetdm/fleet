@@ -8,9 +8,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/fleetdm/fleet/server/authz"
-	authz_ctx "github.com/fleetdm/fleet/server/contexts/authz"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw metricsMiddleware) CreateUserFromInvite(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {

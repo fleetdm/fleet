@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"

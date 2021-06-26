@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (mw loggingMiddleware) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {

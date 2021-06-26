@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"html/template"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // InviteMailer is used to build an email template for the invite email.

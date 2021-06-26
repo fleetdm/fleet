@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 
-	eefleetctl "github.com/fleetdm/fleet/ee/fleetctl"
+	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/kolide/kit/version"
 	"github.com/urfave/cli/v2"
 )

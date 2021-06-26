@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/sso"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/pkg/errors"
 )
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/fleetdm/fleet/server/service"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )

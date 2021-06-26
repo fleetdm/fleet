@@ -3,10 +3,10 @@ package service
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 )
 

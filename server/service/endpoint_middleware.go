@@ -4,11 +4,11 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 
-	hostctx "github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/contexts/token"
-	"github.com/fleetdm/fleet/server/contexts/viewer"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/go-kit/kit/endpoint"
 )
 

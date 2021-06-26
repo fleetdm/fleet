@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/authz"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 
-	hostctx "github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/mock"
-	"github.com/fleetdm/fleet/server/test"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

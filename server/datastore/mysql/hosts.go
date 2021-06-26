@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )

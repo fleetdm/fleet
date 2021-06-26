@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/patrickmn/sortutil"
 )
 

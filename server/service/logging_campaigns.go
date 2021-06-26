@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/websocket"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/websocket"
 )
 
 func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, querySQL string, queryID *uint, targets fleet.HostTargets) (*fleet.DistributedQueryCampaign, error) {

@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/websocket"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/igm/sockjs-go/v3/sockjs"

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -320,7 +320,7 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 
 func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, updated time.Time) error {
 	// Sort the results to have generated SQL queries ordered to minimize
-	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
+	// deadlocks. See https://github.com/fleetdm/fleet/v4/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
 	for labelID, _ := range results {
 		orderedIDs = append(orderedIDs, labelID)

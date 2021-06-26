@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (d *Datastore) NewDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {

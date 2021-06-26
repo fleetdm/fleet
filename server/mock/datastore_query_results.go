@@ -5,7 +5,7 @@ package mock
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 var _ fleet.QueryResultStore = (*QueryResultStore)(nil)

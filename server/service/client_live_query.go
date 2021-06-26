@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 
-	ws "github.com/fleetdm/fleet/server/websocket"
+	ws "github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 )

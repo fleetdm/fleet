@@ -3,9 +3,9 @@ package datastore
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/ptr"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

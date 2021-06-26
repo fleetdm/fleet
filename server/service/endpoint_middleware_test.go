@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	hostctx "github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/mock"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )

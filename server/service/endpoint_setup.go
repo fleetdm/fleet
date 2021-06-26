@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/fleet"
-	"github.com/fleetdm/fleet/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/pkg/errors"
 )

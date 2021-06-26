@@ -2,7 +2,7 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/server/fleet"
+import "github.com/fleetdm/fleet/v4/server/fleet"
 
 var _ fleet.InviteStore = (*InviteStore)(nil)
 

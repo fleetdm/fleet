@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/fleetdm/fleet/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type inmemQueryResults struct {

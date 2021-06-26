@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/firehose"
 	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
-	"github.com/fleetdm/fleet/server/logging/mock"
+	"github.com/fleetdm/fleet/v4/server/logging/mock"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 )

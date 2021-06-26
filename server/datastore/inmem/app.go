@@ -1,6 +1,6 @@
 package inmem
 
-import "github.com/fleetdm/fleet/server/fleet"
+import "github.com/fleetdm/fleet/v4/server/fleet"
 
 func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	d.mtx.Lock()
