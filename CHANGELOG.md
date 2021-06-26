@@ -1,3 +1,7 @@
+## Fleet 4.0.0 RC3 (Jun 25, 2021)
+
+Primarily a test of the new release workflows. Relevant changelog will be updated for Fleet 4.0. 
+
 ## Fleet 4.0.0 RC2 (Jun 18, 2021)
 
 The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
@@ -125,7 +129,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Improve Fleet performance by batch updating host seen time instead of updating synchronously. This improvement reduces MySQL CPU usage by ~33% with 4,000 simulated hosts and MySQL running in Docker.
 
-* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/2-Configuration.md#software-inventory).
+* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](https://github.com/fleetdm/fleet/blob/main/docs/3-Deployment/2-Configuration.md#software-inventory).
 
 * Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Basic customers.
 
