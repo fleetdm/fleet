@@ -11,6 +11,7 @@ permissions:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    environment: Docker Hub
     steps:
       - name: Checkout
         uses: actions/checkout@v2
