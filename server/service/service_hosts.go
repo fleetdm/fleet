@@ -130,7 +130,7 @@ func (svc Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []u
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
 	// teams.
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -142,7 +142,7 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
 	// teams.
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 	vc, ok := viewer.FromContext(ctx)
