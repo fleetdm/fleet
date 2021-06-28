@@ -14,6 +14,7 @@ export default {
   FORGOT_PASSWORD: "/v1/fleet/forgot_password",
   HOSTS: "/v1/fleet/hosts",
   HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
+  HOSTS_TRANSFER_BY_FILTER: "/v1/fleet/hosts/transfer/filter",
   INVITES: "/v1/fleet/invites",
   LABELS: "/v1/fleet/labels",
   LABEL_HOSTS: (id: number): string => {

@@ -92,5 +92,25 @@ export default (client: any) => {
         })
       );
     },
+    transferToTeamByFilter: (
+      teamId: number | null,
+      query: string,
+      status: string,
+      labelId: number | null
+    ) => {
+      const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
+      const endpoint = client._endpoint(HOSTS_TRANSFER_BY_FILTER);
+      return client.authenticatedPost(
+        endpoint,
+        JSON.stringify({
+          team_id: teamId,
+          filters: {
+            query,
+            status,
+            label_id: labelId,
+          },
+        })
+      );
+    },
   };
 };

@@ -101,6 +101,7 @@ export class ManageHostsPage extends PureComponent {
           : defaultHiddenColumns,
       selectedHostIds: [],
       isAllMatchingHostsSelected: false,
+      searchQuery: "",
     };
   }
 
@@ -123,6 +124,13 @@ export class ManageHostsPage extends PureComponent {
   componentWillUnmount() {
     this.clearHostUpdates();
   }
+
+  isAcceptableStatus = (filter) => {
+    return filter === "new" ||
+      filter === "online" ||
+      filter === "offline" ||
+      filter === "mia";
+  };
 
   onAddLabelClick = (evt) => {
     evt.preventDefault();
@@ -192,6 +200,10 @@ export class ManageHostsPage extends PureComponent {
     if (sortHeader !== "") {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
+
+    // keep track as a local state to be used later
+    this.setState({ searchQuery });
+
     dispatch(
       getHosts(pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
     );
@@ -269,26 +281,44 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onTransferHostSubmit = (team) => {
-    const { toggleTransferHostModal } = this;
-    const { dispatch } = this.props;
-    const { selectedHostIds } = this.state;
+    const { toggleTransferHostModal, isAcceptableStatus } = this;
+    const { dispatch, selectedFilter, selectedLabel } = this.props;
+    const { selectedHostIds, isAllMatchingHostsSelected, searchQuery } = this.state;
     const teamId = team.id === "no-team" ? null : team.id;
-    dispatch(hostActions.transferToTeam(teamId, selectedHostIds))
-      .then(() => {
-        const successMessage =
-          teamId === null
-            ? `Hosts successfully removed from teams.`
-            : `Hosts successfully transferred to  ${team.name}.`;
-        dispatch(renderFlash("success", successMessage));
-        dispatch(getHosts());
-      })
-      .catch(() => {
-        dispatch(
-          renderFlash("error", "Could not transfer hosts. Please try again.")
-        );
-      });
+    let dispatchFunc = dispatch(hostActions.transferToTeam(teamId, selectedHostIds));
+
+    if (isAllMatchingHostsSelected) {
+      let status = "";
+      let labelId = null;
+
+      if (isAcceptableStatus(selectedFilter)) {
+        status = selectedFilter;
+      }
+      
+      if (selectedLabel.id) {
+        labelId = selectedLabel.id;
+      }
+
+      dispatchFunc = dispatch(hostActions.transferToTeamByFilter(teamId, searchQuery, status, labelId));
+    } 
+    
+    dispatchFunc.then(() => {
+      const successMessage =
+        teamId === null
+          ? `Hosts successfully removed from teams.`
+          : `Hosts successfully transferred to  ${team.name}.`;
+      dispatch(renderFlash("success", successMessage));
+      dispatch(getHosts());
+    })
+    .catch(() => {
+      dispatch(
+        renderFlash("error", "Could not transfer hosts. Please try again.")
+      );
+    });
+
     toggleTransferHostModal();
     this.setState({ selectedHostIds: [] });
+    this.setState({ isAllMatchingHostsSelected: false });
   };
 
   clearHostUpdates() {

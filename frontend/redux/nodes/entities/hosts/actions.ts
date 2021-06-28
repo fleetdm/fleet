@@ -41,8 +41,30 @@ const transferToTeam = (teamId: number | null, hostIds: number[]): any => {
       });
   };
 };
+  
+const transferToTeamByFilter = (
+  teamId: number | null,
+  query: string,
+  status: string,
+  labelId: number | null
+): any => {
+  return (dispatch: any) => {
+    dispatch(loadRequest());
+    return Fleet.hosts
+      .transferToTeam(teamId, query, status, labelId)
+      .then(() => {
+        dispatch(transferHostsSuccess());
+      })
+      .catch((res: IApiError) => {
+        const errorsObject = formatErrorResponse(res);
+        dispatch(transferHostsFailure(errorsObject));
+        throw errorsObject;
+      });
+  };
+};
 
 export default {
   ...actions,
   transferToTeam,
+  transferToTeamByFilter,
 };
