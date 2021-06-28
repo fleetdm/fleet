@@ -36,7 +36,7 @@ interface ITableContainerProps {
   onSelectActionClick?: (selectedItemIds: number[]) => void;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
-  resultsTitle?: string;
+  resultsTitle: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
   className?: string;
@@ -220,6 +220,7 @@ const TableContainer = ({
               showMarkAllPages={showMarkAllPages}
               isAllPagesSelected={isAllPagesSelected}
               toggleAllPagesSelected={toggleAllPagesSelected}
+              resultsTitle={resultsTitle}
             />
             <Pagination
               resultsOnCurrentPage={data.length}

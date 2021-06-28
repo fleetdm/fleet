@@ -534,7 +534,7 @@ export class UserManagementPage extends Component {
           actionButtonText={"Create User"}
           onActionButtonClick={toggleCreateUserModal}
           onQueryChange={onTableQueryChange}
-          resultsTitle={"rows"}
+          resultsTitle={"users"}
           emptyComponent={EmptyUsers}
         />
         {renderCreateUserModal()}

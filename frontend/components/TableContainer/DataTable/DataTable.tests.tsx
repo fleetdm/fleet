@@ -26,6 +26,7 @@ describe("DataTable - component", () => {
         onSort={noop}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        resultsTitle="users"
       />
     );
 
@@ -65,6 +66,7 @@ describe("DataTable - component", () => {
         onSort={noop}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        resultsTitle="users"
       />
     );
 
@@ -88,6 +90,7 @@ describe("DataTable - component", () => {
         onSort={noop}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        resultsTitle="users"
       />
     );
 
@@ -119,6 +122,7 @@ describe("DataTable - component", () => {
         onSort={noop}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        resultsTitle="users"
       />
     );
 
@@ -139,6 +143,7 @@ describe("DataTable - component", () => {
         onSort={noop}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        resultsTitle="users"
       />
     );
 

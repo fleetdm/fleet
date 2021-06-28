@@ -18,6 +18,7 @@ interface IDataTableProps {
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
+  resultsTitle: string;
 }
 
 // This data table uses react-table for implementation. The relevant documentation of the library
@@ -33,6 +34,7 @@ const DataTable = ({
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
+  resultsTitle,
 }: IDataTableProps) => {
   const columns = useMemo(() => {
     return tableColumns;
@@ -126,8 +128,8 @@ const DataTable = ({
                         variant={"text-link"}
                       >
                         {isAllPagesSelected
-                          ? "Deselect all matchin hosts"
-                          : "Select all matching hosts"}
+                          ? `Deselect all matching ${resultsTitle}`
+                          : `Select all matching ${resultsTitle}`}
                       </Button>
                     )}
                     <Button
