@@ -41,8 +41,20 @@ if (Cypress.env("FLEET_TIER") === "basic") {
 
       // On the Host details page, they should…
       // See the “Team” information below the hostname
+      // Be able to transfer Teams
       cy.visit("/hosts/1");
       cy.findByText(/team/i).next().contains("Apples");
+      cy.contains("button", /transfer/i).click();
+      cy.get(".Select-control").click();
+      cy.findByText(/create a team/i).should("exist");
+      cy.get(".Select-menu").within(() => {
+        cy.findByText(/no team/i).should("exist");
+        cy.findByText(/apples/i).should("exist");
+        cy.findByText(/oranges/i).click();
+      });
+      cy.get(".transfer-host-modal__btn").click();
+      cy.findByText(/transferred to oranges/i).should("exist");
+      cy.findByText(/team/i).next().contains("Oranges");
 
       // On the Queries - new / edit / run page, they should…
       // See the “Teams” section in the Select target picker. This picker is summoned when the “Select targets” field is selected.

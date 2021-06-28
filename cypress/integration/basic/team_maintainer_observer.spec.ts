@@ -128,9 +128,8 @@ if (Cypress.env("FLEET_TIER") === "basic") {
         cy.get(".Select").within(() => {
           cy.findByText(/select a team/i).click();
           cy.findByText(/no team/i).should("exist");
-          // cy.findByText(/apples/i).should("exist");
-          // cy.findByText(/oranges/i).should("not exist");
-          // ^^TODO add back these assertions after dropdown bug is fixed
+          cy.findByText(/apples/i).should("exist");
+          cy.findByText(/oranges/i).should("not exist");
         });
       });
       cy.findByRole("button", { name: /done/i }).click();
