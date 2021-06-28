@@ -167,15 +167,15 @@ export class HostDetailsPage extends Component {
       .then(() => {
         const successMessage =
           teamId === null
-            ? `Hosts successfully removed from teams.`
-            : `Hosts successfully transferred to  ${team.name}.`;
+            ? `Host successfully removed from teams.`
+            : `Host successfully transferred to  ${team.name}.`;
         dispatch(renderFlash("success", successMessage));
         // Update page with correct team
         dispatch(hostActions.loadAll());
       })
       .catch(() => {
         dispatch(
-          renderFlash("error", "Could not transfer hosts. Please try again.")
+          renderFlash("error", "Could not transfer host. Please try again.")
         );
       });
     // Must call the function and the return to avoid infinite loop

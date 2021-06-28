@@ -82,7 +82,7 @@ const TransferHostModal = (props: ITransferHostModal): JSX.Element => {
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             disabled={selectedTeam === undefined}
-            className={`${baseClass}__btn`}
+            className={`${baseClass}__btn transfer-action-btn`}
             type="button"
             variant="brand"
             onClick={onSubmitTransferHost}
