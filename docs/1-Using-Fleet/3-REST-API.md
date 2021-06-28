@@ -461,6 +461,9 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Get host by identifier](#get-host-by-identifier)
 - [Delete host](#delete-host)
 - [Refetch host](#refetch-host)
+- [Transfer hosts to a team](#transfer-hosts-to-a-team)
+- [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
+
 
 ### List hosts
 
