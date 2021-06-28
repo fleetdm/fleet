@@ -89,6 +89,16 @@ export class HostDetailsPage extends Component {
     return false;
   }
 
+  componentDidMount() {
+    const { dispatch, hostID } = this.props;
+    const { fetchHost } = helpers;
+
+    fetchHost(dispatch, hostID).then((host) =>
+      this.setState({ showRefetchLoadingSpinner: host.refetch_requested })
+    );
+    return false;
+  }
+
   // Loads teams
   componentDidUpdate(prevProps) {
     const { dispatch, isBasicTier, canTransferTeam } = this.props;
@@ -103,16 +113,6 @@ export class HostDetailsPage extends Component {
 
   componentWillUnmount() {
     this.clearHostUpdates();
-  }
-
-  componentDidMount() {
-    const { dispatch, hostID } = this.props;
-    const { fetchHost } = helpers;
-
-    fetchHost(dispatch, hostID).then((host) =>
-      this.setState({ showRefetchLoadingSpinner: host.refetch_requested })
-    );
-    return false;
   }
 
   onDestroyHost = () => {
@@ -163,7 +163,7 @@ export class HostDetailsPage extends Component {
     const { dispatch, hostID } = this.props;
     const teamId = team.id === "no-team" ? null : team.id;
 
-    dispatch(hostActions.transferToTeam(teamId, [parseInt(hostID)]))
+    dispatch(hostActions.transferToTeam(teamId, [parseInt(hostID, 10)]))
       .then(() => {
         const successMessage =
           teamId === null
