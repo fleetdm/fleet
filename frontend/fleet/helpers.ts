@@ -344,12 +344,12 @@ export const humanHostDetailUpdated = (detailUpdated: string): string => {
   return moment(detailUpdated).fromNow();
 };
 
-export const hostTeamName = (team: string): string => {
-  if (!team) {
+export const hostTeamName = (teamName: string): string => {
+  if (!teamName) {
     return "No team";
   }
 
-  return team;
+  return teamName;
 };
 
 export const humanQueryLastRun = (lastRun: string): string => {
