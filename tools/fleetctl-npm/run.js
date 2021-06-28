@@ -19,7 +19,7 @@ const strippedVersion = version.replace(/-[0-9]+/i, "");
 const binDir = path.join(__dirname, "install");
 // Determine the install directory by version so that we can detect when we need
 // to upgrade to a new version.
-const installDir = path.join(binDir, version);
+const installDir = path.join(binDir, strippedVersion);
 
 const platform = () => {
   switch (os.type()) {
