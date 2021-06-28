@@ -16,10 +16,12 @@ import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 
 import permissionUtils from "utilities/permissions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
+import { getHosts } from "redux/nodes/components/ManageHostsPage/actions";
 import queryActions from "redux/nodes/entities/queries/actions";
 import teamInterface from "interfaces/team";
 import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
 import hostActions from "redux/nodes/entities/hosts/actions";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
@@ -87,6 +89,22 @@ export class HostDetailsPage extends Component {
     return false;
   }
 
+  // Loads teams
+  componentDidUpdate(prevProps) {
+    const { dispatch, isBasicTier, canTransferTeam } = this.props;
+    if (
+      isBasicTier !== prevProps.isBasicTier &&
+      isBasicTier &&
+      canTransferTeam
+    ) {
+      dispatch(teamActions.loadAll({}));
+    }
+  }
+
+  componentWillUnmount() {
+    this.clearHostUpdates();
+  }
+
   componentDidMount() {
     const { dispatch, hostID } = this.props;
     const { fetchHost } = helpers;
@@ -151,7 +169,8 @@ export class HostDetailsPage extends Component {
             ? `Hosts successfully removed from teams.`
             : `Hosts successfully transferred to  ${team.name}.`;
         dispatch(renderFlash("success", successMessage));
-        dispatch(getHosts());
+        // Update page with correct team
+        dispatch(hostActions.loadAll());
       })
       .catch(() => {
         dispatch(
@@ -196,7 +215,6 @@ export class HostDetailsPage extends Component {
 
   toggleTransferHostModal = () => {
     console.log("toggleTRANSFERHostModal");
-
     return () => {
       console.log("RETURN toggleTRANSFERHostModal");
 
