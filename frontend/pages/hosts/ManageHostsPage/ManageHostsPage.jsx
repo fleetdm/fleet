@@ -313,9 +313,14 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ showTransferHostModal: !showTransferHostModal });
   };
 
-  toggleAllMatchingHosts = () => {
+  toggleAllMatchingHosts = (shouldSelect = undefined) => { // shouldSelect?: boolean
     const { isAllMatchingHostsSelected } = this.state;
-    this.setState({ isAllMatchingHostsSelected: !isAllMatchingHostsSelected });
+
+    if (shouldSelect !== undefined) {
+      this.setState({ isAllMatchingHostsSelected: shouldSelect });
+    } else {
+      this.setState({ isAllMatchingHostsSelected: !isAllMatchingHostsSelected }); 
+    }   
   };
 
   renderEditColumnsModal = () => {

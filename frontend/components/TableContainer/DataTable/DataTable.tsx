@@ -1,6 +1,8 @@
 import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
+import { isEmpty } from "lodash";
+import { useDeepEffect } from "utilities/hooks";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "../../buttons/Button";
@@ -85,17 +87,32 @@ const DataTable = ({
     }
   }, [sortBy, sortHeader, onSort, sortDirection]);
 
+  useEffect(() => {
+    if (isAllPagesSelected) {
+      toggleAllRowsSelected(true);
+    }
+  }, [isAllPagesSelected]);
+
+  useDeepEffect(() => {
+    const { selectedRowIds } = tableState;
+
+    if (Object.keys(selectedRowIds).length < rows.length) {
+      toggleAllPagesSelected(false);
+    }
+  }, [tableState.selectedRowIds]);
+
   const onSelectActionButtonClick = useCallback(() => {
     const entityIds = selectedFlatRows.map((row: any) => row.original.id);
     onSelectActionClick(entityIds);
   }, [onSelectActionClick, selectedFlatRows]);
 
   const onToggleAllPagesClick = useCallback(() => {
-    toggleAllPagesSelected(!isAllPagesSelected);
-  }, [toggleAllRowsSelected]);
+    toggleAllPagesSelected();
+  }, [toggleAllPagesSelected]);
 
   const onClearSelectionClick = useCallback(() => {
     toggleAllRowsSelected(false);
+    toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
 
   return (
