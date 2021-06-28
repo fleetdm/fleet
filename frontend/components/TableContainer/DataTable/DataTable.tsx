@@ -153,24 +153,28 @@ const DataTable = ({
                 </th>
                 <th className={"active-selection__container"}>
                   <div className={"active-selection__inner"}>
-                    {renderSelectedText()}
-                    {showMarkAllPages && !isAllPagesSelected && (
+                    <div className={"active-selection__inner-left"}>
+                      {renderSelectedText()}
+                      {showMarkAllPages && !isAllPagesSelected && (
+                        <Button
+                          onClick={onToggleAllPagesClick}
+                          variant={"text-link"}
+                        >
+                          <>Select all matching {resultsTitle}</>
+                        </Button>
+                      )}
                       <Button
-                        onClick={onToggleAllPagesClick}
+                        onClick={onClearSelectionClick}
                         variant={"text-link"}
                       >
-                        <>Select all matching {resultsTitle}</>
+                        Clear selection
                       </Button>
-                    )}
-                    <Button
-                      onClick={onClearSelectionClick}
-                      variant={"text-link"}
-                    >
-                      Clear selection
-                    </Button>
-                    <Button onClick={onSelectActionButtonClick}>
-                      Transfer to team
-                    </Button>
+                    </div>
+                    <div className={"active-selection__inner-right"}>
+                      <Button onClick={onSelectActionButtonClick}>
+                        Transfer to team
+                      </Button>
+                    </div>
                   </div>
                 </th>
               </tr>
