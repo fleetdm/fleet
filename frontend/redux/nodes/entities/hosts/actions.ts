@@ -51,7 +51,7 @@ const transferToTeamByFilter = (
   return (dispatch: any) => {
     dispatch(loadRequest());
     return Fleet.hosts
-      .transferToTeam(teamId, query, status, labelId)
+      .transferToTeamByFilter(teamId, query, status, labelId)
       .then(() => {
         dispatch(transferHostsSuccess());
       })

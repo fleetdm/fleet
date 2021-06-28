@@ -282,9 +282,7 @@ export class ManageHostsPage extends PureComponent {
       searchQuery,
     } = this.state;
     const teamId = team.id === "no-team" ? null : team.id;
-    let dispatchFunc = dispatch(
-      hostActions.transferToTeam(teamId, selectedHostIds)
-    );
+    let action = hostActions.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
       let status = "";
@@ -298,12 +296,15 @@ export class ManageHostsPage extends PureComponent {
         labelId = selectedLabel.id;
       }
 
-      dispatchFunc = dispatch(
-        hostActions.transferToTeamByFilter(teamId, searchQuery, status, labelId)
+      action = hostActions.transferToTeamByFilter(
+        teamId,
+        searchQuery,
+        status,
+        labelId
       );
     }
 
-    dispatchFunc
+    dispatch(action)
       .then(() => {
         const successMessage =
           teamId === null
