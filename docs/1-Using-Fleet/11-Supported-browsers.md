@@ -3,6 +3,8 @@
 
 Fleet supports the latest, stable releases of all major browsers and platforms. Specific minimum supported browser information is provided below.
 
+**Note:** This information also applies to [fleetdm.com](https://www.fleetdm.com).
+
 ### Desktop
 
 - Chrome 29 on latest Windows OS where it is available
