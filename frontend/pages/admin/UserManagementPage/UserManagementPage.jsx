@@ -216,7 +216,7 @@ export class UserManagementPage extends Component {
   };
 
   onResetSessions = () => {
-    const { HOME } = paths;
+    const { LOGIN } = paths;
     const { currentUser, dispatch } = this.props;
     const { userEditing } = this.state;
     const { toggleResetSessionsUserModal } = this;
@@ -224,7 +224,7 @@ export class UserManagementPage extends Component {
       .then(() => {
         dispatch(renderFlash("success", "Sessions reset"));
         if (currentUser.id === userEditing.id) {
-          dispatch(push(HOME));
+          dispatch(push(LOGIN));
         }
       })
       .catch(() => {
