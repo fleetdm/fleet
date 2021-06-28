@@ -345,7 +345,7 @@ export const humanHostDetailUpdated = (detailUpdated: string): string => {
 };
 
 export const hostTeamName = (teamName: string): string => {
-  if (!teamName) {
+  if (teamName === "" || teamName === null) {
     return "No team";
   }
 
