@@ -53,6 +53,7 @@ const DataTable = ({
     prepareRow,
     selectedFlatRows,
     toggleAllRowsSelected,
+    isAllRowsSelected,
     state: tableState,
   } = useTable(
     {
@@ -115,6 +116,22 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
 
+  const renderSelectedText = (): JSX.Element => {
+    if (isAllPagesSelected) {
+      return <p>All matching {resultsTitle} are selected</p>;
+    }
+
+    if (isAllRowsSelected) {
+      return <p>All {resultsTitle} on this page are selected</p>;
+    }
+
+    return (
+      <p>
+        <span>{selectedFlatRows.length}</span> selected
+      </p>
+    );
+  };
+
   return (
     <div className={baseClass}>
       <div className={"data-table data-table__wrapper"}>
@@ -136,17 +153,13 @@ const DataTable = ({
                 </th>
                 <th className={"active-selection__container"}>
                   <div className={"active-selection__inner"}>
-                    <p>
-                      <span>{selectedFlatRows.length}</span> selected
-                    </p>
-                    {showMarkAllPages && (
+                    {renderSelectedText()}
+                    {showMarkAllPages && !isAllPagesSelected && (
                       <Button
                         onClick={onToggleAllPagesClick}
                         variant={"text-link"}
                       >
-                        {isAllPagesSelected
-                          ? `Deselect all matching ${resultsTitle}`
-                          : `Select all matching ${resultsTitle}`}
+                        <>Select all matching {resultsTitle}</>
                       </Button>
                     )}
                     <Button
