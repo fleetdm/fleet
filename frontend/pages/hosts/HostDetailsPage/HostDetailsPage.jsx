@@ -162,6 +162,7 @@ export class HostDetailsPage extends Component {
     const { toggleTransferHostModal } = this;
     const { dispatch, hostID } = this.props;
     const teamId = team.id === "no-team" ? null : team.id;
+
     dispatch(hostActions.transferToTeam(teamId, [parseInt(hostID)]))
       .then(() => {
         const successMessage =
@@ -177,8 +178,8 @@ export class HostDetailsPage extends Component {
           renderFlash("error", "Could not transfer hosts. Please try again.")
         );
       });
-    console.log("onTransferHostSubmit");
-    toggleTransferHostModal();
+    // Must call the function and the return to avoid infinite loop
+    toggleTransferHostModal()();
   };
 
   clearHostUpdates() {
@@ -189,9 +190,7 @@ export class HostDetailsPage extends Component {
   }
 
   toggleQueryHostModal = () => {
-    console.log("toggleQUERYHostModal");
     return () => {
-      console.log("RETURN of toggleQUERYHostModal");
       const { showQueryHostModal } = this.state;
       this.setState({
         showQueryHostModal: !showQueryHostModal,
@@ -214,12 +213,8 @@ export class HostDetailsPage extends Component {
   };
 
   toggleTransferHostModal = () => {
-    console.log("toggleTRANSFERHostModal");
     return () => {
-      console.log("RETURN toggleTRANSFERHostModal");
-
       const { showTransferHostModal } = this.state;
-      console.log("showTransferHostModal:", showTransferHostModal);
 
       this.setState({
         showTransferHostModal: !showTransferHostModal,
