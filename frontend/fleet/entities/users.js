@@ -11,6 +11,12 @@ export default (client) => {
         .authenticatedPost(client._endpoint(USERS), JSON.stringify(formData))
         .then((response) => helpers.addGravatarUrlToResource(response.user));
     },
+    deleteSessions: (user) => {
+      const { USER_SESSIONS } = endpoints;
+      const endpoint = client._endpoint(USER_SESSIONS(user.id));
+
+      return client.authenticatedDelete(endpoint);
+    },
     destroy: (user) => {
       const { USERS } = endpoints;
       const endpoint = `${client._endpoint(USERS)}/${user.id}`;

@@ -27,6 +27,7 @@ import EmptyUsers from "./components/EmptyUsers";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserForm from "./components/DeleteUserForm";
 import ResetPasswordModal from "./components/ResetPasswordModal";
+import ResetSessionsModal from "./components/ResetSessionsModal";
 
 const baseClass = "user-management";
 
@@ -79,6 +80,7 @@ export class UserManagementPage extends Component {
       showEditUserModal: false,
       showDeleteUserModal: false,
       showResetPasswordModal: false,
+      showResetSessionsModal: false,
       userEditing: null,
       usersEditing: [],
     };
@@ -213,6 +215,25 @@ export class UserManagementPage extends Component {
     }
   };
 
+  onResetSessions = () => {
+    const { dispatch } = this.props;
+    const { userEditing } = this.state;
+    const { toggleResetSessionsUserModal } = this;
+    dispatch(userActions.deleteSessions(userEditing))
+      .then(() => {
+        dispatch(renderFlash("success", "Sessions reset"));
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            "Could not reset sessions for the selected user. Please try again."
+          )
+        );
+      });
+    toggleResetSessionsUserModal();
+  };
+
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component calls this handler.
   onTableQueryChange = (queryData) => {
@@ -245,6 +266,7 @@ export class UserManagementPage extends Component {
       toggleDeleteUserModal,
       goToUserSettingsPage,
       toggleResetPasswordUserModal,
+      toggleResetSessionsUserModal,
     } = this;
     switch (action) {
       case "edit":
@@ -255,6 +277,9 @@ export class UserManagementPage extends Component {
         break;
       case "passwordReset":
         toggleResetPasswordUserModal(user);
+        break;
+      case "resetSessions":
+        toggleResetSessionsUserModal(user);
         break;
       case "editMyAccount":
         goToUserSettingsPage();
@@ -304,6 +329,14 @@ export class UserManagementPage extends Component {
     this.setState({
       showResetPasswordModal: !showResetPasswordModal,
       userEditing: !showResetPasswordModal ? user : null,
+    });
+  };
+
+  toggleResetSessionsUserModal = (user) => {
+    const { showResetSessionsModal } = this.state;
+    this.setState({
+      showResetSessionsModal: !showResetSessionsModal,
+      userEditing: !showResetSessionsModal ? user : null,
     });
   };
 
@@ -457,6 +490,22 @@ export class UserManagementPage extends Component {
     );
   };
 
+  renderResetSessionsModal = () => {
+    const { showResetSessionsModal, userEditing } = this.state;
+    const { toggleResetSessionsUserModal, onResetSessions } = this;
+
+    if (!showResetSessionsModal) return null;
+
+    return (
+      <ResetSessionsModal
+        user={userEditing}
+        modalBaseClass={baseClass}
+        onResetConfirm={onResetSessions}
+        onResetCancel={toggleResetSessionsUserModal}
+      />
+    );
+  };
+
   renderSmtpWarning = () => {
     const { appConfigLoading, config } = this.props;
     const { goToAppConfigPage } = this;
@@ -492,6 +541,7 @@ export class UserManagementPage extends Component {
       renderEditUserModal,
       renderDeleteUserModal,
       renderResetPasswordModal,
+      renderResetSessionsModal,
       renderSmtpWarning,
       toggleCreateUserModal,
       onTableQueryChange,
@@ -540,6 +590,8 @@ export class UserManagementPage extends Component {
         {renderCreateUserModal()}
         {renderEditUserModal()}
         {renderDeleteUserModal()}
+        {renderResetSessionsModal()}
+
         {renderResetPasswordModal()}
       </div>
     );

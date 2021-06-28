@@ -77,6 +77,25 @@ export const confirmEmailChange = (user, token) => {
   };
 };
 
+export const deleteSessions = (user) => {
+  const { successAction, destroyFailure, destroySuccess } = actions;
+
+  return (dispatch) => {
+    return Fleet.users
+      .deleteSessions(user)
+      .then((userResponse) => {
+        return dispatch(successAction(userResponse, destroySuccess));
+      })
+      .catch((response) => {
+        const errorsObject = formatErrorResponse(response);
+
+        dispatch(destroyFailure(errorsObject));
+
+        throw errorsObject;
+      });
+  };
+};
+
 export const enableUser = (user, { enabled }) => {
   const { successAction, updateFailure, updateSuccess } = actions;
 
@@ -139,5 +158,6 @@ export default {
   confirmEmailChange,
   enableUser,
   requirePasswordReset,
+  deleteSessions,
   updateAdmin,
 };
