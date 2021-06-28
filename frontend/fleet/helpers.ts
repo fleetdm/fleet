@@ -344,8 +344,8 @@ export const humanHostDetailUpdated = (detailUpdated: string): string => {
   return moment(detailUpdated).fromNow();
 };
 
-export const hostTeamName = (teamName: string): string => {
-  if (teamName === "" || teamName === null) {
+export const hostTeamName = (teamName: string | null): string => {
+  if (!teamName) {
     return "No team";
   }
 
