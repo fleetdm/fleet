@@ -47,7 +47,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
         cy.findByText(/apples/i).should("exist");
         cy.findByText(/oranges/i).click();
       });
-      cy.get(".transfer-host-modal__btn").click();
+      cy.get(".transfer-action-btn").click();
       cy.findByText(/transferred to oranges/i).should("exist");
       cy.findByText(/team/i).next().contains("Oranges");
 
