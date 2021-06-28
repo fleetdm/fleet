@@ -1,0 +1,26 @@
+.software-vulnerabilities {
+  font-size: $x-small;
+  background-color: $ui-off-white;
+  border: solid 1px $ui-fleet-black-50;
+  box-sizing: border-box;
+  border-radius: 10px;
+  overflow: scroll;
+  margin-bottom: $pad-large;
+  padding: $pad-large;
+  padding-bottom: $pad-small;
+
+  a {
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
+  &__count {
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  svg {
+    padding-right: $pad-xxsmall;
+  }
+}

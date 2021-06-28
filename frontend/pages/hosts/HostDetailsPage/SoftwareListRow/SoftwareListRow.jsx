@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import IconToolTip from "components/IconToolTip";
 
 import softwareInterface from "interfaces/software";
 
@@ -11,7 +12,7 @@ class SoftwareListRow extends Component {
 
   render() {
     const { software } = this.props;
-    const { name, source, version } = software;
+    const { name, source, version, vulnerabilities } = software;
 
     const TYPE_CONVERSION = {
       apt_sources: "Package (APT)",
@@ -35,8 +36,26 @@ class SoftwareListRow extends Component {
 
     const type = TYPE_CONVERSION[source] || "Unknown";
 
+    const vulnerabilitiesIcon = () => {
+      if (vulnerabilities.length === 0) {
+        return null;
+      }
+
+      const vulText =
+        vulnerabilities.length === 1 ? "vulnerability" : "vulnerabilities";
+
+      return (
+        <IconToolTip
+          text={`${vulnerabilities.length} ${vulText} detected`}
+          issue
+          isHtml
+        />
+      );
+    };
+
     return (
       <tr>
+        <td className={`${baseClass}__name`}>{vulnerabilitiesIcon()}</td>
         <td className={`${baseClass}__name`}>{name}</td>
         <td className={`${baseClass}__type`}>{type}</td>
         <td className={`${baseClass}__installed-version`}>{version}</td>

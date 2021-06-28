@@ -307,6 +307,23 @@
     }
   }
 
+  .section--software {
+    th {
+      &:first-child {
+        border-right: none;
+        width: 16px;
+        padding-right: 0px;
+      }
+    }
+    tr {
+      td {
+        &:first-child {
+          padding-right: 0px;
+        }
+      }
+    }
+  }
+
   tbody {
     td {
       padding: 12px 27px;

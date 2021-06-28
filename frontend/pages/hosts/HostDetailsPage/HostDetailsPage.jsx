@@ -12,6 +12,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities";
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 
 import permissionUtils from "utilities/permissions";
@@ -377,6 +378,7 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
+
         {host.software.length === 0 ? (
           <div className="results">
             <p className="results__header">
@@ -388,18 +390,20 @@ export class HostDetailsPage extends Component {
             </p>
           </div>
         ) : (
-          <div className={`${baseClass}__wrapper`}>
-            <table className={wrapperClassName}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Installed Version</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!!host.software.length &&
-                  host.software.map((software) => {
+          <>
+            <SoftwareVulnerabilities softwareList={host.software} />
+            <div className={`${baseClass}__wrapper`}>
+              <table className={wrapperClassName}>
+                <thead>
+                  <tr>
+                    <th />
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Installed Version</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {host.software.map((software) => {
                     return (
                       <SoftwareListRow
                         key={`software-row-${software.id}`}
@@ -407,9 +411,10 @@ export class HostDetailsPage extends Component {
                       />
                     );
                   })}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     );
