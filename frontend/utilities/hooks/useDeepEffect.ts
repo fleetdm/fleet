@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { isEqual } from "lodash";
 
-export const useDeepEffect = (fn: Function, deps: Array<any>) => {
+const useDeepEffect = (fn: () => void, deps: Array<any>) => {
   const isFirst = useRef(true);
   const prevDeps = useRef(deps);
 
@@ -18,3 +18,5 @@ export const useDeepEffect = (fn: Function, deps: Array<any>) => {
     prevDeps.current = deps;
   }, [deps, fn]);
 };
+
+export default useDeepEffect;

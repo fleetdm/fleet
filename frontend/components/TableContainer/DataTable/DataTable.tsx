@@ -1,8 +1,7 @@
 import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
-import { isEmpty } from "lodash";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "utilities/hooks/useDeepEffect";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "../../buttons/Button";
@@ -95,12 +94,13 @@ const DataTable = ({
   }, [isAllPagesSelected]);
 
   useDeepEffect(() => {
-    const { selectedRowIds } = tableState;
-
-    if (Object.keys(selectedRowIds).length < rows.length) {
+    if (
+      Object.keys(selectedRowIds).length < rows.length &&
+      toggleAllPagesSelected
+    ) {
       toggleAllPagesSelected(false);
     }
-  }, [tableState.selectedRowIds]);
+  }, [tableState.selectedRowIds, toggleAllPagesSelected]);
 
   const onSelectActionButtonClick = useCallback(() => {
     const entityIds = selectedFlatRows.map((row: any) => row.original.id);

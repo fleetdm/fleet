@@ -41,7 +41,7 @@ const transferToTeam = (teamId: number | null, hostIds: number[]): any => {
       });
   };
 };
-  
+
 const transferToTeamByFilter = (
   teamId: number | null,
   query: string,
