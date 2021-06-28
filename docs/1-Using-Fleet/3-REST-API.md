@@ -50,6 +50,8 @@ Queries, packs, scheduled queries, labels, invites, users, sessions all behave t
 
 All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Fleet API is important to you right now, being familiar with Go Kit would definitely be helpful.
 
+> [Check out Fleet v3's REST API documentation](https://github.com/fleetdm/fleet/blob/0bd6903b2df084c9c727f281e86dff0cbc2e0c25/docs/1-Using-Fleet/3-REST-API.md), if you're using a version of Fleet below 4.0.0. Warning: Fleet v3's documentation is no longer being maintained.
+
 ## Authentication
 
 - [Log in](#log-in)
@@ -630,7 +632,7 @@ The endpoint returns the host's installed `software` if the software inventory f
         "status": "offline",
         "display_text": "259404d30eb6",
         "team_id": null,
-        "team_name",
+        "team_name": null,
         "labels": [
           {
             "created_at": "2021-01-14T16:37:24Z",
@@ -1110,7 +1112,9 @@ Returns a list of the hosts that belong to the specified label.
       "distributed_interval": 10,
       "config_tls_refresh": 10,
       "logger_tls_period": 10,
-      "additional": {},
+      "team_id": null,
+      "pack_stats": null,
+      "team_name": null,
       "status": "offline",
       "display_text": "e2e7f8d8983d"
     },
@@ -1227,7 +1231,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/specs/labels`
+`GET /api/v1/fleet/spec/labels`
 
 ##### Default response
 
@@ -1237,7 +1241,7 @@ None.
 {
   "specs": [
     {
-      "ID": 0,
+      "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
       "query": "select 1;",
@@ -1245,7 +1249,7 @@ None.
       "label_membership_type": "dynamic"
     },
     {
-      "ID": 0,
+      "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
       "query": "select 1 from os_version where platform = 'darwin';",
@@ -1254,7 +1258,7 @@ None.
       "label_membership_type": "dynamic"
     },
     {
-      "ID": 0,
+      "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
       "query": "select 1 from os_version where platform = 'ubuntu';",
@@ -1263,7 +1267,7 @@ None.
       "label_membership_type": "dynamic"
     },
     {
-      "ID": 0,
+      "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
       "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
@@ -1271,7 +1275,7 @@ None.
       "label_membership_type": "dynamic"
     },
     {
-      "ID": 0,
+      "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
       "query": "select 1 from os_version where platform = 'windows';",
@@ -1280,7 +1284,7 @@ None.
       "label_membership_type": "dynamic"
     },
     {
-      "ID": 0,
+      "id": 11,
       "name": "Ubuntu",
       "description": "Filters ubuntu hosts",
       "query": "select 1 from os_version where platform = 'ubuntu';",
@@ -1294,7 +1298,7 @@ None.
 
 Returns the spec for the label specified by name.
 
-`GET /api/v1/fleet/specs/labels/{name}`
+`GET /api/v1/fleet/spec/labels/{name}`
 
 #### Parameters
 
@@ -1302,7 +1306,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/specs/labels/local_machine`
+`GET /api/v1/fleet/spec/labels/local_machine`
 
 ##### Default response
 
@@ -1311,14 +1315,11 @@ None.
 ```
 {
   "specs": {
-    "ID": 0,
+    "id": 12,
     "name": "local_machine",
     "description": "Includes only my local machine",
     "query": "",
     "label_membership_type": "manual",
-    "hosts": [
-        "snacbook-pro.local"
-    ]
   }
 }
 ```
@@ -1543,6 +1544,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 | ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                |
 | password    | string  | body | **Required**. The user's password.                                                                                                                                                                                                                                                                                                                     |
+| name    | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                                     |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
 | global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
 | teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
@@ -1551,7 +1553,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 `POST /api/v1/fleet/users/admin`
 
-##### Request query parameters
+##### Request body
 
 ```
 {
@@ -1561,11 +1563,11 @@ Creates a user account without requiring an invitation, the user is enabled imme
   "teams": [
     {
       "id": 2,
-      "role: "observer"
+      "role": "observer"
     },
     {
       "id": 3,
-      "role: "maintainer"
+      "role": "maintainer"
     },
   ]
 }
@@ -1656,6 +1658,7 @@ Returns all information about a specific user.
     "name": "Jane Doe",
     "email": "janedoe@example.com",
     "global_role": "admin",
+    "api_only": false,
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
@@ -3055,6 +3058,7 @@ o
 | description | string | body | The pack's description.                     |
 | host_ids    | list   | body | A list containing the targeted host IDs.    |
 | label_ids   | list   | body | A list containing the targeted label's IDs. |
+| team_ids   | list   | body | _Available in Fleet Basic_  A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -3088,7 +3092,8 @@ o
     "host_ids": [],
     "label_ids": [
       6
-    ]
+    ],
+    "team_ids": [],
   }
 }
 ```
@@ -3106,6 +3111,7 @@ o
 | description | string  | body | The pack's description.                     |
 | host_ids    | list    | body | A list containing the targeted host IDs.    |
 | label_ids   | list    | body | A list containing the targeted label's IDs. |
+| team_ids   | list   | body | _Available in Fleet Basic_  A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -3138,7 +3144,8 @@ o
     "host_ids": [],
     "label_ids": [
       7
-    ]
+    ],
+    "team_ids": []
   }
 }
 ```
@@ -3174,7 +3181,8 @@ o
     "host_ids": [],
     "label_ids": [
       7
-    ]
+    ],
+    "team_ids": []
   }
 }
 ```
@@ -3213,7 +3221,8 @@ o
       "host_ids": [],
       "label_ids": [
         8
-      ]
+      ],
+      "team_ids": [],
     },
     {
       "created_at": "2021-01-19T17:08:31Z",
@@ -3225,7 +3234,8 @@ o
       "host_ids": [],
       "label_ids": [
         6
-      ]
+      ],
+      "team_ids": [],
     },
   ]
 }
@@ -4259,7 +4269,6 @@ Replaces the active global enroll secrets with the secrets specified.
     "secrets": [
       {
         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        "active": false,
       },
     ]
   }
@@ -4318,7 +4327,7 @@ None.
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                |
 | name        | string  | body | **Required.** The name of the invited user.                                                                              |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                   |
-| teams       | list    | body | A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+| teams       | list    | body | _Available in Fleet Basic_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
 
