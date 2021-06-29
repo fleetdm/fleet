@@ -59,6 +59,10 @@
     align-items: flex-start;
   }
 
+  .button {
+    font-size: $x-small;
+  }
+
   &__advanced-button {
     margin-right: $pad-small;
   }
