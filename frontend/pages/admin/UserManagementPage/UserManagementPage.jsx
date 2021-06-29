@@ -152,14 +152,14 @@ export class UserManagementPage extends Component {
     console.log(formData);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
-      // Do some data formatting adding `invited_by` for the request to be correct.
+      // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
       const requestData = {
         ...formData,
         invited_by: formData.currentUserId,
       };
-      delete requestData.currentUserId; // dont need this for the request.
-      delete requestData.newUserType; // dont need this for the request.
-      delete requestData.password; // dont need this for the request.
+      delete requestData.currentUserId; // this field is not needed for the request
+      delete requestData.newUserType; // this field is not needed for the request
+      delete requestData.password; // this field is not needed for the request
       dispatch(inviteActions.create(requestData))
         .then(() => {
           dispatch(
@@ -176,8 +176,31 @@ export class UserManagementPage extends Component {
           );
           this.toggleCreateUserModal();
         });
+    } else if (!formData.sso_enabled) {
+      // Do some data formatting deleteing uncessary fields
+      const requestData = {
+        ...formData,
+      };
+      delete requestData.currentUserId; // this field is not needed for the request
+      delete requestData.newUserType; // this field is not needed for the request
+      console.log(requestData);
+      dispatch(userActions.createUserWithoutInvitation(requestData))
+        .then(() => {
+          dispatch(
+            renderFlash("success", `Successfully created ${requestData.name}.`)
+          );
+          this.toggleCreateUserModal();
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash("error", "Could not create user. Please try again.")
+          );
+          this.toggleCreateUserModal();
+        });
     } else {
-      console.log("CREATE USER WITHOUT INVITATION");
+      console.log(
+        "TODO: Backend update required; cannot create user without invite if sso_enabled."
+      );
     }
   };
 

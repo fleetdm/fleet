@@ -177,7 +177,6 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     });
   };
 
-  // TODO different submissions for invite vs. create without invite
   onFormSubmit = (evt: FormEvent): void => {
     const { createSubmitData, validate } = this;
     evt.preventDefault();
@@ -188,21 +187,42 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     }
   };
 
-  // TODO different submissions for invite vs. create without invite
+  // UserForm component can be used to create a new user or for edit an existing user so submitData will be assembled accordingly
   createSubmitData = (): IFormData => {
     const { currentUserId } = this.props;
     const {
       isGlobalUser,
-      formData: { email, name, newUserType, sso_enabled, global_role, teams },
+      formData: {
+        email,
+        name,
+        newUserType,
+        password,
+        sso_enabled,
+        global_role,
+        teams,
+      },
     } = this.state;
 
     const submitData = {
       email,
       name,
       newUserType,
+      password,
       sso_enabled,
       currentUserId,
     };
+
+    if (
+      newUserType !== NewUserType.AdminCreated &&
+      newUserType !== NewUserType.AdminInvited
+    ) {
+      delete submitData.newUserType; // this field will not be submitted when form is used to edit an existing user
+    }
+
+    if (submitData.sso_enabled || newUserType === NewUserType.AdminInvited) {
+      delete submitData.password; // this field will not be submitted with the form
+    }
+
     return isGlobalUser
       ? { ...submitData, global_role, teams: [] }
       : { ...submitData, global_role: null, teams };

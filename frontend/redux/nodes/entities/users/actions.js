@@ -78,7 +78,22 @@ export const confirmEmailChange = (user, token) => {
 };
 
 export const createUserWithoutInvitation = (formData) => {
-  console.log("CREATE USERS WITHOUT INVITATION: ", formData);
+  const { successAction, createFailure, createSuccess } = actions;
+
+  return (dispatch) => {
+    return Fleet.users
+      .createUserWithoutInvitation(formData)
+      .then((response) => {
+        return dispatch(successAction(response, createSuccess));
+      })
+      .catch((response) => {
+        const errorsObject = formatErrorResponse(response);
+
+        dispatch(createFailure(errorsObject));
+
+        throw errorsObject;
+      });
+  };
 };
 
 export const deleteSessions = (user) => {
