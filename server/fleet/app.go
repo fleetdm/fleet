@@ -333,7 +333,7 @@ type EnrollSecret struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
 }
 
 func (e *EnrollSecret) AuthzType() string {

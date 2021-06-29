@@ -189,7 +189,7 @@ func makeApplyEnrollSecretSpecEndpoint(svc fleet.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getEnrollSecretSpecResponse struct {
-	Spec *fleet.EnrollSecretSpec `json:"specs"`
+	Spec *fleet.EnrollSecretSpec `json:"spec"`
 	Err  error                   `json:"error,omitempty"`
 }
 
