@@ -230,7 +230,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
               manage or observe all users, entities, and settings in Fleet.
             </p>
             <a
-              href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+              href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md#permissions"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -266,7 +266,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             observe team-sepcific users, entities, and settings in Fleet.
           </p>
           <a
-            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+            href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md#team-member-permissions"
             target="_blank"
             rel="noopener noreferrer"
           >
