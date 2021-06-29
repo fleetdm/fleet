@@ -1,5 +1,9 @@
-import React, { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React from "react"; //, { useEffect }
+import {
+  useDispatch,
+  //  , useSelector
+} from "react-redux";
+
 import { push } from "react-router-redux";
 // @ts-ignore
 import { IUser } from "interfaces/user";
@@ -9,44 +13,61 @@ import { IUser } from "interfaces/user";
 import paths from "router/paths";
 import Button from "components/buttons/Button";
 import NoSchedule from "./components/NoSchedule";
+import ScheduleError from "./components/ScheduleError";
 
 const baseClass = "manage-schedule-page";
 
-const renderTable = (handleAdvanced: any): any => {
-  const fakeData = {
-    scheduled: [
-      {
-        id: 1,
-        query_id: 4,
-        interval: 172800,
-        last_executed: "2021-06-23T20:26:51Z",
-      },
-      {
-        id: 2,
-        query_id: 7,
-        interval: 14400,
-        last_executed: "2021-06-24T20:26:51Z",
-      },
-      {
-        id: 3,
-        query_id: 8,
-        interval: 86400,
-        last_executed: "2021-06-23T20:26:51Z",
-      },
-      {
-        id: 4,
-        query_id: 20,
-        interval: 604800,
-        last_executed: "2021-06-21T20:26:51Z",
-      },
-    ],
-  };
-  const fakeDataLength0 = [];
+// FAKE DATA ALERT
 
+const fakeData = {
+  scheduled: [
+    {
+      id: 1,
+      query_id: 4,
+      interval: 172800,
+      last_executed: "2021-06-23T20:26:51Z",
+    },
+    {
+      id: 2,
+      query_id: 7,
+      interval: 14400,
+      last_executed: "2021-06-24T20:26:51Z",
+    },
+    {
+      id: 3,
+      query_id: 8,
+      interval: 86400,
+      last_executed: "2021-06-23T20:26:51Z",
+    },
+    {
+      id: 4,
+      query_id: 20,
+      interval: 604800,
+      last_executed: "2021-06-21T20:26:51Z",
+    },
+  ],
+};
+
+// 1. SET TO EMPTY IF YOU WANT TO SEE THE EMPTY STATE RENDER
+const fakeDataLength0 = [];
+
+// 2. SET TO TRUE IF YOU WANT TO SEE THE ERROR STATE RENDER;
+const fakeDataError = true;
+
+// END FAKE DATA ALERT
+
+const renderTable = (handleAdvanced: any): any => {
   // Schedule has not been set up for this instance yet.
   if (fakeDataLength0.length === 0) {
     return <NoSchedule />;
   }
+
+  // Schedule has an error retrieving data.
+  if (fakeDataError) {
+    return <ScheduleError />;
+  }
+
+  return <div>Hi!</div>;
 };
 interface IRootState {
   auth: {
@@ -81,19 +102,24 @@ const ManageSchedulePage = (): JSX.Element => {
               </div>
             </div>
           </div>
-          <div className={`${baseClass}__action-button-container`}>
-            <Button
-              variant="inverse"
-              onClick={handleAdvanced}
-              className={`${baseClass}__advanced-button`}
-            >
-              Advanced
-            </Button>
-            {/* TODO: SCHEDULE A QUERY MODAL */}
-            <Button variant="brand" className={`${baseClass}__schedule-button`}>
-              Schedule a query
-            </Button>
-          </div>
+          {(fakeDataLength0.length !== 0 || fakeDataError) && (
+            <div className={`${baseClass}__action-button-container`}>
+              <Button
+                variant="inverse"
+                onClick={handleAdvanced}
+                className={`${baseClass}__advanced-button`}
+              >
+                Advanced
+              </Button>
+              {/* TODO: SCHEDULE A QUERY MODAL */}
+              <Button
+                variant="brand"
+                className={`${baseClass}__schedule-button`}
+              >
+                Schedule a query
+              </Button>
+            </div>
+          )}
         </div>
         <div>{renderTable(handleAdvanced)}</div>
       </div>

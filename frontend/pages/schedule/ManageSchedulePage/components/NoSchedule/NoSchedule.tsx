@@ -13,7 +13,7 @@ import Button from "components/buttons/Button";
 
 const baseClass = "no-schedule";
 
-const renderSvg = (): any => {
+const renderSvg = (): JSX.Element => {
   // if (scheduleSvg) {
   //   return scheduleSvg;
   // }
@@ -317,7 +317,7 @@ const NoSchedule = (): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
 
-  const handleAdvanced = (event: any) => dispatch(push(MANAGE_PACKS));
+  const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
   return (
     <div className={`${baseClass}`}>
