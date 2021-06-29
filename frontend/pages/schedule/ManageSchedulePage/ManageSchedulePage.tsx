@@ -49,14 +49,14 @@ const fakeData = {
 };
 
 // 1. SET TO EMPTY IF YOU WANT TO SEE THE EMPTY STATE RENDER
-const fakeDataLength0 = [];
+const fakeDataLength0 = [1];
 
 // 2. SET TO TRUE IF YOU WANT TO SEE THE ERROR STATE RENDER;
-const fakeDataError = true;
+const fakeDataError = false;
 
 // END FAKE DATA ALERT
 
-const renderTable = (handleAdvanced: any): any => {
+const renderTable = (): JSX.Element => {
   // Schedule has not been set up for this instance yet.
   if (fakeDataLength0.length === 0) {
     return <NoSchedule />;
@@ -102,7 +102,8 @@ const ManageSchedulePage = (): JSX.Element => {
               </div>
             </div>
           </div>
-          {(fakeDataLength0.length !== 0 || fakeDataError) && (
+          {/* Hides CTA Buttons if no schedule or schedule error */}
+          {fakeDataLength0.length !== 0 && !fakeDataError && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="inverse"
@@ -121,7 +122,7 @@ const ManageSchedulePage = (): JSX.Element => {
             </div>
           )}
         </div>
-        <div>{renderTable(handleAdvanced)}</div>
+        <div>{renderTable()}</div>
       </div>
     </div>
   );
