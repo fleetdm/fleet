@@ -242,8 +242,9 @@
     align-items: flex-start;
   }
 
-  &__query-button {
-    margin-right: 12px;
+  &__query-button,
+  &__transfer-button {
+    margin-right: $pad-small;
   }
 
   &__modal {

@@ -39,6 +39,17 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.get(".title").within(() => {
         cy.findByText("Team").should("exist");
       });
+      cy.contains("button", /transfer/i).click();
+      cy.get(".Select-control").click();
+      cy.findByText(/create a team/i).should("not.exist");
+      cy.get(".Select-menu").within(() => {
+        cy.findByText(/no team/i).should("exist");
+        cy.findByText(/apples/i).should("exist");
+        cy.findByText(/oranges/i).click();
+      });
+      cy.get(".transfer-action-btn").click();
+      cy.findByText(/transferred to oranges/i).should("exist");
+      cy.findByText(/team/i).next().contains("Oranges");
 
       // Query pages: Can see teams UI for create, edit, and run query
       cy.visit("/queries/manage");

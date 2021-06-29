@@ -43,6 +43,7 @@ if (Cypress.env("FLEET_TIER") === "core") {
       cy.get(".title").within(() => {
         cy.findByText(/team/i).should("not.exist");
       });
+      cy.contains("button", /transfer/i).should("not.exist");
 
       cy.contains("button", /delete/i).click();
       cy.contains("button", /cancel/i).click();

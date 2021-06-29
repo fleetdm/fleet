@@ -34,7 +34,7 @@ const onQueryHostSaved = (host, selectedQuery, dispatch) => {
 };
 
 const SelectQueryModal = (props) => {
-  const { host, toggleQueryHostModal, dispatch, queries, queryErrors } = props;
+  const { host, onCancel, dispatch, queries, queryErrors } = props;
 
   const [queriesFilter, setQueriesFilter] = useState("");
 
@@ -185,7 +185,7 @@ const SelectQueryModal = (props) => {
   return (
     <Modal
       title="Select a query"
-      onExit={toggleQueryHostModal(null)}
+      onExit={onCancel(null)}
       className={`${baseClass}__modal`}
     >
       {results()}
@@ -197,7 +197,7 @@ SelectQueryModal.propTypes = {
   dispatch: PropTypes.func,
   host: hostInterface,
   queries: PropTypes.arrayOf(queryInterface),
-  toggleQueryHostModal: PropTypes.func,
+  onCancel: PropTypes.func,
   queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
 };
 
