@@ -415,12 +415,20 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                 className={`${baseClass}__radio-input`}
                 label={"Invite user"}
                 id={"invite-user"}
-                disabled={!isSmtpConfigured} // TODO style this state
+                disabled={!isSmtpConfigured} // TODO style this state; remove related warning text
                 checked={newUserType === NewUserType.AdminInvited}
                 value={NewUserType.AdminInvited}
                 name={"newUserType"}
                 onChange={onRadioChange("newUserType")}
               />
+              {!isSmtpConfigured && (
+                <p>
+                  <strong>
+                    Invite user option is disabled because SMTP is not
+                    configured.
+                  </strong>
+                </p>
+              )}
             </div>
             {newUserType !== NewUserType.AdminInvited && !sso_enabled && (
               <InputFieldWithIcon

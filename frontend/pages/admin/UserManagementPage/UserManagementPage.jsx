@@ -149,7 +149,6 @@ export class UserManagementPage extends Component {
 
   onCreateUserSubmit = (formData) => {
     const { dispatch, config } = this.props;
-    console.log(formData);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
       // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
@@ -183,7 +182,6 @@ export class UserManagementPage extends Component {
       };
       delete requestData.currentUserId; // this field is not needed for the request
       delete requestData.newUserType; // this field is not needed for the request
-      console.log(requestData);
       dispatch(userActions.createUserWithoutInvitation(requestData))
         .then(() => {
           dispatch(
@@ -199,7 +197,7 @@ export class UserManagementPage extends Component {
         });
     } else {
       console.log(
-        "TODO: Backend update required; cannot create user without invite if sso_enabled."
+        "TODO: Backend update required in order to create user without invite if sso_enabled."
       );
     }
   };
@@ -545,33 +543,33 @@ export class UserManagementPage extends Component {
     );
   };
 
-  renderSmtpWarning = () => {
-    const { appConfigLoading, config } = this.props;
-    const { goToAppConfigPage } = this;
+  // renderSmtpWarning = () => {
+  //   const { appConfigLoading, config } = this.props;
+  //   const { goToAppConfigPage } = this;
 
-    if (appConfigLoading) {
-      return false;
-    }
+  //   if (appConfigLoading) {
+  //     return false;
+  //   }
 
-    return (
-      <div className={`${baseClass}__smtp-warning-wrapper`}>
-        <WarningBanner shouldShowWarning={!config.configured}>
-          <span>
-            SMTP is not currently configured in Fleet. The &quot;Create
-            User&quot; feature requires that SMTP is configured in order to send
-            invitation emails.
-          </span>
-          <Button
-            className={`${baseClass}__config-button`}
-            onClick={goToAppConfigPage}
-            variant={"unstyled"}
-          >
-            Configure SMTP
-          </Button>
-        </WarningBanner>
-      </div>
-    );
-  };
+  //   return (
+  //     <div className={`${baseClass}__smtp-warning-wrapper`}>
+  //       <WarningBanner shouldShowWarning={!config.configured}>
+  //         <span>
+  //           SMTP is not currently configured in Fleet. The &quot;Create
+  //           User&quot; feature requires that SMTP is configured in order to send
+  //           invitation emails.
+  //         </span>
+  //         <Button
+  //           className={`${baseClass}__config-button`}
+  //           onClick={goToAppConfigPage}
+  //           variant={"unstyled"}
+  //         >
+  //           Configure SMTP
+  //         </Button>
+  //       </WarningBanner>
+  //     </div>
+  //   );
+  // };
 
   render() {
     const {
@@ -581,7 +579,7 @@ export class UserManagementPage extends Component {
       renderDeleteUserModal,
       renderResetPasswordModal,
       renderResetSessionsModal,
-      renderSmtpWarning,
+      // renderSmtpWarning,
       toggleCreateUserModal,
       onTableQueryChange,
       onActionSelect,
@@ -610,7 +608,7 @@ export class UserManagementPage extends Component {
           Create new users, customize user permissions, and remove users from
           Fleet.
         </p>
-        {renderSmtpWarning()}
+        {/* {renderSmtpWarning()} */}
         {/* TODO: find a way to move these controls into the table component */}
         <TableContainer
           columns={tableHeaders}
@@ -619,7 +617,7 @@ export class UserManagementPage extends Component {
           defaultSortHeader={"name"}
           defaultSortDirection={"desc"}
           inputPlaceHolder={"Search"}
-          disableActionButton={!config.configured}
+          // disableActionButton={!config.configured}
           actionButtonText={"Create User"}
           onActionButtonClick={toggleCreateUserModal}
           onQueryChange={onTableQueryChange}
