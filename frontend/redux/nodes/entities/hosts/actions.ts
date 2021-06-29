@@ -1,4 +1,4 @@
-import { ITeam } from "interfaces/team";
+import { IHost } from "interfaces/host";
 // @ts-ignore
 // ignore TS error for now until these are rewritten in ts.
 import Fleet from "fleet";
@@ -6,10 +6,9 @@ import Fleet from "fleet";
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import { IApiError } from "interfaces/errors";
 import config from "./config";
-import { addMembersFailure } from "../teams/actions";
 
 const { actions } = config;
-const { loadRequest, successAction, updateSuccess } = actions;
+const { loadRequest } = actions;
 
 export const TRANSFER_HOSTS_SUCCESS = "TRANSFER_HOSTS_SUCCESS";
 export const transferHostsSuccess = () => {
@@ -63,8 +62,47 @@ const transferToTeamByFilter = (
   };
 };
 
+export const LOAD_PAGINATED = "LOAD_PAGINATED";
+export const loadPaginated = (): any => {
+  return (dispatch: any) => {
+    dispatch(loadRequest());
+
+    return Fleet.hosts;
+  };
+};
+
+export const REFETCH_HOST_SUCCESS = "REFETCH_HOST_SUCCESS";
+export const refetchHostSuccess = (data: any) => {
+  return { type: REFETCH_HOST_SUCCESS, payload: { data } };
+};
+
+export const REFETCH_HOST_FAILURE = "REFETCH_HOST";
+export const refetchHostFailure = (errors: any) => {
+  return { type: REFETCH_HOST_FAILURE, payload: { errors } };
+};
+
+export const REFETCH_HOST_START = "REFETCH_HOST_START";
+export const refetchHostStart = (host: IHost): any => {
+  return (dispatch: any) => {
+    return Fleet.hosts
+      .refetch(host)
+      .then((data: any) => {
+        dispatch(refetchHostSuccess(data));
+        return data;
+      })
+      .catch((errors: any) => {
+        dispatch(refetchHostFailure(errors));
+
+        throw errors;
+      });
+  };
+};
+
 export default {
   ...actions,
   transferToTeam,
   transferToTeamByFilter,
+  refetchHostSuccess,
+  refetchHostFailure,
+  refetchHostStart,
 };
