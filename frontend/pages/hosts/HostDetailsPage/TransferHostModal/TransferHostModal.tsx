@@ -28,9 +28,13 @@ const NO_TEAM_OPTION = {
   label: "No team",
 };
 
-const TransferHostModal = (props: ITransferHostModal): JSX.Element => {
-  const { onCancel, onSubmit, teams, isGlobalAdmin, host } = props;
-
+const TransferHostModal = ({
+  onCancel,
+  onSubmit,
+  teams,
+  isGlobalAdmin,
+  host,
+}: ITransferHostModal): JSX.Element => {
   const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 
   const onChangeSelectTeam = useCallback(
@@ -71,14 +75,14 @@ const TransferHostModal = (props: ITransferHostModal): JSX.Element => {
           placeholder={"Select a team"}
           searchable={false}
         />
-        {isGlobalAdmin ? (
+        {isGlobalAdmin && (
           <p>
-            Team not here?{" "}
+            Team not here?&nbsp;
             <Link to={PATHS.ADMIN_TEAMS} className={`${baseClass}__team-link`}>
               Create a team
             </Link>
           </p>
-        ) : null}
+        )}
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             disabled={selectedTeam === undefined}
