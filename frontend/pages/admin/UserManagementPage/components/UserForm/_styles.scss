@@ -1,4 +1,9 @@
 .create-user-form {
+  &__new-user-container {
+    margin-top: $pad-large;
+    margin-bottom: $pad-large;
+  }
+  
   &__sso-input {
     margin-top: $pad-large;
     margin-bottom: $pad-large;
@@ -50,7 +55,7 @@
   }
 
   &__radio-input {
-    margin-bottom: $pad-medium;
+    margin-bottom: $pad-medium;  
   }
 
   &__btn-wrap {

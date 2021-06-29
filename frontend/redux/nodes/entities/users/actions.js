@@ -77,6 +77,10 @@ export const confirmEmailChange = (user, token) => {
   };
 };
 
+export const createUserWithoutInvitation = (formData) => {
+  console.log("CREATE USERS WITHOUT INVITATION: ", formData);
+};
+
 export const deleteSessions = (user) => {
   const { successAction, destroyFailure, destroySuccess } = actions;
 
@@ -156,6 +160,7 @@ export default {
   ...actions,
   changePassword,
   confirmEmailChange,
+  createUserWithoutInvitation,
   enableUser,
   requirePasswordReset,
   deleteSessions,

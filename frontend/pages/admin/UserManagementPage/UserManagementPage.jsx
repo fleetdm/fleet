@@ -28,6 +28,7 @@ import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserForm from "./components/DeleteUserForm";
 import ResetPasswordModal from "./components/ResetPasswordModal";
 import ResetSessionsModal from "./components/ResetSessionsModal";
+import { NewUserType } from "./components/UserForm/UserForm";
 
 const baseClass = "user-management";
 
@@ -148,28 +149,36 @@ export class UserManagementPage extends Component {
 
   onCreateUserSubmit = (formData) => {
     const { dispatch, config } = this.props;
-    // Do some data formatting adding `invited_by` for the request to be correct.
-    const requestData = {
-      ...formData,
-      invited_by: formData.currentUserId,
-    };
-    delete requestData.currentUserId; // dont need this for the request.
-    dispatch(inviteActions.create(requestData))
-      .then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
-          )
-        );
-        this.toggleCreateUserModal();
-      })
-      .catch(() => {
-        dispatch(
-          renderFlash("error", "Could not create user. Please try again.")
-        );
-        this.toggleCreateUserModal();
-      });
+    console.log(formData);
+
+    if (formData.newUserType === NewUserType.AdminInvited) {
+      // Do some data formatting adding `invited_by` for the request to be correct.
+      const requestData = {
+        ...formData,
+        invited_by: formData.currentUserId,
+      };
+      delete requestData.currentUserId; // dont need this for the request.
+      delete requestData.newUserType; // dont need this for the request.
+      delete requestData.password; // dont need this for the request.
+      dispatch(inviteActions.create(requestData))
+        .then(() => {
+          dispatch(
+            renderFlash(
+              "success",
+              `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
+            )
+          );
+          this.toggleCreateUserModal();
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash("error", "Could not create user. Please try again.")
+          );
+          this.toggleCreateUserModal();
+        });
+    } else {
+      console.log("CREATE USER WITHOUT INVITATION");
+    }
   };
 
   onCreateCancel = (evt) => {
@@ -450,8 +459,11 @@ export class UserManagementPage extends Component {
           availableTeams={teams}
           defaultGlobalRole={"observer"}
           defaultTeams={[]}
+          defaultNewUserType={false}
           submitText={"Create"}
           isBasicTier={isBasicTier}
+          isSmtpConfigured={config.configured}
+          isNewUser
         />
       </Modal>
     );

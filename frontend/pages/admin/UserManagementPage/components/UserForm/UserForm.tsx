@@ -7,6 +7,8 @@ import validEmail from "components/forms/validators/valid_email";
 
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
+import validPassword from "components/forms/validators/valid_password";
+// @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -18,6 +20,11 @@ import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const baseClass = "create-user-form";
+
+export enum NewUserType {
+  AdminInvited = "ADMIN_INVITED",
+  AdminCreated = "ADMIN_CREATED",
+}
 
 enum UserTeamType {
   GlobalUser = "GLOBAL_USER",
@@ -45,6 +52,8 @@ const globalUserRoles = [
 export interface IFormData {
   email: string;
   name: string;
+  newUserType?: NewUserType | null;
+  password?: string | null;
   sso_enabled: boolean;
   global_role: string | null;
   teams: ITeam[];
@@ -64,6 +73,8 @@ interface ICreateUserFormProps {
   defaultGlobalRole?: string | null;
   defaultTeams?: ITeam[];
   isBasicTier: boolean;
+  isSmtpConfigured?: boolean;
+  isNewUser?: boolean;
   validationErrors: any[]; // TODO: proper interface for validationErrors
 }
 
@@ -71,6 +82,7 @@ interface ICreateUserFormState {
   errors: {
     email: string | null;
     name: string | null;
+    password: string | null;
     sso_enabled: boolean | null;
   };
   formData: IFormData;
@@ -85,11 +97,14 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       errors: {
         email: null,
         name: null,
+        password: null,
         sso_enabled: null,
       },
       formData: {
         email: props.defaultEmail || "",
         name: props.defaultName || "",
+        newUserType: null,
+        password: null,
         sso_enabled: props.canUseSSO || false,
         global_role: props.defaultGlobalRole || null,
         teams: props.defaultTeams || [],
@@ -119,6 +134,12 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   };
 
   onCheckboxChange = (formField: string): ((evt: string) => void) => {
+    return (evt: string) => {
+      return this.onInputChange(formField)(evt);
+    };
+  };
+
+  onRadioChange = (formField: string): ((evt: string) => void) => {
     return (evt: string) => {
       return this.onInputChange(formField)(evt);
     };
@@ -156,6 +177,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     });
   };
 
+  // TODO different submissions for invite vs. create without invite
   onFormSubmit = (evt: FormEvent): void => {
     const { createSubmitData, validate } = this;
     evt.preventDefault();
@@ -166,16 +188,18 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     }
   };
 
+  // TODO different submissions for invite vs. create without invite
   createSubmitData = (): IFormData => {
     const { currentUserId } = this.props;
     const {
       isGlobalUser,
-      formData: { email, name, sso_enabled, global_role, teams },
+      formData: { email, name, newUserType, sso_enabled, global_role, teams },
     } = this.state;
 
     const submitData = {
       email,
       name,
+      newUserType,
       sso_enabled,
       currentUserId,
     };
@@ -187,8 +211,9 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   validate = (): boolean => {
     const {
       errors,
-      formData: { email },
+      formData: { email, password, newUserType, sso_enabled },
     } = this.state;
+    const { isNewUser } = this.props;
 
     if (!validatePresence(email)) {
       this.setState({
@@ -210,6 +235,29 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       });
 
       return false;
+    }
+
+    if (isNewUser && newUserType === NewUserType.AdminCreated && !sso_enabled) {
+      if (!validatePresence(password)) {
+        this.setState({
+          errors: {
+            ...errors,
+            password: "Password field must be completed",
+          },
+        });
+
+        return false;
+      }
+      if (!validPassword(password)) {
+        this.setState({
+          errors: {
+            ...errors,
+            password: "Password must meet the criteria below",
+          },
+        });
+
+        return false;
+      }
     }
 
     return true;
@@ -286,14 +334,21 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   render(): JSX.Element {
     const {
       errors,
-      formData: { email, name, sso_enabled },
+      formData: { email, name, newUserType, password, sso_enabled },
       isGlobalUser,
     } = this.state;
-    const { onCancel, submitText, isBasicTier } = this.props;
+    const {
+      onCancel,
+      submitText,
+      isBasicTier,
+      isSmtpConfigured,
+      isNewUser,
+    } = this.props;
     const {
       onFormSubmit,
       onInputChange,
       onCheckboxChange,
+      onRadioChange,
       onIsGlobalUserChange,
       renderGlobalRoleForm,
       renderTeamsForm,
@@ -324,6 +379,44 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           placeholder="Email"
           value={email}
         />
+        {isNewUser && (
+          <div className={`${baseClass}__new-user-container`}>
+            <div className={`${baseClass}__new-user-radios`}>
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label={"Create user"}
+                id={"create-user"}
+                checked={newUserType !== NewUserType.AdminInvited}
+                value={NewUserType.AdminCreated}
+                name={"newUserType"}
+                onChange={onRadioChange("newUserType")}
+              />
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label={"Invite user"}
+                id={"invite-user"}
+                disabled={!isSmtpConfigured} // TODO style this state
+                checked={newUserType === NewUserType.AdminInvited}
+                value={NewUserType.AdminInvited}
+                name={"newUserType"}
+                onChange={onRadioChange("newUserType")}
+              />
+            </div>
+            {newUserType !== NewUserType.AdminInvited && !sso_enabled && (
+              <InputFieldWithIcon
+                error={errors.password}
+                name="password"
+                onChange={onInputChange("password")}
+                placeholder="Password"
+                value={password}
+                type="password"
+                hint={[
+                  "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+                ]} // TODO style hint
+              />
+            )}
+          </div>
+        )}
         <div className={`${baseClass}__sso-input`}>
           <Checkbox
             name="sso_enabled"
