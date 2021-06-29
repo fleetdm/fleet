@@ -166,11 +166,11 @@ Fleet configuration can be retrieved and applied using the `fleetctl` tool.
 
 ### `fleetctl get`
 
-The `fleetctl get <fleet-entity-here>` command allows you retrieve the current configuration specified Fleet entity (queries, packs, etc.)
+The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` command allows you retrieve the current configuration and create a new file for specified Fleet entity (queries, packs, etc.)
 
 ### `fleetctl apply`
 
-The `fleetctl apply -f <configuration-file-name-here>` allows you to apply the current configuration in the specified file.
+The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file.
 
 Check out the [configuration files](./configuration-files/README.md) section of the documentation for example yaml files.
 
