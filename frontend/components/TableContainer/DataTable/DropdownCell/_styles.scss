@@ -7,6 +7,11 @@
       display: flex;
       justify-content: space-between;
       border: 0;
+      cursor: pointer;
+
+      &:hover .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
 
       .Select-placeholder {
         line-height: normal;
@@ -25,11 +30,23 @@
       z-index: 6;
       overflow: hidden;
       border: 0;
-      width: auto;
+      width: 150px;
       right: 28px;
       left: unset;
       top: unset;
       max-height: 220px;
+    }
+
+    &:not(.is-open) {
+      .Select-control:hover .Select-arrow {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      }
+    }
+
+    &.is-open {
+      .Select-control .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
     }
   }
 }
