@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import InputField from "components/forms/fields/InputField";
+import validate from "components/forms/UserSettingsForm/validate";
 
 const formFields = ["email", "name", "position", "username"];
 
@@ -64,4 +65,4 @@ class UserSettingsForm extends Component {
   }
 }
 
-export default Form(UserSettingsForm, { fields: formFields });
+export default Form(UserSettingsForm, { fields: formFields, validate });

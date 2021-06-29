@@ -41,6 +41,7 @@ if (Cypress.env("FLEET_TIER") === "core") {
       });
 
       cy.findByText(/team/i).should("not.exist");
+      cy.contains("button", /transfer/i).should("not.exist");
       cy.contains("button", /delete/i).should("not.exist");
       cy.contains("button", /query/i).should("not.exist");
 

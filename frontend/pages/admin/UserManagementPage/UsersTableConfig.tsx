@@ -183,45 +183,39 @@ const generateRole = (teams: ITeam[], globalRole: string | null): string => {
 };
 
 const generateActionDropdownOptions = (
-  id: number,
-  currentUserId: number
+  isCurrentUser: boolean,
+  isInvitePending: boolean,
+  isSSOEnabled: boolean
 ): IDropdownOption[] => {
-  if (id === currentUserId) {
-    return [
-      {
-        label: "Edit my account",
-        disabled: false,
-        value: "editMyAccount",
-      },
-    ];
-  }
-  return [
+  let dropdownOptions = [
     {
       label: "Edit",
-      disabled: false,
-      value: "edit",
+      disabled: isInvitePending,
+      value: isCurrentUser ? "editMyAccount" : "edit",
     },
     {
       label: "Require password reset",
-      disabled: false,
+      disabled: isInvitePending,
       value: "passwordReset",
     },
     {
-      label: "Delete",
-      disabled: id === currentUserId,
-      value: "delete",
+      label: "Reset sessions",
+      disabled: isInvitePending,
+      value: "resetSessions",
     },
-  ];
-};
-
-const generateInviteDropdownOptions = (): IDropdownOption[] => {
-  return [
     {
       label: "Delete",
-      disabled: false,
+      disabled: isCurrentUser,
       value: "delete",
     },
   ];
+  if (isCurrentUser || isSSOEnabled) {
+    // remove "Require password reset" from dropdownOptions
+    dropdownOptions = dropdownOptions.filter(
+      (option) => option.label !== "Require password reset"
+    );
+  }
+  return dropdownOptions;
 };
 
 const enhanceUserData = (
@@ -235,7 +229,11 @@ const enhanceUserData = (
       email: user.email,
       teams: generateTeam(user.teams, user.global_role),
       roles: generateRole(user.teams, user.global_role),
-      actions: generateActionDropdownOptions(user.id, currentUserId),
+      actions: generateActionDropdownOptions(
+        user.id === currentUserId,
+        false,
+        user.sso_enabled
+      ),
       id: user.id,
       type: "user",
     };
@@ -250,7 +248,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
       roles: generateRole(invite.teams, invite.global_role),
-      actions: generateInviteDropdownOptions(),
+      actions: generateActionDropdownOptions(false, true, invite.sso_enabled),
       id: invite.id,
       type: "invite",
     };

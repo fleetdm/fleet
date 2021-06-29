@@ -130,7 +130,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
           cy.findByText(/no team/i).should("exist");
           // cy.findByText(/apples/i).should("exist");
           // cy.findByText(/oranges/i).should("not exist");
-          // ^^TODO add back these assertions after dropdown bug is fixed
+          // ^ TODO: Team maintainer has access to only their teams, team observer does not have access
         });
       });
       cy.findByRole("button", { name: /done/i }).click();

@@ -35,6 +35,7 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       cy.get(".title").within(() => {
         cy.findByText("Team").should("exist");
       });
+      cy.contains("button", /transfer/i).should("not.exist");
 
       // Query pages: Can see team in select targets dropdown
       cy.visit("/queries/manage");
