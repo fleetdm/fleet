@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
 
@@ -143,24 +144,21 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     { label: "1.8.1 +", value: "1.8.1" },
   ];
 
-  // const handlePlatformChoice = (value) => {
-  //   const {
-  //     fields: { platform },
-  //   } = this.props;
-  //   const valArray = value.split(",");
-
-  //   // Remove All if another OS is chosen
-  //   if (valArray.indexOf("") === 0 && valArray.length > 1) {
-  //     return platform.onChange(pull(valArray, "").join(","));
-  //   }
-
-  //   // Remove OS if All is chosen
-  //   if (valArray.length > 1 && valArray.indexOf("") > -1) {
-  //     return platform.onChange("");
-  //   }
-
-  //   return platform.onChange(value);
-  // };
+  const handlePlatformChoice = (value: string) => {
+    //   const {
+    //     fields: { platform },
+    //   } = this.props;
+    //   const valArray = value.split(",");
+    //   // Remove All if another OS is chosen
+    //   if (valArray.indexOf("") === 0 && valArray.length > 1) {
+    //     return platform.onChange(pull(valArray, "").join(","));
+    //   }
+    //   // Remove OS if All is chosen
+    //   if (valArray.length > 1 && valArray.indexOf("") > -1) {
+    //     return platform.onChange("");
+    //   }
+    //   return platform.onChange(value);
+  };
 
   // End Advanced Options
 
@@ -218,15 +216,15 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
                 label="Logging"
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
               />
-              {/* <Dropdown
-                {...fields.platform}
+              <Dropdown
+                // {...fields.platform}
                 options={platformOptions}
                 placeholder="- - -"
                 label="Platform"
                 onChange={handlePlatformChoice}
                 multi
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
-              /> */}
+              />
               <Dropdown
                 // {...fields.version}
                 options={minOsqueryVersionOptions}
