@@ -63,11 +63,21 @@ const renderTable = (): JSX.Element => {
   }
 
   // Schedule has an error retrieving data.
-  if (fakeDataError) {
+  else if (fakeDataError) {
     return <ScheduleError />;
   }
 
-  return <div>Hi!</div>;
+  const scheduledCount = fakeData.scheduled.length;
+  const scheduledQueriesTotalDisplay =
+    scheduledCount === 1 ? "1 query" : `${scheduledCount} queries`;
+
+  return (
+    <div>
+      <p className={`${baseClass}__scheduled-query-count`}>
+        {scheduledQueriesTotalDisplay}
+      </p>
+    </div>
+  );
 };
 interface IRootState {
   auth: {

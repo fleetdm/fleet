@@ -17,6 +17,45 @@ interface IScheduleEditorModalProps {
   onSubmit: (formData: IScheduleEditorFormData) => void;
 }
 
+renderTransferHostModal = () => {
+  const { toggleTransferHostModal, onTransferHostSubmit } = this;
+  const { teams, isGlobalAdmin } = this.props;
+  const { showTransferHostModal } = this.state;
+
+  if (!showTransferHostModal) return null;
+
+  return (
+    <TransferHostModal
+      isGlobalAdmin={isGlobalAdmin}
+      teams={teams}
+      onSubmit={onTransferHostSubmit}
+      onCancel={toggleTransferHostModal}
+    />
+  );
+};
+
+renderDeleteButton = () => {
+  const { toggleDeleteLabelModal, onEditLabelClick } = this;
+  const {
+    selectedLabel: { type },
+  } = this.props;
+
+  if (type !== "custom") {
+    return false;
+  }
+
+  return (
+    <div className={`${baseClass}__label-actions`}>
+      <Button onClick={onEditLabelClick} variant="inverse">
+        Edit
+      </Button>
+      <Button onClick={toggleDeleteLabelModal} variant="inverse">
+        Delete
+      </Button>
+    </div>
+  );
+};
+
 const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
   const { onCancel, onSubmit } = props;
 
