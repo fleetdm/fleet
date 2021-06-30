@@ -1,12 +1,10 @@
-import React from "react"; //, { useEffect }
-import {
-  useDispatch,
-  //  , useSelector
-} from "react-redux";
+import React, { useState, useCallback } from "react"; //, { useEffect }
+import { useDispatch, useSelector } from "react-redux";
 
 import { push } from "react-router-redux";
 // @ts-ignore
-import { IUser } from "interfaces/user";
+// import { IUser } from "interfaces/user";
+import { IQuery } from "interfaces/query";
 
 // Will I need this? 5/28
 // import permissionUtils from "utilities/permissions";
@@ -14,6 +12,7 @@ import paths from "router/paths";
 import Button from "components/buttons/Button";
 import NoSchedule from "./components/NoSchedule";
 import ScheduleError from "./components/ScheduleError";
+import ScheduleEditorModal from "./components/ScheduleEditorModal";
 
 const baseClass = "manage-schedule-page";
 
@@ -79,20 +78,79 @@ const renderTable = (): JSX.Element => {
     </div>
   );
 };
+
+const onScheduleEditorSubmit = () => {
+  //   const { toggleScheduleEditorModal } = this;
+  //   const { dispatch } = this.props;
+  //   const { selectedHostIds } = this.state;
+  //   const teamId = team.id === "no-team" ? null : team.id;
+  //   dispatch(hostActions.transferToTeam(teamId, selectedHostIds))
+  //     .then(() => {
+  //       const successMessage =
+  //         teamId === null
+  //           ? `Hosts successfully removed from teams.`
+  //           : `Hosts successfully transferred to  ${team.name}.`;
+  //       dispatch(renderFlash("success", successMessage));
+  //       dispatch(getHosts());
+  //     })
+  //     .catch(() => {
+  //       dispatch(
+  //         renderFlash("error", "Could not transfer hosts. Please try again.")
+  //       );
+  //     });
+  //   toggleTransferHostModal();
+  //   this.setState({ selectedHostIds: [] });
+  // };
+  // clearHostUpdates() {
+  //   if (this.timeout) {
+  //     global.window.clearTimeout(this.timeout);
+  //     this.timeout = null;
+  //   }
+};
+
+//  DON'T NEED!
+// const renderScheduleEditorModal = (): JSX.Element | null => {
+
+//   // toggleScheduleEditorModal,
+//   // onScheduleEditorSubmit
+//   // const { showScheduleEditorModal } = this.state;
+
+//   if (!showScheduleEditorModal) return null;
+
+//   return (
+//     <ScheduleEditorModal
+//       onSubmit={onScheduleEditorSubmit}
+//       onCancel={toggleScheduleEditorModal}
+//     />
+//   );
+// };
 interface IRootState {
-  auth: {
-    user: IUser;
+  // auth: {
+  //   user: IUser;
+  // };
+  entities: {
+    queries: IQuery[];
   };
 }
 
 const ManageSchedulePage = (): JSX.Element => {
+  // Links to packs page
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
+  const handleAdvanced = (event: any) => dispatch(push(MANAGE_PACKS));
+
+  // State to show modal
+  const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
+
+  // Toggle state to show modal
+  const toggleScheduleEditorModal = useCallback(() => {
+    setShowScheduleEditorModal(!showScheduleEditorModal);
+  }, [showScheduleEditorModal, setShowScheduleEditorModal]);
 
   // Will I need this? 5/28
   // const user = useSelector((state: IRootState) => state.auth.user);
 
-  const handleAdvanced = (event: any) => dispatch(push(MANAGE_PACKS));
+  const queries = useSelector((state: IRootState) => state.entities.queries);
 
   return (
     <div className={baseClass}>
@@ -126,6 +184,7 @@ const ManageSchedulePage = (): JSX.Element => {
               <Button
                 variant="brand"
                 className={`${baseClass}__schedule-button`}
+                onClick={toggleScheduleEditorModal}
               >
                 Schedule a query
               </Button>
@@ -133,6 +192,14 @@ const ManageSchedulePage = (): JSX.Element => {
           )}
         </div>
         <div>{renderTable()}</div>
+        {showScheduleEditorModal ? (
+          <ScheduleEditorModal
+            onCancel={toggleScheduleEditorModal}
+            onSubmit={onScheduleEditorSubmit}
+            queries={queries}
+            // Modify onSubmit
+          />
+        ) : null}
       </div>
     </div>
   );
