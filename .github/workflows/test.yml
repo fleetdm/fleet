@@ -73,7 +73,7 @@ jobs:
         make e2e-serve-${{ matrix.fleet-tier }} &
         sleep 3
         make e2e-setup
-        CYPRESS_FLEET_TIER=${{ matrix.fleet-tier }} yarn cypress run --config video=false
+        CYPRESS_FLEET_TIER=${{ matrix.fleet-tier }} yarn cypress run --config-file cypress-${{ matrix.fleet-tier }}.json --config video=false
 
 
   test-js:
