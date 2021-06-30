@@ -3,11 +3,12 @@
     margin-top: $pad-medium;
 
     p {
-      margin-bottom: 0;
+      margin: 0;
+      margin-bottom: $pad-medium;
+    }
 
-      :first-child {
-        margin-top: 0;
-      }
+    p:last-child {
+      margin-bottom: 0;
     }
   }
 

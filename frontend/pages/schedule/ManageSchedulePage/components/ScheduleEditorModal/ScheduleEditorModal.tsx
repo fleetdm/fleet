@@ -184,7 +184,9 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
           searchable={false}
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
-          <p>Your configured log destination is filesystem.</p>
+          <p>
+            Your configured log destination is <em>filesystem</em>.
+          </p>
           <p>
             This means that when this query is run on your hosts, the data will
             be sent to the filesystem.
