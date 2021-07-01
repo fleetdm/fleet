@@ -1,3 +1,11 @@
+## Fleet 4.0.1 (Jul 01, 2021)
+
+* Fix an issue in which migrations failed on MariaDB MySQL.
+
+* Allow `http` to be used when configuring `fleetctl` for `localhost`.
+
+* Fix a bug in which Team information was missing for hosts looked up by Label. 
+
 ## Fleet 4.0.0 (Jun 29, 2021)
 
 The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
