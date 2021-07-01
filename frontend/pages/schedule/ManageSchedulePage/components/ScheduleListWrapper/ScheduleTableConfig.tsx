@@ -1,11 +1,11 @@
 import React from "react";
 
+// @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 // Changed to IQuery
 import { IQuery } from "interfaces/query";
-import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 
 interface IHeaderProps {
@@ -13,6 +13,8 @@ interface IHeaderProps {
     title: string;
     isSortedDesc: boolean;
   };
+  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  toggleAllRowsSelected: () => void;
 }
 
 interface ICellProps {
@@ -21,20 +23,19 @@ interface ICellProps {
   };
   row: {
     original: IQuery;
+    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    toggleRowSelected: () => void;
   };
 }
 
 interface IDataColumn {
-  title: string;
+  title?: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
   Cell: (props: ICellProps) => JSX.Element;
+  id?: string;
+  accessor?: string;
   disableHidden?: boolean;
   disableSortBy?: boolean;
-}
-
-interface IQueryTableData extends IQuery {
-  actions: IDropdownOption[];
 }
 
 // NOTE: cellProps come from react-table
@@ -44,85 +45,48 @@ const generateTableHeaders = (
 ): IDataColumn[] => {
   return [
     {
-      title: "Name",
-      Header: "Name",
+      id: "selection",
+      Header: (cellProps: IHeaderProps): JSX.Element => {
+        const props = cellProps.getToggleAllRowsSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          indeterminate: props.indeterminate,
+          onChange: () => cellProps.toggleAllRowsSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const props = cellProps.row.getToggleRowSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          onChange: () => cellProps.row.toggleRowSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      disableHidden: true,
+    },
+    {
+      title: "Query name",
+      Header: "Query name",
       disableSortBy: true,
-      accessor: "name",
+      accessor: "queryname",
       Cell: (cellProps) => (
-        <LinkCell
-          value={cellProps.cell.value}
-          path={PATHS.TEAM_DETAILS_MEMBERS(cellProps.row.original.id)}
-        />
+        <LinkCell value={cellProps.cell.value} path={PATHS.MANAGE_QUERIES} />
       ),
     },
-    // TODO: need to add this info to API
     {
-      title: "Hosts",
-      Header: "Hosts",
+      title: "Frequency",
+      Header: "Frequency",
       disableSortBy: true,
-      accessor: "host_count",
+      accessor: "frequency",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
-      title: "Members",
-      Header: "Members",
-      disableSortBy: true,
-      accessor: "user_count",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
-      title: "Actions",
-      Header: "",
-      disableSortBy: true,
-      accessor: "actions",
-      Cell: (cellProps) => (
-        <DropdownCell
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder={"Actions"}
-        />
-      ),
     },
   ];
 };
 
-// NOTE: may need current user ID later for permission on actions.
-const generateActionDropdownOptions = (): IDropdownOption[] => {
-  return [
-    {
-      label: "Edit",
-      disabled: false,
-      value: "edit",
-    },
-    {
-      label: "Delete",
-      disabled: false,
-      value: "delete",
-    },
-  ];
-};
-
-const enhanceQueryData = (queries: {
-  [id: number]: IQuery;
-}): IQueryTableData[] => {
-  return Object.values(queries).map((query) => {
-    return {
-      // description: query.description,
-      // name: query.name,
-      // host_count: query.host_count,
-      // user_count: query.user_count,
-      // actions: generateActionDropdownOptions(),
-      // id: query.id,
-    };
-  });
-};
-
-const generateDataSet = (queries: {
-  [id: number]: IQuery;
-}): IQueryTableData[] => {
-  return [...enhanceQueryData(queries)];
+// TODO: fix type
+const generateDataSet = (queries: { [id: number]: IQuery }): any => {
+  return queries;
 };
 
 export { generateTableHeaders, generateDataSet };

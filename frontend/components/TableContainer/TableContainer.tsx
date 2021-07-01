@@ -28,12 +28,13 @@ interface ITableContainerProps<T, U> {
   isLoading: boolean;
   defaultSortHeader: string;
   defaultSortDirection: string;
-  onActionButtonClick: () => void;
-  actionButtonText: string;
+  onActionButtonClick?: () => void;
+  actionButtonText?: string;
   actionButtonIcon?: string;
-  actionButtonVariant: string;
+  actionButtonVariant?: string;
   onQueryChange: (queryData: ITableQueryData) => void;
   onSelectActionClick?: (selectedItemIds: number[]) => void;
+  selectActionButtonText?: string;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
   resultsTitle?: string;
@@ -69,7 +70,10 @@ const TableContainer = <T, U>(
     actionButtonIcon,
     actionButtonVariant,
     onSelectActionClick,
+    selectActionButtonText,
   } = props;
+
+  console.log("DATA:", data);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -177,19 +181,24 @@ const TableContainer = <T, U>(
           <p />
         )}
         <div className={`${baseClass}__table-controls`}>
-          <Button
-            disabled={disableActionButton}
-            onClick={onActionButtonClick}
-            variant={actionButtonVariant}
-            className={`${baseClass}__table-action-button`}
-          >
-            <>
-              {actionButtonIcon && (
-                <img src={actionButtonIcon} alt={`${actionButtonText} icon`} />
-              )}
-              {actionButtonText}
-            </>
-          </Button>
+          {actionButtonText && (
+            <Button
+              disabled={disableActionButton}
+              onClick={onActionButtonClick}
+              variant={actionButtonVariant}
+              className={`${baseClass}__table-action-button`}
+            >
+              <>
+                {actionButtonIcon && (
+                  <img
+                    src={actionButtonIcon}
+                    alt={`${actionButtonText} icon`}
+                  />
+                )}
+                {actionButtonText}
+              </>
+            </Button>
+          )}
           <div className={`${baseClass}__search-input`}>
             <InputField
               placeholder={inputPlaceHolder}
@@ -215,6 +224,7 @@ const TableContainer = <T, U>(
               sortDirection={sortDirection}
               onSort={onSortChange}
               onSelectActionClick={onSelectActionClick}
+              selectActionButtonText={selectActionButtonText}
             />
             <Pagination
               resultsOnCurrentPage={data.length}

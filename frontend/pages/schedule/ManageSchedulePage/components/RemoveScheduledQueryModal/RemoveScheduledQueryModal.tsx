@@ -2,27 +2,18 @@ import React, { useState, useCallback } from "react";
 
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
 
-const baseClass = "schedule-editor-modal";
+const baseClass = "remove-scheduled-query-modal";
 
-export interface IScheduleEditorFormData {
-  name: string;
-}
-
-interface IDeleteScheduledQueryModalProps {
+interface IRemoveScheduledQueryModalProps {
   queries: IQuery[];
   onCancel: () => void;
-  onSubmit: (formData: IScheduleEditorFormData) => void;
+  onSubmit: () => void;
 }
 
-const DeleteScheduledQueryModal = (
-  props: IDeleteScheduledQueryModalProps
+const RemoveScheduledQueryModal = (
+  props: IRemoveScheduledQueryModalProps
 ): JSX.Element => {
   const { onCancel, onSubmit, queries } = props;
 
@@ -38,9 +29,13 @@ const DeleteScheduledQueryModal = (
   // );
 
   return (
-    <Modal title={"Schedule editor"} onExit={onCancel} className={baseClass}>
-      <div>
-        Are you sure you want to delete the selected queries?
+    <Modal
+      title={"Remove scheduled query"}
+      onExit={onCancel}
+      className={baseClass}
+    >
+      <div className={baseClass}>
+        Are you sure you want to remove the selected queries from the schedule?
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__btn`}
@@ -52,10 +47,10 @@ const DeleteScheduledQueryModal = (
           <Button
             className={`${baseClass}__btn`}
             type="button"
-            variant="brand"
+            variant="alert"
             // onClick={onFormSubmit}
           >
-            Delete
+            Remove
           </Button>
         </div>
       </div>
@@ -63,4 +58,4 @@ const DeleteScheduledQueryModal = (
   );
 };
 
-export default DeleteScheduledQueryModal;
+export default RemoveScheduledQueryModal;

@@ -1,4 +1,6 @@
-.delete-scheduled-query-modal {
+.remove-scheduled-query-modal {
+  font-size: $x-small;
+
   &__btn-wrap {
     display: flex;
     flex-direction: row-reverse;

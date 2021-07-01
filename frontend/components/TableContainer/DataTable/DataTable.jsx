@@ -18,6 +18,7 @@ const DataTable = (props) => {
     sortDirection,
     onSort,
     onSelectActionClick,
+    selectActionButtonText,
   } = props;
 
   const columns = useMemo(() => {
@@ -78,6 +79,10 @@ const DataTable = (props) => {
     toggleAllRowsSelected(false);
   }, [toggleAllRowsSelected]);
 
+  const generateButtonText = (selectActionButtonText = "Transfer to team") => {
+    return selectActionButtonText;
+  };
+
   return (
     <div className={baseClass}>
       <div className={"data-table data-table__wrapper"}>
@@ -109,7 +114,7 @@ const DataTable = (props) => {
                       Clear selection
                     </Button>
                     <Button onClick={onSelectActionButtonClick}>
-                      Transfer to team
+                      {generateButtonText(selectActionButtonText)}
                     </Button>
                   </div>
                 </th>
