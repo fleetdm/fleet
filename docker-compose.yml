@@ -3,6 +3,7 @@ version: '2'
 services:
   mysql:
     image: mysql:5.7
+    platform: linux/x86_64
     volumes:
       - mysql-persistent-volume:/tmp
     command: mysqld --datadir=/tmp/mysqldata --event-scheduler=ON
