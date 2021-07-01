@@ -7,7 +7,12 @@
     "lint": "eslint frontend cypress --ext .js,.jsx,.ts,.tsx",
     "prettier:check": "prettier --check frontend/**/*.{jsx,js,tsx,ts} ./cypress/**/*.{js,ts}",
     "test": "jest",
-    "cypress:open": "cypress open"
+    "e2e-browser": "cypress open",
+    "e2e-browser:core": "yarn cypress open --config-file cypress-core.json",
+    "e2e-browser:basic": "yarn cypress open --config-file cypress-basic.json",
+    "e2e-cli": "cypress run",
+    "e2e-cli:core": "yarn cypress run --config-file cypress-core.json",
+    "e2e-cli:basic": "yarn cypress run --config-file cypress-basic.json"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^1.5.1",
