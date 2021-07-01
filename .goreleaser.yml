@@ -57,27 +57,30 @@ archives:
     builds:
       - fleet
       - fleetctl
-    name_template: fleet_{{.Version}}_{{.Os}}
+    name_template: fleet_v{{.Version}}_{{.Os}}
     replacements:
       darwin: macos
     format_overrides:
       - goos: windows
         format: zip
+    wrap_in_directory: true
 
   - id: fleetctl
     builds:
       - fleetctl
-    name_template: fleetctl_{{.Version}}_{{.Os}}
+    name_template: fleetctl_v{{.Version}}_{{.Os}}
     replacements:
       darwin: macos
+    wrap_in_directory: true
 
   - id: fleetctl-zip
     builds:
       - fleetctl
-    name_template: fleetctl_{{.Version}}_{{.Os}}
+    name_template: fleetctl_v{{.Version}}_{{.Os}}
     format: zip
     replacements:
       darwin: macos
+    wrap_in_directory: true
 
 dockers:
   - goos: linux

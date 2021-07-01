@@ -52,6 +52,8 @@ When editing is complete, publish the release.
 
 4. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the [fleetctl-npm](../../tools/fleetctl-npm/) directory. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
 
+> If releasing a "prerelease" of Fleet, run `npm publish --tag prerelease`. This way, you can publish a prerelease of fleetctl while the most recent fleetctl npm package, available for public download, is still the latest *official* release.
+
 5. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) and update the channel's topic with the link to this release. Using `@here` requires admin permissions, so typically this announcement will be done by `@zwass`.
 
 Announce the release via blog post (on Medium) and Twitter (linking to blog post).

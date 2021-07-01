@@ -45,8 +45,9 @@ if (Cypress.env("FLEET_TIER") === "core") {
       // On the Host details page, they should…
       cy.visit("/hosts/1");
 
-      // Not see "team" information
+      // Not see "team" information or transfer button
       cy.findByText(/team/i).should("not.exist");
+      cy.contains("button", /transfer/i).should("not.exist");
 
       // See and select the “Delete” button
       cy.findByRole("button", { name: /delete/i }).click();

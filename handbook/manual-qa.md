@@ -86,13 +86,13 @@ Add a query as a saved query to the pack. Remove this query. Delete the pack.
 
 As an admin user, select the "Settings" tab in the top navigation and then select "Organization settings".
 
-Follow [the instructions outlined in the Testing documentation](../docs/4-Contribution/2-Testing.md#email) to set up a local SMTP server.
+Follow [the instructions outlined in the Testing documentation](../docs/3-Contributing/2-Testing.md#email) to set up a local SMTP server.
 
 Successfully edit your organization's name in Fleet.
 
 ### Manage users flow
 
-Invite a new user. To be able to invite users, you must have your local SMTP server configured. Instructions for setting up a local SMTP server are outlined in [the Testing documentation](../docs/4-Contribution/2-Testing.md#email)
+Invite a new user. To be able to invite users, you must have your local SMTP server configured. Instructions for setting up a local SMTP server are outlined in [the Testing documentation](../docs/3-Contributing/2-Testing.md#email)
 
 Logout of your current admin user and accept the invitation for the newly invited user. With your local SMTP server configured, head to https://localhost:8025 to view and select the invitation link.
 
@@ -124,7 +124,7 @@ Successfully logout by running the `fleetctl logout` command. Then, log in again
 
 Run the `fleetctl get hosts` command.
 
-You should see your local machine returned. If your host isn't showing up, you may have to reenroll your local machine. Check out the [Orbit for osquery documentation](../docs/2-Orbit-osquery/README.md#packaging) for instructions on generating and installing an Orbit package.
+You should see your local machine returned. If your host isn't showing up, you may have to reenroll your local machine. Check out the [Orbit for osquery documentation](https://github.com/fleetdm/orbit/blob/main/README.md) for instructions on generating and installing an Orbit package.
 
 ### Query flow
 

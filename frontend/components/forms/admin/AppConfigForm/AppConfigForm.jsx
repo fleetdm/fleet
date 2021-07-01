@@ -490,7 +490,7 @@ class AppConfigForm extends Component {
                 How do global agent options interact with team-level agent
                 options?&nbsp;
                 <a
-                  href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+                  href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/1-Fleet-UI.md#configuring-agent-options"
                   className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -528,7 +528,7 @@ class AppConfigForm extends Component {
               <br />
               <br />
               <a
-                href="https://github.com/fleetdm/fleet/blob/teams/docs/1-Using-Fleet/10-Usage-statistics.md"
+                href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/11-Usage-statistics.md"
                 className={`${baseClass}__learn-more`}
                 target="_blank"
                 rel="noopener noreferrer"

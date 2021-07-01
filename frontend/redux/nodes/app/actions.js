@@ -84,7 +84,7 @@ export const getEnrollSecret = () => {
     return Fleet.config
       .loadEnrollSecret()
       .then((secret) => {
-        dispatch(enrollSecretSuccess(secret.specs.secrets));
+        dispatch(enrollSecretSuccess(secret.spec.secrets));
 
         return secret;
       })

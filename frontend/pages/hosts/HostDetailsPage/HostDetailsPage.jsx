@@ -12,13 +12,18 @@ import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities";
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 
 import permissionUtils from "utilities/permissions";
-import entityGetter from "redux/utilities/entityGetter";
+import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
+import { getHosts } from "redux/nodes/components/ManageHostsPage/actions";
 import queryActions from "redux/nodes/entities/queries/actions";
+import teamInterface from "interfaces/team";
 import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
+import hostActions from "redux/nodes/entities/hosts/actions";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
 import {
@@ -40,6 +45,7 @@ import {
 } from "fleet/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
+import TransferHostModal from "./TransferHostModal";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
@@ -53,8 +59,11 @@ export class HostDetailsPage extends Component {
     isLoadingHost: PropTypes.bool,
     queries: PropTypes.arrayOf(queryInterface),
     queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    isGlobalAdmin: PropTypes.bool,
     isBasicTier: PropTypes.bool,
     isOnlyObserver: PropTypes.bool,
+    canTransferTeam: PropTypes.bool,
+    teams: PropTypes.arrayOf(teamInterface),
   };
 
   static defaultProps = {
@@ -68,6 +77,7 @@ export class HostDetailsPage extends Component {
     this.state = {
       showDeleteHostModal: false,
       showQueryHostModal: false,
+      showTransferHostModal: false,
       showRefetchLoadingSpinner: false,
     };
   }
@@ -88,6 +98,22 @@ export class HostDetailsPage extends Component {
       this.setState({ showRefetchLoadingSpinner: host.refetch_requested })
     );
     return false;
+  }
+
+  // Loads teams
+  componentDidUpdate(prevProps) {
+    const { dispatch, isBasicTier, canTransferTeam } = this.props;
+    if (
+      isBasicTier !== prevProps.isBasicTier &&
+      isBasicTier &&
+      canTransferTeam
+    ) {
+      dispatch(teamActions.loadAll({}));
+    }
+  }
+
+  componentWillUnmount() {
+    this.clearHostUpdates();
   }
 
   onDestroyHost = () => {
@@ -133,10 +159,40 @@ export class HostDetailsPage extends Component {
     return dispatch(push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`));
   };
 
+  onTransferHostSubmit = (team) => {
+    const { toggleTransferHostModal } = this;
+    const { dispatch, hostID } = this.props;
+    const teamId = team.id === "no-team" ? null : team.id;
+
+    dispatch(hostActions.transferToTeam(teamId, [parseInt(hostID, 10)]))
+      .then(() => {
+        const successMessage =
+          teamId === null
+            ? `Host successfully removed from teams.`
+            : `Host successfully transferred to  ${team.name}.`;
+        dispatch(renderFlash("success", successMessage));
+        // Update page with correct team
+        dispatch(hostActions.loadAll());
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", "Could not transfer host. Please try again.")
+        );
+      });
+    // Must call the function and the return to avoid infinite loop
+    toggleTransferHostModal()();
+  };
+
+  clearHostUpdates() {
+    if (this.timeout) {
+      global.window.clearTimeout(this.timeout);
+      this.timeout = null;
+    }
+  }
+
   toggleQueryHostModal = () => {
     return () => {
       const { showQueryHostModal } = this.state;
-
       this.setState({
         showQueryHostModal: !showQueryHostModal,
       });
@@ -151,6 +207,18 @@ export class HostDetailsPage extends Component {
 
       this.setState({
         showDeleteHostModal: !showDeleteHostModal,
+      });
+
+      return false;
+    };
+  };
+
+  toggleTransferHostModal = () => {
+    return () => {
+      const { showTransferHostModal } = this.state;
+
+      this.setState({
+        showTransferHostModal: !showTransferHostModal,
       });
 
       return false;
@@ -196,8 +264,12 @@ export class HostDetailsPage extends Component {
   };
 
   renderActionButtons = () => {
-    const { toggleDeleteHostModal, toggleQueryHostModal } = this;
-    const { host, isOnlyObserver } = this.props;
+    const {
+      toggleDeleteHostModal,
+      toggleQueryHostModal,
+      toggleTransferHostModal,
+    } = this;
+    const { host, isOnlyObserver, canTransferTeam } = this.props;
 
     const isOnline = host.status === "online";
     const isOffline = host.status === "offline";
@@ -209,6 +281,15 @@ export class HostDetailsPage extends Component {
 
     return (
       <div className={`${baseClass}__action-button-container`}>
+        {canTransferTeam && (
+          <Button
+            onClick={toggleTransferHostModal()}
+            variant="inverse"
+            className={`${baseClass}__transfer-button`}
+          >
+            Transfer
+          </Button>
+        )}
         <div data-tip data-for="query" data-tip-disable={isOnline}>
           <Button
             onClick={toggleQueryHostModal()}
@@ -377,6 +458,7 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
+
         {host.software.length === 0 ? (
           <div className="results">
             <p className="results__header">
@@ -388,18 +470,20 @@ export class HostDetailsPage extends Component {
             </p>
           </div>
         ) : (
-          <div className={`${baseClass}__wrapper`}>
-            <table className={wrapperClassName}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Installed Version</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!!host.software.length &&
-                  host.software.map((software) => {
+          <>
+            <SoftwareVulnerabilities softwareList={host.software} />
+            <div className={`${baseClass}__wrapper`}>
+              <table className={wrapperClassName}>
+                <thead>
+                  <tr>
+                    <th />
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Installed Version</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {host.software.map((software) => {
                     return (
                       <SoftwareListRow
                         key={`software-row-${software.id}`}
@@ -407,9 +491,10 @@ export class HostDetailsPage extends Component {
                       />
                     );
                   })}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     );
@@ -468,11 +553,15 @@ export class HostDetailsPage extends Component {
       queries,
       queryErrors,
       isBasicTier,
+      isGlobalAdmin,
+      teams,
     } = this.props;
-    const { showQueryHostModal } = this.state;
+    const { showQueryHostModal, showTransferHostModal } = this.state;
     const {
       toggleQueryHostModal,
+      toggleTransferHostModal,
       renderDeleteHostModal,
+      onTransferHostSubmit,
       renderActionButtons,
       renderLabels,
       renderSoftware,
@@ -664,10 +753,19 @@ export class HostDetailsPage extends Component {
         {showQueryHostModal && (
           <SelectQueryModal
             host={host}
-            toggleQueryHostModal={toggleQueryHostModal}
+            onCancel={toggleQueryHostModal}
             queries={queries}
             dispatch={dispatch}
             queryErrors={queryErrors}
+          />
+        )}
+        {showTransferHostModal && (
+          <TransferHostModal
+            host={host}
+            onCancel={toggleTransferHostModal()}
+            onSubmit={onTransferHostSubmit}
+            teams={teams}
+            isGlobalAdmin={isGlobalAdmin}
           />
         )}
       </div>
@@ -683,8 +781,14 @@ const mapStateToProps = (state, ownProps) => {
   const { loading: isLoadingHost } = state.entities.hosts;
   const config = state.app.config;
   const currentUser = state.auth.user;
+  const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
   const isBasicTier = permissionUtils.isBasicTier(config);
   const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
+  const teams = memoizedGetEntity(state.entities.teams.data);
+  const canTransferTeam =
+    isBasicTier &&
+    (permissionUtils.isGlobalAdmin(currentUser) ||
+      permissionUtils.isGlobalMaintainer(currentUser));
 
   return {
     host,
@@ -692,8 +796,11 @@ const mapStateToProps = (state, ownProps) => {
     isLoadingHost,
     queries,
     queryErrors,
+    isGlobalAdmin,
     isBasicTier,
     isOnlyObserver,
+    teams,
+    canTransferTeam,
   };
 };
 

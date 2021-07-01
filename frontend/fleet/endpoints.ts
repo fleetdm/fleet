@@ -39,6 +39,9 @@ export default {
   UPDATE_USER_ADMIN: (id: number): string => {
     return `/v1/fleet/users/${id}/admin`;
   },
+  USER_SESSIONS: (id: number): string => {
+    return `/v1/fleet/users/${id}/sessions`;
+  },
   SSO: "/v1/fleet/sso",
   STATUS_LIVE_QUERY: "/v1/fleet/status/live_query",
   STATUS_RESULT_STORE: "/v1/fleet/status/result_store",
