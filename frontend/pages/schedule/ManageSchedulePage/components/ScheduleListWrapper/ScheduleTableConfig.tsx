@@ -1,4 +1,5 @@
 import React from "react";
+import { secondsToDhms } from "fleet/helpers";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -69,8 +70,8 @@ const generateTableHeaders = (
       title: "Query name",
       Header: "Query name",
       disableSortBy: true,
-      accessor: "queryname",
-      Cell: (cellProps) => (
+      accessor: "query_name",
+      Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell value={cellProps.cell.value} path={PATHS.MANAGE_QUERIES} />
       ),
     },
@@ -78,8 +79,10 @@ const generateTableHeaders = (
       title: "Frequency",
       Header: "Frequency",
       disableSortBy: true,
-      accessor: "frequency",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      accessor: "interval",
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <TextCell value={secondsToDhms(cellProps.cell.value)} />
+      ),
     },
   ];
 };

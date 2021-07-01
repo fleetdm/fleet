@@ -199,15 +199,18 @@ const TableContainer = <T, U>(
               </>
             </Button>
           )}
-          <div className={`${baseClass}__search-input`}>
-            <InputField
-              placeholder={inputPlaceHolder}
-              name="searchQuery"
-              onChange={onSearchQueryChange}
-              value={searchQuery}
-              inputWrapperClass={`${baseClass}__input-wrapper`}
-            />
-          </div>
+          {/* Render search bar only if not empty component */}
+          {!(!isLoading && data.length === 0) && (
+            <div className={`${baseClass}__search-input`}>
+              <InputField
+                placeholder={inputPlaceHolder}
+                name="searchQuery"
+                onChange={onSearchQueryChange}
+                value={searchQuery}
+                inputWrapperClass={`${baseClass}__input-wrapper`}
+              />
+            </div>
+          )}
         </div>
       </div>
       <div className={`${baseClass}__data-table-container`}>

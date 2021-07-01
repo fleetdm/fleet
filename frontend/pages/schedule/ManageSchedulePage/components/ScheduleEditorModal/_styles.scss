@@ -12,6 +12,13 @@
     }
   }
 
+  a {
+    color: $core-vibrant-blue;
+    font-weight: $regular;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
   &__info-header {
     font-weight: $bold;
   }

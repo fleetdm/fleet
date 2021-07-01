@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from "react";
 import { pull } from "lodash";
 
+// @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -185,15 +187,22 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
           <p>
-            Your configured log destination is <em>filesystem</em>.
+            Your configured log destination is <b>filesystem</b>.
           </p>
           <p>
             This means that when this query is run on your hosts, the data will
             be sent to the filesystem.
           </p>
           <p>
-            Check out the Fleet documentation on how configure a different log
-            destination.
+            Check out the Fleet documentation on&nbsp;
+            <a
+              href="https://github.com/fleetdm/fleet/blob/6649d08a05799811f6fb0566947946edbfebf63e/docs/2-Deploying/2-Configuration.md#osquery_result_log_plugin"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              how configure a different log destination.&nbsp;
+              <FleetIcon name="external-link" />
+            </a>
           </p>
         </InfoBanner>
         <div>
