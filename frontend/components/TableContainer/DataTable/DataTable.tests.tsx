@@ -5,6 +5,8 @@ import { noop } from "lodash";
 // @ts-ignore
 import DataTable from "./DataTable";
 
+const DEFAULT_PAGE_SIZE = 100;
+
 describe("DataTable - component", () => {
   it("renders a data table based on the columns and data passed in", () => {
     const columns = [
@@ -27,6 +29,7 @@ describe("DataTable - component", () => {
         showMarkAllPages={false}
         isAllPagesSelected={false}
         resultsTitle="users"
+        defaultPageSize={DEFAULT_PAGE_SIZE}
       />
     );
 
@@ -67,6 +70,7 @@ describe("DataTable - component", () => {
         showMarkAllPages={false}
         isAllPagesSelected={false}
         resultsTitle="users"
+        defaultPageSize={DEFAULT_PAGE_SIZE}
       />
     );
 
@@ -91,6 +95,7 @@ describe("DataTable - component", () => {
         showMarkAllPages={false}
         isAllPagesSelected={false}
         resultsTitle="users"
+        defaultPageSize={DEFAULT_PAGE_SIZE}
       />
     );
 
@@ -123,6 +128,7 @@ describe("DataTable - component", () => {
         showMarkAllPages={false}
         isAllPagesSelected={false}
         resultsTitle="users"
+        defaultPageSize={DEFAULT_PAGE_SIZE}
       />
     );
 
@@ -144,6 +150,7 @@ describe("DataTable - component", () => {
         showMarkAllPages={false}
         isAllPagesSelected={false}
         resultsTitle="users"
+        defaultPageSize={DEFAULT_PAGE_SIZE}
       />
     );
 

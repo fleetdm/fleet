@@ -221,6 +221,7 @@ const TableContainer = ({
               isAllPagesSelected={isAllPagesSelected}
               toggleAllPagesSelected={toggleAllPagesSelected}
               resultsTitle={resultsTitle}
+              defaultPageSize={DEFAULT_PAGE_SIZE}
             />
             <Pagination
               resultsOnCurrentPage={data.length}
