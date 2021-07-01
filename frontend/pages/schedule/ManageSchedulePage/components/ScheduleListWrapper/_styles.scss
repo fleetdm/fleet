@@ -1,4 +1,4 @@
-.schedule-list {
+.schedule-list-wrapper {
   border-collapse: collapse;
   overflow: scroll;
 
@@ -63,5 +63,13 @@
     text-align: center;
     font-size: $x-small;
     color: $core-fleet-black;
+  }
+
+  &__scheduled-query-count {
+    color: $core-fleet-black;
+    font-size: $x-small;
+    font-weight: $bold;
+    margin: 0 12px 0 0;
+    display: inline-block;
   }
 }

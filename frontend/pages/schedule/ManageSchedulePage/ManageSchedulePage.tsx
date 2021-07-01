@@ -12,6 +12,7 @@ import paths from "router/paths";
 import Button from "components/buttons/Button";
 import NoSchedule from "./components/NoSchedule";
 import ScheduleError from "./components/ScheduleError";
+import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 
 const baseClass = "manage-schedule-page";
@@ -66,20 +67,12 @@ const renderTable = (): JSX.Element => {
     return <ScheduleError />;
   }
 
-  const scheduledCount = fakeData.scheduled.length;
-  const scheduledQueriesTotalDisplay =
-    scheduledCount === 1 ? "1 query" : `${scheduledCount} queries`;
-
-  return (
-    <div>
-      <p className={`${baseClass}__scheduled-query-count`}>
-        {scheduledQueriesTotalDisplay}
-      </p>
-    </div>
-  );
+  // Schedule table
+  return <ScheduleListWrapper fakeData={fakeData} />;
 };
 
 const onScheduleEditorSubmit = () => {
+  // TODO: WHAT HAPPENS WHEN YOU SUBMIT THE SCHEDULE EDITOR
   //   const { toggleScheduleEditorModal } = this;
   //   const { dispatch } = this.props;
   //   const { selectedHostIds } = this.state;
@@ -108,22 +101,6 @@ const onScheduleEditorSubmit = () => {
   //   }
 };
 
-//  DON'T NEED!
-// const renderScheduleEditorModal = (): JSX.Element | null => {
-
-//   // toggleScheduleEditorModal,
-//   // onScheduleEditorSubmit
-//   // const { showScheduleEditorModal } = this.state;
-
-//   if (!showScheduleEditorModal) return null;
-
-//   return (
-//     <ScheduleEditorModal
-//       onSubmit={onScheduleEditorSubmit}
-//       onCancel={toggleScheduleEditorModal}
-//     />
-//   );
-// };
 interface IRootState {
   // auth: {
   //   user: IUser;
