@@ -2,6 +2,7 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
@@ -23,14 +24,18 @@ func TestListHosts(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
+	storedTime := time.Now()
+
 	_, err = ds.NewHost(&fleet.Host{
 		Hostname: "foo",
+		LastEnrolledAt: storedTime,
 	})
 	assert.Nil(t, err)
 
 	hosts, err = svc.ListHosts(test.UserContext(test.UserAdmin), fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 1)
+	assert.Equal(t, storedTime, hosts[0].LastEnrolledAt)
 }
 
 func TestDeleteHost(t *testing.T) {

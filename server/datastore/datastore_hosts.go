@@ -255,6 +255,13 @@ func testListHosts(t *testing.T, ds fleet.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts), len(hosts2))
 
+	for _, host := range hosts2 {
+		i, err := strconv.Atoi(host.UUID)
+		assert.Nil(t, err)
+		assert.True(t, i >= 0)
+		assert.True(t, strings.HasPrefix(host.Hostname, "foo.local"))
+	}
+
 	// Test with logic for only a few hosts
 	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{PerPage: 4, Page: 0}})
 	require.Nil(t, err)
@@ -422,6 +429,13 @@ func testEnrollHost(t *testing.T, ds fleet.Datastore) {
 	team, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
+	require.Nil(t, err)
+	for _, host := range hosts {
+		assert.Zero(t, host.LastEnrolledAt)
+	}
+
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, &team.ID, 0)
 		require.Nil(t, err)
@@ -436,6 +450,13 @@ func testEnrollHost(t *testing.T, ds fleet.Datastore) {
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
 		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", nil, 10*time.Second)
 		require.Error(t, err)
+	}
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{})
+
+	require.Nil(t, err)
+	for _, host := range hosts {
+		assert.NotZero(t, host.LastEnrolledAt)
 	}
 }
 
