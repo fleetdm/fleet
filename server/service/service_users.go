@@ -45,6 +45,10 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		return nil, err
 	}
 
+	if invite, err := svc.ds.InviteByEmail(*p.Email); err == nil && invite != nil {
+		return nil, errors.Errorf("%s already invited", *p.Email)
+	}
+
 	return svc.newUser(p)
 }
 
