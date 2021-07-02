@@ -416,3 +416,13 @@ spec:
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
   purpose: Informational
   contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect Windows print spooler remote code execution vulnerability
+  platforms: Windows
+  description: Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.
+  query: SELECT CASE cnt WHEN 2 THEN "TRUE" ELSE "FALSE" END "Vulnerable" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;
+  purpose: Detection
+  contributors: maravedi
