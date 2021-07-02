@@ -102,7 +102,9 @@ interface IRootState {
   //   user: IUser;
   // };
   entities: {
-    queries: IQuery[];
+    queries: {
+      data: IQuery[];
+    };
   };
 }
 
@@ -123,7 +125,11 @@ const ManageSchedulePage = (): JSX.Element => {
   // Will I need this? 5/28
   // const user = useSelector((state: IRootState) => state.auth.user);
 
-  const queries = useSelector((state: IRootState) => state.entities.queries);
+  const allQueries = useSelector(
+    (state: IRootState) => state.entities.queries.data
+  );
+  // Turn object of objects into array of objects
+  const allQueriesList = Object.values(allQueries);
 
   return (
     <div className={baseClass}>
@@ -169,7 +175,7 @@ const ManageSchedulePage = (): JSX.Element => {
           <ScheduleEditorModal
             onCancel={toggleScheduleEditorModal}
             onSubmit={onScheduleEditorSubmit}
-            queries={queries}
+            allQueries={allQueriesList}
             // Modify onSubmit
           />
         ) : null}

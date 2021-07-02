@@ -19,7 +19,7 @@ export interface IScheduleEditorFormData {
 }
 
 interface IScheduleEditorModalProps {
-  queries: IQuery[];
+  allQueries: IQuery[];
   onCancel: () => void;
   onSubmit: (formData: IScheduleEditorFormData) => void;
 }
@@ -29,7 +29,7 @@ interface IFrequencyOption {
 }
 
 const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
-  const { onCancel, onSubmit, queries } = props;
+  const { onCancel, onSubmit, allQueries } = props;
 
   // FUNCTIONALITY LATER 6/30
   // const onFormSubmit = useCallback(
@@ -49,24 +49,24 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
   }
   const [selectedQuery, setSelectedQuery] = useState<IQuery | INoQueryOption>();
 
-  // const createQueryDropdownOptions = () => {
-  //   console.log(queries);
-  //   debugger;
-  //   const queryOptions = queries.map((q) => {
-  //     return {
-  //       value: q.id,
-  //       label: q.name,
-  //     };
-  //   });
-  //   return [...queryOptions];
-  // };
+  const createQueryDropdownOptions = () => {
+    const queryOptions = allQueries.map((q: any) => {
+      return {
+        value: String(q.id),
+        label: q.name,
+      };
+    });
+    return [...queryOptions];
+  };
 
   const onChangeSelectQuery = useCallback(
     (queryId: number | string) => {
-      const queryWithId = queries.find((query) => query.id === queryId);
+      const queryWithId = allQueries.find(
+        (query: IQuery) => query.id === queryId
+      );
       setSelectedQuery(queryWithId as IQuery);
     },
-    [queries, setSelectedQuery]
+    [allQueries, setSelectedQuery]
   );
   // End query dropdown
 
@@ -104,12 +104,14 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     "shard",
     "version",
   ];
+
   const platformOptions = [
     { label: "All", value: "" },
     { label: "Windows", value: "windows" },
     { label: "Linux", value: "linux" },
     { label: "macOS", value: "darwin" },
   ];
+
   const loggingTypeOptions = [
     { label: "Differential", value: "differential" },
     {
@@ -118,6 +120,15 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     },
     { label: "Snapshot", value: "snapshot" },
   ];
+
+  const [selectedLoggingType, setSelectedLoggingType] = useState("snapshot");
+
+  const onChangeSelectLoggingType = useCallback(
+    (value: string) => {
+      setSelectedLoggingType(value);
+    },
+    [setSelectedLoggingType]
+  );
   const minOsqueryVersionOptions = [
     { label: "All", value: "" },
     { label: "4.7.0 +", value: "4.7.0" },
@@ -167,23 +178,23 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
   return (
     <Modal title={"Schedule editor"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>
-        {/* <Dropdown
+        <Dropdown
           wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
           value={selectedQuery && selectedQuery.id}
           options={createQueryDropdownOptions()}
           onChange={onChangeSelectQuery}
           placeholder={"Select query"}
           searchable={true}
-        /> */}
+        />
         <Dropdown
           // {...fields.frequency}
-          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-          label={"Choose a frequency and then run this query on a schedule"}
-          value={selectedFrequency}
+          searchable={false}
           options={frequencyDropdownOptions}
           onChange={onChangeSelectFrequency}
           placeholder={"Every day"}
-          searchable={false}
+          value={selectedFrequency}
+          label={"Choose a frequency and then run this query on a schedule"}
+          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
           <p>
@@ -223,7 +234,9 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
               <Dropdown
                 // {...fields.logging_type}
                 options={loggingTypeOptions}
+                onChange={onChangeSelectLoggingType}
                 placeholder="- - -"
+                value={selectedLoggingType}
                 label="Logging"
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
               />
