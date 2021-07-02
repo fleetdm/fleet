@@ -1,8 +1,10 @@
 ---
 version: '2'
 services:
+  # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like.
   mysql:
-    image: mysql:5.7
+    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
+    platform: linux/x86_64
     volumes:
       - mysql-persistent-volume:/tmp
     command: mysqld --datadir=/tmp/mysqldata --event-scheduler=ON
@@ -15,7 +17,8 @@ services:
       - "3306:3306"
 
   mysql_test:
-    image: mysql:5.7
+    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
+    platform: linux/x86_64
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: mysqld --datadir=/tmpfs --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON --innodb-file-per-table=OFF
     tmpfs: /tmpfs

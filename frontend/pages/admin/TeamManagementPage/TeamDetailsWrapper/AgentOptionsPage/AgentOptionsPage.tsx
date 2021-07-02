@@ -77,7 +77,7 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
         See Fleet documentation for an example file that includes the overrides
         option.{" "}
         <a
-          href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+          href="https://github.com/fleetdm/fleet/tree/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/configuration-files#overrides-option"
           target="_blank"
           rel="noopener noreferrer"
         >

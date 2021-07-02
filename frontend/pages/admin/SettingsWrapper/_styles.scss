@@ -35,7 +35,7 @@
 
       &:focus {
         box-shadow: none;
-        outline: auto;
+        outline: 0;
       }
 
       // Bolding text when the tab is active causes a layout shift

@@ -252,7 +252,7 @@ Cypress.Commands.add("addDockerHost", (team = "") => {
     },
   }).then(({ body }) => {
     const enrollSecret =
-      team === "" ? body.specs.secrets[0].secret : body.secrets[0].secret;
+      team === "" ? body.spec.secrets[0].secret : body.secrets[0].secret;
 
     // Start up docker-compose with enroll secret
     cy.exec(

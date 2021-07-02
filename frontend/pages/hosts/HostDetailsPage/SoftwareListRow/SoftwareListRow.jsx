@@ -1,3 +1,4 @@
+import { isEmpty } from "lodash";
 import React, { Component } from "react";
 import IconToolTip from "components/IconToolTip";
 
@@ -37,7 +38,7 @@ class SoftwareListRow extends Component {
     const type = TYPE_CONVERSION[source] || "Unknown";
 
     const vulnerabilitiesIcon = () => {
-      if (vulnerabilities.length === 0) {
+      if (isEmpty(vulnerabilities)) {
         return null;
       }
 

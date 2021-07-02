@@ -30,7 +30,7 @@ module.exports.routes = {
   '/legal/terms': 'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
   '/security': 'https://github.com/fleetdm/fleet/security/policy',
 
-  '/blog':           'https://medium.com/fleetdm',
+  '/blog':           'https://blog.fleetdm.com',
 
   'GET /apply': 'https://fleet-device-management.breezy.hr',
 
