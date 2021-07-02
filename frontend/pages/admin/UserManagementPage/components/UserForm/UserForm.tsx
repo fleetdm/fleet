@@ -1,5 +1,7 @@
 import React, { Component, FormEvent } from "react";
 
+import ReactTooltip from "react-tooltip";
+
 import { ITeam } from "interfaces/team";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
@@ -109,7 +111,9 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
         name: props.defaultName || "",
         newUserType: null,
         password: null,
-        sso_enabled: props.isNewUser ? props.canUseSSO || false : props.canUseSSO || false, // TODO revisit the else case for editing an existing user; shouldn't this be pulling from the user data instead of global app config?
+        sso_enabled: props.isNewUser
+          ? props.canUseSSO || false
+          : props.canUseSSO || false, // TODO revisit the else case for editing an existing user; shouldn't this be pulling from the user data instead of global app config?
         global_role: props.defaultGlobalRole || null,
         teams: props.defaultTeams || [],
         currentUserId: props.currentUserId,
@@ -429,24 +433,38 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                 name={"newUserType"}
                 onChange={onRadioChange("newUserType")}
               />
-              <Radio
-                className={`${baseClass}__radio-input`}
-                label={"Invite user"}
-                id={"invite-user"}
-                disabled={!isSmtpConfigured} // TODO style this state; remove related warning text
-                checked={newUserType === NewUserType.AdminInvited}
-                value={NewUserType.AdminInvited}
-                name={"newUserType"}
-                onChange={onRadioChange("newUserType")}
-              />
-              {!isSmtpConfigured && (
-                <p>
-                  <strong>
-                    Invite user option is disabled because SMTP is not
-                    configured.
-                  </strong>
-                </p>
-              )}
+              <div
+                data-tip
+                data-place="top"
+                data-offset="{'left': 300}"
+                data-for="invite-tooltip"
+                data-tip-disable={isSmtpConfigured}
+              >
+                <Radio
+                  className={`${baseClass}__radio-input`}
+                  label={"Invite user"}
+                  id={"invite-user"}
+                  disabled={!isSmtpConfigured}
+                  checked={newUserType === NewUserType.AdminInvited}
+                  value={NewUserType.AdminInvited}
+                  name={"newUserType"}
+                  onChange={onRadioChange("newUserType")}
+                />
+                <ReactTooltip
+                  type="dark"
+                  effect="solid"
+                  id="invite-tooltip"
+                  backgroundColor="#3e4771"
+                  className="tooltip-text"
+                >
+                  <span className={`${baseClass}__tooltip-text`}>
+                    The "Invite user" feature requires that SMTP is configured
+                    in order to send invitation emails. <br />
+                    <br />
+                    SMTP can be configured in Organization settings.
+                  </span>
+                </ReactTooltip>
+              </div>
             </div>
             {newUserType !== NewUserType.AdminInvited && !sso_enabled && (
               <>
@@ -467,7 +485,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                   <IconToolTip
                     isHtml
                     text={`\
-                      <div style="max-width: 300px;">\
+                      <div class="tooltip-text">\
                         <p>This password is temporary.</p>\
                         <p> This user will be asked to set a new password after logging in to the Fleet UI.</p>\
                         <p>This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.</p>\

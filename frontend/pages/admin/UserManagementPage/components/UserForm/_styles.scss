@@ -55,7 +55,16 @@
   }
 
   &__radio-input {
-    margin-bottom: $pad-medium;  
+    margin-bottom: $pad-medium;
+
+    &.disabled {
+      .radio__control {
+        background-color: $ui-fleet-black-25;
+      }
+      .radio__label {
+        color: $ui-fleet-black-25;
+      }
+    }
   }
 
   &__btn-wrap {
@@ -80,7 +89,6 @@
     .input-icon-field {
       width: 100%;
     }
-
   }
   
   &__details {
@@ -103,4 +111,9 @@
   .sublabel {
     margin: 0px;
   }
+
+  .tooltip-text {
+    max-width: 300px;
+  }
+
 }
