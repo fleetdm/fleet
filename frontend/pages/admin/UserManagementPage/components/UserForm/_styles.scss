@@ -71,6 +71,35 @@
     margin-bottom: 8px;
   }
 
+  &__password {
+    width: 98%;
+    float: left;
+    padding: 0 $pad-medium 0 0;
+    box-sizing: border-box;
+
+    .input-icon-field {
+      width: 100%;
+    }
+
+  }
+  
+  &__details {
+  float: right;
+  width: 2%;
+
+    .icon-tooltip {
+      margin-top: 12px;
+    }
+
+    .hint {
+      color: $core-fleet-black;
+
+      &--brand {
+        color: $core-vibrant-blue;
+      }
+    }
+  }
+
   .sublabel {
     margin: 0px;
   }

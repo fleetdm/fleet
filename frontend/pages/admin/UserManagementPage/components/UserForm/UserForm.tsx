@@ -9,6 +9,10 @@ import validEmail from "components/forms/validators/valid_email";
 // @ts-ignore
 import validPassword from "components/forms/validators/valid_password";
 // @ts-ignore
+import IconToolTip from "components/IconToolTip";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+// @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -105,7 +109,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
         name: props.defaultName || "",
         newUserType: null,
         password: null,
-        sso_enabled: props.canUseSSO || false,
+        sso_enabled: props.isNewUser ? props.canUseSSO || false : props.canUseSSO || false, // TODO revisit the else case for editing an existing user; shouldn't this be pulling from the user data instead of global app config?
         global_role: props.defaultGlobalRole || null,
         teams: props.defaultTeams || [],
         currentUserId: props.currentUserId,
@@ -399,6 +403,20 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           placeholder="Email"
           value={email}
         />
+        <div className={`${baseClass}__sso-input`}>
+          <Checkbox
+            name="sso_enabled"
+            onChange={onCheckboxChange("sso_enabled")}
+            value={sso_enabled}
+            disabled={!this.props.canUseSSO}
+            wrapperClassName={`${baseClass}__invite-admin`}
+          >
+            Enable single sign on
+          </Checkbox>
+          <p className={`${baseClass}__sso-input sublabel`}>
+            Password authentication will be disabled for this user.
+          </p>
+        </div>
         {isNewUser && (
           <div className={`${baseClass}__new-user-container`}>
             <div className={`${baseClass}__new-user-radios`}>
@@ -431,34 +449,36 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
               )}
             </div>
             {newUserType !== NewUserType.AdminInvited && !sso_enabled && (
-              <InputFieldWithIcon
-                error={errors.password}
-                name="password"
-                onChange={onInputChange("password")}
-                placeholder="Password"
-                value={password}
-                type="password"
-                hint={[
-                  "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-                ]} // TODO style hint
-              />
+              <>
+                <div className={`${baseClass}__password`}>
+                  <InputField
+                    error={errors.password}
+                    name="password"
+                    onChange={onInputChange("password")}
+                    placeholder="Password"
+                    value={password}
+                    type="password"
+                    hint={[
+                      "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+                    ]} // TODO style hint
+                  />
+                </div>
+                <div className={`${baseClass}__details`}>
+                  <IconToolTip
+                    isHtml
+                    text={`\
+                      <div style="max-width: 300px;">\
+                        <p>This password is temporary.</p>\
+                        <p> This user will be asked to set a new password after logging in to the Fleet UI.</p>\
+                        <p>This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.</p>\
+                      </div>\
+                    `}
+                  />
+                </div>
+              </>
             )}
           </div>
         )}
-        <div className={`${baseClass}__sso-input`}>
-          <Checkbox
-            name="sso_enabled"
-            onChange={onCheckboxChange("sso_enabled")}
-            value={sso_enabled}
-            disabled={!this.props.canUseSSO}
-            wrapperClassName={`${baseClass}__invite-admin`}
-          >
-            Enable single sign on
-          </Checkbox>
-          <p className={`${baseClass}__sso-input sublabel`}>
-            Password authentication will be disabled for this user.
-          </p>
-        </div>
         {isBasicTier && (
           <div className={`${baseClass}__selected-teams-container`}>
             <div className={`${baseClass}__team-radios`}>

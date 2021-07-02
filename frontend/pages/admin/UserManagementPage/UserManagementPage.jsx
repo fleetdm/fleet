@@ -5,10 +5,8 @@ import { isEqual } from "lodash";
 import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
-import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import Modal from "components/modals/Modal";
-import WarningBanner from "components/WarningBanner";
 import inviteInterface from "interfaces/invite";
 import configInterface from "interfaces/config";
 import userInterface from "interfaces/user";
@@ -543,34 +541,6 @@ export class UserManagementPage extends Component {
     );
   };
 
-  // renderSmtpWarning = () => {
-  //   const { appConfigLoading, config } = this.props;
-  //   const { goToAppConfigPage } = this;
-
-  //   if (appConfigLoading) {
-  //     return false;
-  //   }
-
-  //   return (
-  //     <div className={`${baseClass}__smtp-warning-wrapper`}>
-  //       <WarningBanner shouldShowWarning={!config.configured}>
-  //         <span>
-  //           SMTP is not currently configured in Fleet. The &quot;Create
-  //           User&quot; feature requires that SMTP is configured in order to send
-  //           invitation emails.
-  //         </span>
-  //         <Button
-  //           className={`${baseClass}__config-button`}
-  //           onClick={goToAppConfigPage}
-  //           variant={"unstyled"}
-  //         >
-  //           Configure SMTP
-  //         </Button>
-  //       </WarningBanner>
-  //     </div>
-  //   );
-  // };
-
   render() {
     const {
       tableHeaders,
@@ -579,18 +549,11 @@ export class UserManagementPage extends Component {
       renderDeleteUserModal,
       renderResetPasswordModal,
       renderResetSessionsModal,
-      // renderSmtpWarning,
       toggleCreateUserModal,
       onTableQueryChange,
       onActionSelect,
     } = this;
-    const {
-      config,
-      loadingTableData,
-      users,
-      invites,
-      currentUser,
-    } = this.props;
+    const { loadingTableData, users, invites, currentUser } = this.props;
 
     let tableData = [];
     if (!loadingTableData) {
@@ -608,7 +571,6 @@ export class UserManagementPage extends Component {
           Create new users, customize user permissions, and remove users from
           Fleet.
         </p>
-        {/* {renderSmtpWarning()} */}
         {/* TODO: find a way to move these controls into the table component */}
         <TableContainer
           columns={tableHeaders}
@@ -617,8 +579,7 @@ export class UserManagementPage extends Component {
           defaultSortHeader={"name"}
           defaultSortDirection={"desc"}
           inputPlaceHolder={"Search"}
-          // disableActionButton={!config.configured}
-          actionButtonText={"Create User"}
+          actionButtonText={"Create user"}
           onActionButtonClick={toggleCreateUserModal}
           onQueryChange={onTableQueryChange}
           resultsTitle={"rows"}
@@ -628,7 +589,6 @@ export class UserManagementPage extends Component {
         {renderEditUserModal()}
         {renderDeleteUserModal()}
         {renderResetSessionsModal()}
-
         {renderResetPasswordModal()}
       </div>
     );
