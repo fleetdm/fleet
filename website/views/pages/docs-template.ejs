@@ -1,7 +1,80 @@
 <div id="docs-template" v-cloak>
+  <div style="max-width: 1200px;" class="container-fluid mb-5">
+    <div class="conainer-fluid p-0 pt-4 pb-lg-2 m-0 breadcrumbs-search">
+      <div class="container-fluid d-flex p-0 m-0 align-items-center breadcrumbs">
+        <a href="/documentation" class="pr-3">Documentation</a>
+        <img style="width: 6px; height: 9px;" src="/images/chevron-right-6x9@2x.png"/>
+        <a :href="'/documentation/' + _.kebabCase(content.currentSection)" class="px-3">{{content.currentSection}}</a>
+        <img style="width: 6px; height: 9px;" src="/images/chevron-right-6x9@2x.png"/>
+        <p class="px-3 m-0">{{content.currentTopic}}</p>
 
-  <h1>TODO: Implement this page.</h1>
-  <p>(See also <em>assets/styles/pages/docs-template.less</em>, <em>assets/js/pages/docs-template.page.js</em>, and <em>api/controllers/view-docs-template.js</em>.)</p>
+      </div>
+      <div class="container-fluid search">
+
+      </div>
+      <h1 class="d-lg-none py-4 m-0">{{content.currentTopic}}</h1>
+    </div>
+    <div class="container-fluid d-flex flex-column flex-lg-row justify-content-start justify-content-lg-between p-0 pt-lg-4 m-0">
+      <div class="container-fluid d-none d-lg-flex flex-column text-left pl-0 left-sidebar">
+        <div v-for="section in content.sections" :key="section">
+          <h6 class="font-weight-bold">{{section}}</h6>
+          <div class="pt-2" v-if="section === content.currentSection">
+            <ul class="p-0 pl-2 mb-2">
+              <li v-for="topic in content.topics" :key="topic" :class="topic === content.currentTopic ? 'topic active' : 'topic'">{{topic}}</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+      <div class="d-flex flex-column p-0 pl-lg-5 pr-lg-4 content">
+        <h1 class="d-none d-lg-flex pb-3 mb-3">{{content.currentTopic}}</h1>
+        <div class="d-flex" v-for="item in body" :key="item.type + _.uniqueId()">
+          <h3 class="d-flex pb-4 m-0" v-if="item.type === 'subtopic'">{{item.content}}</h3>
+          <p class="d-flex pb-4 mb-3" v-if="item.type === 'text'">{{item.content}}</p>
+          <img class="d-flex w-100 pb-4 mx-auto mb-3" :alt="item.altText || 'A screenshot of ' + content.currentTopic" :src="item.content" v-if="item.type === 'image'" />
+          <div class="w-100 pb-4 mb-3" v-if="item.type === 'note'">
+            <div class="p-4 note">
+              <p class="font-weight-bold">Note:</p>
+              <p>{{item.content}}</p>  
+            </div>
+          </div>
+          <div class="pb-4 m-0" v-if="item.type === 'bullets'">
+            <p class="pb-4 m-0" v-if="item.content.intro">{{item.content.intro}}</p>
+            <ul>
+              <li v-for="bullet in item.content.bullets">{{bullet}}</li>
+            </ul>
+
+          </div>
+        </div>
+        <div class="d-none d-lg-block pb-4 mb-3">
+          <h3 class="pb-4 m-0">Is there something missing?</h3>
+          <p>
+            If you notice something we've missed or could be improved on, please follow <a href="https://github.com/fleetdm/fleet">this link</a> and submit a pull request to the Fleet repo. 
+          </p>
+        </div>
+      </div>
+      <div class="container-fluid order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar">
+        <h6 class="font-weight-bold pb-2 m-0 mb-2">On this page:</h6>
+        <div class="subtopics">
+          <ul class="p-0">
+            <li class="subtopic" v-for="(subtopic, index) in content.subtopics">
+              <div class="d-none d-lg-block active" v-if="index === 0"></div>
+              <p class="pl-lg-2 m-0">{{subtopic}}</p>
+            </li>
+            <li class="d-lg-none subtopic">Help and feedback</li>
+          </ul>
+        </div>
+        <h6 class="d-none d-lg-block font-weight-bold py-2">Related topics</h6>
+        <ul class="d-none d-lg-block p-0 pl-2">
+          <li v-for="relatedTopic in content.relatedTopics">{{relatedTopic}}</li>
+        </ul>
+
+
+
+      </div>
+    </div>
+  
+  </div>
 
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
