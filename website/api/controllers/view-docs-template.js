@@ -21,12 +21,46 @@ module.exports = {
     // Respond with view.
     return {
       content: {
-        sections: ['Get started', 'Using Fleet', 'Adding endpoints', 'Deployment', 'Contributing'],
+        sections: [
+          {
+            title: 'Get started',
+            topics: [],
+          },
+          {
+            title: 'Using Fleet',
+            topics: [
+              {
+                title: 'Fleet UI',
+                subtopics: ['Running queries', 'Scheduling queries'],
+                relatedTopics: ['Osquery queries', 'Osquery packs'],
+              },
+              {
+                title: 'fleetctl',
+                subtopics: [],
+                relatedTopics: [],
+              },
+              {
+                title: 'REST API',
+                subtopics: [],
+                relatedTopics: [],
+              },
+            ],
+          },
+          {
+            title: 'Adding endpoints',
+            topics: [],
+          },
+          {
+            title: 'Deployment',
+            topics: [],
+          },
+          {
+            title: 'Contributing',
+            topics: [],
+          },
+        ],
         currentSection: 'Using Fleet',
-        topics: ['Fleet UI', 'Fleet CLI', 'REST API'],
         currentTopic: 'Fleet UI',
-        subtopics: ['Running queries', 'Scheduling queries'],
-        relatedTopics: ['Osquery queries', 'Osquery packs'],
       },
       body: [
         {
