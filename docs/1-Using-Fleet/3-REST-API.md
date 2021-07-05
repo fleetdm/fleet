@@ -464,7 +464,6 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 
-
 ### List hosts
 
 `GET /api/v1/fleet/hosts`
@@ -1571,9 +1570,9 @@ Creates a user account after an invited user provides registration information a
 | --------------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | email                 | string | body | **Required**. The email address of the user.                                                                                                                                                                                                                                                                                                           |
 | invite_token          | string | body | **Required**. Token provided to the user in the invitation email.                                                                                                                                                                                                                                                                                      |
-| name                  | string | body | The name of the user.                                                                                                                                                                                                                                                                                                                                  |
-| password              | string | body | **Required**. The password chosen by the user.                                                                                                                                                                                                                                                                                                         |
-| password_confirmation | string | body | **Required**. Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                         |
+| name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                    |
+| password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                     |
+| password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                       |
 | global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
 | teams                 | array  | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
@@ -1686,8 +1685,9 @@ Creates a user account without requiring an invitation, the user is enabled imme
 | Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                            |
 | ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                |
-| password    | string  | body | **Required**. The user's password.                                                                                                                                                                                                                                                                                                                     |
-| name    | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                                     |
+| name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                        |
+| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                      |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
 | global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
 | teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
@@ -3195,13 +3195,13 @@ o
 
 #### Parameters
 
-| Name        | Type   | In   | Description                                 |
-| ----------- | ------ | ---- | ------------------------------------------- |
-| name        | string | body | **Required**. The pack's name.              |
-| description | string | body | The pack's description.                     |
-| host_ids    | list   | body | A list containing the targeted host IDs.    |
-| label_ids   | list   | body | A list containing the targeted label's IDs. |
-| team_ids   | list   | body | _Available in Fleet Basic_  A list containing the targeted teams' IDs. |
+| Name        | Type   | In   | Description                                                           |
+| ----------- | ------ | ---- | --------------------------------------------------------------------- |
+| name        | string | body | **Required**. The pack's name.                                        |
+| description | string | body | The pack's description.                                               |
+| host_ids    | list   | body | A list containing the targeted host IDs.                              |
+| label_ids   | list   | body | A list containing the targeted label's IDs.                           |
+| team_ids    | list   | body | _Available in Fleet Basic_ A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -3247,14 +3247,14 @@ o
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                 |
-| ----------- | ------- | ---- | ------------------------------------------- |
-| id          | integer | path | **Required.** The pack's id.                |
-| name        | string  | body | The pack's name.                            |
-| description | string  | body | The pack's description.                     |
-| host_ids    | list    | body | A list containing the targeted host IDs.    |
-| label_ids   | list    | body | A list containing the targeted label's IDs. |
-| team_ids   | list   | body | _Available in Fleet Basic_  A list containing the targeted teams' IDs. |
+| Name        | Type    | In   | Description                                                           |
+| ----------- | ------- | ---- | --------------------------------------------------------------------- |
+| id          | integer | path | **Required.** The pack's id.                                          |
+| name        | string  | body | The pack's name.                                                      |
+| description | string  | body | The pack's description.                                               |
+| host_ids    | list    | body | A list containing the targeted host IDs.                              |
+| label_ids   | list    | body | A list containing the targeted label's IDs.                           |
+| team_ids    | list    | body | _Available in Fleet Basic_ A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -4373,7 +4373,7 @@ None.
 
 ```
 {
-  "specs": {
+  "spec": {
     "secrets": [
       {
         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
@@ -4464,12 +4464,12 @@ None.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                              |
-| ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------ |
-| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                          |
-| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                |
-| name        | string  | body | **Required.** The name of the invited user.                                                                              |
-| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                   |
+| Name        | Type    | In   | Description                                                                                                                                         |
+| ----------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                     |
+| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                           |
+| name        | string  | body | **Required.** The name of the invited user.                                                                                                         |
+| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                              |
 | teams       | list    | body | _Available in Fleet Basic_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
