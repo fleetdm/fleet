@@ -1148,13 +1148,13 @@
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
               <ol id="faq__answer2" class="faq-list collapse" aria-labelledby="faq__question2">
-                <li>When a feature is open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.</li>
+                <li>When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.</li>
+                <li>The majority of new capabilities added to Fleet will benefit all users, not just customers.</li>
                 <li>We won't introduce features into the open source codebase with a fixed delay; if a feature is planned to land in both it will be released simultaneously in both.</li>
                 <li>We will always release and open source all tests that we have for any open source feature.</li>
-                <li>The open source codebase will eventually have all the features that are essential to running an enterprise security analytics platform.</li>
-                <li>The open source codebase will not contain any artificial limits (hosts, users, size, performance, etc.)</li>
-                <li>Eventually, all stages of the security lifecycle (from visibility, to alerts, to escalation) will have some open source features.</li>
-                <li>The majority of new features made by Fleet Device Management Inc will be open source</li>
+                <li>The free version of Fleet is enterprise ready.</li>
+                <li>The open source codebase will not contain any artificial limits on the number of hosts, users, size, or performance.</li>
+                <li>The majority of new features contributed by Fleet Device Management Inc will be open source.</li>
                 <li>The product will be available for download without leaving an email address or logging in.</li>
                 <li>We will always allow you to benchmark the performance of Fleet.</li>
               </ol>
@@ -1188,24 +1188,6 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question6" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer6" aria-controls="faq__answer6">
-                Will an increase in agents be at full price after a level of maturity is defined?
-                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-              </p>
-              <p id="faq__answer6" class="collapse" aria-labelledby="faq__question6">
-                We will honor the discounted rate through the end of the first contract term.  So if you need to add agents, we'll just write you another invoice with the same % discount, but for the number of additional agents to add, and prorated for the remaining number of months.
-              </p>
-            </div>
-            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question7" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer7" aria-controls="faq__answer7">
-                How long are discounts applied for such as are they for the life of the service at the initial engagement?
-                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-              </p>
-              <p id="faq__answer7" class="collapse" aria-labelledby="faq__question7">
-                Discounts will be for the first contract term, whether that's 1 year, 2 years, etc.  At renewal time, we reach out and reevaluate together.  Over time, we expect to “grow into” the list price as Fleet adds more and more value.
-              </p>
-            </div>
-            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
               <p id="faq__question8" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer8" aria-controls="faq__answer8">
                 When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
@@ -1215,21 +1197,12 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question9" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer9" aria-controls="faq__answer9">
-                Who looks after support?
-                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-              </p>
-              <p id="faq__answer9" class="collapse" aria-labelledby="faq__question9">
-                Today, that's Zach Wasserman, Noah Talerman, and Mike McNeil.  Over time, we'll scale the team responsible for support, but Zach will always be at the highest level of escalation since he has the deepest knowledge about osquery and Fleet.
-              </p>
-            </div>
-            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
               <p id="faq__question10" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer10" aria-controls="faq__answer10">
                 Where's the data stored?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
               <p id="faq__answer10" class="collapse" aria-labelledby="faq__question10">
-                Since Fleet is on-prem, some metadata is stored where ever it is deployed (which can be anywhere an organisation  would deploy their apps, e.g. Amazon, Azure, their own data center, hybrid cloud, etc-- anything).  That's done using a MySQL database.  But the bulk of the data is not stored there-- instead, it flows directly into a tool like Splunk or ElasticSearch.  (That part is up to you.)
+                Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, their own data center, hybrid cloud, anything).  That's done using a MySQL database, but the bulk of the data is not stored there — instead, it flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
               </p>
             </div>
           </div>
