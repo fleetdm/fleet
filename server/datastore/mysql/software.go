@@ -172,16 +172,6 @@ func (d *Datastore) generateChangesForNewSoftware(host *fleet.Host) (
 	return insertsSoftware, insertsHostSoftware, deletesHostSoftware, nil
 }
 
-func compareSoftware(software []fleet.Software) func(i int, j int) bool {
-	return func(i, j int) bool {
-		prev := software[i]
-		next := software[j]
-		prevFull := fmt.Sprintf("%s\u0000%s\u0000%s", prev.Name, prev.Version, prev.Source)
-		nextFull := fmt.Sprintf("%s\u0000%s\u0000%s", next.Name, next.Version, next.Source)
-		return strings.Compare(prevFull, nextFull) == -1
-	}
-}
-
 func (d *Datastore) hostSoftwareFromHostID(id uint) ([]fleet.Software, error) {
 	sql := `
 		SELECT * FROM software
@@ -196,9 +186,8 @@ func (d *Datastore) hostSoftwareFromHostID(id uint) ([]fleet.Software, error) {
 }
 
 func (d *Datastore) allSoftware() ([]fleet.Software, error) {
-	sql := `SELECT * FROM software`
 	var result []fleet.Software
-	if err := d.db.Select(&result, sql); err != nil {
+	if err := d.db.Select(&result, `SELECT * FROM software`); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 	return result, nil
