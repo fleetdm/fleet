@@ -63,6 +63,7 @@ export class UserSettingsPage extends Component {
       showEmailModal: false,
       showPasswordModal: false,
       updatedUser: {},
+      copyMessage: "",
     };
   }
 
@@ -154,14 +155,25 @@ export class UserSettingsPage extends Component {
     return (evt) => {
       evt.preventDefault();
 
-      const { dispatch } = this.props;
+      // const { dispatch } = this.props;
+
+      // if (copyText(elementClass)) {
+      //   dispatch(renderFlash("success", COPY_TEXT_SUCCESS));
+      // } else {
+      //   this.setState({ revealSecret: true });
+      //   dispatch(renderFlash("error", COPY_TEXT_ERROR));
+      // }
 
       if (copyText(elementClass)) {
-        dispatch(renderFlash("success", COPY_TEXT_SUCCESS));
+        this.setState({ copyMessage: "Copied!" });
       } else {
-        this.setState({ revealSecret: true });
-        dispatch(renderFlash("error", COPY_TEXT_ERROR));
+        this.setState({ copyMessage: "Copy failed" });
       }
+
+      // Clear message after 1 second
+      setTimeout(() => this.setState({ copyMessage: "" }), 1000);
+
+      return false;
     };
   };
 
@@ -249,9 +261,29 @@ export class UserSettingsPage extends Component {
     );
   };
 
+  renderLabel = () => {
+    const { copyMessage } = this.state;
+    const { onCopySecret } = this;
+
+    return (
+      <span className={`${baseClass}__name`}>
+        <span className="buttons">
+          {copyMessage && <span>{`${copyMessage} `}</span>}
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__secret-copy-icon`}
+            onClick={onCopySecret(`.${baseClass}__secret-input`)}
+          >
+            <FleetIcon name="clipboard" />
+          </Button>
+        </span>
+      </span>
+    );
+  };
+
   renderApiTokenModal = () => {
     const { showApiTokenModal, revealSecret } = this.state;
-    const { onToggleApiTokenModal, onCopySecret, onToggleSecret } = this;
+    const { onToggleApiTokenModal, onToggleSecret, renderLabel } = this;
 
     if (!showApiTokenModal) {
       return false;
@@ -276,14 +308,8 @@ export class UserSettingsPage extends Component {
             name="osqueryd-secret"
             type={revealSecret ? "text" : "password"}
             value={authToken()}
+            label={renderLabel()}
           />
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__secret-copy-icon`}
-            onClick={onCopySecret(`.${baseClass}__secret-input`)}
-          >
-            <FleetIcon name="clipboard" />
-          </Button>
         </div>
         <div className={`${baseClass}__button-wrap`}>
           <Button

@@ -109,16 +109,32 @@
     justify-content: flex-end;
   }
 
-  &__secret-copy-icon {
+  .buttons {
+    display: flex;
+    align-items: center;
     position: absolute;
-    top: 8px;
-    right: 10px;
-    font-size: 18px;
-    color: $core-vibrant-blue;
+    right: 16px;
+    transform: translateY(80%);
+    height: 16px;
 
-    &:active {
-      top: 8px;
+    span {
+      font-weight: $regular;
     }
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+
+    img {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &__secret-copy-icon {
+    color: $core-vibrant-blue;
+    margin-left: $pad-small;
   }
 
   &__secret-input {
@@ -126,7 +142,7 @@
       border-radius: 2px;
       background-color: $ui-off-white;
       border-color: $ui-fleet-blue-15;
-      padding-right: 36px;
+      padding-right: 90px;
       font-family: "SourceCodePro", $monospace;
 
       &[type="password"] {
