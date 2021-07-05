@@ -83,8 +83,9 @@
 
     tbody {
       td {
-        padding: 12px 27px;
+        padding: 0px 27px;
         white-space: nowrap;
+        height: 40px;
 
         // form-field wraps the dropdown menu
         .form-field {
