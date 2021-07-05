@@ -5,15 +5,18 @@ import { push } from "react-router-redux";
 // @ts-ignore
 // import { IUser } from "interfaces/user";
 import { IQuery } from "interfaces/query";
+// @ts-ignore
+import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
 
 // Will I need this? 5/28
 // import permissionUtils from "utilities/permissions";
 import paths from "router/paths";
 import Button from "components/buttons/Button";
-import NoSchedule from "./components/NoSchedule";
 import ScheduleError from "./components/ScheduleError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 
 const baseClass = "manage-schedule-page";
 
@@ -67,40 +70,7 @@ const renderTable = (): JSX.Element => {
   return <ScheduleListWrapper fakeData={fakeData} />;
 };
 
-const onScheduleEditorSubmit = () => {
-  // TODO: WHAT HAPPENS WHEN YOU SUBMIT THE SCHEDULE EDITOR
-  //   const { toggleScheduleEditorModal } = this;
-  //   const { dispatch } = this.props;
-  //   const { selectedHostIds } = this.state;
-  //   const teamId = team.id === "no-team" ? null : team.id;
-  //   dispatch(hostActions.transferToTeam(teamId, selectedHostIds))
-  //     .then(() => {
-  //       const successMessage =
-  //         teamId === null
-  //           ? `Hosts successfully removed from teams.`
-  //           : `Hosts successfully transferred to  ${team.name}.`;
-  //       dispatch(renderFlash("success", successMessage));
-  //       dispatch(getHosts());
-  //     })
-  //     .catch(() => {
-  //       dispatch(
-  //         renderFlash("error", "Could not transfer hosts. Please try again.")
-  //       );
-  //     });
-  //   toggleTransferHostModal();
-  //   this.setState({ selectedHostIds: [] });
-  // };
-  // clearHostUpdates() {
-  //   if (this.timeout) {
-  //     global.window.clearTimeout(this.timeout);
-  //     this.timeout = null;
-  //   }
-};
-
 interface IRootState {
-  // auth: {
-  //   user: IUser;
-  // };
   entities: {
     queries: {
       data: IQuery[];
@@ -122,14 +92,40 @@ const ManageSchedulePage = (): JSX.Element => {
     setShowScheduleEditorModal(!showScheduleEditorModal);
   }, [showScheduleEditorModal, setShowScheduleEditorModal]);
 
-  // Will I need this? 5/28
-  // const user = useSelector((state: IRootState) => state.auth.user);
-
   const allQueries = useSelector(
     (state: IRootState) => state.entities.queries.data
   );
   // Turn object of objects into array of objects
   const allQueriesList = Object.values(allQueries);
+
+  // SIMILAR TO TEAMMANAGEMENTPAGE onCreateSubmit Line 85
+  // SIMILAR TO MEMBERSPAGE onAddMemberSubmit Line 141
+  // TODO: FUNCTIONALITY OF ONSUBMIT FORM 6/30, 7/2 WORK ON THIS
+  const onScheduleSubmit = useCallback(
+    (formData: IQuery) => {
+      dispatch(
+        // TODO: This is how to send formData to a new pack, is it the same for schedule? 7/2
+        scheduledQueryActions({ ...formData, pack_id: 2 })
+      )
+        .then(() => {
+          dispatch(
+            renderFlash(
+              "success",
+              `Successfully added ${formData.name} to the schedule.`
+            )
+          );
+          // Updates page
+          dispatch(scheduledQueryActions.loadAll({}));
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash("error", "Could not schedule query. Please try again.")
+          );
+        });
+      toggleScheduleEditorModal();
+    },
+    [dispatch, toggleScheduleEditorModal]
+  );
 
   return (
     <div className={baseClass}>
@@ -149,7 +145,7 @@ const ManageSchedulePage = (): JSX.Element => {
               </div>
             </div>
           </div>
-          {/* Hides CTA Buttons if no schedule or schedule error */}
+          {/* Hide CTA Buttons if no schedule or schedule error */}
           {fakeData.scheduled.length !== 0 && !fakeDataError && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
@@ -159,7 +155,6 @@ const ManageSchedulePage = (): JSX.Element => {
               >
                 Advanced
               </Button>
-              {/* TODO: SCHEDULE A QUERY MODAL */}
               <Button
                 variant="brand"
                 className={`${baseClass}__schedule-button`}
@@ -174,9 +169,9 @@ const ManageSchedulePage = (): JSX.Element => {
         {showScheduleEditorModal ? (
           <ScheduleEditorModal
             onCancel={toggleScheduleEditorModal}
-            onSubmit={onScheduleEditorSubmit}
+            onScheduleSubmit={onScheduleSubmit}
             allQueries={allQueriesList}
-            // Modify onSubmit
+            defaultLoggingType={"snapshot"}
           />
         ) : null}
       </div>

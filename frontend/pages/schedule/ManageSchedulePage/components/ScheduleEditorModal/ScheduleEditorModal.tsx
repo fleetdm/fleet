@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from "react";
-import { pull } from "lodash";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
@@ -14,14 +13,12 @@ import { IQuery } from "interfaces/query";
 
 const baseClass = "schedule-editor-modal";
 
-export interface IScheduleEditorFormData {
-  name: string;
-}
-
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
-  onSubmit: (formData: IScheduleEditorFormData) => void;
+  onScheduleSubmit: (formData: any) => void;
+  defaultLoggingType: string | null;
+  validationErrors?: any[]; // TODO: proper interface for validationErrors
 }
 interface IFrequencyOption {
   value: number;
@@ -29,18 +26,7 @@ interface IFrequencyOption {
 }
 
 const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
-  const { onCancel, onSubmit, allQueries } = props;
-
-  // FUNCTIONALITY LATER 6/30
-  // const onFormSubmit = useCallback(
-  //   (evt) => {
-  //     evt.preventDefault();
-  //     onSubmit({
-  //       name,
-  //     });
-  //   },
-  //   [onSubmit, name]
-  // );
+  const { onCancel, onScheduleSubmit, allQueries, defaultLoggingType } = props;
 
   // Query dropdown
   interface INoQueryOption {
@@ -157,6 +143,7 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     { label: "1.8.1 +", value: "1.8.1" },
   ];
 
+  // CONVERT FROM CLASS TO FUNCTIONAL
   const handlePlatformChoice = (value: string) => {
     //   const {
     //     fields: { platform },
@@ -235,15 +222,14 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
                 // {...fields.logging_type}
                 options={loggingTypeOptions}
                 onChange={onChangeSelectLoggingType}
-                placeholder="- - -"
-                value={selectedLoggingType}
+                placeholder="Select"
                 label="Logging"
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
               />
               <Dropdown
                 // {...fields.platform}
                 options={platformOptions}
-                placeholder="- - -"
+                placeholder="Select"
                 label="Platform"
                 onChange={handlePlatformChoice}
                 multi
@@ -252,7 +238,7 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
               <Dropdown
                 // {...fields.version}
                 options={minOsqueryVersionOptions}
-                placeholder="- - -"
+                placeholder="Select"
                 label="Minimum osquery version"
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
               />
@@ -279,7 +265,7 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
             className={`${baseClass}__btn`}
             type="button"
             variant="brand"
-            // onClick={onFormSubmit}
+            onClick={onScheduleSubmit}
           >
             Schedule
           </Button>

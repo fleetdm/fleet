@@ -39,15 +39,6 @@ export default (currentUser) => {
   const globalMaintainerNavItems = [
     {
       icon: "packs",
-      name: "DELETE LATER",
-      iconName: "packs",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/packs/`),
-        pathname: PATHS.MANAGE_PACKS,
-      },
-    },
-    {
-      icon: "packs",
       name: "Schedule",
       iconName: "packs",
       location: {
