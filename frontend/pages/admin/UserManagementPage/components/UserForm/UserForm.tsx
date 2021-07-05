@@ -65,6 +65,7 @@ interface ICreateUserFormProps {
   defaultTeams?: ITeam[];
   isBasicTier: boolean;
   validationErrors: any[]; // TODO: proper interface for validationErrors
+  smtpConfigured: boolean;
 }
 
 interface ICreateUserFormState {
@@ -289,7 +290,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       formData: { email, name, sso_enabled },
       isGlobalUser,
     } = this.state;
-    const { onCancel, submitText, isBasicTier } = this.props;
+    const { onCancel, submitText, isBasicTier, smtpConfigured } = this.props;
     const {
       onFormSubmit,
       onInputChange,
@@ -323,6 +324,10 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           onChange={onInputChange("email")}
           placeholder="Email"
           value={email}
+          disabled={!smtpConfigured}
+          hint={
+            !smtpConfigured && "SMTP must be configured to update email address"
+          }
         />
         <div className={`${baseClass}__sso-input`}>
           <Checkbox

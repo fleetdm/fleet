@@ -16,6 +16,7 @@ interface IEditUserModalProps {
   availableTeams: ITeam[];
   validationErrors: any[];
   isBasicTier: boolean;
+  smtpConfigured: boolean;
 }
 
 const baseClass = "edit-user-modal";
@@ -32,6 +33,7 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
     availableTeams,
     isBasicTier,
     validationErrors,
+    smtpConfigured,
   } = props;
 
   return (
@@ -52,6 +54,7 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
         availableTeams={availableTeams}
         submitText={"Save"}
         isBasicTier={isBasicTier}
+        smtpConfigured={smtpConfigured}
       />
     </Modal>
   );
