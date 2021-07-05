@@ -72,7 +72,7 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 			return err
 		}
 
-		err = d.applyChangesForNewSoftware(tx, insertsSoftware, insertsHostSoftware, host, deletesHostSoftware)
+		err = d.applyChangesForNewSoftware(tx, host, insertsSoftware, insertsHostSoftware, deletesHostSoftware)
 		if err != nil {
 			return err
 		}
@@ -86,7 +86,13 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 	return nil
 }
 
-func (d *Datastore) applyChangesForNewSoftware(tx *sqlx.Tx, insertsSoftware [][]interface{}, insertsHostSoftware []interface{}, host *fleet.Host, deletesHostSoftware []interface{}) error {
+func (d *Datastore) applyChangesForNewSoftware(
+	tx *sqlx.Tx,
+	host *fleet.Host,
+	insertsSoftware [][]interface{},
+	insertsHostSoftware []interface{},
+	deletesHostSoftware []interface{},
+) error {
 	for _, args := range insertsSoftware {
 		// we insert one by one here because we need the IDs for host_software later on
 		result, err := tx.Exec(
@@ -124,7 +130,9 @@ func (d *Datastore) applyChangesForNewSoftware(tx *sqlx.Tx, insertsSoftware [][]
 	return nil
 }
 
-func (d *Datastore) generateChangesForNewSoftware(host *fleet.Host) ([][]interface{}, []interface{}, []interface{}, error) {
+func (d *Datastore) generateChangesForNewSoftware(host *fleet.Host) (
+	[][]interface{}, []interface{}, []interface{}, error,
+) {
 	storedSoftware, err := d.allSoftware()
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "getting all software")
