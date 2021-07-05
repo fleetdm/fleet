@@ -67,23 +67,6 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 			return nil
 		}
 
-		/*
-			load all the software in a map[string]int name0version0source->id :: allsoft
-			load the host current software like ^
-			load the incoming software like ^
-			for each incoming software:
-				if not in allsoft:
-					insert to software
-					insert to host software
-					continue
-				else:
-					if not in current software:
-						insert to host software
-			for each current software:
-				if not in incoming:
-					delete from host
-		*/
-
 		insertsSoftware, insertsHostSoftware, deletesHostSoftware, err := d.generateChangesForNewSoftware(host)
 		if err != nil {
 			return err
