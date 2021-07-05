@@ -28,6 +28,9 @@ interface IFrequencyOption {
 const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
   const { onCancel, onScheduleSubmit, allQueries, defaultLoggingType } = props;
 
+  // 7/5 TODO: Render selected query on dropdown
+  // Need: How the return value object changes the selection
+  // Need: How does {...fields.____} work with our codebase
   // Query dropdown
   interface INoQueryOption {
     id: number;
@@ -143,7 +146,29 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     { label: "1.8.1 +", value: "1.8.1" },
   ];
 
-  // CONVERT FROM CLASS TO FUNCTIONAL
+  const [
+    selectedMinOsqueryVersionOptions,
+    setSelectedMinOsqueryVersionOptions,
+  ] = useState(null);
+
+  const onChangeMinOsqueryVersionOptions = useCallback(
+    (value: any) => {
+      setSelectedMinOsqueryVersionOptions(value);
+    },
+    [setSelectedMinOsqueryVersionOptions]
+  );
+
+  const [selectedShard, setSelectedShard] = useState(null);
+
+  const onChangeShard = useCallback(
+    (value: any) => {
+      setSelectedShard(value);
+    },
+    [setSelectedShard]
+  );
+
+  // 7/5 TODO: How to create this platform chooser in functional/typescript
+  // This is written in class/javascript on ConfigurePackQueryForm.jsx Line 95
   const handlePlatformChoice = (value: string) => {
     //   const {
     //     fields: { platform },
@@ -223,6 +248,7 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
                 options={loggingTypeOptions}
                 onChange={onChangeSelectLoggingType}
                 placeholder="Select"
+                value={selectedLoggingType}
                 label="Logging"
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
               />
@@ -238,13 +264,17 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
               <Dropdown
                 // {...fields.version}
                 options={minOsqueryVersionOptions}
+                onChange={onChangeMinOsqueryVersionOptions}
                 placeholder="Select"
+                value={selectedMinOsqueryVersionOptions}
                 label="Minimum osquery version"
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
               />
               <InputField
                 // {...fields.shard}
+                onChange={onChangeShard}
                 inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--shard`}
+                value={selectedShard}
                 placeholder="- - -"
                 label="Shard"
                 type="number"
