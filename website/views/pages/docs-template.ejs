@@ -1,5 +1,6 @@
 <div id="docs-template" v-cloak>
   <div style="max-width: 1200px;" class="container-fluid mb-5">
+
     <div purpose="breadcrumbs-and-search" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0 breadcrumbs-search">
       
       <div purpose="breadcrumbs" class="d-none d-lg-flex p-0 m-0 align-items-center breadcrumbs">
@@ -34,10 +35,10 @@
         <div class="d-flex px-0 mobile-docs-nav" v-if="showDocsNav">
           <div class="container-fluid px-0 py-4">
             <ul class="px-0">
-              <li class="px-0" v-for="section in content.sections">
+              <li class="px-0 mb-2" v-for="section in content.sections">
                 <a :href="'/docs/' + _.kebabCase(section.title)" class="font-weight-bold">{{section.title}}</a>
                 <ul class="px-0 pt-3" v-if="section.topics?.length">
-                  <li class="px-0" v-for="topic in section.topics">
+                  <li class="px-0 mb-2" v-for="topic in section.topics">
                     <a :href="'/docs/' + _.kebabCase(section.title) + '/' + _.kebabCase(topic.title)" :class="topic.title === content.currentTopic ? 'topic active' : 'topic'">{{topic.title}}</a>
                   </li>
                 </ul>
@@ -52,13 +53,14 @@
 
     <h1 class="d-flex d-lg-none py-4 m-0">{{content.currentTopic}}</h1>
 
-    <div purpose="left-sidebar" class="container-fluid d-flex flex-column flex-lg-row justify-content-start justify-content-lg-between p-0 pt-lg-4 m-0">
-      <div class="container-fluid d-none d-lg-flex flex-column text-left pl-0 left-sidebar">
-        <ul>
+    <div class="container-fluid d-flex flex-column flex-lg-row justify-content-start justify-content-lg-between p-0 pt-lg-4 m-0">
+
+      <div purpose="left-sidebar" class="container-fluid d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
+        <ul class="p-0 pb-2 m-0 left-nav">
           <li v-for="section in content.sections" :key="section.title">
             <a :href="'/docs/' + _.kebabCase(section.title)" class="font-weight-bold pb-3">{{section.title}}</a>
             <div class="pt-2" v-if="section.title === content.currentSection">
-              <ul class="p-0 pl-2 mb-2">
+              <ul class="p-0 mb-2">
                 <li v-for="topic in section.topics" :key="topic.title">
                   <a :href="'/docs/' + _.kebabCase(section.title) + '/' + _.kebabCase(topic.title)" :class="topic.title === content.currentTopic ? 'topic active' : 'topic'">{{topic.title}}</a>
                 </li>
@@ -66,9 +68,12 @@
             </div>
           </li>
         </ul>
+        <a class="font-weight-bold py-3" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+        <a href="/support" class="btn btn-block btn-sm btn-primary">Support</a>
       </div>
 
       <div purpose="right-sidebar" class="container-fluid order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar">
+        
         <h6 class="font-weight-bold pb-2 m-0 mb-2">On this page:</h6>
         <div class="subtopics">
           <ul class="p-0">
@@ -79,14 +84,18 @@
             <li class="d-lg-none subtopic">Help and feedback</li>
           </ul>
         </div>
+        
         <h6 class="d-none d-lg-block font-weight-bold py-2">Related topics</h6>
         <ul class="d-none d-lg-block p-0 pl-2">
           <li v-for="relatedTopic in getRelatedTopics()">{{relatedTopic}}</li>
         </ul>
+
       </div>
 
       <div purpose="content" class="d-flex flex-column p-0 pl-lg-5 pr-lg-4 content">
+
         <h1 class="d-none d-lg-flex pb-3 mb-3">{{content.currentTopic}}</h1>
+
         <div class="d-flex" v-for="item in body" :key="item.type + _.uniqueId()">
           <h3 class="d-flex pb-4 m-0" v-if="item.type === 'subtopic'">{{item.content}}</h3>
           <p class="d-flex pb-4 mb-3" v-if="item.type === 'text'">{{item.content}}</p>
@@ -111,6 +120,7 @@
             If you notice something we've missed or could be improved on, please follow <a href="https://github.com/fleetdm/fleet">this link</a> and submit a pull request to the Fleet repo. 
           </p>
         </div>
+
       </div>
 
     </div>

@@ -25,7 +25,6 @@ parasails.registerPage('docs-template', {
   methods: {
     toggleDocsNav: function () {
       this.showDocsNav = !this.showDocsNav;
-      console.log("click!");
     },
 
     delayInput: function (callback, ms, label) {
