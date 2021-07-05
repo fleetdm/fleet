@@ -155,15 +155,6 @@ export class UserSettingsPage extends Component {
     return (evt) => {
       evt.preventDefault();
 
-      // const { dispatch } = this.props;
-
-      // if (copyText(elementClass)) {
-      //   dispatch(renderFlash("success", COPY_TEXT_SUCCESS));
-      // } else {
-      //   this.setState({ revealSecret: true });
-      //   dispatch(renderFlash("error", COPY_TEXT_ERROR));
-      // }
-
       if (copyText(elementClass)) {
         this.setState({ copyMessage: "Copied!" });
       } else {
