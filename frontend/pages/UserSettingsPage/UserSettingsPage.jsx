@@ -4,11 +4,7 @@ import { connect } from "react-redux";
 import { goBack } from "react-router-redux";
 import moment from "moment";
 import { authToken } from "utilities/local";
-import {
-  copyText,
-  COPY_TEXT_SUCCESS,
-  COPY_TEXT_ERROR,
-} from "utilities/copy_text";
+import { stringToClipboard } from "utilities/copy_text";
 
 import { noop } from "lodash";
 
@@ -151,15 +147,13 @@ export class UserSettingsPage extends Component {
     return false;
   };
 
-  onCopySecret = (elementClass) => {
+  onCopySecret = () => {
     return (evt) => {
       evt.preventDefault();
 
-      if (copyText(elementClass)) {
-        this.setState({ copyMessage: "Copied!" });
-      } else {
-        this.setState({ copyMessage: "Copy failed" });
-      }
+      stringToClipboard(authToken())
+        .then(() => this.setState({ copyMessage: "Copied!" }))
+        .catch(() => this.setState({ copyMessage: "Copy failed" }));
 
       // Clear message after 1 second
       setTimeout(() => this.setState({ copyMessage: "" }), 1000);
