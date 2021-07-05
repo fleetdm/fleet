@@ -20,11 +20,11 @@ module.exports = {
 
     // Respond with view.
     return {
-      content: {
+      outline: {
         sections: [
           {
             title: 'Get started',
-            topics: [],
+            topics: [], // NOTE this array is empty bc this was not stubbed out
           },
           {
             title: 'Using Fleet',
@@ -36,13 +36,13 @@ module.exports = {
               },
               {
                 title: 'fleetctl',
-                subtopics: [],
-                relatedTopics: [],
+                subtopics: [], // NOTE this array is empty bc this was not stubbed out
+                relatedTopics: [], // NOTE this array is empty bc this was not stubbed out
               },
               {
                 title: 'REST API',
-                subtopics: [],
-                relatedTopics: [],
+                subtopics: [], // NOTE this array is empty bc this was not stubbed out
+                relatedTopics: [], // NOTE this array is empty bc this was not stubbed out
               },
             ],
           },
@@ -59,8 +59,10 @@ module.exports = {
             topics: [],
           },
         ],
-        currentSection: 'Using Fleet',
-        currentTopic: 'Fleet UI',
+      },
+      currentPage: {
+        section: 'Using Fleet',
+        topic: 'Fleet UI',
       },
       body: [
         {
