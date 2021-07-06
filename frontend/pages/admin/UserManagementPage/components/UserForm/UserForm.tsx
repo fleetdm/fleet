@@ -340,7 +340,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           effect="solid"
           id="smtp-tooltip"
           backgroundColor="#3e4771"
-          data-html={true}
+          data-html
         >
           <span className={`${baseClass}__tooltip-text`}>
             Editing an email address requires that SMTP is <br />

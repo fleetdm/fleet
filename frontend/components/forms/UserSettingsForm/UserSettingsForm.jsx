@@ -65,7 +65,7 @@ class UserSettingsForm extends Component {
           effect="solid"
           id="smtp-tooltip"
           backgroundColor="#3e4771"
-          data-html={true}
+          data-html
         >
           <span className={`${baseClass}__tooltip-text`}>
             Editing your email address requires that SMTP is <br />
