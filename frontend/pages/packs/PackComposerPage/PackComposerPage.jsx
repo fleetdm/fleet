@@ -41,7 +41,7 @@ export class PackComposerPage extends Component {
     return false;
   };
 
-  visitPackPage = (packID, packName) => {
+  visitPackPage = (packID) => {
     const { dispatch } = this.props;
 
     dispatch(push(PATHS.PACK({ id: packID })));

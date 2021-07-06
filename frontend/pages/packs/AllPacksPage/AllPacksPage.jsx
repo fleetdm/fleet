@@ -110,7 +110,12 @@ export class AllPacksPage extends Component {
 
           return false;
         })
-        .catch(() => dispatch(renderFlash("error", "Something went wrong.")));
+        .catch(() => {
+          dispatch(
+            renderFlash("error", "Could not delete packs. Please try again.")
+          );
+          this.setState({ showModal: false });
+        });
     };
   };
 

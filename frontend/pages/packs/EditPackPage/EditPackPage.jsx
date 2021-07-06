@@ -238,9 +238,7 @@ export class EditPackPage extends Component {
     };
 
     dispatch(create(scheduledQueryData))
-      .then((scheduledQueryData) => {
-        console.log("scheduled query data:", scheduledQueryData);
-
+      .then(() => {
         dispatch(
           renderFlash(
             "success",

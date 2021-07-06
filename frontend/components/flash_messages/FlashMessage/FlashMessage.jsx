@@ -28,8 +28,15 @@ const FlashMessage = ({
   const alertIcon =
     alertType === "success" ? "success-check" : "warning-filled";
 
+  // Success alerts will not be visible after 4 seconds
+  if (alertType === "success") {
+    setTimeout(function () {
+      document.getElementById(`${klass}`).style.display = "none";
+    }, 4000);
+  }
+
   return (
-    <div className={klass}>
+    <div className={klass} id={klass}>
       <div className={`${baseClass}__content`}>
         <FleetIcon name={alertIcon} /> <span>{message}</span>
         {undoAction && (
