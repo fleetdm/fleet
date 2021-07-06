@@ -56,12 +56,6 @@ spec:
 To define multiple queries in a file, concatenate multiple `query` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
 
 ```yaml
-apiVersion: v1
-kind: query
-spec:
-  name: osquery_version
-  description: The version of the Launcher and Osquery process
-  query: select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;
 ---
 apiVersion: v1
 kind: query
