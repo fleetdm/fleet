@@ -4,11 +4,7 @@ import { connect } from "react-redux";
 import { goBack } from "react-router-redux";
 import moment from "moment";
 import { authToken } from "utilities/local";
-import {
-  copyText,
-  COPY_TEXT_SUCCESS,
-  COPY_TEXT_ERROR,
-} from "utilities/copy_text";
+import { stringToClipboard } from "utilities/copy_text";
 
 import { noop } from "lodash";
 
@@ -63,6 +59,7 @@ export class UserSettingsPage extends Component {
       showEmailModal: false,
       showPasswordModal: false,
       updatedUser: {},
+      copyMessage: "",
     };
   }
 
@@ -150,18 +147,18 @@ export class UserSettingsPage extends Component {
     return false;
   };
 
-  onCopySecret = (elementClass) => {
+  onCopySecret = () => {
     return (evt) => {
       evt.preventDefault();
 
-      const { dispatch } = this.props;
+      stringToClipboard(authToken())
+        .then(() => this.setState({ copyMessage: "Copied!" }))
+        .catch(() => this.setState({ copyMessage: "Copy failed" }));
 
-      if (copyText(elementClass)) {
-        dispatch(renderFlash("success", COPY_TEXT_SUCCESS));
-      } else {
-        this.setState({ revealSecret: true });
-        dispatch(renderFlash("error", COPY_TEXT_ERROR));
-      }
+      // Clear message after 1 second
+      setTimeout(() => this.setState({ copyMessage: "" }), 1000);
+
+      return false;
     };
   };
 
@@ -249,9 +246,29 @@ export class UserSettingsPage extends Component {
     );
   };
 
+  renderLabel = () => {
+    const { copyMessage } = this.state;
+    const { onCopySecret } = this;
+
+    return (
+      <span className={`${baseClass}__name`}>
+        <span className="buttons">
+          {copyMessage && <span>{`${copyMessage} `}</span>}
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__secret-copy-icon`}
+            onClick={onCopySecret(`.${baseClass}__secret-input`)}
+          >
+            <FleetIcon name="clipboard" />
+          </Button>
+        </span>
+      </span>
+    );
+  };
+
   renderApiTokenModal = () => {
     const { showApiTokenModal, revealSecret } = this.state;
-    const { onToggleApiTokenModal, onCopySecret, onToggleSecret } = this;
+    const { onToggleApiTokenModal, onToggleSecret, renderLabel } = this;
 
     if (!showApiTokenModal) {
       return false;
@@ -276,14 +293,8 @@ export class UserSettingsPage extends Component {
             name="osqueryd-secret"
             type={revealSecret ? "text" : "password"}
             value={authToken()}
+            label={renderLabel()}
           />
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__secret-copy-icon`}
-            onClick={onCopySecret(`.${baseClass}__secret-input`)}
-          >
-            <FleetIcon name="clipboard" />
-          </Button>
         </div>
         <div className={`${baseClass}__button-wrap`}>
           <Button
