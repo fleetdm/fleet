@@ -238,7 +238,9 @@ export class EditPackPage extends Component {
     };
 
     dispatch(create(scheduledQueryData))
-      .then(() => {
+      // Will not render query name without declaring scheduledQueryData twice
+      // eslint-disable-next-line @typescript-eslint/no-shadow
+      .then((scheduledQueryData) => {
         dispatch(
           renderFlash(
             "success",
