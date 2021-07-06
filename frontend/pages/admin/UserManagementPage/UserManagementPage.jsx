@@ -453,6 +453,7 @@ export class UserManagementPage extends Component {
           defaultTeams={[]}
           submitText={"Create"}
           isBasicTier={isBasicTier}
+          smtpConfigured={config.configured}
         />
       </Modal>
     );
