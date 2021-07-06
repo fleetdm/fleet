@@ -265,7 +265,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
         <InfoBanner className={`${baseClass}__user-permissions-info`}>
           <p>
             Users can be members of multiple teams and can only manage or
-            observe team-sepcific users, entities, and settings in Fleet.
+            observe team-specific users, entities, and settings in Fleet.
           </p>
           <a
             href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md#team-member-permissions"
