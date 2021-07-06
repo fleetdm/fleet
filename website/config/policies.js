@@ -29,5 +29,6 @@ module.exports.policies = {
   'handbook/*': true,
   'download-sitemap': true,
   'view-docs-template': true,
+  'view-documentation': true,
 
 };

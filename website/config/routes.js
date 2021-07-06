@@ -34,6 +34,7 @@ module.exports.routes = {
 
   'GET /apply': 'https://fleet-device-management.breezy.hr',
 
+  'GET /documentation': { action: 'view-documentation' },
   'GET /docs-template': { action: 'view-docs-template' },
 
 
