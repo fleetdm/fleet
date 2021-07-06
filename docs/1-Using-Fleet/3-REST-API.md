@@ -2243,38 +2243,6 @@ Returns a list of all queries in the Fleet instance.
   {
     "created_at": "2021-01-19T17:08:24Z",
     "updated_at": "2021-01-19T17:08:24Z",
-    "id": 2,
-    "name": "osquery_version",
-    "description": "The version of the Launcher and Osquery process",
-    "query": "select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;",
-    "saved": true,
-    "author_id": 1,
-    "author_name": "noah",
-    "observer_can_run": true,
-    "packs": [
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
-      },
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
-      }
-    ]
-  },
-  {
-    "created_at": "2021-01-19T17:08:24Z",
-    "updated_at": "2021-01-19T17:08:24Z",
     "id": 3,
     "name": "osquery_schedule",
     "description": "Report performance stats for each file in the query schedule.",
@@ -2508,15 +2476,10 @@ None.
         "query": "SELECT * FROM osquery_info"
     },
     {
-        "name": "osquery_version",
-        "description": "The version of the Launcher and Osquery process",
-        "query": "select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;"
-    },
-    {
         "name": "osquery_schedule",
         "description": "Report performance stats for each file in the query schedule.",
         "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;"
-    },
+    }
   ]
 }
 ```
@@ -2576,11 +2539,6 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
         "name": "new_query",
         "description": "This will be a new query because a query with the name 'new_query' doesn't exist in Fleet.",
         "query": "SELECT * FROM osquery_info"
-    },
-    {
-        "name": "osquery_version",
-        "description": "Only this queries description will be modified because a query with the name 'osquery_version' exists in Fleet.",
-        "query": "select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;"
     },
     {
         "name": "osquery_schedule",
