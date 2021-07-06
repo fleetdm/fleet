@@ -1,0 +1,28 @@
+---
+apiVersion: v1
+kind: user
+spec:
+  user:
+    full_name: Anna
+    global_role: admin
+---
+apiVersion: v1
+kind: user
+spec:
+  user:
+    full_name: Mary
+    global_role: maintainer
+---
+apiVersion: v1
+kind: user
+spec:
+  user:
+    full_name: Oliver
+    global_role: observer
+---
+apiVersion: v1
+kind: user
+spec:
+  user:
+    full_name: Marco
+    global_role: null

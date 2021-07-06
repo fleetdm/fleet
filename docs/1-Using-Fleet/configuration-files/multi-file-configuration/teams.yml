@@ -1,31 +1,12 @@
-# Applies to Fleet Basic:
-# This configuration file allows for the managing of teams in Fleet.
-# The file can be used for the creating, updating, and deleting of teams.
-# A team's members, agent options, and enroll secrets are managed with this file.
-
-# The example below includes two teams called 'Workstations' and 'Servers.' Each team
-# maintains its own list of members and their roles, agent options, and enroll secrets.
-
 ---
 apiVersion: v1
 kind: team
 spec:
   team:
-    name: Workstations
-    # Below are the memebers of the Workstations team.
-    # Only users that are members of the Workstations team or users with a Global role
-    # have permission to view, delete, and run live queries against the Workstations team's
-    # hosts. See the `enroll_secrets` property for more information on enrolling hosts
-    # to a specific team.
+    name: Apples
     members:
-      - email: email1
-        role: admin
-      - email: email2
+      - email: marco@organization.com
         role: maintainer
-    # Below are the agent options that belong to the Workstations team
-    # These options will apply to all hosts that are assigned to the Workstations team.
-    # These options will override the 'default' options. See the config.yml for
-    # example 'default' options.
     agent_options:
       options:
         distributed_interval: 3
@@ -41,33 +22,15 @@ spec:
           - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
         interval:
           3600: "SELECT total_seconds AS uptime FROM uptime"
-    # Below are the enroll secrets that belong to the Workstations team
-    # A host that enrolls to Fleet using either of the following enroll secrets
-    # is assigned to the Workstations team.
-    enroll_secrets:
-      secrets:
-        - secret: djRf6C40dp5pP02unLS7
-        - secret: djRf6C40dp5pP02unLS7
 ---
 apiVersion: v1
 kind: team
 spec:
   team:
-    name: Servers
-    # Below are the memebers of the Servers team.
-    # Only users that are members of the Servers team or users with a Global role
-    # have permission to view, delete, and run live queries against the Server team's hosts.
-    # See the `enroll_secrets` property for more information on enrolling hosts
-    # to a specific team.
+    name: Oranges
     members:
-      - email: email1
-        role: admin
-      - email: email2
-        role: maintainer
-    # Below are the agent options that belong to the Servers team.
-    # These options will apply to all hosts that belong to the Servers team.
-    # These options will override the 'default' options. See the config.yml for
-    # example 'default' options.
+      - email: marco@organization.com
+        role: observer
     agent_options:
       options:
         distributed_interval: 3
@@ -83,9 +46,3 @@ spec:
           - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
         interval:
           3600: "SELECT total_seconds AS uptime FROM uptime"
-    # Below are the enroll secrets that belong to the Servers team
-    # A host that enrolls to Fleet using the following enroll secret
-    # is automatically assigned to the Servers team.
-    enroll_secrets:
-      secrets:
-        - secret: 4NE6wxMlDwZruCfie8oW
