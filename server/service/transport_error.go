@@ -2,13 +2,14 @@ package service
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
-	"net/http"
-	"strconv"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
+	"net/http"
+	"strconv"
 )
 
 // erroer interface is implemented by response structs to encode business logic errors
@@ -33,29 +34,39 @@ func baseError(err string) []map[string]string {
 	}
 }
 
+type validationErrorInterface interface {
+	error
+	Invalid() []map[string]string
+}
+
+type permissionErrorInterface interface {
+	PermissionError() []map[string]string
+}
+
+type notFoundErrorInterface interface {
+	error
+	IsNotFound() bool
+}
+
+type existsErrorInterface interface {
+	error
+	IsExists() bool
+}
+
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
-	type validationError interface {
-		error
-		Invalid() []map[string]string
-	}
-	if e, ok := err.(validationError); ok {
+	switch e := err.(type) {
+	case validationErrorInterface:
 		ve := jsonError{
 			Message: "Validation Failed",
 			Errors:  e.Invalid(),
 		}
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		enc.Encode(ve)
-		return
-	}
-
-	type permissionError interface {
-		PermissionError() []map[string]string
-	}
-	if e, ok := err.(permissionError); ok {
+	case permissionErrorInterface:
 		pe := jsonError{
 			Message: "Permission Denied",
 			Errors:  e.PermissionError(),
@@ -63,36 +74,14 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		w.WriteHeader(http.StatusForbidden)
 		enc.Encode(pe)
 		return
-	}
-
-	if fleet.IsForeignKey(errors.Cause(err)) {
-		ve := jsonError{
-			Message: "Validation Failed",
-			Errors:  baseError(err.Error()),
-		}
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		enc.Encode(ve)
-		return
-	}
-
-	type mailError interface {
-		MailError() []map[string]string
-	}
-	if e, ok := err.(mailError); ok {
+	case mailError:
 		me := jsonError{
 			Message: "Mail Error",
 			Errors:  e.MailError(),
 		}
 		w.WriteHeader(http.StatusInternalServerError)
 		enc.Encode(me)
-		return
-	}
-
-	type osqueryError interface {
-		error
-		NodeInvalid() bool
-	}
-	if e, ok := err.(osqueryError); ok {
+	case osqueryError:
 		// osquery expects to receive the node_invalid key when a TLS
 		// request provides an invalid node_key for authentication. It
 		// doesn't use the error message provided, but we provide this
@@ -108,54 +97,68 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		}
 
 		enc.Encode(errMap)
-		return
-	}
-
-	type notFoundError interface {
-		error
-		IsNotFound() bool
-	}
-	if e, ok := err.(notFoundError); ok {
+	case notFoundErrorInterface:
 		je := jsonError{
 			Message: "Resource Not Found",
 			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusNotFound)
 		enc.Encode(je)
-		return
-	}
-
-	type existsError interface {
-		error
-		IsExists() bool
-	}
-	if e, ok := err.(existsError); ok {
+	case existsErrorInterface:
 		je := jsonError{
 			Message: "Resource Already Exists",
 			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusConflict)
 		enc.Encode(je)
-		return
-	}
+	case *mysql.MySQLError:
+	// TODO
+	default:
+		if fleet.IsForeignKey(errors.Cause(err)) {
+			ve := jsonError{
+				Message: "Validation Failed",
+				Errors:  baseError(err.Error()),
+			}
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			enc.Encode(ve)
+			return
+		}
 
-	// Get specific status code if it is available from this error type,
-	// defaulting to HTTP 500
-	status := http.StatusInternalServerError
-	if e, ok := err.(kithttp.StatusCoder); ok {
-		status = e.StatusCode()
-	}
+		// TODO
+		switch errors.Cause(err) {
+		case driver.ErrBadConn:
+		case mysql.ErrInvalidConn:
+		case mysql.ErrMalformPkt:
+		case mysql.ErrNoTLS:
+		case mysql.ErrCleartextPassword:
+		case mysql.ErrNativePassword:
+		case mysql.ErrOldPassword:
+		case mysql.ErrUnknownPlugin:
+		case mysql.ErrOldProtocol:
+		case mysql.ErrPktSync:
+		case mysql.ErrPktSyncMul:
+		case mysql.ErrPktTooLarge:
+		case mysql.ErrBusyBuffer:
+		}
 
-	// See header documentation
-	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
-	if e, ok := err.(fleet.ErrWithRetryAfter); ok {
-		w.Header().Add("Retry-After", strconv.Itoa(e.RetryAfter()))
-	}
+		// Get specific status code if it is available from this error type,
+		// defaulting to HTTP 500
+		status := http.StatusInternalServerError
+		if e, ok := err.(kithttp.StatusCoder); ok {
+			status = e.StatusCode()
+		}
 
-	w.WriteHeader(status)
-	je := jsonError{
-		Message: err.Error(),
-		Errors:  baseError(err.Error()),
+		// See header documentation
+		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
+		if e, ok := err.(fleet.ErrWithRetryAfter); ok {
+			w.Header().Add("Retry-After", strconv.Itoa(e.RetryAfter()))
+		}
+
+		w.WriteHeader(status)
+		je := jsonError{
+			Message: err.Error(),
+			Errors:  baseError(err.Error()),
+		}
+		enc.Encode(je)
 	}
-	enc.Encode(je)
 }
