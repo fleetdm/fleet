@@ -35,7 +35,9 @@ There are two ways to write CHANGELOG files:
 1. Having an individual responsible for writing the changes as part of the release process.
 2. Writing the changelog collaborately and whoever creates the release just collects the text and organizes the information rather than generating it.
 
-Fleet is currently doing 1. but we will move onto 2. In order to do so, we will start using the concept of changes files.
+Fleet is currently doing 1. but if you are reading this it means we are already going with 2. In order to do so, we will start using the concept of changes files.
+
+#### What is it?
 
 A changes file is a file that contains one or more CHANGELOG entries, and corresponds roughly to one PR.
 
@@ -59,11 +61,11 @@ All grammar checks and corrections should happen as part of the PR review.
 
 Not everything needs a changes file, though. The easiest way to differentiate is asking yourself "Will the work that I'm doing need to be reflected in the CHANGELOG?"
 
-Usually, if it's a bug fix or a new feature, it needs a changes file. But there are exceptions. Here's the incomplete list of them:
+Usually, if it's a bug fix or a new feature, it needs a changes file, but there are exceptions. Here's the incomplete list of them:
 
 - The PR fixes a bug in a previously unreleased change (so there's already a changes file).
 - It's an update to the documentation or other supporting material (such as the PR that's adding this text).
-- A feature of bug fix was worked on by two separate people (eg: there's a backend and a frontend component to it), the first person merging a PR will add the changes file in this case.
+- A feature or bug fix was worked on by two separate people (eg, there's a backend and a frontend component to it), the first person merging a PR will add the changes file in this case. The second won't.
 
 #### When do I add more than one entry to the changes file?
 
