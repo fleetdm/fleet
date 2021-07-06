@@ -29,10 +29,10 @@ describe("UserSettingsPage - component", () => {
   it("contains expected text", () => {
     const admin = { ...userStub, admin: true };
     const pageWithUser = mount(
-      <UserSettingsPage dispatch={noop} user={userStub} />
+      <UserSettingsPage dispatch={noop} user={userStub} config={configStub} />
     );
     const pageWithAdmin = mount(
-      <UserSettingsPage dispatch={noop} user={admin} />
+      <UserSettingsPage dispatch={noop} user={admin} config={configStub} />
     );
 
     expect(pageWithUser.find(".user-settings__role").text()).toContain("User");
@@ -51,7 +51,7 @@ describe("UserSettingsPage - component", () => {
     jest.spyOn(authActions, "updateUser");
 
     const dispatch = () => Promise.resolve();
-    const props = { dispatch, user: userStub };
+    const props = { dispatch, user: userStub, config: configStub };
     const pageNode = mount(<UserSettingsPage {...props} />).instance();
     const updatedAttrs = { name: "Updated Name" };
     const updatedUser = { ...userStub, ...updatedAttrs };
@@ -101,7 +101,7 @@ describe("UserSettingsPage - component", () => {
     });
 
     it("displays pending email text when the user is pending an email change", () => {
-      const props = { dispatch: noop, user: userStub };
+      const props = { dispatch: noop, user: userStub, config: configStub };
       const Page = mount(<UserSettingsPage {...props} />);
       const UserSettingsForm = () => Page.find("UserSettingsForm");
       const emailHint = () =>

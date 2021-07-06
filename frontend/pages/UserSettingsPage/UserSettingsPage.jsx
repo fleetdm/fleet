@@ -318,7 +318,7 @@ export class UserSettingsPage extends Component {
       renderPasswordModal,
       renderApiTokenModal,
     } = this;
-    const { version, errors, user } = this.props;
+    const { version, errors, user, config } = this.props;
     const { pendingEmail } = this.state;
 
     if (!user) {
@@ -339,6 +339,7 @@ export class UserSettingsPage extends Component {
             onCancel={onCancel}
             pendingEmail={pendingEmail}
             serverErrors={errors}
+            smtpConfigured={config.configured}
           />
         </div>
         <div className={`${baseClass}__additional body-wrap`}>
