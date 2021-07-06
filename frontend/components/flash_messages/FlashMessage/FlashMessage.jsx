@@ -6,7 +6,7 @@ import notificationInterface from "interfaces/notification";
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 
-import CloseIcon from "../../../../assets/images/icon-close-fleet-blue-16x16@2x.png";
+import CloseIcon from "../../../../assets/images/icon-close-white-16x16@2x.png";
 
 const baseClass = "flash-message";
 
