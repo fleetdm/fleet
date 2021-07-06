@@ -1,4 +1,5 @@
 import React, { Component, FormEvent } from "react";
+import ReactTooltip from "react-tooltip";
 
 import { ITeam } from "interfaces/team";
 import Button from "components/buttons/Button";
@@ -318,17 +319,38 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           placeholder="Full name"
           value={name}
         />
-        <InputFieldWithIcon
-          error={errors.email}
-          name="email"
-          onChange={onInputChange("email")}
-          placeholder="Email"
-          value={email}
-          disabled={!smtpConfigured}
-          hint={
-            !smtpConfigured && "SMTP must be configured to update email address"
-          }
-        />
+        <div
+          className="smtp-not-configured"
+          data-tip
+          data-for="smtp-tooltip"
+          data-tip-disable={smtpConfigured}
+        >
+          <InputFieldWithIcon
+            error={errors.email}
+            name="email"
+            onChange={onInputChange("email")}
+            placeholder="Email"
+            value={email}
+            disabled={!smtpConfigured}
+          />
+        </div>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="smtp-tooltip"
+          backgroundColor="#3e4771"
+          data-html={true}
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            Editing an email address requires that SMTP is <br />
+            configured in order to send a validation email. <br />
+            <br />
+            Users with Admin role can configure
+            <br />
+            SMTP in <strong>Settings &gt; Organization settings</strong>.
+          </span>
+        </ReactTooltip>
         <div className={`${baseClass}__sso-input`}>
           <Checkbox
             name="sso_enabled"
