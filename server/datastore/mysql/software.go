@@ -15,6 +15,12 @@ const (
 	maxSoftwareSourceLen  = 64
 )
 
+type softwareChanges struct {
+	insertsSoftware     [][]interface{}
+	insertsHostSoftware []interface{}
+	deletesHostSoftware []interface{}
+}
+
 func truncateString(str string, length int) string {
 	if len(str) > length {
 		return str[:length]
@@ -26,7 +32,7 @@ func softwareToUniqueString(s fleet.Software) string {
 	return strings.Join([]string{s.Name, s.Version, s.Source}, "\u0000")
 }
 
-func uniqueStringToSoftwafre(s string) fleet.Software {
+func uniqueStringToSoftware(s string) fleet.Software {
 	parts := strings.Split(s, "\u0000")
 	return fleet.Software{
 		Name:    truncateString(parts[0], maxSoftwareNameLen),
@@ -43,9 +49,9 @@ func softwareSliceToSet(softwares []fleet.Software) map[string]bool {
 	return result
 }
 
-func softwareSliceToIdMap(softwares []fleet.Software) map[string]uint {
+func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 	result := make(map[string]uint)
-	for _, s := range softwares {
+	for _, s := range softwareSlice {
 		result[softwareToUniqueString(s)] = s.ID
 	}
 	return result
@@ -67,12 +73,12 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 			return nil
 		}
 
-		insertsSoftware, insertsHostSoftware, deletesHostSoftware, err := d.generateChangesForNewSoftware(host)
+		changes, err := d.generateChangesForNewSoftware(host)
 		if err != nil {
 			return err
 		}
 
-		err = d.applyChangesForNewSoftware(tx, host, insertsSoftware, insertsHostSoftware, deletesHostSoftware)
+		err = d.applyChangesForNewSoftware(tx, host, changes)
 		if err != nil {
 			return err
 		}
@@ -89,11 +95,9 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 func (d *Datastore) applyChangesForNewSoftware(
 	tx *sqlx.Tx,
 	host *fleet.Host,
-	insertsSoftware [][]interface{},
-	insertsHostSoftware []interface{},
-	deletesHostSoftware []interface{},
+	changes softwareChanges,
 ) error {
-	for _, args := range insertsSoftware {
+	for _, args := range changes.insertsSoftware {
 		// we insert one by one here because we need the IDs for host_software later on
 		result, err := tx.Exec(
 			`INSERT IGNORE INTO software (name, version, source) VALUES (?, ?, ?)`,
@@ -106,23 +110,23 @@ func (d *Datastore) applyChangesForNewSoftware(
 		if err != nil {
 			return errors.Wrap(err, "last id from software")
 		}
-		insertsHostSoftware = append(insertsHostSoftware, host.ID, uint(id))
+		changes.insertsHostSoftware = append(changes.insertsHostSoftware, host.ID, uint(id))
 	}
 
-	if len(insertsHostSoftware) > 0 {
-		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(insertsHostSoftware)/2), ",")
+	if len(changes.insertsHostSoftware) > 0 {
+		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(changes.insertsHostSoftware)/2), ",")
 		sql := fmt.Sprintf(`INSERT INTO host_software (host_id, software_id) VALUES %s`, values)
-		if _, err := tx.Exec(sql, insertsHostSoftware...); err != nil {
+		if _, err := tx.Exec(sql, changes.insertsHostSoftware...); err != nil {
 			return errors.Wrap(err, "insert host software")
 		}
 	}
 
-	if len(deletesHostSoftware) > 0 {
+	if len(changes.deletesHostSoftware) > 0 {
 		sql := fmt.Sprintf(
 			`DELETE FROM host_software WHERE host_id = ? AND software_id IN (%s)`,
-			strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)/2), ","),
+			strings.TrimSuffix(strings.Repeat("?,", len(changes.deletesHostSoftware)/2), ","),
 		)
-		if _, err := tx.Exec(sql, deletesHostSoftware...); err != nil {
+		if _, err := tx.Exec(sql, changes.deletesHostSoftware...); err != nil {
 			return errors.Wrap(err, "insert host software")
 		}
 	}
@@ -131,45 +135,67 @@ func (d *Datastore) applyChangesForNewSoftware(
 }
 
 func (d *Datastore) generateChangesForNewSoftware(host *fleet.Host) (
-	[][]interface{}, []interface{}, []interface{}, error,
+	softwareChanges, error,
 ) {
 	storedSoftware, err := d.allSoftware()
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "getting all software")
+		return softwareChanges{}, errors.Wrap(err, "getting all software")
 	}
 
 	storedCurrentSoftware, err := d.hostSoftwareFromHostID(host.ID)
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "loading current software for host")
+		return softwareChanges{}, errors.Wrap(err, "loading current software for host")
 	}
 
+	return softwareDiff(host.ID, host.HostSoftware.Software, storedSoftware, storedCurrentSoftware)
+}
+
+func softwareDiff(
+	hostID uint,
+	incomingHostSoftware []fleet.Software,
+	storedSoftware []fleet.Software,
+	storedHostSoftware []fleet.Software,
+) (softwareChanges, error) {
 	allSoftware := softwareSliceToIdMap(storedSoftware)
-	current := softwareSliceToSet(storedCurrentSoftware)
-	incoming := softwareSliceToSet(host.HostSoftware.Software)
+	current := softwareSliceToSet(storedHostSoftware)
+	incoming := softwareSliceToSet(incomingHostSoftware)
 
 	var insertsSoftware [][]interface{}
 	var insertsHostSoftware []interface{}
 	var deletesHostSoftware []interface{}
 
+	// First we cover new installations
 	for incomingKey := range incoming {
+		// If we haven't seen this app at all, then we add it to the overall software list
+		// and later on with add to host_software as well (but we need to do this insert
+		// first to get the id)
 		if _, ok := allSoftware[incomingKey]; !ok {
-			s := uniqueStringToSoftwafre(incomingKey)
+			s := uniqueStringToSoftware(incomingKey)
 			insertsSoftware = append(insertsSoftware, []interface{}{s.Name, s.Version, s.Source})
 			continue
 		} else if _, ok := current[incomingKey]; !ok {
-			insertsHostSoftware = append(insertsHostSoftware, host.ID, allSoftware[incomingKey])
+			// otherwise, if this is an app that wasn't installed before (but some other host
+			//has it, i.e. it's in software), then add it to host_software
+			insertsHostSoftware = append(insertsHostSoftware, hostID, allSoftware[incomingKey])
 			continue
 		}
 	}
 
+	// Second we look for apps that were removed. So we check given the current software we know of
+	// what of that is not anymore in the new list
+	// TODO: instead of looping through current, we could skip the ones that we saw in the loop above
 	for currentKey := range current {
 		if _, ok := incoming[currentKey]; !ok {
 			deletesHostSoftware = append(deletesHostSoftware, allSoftware[currentKey])
-			// TODO: delete from software if no host has it?
+			// TODO: delete from software if no host has it
 			continue
 		}
 	}
-	return insertsSoftware, insertsHostSoftware, deletesHostSoftware, nil
+	return softwareChanges{
+		insertsSoftware:     insertsSoftware,
+		insertsHostSoftware: insertsHostSoftware,
+		deletesHostSoftware: deletesHostSoftware,
+	}, nil
 }
 
 func (d *Datastore) hostSoftwareFromHostID(id uint) ([]fleet.Software, error) {
