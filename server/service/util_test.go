@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/WatchBeam/clock"
@@ -55,9 +56,14 @@ func createTestAppConfig(t *testing.T, ds fleet.Datastore) *fleet.AppConfig {
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
 	for _, u := range testUsers {
+		role := "member"
+		if strings.Contains(u.Email, "admin") {
+			role = "admin"
+		}
 		user := &fleet.User{
-			Name:  "Test Name " + u.Email,
-			Email: u.Email,
+			Name:       "Test Name " + u.Email,
+			Email:      u.Email,
+			GlobalRole: &role,
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)

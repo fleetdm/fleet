@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql/driver"
 	"encoding/json"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -53,10 +52,31 @@ type existsErrorInterface interface {
 	IsExists() bool
 }
 
+type causerInterface interface {
+	Cause() error
+}
+
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
+
+	err = getRootCause(err)
+
+	// TODO: handle the following mysql errors:
+	//	case driver.ErrBadConn:
+	//	case mysql.ErrInvalidConn:
+	//	case mysql.ErrMalformPkt:
+	//	case mysql.ErrNoTLS:
+	//	case mysql.ErrCleartextPassword:
+	//	case mysql.ErrNativePassword:
+	//	case mysql.ErrOldPassword:
+	//	case mysql.ErrUnknownPlugin:
+	//	case mysql.ErrOldProtocol:
+	//	case mysql.ErrPktSync:
+	//	case mysql.ErrPktSyncMul:
+	//	case mysql.ErrPktTooLarge:
+	//	case mysql.ErrBusyBuffer:
 
 	switch e := err.(type) {
 	case validationErrorInterface:
@@ -112,7 +132,12 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		w.WriteHeader(http.StatusConflict)
 		enc.Encode(je)
 	case *mysql.MySQLError:
-	// TODO
+		je := jsonError{
+			Message: "Validation Failed",
+			Errors:  baseError(e.Error()),
+		}
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		enc.Encode(je)
 	default:
 		if fleet.IsForeignKey(errors.Cause(err)) {
 			ve := jsonError{
@@ -122,23 +147,6 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			enc.Encode(ve)
 			return
-		}
-
-		// TODO
-		switch errors.Cause(err) {
-		case driver.ErrBadConn:
-		case mysql.ErrInvalidConn:
-		case mysql.ErrMalformPkt:
-		case mysql.ErrNoTLS:
-		case mysql.ErrCleartextPassword:
-		case mysql.ErrNativePassword:
-		case mysql.ErrOldPassword:
-		case mysql.ErrUnknownPlugin:
-		case mysql.ErrOldProtocol:
-		case mysql.ErrPktSync:
-		case mysql.ErrPktSyncMul:
-		case mysql.ErrPktTooLarge:
-		case mysql.ErrBusyBuffer:
 		}
 
 		// Get specific status code if it is available from this error type,
@@ -161,4 +169,18 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		}
 		enc.Encode(je)
 	}
+}
+
+func getRootCause(err error) error {
+	gotRootCause := false
+	limit := 100 // just so that we don't loop eternally in a weird scenario
+	for !gotRootCause && limit > 0 {
+		if e, ok := err.(causerInterface); ok {
+			err = e.Cause()
+		} else {
+			gotRootCause = true
+		}
+		limit--
+	}
+	return err
 }
