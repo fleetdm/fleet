@@ -15,12 +15,6 @@ const (
 	maxSoftwareSourceLen  = 64
 )
 
-type softwareChanges struct {
-	insertsSoftware     [][]interface{}
-	insertsHostSoftware []interface{}
-	deletesHostSoftware []interface{}
-}
-
 func truncateString(str string, length int) string {
 	if len(str) > length {
 		return str[:length]
@@ -73,13 +67,7 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 			return nil
 		}
 
-		changes, err := d.generateChangesForNewSoftware(host)
-		if err != nil {
-			return err
-		}
-
-		err = d.applyChangesForNewSoftware(tx, host, changes)
-		if err != nil {
+		if err := d.applyChangesForNewSoftware(tx, host); err != nil {
 			return err
 		}
 
@@ -92,41 +80,120 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 	return nil
 }
 
-func (d *Datastore) applyChangesForNewSoftware(
+func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
+	if len(current) != len(incoming) {
+		return false
+	}
+
+	currentBitmap := make(map[string]bool)
+	for _, s := range current {
+		currentBitmap[softwareToUniqueString(s)] = false
+	}
+	for _, s := range incoming {
+		if _, ok := currentBitmap[softwareToUniqueString(s)]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (d *Datastore) applyChangesForNewSoftware(tx *sqlx.Tx, host *fleet.Host) error {
+	storedCurrentSoftware, err := d.hostSoftwareFromHostID(tx, host.ID)
+	if err != nil {
+		return errors.Wrap(err, "loading current software for host")
+	}
+
+	if nothingChanged(storedCurrentSoftware, host.Software) {
+		return nil
+	}
+
+	current := softwareSliceToIdMap(storedCurrentSoftware)
+	incoming := softwareSliceToSet(host.Software)
+
+	if err = d.deleteUninstalledHostSoftware(tx, current, incoming); err != nil {
+		return err
+	}
+
+	if err = d.insertNewInstalledHostSoftware(tx, host.ID, current, incoming); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *Datastore) deleteUninstalledHostSoftware(
 	tx *sqlx.Tx,
-	host *fleet.Host,
-	changes softwareChanges,
+	currentIdmap map[string]uint,
+	incomingBitmap map[string]bool,
 ) error {
-	for _, args := range changes.insertsSoftware {
-		// we insert one by one here because we need the IDs for host_software later on
-		result, err := tx.Exec(
-			`INSERT IGNORE INTO software (name, version, source) VALUES (?, ?, ?)`,
-			args...,
-		)
-		if err != nil {
-			return errors.Wrap(err, "insert software")
-		}
-		id, err := result.LastInsertId()
-		if err != nil {
-			return errors.Wrap(err, "last id from software")
-		}
-		changes.insertsHostSoftware = append(changes.insertsHostSoftware, host.ID, uint(id))
-	}
+	var deletesHostSoftware []interface{}
 
-	if len(changes.insertsHostSoftware) > 0 {
-		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(changes.insertsHostSoftware)/2), ",")
-		sql := fmt.Sprintf(`INSERT INTO host_software (host_id, software_id) VALUES %s`, values)
-		if _, err := tx.Exec(sql, changes.insertsHostSoftware...); err != nil {
-			return errors.Wrap(err, "insert host software")
+	for currentKey := range currentIdmap {
+		if _, ok := incomingBitmap[currentKey]; !ok {
+			deletesHostSoftware = append(deletesHostSoftware, currentIdmap[currentKey])
+			// TODO: delete from software if no host has it
 		}
 	}
-
-	if len(changes.deletesHostSoftware) > 0 {
+	if len(deletesHostSoftware) > 0 {
 		sql := fmt.Sprintf(
 			`DELETE FROM host_software WHERE host_id = ? AND software_id IN (%s)`,
-			strings.TrimSuffix(strings.Repeat("?,", len(changes.deletesHostSoftware)/2), ","),
+			strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)), ","),
 		)
-		if _, err := tx.Exec(sql, changes.deletesHostSoftware...); err != nil {
+		if _, err := tx.Exec(sql, deletesHostSoftware...); err != nil {
+			return errors.Wrap(err, "delete host software")
+		}
+	}
+	return nil
+}
+
+func (d *Datastore) getOrGenerateSoftwareId(tx *sqlx.Tx, s fleet.Software) (uint, error) {
+	var existingId []int64
+	if err := tx.Select(
+		&existingId,
+		`SELECT id FROM software WHERE name = ? and version = ? and source = ?`,
+		s.Name, s.Version, s.Source,
+	); err != nil {
+		return 0, err
+	}
+	if len(existingId) > 0 {
+		return uint(existingId[0]), nil
+	}
+
+	result, err := tx.Exec(
+		`INSERT IGNORE INTO software (name, version, source) VALUES (?, ?, ?)`,
+		s.Name, s.Version, s.Source,
+	)
+	if err != nil {
+		return 0, errors.Wrap(err, "insert software")
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, errors.Wrap(err, "last id from software")
+	}
+	return uint(id), nil
+}
+
+func (d *Datastore) insertNewInstalledHostSoftware(
+	tx *sqlx.Tx,
+	hostID uint,
+	currentIdmap map[string]uint,
+	incomingBitmap map[string]bool,
+) error {
+	var insertsHostSoftware []interface{}
+	for s := range incomingBitmap {
+		if _, ok := currentIdmap[s]; !ok {
+			id, err := d.getOrGenerateSoftwareId(tx, uniqueStringToSoftware(s))
+			if err != nil {
+				return err
+			}
+			insertsHostSoftware = append(insertsHostSoftware, hostID, id)
+		}
+	}
+	if len(insertsHostSoftware) > 0 {
+		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(insertsHostSoftware)/2), ",")
+		sql := fmt.Sprintf(`INSERT INTO host_software (host_id, software_id) VALUES %s`, values)
+		if _, err := tx.Exec(sql, insertsHostSoftware...); err != nil {
 			return errors.Wrap(err, "insert host software")
 		}
 	}
@@ -134,86 +201,18 @@ func (d *Datastore) applyChangesForNewSoftware(
 	return nil
 }
 
-func (d *Datastore) generateChangesForNewSoftware(host *fleet.Host) (
-	softwareChanges, error,
-) {
-	storedSoftware, err := d.allSoftware()
-	if err != nil {
-		return softwareChanges{}, errors.Wrap(err, "getting all software")
+func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Software, error) {
+	selectFunc := d.db.Select
+	if tx != nil {
+		selectFunc = tx.Select
 	}
-
-	storedCurrentSoftware, err := d.hostSoftwareFromHostID(host.ID)
-	if err != nil {
-		return softwareChanges{}, errors.Wrap(err, "loading current software for host")
-	}
-
-	return softwareDiff(host.ID, host.HostSoftware.Software, storedSoftware, storedCurrentSoftware)
-}
-
-func softwareDiff(
-	hostID uint,
-	incomingHostSoftware []fleet.Software,
-	storedSoftware []fleet.Software,
-	storedHostSoftware []fleet.Software,
-) (softwareChanges, error) {
-	allSoftware := softwareSliceToIdMap(storedSoftware)
-	current := softwareSliceToSet(storedHostSoftware)
-	incoming := softwareSliceToSet(incomingHostSoftware)
-
-	var insertsSoftware [][]interface{}
-	var insertsHostSoftware []interface{}
-	var deletesHostSoftware []interface{}
-
-	// First we cover new installations
-	for incomingKey := range incoming {
-		// If we haven't seen this app at all, then we add it to the overall software list
-		// and later on with add to host_software as well (but we need to do this insert
-		// first to get the id)
-		if _, ok := allSoftware[incomingKey]; !ok {
-			s := uniqueStringToSoftware(incomingKey)
-			insertsSoftware = append(insertsSoftware, []interface{}{s.Name, s.Version, s.Source})
-			continue
-		} else if _, ok := current[incomingKey]; !ok {
-			// otherwise, if this is an app that wasn't installed before (but some other host
-			//has it, i.e. it's in software), then add it to host_software
-			insertsHostSoftware = append(insertsHostSoftware, hostID, allSoftware[incomingKey])
-			continue
-		}
-	}
-
-	// Second we look for apps that were removed. So we check given the current software we know of
-	// what of that is not anymore in the new list
-	// TODO: instead of looping through current, we could skip the ones that we saw in the loop above
-	for currentKey := range current {
-		if _, ok := incoming[currentKey]; !ok {
-			deletesHostSoftware = append(deletesHostSoftware, allSoftware[currentKey])
-			// TODO: delete from software if no host has it
-			continue
-		}
-	}
-	return softwareChanges{
-		insertsSoftware:     insertsSoftware,
-		insertsHostSoftware: insertsHostSoftware,
-		deletesHostSoftware: deletesHostSoftware,
-	}, nil
-}
-
-func (d *Datastore) hostSoftwareFromHostID(id uint) ([]fleet.Software, error) {
 	sql := `
 		SELECT * FROM software
 		WHERE id IN
 			(SELECT software_id FROM host_software WHERE host_id = ?)
 	`
 	var result []fleet.Software
-	if err := d.db.Select(&result, sql, id); err != nil {
-		return nil, errors.Wrap(err, "load host software")
-	}
-	return result, nil
-}
-
-func (d *Datastore) allSoftware() ([]fleet.Software, error) {
-	var result []fleet.Software
-	if err := d.db.Select(&result, `SELECT * FROM software`); err != nil {
+	if err := selectFunc(&result, sql, id); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 	return result, nil
@@ -221,7 +220,7 @@ func (d *Datastore) allSoftware() ([]fleet.Software, error) {
 
 func (d *Datastore) LoadHostSoftware(host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := d.hostSoftwareFromHostID(host.ID)
+	software, err := d.hostSoftwareFromHostID(nil, host.ID)
 	if err != nil {
 		return err
 	}
