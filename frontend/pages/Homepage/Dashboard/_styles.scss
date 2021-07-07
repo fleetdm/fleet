@@ -1,0 +1,101 @@
+.dashboard {
+  .header-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $pad-medium;
+  }
+
+  .ace-fleet {
+    margin-bottom: $pad-medium;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+  }
+
+  &__text {
+    margin-right: $pad-large;
+  }
+
+  &__title {
+    font-size: $large;
+
+    .fleeticon {
+      color: $core-fleet-blue;
+      margin-right: 15px;
+    }
+
+    .fleeticon-success-check {
+      color: $ui-success;
+    }
+
+    .fleeticon-offline {
+      color: $ui-error;
+    }
+
+    .fleeticon-mia {
+      color: $core-fleet-black;
+    }
+  }
+
+  &__label-actions {
+    button {
+      &:first-child {
+        margin-right: $pad-medium;
+      }
+    }
+  }
+
+  &__description {
+    margin: 0 0 $pad-medium;
+
+    h2 {
+      text-transform: uppercase;
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $small;
+    }
+
+    p {
+      color: $core-fleet-blue;
+      margin: 0;
+      font-size: $x-small;
+      font-style: italic;
+    }
+  }
+
+  &__toggle-view {
+    .fleeticon {
+      width: 24px;
+      height: 24px;
+      margin-left: 12px;
+      fill: $ui-gray;
+    }
+
+    &--active {
+      .fleeticon {
+        fill: $core-fleet-purple;
+      }
+    }
+  }
+
+  .data-table-container {
+    .data-table {
+      &__wrapper {
+        overflow-x: scroll;
+      }
+    }
+  }
+
+  &__modal-buttons {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+
+    .button:first-child {
+      margin-right: $pad-medium;
+    }
+  }
+}

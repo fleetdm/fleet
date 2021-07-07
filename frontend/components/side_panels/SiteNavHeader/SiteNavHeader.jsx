@@ -1,4 +1,6 @@
 import React, { Component } from "react";
+import { Link } from "react-router";
+import PATHS from "router/paths";
 
 import configInterface from "interfaces/config";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -18,10 +20,12 @@ class SiteNavHeader extends Component {
     return (
       <header className={headerBaseClass}>
         <div className={`${headerBaseClass}__inner`}>
-          <OrgLogoIcon
-            className={`${headerBaseClass}__logo`}
-            src={orgLogoURL}
-          />
+          <Link to={PATHS.HOMEPAGE} className={`${headerBaseClass}__home-icon`}>
+            <OrgLogoIcon
+              className={`${headerBaseClass}__logo`}
+              src={orgLogoURL}
+            />
+          </Link>
         </div>
       </header>
     );
