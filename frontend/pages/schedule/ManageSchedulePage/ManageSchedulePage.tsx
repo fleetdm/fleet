@@ -8,8 +8,10 @@ import { IQuery } from "interfaces/query";
 // @ts-ignore
 import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
 
-// Will I need this? 5/28
+// Will I need this? 6/28
 // import permissionUtils from "utilities/permissions";
+// Will we need this? 7/7
+// import scheduledQueryInterface from "interfaces/scheduled_query";
 import paths from "router/paths";
 import Button from "components/buttons/Button";
 import ScheduleError from "./components/ScheduleError";
@@ -100,6 +102,7 @@ const ManageSchedulePage = (): JSX.Element => {
 
   // SIMILAR TO TEAMMANAGEMENTPAGE onCreateSubmit Line 85
   // SIMILAR TO MEMBERSPAGE onAddMemberSubmit Line 141
+  // MOST SIMILAR TO EDITPACKPAGE handleConfigurePackQuerySubmit
   // TODO: FUNCTIONALITY OF ONSUBMIT FORM 6/30, 7/2 WORK ON THIS
   const onScheduleSubmit = useCallback(
     (formData: IQuery) => {

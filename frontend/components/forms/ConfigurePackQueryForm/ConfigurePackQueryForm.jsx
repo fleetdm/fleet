@@ -18,6 +18,7 @@ const fieldNames = [
   "shard",
   "version",
 ];
+
 const platformOptions = [
   { label: "All", value: "" },
   { label: "Windows", value: "windows" },
@@ -143,6 +144,7 @@ export class ConfigurePackQueryForm extends Component {
             options={loggingTypeOptions}
             placeholder="- - -"
             label="Logging"
+            // value={loggingTypeOptions[2]}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
           />
           <InputField

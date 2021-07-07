@@ -7,6 +7,8 @@ import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore No longer using Form component 7/7
+// import Form from "components/forms/Form";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
@@ -37,6 +39,16 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     name: string;
   }
   const [selectedQuery, setSelectedQuery] = useState<IQuery | INoQueryOption>();
+
+  // ADDED ON 7/7 2 PM with MARTAVIS (line 44-51) Likely won't use
+  const fieldNames = [
+    "query_id",
+    "interval",
+    "logging_type",
+    "platform",
+    "shard",
+    "version",
+  ];
 
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q: any) => {
@@ -84,15 +96,6 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
   const toggleAdvancedOptions = () => {
     setShowAdvancedOptions(!showAdvancedOptions);
   };
-
-  const fieldNames = [
-    "query_id",
-    "interval",
-    "logging_type",
-    "platform",
-    "shard",
-    "version",
-  ];
 
   const platformOptions = [
     { label: "All", value: "" },
@@ -191,6 +194,7 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     <Modal title={"Schedule editor"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <Dropdown
+          // {...fields.query_id}
           wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
           value={selectedQuery && selectedQuery.id}
           options={createQueryDropdownOptions()}

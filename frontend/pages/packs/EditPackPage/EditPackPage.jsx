@@ -26,6 +26,15 @@ import PATHS from "router/paths";
 
 const baseClass = "edit-pack-page";
 
+// LEFT OFF ON 7/7 2 PM with MARTAVIS (line 30-37)
+const defaultScheduledQuery = {
+  query_id: null,
+  interval: null,
+  logging_type: "snapshot",
+  platform: null,
+  shard: null,
+  version: null,
+};
 export class EditPackPage extends Component {
   static propTypes = {
     allQueries: PropTypes.arrayOf(queryInterface),
@@ -38,7 +47,7 @@ export class EditPackPage extends Component {
     packID: PropTypes.string,
     packLabels: PropTypes.arrayOf(labelInterface),
     packTeams: PropTypes.arrayOf(teamInterface),
-    scheduledQueries: PropTypes.arrayOf(queryInterface),
+    scheduledQueries: PropTypes.arrayOf(queryInterface), // should this be scheduledQueryInterface ?? 7/7/21
     isBasicTier: PropTypes.bool,
   };
 
@@ -51,7 +60,7 @@ export class EditPackPage extends Component {
 
     this.state = {
       selectedQuery: null,
-      selectedScheduledQuery: null,
+      selectedScheduledQuery: defaultScheduledQuery, // LEFT OFF ON 7/7 2 PM with MARTAVIS
       targetsCount: 0,
     };
   }
@@ -183,9 +192,15 @@ export class EditPackPage extends Component {
     const { dispatch } = this.props;
     const { selectedScheduledQuery } = this.state;
     const { update } = scheduledQueryActions;
+
     const updatedAttrs = deepDifference(formData, selectedScheduledQuery);
 
-    dispatch(update(selectedScheduledQuery, updatedAttrs))
+    // LEFT OFF ON 7/7 2 PM with MARTAVIS (line 199-203)
+    console.log("onUpdateScheduledQuery formData:", formData);
+
+    // old line
+    // dispatch(update(selectedScheduledQuery, updatedAttrs))
+    dispatch(update(selectedScheduledQuery, formData))
       .then(() => {
         this.setState({ selectedScheduledQuery: null, selectedQuery: null });
         dispatch(renderFlash("success", "Scheduled Query updated!"));
@@ -222,6 +237,9 @@ export class EditPackPage extends Component {
   handleConfigurePackQuerySubmit = (formData) => {
     const { create } = scheduledQueryActions;
     const { dispatch, packID } = this.props;
+    // LEFT OFF ON 7/7 2 PM with MARTAVIS (line 241)
+    console.log("formData:", formData);
+
     const scheduledQueryData = {
       ...formData,
       pack_id: packID,
