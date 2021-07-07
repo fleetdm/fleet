@@ -58,7 +58,7 @@ module.exports.routes = {
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
   //  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
-  // …
+  'POST /api/v1/webhooks/receive-usage-analytics': { action: 'receive-usage-analytics', csrf: false },
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
@@ -67,6 +67,5 @@ module.exports.routes = {
   // Note that, in this app, these API endpoints may be accessed using the `Cloud.*()` methods
   // from the Parasails library, or by using those method names as the `action` in <ajax-form>.
   'POST  /api/v1/deliver-contact-form-message':          { action: 'deliver-contact-form-message' },
-  'POST /api/v1/receive-usage-analytics': { action: 'receive-usage-analytics' },
 
 };
