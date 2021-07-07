@@ -71,6 +71,10 @@ if (Cypress.env("FLEET_TIER") === "basic") {
         cy.findByText(/Label name, host name, IP address, etc./i).click();
         cy.findByText(/teams/i).should("exist");
       });
+
+      // On the Packs pages (manage, new, and edit), they should…
+      // On the Schedule pages (manage, new, and edit), they should…
+      // ^^General maintainer functionality for packs page is being tested in core/maintainer.spec.ts
     });
   });
 }

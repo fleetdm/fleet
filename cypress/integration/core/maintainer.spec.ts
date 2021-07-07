@@ -124,6 +124,9 @@ if (Cypress.env("FLEET_TIER") === "core") {
       cy.findByText(/successfully deleted/i).should("be.visible");
 
       cy.findByText(/server errors/i).should("not.exist");
+
+      // Schedule page: Can create, edit, remove a schedule
+      // TODO: Copy flow from scheduleflow.spec.ts here to ensure maintainers have access
     });
   });
 }

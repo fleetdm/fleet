@@ -67,6 +67,9 @@ if (Cypress.env("FLEET_TIER") === "basic") {
       // On the Packs pages (manage, new, and edit), they should…
       // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts
 
+      // On the Schedule pages (manage, new, and edit), they should…
+      // ^^General admin functionality for packs page is being tested in app/scheduleflow.spec.ts
+
       // On the Settings pages, they should…
       // See the “Teams” navigation item and access the Settings - Teams page
       cy.visit("/settings/organization");
