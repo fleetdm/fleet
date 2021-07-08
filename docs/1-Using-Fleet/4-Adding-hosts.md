@@ -6,8 +6,6 @@
 - [Launching osqueryd](#launching-osqueryd)
   - [Using a flag file to manage flags](#using-a-flag-file-to-manage-flags)
 - [Kolide osquery Launcher](#kolide-osquery-launcher)
-  - [Connecting a single Launcher to Fleet](#connecting-a-single-launcher-to-fleet)
-  - [Generating packages](#generating-packages)
 - [Enrolling multiple macOS hosts](#enrolling-multiple-macos-hosts)
 - [Multiple enroll secrets](#multiple-enroll-secrets)
 
@@ -100,66 +98,10 @@ Ensure that paths to files in the flag file are absolute, and not quoted. For ex
 
 ## Kolide osquery Launcher
 
+Instructions on connecting a single Launcher to Fleet can be found [here in the Launcher documentation](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
+
 Kolide provides compiled releases of their launcher for all supported platforms. 
 Those can be found [here](https://github.com/kolide/launcher/releases), or if you’d like to compile from source, the instructions are [here](https://github.com/kolide/launcher/blob/master/docs/launcher.md#building-the-code).
-
-### Connecting a single Launcher to Fleet
-
-To directly execute the launcher binary without having to mess with packages, invoke the binary with just a few flags:
-
-- `--hostname`: the hostname of Fleet (aka the gRPC server for your environment)
-- `--root_directory`: the location for osquery's local database, pidfiles, etc.
-- `--enroll_secret`: the enroll secret to authenticate hosts with Fleet
-  (retrieve from Fleet UI or `fleetctl get enroll_secret`)
-
-```
-mkdir .osquery
-./build/launcher \
-  --hostname=fleet.acme.net:443 \
-  --root_directory=.osquery \
-  --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
-```
-
-You may also need to define the `--insecure` and/or `--insecure_grpc` flag.
-
-<!-- TODO: When is --insecure_grpc needed? -->
-
-<!-- TODO: pull prod-focused example above out into deployment docs, then only include one example (the local one) with --insecure for easier copy+pasting during quickstart -->
-
-If you're running Fleet locally, include `--insecure` because your TLS certificate will not be signed by a valid CA:
-```
-mkdir .osquery
-./build/launcher \
-    --hostname=localhost:8412 \
-    --root_directory=.osquery \
-    --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5 \
-    --insecure
-```
-
-### Generating packages
-
-The Launcher also provides easy, robust tooling for creating packages that you can distribute across your fleet:
-
-```
-make package-builder
-./build/package-builder make \
-  --hostname=fleet.acme.net:443 \
-  --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
-```
-
-As you can see, to generate a Launcher package, you need only call `package-builder make` with two command-line arguments:
-
-- `--hostname`: the hostname of the gRPC server for your environment
-- `--enroll_secret`: the enroll secret to authenticate hosts with Fleet
-  (retrieve from Fleet UI or `fleetctl get enroll_secret`)
-
-You can also add the `--mac_package_signing_key` flag to define the name of the macOS package signing key name that you'd like to use to sign the macOS packages. For example:
-
-```
---mac_package_signing_key="Developer ID Installer: Acme Inc (ABCDEF123456)"
-```
-
-If you want to generate a package for local testing, you can call `package-builder make` with the `--insecure` flag as well and the auto-run command in the resultant packages will include `--insecure` as well.
 
 ## Enrolling multiple macOS hosts
 

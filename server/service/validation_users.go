@@ -77,6 +77,10 @@ func (mw validationMiddleware) CreateUser(ctx context.Context, p fleet.UserPaylo
 		}
 	}
 
+	if p.SSOEnabled != nil && *p.SSOEnabled && p.Password != nil && len(*p.Password) > 0 {
+		invalid.Append("password", "not allowed for SSO users")
+	}
+
 	if p.Email == nil {
 		invalid.Append("email", "Email missing required argument")
 	} else {

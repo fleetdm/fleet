@@ -28,8 +28,8 @@ class EnrollSecretRow extends Component {
     const { secret } = this.props;
 
     stringToClipboard(secret)
-      .then(() => this.setState({ copyMessage: "(copied)" }))
-      .catch(() => this.setState({ copyMessage: "(copy failed)" }));
+      .then(() => this.setState({ copyMessage: "Copied!" }))
+      .catch(() => this.setState({ copyMessage: "Copy failed" }));
 
     // Clear message after 1 second
     setTimeout(() => this.setState({ copyMessage: "" }), 1000);

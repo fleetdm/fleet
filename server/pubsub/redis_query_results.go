@@ -66,7 +66,7 @@ func NewRedisPool(server, password string, database int, useTLS bool) (*redisc.C
 		},
 	}
 
-	if err := cluster.Refresh(); err != nil && !isClusterDisabled(err) {
+	if err := cluster.Refresh(); err != nil && !isClusterDisabled(err) && !isClusterCommandUnknown(err) {
 		return nil, errors.Wrap(err, "refresh cluster")
 	}
 
@@ -75,6 +75,13 @@ func NewRedisPool(server, password string, database int, useTLS bool) (*redisc.C
 
 func isClusterDisabled(err error) bool {
 	return strings.Contains(err.Error(), "ERR This instance has cluster support disabled")
+}
+
+// On GCP Memorystore the CLUSTER command is entirely unavailable and fails with
+// this error. See
+// https://cloud.google.com/memorystore/docs/redis/product-constraints#blocked_redis_commands
+func isClusterCommandUnknown(err error) bool {
+	return strings.Contains(err.Error(), "ERR unknown command `CLUSTER`")
 }
 
 // NewRedisQueryResults creats a new Redis implementation of the

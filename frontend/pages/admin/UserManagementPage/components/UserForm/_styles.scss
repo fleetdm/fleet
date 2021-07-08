@@ -112,8 +112,7 @@
     margin: 0px;
   }
 
-  .tooltip-text {
-    max-width: 300px;
+  &__tooltip-text {
+    width: 300px;
   }
-
 }
