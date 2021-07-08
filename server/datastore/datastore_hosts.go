@@ -996,3 +996,42 @@ func testAddHostsToTeam(t *testing.T, ds fleet.Datastore) {
 		assert.Equal(t, expectedID, host.TeamID)
 	}
 }
+
+func testSaveUsers(t *testing.T, ds fleet.Datastore) {
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	assert.Len(t, host.Users, 0)
+
+	u1 := fleet.HostUser{
+		Uid:       42,
+		Username:  "user",
+		Type:      "aaa",
+		GroupName: "group",
+	}
+	host.Users = []fleet.HostUser{u1}
+	host.Modified = true
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	require.Len(t, host.Users, 1)
+	assert.Equal(t, host.Users[0], u1)
+}

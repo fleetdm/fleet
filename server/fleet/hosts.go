@@ -113,6 +113,13 @@ type HostListOptions struct {
 	StatusFilter HostStatus
 }
 
+type HostUser struct {
+	Uid       uint   `json:"uid" db:"uid"`
+	Username  string `json:"username" db:"username"`
+	Type      string `json:"type" db:"user_type"`
+	GroupName string `json:"groupname" db:"groupname"`
+}
+
 type Host struct {
 	UpdateCreateTimestamps
 	HostSoftware
@@ -166,6 +173,11 @@ type Host struct {
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
 	Additional *json.RawMessage `json:"additional,omitempty" db:"additional"`
+
+	// Users currently in the host
+	Users []HostUser `json:"users,omitempty"`
+
+	Modified bool `json:"-"`
 }
 
 func (h Host) AuthzType() string {
