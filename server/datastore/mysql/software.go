@@ -111,7 +111,7 @@ func (d *Datastore) applyChangesForNewSoftware(tx *sqlx.Tx, host *fleet.Host) er
 	current := softwareSliceToIdMap(storedCurrentSoftware)
 	incoming := softwareSliceToSet(host.Software)
 
-	if err = d.deleteUninstalledHostSoftware(tx, current, incoming); err != nil {
+	if err = d.deleteUninstalledHostSoftware(tx, host.ID, current, incoming); err != nil {
 		return err
 	}
 
@@ -124,10 +124,12 @@ func (d *Datastore) applyChangesForNewSoftware(tx *sqlx.Tx, host *fleet.Host) er
 
 func (d *Datastore) deleteUninstalledHostSoftware(
 	tx *sqlx.Tx,
+	hostID uint,
 	currentIdmap map[string]uint,
 	incomingBitmap map[string]bool,
 ) error {
 	var deletesHostSoftware []interface{}
+	deletesHostSoftware = append(deletesHostSoftware, hostID)
 
 	for currentKey := range currentIdmap {
 		if _, ok := incomingBitmap[currentKey]; !ok {
@@ -135,7 +137,7 @@ func (d *Datastore) deleteUninstalledHostSoftware(
 			// TODO: delete from software if no host has it
 		}
 	}
-	if len(deletesHostSoftware) > 0 {
+	if len(deletesHostSoftware) > 1 {
 		sql := fmt.Sprintf(
 			`DELETE FROM host_software WHERE host_id = ? AND software_id IN (%s)`,
 			strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)), ","),
