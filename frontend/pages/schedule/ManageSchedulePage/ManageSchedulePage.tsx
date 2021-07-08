@@ -4,16 +4,13 @@ import { useDispatch, useSelector } from "react-redux";
 import memoize from "memoize-one";
 
 import { push } from "react-router-redux";
-// @ts-ignore
-// import { IUser } from "interfaces/user";
 import { IQuery } from "interfaces/query";
 // @ts-ignore
 import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
 
-// Will I need this? 6/28
-// import permissionUtils from "utilities/permissions";
-// Will we need this? 7/7
+// Will I need any of this?
 // import scheduledQueryInterface from "interfaces/scheduled_query";
+
 import paths from "router/paths";
 import Button from "components/buttons/Button";
 import ScheduleError from "./components/ScheduleError";
@@ -102,19 +99,16 @@ const getQueries = (data: { [id: string]: IQuery }) => {
 const memoizedGetQueries = memoize(getQueries);
 
 const ManageSchedulePage = (): JSX.Element => {
-  // Links to packs page
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
   const handleAdvanced = (event: any) => dispatch(push(MANAGE_PACKS));
 
-  // State to show modals
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
   const [
     showRemoveScheduledQueryModal,
     setShowRemoveScheduledQueryModal,
   ] = useState(false);
 
-  // Toggle state to show modal
   const toggleScheduleEditorModal = useCallback(() => {
     setShowScheduleEditorModal(!showScheduleEditorModal);
   }, [showScheduleEditorModal, setShowScheduleEditorModal]);
@@ -123,6 +117,7 @@ const ManageSchedulePage = (): JSX.Element => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
+  // TODO: Figure out how to write removal once queries are populated in
   const onRemoveScheduledQuerySubmit = useCallback(() => {
     // const removedQueries = { queries: [{ id: queryEditing?.id }] };
     // dispatch(scheduleQueryActions.removeQueries(queryId, removedQueries))
@@ -139,6 +134,7 @@ const ManageSchedulePage = (): JSX.Element => {
     //       )
     //     )
     //   );
+    console.log("onRemoveScheduleQuerySubmit fires after click!");
     toggleRemoveScheduledQueryModal();
   }, [
     // dispatch,
@@ -158,6 +154,7 @@ const ManageSchedulePage = (): JSX.Element => {
   // SIMILAR TO MEMBERSPAGE onAddMemberSubmit Line 141
   // MOST SIMILAR TO EDITPACKPAGE handleConfigurePackQuerySubmit
   // TODO: FUNCTIONALITY OF ONSUBMIT FORM 6/30, 7/2 WORK ON THIS
+  // THIS SHOULD WORK ONCE THE BACKEND IS ROUTED IN
   const onAddScheduledQuerySubmit = useCallback(
     (formData: IQuery) => {
       dispatch(

@@ -41,6 +41,8 @@ interface ITableContainerProps<T, U> {
   additionalQueries?: string;
   emptyComponent: React.ElementType;
   className?: string;
+  searchable?: boolean;
+  // TODO: Line 203, remove search bar
 }
 
 const baseClass = "table-container";
@@ -71,9 +73,8 @@ const TableContainer = <T, U>(
     actionButtonVariant,
     onSelectActionClick,
     selectActionButtonText,
+    searchable,
   } = props;
-
-  console.log("DATA:", data);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");

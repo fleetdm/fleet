@@ -32,20 +32,16 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
 
   const tableHeaders = generateTableHeaders(onActionSelection);
 
-  // Query ID state crap
-  // What happens when you do a click whatever whatever
+  // The state of the selectedQueryIds changes when you click Remove query button
   const [selectedQueryIds, setSelectedQueryIds] = useState([]);
 
-  // Remove query button
+  // Table CTA: Remove query button
   const onRemoveScheduledQueryClick = (selectedQueryIds: any) => {
-    console.log(
-      "onRemoveScheduledQueryClick from ScheduleListWrapper fires when clicking Remove queries in the table. It toggles the modal and sets the selectedQuery ids."
-    );
     toggleRemoveScheduledQueryModal();
     setSelectedQueryIds(selectedQueryIds);
   };
 
-  // Search functionality
+  // Search functionality disabled, needed if enabled
   // NOTE: called once on the initial render of this component.
   const onQueryChange = useCallback(
     (queryData) => {
@@ -79,10 +75,10 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         // onActionButtonClick={toggleRemoveScheduledQueryModal}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}
-        // TODO: QA search functionality later
+        // Removed search functionality
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search"
-        // TODO: figure out toggle for onSelectActionClick
+        searchable={false}
         onSelectActionClick={onRemoveScheduledQueryClick}
         selectActionButtonText={"Remove query"}
         emptyComponent={NoSchedule}

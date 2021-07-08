@@ -19,11 +19,10 @@ import {
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
 
+// Are these needed? 7/8
 // import endpoints from "fleet/endpoints";
 // import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPagePage/components/AutocompleteDropdown";
 // import { IDropdownOption } from "interfaces/dropdownOption";
-
-// 1. Default logging type? defaultLoggingType
 
 const baseClass = "schedule-editor-modal";
 interface IScheduleEditorModalProps {
@@ -44,10 +43,6 @@ const ScheduleEditorModal = ({
   allQueries,
   defaultLoggingType,
 }: IScheduleEditorModalProps): JSX.Element => {
-  // 7/5 TODO: Render selected query on dropdown
-  // Need: How the return value object changes the selection
-  // Need: How does {...fields.____} work with our codebase
-  // Query dropdown
   interface INoQueryOption {
     id: number;
     name: string;
