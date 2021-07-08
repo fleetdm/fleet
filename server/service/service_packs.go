@@ -69,6 +69,18 @@ func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pa
 		pack.Disabled = *p.Disabled
 	}
 
+	if p.HostIDs != nil {
+		pack.HostIDs = *p.HostIDs
+	}
+
+	if p.LabelIDs != nil {
+		pack.LabelIDs = *p.LabelIDs
+	}
+
+	if p.TeamIDs != nil {
+		pack.TeamIDs = *p.TeamIDs
+	}
+
 	_, err := svc.ds.NewPack(&pack)
 	if err != nil {
 		return nil, err
