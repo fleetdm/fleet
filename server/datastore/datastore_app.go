@@ -54,6 +54,27 @@ func testOrgInfo(t *testing.T, ds fleet.Datastore) {
 	info4, err := ds.NewAppConfig(info3)
 	assert.Nil(t, err)
 	assert.Equal(t, info3, info4)
+
+	email := "e@mail.com"
+	u := &fleet.User{
+		Password:   []byte("pass"),
+		Email:      email,
+		SSOEnabled: true,
+	}
+	_, err = ds.NewUser(u)
+	assert.Nil(t, err)
+
+	verify, err := ds.UserByEmail(email)
+	assert.Nil(t, err)
+	assert.True(t, verify.SSOEnabled)
+
+	info4.EnableSSO = false
+	_, err = ds.NewAppConfig(info3)
+	assert.Nil(t, err)
+
+	verify, err = ds.UserByEmail(email)
+	assert.Nil(t, err)
+	assert.False(t, verify.SSOEnabled)
 }
 
 func testAdditionalQueries(t *testing.T, ds fleet.Datastore) {

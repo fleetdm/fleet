@@ -43,19 +43,19 @@ func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
 	return value == "ON", nil
 }
 
-func (d *Datastore) ManageHostExpiryEvent(hostExpiryEnabled bool, hostExpiryWindow int) error {
+func (d *Datastore) ManageHostExpiryEvent(tx *sqlx.Tx, hostExpiryEnabled bool, hostExpiryWindow int) error {
 	var err error
 	hostExpiryConfig := struct {
 		Window int `db:"host_expiry_window"`
 	}{}
-	if err = d.db.Get(&hostExpiryConfig, "SELECT host_expiry_window from app_configs LIMIT 1"); err != nil {
+	if err = tx.Get(&hostExpiryConfig, "SELECT host_expiry_window from app_configs LIMIT 1"); err != nil {
 		return errors.Wrap(err, "get expiry window setting")
 	}
 
 	shouldUpdateWindow := hostExpiryEnabled && hostExpiryConfig.Window != hostExpiryWindow
 
 	if !hostExpiryEnabled || shouldUpdateWindow {
-		if _, err := d.db.Exec("DROP EVENT IF EXISTS host_expiry"); err != nil {
+		if _, err := tx.Exec("DROP EVENT IF EXISTS host_expiry"); err != nil {
 			if driverErr, ok := err.(*mysql.MySQLError); !ok || driverErr.Number != mysqlerr.ER_DBACCESS_DENIED_ERROR {
 				return errors.Wrap(err, "drop existing host_expiry event")
 			}
@@ -64,7 +64,7 @@ func (d *Datastore) ManageHostExpiryEvent(hostExpiryEnabled bool, hostExpiryWind
 
 	if shouldUpdateWindow {
 		sql := fmt.Sprintf("CREATE EVENT IF NOT EXISTS host_expiry ON SCHEDULE EVERY 1 HOUR ON COMPLETION PRESERVE DO DELETE FROM hosts WHERE seen_time < DATE_SUB(NOW(), INTERVAL %d DAY)", hostExpiryWindow)
-		if _, err := d.db.Exec(sql); err != nil {
+		if _, err := tx.Exec(sql); err != nil {
 			return errors.Wrap(err, "create new host_expiry event")
 		}
 	}
@@ -81,7 +81,13 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 		return errors.New("MySQL Event Scheduler must be enabled to configure Host Expiry.")
 	}
 
-	if err := d.ManageHostExpiryEvent(info.HostExpiryEnabled, info.HostExpiryWindow); err != nil {
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return err
+	}
+
+	if err := d.ManageHostExpiryEvent(tx, info.HostExpiryEnabled, info.HostExpiryWindow); err != nil {
+		tx.Rollback()
 		return err
 	}
 
@@ -158,7 +164,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 			enable_analytics = VALUES(enable_analytics)
     `
 
-	_, err = d.db.Exec(insertStatement,
+	_, err = tx.Exec(insertStatement,
 		info.OrgName,
 		info.OrgLogoURL,
 		info.ServerURL,
@@ -191,8 +197,20 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 		info.AgentOptions,
 		info.EnableAnalytics,
 	)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 
-	return err
+	if !info.EnableSSO {
+		_, err = tx.Exec(`UPDATE users SET sso_enabled=false`)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, error) {
