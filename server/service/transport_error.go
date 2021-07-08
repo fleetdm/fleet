@@ -39,6 +39,7 @@ type validationErrorInterface interface {
 }
 
 type permissionErrorInterface interface {
+	error
 	PermissionError() []map[string]string
 }
 
@@ -61,22 +62,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
-	err = getRootCause(err)
-
-	// TODO: handle the following mysql errors:
-	//	case driver.ErrBadConn:
-	//	case mysql.ErrInvalidConn:
-	//	case mysql.ErrMalformPkt:
-	//	case mysql.ErrNoTLS:
-	//	case mysql.ErrCleartextPassword:
-	//	case mysql.ErrNativePassword:
-	//	case mysql.ErrOldPassword:
-	//	case mysql.ErrUnknownPlugin:
-	//	case mysql.ErrOldProtocol:
-	//	case mysql.ErrPktSync:
-	//	case mysql.ErrPktSyncMul:
-	//	case mysql.ErrPktTooLarge:
-	//	case mysql.ErrBusyBuffer:
+	err = errors.Cause(err)
 
 	switch e := err.(type) {
 	case validationErrorInterface:
@@ -136,7 +122,11 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			Message: "Validation Failed",
 			Errors:  baseError(e.Error()),
 		}
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		statusCode := http.StatusUnprocessableEntity
+		if e.Number == 1062 {
+			statusCode = http.StatusConflict
+		}
+		w.WriteHeader(statusCode)
 		enc.Encode(je)
 	default:
 		if fleet.IsForeignKey(errors.Cause(err)) {
@@ -169,18 +159,4 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		}
 		enc.Encode(je)
 	}
-}
-
-func getRootCause(err error) error {
-	gotRootCause := false
-	limit := 100 // just so that we don't loop eternally in a weird scenario
-	for !gotRootCause && limit > 0 {
-		if e, ok := err.(causerInterface); ok {
-			err = e.Cause()
-		} else {
-			gotRootCause = true
-		}
-		limit--
-	}
-	return err
 }

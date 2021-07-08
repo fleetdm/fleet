@@ -67,7 +67,7 @@ func testDoubleUserCreationErrors(t *testing.T, ds fleet.Datastore) {
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	resp, err = client.Do(req)
 	require.Nil(t, err)
-	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+	assert.Equal(t, http.StatusConflict, resp.StatusCode)
 	assertBodyContains(t, resp, `Error 1062: Duplicate entry 'email@asd.com'`)
 }
 

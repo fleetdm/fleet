@@ -56,9 +56,9 @@ func createTestAppConfig(t *testing.T, ds fleet.Datastore) *fleet.AppConfig {
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
 	for _, u := range testUsers {
-		role := "member"
+		role := fleet.RoleObserver
 		if strings.Contains(u.Email, "admin") {
-			role = "admin"
+			role = fleet.RoleAdmin
 		}
 		user := &fleet.User{
 			Name:       "Test Name " + u.Email,
