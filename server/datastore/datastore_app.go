@@ -69,7 +69,7 @@ func testOrgInfo(t *testing.T, ds fleet.Datastore) {
 	assert.True(t, verify.SSOEnabled)
 
 	info4.EnableSSO = false
-	_, err = ds.NewAppConfig(info3)
+	err = ds.SaveAppConfig(info4)
 	assert.Nil(t, err)
 
 	verify, err = ds.UserByEmail(email)
