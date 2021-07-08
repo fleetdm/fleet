@@ -12,6 +12,12 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
+import {
+  FREQUENCY_DROPDOWN_OPTIONS,
+  PLATFORM_OPTIONS,
+  LOGGING_TYPE_OPTIONS,
+  MIN_OSQUERY_VERSION_OPTIONS,
+} from "utilities/constants";
 
 // import endpoints from "fleet/endpoints";
 // import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPagePage/components/AutocompleteDropdown";
@@ -32,9 +38,12 @@ interface IFrequencyOption {
   label: string;
 }
 
-const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
-  const { onCancel, onScheduleSubmit, allQueries, defaultLoggingType } = props;
-
+const ScheduleEditorModal = ({
+  onCancel,
+  onScheduleSubmit,
+  allQueries,
+  defaultLoggingType,
+}: IScheduleEditorModalProps): JSX.Element => {
   // 7/5 TODO: Render selected query on dropdown
   // Need: How the return value object changes the selection
   // Need: How does {...fields.____} work with our codebase
@@ -43,17 +52,24 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     id: number;
     name: string;
   }
-  const [selectedQuery, setSelectedQuery] = useState<IQuery | INoQueryOption>();
 
-  // ADDED ON 7/7 2 PM with MARTAVIS (line 44-51) Likely won't use
-  const fieldNames = [
-    "query_id",
-    "interval",
-    "logging_type",
-    "platform",
-    "shard",
-    "version",
-  ];
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
+    false
+  );
+  const [selectedQuery, setSelectedQuery] = useState<IQuery | INoQueryOption>();
+  const [selectedFrequency, setSelectedFrequency] = useState<number>(86400);
+  const [
+    selectedPlatformOptions,
+    setSelectedPlatformOptions,
+  ] = useState<string>("");
+  const [selectedLoggingType, setSelectedLoggingType] = useState<string>(
+    "snapshot"
+  );
+  const [
+    selectedMinOsqueryVersionOptions,
+    setSelectedMinOsqueryVersionOptions,
+  ] = useState(null);
+  const [selectedShard, setSelectedShard] = useState(null);
 
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q: any) => {
@@ -65,27 +81,19 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     return [...queryOptions];
   };
 
+  const toggleAdvancedOptions = () => {
+    setShowAdvancedOptions(!showAdvancedOptions);
+  };
+
   const onChangeSelectQuery = useCallback(
     (queryId: number | string) => {
-      const queryWithId = allQueries.find(
-        (query: IQuery) => query.id === queryId
+      const queryWithId: IQuery | undefined = allQueries.find(
+        (query: IQuery) => query.id == queryId
       );
-      setSelectedQuery(queryWithId as IQuery);
+      setSelectedQuery(queryWithId);
     },
     [allQueries, setSelectedQuery]
   );
-  // End query dropdown
-
-  // Frequency dropdown
-  const frequencyDropdownOptions = [
-    { value: 3600, label: "Every hour" },
-    { value: 21600, label: "Every 6 hours" },
-    { value: 43200, label: "Every 12 hours" },
-    { value: 86400, label: "Every day" },
-    { value: 604800, label: "Every week" },
-  ];
-
-  const [selectedFrequency, setSelectedFrequency] = useState(86400);
 
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
@@ -93,23 +101,6 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     },
     [setSelectedFrequency]
   );
-  // End Frequency dropdown
-
-  // Advanced Options
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-
-  const toggleAdvancedOptions = () => {
-    setShowAdvancedOptions(!showAdvancedOptions);
-  };
-
-  const platformOptions = [
-    { label: "All", value: "" },
-    { label: "Windows", value: "windows" },
-    { label: "Linux", value: "linux" },
-    { label: "macOS", value: "darwin" },
-  ];
-
-  const [selectedPlatformOptions, setSelectedPlatformOptions] = useState([]);
 
   const onChangeSelectPlatformOptions = useCallback(
     (values) => {
@@ -118,55 +109,12 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     [setSelectedPlatformOptions]
   );
 
-  const loggingTypeOptions = [
-    { label: "Differential", value: "differential" },
-    {
-      label: "Differential (Ignore Removals)",
-      value: "differential_ignore_removals",
-    },
-    { label: "Snapshot", value: "snapshot" },
-  ];
-
-  const [selectedLoggingType, setSelectedLoggingType] = useState("snapshot");
-
   const onChangeSelectLoggingType = useCallback(
     (value: string) => {
       setSelectedLoggingType(value);
     },
     [setSelectedLoggingType]
   );
-  const minOsqueryVersionOptions = [
-    { label: "All", value: "" },
-    { label: "4.7.0 +", value: "4.7.0" },
-    { label: "4.6.0 +", value: "4.6.0" },
-    { label: "4.5.1 +", value: "4.5.1" },
-    { label: "4.5.0 +", value: "4.5.0" },
-    { label: "4.4.0 +", value: "4.4.0" },
-    { label: "4.3.0 +", value: "4.3.0" },
-    { label: "4.2.0 +", value: "4.2.0" },
-    { label: "4.1.2 +", value: "4.1.2" },
-    { label: "4.1.1 +", value: "4.1.1" },
-    { label: "4.1.0 +", value: "4.1.0" },
-    { label: "4.0.2 +", value: "4.0.2" },
-    { label: "4.0.1 +", value: "4.0.1" },
-    { label: "4.0.0 +", value: "4.0.0" },
-    { label: "3.4.0 +", value: "3.4.0" },
-    { label: "3.3.2 +", value: "3.3.2" },
-    { label: "3.3.1 +", value: "3.3.1" },
-    { label: "3.2.6 +", value: "3.2.6" },
-    { label: "2.2.1 +", value: "2.2.1" },
-    { label: "2.2.0 +", value: "2.2.0" },
-    { label: "2.1.2 +", value: "2.1.2" },
-    { label: "2.1.1 +", value: "2.1.1" },
-    { label: "2.0.0 +", value: "2.0.0" },
-    { label: "1.8.2 +", value: "1.8.2" },
-    { label: "1.8.1 +", value: "1.8.1" },
-  ];
-
-  const [
-    selectedMinOsqueryVersionOptions,
-    setSelectedMinOsqueryVersionOptions,
-  ] = useState(null);
 
   const onChangeMinOsqueryVersionOptions = useCallback(
     (value: any) => {
@@ -175,16 +123,12 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     [setSelectedMinOsqueryVersionOptions]
   );
 
-  const [selectedShard, setSelectedShard] = useState(null);
-
   const onChangeShard = useCallback(
     (value: any) => {
       setSelectedShard(value);
     },
     [setSelectedShard]
   );
-
-  // End Advanced Options
 
   return (
     <Modal title={"Schedule editor"} onExit={onCancel} className={baseClass}>
@@ -195,13 +139,13 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
           options={createQueryDropdownOptions()}
           onChange={onChangeSelectQuery}
           placeholder={"Select query"}
-          value={selectedQuery && selectedQuery.id}
+          value={selectedQuery?.id}
           wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
         />
         <Dropdown
           // {...fields.frequency}
           searchable={false}
-          options={frequencyDropdownOptions}
+          options={FREQUENCY_DROPDOWN_OPTIONS}
           onChange={onChangeSelectFrequency}
           placeholder={"Every day"}
           value={selectedFrequency}
@@ -245,7 +189,7 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
             <div>
               <Dropdown
                 // {...fields.logging_type}
-                options={loggingTypeOptions}
+                options={LOGGING_TYPE_OPTIONS}
                 onChange={onChangeSelectLoggingType}
                 placeholder="Select"
                 value={selectedLoggingType}
@@ -254,7 +198,7 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
               />
               <Dropdown
                 // {...fields.platform}
-                options={platformOptions}
+                options={PLATFORM_OPTIONS}
                 placeholder="Select"
                 label="Platform"
                 onChange={onChangeSelectPlatformOptions}
@@ -264,7 +208,7 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
               />
               <Dropdown
                 // {...fields.version}
-                options={minOsqueryVersionOptions}
+                options={MIN_OSQUERY_VERSION_OPTIONS}
                 onChange={onChangeMinOsqueryVersionOptions}
                 placeholder="Select"
                 value={selectedMinOsqueryVersionOptions}
