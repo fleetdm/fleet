@@ -37,7 +37,7 @@
             <ul class="px-0">
               <li class="px-0 mb-2" v-for="section in outline.sections">
                 <a :href="'/docs/' + _.kebabCase(section.title)" class="font-weight-bold">{{section.title}}</a>
-                <ul class="px-0 pt-3" v-if="section.topics?.length">
+                <ul class="px-0 pt-3" v-if="section.topics && section.topics.length">
                   <li class="px-0 mb-2" v-for="topic in section.topics">
                     <a :href="'/docs/' + _.kebabCase(section.title) + '/' + _.kebabCase(topic.title)" :class="topic.title === currentPage.topic ? 'topic active' : 'topic'">{{topic.title}}</a>
                   </li>
@@ -99,7 +99,7 @@
         <div class="d-flex" v-for="item in body" :key="item.type + _.uniqueId()">
           <h3 class="d-flex pb-4 m-0" v-if="item.type === 'subtopic'">{{item.content}}</h3>
           <p class="d-flex pb-4 mb-3" v-if="item.type === 'text'">{{item.content}}</p>
-          <img class="d-flex w-100 pb-4 mx-auto mb-3" alt="screenshot" :alt="item.altText || 'A screenshot of ' + currentPage.topic" :src="item.content" v-if="item.type === 'image'" />
+          <img style="width: 100%; height: 100%;" class="d-flex pb-4 mx-auto mb-3" alt="screenshot" :alt="item.altText || 'A screenshot of ' + currentPage.topic" :src="item.content" v-if="item.type === 'image'" />
           <div class="w-100 pb-4 mb-3" v-if="item.type === 'note'">
             <div class="p-4 note">
               <p class="font-weight-bold">Note:</p>
