@@ -1,5 +1,7 @@
 import React, { useState, useCallback } from "react"; //, { useEffect }
 import { useDispatch, useSelector } from "react-redux";
+// @ts-ignore
+import memoize from "memoize-one";
 
 import { push } from "react-router-redux";
 // @ts-ignore
@@ -17,6 +19,7 @@ import Button from "components/buttons/Button";
 import ScheduleError from "./components/ScheduleError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
+import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
@@ -79,6 +82,19 @@ interface IRootState {
     };
   };
 }
+interface IFetchParams {
+  pageIndex?: number;
+  pageSize?: number;
+  searchQuery?: string;
+}
+
+const getQueries = (data: { [id: string]: IQuery }) => {
+  return Object.keys(data).map((queryId) => {
+    return data[queryId];
+  });
+};
+
+const memoizedGetQueries = memoize(getQueries);
 
 const ManageSchedulePage = (): JSX.Element => {
   // Links to packs page
@@ -86,13 +102,46 @@ const ManageSchedulePage = (): JSX.Element => {
   const { MANAGE_PACKS } = paths;
   const handleAdvanced = (event: any) => dispatch(push(MANAGE_PACKS));
 
-  // State to show modal
+  // State to show modals
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
+  const [
+    showRemoveScheduledQueryModal,
+    setShowRemoveScheduledQueryModal,
+  ] = useState(false);
 
   // Toggle state to show modal
   const toggleScheduleEditorModal = useCallback(() => {
     setShowScheduleEditorModal(!showScheduleEditorModal);
   }, [showScheduleEditorModal, setShowScheduleEditorModal]);
+
+  const toggleRemoveScheduledQueryModal = useCallback(() => {
+    setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
+  }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
+
+  const onRemoveScheduledQuerySubmit = useCallback(() => {
+    const removedQueries = { queries: [{ id: queryEditing?.id }] };
+    dispatch(scheduleQueryActions.removeQueries(queryId, removedQueries))
+      .then(() => {
+        dispatch(
+          renderFlash("success", `Successfully removed scheduled queries.`)
+        );
+      })
+      .catch(() =>
+        dispatch(
+          renderFlash(
+            "error",
+            "Unable to remove scheduled queries. Please try again."
+          )
+        )
+      );
+    toggleRemoveScheduledQueryModal();
+  }, [
+    dispatch,
+    queryId,
+    queryEditing?.id,
+    queryEditing?.name,
+    toggleRemoveScheduledQueryModal,
+  ]);
 
   const allQueries = useSelector(
     (state: IRootState) => state.entities.queries.data
@@ -104,7 +153,7 @@ const ManageSchedulePage = (): JSX.Element => {
   // SIMILAR TO MEMBERSPAGE onAddMemberSubmit Line 141
   // MOST SIMILAR TO EDITPACKPAGE handleConfigurePackQuerySubmit
   // TODO: FUNCTIONALITY OF ONSUBMIT FORM 6/30, 7/2 WORK ON THIS
-  const onScheduleSubmit = useCallback(
+  const onAddScheduledQuerySubmit = useCallback(
     (formData: IQuery) => {
       dispatch(
         // TODO: This is how to send formData to a new pack, is it the same for schedule? 7/2
@@ -172,7 +221,7 @@ const ManageSchedulePage = (): JSX.Element => {
         {showScheduleEditorModal ? (
           <ScheduleEditorModal
             onCancel={toggleScheduleEditorModal}
-            onScheduleSubmit={onScheduleSubmit}
+            onScheduleSubmit={onAddScheduledQuerySubmit}
             allQueries={allQueriesList}
             defaultLoggingType={"snapshot"}
           />

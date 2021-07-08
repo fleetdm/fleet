@@ -13,8 +13,13 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
 
-const baseClass = "schedule-editor-modal";
+// import endpoints from "fleet/endpoints";
+// import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPagePage/components/AutocompleteDropdown";
+// import { IDropdownOption } from "interfaces/dropdownOption";
 
+// 1. Default logging type? defaultLoggingType
+
+const baseClass = "schedule-editor-modal";
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
@@ -104,6 +109,15 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     { label: "macOS", value: "darwin" },
   ];
 
+  const [selectedPlatformOptions, setSelectedPlatformOptions] = useState([]);
+
+  const onChangeSelectPlatformOptions = useCallback(
+    (values) => {
+      setSelectedPlatformOptions(values);
+    },
+    [setSelectedPlatformOptions]
+  );
+
   const loggingTypeOptions = [
     { label: "Differential", value: "differential" },
     {
@@ -170,24 +184,6 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
     [setSelectedShard]
   );
 
-  // 7/5 TODO: How to create this platform chooser in functional/typescript
-  // This is written in class/javascript on ConfigurePackQueryForm.jsx Line 95
-  const handlePlatformChoice = (value: string) => {
-    //   const {
-    //     fields: { platform },
-    //   } = this.props;
-    //   const valArray = value.split(",");
-    //   // Remove All if another OS is chosen
-    //   if (valArray.indexOf("") === 0 && valArray.length > 1) {
-    //     return platform.onChange(pull(valArray, "").join(","));
-    //   }
-    //   // Remove OS if All is chosen
-    //   if (valArray.length > 1 && valArray.indexOf("") > -1) {
-    //     return platform.onChange("");
-    //   }
-    //   return platform.onChange(value);
-  };
-
   // End Advanced Options
 
   return (
@@ -195,12 +191,12 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
       <form className={`${baseClass}__form`}>
         <Dropdown
           // {...fields.query_id}
-          wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
-          value={selectedQuery && selectedQuery.id}
+          searchable={true}
           options={createQueryDropdownOptions()}
           onChange={onChangeSelectQuery}
           placeholder={"Select query"}
-          searchable={true}
+          value={selectedQuery && selectedQuery.id}
+          wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
         />
         <Dropdown
           // {...fields.frequency}
@@ -261,7 +257,8 @@ const ScheduleEditorModal = (props: IScheduleEditorModalProps): JSX.Element => {
                 options={platformOptions}
                 placeholder="Select"
                 label="Platform"
-                onChange={handlePlatformChoice}
+                onChange={onChangeSelectPlatformOptions}
+                value={selectedPlatformOptions}
                 multi
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
               />

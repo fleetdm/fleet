@@ -17,17 +17,6 @@ const RemoveScheduledQueryModal = (
 ): JSX.Element => {
   const { onCancel, onSubmit, queries } = props;
 
-  // FUNCTIONALITY LATER 7/1
-  // const onFormSubmit = useCallback(
-  //   (evt) => {
-  //     evt.preventDefault();
-  //     onSubmit({
-  //       name,
-  //     });
-  //   },
-  //   [onSubmit, name]
-  // );
-
   return (
     <Modal
       title={"Remove scheduled query"}
@@ -48,7 +37,7 @@ const RemoveScheduledQueryModal = (
             className={`${baseClass}__btn`}
             type="button"
             variant="alert"
-            // onClick={onFormSubmit}
+            onClick={onSubmit}
           >
             Remove
           </Button>
