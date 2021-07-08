@@ -140,6 +140,27 @@ func (e AuthRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
 }
 
+type AuthHeaderRequiredError struct {
+	// internal is the reason that should only be logged internally
+	internal string
+}
+
+func NewAuthHeaderRequiredError(internal string) *AuthHeaderRequiredError {
+	return &AuthHeaderRequiredError{internal: internal}
+}
+
+func (e AuthHeaderRequiredError) Error() string {
+	return "Authorization header required"
+}
+
+func (e AuthHeaderRequiredError) Internal() string {
+	return e.internal
+}
+
+func (e AuthHeaderRequiredError) StatusCode() int {
+	return http.StatusUnauthorized
+}
+
 // PermissionError, set when user is authenticated, but not allowed to perform action
 type PermissionError struct {
 	message string

@@ -68,27 +68,6 @@ Password:
 
 It's possible to specify the password via the `--password` flag or the `$PASSWORD` environment variable, but be cautious of the security implications of such an action. For local use, the interactive mode above is the most secure.
 
-### Connecting a host
-
-For the sake of this tutorial, I'm going to be using Kolide's osquery launcher to start osquery locally and connect it to Fleet. To learn more about connecting osquery to Fleet, see the [Adding Hosts to Fleet](./4-Adding-hosts.md) documentation.
-
-To get your osquery enroll secret, run the following:
-
-```
-fleetctl get enroll-secret
-E7P6zs9D0mvY7ct08weZ7xvLtQfGYrdC
-```
-
-You need to use this secret to connect a host. If you're running Fleet locally, you'd run:
-
-```
-launcher \
-  --hostname localhost:8080 \
-  --enroll_secret E7P6zs9D0mvY7ct08weZ7xvLtQfGYrdC \
-  --root_directory=$(mktemp -d) \
-  --insecure
-```
-
 ### Query hosts
 
 To run a simple query against all hosts, you might run something like the following:

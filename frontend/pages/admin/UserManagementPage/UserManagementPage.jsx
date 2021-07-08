@@ -445,6 +445,7 @@ export class UserManagementPage extends Component {
           availableTeams={teams}
           submitText={"Save"}
           isBasicTier={isBasicTier}
+          smtpConfigured={config.configured}
         />
       </Modal>
     );

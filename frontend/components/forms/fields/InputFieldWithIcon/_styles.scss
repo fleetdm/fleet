@@ -42,6 +42,11 @@
       outline: none;
     }
 
+    &:disabled {
+      color: $ui-fleet-black-50;
+      cursor: not-allowed;
+    }
+
     &--error {
       color: $core-vibrant-red;
       border: 1px solid $core-vibrant-red;

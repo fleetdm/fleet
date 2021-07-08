@@ -1,4 +1,5 @@
 import React, { Component, FormEvent } from "react";
+import ReactTooltip from "react-tooltip";
 
 import { ITeam } from "interfaces/team";
 import Button from "components/buttons/Button";
@@ -80,6 +81,7 @@ interface ICreateUserFormProps {
   isSmtpConfigured?: boolean;
   isNewUser?: boolean;
   validationErrors: any[]; // TODO: proper interface for validationErrors
+  smtpConfigured: boolean;
 }
 
 interface ICreateUserFormState {
@@ -335,7 +337,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
         <InfoBanner className={`${baseClass}__user-permissions-info`}>
           <p>
             Users can be members of multiple teams and can only manage or
-            observe team-sepcific users, entities, and settings in Fleet.
+            observe team-specific users, entities, and settings in Fleet.
           </p>
           <a
             href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md#team-member-permissions"
@@ -396,13 +398,38 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           placeholder="Full name"
           value={name}
         />
-        <InputFieldWithIcon
-          error={errors.email}
-          name="email"
-          onChange={onInputChange("email")}
-          placeholder="Email"
-          value={email}
-        />
+        <div
+          className="smtp-not-configured"
+          data-tip
+          data-for="smtp-tooltip"
+          data-tip-disable={smtpConfigured}
+        >
+          <InputFieldWithIcon
+            error={errors.email}
+            name="email"
+            onChange={onInputChange("email")}
+            placeholder="Email"
+            value={email}
+            disabled={!smtpConfigured}
+          />
+        </div>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="smtp-tooltip"
+          backgroundColor="#3e4771"
+          data-html
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            Editing an email address requires that SMTP is <br />
+            configured in order to send a validation email. <br />
+            <br />
+            Users with Admin role can configure SMTP in
+            <br />
+            <strong>Settings &gt; Organization settings</strong>.
+          </span>
+        </ReactTooltip>
         <div className={`${baseClass}__sso-input`}>
           <Checkbox
             name="sso_enabled"

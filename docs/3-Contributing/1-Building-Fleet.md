@@ -68,7 +68,13 @@ To setup a working local development environment, you must install the following
 * [Node.js](https://nodejs.org/en/download/current/) and [Yarn](https://yarnpkg.com/en/docs/install)
 * [GNU Make](https://www.gnu.org/software/make/) (probably already installed if you're on macOS/Linux)
 
-Once you have those minimum requirements, you will need to install Fleet's dependencies. To do this, run the following from the root of the repository:
+Once you have those minimum requirements, check out this [Loom video](https://www.loom.com/share/e7439f058eb44c45af872abe8f8de4a1) that walks through starting up a local development environment for Fleet.
+
+For a text-based walkthrough, continue through the following steps: 
+
+First, you will need to install Fleet's dependencies.
+
+To do this, run the following from the root of the repository:
 
 ```
 make deps

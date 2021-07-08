@@ -73,7 +73,7 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		// if not succesful, try again this time with errors
 		sessionKey, ok := token.FromContext(ctx)
 		if !ok {
-			return nil, fleet.NewAuthRequiredError("no auth token")
+			return nil, fleet.NewAuthHeaderRequiredError("no auth token")
 		}
 
 		v, err := authViewer(ctx, string(sessionKey), svc)

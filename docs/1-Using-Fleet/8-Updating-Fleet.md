@@ -18,29 +18,11 @@ As with any enterprise software update, it's a good idea to back up your MySQL d
 
 ## Updating the Fleet binary
 
-Follow the binary update instructions corresponding to the original installation method used to install Fleet.
+To update to a new version of Fleet, follow the [same binary install instructions](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/1-Installation.md) from the original installation method you used to install Fleet.
 
 ### Raw binaries
 
-Download the latest raw Fleet binaries:
-
-```
-curl -O https://github.com/fleetdm/fleet/releases/latest/download/fleet.zip
-```
-
-Unzip the binaries for your platform:
-
-```
-# For a Darwin compatible binary
-unzip fleet.zip 'darwin/*' -d fleet
-./fleet/darwin/fleet --help
-
-# For a Linux compatible binary
-unzip fleet.zip 'linux/*' -d fleet
-./fleet/linux/fleet --help
-```
-
-Replace the existing Fleet binary with the newly unzipped binary.
+Download, unzip, and replace the existing Fleet binary with the newly unzipped binary.
 
 ### Docker container
 

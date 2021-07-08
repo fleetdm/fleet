@@ -1,0 +1,1 @@
+* Fix compatibility with GCP Memorystore Redis due to missing CLUSTER command.

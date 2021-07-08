@@ -22,6 +22,7 @@ class UserSettingsForm extends Component {
     handleSubmit: PropTypes.func.isRequired,
     pendingEmail: PropTypes.string,
     onCancel: PropTypes.func.isRequired,
+    smtpConfigured: PropTypes.bool,
   };
 
   renderEmailHint = () => {
@@ -39,17 +40,42 @@ class UserSettingsForm extends Component {
   };
 
   render() {
-    const { fields, handleSubmit, onCancel } = this.props;
+    const { fields, handleSubmit, onCancel, smtpConfigured } = this.props;
     const { renderEmailHint } = this;
 
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
-        <InputField
-          {...fields.email}
-          autofocus
-          label="Email (required)"
-          hint={renderEmailHint()}
-        />
+        <div
+          className="smtp-not-configured"
+          data-tip
+          data-for="smtp-tooltip"
+          data-tip-disable={smtpConfigured}
+        >
+          <InputField
+            {...fields.email}
+            autofocus
+            label="Email (required)"
+            hint={renderEmailHint()}
+            disabled={!smtpConfigured}
+          />
+        </div>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="smtp-tooltip"
+          backgroundColor="#3e4771"
+          data-html
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            Editing your email address requires that SMTP is <br />
+            configured in order to send a validation email. <br />
+            <br />
+            Users with Admin role can configure SMTP in
+            <br />
+            <strong>Settings &gt; Organization settings</strong>.
+          </span>
+        </ReactTooltip>
         <InputField {...fields.name} label="Full name (required)" />
         <InputField {...fields.position} label="Position" />
         <div className={`${baseClass}__button-wrap`}>
