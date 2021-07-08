@@ -1,0 +1,1 @@
+* Make sure to fetch all host data when listing hosts. Fixes issue 1208
