@@ -107,7 +107,7 @@ func testTeamUsers(t *testing.T, ds fleet.Datastore) {
 func testTeamListTeams(t *testing.T, ds fleet.Datastore) {
 	users := createTestUsers(t, ds)
 	user1 := fleet.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID, GlobalRole: ptr.String(fleet.RoleAdmin)}
-	user2 := fleet.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID}
+	user2 := fleet.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID, GlobalRole: ptr.String(fleet.RoleObserver)}
 
 	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)

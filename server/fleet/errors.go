@@ -199,3 +199,24 @@ func (e passwordResetRequiredError) Error() string {
 func (e passwordResetRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
 }
+
+type Error struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+const (
+	ErrNoRoleNeeded = 1
+)
+
+func NewError(code int, message string) error {
+	return &Error{code, message}
+}
+
+func NewErrorf(code int, format string, args ...interface{}) error {
+	return &Error{code, fmt.Sprintf(format, args...)}
+}
+
+func (ge *Error) Error() string {
+	return ge.Message
+}

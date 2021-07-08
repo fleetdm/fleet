@@ -25,6 +25,7 @@ func testCreateUser(t *testing.T, ds fleet.Datastore) {
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
 			SSOEnabled:               tt.sso,
+			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 		user, err := ds.NewUser(u)
 		assert.Nil(t, err)
@@ -68,6 +69,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 			Password:                 []byte(tt.password),
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
+			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 
 		user, err := ds.NewUser(u)
@@ -237,17 +239,18 @@ func testUserCreateWithTeams(t *testing.T, ds fleet.Datastore) {
 		Teams: []fleet.UserTeam{
 			{
 				Team: fleet.Team{ID: 6},
-				Role: "admin",
+				Role: fleet.RoleAdmin,
 			},
 			{
 				Team: fleet.Team{ID: 3},
-				Role: "observer",
+				Role: fleet.RoleObserver,
 			},
 			{
 				Team: fleet.Team{ID: 9},
-				Role: "maintainer",
+				Role: fleet.RoleMaintainer,
 			},
 		},
+		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 	user, err := ds.NewUser(u)
 	assert.Nil(t, err)

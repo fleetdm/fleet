@@ -18,7 +18,6 @@ func testCreateInvite(t *testing.T, ds fleet.Datastore) {
 	}
 
 	invite := &fleet.Invite{
-
 		Email: "user@foo.com",
 		Name:  "user",
 		Token: "some_user",
@@ -26,6 +25,7 @@ func testCreateInvite(t *testing.T, ds fleet.Datastore) {
 			{Role: "observer", Team: fleet.Team{ID: 1}},
 			{Role: "maintainer", Team: fleet.Team{ID: 3}},
 		},
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
 	}
 
 	invite, err := ds.NewInvite(invite)
