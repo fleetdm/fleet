@@ -87,7 +87,7 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 
 	currentBitmap := make(map[string]bool)
 	for _, s := range current {
-		currentBitmap[softwareToUniqueString(s)] = false
+		currentBitmap[softwareToUniqueString(s)] = true
 	}
 	for _, s := range incoming {
 		if _, ok := currentBitmap[softwareToUniqueString(s)]; !ok {
@@ -137,15 +137,17 @@ func (d *Datastore) deleteUninstalledHostSoftware(
 			// TODO: delete from software if no host has it
 		}
 	}
-	if len(deletesHostSoftware) > 1 {
-		sql := fmt.Sprintf(
-			`DELETE FROM host_software WHERE host_id = ? AND software_id IN (%s)`,
-			strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)-1), ","),
-		)
-		if _, err := tx.Exec(sql, deletesHostSoftware...); err != nil {
-			return errors.Wrap(err, "delete host software")
-		}
+	if len(deletesHostSoftware) <= 1 {
+		return nil
 	}
+	sql := fmt.Sprintf(
+		`DELETE FROM host_software WHERE host_id = ? AND software_id IN (%s)`,
+		strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)-1), ","),
+	)
+	if _, err := tx.Exec(sql, deletesHostSoftware...); err != nil {
+		return errors.Wrap(err, "delete host software")
+	}
+
 	return nil
 }
 
