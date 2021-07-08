@@ -47,8 +47,8 @@ parasails.registerPage('docs-template', {
 
     getRelatedTopics: function () {
       try {
-        const sectionIndex = this.outline.sections.findIndex((section) => section.title === this.currentpage.section);
-        const topicIndex = this.outline.sections[sectionIndex].topics.findIndex((topic) => topic.title === this.currentpage.topic);
+        const sectionIndex = this.outline.sections.findIndex((section) => section.title === this.currentPage.section);
+        const topicIndex = this.outline.sections[sectionIndex].topics.findIndex((topic) => topic.title === this.currentPage.topic);
         return this.outline.sections[sectionIndex].topics[topicIndex].relatedTopics;
       } catch (error) {
         console.log(error);

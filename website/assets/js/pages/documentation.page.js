@@ -65,6 +65,10 @@ parasails.registerPage('documentation', {
       this.showDocsNav = !this.showDocsNav;
     },
 
+    clickCTA: function (slug) {
+      window.location = slug;
+    },
+
     delayInput: function (callback, ms, label) {
       let inputTimers = this.inputTimers;
       return function () {

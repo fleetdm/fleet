@@ -1,5 +1,5 @@
 <div id="docs-template" v-cloak>
-  <div style="max-width: 1200px;" class="container-fluid mb-5">
+  <div style="max-width: 1200px;" class="container-fluid px-3 px-sm-4 mb-5">
 
     <div purpose="breadcrumbs-and-search" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0 breadcrumbs-search">
       
@@ -53,7 +53,7 @@
 
     <h1 class="d-flex d-lg-none py-4 m-0">{{currentPage.topic}}</h1>
 
-    <div class="container-fluid d-flex flex-column flex-lg-row justify-content-start justify-content-lg-between p-0 pt-lg-4 m-0">
+    <div class="container-fluid d-flex flex-column flex-lg-row justify-content-start justify-content-lg-between p-0 pt-lg-4 pb-lg-4 m-0">
 
       <div purpose="left-sidebar" class="container-fluid d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
         <ul class="p-0 pb-2 m-0 left-nav">
@@ -86,7 +86,7 @@
         </div>
         
         <h6 class="d-none d-lg-block font-weight-bold py-2">Related topics</h6>
-        <ul class="d-none d-lg-block p-0 pl-2">
+        <ul class="d-none d-lg-block p-0">
           <li v-for="relatedTopic in getRelatedTopics()">{{relatedTopic}}</li>
         </ul>
 
@@ -114,7 +114,7 @@
           </div>
         </div>
         
-        <div class="d-none d-lg-block pb-4 mb-3">
+        <div class="d-none d-lg-block">
           <h3 class="pb-4 m-0">Is there something missing?</h3>
           <p>
             If you notice something we've missed or could be improved on, please follow <a href="https://github.com/fleetdm/fleet">this link</a> and submit a pull request to the Fleet repo. 
