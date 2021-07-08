@@ -85,7 +85,15 @@ export class AllPacksPage extends Component {
           return dispatch(destroy(pack));
         }
 
-        return dispatch(update(pack, { disabled }));
+        return dispatch(update(pack, { disabled }))
+          .then(() => {
+            dispatch(renderFlash("success", "Packs successfully updated."));
+          })
+          .catch(() =>
+            dispatch(
+              renderFlash("error", "Could not update packs. Please try again.")
+            )
+          );
       });
 
       return Promise.all(promises)
@@ -102,7 +110,12 @@ export class AllPacksPage extends Component {
 
           return false;
         })
-        .catch(() => dispatch(renderFlash("error", "Something went wrong.")));
+        .catch(() => {
+          dispatch(
+            renderFlash("error", "Could not delete packs. Please try again.")
+          );
+          this.setState({ showModal: false });
+        });
     };
   };
 
@@ -173,7 +186,11 @@ export class AllPacksPage extends Component {
     const { dispatch } = this.props;
     const { update } = packActions;
 
-    return dispatch(update(pack, updatedAttrs));
+    return dispatch(update(pack, updatedAttrs)).catch(() => {
+      dispatch(
+        renderFlash("error", "Could not update pack. Please try again.")
+      );
+    });
   };
 
   getPacks = () => {
