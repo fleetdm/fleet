@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: fleet-loadbalancer
   labels:
-      app: fleet-loadbalancer
+    app: fleet-loadbalancer
 spec:
   type: LoadBalancer
   ports:
@@ -16,4 +16,4 @@ spec:
       targetPort: 80
       protocol: TCP
   selector:
-      app: fleet-webserver
+    app: fleet-webserver

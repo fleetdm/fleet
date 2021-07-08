@@ -95,6 +95,10 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     return member.id;
   });
 
+  const smtpConfigured = useSelector((state: IRootState) => {
+    return state.app.config.configured;
+  });
+
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
@@ -265,6 +269,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           availableTeams={teams}
           validationErrors={[]}
           isBasicTier={isBasicTier}
+          smtpConfigured={smtpConfigured}
         />
       ) : null}
       {showRemoveMemberModal ? (
