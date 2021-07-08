@@ -140,7 +140,7 @@ func (d *Datastore) deleteUninstalledHostSoftware(
 	if len(deletesHostSoftware) > 1 {
 		sql := fmt.Sprintf(
 			`DELETE FROM host_software WHERE host_id = ? AND software_id IN (%s)`,
-			strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)), ","),
+			strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)-1), ","),
 		)
 		if _, err := tx.Exec(sql, deletesHostSoftware...); err != nil {
 			return errors.Wrap(err, "delete host software")
