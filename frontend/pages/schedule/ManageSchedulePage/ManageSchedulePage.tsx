@@ -65,14 +65,19 @@ const fakeDataError = false;
 
 // END FAKE DATA ALERT
 
-const renderTable = (): JSX.Element => {
+const renderTable = (toggleRemoveScheduledQueryModal: any): JSX.Element => {
   // Schedule has an error retrieving data.
   if (fakeDataError) {
     return <ScheduleError />;
   }
 
   // Schedule table
-  return <ScheduleListWrapper fakeData={fakeData} />;
+  return (
+    <ScheduleListWrapper
+      fakeData={fakeData}
+      toggleRemoveScheduledQueryModal={toggleRemoveScheduledQueryModal}
+    />
+  );
 };
 
 interface IRootState {
@@ -119,27 +124,27 @@ const ManageSchedulePage = (): JSX.Element => {
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
-    const removedQueries = { queries: [{ id: queryEditing?.id }] };
-    dispatch(scheduleQueryActions.removeQueries(queryId, removedQueries))
-      .then(() => {
-        dispatch(
-          renderFlash("success", `Successfully removed scheduled queries.`)
-        );
-      })
-      .catch(() =>
-        dispatch(
-          renderFlash(
-            "error",
-            "Unable to remove scheduled queries. Please try again."
-          )
-        )
-      );
+    // const removedQueries = { queries: [{ id: queryEditing?.id }] };
+    // dispatch(scheduleQueryActions.removeQueries(queryId, removedQueries))
+    //   .then(() => {
+    //     dispatch(
+    //       renderFlash("success", `Successfully removed scheduled queries.`)
+    //     );
+    //   })
+    //   .catch(() =>
+    //     dispatch(
+    //       renderFlash(
+    //         "error",
+    //         "Unable to remove scheduled queries. Please try again."
+    //       )
+    //     )
+    //   );
     toggleRemoveScheduledQueryModal();
   }, [
-    dispatch,
-    queryId,
-    queryEditing?.id,
-    queryEditing?.name,
+    // dispatch,
+    // queryId,
+    // queryEditing?.id,
+    // queryEditing?.name,
     toggleRemoveScheduledQueryModal,
   ]);
 
@@ -217,15 +222,22 @@ const ManageSchedulePage = (): JSX.Element => {
             </div>
           )}
         </div>
-        <div>{renderTable()}</div>
-        {showScheduleEditorModal ? (
+        <div>{renderTable(toggleRemoveScheduledQueryModal)}</div>
+        {showScheduleEditorModal && (
           <ScheduleEditorModal
             onCancel={toggleScheduleEditorModal}
             onScheduleSubmit={onAddScheduledQuerySubmit}
             allQueries={allQueriesList}
             defaultLoggingType={"snapshot"}
           />
-        ) : null}
+        )}
+        {showRemoveScheduledQueryModal && (
+          <RemoveScheduledQueryModal
+            onCancel={toggleRemoveScheduledQueryModal}
+            onSubmit={onRemoveScheduledQuerySubmit}
+            queries={allQueriesList}
+          />
+        )}
       </div>
     </div>
   );

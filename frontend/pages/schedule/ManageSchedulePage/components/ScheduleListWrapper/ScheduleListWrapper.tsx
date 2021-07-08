@@ -15,10 +15,11 @@ const baseClass = "schedule-list-wrapper";
 
 interface IScheduleListWrapperProps {
   fakeData: any;
+  toggleRemoveScheduledQueryModal: any;
 }
 
 const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
-  const { fakeData } = props;
+  const { fakeData, toggleRemoveScheduledQueryModal } = props;
   const dispatch = useDispatch();
 
   const scheduledCount = fakeData.scheduled.length;
@@ -31,27 +32,15 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
 
   const tableHeaders = generateTableHeaders(onActionSelection);
 
-  // State to show remove scheduled query modal
-  const [
-    showRemoveScheduledQueryModal,
-    setShowRemoveScheduledQueryModal,
-  ] = useState(false);
-
-  // Toggle state to show remove scheduled query modal
-  const toggleRemoveScheduledQueryModal = useCallback(() => {
-    setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
-  }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
-
   // Query ID state crap
   // What happens when you do a click whatever whatever
   const [selectedQueryIds, setSelectedQueryIds] = useState([]);
 
+  // Remove query button
   const onRemoveScheduledQueryClick = (selectedQueryIds: any) => {
     console.log(
-      "\nonRemoveScheduledQueryClicked!\nselectedQueryIds:",
-      selectedQueryIds
+      "onRemoveScheduledQueryClick from ScheduleListWrapper fires when clicking Remove queries in the table. It toggles the modal and sets the selectedQuery ids."
     );
-
     toggleRemoveScheduledQueryModal();
     setSelectedQueryIds(selectedQueryIds);
   };
