@@ -115,6 +115,11 @@ func TestLogin(t *testing.T) {
 
 func setupAuthTest(t *testing.T) (*inmem.Datastore, map[string]fleet.User, *httptest.Server) {
 	ds, _ := inmem.New(config.TestConfig())
+	users, server := runServerForTestsWithDS(t, ds)
+	return ds, users, server
+}
+
+func runServerForTestsWithDS(t *testing.T, ds fleet.Datastore) (map[string]fleet.User, *httptest.Server) {
 	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
@@ -138,7 +143,7 @@ func setupAuthTest(t *testing.T) (*inmem.Datastore, map[string]fleet.User, *http
 	}))
 
 	server := httptest.NewServer(r)
-	return ds, users, server
+	return users, server
 }
 
 func TestNoHeaderErrorsDifferently(t *testing.T) {

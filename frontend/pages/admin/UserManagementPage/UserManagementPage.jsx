@@ -123,7 +123,7 @@ export class UserManagementPage extends Component {
         });
     }
 
-    let userUpdatedFlashMessage = "User updated";
+    let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
 
     if (userData.email !== formData.email) {
       userUpdatedFlashMessage += `: A confirmation email was sent from ${config.sender_address} to ${formData.email}`;
@@ -138,7 +138,7 @@ export class UserManagementPage extends Component {
         dispatch(
           renderFlash(
             "error",
-            `Couldn't update ${userEditing?.name}. Please try again.`
+            `Couldn not edit ${userEditing?.name}. Please try again.`
           )
         );
         toggleEditUserModal();
@@ -229,7 +229,9 @@ export class UserManagementPage extends Component {
     } else {
       dispatch(userActions.destroy(userEditing))
         .then(() => {
-          dispatch(renderFlash("success", "User deleted"));
+          dispatch(
+            renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
+          );
         })
         .catch(() => {
           dispatch(
