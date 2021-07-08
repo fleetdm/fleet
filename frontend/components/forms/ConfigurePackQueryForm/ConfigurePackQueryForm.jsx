@@ -135,6 +135,9 @@ export class ConfigurePackQueryForm extends Component {
     const { fields, handleSubmit } = this.props;
     const { handlePlatformChoice, renderCancelButton } = this;
 
+    // Uncontrolled form field defaults to snapshot if !fields.logging_type
+    const loggingType = fields.logging_type.value || "snapshot";
+
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
         <h2 className={`${baseClass}__title`}>Configuration</h2>
@@ -144,7 +147,7 @@ export class ConfigurePackQueryForm extends Component {
             options={loggingTypeOptions}
             placeholder="- - -"
             label="Logging"
-            // value={loggingTypeOptions[2]}
+            value={loggingType}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
           />
           <InputField

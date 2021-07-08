@@ -60,7 +60,7 @@ export class EditPackPage extends Component {
 
     this.state = {
       selectedQuery: null,
-      selectedScheduledQuery: defaultScheduledQuery, // LEFT OFF ON 7/7 2 PM with MARTAVIS
+      selectedScheduledQuery: null, // LEFT OFF ON 7/7 2 PM with MARTAVIS
       targetsCount: 0,
     };
   }
@@ -192,15 +192,9 @@ export class EditPackPage extends Component {
     const { dispatch } = this.props;
     const { selectedScheduledQuery } = this.state;
     const { update } = scheduledQueryActions;
-
     const updatedAttrs = deepDifference(formData, selectedScheduledQuery);
 
-    // LEFT OFF ON 7/7 2 PM with MARTAVIS (line 199-203)
-    console.log("onUpdateScheduledQuery formData:", formData);
-
-    // old line
-    // dispatch(update(selectedScheduledQuery, updatedAttrs))
-    dispatch(update(selectedScheduledQuery, formData))
+    dispatch(update(selectedScheduledQuery, updatedAttrs))
       .then(() => {
         this.setState({ selectedScheduledQuery: null, selectedQuery: null });
         dispatch(renderFlash("success", "Scheduled Query updated!"));
@@ -237,8 +231,11 @@ export class EditPackPage extends Component {
   handleConfigurePackQuerySubmit = (formData) => {
     const { create } = scheduledQueryActions;
     const { dispatch, packID } = this.props;
-    // LEFT OFF ON 7/7 2 PM with MARTAVIS (line 241)
-    console.log("formData:", formData);
+
+    // Janky way of adding in logging_type if none selected for uncontrolled form
+    if (!formData.logging_type) {
+      formData.logging_type = "snapshot";
+    }
 
     const scheduledQueryData = {
       ...formData,

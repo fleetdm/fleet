@@ -17,9 +17,7 @@ const validate = (formData) => {
     errors.interval = "Frequency must be a number";
   }
 
-  if (!formData.logging_type) {
-    errors.logging_type = "A Logging Type must be selected";
-  }
+  // Removed logging_type validation, default validation is "snapshot" if !formData.logging_type
 
   if (formData.shard) {
     if (formData.shard < 0 || formData.shard > 100) {
