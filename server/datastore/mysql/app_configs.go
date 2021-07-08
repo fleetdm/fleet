@@ -81,20 +81,15 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 		return errors.New("MySQL Event Scheduler must be enabled to configure Host Expiry.")
 	}
 
-	tx, err := d.db.Beginx()
-	if err != nil {
-		return err
-	}
+	return d.withTx(func(tx *sqlx.Tx) error {
+		if err := d.ManageHostExpiryEvent(tx, info.HostExpiryEnabled, info.HostExpiryWindow); err != nil {
+			return err
+		}
 
-	if err := d.ManageHostExpiryEvent(tx, info.HostExpiryEnabled, info.HostExpiryWindow); err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Note that we hard code the ID column to 1, insuring that, if no rows
-	// exist, a row will be created with INSERT, if a row does exist the key
-	// will be violate uniqueness constraint and an UPDATE will occur
-	insertStatement := `
+		// Note that we hard code the ID column to 1, insuring that, if no rows
+		// exist, a row will be created with INSERT, if a row does exist the key
+		// will be violate uniqueness constraint and an UPDATE will occur
+		insertStatement := `
 		INSERT INTO app_configs (
 			id,
 			org_name,
@@ -164,53 +159,52 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 			enable_analytics = VALUES(enable_analytics)
     `
 
-	_, err = tx.Exec(insertStatement,
-		info.OrgName,
-		info.OrgLogoURL,
-		info.ServerURL,
-		info.SMTPConfigured,
-		info.SMTPSenderAddress,
-		info.SMTPServer,
-		info.SMTPPort,
-		info.SMTPAuthenticationType,
-		info.SMTPEnableTLS,
-		info.SMTPAuthenticationMethod,
-		info.SMTPDomain,
-		info.SMTPUserName,
-		info.SMTPPassword,
-		info.SMTPVerifySSLCerts,
-		info.SMTPEnableStartTLS,
-		info.EntityID,
-		info.IssuerURI,
-		info.IDPImageURL,
-		info.Metadata,
-		info.MetadataURL,
-		info.IDPName,
-		info.EnableSSO,
-		info.EnableSSOIdPLogin,
-		info.FIMInterval,
-		info.FIMFileAccesses,
-		info.HostExpiryEnabled,
-		info.HostExpiryWindow,
-		info.LiveQueryDisabled,
-		info.AdditionalQueries,
-		info.AgentOptions,
-		info.EnableAnalytics,
-	)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if !info.EnableSSO {
-		_, err = tx.Exec(`UPDATE users SET sso_enabled=false`)
+		_, err = tx.Exec(insertStatement,
+			info.OrgName,
+			info.OrgLogoURL,
+			info.ServerURL,
+			info.SMTPConfigured,
+			info.SMTPSenderAddress,
+			info.SMTPServer,
+			info.SMTPPort,
+			info.SMTPAuthenticationType,
+			info.SMTPEnableTLS,
+			info.SMTPAuthenticationMethod,
+			info.SMTPDomain,
+			info.SMTPUserName,
+			info.SMTPPassword,
+			info.SMTPVerifySSLCerts,
+			info.SMTPEnableStartTLS,
+			info.EntityID,
+			info.IssuerURI,
+			info.IDPImageURL,
+			info.Metadata,
+			info.MetadataURL,
+			info.IDPName,
+			info.EnableSSO,
+			info.EnableSSOIdPLogin,
+			info.FIMInterval,
+			info.FIMFileAccesses,
+			info.HostExpiryEnabled,
+			info.HostExpiryWindow,
+			info.LiveQueryDisabled,
+			info.AdditionalQueries,
+			info.AgentOptions,
+			info.EnableAnalytics,
+		)
 		if err != nil {
-			tx.Rollback()
 			return err
 		}
-	}
 
-	return nil
+		if !info.EnableSSO {
+			_, err = tx.Exec(`UPDATE users SET sso_enabled=false`)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, error) {
