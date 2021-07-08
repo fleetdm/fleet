@@ -1,1 +1,1 @@
-* Return distinct error messages when Authorization header is missing vs when the token it wrong. Fixes issue 1239
+* Return distinct error messages when Authorization header is missing vs when the token is wrong. Fixes issue 1239.
