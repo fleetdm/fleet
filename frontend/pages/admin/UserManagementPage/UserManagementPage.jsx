@@ -173,7 +173,7 @@ export class UserManagementPage extends Component {
           );
           this.toggleCreateUserModal();
         });
-    } else if (!formData.sso_enabled) {
+    } else {
       // Do some data formatting deleteing uncessary fields
       const requestData = {
         ...formData,
@@ -193,10 +193,6 @@ export class UserManagementPage extends Component {
           );
           this.toggleCreateUserModal();
         });
-    } else {
-      console.log(
-        "TODO: Backend update required in order to create user without invite if sso_enabled."
-      );
     }
   };
 

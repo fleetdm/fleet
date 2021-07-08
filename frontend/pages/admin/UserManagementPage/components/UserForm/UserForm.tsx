@@ -1,8 +1,6 @@
 import React, { Component, FormEvent } from "react";
 import ReactTooltip from "react-tooltip";
 
-import ReactTooltip from "react-tooltip";
-
 import { ITeam } from "interfaces/team";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
@@ -406,7 +404,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           className="smtp-not-configured"
           data-tip
           data-for="smtp-tooltip"
-          data-tip-disable={smtpConfigured}
+          data-tip-disable={isSmtpConfigured}
         >
           <InputFieldWithIcon
             error={errors.email}
@@ -414,7 +412,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             onChange={onInputChange("email")}
             placeholder="Email"
             value={email}
-            disabled={!smtpConfigured}
+            disabled={!isSmtpConfigured}
           />
         </div>
         <ReactTooltip
@@ -461,10 +459,9 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                 onChange={onRadioChange("newUserType")}
               />
               <div
+                className="smtp-not-configured"
                 data-tip
-                data-place="top"
-                data-offset="{'left': 300}"
-                data-for="invite-tooltip"
+                data-for="invite-user-tooltip"
                 data-tip-disable={isSmtpConfigured}
               >
                 <Radio
@@ -478,15 +475,17 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                   onChange={onRadioChange("newUserType")}
                 />
                 <ReactTooltip
+                  place="bottom"
                   type="dark"
                   effect="solid"
-                  id="invite-tooltip"
+                  id="invite-user-tooltip"
                   backgroundColor="#3e4771"
-                  className="tooltip-text"
+                  data-html
                 >
                   <span className={`${baseClass}__tooltip-text`}>
-                    The "Invite user" feature requires that SMTP is configured
-                    in order to send invitation emails. <br />
+                    The Invite user feature requires that SMTP is
+                    <br />
+                    configured in order to send an invitation email. <br />
                     <br />
                     SMTP can be configured in Organization settings.
                   </span>
@@ -505,7 +504,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                     type="password"
                     hint={[
                       "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-                    ]} // TODO style hint
+                    ]}
                   />
                 </div>
                 <div className={`${baseClass}__details`}>
