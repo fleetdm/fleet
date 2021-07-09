@@ -11,7 +11,7 @@ import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png"
 import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
 import MacIcon from "../../../../../assets/images/icon-mac-48x48@2x.png";
 
-const baseClass = "host-summary";
+const baseClass = "hosts-summary";
 
 interface RootState {
   entities: {
@@ -22,7 +22,7 @@ interface RootState {
   };
 }
 
-const HostSummary = (): JSX.Element => {
+const HostsSummary = (): JSX.Element => {
   // TODO: Get labels to load everytime into state
   const dispatch = useDispatch();
   dispatch(getLabels);
@@ -96,4 +96,4 @@ const HostSummary = (): JSX.Element => {
   );
 };
 
-export default HostSummary;
+export default HostsSummary;
