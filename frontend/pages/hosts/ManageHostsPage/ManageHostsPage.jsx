@@ -290,9 +290,7 @@ export class ManageHostsPage extends PureComponent {
 
       if (isAcceptableStatus(selectedFilter)) {
         status = selectedFilter;
-      }
-
-      if (selectedLabel.id) {
+      } else {
         labelId = selectedLabel.id;
       }
 
