@@ -1,0 +1,28 @@
+.dashboard-hosts {
+  align-self: center;
+  width: 100%;
+  max-width: 900px;
+
+  &__tiles {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  &__tile {
+    background-color: $ui-fleet-blue-15;
+    height: 180px;
+    flex-grow: 1;
+    margin: 0 16px;
+    border: solid 1px $ui-fleet-black-25;
+    border-radius: 4px;
+
+    :first-child {
+      margin-left: 0;
+    }
+
+    :last-child {
+      margin-right: 0;
+    }
+  }
+}
