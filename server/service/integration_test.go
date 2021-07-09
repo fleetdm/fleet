@@ -93,6 +93,29 @@ func testUserWithoutRoleErrors(t *testing.T, ds fleet.Datastore) {
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "All users need a role defined")
 }
 
+func testUserWithWrongRoleErrors(t *testing.T, ds fleet.Datastore) {
+	_, server := runServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	params := fleet.UserPayload{
+		Name:       ptr.String("user1"),
+		Email:      ptr.String("email@asd.com"),
+		Password:   ptr.String("pass"),
+		GlobalRole: ptr.String("wrongrole"),
+	}
+	j, err := json.Marshal(&params)
+	assert.Nil(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/users/admin", requestBody)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, `'wrongrole' is not a valid team role`)
+}
+
 func testUserCreationWrongTeamErrors(t *testing.T, ds fleet.Datastore) {
 	_, server := runServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
@@ -148,5 +171,6 @@ func TestSQLErrorsAreProperlyHandled(t *testing.T) {
 		testDoubleUserCreationErrors,
 		testUserCreationWrongTeamErrors,
 		testUserWithoutRoleErrors,
+		testUserWithWrongRoleErrors,
 	})
 }
