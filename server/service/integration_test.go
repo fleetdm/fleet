@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -109,9 +110,66 @@ func assertBodyContains(t *testing.T, resp *http.Response, expectedError string)
 	assert.Contains(t, bodyString, expectedError)
 }
 
+func testAppConfigAdditionalQueriesCanBeRemoved(t *testing.T, ds fleet.Datastore) {
+	_, server := runServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	spec := []byte(`
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  host_settings:
+    additional_queries:
+      time: SELECT * FROM time
+`)
+	applyConfig(t, spec, server, token)
+
+	spec = []byte(`
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  host_settings:
+`)
+	applyConfig(t, spec, server, token)
+
+	config := getConfig(t, server, token)
+	assert.Nil(t, config.HostSettings)
+}
+
+func applyConfig(t *testing.T, spec []byte, server *httptest.Server, token string) {
+	var appConfigSpec fleet.AppConfigPayload
+	err := yaml.Unmarshal(spec, &appConfigSpec)
+	require.NoError(t, err)
+	j, err := json.Marshal(&appConfigSpec)
+	assert.Nil(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	req, _ := http.NewRequest("PATCH", server.URL+"/api/v1/fleet/config", requestBody)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func getConfig(t *testing.T, server *httptest.Server, token string) *fleet.AppConfigPayload {
+	req, _ := http.NewRequest("GET", server.URL+"/api/v1/fleet/config", nil)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var responseBody *fleet.AppConfigPayload
+	err = json.NewDecoder(resp.Body).Decode(&responseBody)
+	require.Nil(t, err)
+	return responseBody
+}
+
 func TestSQLErrorsAreProperlyHandled(t *testing.T) {
 	mysql.RunTestsAgainstMySQL(t, []func(t *testing.T, ds fleet.Datastore){
 		testDoubleUserCreationErrors,
 		testUserCreationWrongTeamErrors,
+		testAppConfigAdditionalQueriesCanBeRemoved,
 	})
 }
