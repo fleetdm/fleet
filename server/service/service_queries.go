@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -47,7 +47,18 @@ func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec
 	}
 
 	err := svc.ds.ApplyQueries(vc.UserID(), queries)
-	return errors.Wrap(err, "applying queries")
+	if err != nil {
+		return errors.Wrap(err, "applying queries")
+	}
+
+	if err := svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.AppliedSpecSavedQueryActivityType,
+		&map[string]interface{}{"specs": specs},
+	); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (svc Service) GetQuerySpecs(ctx context.Context) ([]*fleet.QuerySpec, error) {
@@ -133,6 +144,14 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
+	if err := svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.CreatedSavedQueryActivityType,
+		&map[string]interface{}{"query_id": query.ID, "query_name": query.Name},
+	); err != nil {
+		return nil, err
+	}
+
 	return query, nil
 }
 
@@ -170,6 +189,14 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
+	if err := svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.EditedSavedQueryActivityType,
+		&map[string]interface{}{"query_id": query.ID, "query_name": query.Name},
+	); err != nil {
+		return nil, err
+	}
+
 	return query, nil
 }
 
@@ -178,7 +205,15 @@ func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 		return err
 	}
 
-	return svc.ds.DeleteQuery(name)
+	if err := svc.ds.DeleteQuery(name); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.DeletedSavedQueryActivityType,
+		&map[string]interface{}{"query_name": name},
+	)
 }
 
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
@@ -191,7 +226,15 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return errors.Wrap(err, "lookup query by ID")
 	}
 
-	return errors.Wrap(svc.ds.DeleteQuery(query.Name), "delete query")
+	if err := svc.ds.DeleteQuery(query.Name); err != nil {
+		return errors.Wrap(err, "delete query")
+	}
+
+	return svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.DeletedSavedQueryActivityType,
+		&map[string]interface{}{"query_name": query.Name},
+	)
 }
 
 func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
@@ -199,5 +242,19 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		return 0, err
 	}
 
-	return svc.ds.DeleteQueries(ids)
+	n, err := svc.ds.DeleteQueries(ids)
+	if err != nil {
+		return n, err
+	}
+
+	err = svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.DeletedMultipleSavedQueryActivityType,
+		&map[string]interface{}{"query_ids": ids},
+	)
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
 }

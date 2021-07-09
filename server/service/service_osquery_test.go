@@ -1170,9 +1170,15 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
+	activityRecorded := false
+	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
+		activityRecorded = true
+		return nil
+	}
 	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.Nil(t, err)
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
+	assert.True(t, activityRecorded)
 	assert.Equal(t, []*fleet.DistributedQueryCampaignTarget{
 		{
 			Type:                       fleet.TargetHost,
