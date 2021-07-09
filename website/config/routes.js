@@ -18,24 +18,22 @@ module.exports.routes = {
   'GET /get-started':        { action:   'view-pricing' },
 
   'GET /install':            'https://github.com/fleetdm/fleet/blob/main/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
-  '/documentation':          'https://github.com/fleetdm/fleet/tree/main/docs',
+  '/docs':                   'https://github.com/fleetdm/fleet/tree/main/docs',
   '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
-  '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
+  '/company/about':          '/handbook', // FUTURE: brief "about" page explaining the origins of the company
+  '/handbook':               'https://github.com/fleetdm/fleet/tree/main/handbook',
 
   'GET /queries':            { action: 'view-query-library' },
   'GET /queries/:slug':      { action: 'view-query-detail' },
 
   '/contribute':             'https://github.com/fleetdm/fleet/tree/main/docs/3-Contributing',
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
-  '/legal/terms': 'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
-  '/security': 'https://github.com/fleetdm/fleet/security/policy',
+  '/legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
+  '/security':               'https://github.com/fleetdm/fleet/security/policy',
 
-  '/blog':           'https://blog.fleetdm.com',
+
 
   'GET /apply': 'https://fleet-device-management.breezy.hr',
-
-  'GET /documentation': { action: 'view-documentation' },
-  'GET /docs-template': { action: 'view-docs-template' },
 
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
@@ -44,18 +42,21 @@ module.exports.routes = {
 
   // Convenience
   '/pricing':                    '/get-started',
+  '/documentation':              '/docs',
   '/company':                    '/company/about',
   '/support':                    '/company/contact',
   '/contact':                    '/company/contact',
   '/legal':                      '/legal/terms',
   '/terms':                      '/legal/terms',
-  // '/logout':                  '/api/v1/account/logout',
+
+  // Sitemap
+  'GET /sitemap.xml':            { action: 'download-sitemap' },
+
+  // Blog
+  '/blog':                       'https://blog.fleetdm.com',
 
   // Legacy (to avoid breaking links)
   '/try-fleet':                  '/get-started',
-
-  // Sitemap
-  'GET /sitemap.xml': { action: 'download-sitemap' },
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
