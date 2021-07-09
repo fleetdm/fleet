@@ -17,7 +17,7 @@ func Up_20210709124443(tx *sql.Tx) error {
 			user_id int unsigned NOT NULL,
 			activity_type varchar(255) NOT NULL,
 			details json DEFAULT NULL,
-		    PRIMARY KEY (id),
+			PRIMARY KEY (id),
 			FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
 		)
 	`
