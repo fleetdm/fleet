@@ -1,1 +1,1 @@
-export { default } from "./HostSummary";
+export { default } from "./HostsSummary";
