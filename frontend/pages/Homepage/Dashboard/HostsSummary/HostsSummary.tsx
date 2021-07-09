@@ -17,15 +17,18 @@ interface RootState {
   entities: {
     labels: {
       isLoading: boolean;
-      data: { [id: number]: any };
+      data: {
+        [id: number]: {
+          count: number;
+        };
+      };
     };
   };
 }
 
 const HostsSummary = (): JSX.Element => {
-  // TODO: Get labels to load everytime into state
   const dispatch = useDispatch();
-  dispatch(getLabels);
+  dispatch(getLabels());
 
   const labels = useSelector((state: RootState) => state.entities.labels.data);
 
