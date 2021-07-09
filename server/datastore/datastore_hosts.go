@@ -1024,7 +1024,25 @@ func testSaveUsers(t *testing.T, ds fleet.Datastore) {
 		Type:      "aaa",
 		GroupName: "group",
 	}
-	host.Users = []fleet.HostUser{u1}
+	u2 := fleet.HostUser{
+		Uid:       43,
+		Username:  "user2",
+		Type:      "aaa",
+		GroupName: "group",
+	}
+	host.Users = []fleet.HostUser{u1, u2}
+	host.Modified = true
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	require.Len(t, host.Users, 2)
+	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
+
+	// remove u1 user
+	host.Users = []fleet.HostUser{u2}
 	host.Modified = true
 
 	err = ds.SaveHost(host)
@@ -1033,5 +1051,5 @@ func testSaveUsers(t *testing.T, ds fleet.Datastore) {
 	host, err = ds.Host(host.ID)
 	require.Nil(t, err)
 	require.Len(t, host.Users, 1)
-	assert.Equal(t, host.Users[0], u1)
+	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }

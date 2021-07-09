@@ -17,8 +17,9 @@ func Up_20210708143152(tx *sql.Tx) error {
 		username VARCHAR(255),
 		groupname VARCHAR(255),
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		removed_at TIMESTAMP NULL,
 		user_type VARCHAR(255),
-		UNIQUE KEY idx_uid_username (uid, username),
+		UNIQUE KEY idx_uid_username (host_id, uid, username),
 		FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
 	)`
 	if _, err := tx.Exec(sqlStatement); err != nil {

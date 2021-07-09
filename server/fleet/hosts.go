@@ -114,6 +114,7 @@ type HostListOptions struct {
 }
 
 type HostUser struct {
+	ID        uint   `json:"id" db:"id"`
 	Uid       uint   `json:"uid" db:"uid"`
 	Username  string `json:"username" db:"username"`
 	Type      string `json:"type" db:"user_type"`
