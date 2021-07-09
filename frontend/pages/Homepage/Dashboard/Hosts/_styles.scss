@@ -10,19 +10,33 @@
   }
 
   &__tile {
-    background-color: $ui-fleet-blue-15;
+    background-color: $ui-off-white;
     height: 180px;
     flex-grow: 1;
-    margin: 0 16px;
-    border: solid 1px $ui-fleet-black-25;
+    margin-right: 16px;
+    border: solid 1px $ui-fleet-blue-15;
     border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 
-    :first-child {
-      margin-left: 0;
-    }
-
-    :last-child {
+    &:last-child {
       margin-right: 0;
     }
+  }
+
+  &__tile-icon {
+    margin: -15px;
+  }
+
+  &__tile-count {
+    font-size: $large;
+  }
+
+  #mac-icon,
+  #windows-icon,
+  #linux-icon {
+    transform: scale(0.5);
   }
 }
