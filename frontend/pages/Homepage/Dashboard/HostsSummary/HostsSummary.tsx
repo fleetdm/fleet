@@ -60,7 +60,6 @@ const HostsSummary = (): JSX.Element => {
     return numberWithCommas(linuxCount);
   };
 
-  console.log(createMacCount());
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__tiles`}>

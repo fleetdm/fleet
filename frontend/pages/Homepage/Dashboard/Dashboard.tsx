@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react"; //, { useEffect }
-import { useDispatch, useSelector } from "react-redux";
+import React from "react";
+import { useSelector } from "react-redux";
 
 import { Link } from "react-router";
 import { IUser } from "interfaces/user";
@@ -22,14 +22,11 @@ interface RootState {
 }
 
 const Dashboard = (): JSX.Element => {
-  // Links to packs page
-  const dispatch = useDispatch();
   const { MANAGE_HOSTS } = paths;
 
   const user = useSelector((state: RootState) => state.auth.user);
   const orgName = useSelector((state: RootState) => state.app.config.org_name);
 
-  console.log("USER", user);
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
