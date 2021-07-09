@@ -155,7 +155,7 @@ func testQueryCreationLogsActivity(t *testing.T, ds fleet.Datastore) {
 		Activities []map[string]interface{} `json:"activities"`
 	}
 	activities := activitiesRespose{}
-	doJsonReq(t, nil, "GET", server, "/api/v1/fleet/queries", token, http.StatusOK, &activities)
+	doJsonReq(t, nil, "GET", server, "/api/v1/fleet/activities", token, http.StatusOK, &activities)
 
 	assert.Len(t, activities.Activities, 1)
 	assert.Equal(t, "Test Name admin1@example.com", activities.Activities[0]["actor_full_name"])
