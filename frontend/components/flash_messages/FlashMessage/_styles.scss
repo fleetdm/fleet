@@ -16,10 +16,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $core-fleet-blue;
+  color: $core-white;
   padding: $pad-small $pad-medium;
   z-index: 3;
-  background-color: $core-white;
+  background-color: $core-vibrant-blue;
   margin: auto;
   border: 1px solid $ui-fleet-blue-15;
   box-sizing: border-box;
@@ -27,14 +27,16 @@
   border-radius: 8px;
 
   &--success {
+    background-color: $ui-success;
     .fleeticon {
-      color: $ui-success;
+      color: $core-white;
     }
   }
 
   &--error {
+    background-color: $ui-error;
     .fleeticon {
-      color: $ui-error;
+      color: $core-white;
     }
   }
 
@@ -55,7 +57,7 @@
   }
 
   &__undo {
-    color: $core-vibrant-blue;
+    color: $core-white;
     cursor: pointer;
     font-size: $small;
     text-decoration: underline;
@@ -69,7 +71,7 @@
 
     .fleeticon {
       transition: color 150ms ease-in-out;
-      color: $core-fleet-blue;
+      color: $core-white;
       font-size: $small;
 
       &:hover {

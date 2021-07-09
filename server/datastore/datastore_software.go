@@ -76,4 +76,21 @@ func testSaveHostSoftware(t *testing.T, ds fleet.Datastore) {
 	require.NoError(t, err)
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
+
+	soft1 = fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			{Name: "towel", Version: "42.0.0", Source: "apps"},
+		},
+	}
+	host1.HostSoftware = soft1
+
+	err = ds.SaveHostSoftware(host1)
+	require.NoError(t, err)
+
+	err = ds.LoadHostSoftware(host1)
+	require.NoError(t, err)
+	assert.False(t, host1.HostSoftware.Modified)
+	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 }

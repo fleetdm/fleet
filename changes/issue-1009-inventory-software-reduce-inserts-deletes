@@ -1,0 +1,2 @@
+* Reduce the amount of inserts and deletes are done in the database when updating each host's
+software inventory. Fixes issue 1009
