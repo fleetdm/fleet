@@ -1,11 +1,11 @@
 import React from "react";
 import { useSelector } from "react-redux";
 
+import paths from "router/paths";
 import { Link } from "react-router";
 import { IUser } from "interfaces/user";
 import HostsSummary from "./HostsSummary";
 
-import paths from "router/paths";
 import LinkArrow from "../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
 const baseClass = "dashboard";

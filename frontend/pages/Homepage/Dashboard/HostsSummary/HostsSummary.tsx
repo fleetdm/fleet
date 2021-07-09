@@ -36,7 +36,7 @@ const HostsSummary = (): JSX.Element => {
   const createMacCount = () => {
     let macCount = 0;
     if (labels[7]) {
-      macCount = labels[7]["count"];
+      macCount = labels[7].count;
     }
 
     return numberWithCommas(macCount);
@@ -45,7 +45,7 @@ const HostsSummary = (): JSX.Element => {
   const createWindowsCount = () => {
     let windowsCount = 0;
     if (labels[10]) {
-      windowsCount = labels[10]["count"];
+      windowsCount = labels[10].count;
     }
 
     return numberWithCommas(windowsCount);
@@ -54,7 +54,7 @@ const HostsSummary = (): JSX.Element => {
   const createLinuxCount = () => {
     let linuxCount = 0;
     if (labels[8] && labels[9]) {
-      linuxCount = labels[8]["count"] + labels[9]["count"];
+      linuxCount = labels[8].count + labels[9].count;
     }
 
     return numberWithCommas(linuxCount);
