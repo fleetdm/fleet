@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -89,17 +90,49 @@ func testUserCreationWrongTeamErrors(t *testing.T, ds fleet.Datastore) {
 		Password: ptr.String("pass"),
 		Teams:    &teams,
 	}
+	method := "POST"
+	path := "/api/v1/fleet/users/admin"
+	expectedStatusCode := http.StatusUnprocessableEntity
+
+	resp := doReq(t, params, method, server, path, token, expectedStatusCode)
+	assertBodyContains(t, resp, `Error 1452: Cannot add or update a child row: a foreign key constraint fails`)
+}
+
+func doReq(
+	t *testing.T,
+	params interface{},
+	method string,
+	server *httptest.Server,
+	path string,
+	token string,
+	expectedStatusCode int,
+) *http.Response {
 	j, err := json.Marshal(&params)
 	assert.Nil(t, err)
 
 	requestBody := &nopCloser{bytes.NewBuffer(j)}
-	req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/users/admin", requestBody)
+	req, _ := http.NewRequest(method, server.URL+path, requestBody)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
-	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
-	assertBodyContains(t, resp, `Error 1452: Cannot add or update a child row: a foreign key constraint fails`)
+	assert.Equal(t, expectedStatusCode, resp.StatusCode)
+	return resp
+}
+
+func doJsonReq(
+	t *testing.T,
+	params interface{},
+	method string,
+	server *httptest.Server,
+	path string,
+	token string,
+	expectedStatusCode int,
+	v interface{},
+) {
+	resp := doReq(t, params, method, server, path, token, expectedStatusCode)
+	err := json.NewDecoder(resp.Body).Decode(v)
+	require.Nil(t, err)
 }
 
 func assertBodyContains(t *testing.T, resp *http.Response, expectedError string) {
@@ -117,32 +150,56 @@ func testQueryCreationLogsActivity(t *testing.T, ds fleet.Datastore) {
 		Name:  ptr.String("user1"),
 		Query: ptr.String("select * from time;"),
 	}
-	j, err := json.Marshal(&params)
-	assert.Nil(t, err)
-
-	requestBody := &nopCloser{bytes.NewBuffer(j)}
-	req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/queries", requestBody)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	require.Nil(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	req, _ = http.NewRequest("GET", server.URL+"/api/v1/fleet/activities", nil)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
-	resp, err = client.Do(req)
-	require.Nil(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
+	doReq(t, params, "POST", server, "/api/v1/fleet/queries", token, http.StatusOK)
 	type activitiesRespose struct {
 		Activities []map[string]interface{} `json:"activities"`
 	}
 	activities := activitiesRespose{}
-	err = json.NewDecoder(resp.Body).Decode(&activities)
-	require.Nil(t, err)
+	doJsonReq(t, nil, "GET", server, "/api/v1/fleet/queries", token, http.StatusOK, &activities)
+
 	assert.Len(t, activities.Activities, 1)
 	assert.Equal(t, "Test Name admin1@example.com", activities.Activities[0]["actor_full_name"])
 	assert.Equal(t, "created_saved_query", activities.Activities[0]["type"])
+}
+
+func testAppConfigAdditionalQueriesCanBeRemoved(t *testing.T, ds fleet.Datastore) {
+	_, server := runServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	spec := []byte(`
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  host_settings:
+    additional_queries:
+      time: SELECT * FROM time
+`)
+	applyConfig(t, spec, server, token)
+
+	spec = []byte(`
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  host_settings:
+`)
+	applyConfig(t, spec, server, token)
+
+	config := getConfig(t, server, token)
+	assert.Nil(t, config.HostSettings)
+}
+
+func applyConfig(t *testing.T, spec []byte, server *httptest.Server, token string) {
+	var appConfigSpec fleet.AppConfigPayload
+	err := yaml.Unmarshal(spec, &appConfigSpec)
+	require.NoError(t, err)
+
+	doReq(t, appConfigSpec, "PATCH", server, "/api/v1/fleet/config", token, http.StatusOK)
+}
+
+func getConfig(t *testing.T, server *httptest.Server, token string) *fleet.AppConfigPayload {
+	var responseBody *fleet.AppConfigPayload
+	doJsonReq(t, nil, "GET", server, "/api/v1/fleet/config", token, http.StatusOK, &responseBody)
+	return responseBody
 }
 
 func TestSQLErrorsAreProperlyHandled(t *testing.T) {
@@ -150,5 +207,6 @@ func TestSQLErrorsAreProperlyHandled(t *testing.T) {
 		testDoubleUserCreationErrors,
 		testUserCreationWrongTeamErrors,
 		testQueryCreationLogsActivity,
+		testAppConfigAdditionalQueriesCanBeRemoved,
 	})
 }
