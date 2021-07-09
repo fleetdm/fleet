@@ -4,6 +4,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
@@ -49,46 +50,25 @@ func TestGetPack(t *testing.T) {
 }
 
 func TestNewSavesTargets(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
+	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	host, err := ds.NewHost(&fleet.Host{
-		ID:            42,
-		OsqueryHostID: "42",
-		NodeKey:       "42",
-	})
-	require.Nil(t, err)
-
-	label := &fleet.Label{
-		Name:  "foo",
-		Query: "select * from foo;",
+	ds.NewPackFunc = func(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
+		return pack, nil
 	}
-	label, err = ds.NewLabel(label)
-	require.NoError(t, err)
-	assert.NotZero(t, label.ID)
-
-	// TODO: allow teams to be tested with inmem or just move this to mysql
-	//team, err := ds.NewTeam(&fleet.Team{Name: "team1"})
-	//require.NoError(t, err)
 
 	packPayload := fleet.PackPayload{
 		Name:     ptr.String("foo"),
-		HostIDs:  &[]uint{host.ID},
-		LabelIDs: &[]uint{label.ID},
-		//TeamIDs:  &[]uint{team.ID},
+		HostIDs:  &[]uint{123},
+		LabelIDs: &[]uint{456},
+		TeamIDs:  &[]uint{789},
 	}
-	pack, err := svc.NewPack(test.UserContext(test.UserAdmin), packPayload)
-	require.Nil(t, err)
-	assert.NotZero(t, pack.ID)
+	pack, _ := svc.NewPack(test.UserContext(test.UserAdmin), packPayload)
 
-	packVerify, err := svc.GetPack(test.UserContext(test.UserAdmin), pack.ID)
-	require.Nil(t, err)
-
-	require.Len(t, packVerify.HostIDs, 1)
-	require.Len(t, packVerify.LabelIDs, 1)
-	//require.Len(t, packVerify.TeamIDs, 1)
-	assert.Equal(t, host.ID, packVerify.HostIDs[0])
-	assert.Equal(t, label.ID, packVerify.LabelIDs[0])
-	//assert.Equal(t, team.ID, packVerify.TeamIDs[0])
+	require.Len(t, pack.HostIDs, 1)
+	require.Len(t, pack.LabelIDs, 1)
+	require.Len(t, pack.TeamIDs, 1)
+	assert.Equal(t, uint(123), pack.HostIDs[0])
+	assert.Equal(t, uint(456), pack.LabelIDs[0])
+	assert.Equal(t, uint(789), pack.TeamIDs[0])
 }
