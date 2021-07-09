@@ -1,9 +1,6 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-// Incorporate this
-import { ILabel } from "interfaces/label";
-
 // @ts-ignore
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
 

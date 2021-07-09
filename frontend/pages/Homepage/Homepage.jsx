@@ -1,5 +1,3 @@
-// Identical to PacksPageWrapper directory 6/28
-
 import React from "react";
 import PropTypes from "prop-types";
 

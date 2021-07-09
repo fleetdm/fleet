@@ -51,12 +51,12 @@ const Dashboard = (): JSX.Element => {
             <HostsSummary />
           </div>
         </div>
-        <div className={`${baseClass}__section activity-section`}>
+        {/* <div className={`${baseClass}__section activity-section`}>
           <div className={`${baseClass}__section-title`}>
             <h2>Activity</h2>
           </div>
           <div className={`${baseClass}__section-details`}>Details</div>
-        </div>
+        </div> */}
       </div>
     </div>
   );
