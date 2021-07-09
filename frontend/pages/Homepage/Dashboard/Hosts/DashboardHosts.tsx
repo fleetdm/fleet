@@ -17,36 +17,47 @@ interface RootState {
   entities: {
     labels: {
       isLoading: boolean;
-      data: { [id: number]: ILabel };
+      data: { [id: number]: any };
     };
   };
 }
 
 const DashboardHosts = (): JSX.Element => {
+  // TODO: Get labels to load everytime into state
   const dispatch = useDispatch();
   dispatch(getLabels);
 
   const labels = useSelector((state: RootState) => state.entities.labels.data);
-
-  console.log(labels);
 
   const numberWithCommas = (x: number): string => {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
   const createMacCount = () => {
-    const macCount = 15430;
+    let macCount = 0;
+    if (labels[7]) {
+      macCount = labels[7]["count"];
+    }
+
     return numberWithCommas(macCount);
   };
 
   const createWindowsCount = () => {
-    const windowsCount = 102343;
+    let windowsCount = 0;
+    if (labels[10]) {
+      windowsCount = labels[10]["count"];
+    }
+
     return numberWithCommas(windowsCount);
   };
 
   const createLinuxCount = () => {
-    const windowsCount = 7384;
-    return numberWithCommas(windowsCount);
+    let linuxCount = 0;
+    if (labels[8] && labels[9]) {
+      linuxCount = labels[8]["count"] + labels[9]["count"];
+    }
+
+    return numberWithCommas(linuxCount);
   };
 
   console.log(createMacCount());
