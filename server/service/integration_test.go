@@ -109,9 +109,46 @@ func assertBodyContains(t *testing.T, resp *http.Response, expectedError string)
 	assert.Contains(t, bodyString, expectedError)
 }
 
+func testQueryCreationLogsActivity(t *testing.T, ds fleet.Datastore) {
+	_, server := runServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	params := fleet.QueryPayload{
+		Name:  ptr.String("user1"),
+		Query: ptr.String("select * from time;"),
+	}
+	j, err := json.Marshal(&params)
+	assert.Nil(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/queries", requestBody)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	req, _ = http.NewRequest("GET", server.URL+"/api/v1/fleet/activities", nil)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	resp, err = client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	type activitiesRespose struct {
+		Activities []map[string]interface{} `json:"activities"`
+	}
+	activities := activitiesRespose{}
+	err = json.NewDecoder(resp.Body).Decode(&activities)
+	require.Nil(t, err)
+	assert.Len(t, activities.Activities, 1)
+	assert.Equal(t, "Test Name admin1@example.com", activities.Activities[0]["actor_full_name"])
+	assert.Equal(t, "created_saved_query", activities.Activities[0]["type"])
+}
+
 func TestSQLErrorsAreProperlyHandled(t *testing.T) {
 	mysql.RunTestsAgainstMySQL(t, []func(t *testing.T, ds fleet.Datastore){
 		testDoubleUserCreationErrors,
 		testUserCreationWrongTeamErrors,
+		testQueryCreationLogsActivity,
 	})
 }

@@ -11,7 +11,15 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 		return err
 	}
 
-	return svc.ds.ApplyPackSpecs(specs)
+	if err := svc.ds.ApplyPackSpecs(specs); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.AppliedSpecPackActivityType,
+		&map[string]interface{}{},
+	)
 }
 
 func (svc *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"encoding/json"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
@@ -21,4 +22,19 @@ func (d *Datastore) NewActivity(user *fleet.User, activityType string, details *
 		return errors.Wrap(err, "new activity")
 	}
 	return nil
+}
+
+func (d *Datastore) ListActivities(opt fleet.ListOptions) ([]*fleet.Activity, error) {
+	activities := []*fleet.Activity{}
+	query := "SELECT a.*, u.name as name FROM activities a JOIN users u ON (a.user_id=u.id) WHERE true"
+	query = appendListOptionsToSQL(query, opt)
+
+	err := d.db.Select(&activities, query)
+	if err == sql.ErrNoRows {
+		return nil, notFound("Activity")
+	} else if err != nil {
+		return nil, errors.Wrap(err, "select activities")
+	}
+
+	return activities, nil
 }
