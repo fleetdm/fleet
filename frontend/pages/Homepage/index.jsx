@@ -1,1 +1,1 @@
-export { default } from "./HomepageWrapper";
+export { default } from "./Homepage";

@@ -3,7 +3,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-class HomepageWrapper extends React.Component {
+class Homepage extends React.Component {
   static propTypes = {
     children: PropTypes.node,
   };
@@ -15,4 +15,4 @@ class HomepageWrapper extends React.Component {
   }
 }
 
-export default HomepageWrapper;
+export default Homepage;

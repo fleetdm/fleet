@@ -26,8 +26,8 @@ import CoreLayout from "layouts/CoreLayout";
 import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
 import HostDetailsPage from "pages/hosts/HostDetailsPage";
-import HomepageWrapper from "pages/HomepageWrapper";
-import Dashboard from "components/homepage";
+import Homepage from "pages/Homepage";
+import Dashboard from "pages/Homepage/Dashboard";
 import LoginRoutes from "components/LoginRoutes";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
@@ -69,7 +69,7 @@ const routes = (
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
             <IndexRedirect to={PATHS.MANAGE_HOSTS} />
-            <Route path="home" component={HomepageWrapper}>
+            <Route path="home" component={Homepage}>
               <Route path="dashboard" component={Dashboard} />
             </Route>
             <Route path="settings" component={AuthenticatedAdminRoutes}>
