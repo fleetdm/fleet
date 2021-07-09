@@ -209,7 +209,7 @@ const generateActionDropdownOptions = (
       value: "delete",
     },
   ];
-  if (isCurrentUser || isSSOEnabled) {
+  if (isSSOEnabled) {
     // remove "Require password reset" from dropdownOptions
     dropdownOptions = dropdownOptions.filter(
       (option) => option.label !== "Require password reset"

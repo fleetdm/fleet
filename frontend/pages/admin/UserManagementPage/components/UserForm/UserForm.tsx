@@ -109,7 +109,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       formData: {
         email: props.defaultEmail || "",
         name: props.defaultName || "",
-        newUserType: null,
+        newUserType: NewUserType.AdminCreated,
         password: null,
         sso_enabled: props.isNewUser
           ? props.canUseSSO || false
