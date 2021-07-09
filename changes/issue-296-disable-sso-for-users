@@ -1,0 +1,1 @@
+* When disabling SSO at the org level, disable it for all users. Fixes issue 296

@@ -70,6 +70,12 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			}
 			agentOptions = config.AgentOptions
 		}
+		hostSettings := &fleet.HostSettings{
+			AdditionalQueries: config.AdditionalQueries,
+		}
+		if config.AdditionalQueries == nil {
+			hostSettings = nil
+		}
 		response := appConfigResponse{
 			OrgInfo: &fleet.OrgInfo{
 				OrgName:    &config.OrgName,
@@ -83,11 +89,9 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			SMTPSettings:       smtpSettings,
 			SSOSettings:        ssoSettings,
 			HostExpirySettings: hostExpirySettings,
-			HostSettings: &fleet.HostSettings{
-				AdditionalQueries: config.AdditionalQueries,
-			},
-			License:      license,
-			AgentOptions: agentOptions,
+			HostSettings:       hostSettings,
+			License:            license,
+			AgentOptions:       agentOptions,
 		}
 		return response, nil
 	}
