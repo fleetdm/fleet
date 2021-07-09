@@ -1,17 +1,17 @@
-import React, { useState, useCallback } from "react"; //, { useEffect }
+import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+// Incorporate this
 import { ILabel } from "interfaces/label";
 
 // @ts-ignore
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
-import { Link } from "react-router";
-import { IUser } from "interfaces/user";
+
 import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
 import MacIcon from "../../../../../assets/images/icon-mac-48x48@2x.png";
 
-const baseClass = "dashboard-hosts";
+const baseClass = "host-summary";
 
 interface RootState {
   entities: {
@@ -22,7 +22,7 @@ interface RootState {
   };
 }
 
-const DashboardHosts = (): JSX.Element => {
+const HostSummary = (): JSX.Element => {
   // TODO: Get labels to load everytime into state
   const dispatch = useDispatch();
   dispatch(getLabels);
@@ -96,4 +96,4 @@ const DashboardHosts = (): JSX.Element => {
   );
 };
 
-export default DashboardHosts;
+export default HostSummary;

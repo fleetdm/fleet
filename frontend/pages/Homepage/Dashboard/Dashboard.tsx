@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { Link } from "react-router";
 import { IUser } from "interfaces/user";
-import DashboardHosts from "./Hosts";
+import HostSummary from "./HostSummary";
 
 import paths from "router/paths";
 import LinkArrow from "../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
@@ -51,7 +51,7 @@ const Dashboard = (): JSX.Element => {
             </Link>
           </div>
           <div className={`${baseClass}__section-details`}>
-            <DashboardHosts />
+            <HostSummary />
           </div>
         </div>
         <div className={`${baseClass}__section activity-section`}>
