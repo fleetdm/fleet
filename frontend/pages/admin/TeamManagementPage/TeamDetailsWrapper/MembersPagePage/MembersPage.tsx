@@ -248,6 +248,8 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
         onQueryChange={onQueryChange}
         inputPlaceHolder={"Search"}
         emptyComponent={EmptyMembers}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
       />
       {showAddMemberModal ? (
         <AddMemberModal

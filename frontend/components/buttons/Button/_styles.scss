@@ -140,6 +140,10 @@ $base-class: "button";
       box-shadow: none;
       text-decoration: underline;
     }
+
+    &.light-text {
+      font-weight: $regular;
+    }
   }
 
   &--text-icon {
