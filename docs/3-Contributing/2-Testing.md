@@ -164,13 +164,13 @@ Tests can be run in interactive mode, or from the command line.
 For Fleet Core tests:
 
 ```
-yarn cypress:browser-core
+yarn e2e-browser:core
 ```
 
 For Fleet Basic tests:
 
 ```
-yarn cypress:browser-basic
+yarn e2e-browser:basic
 ```
 
 Use the graphical UI controls to run and view tests.
