@@ -195,7 +195,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     }
   };
 
-  // UserForm component can be used to create a new user or for edit an existing user so submitData will be assembled accordingly
+  // UserForm component can be used to create a new user or edit an existing user so submitData will be assembled accordingly
   createSubmitData = (): IFormData => {
     const { currentUserId } = this.props;
     const {
