@@ -43,6 +43,7 @@
     "postcss-loader": "^3.0.0",
     "prop-types": "^15.0.0",
     "proxy-middleware": "0.15.0",
+    "query-string": "^7.0.1",
     "rc-pagination": "1.16.3",
     "react": "^16.8.6",
     "react-accessible-accordion": "^3.3.4",

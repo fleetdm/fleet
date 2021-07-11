@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
+import queryString from "query-string";
 
 import { hideBackgroundImage } from "redux/nodes/app/actions";
 import { ssoSettings } from "redux/nodes/auth/actions";
@@ -58,7 +59,7 @@ const mapStateToProps = (state, ownProps) => {
   const {
     location: { pathname, search },
   } = ownProps;
-  const { token } = search;
+  const { token } = queryString.parse(search);
 
   const isForgotPassPage = pathname.endsWith("/login/forgot");
   const isResetPassPage = pathname.endsWith("/login/reset");
