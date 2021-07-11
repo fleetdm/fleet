@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router";
-import { push } from "react-router-redux";
+import { Link } from "react-router-dom";
+import { push } from "connected-react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";

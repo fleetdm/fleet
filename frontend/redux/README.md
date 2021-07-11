@@ -38,9 +38,7 @@ The shape of the application's Redux state is as follows:
   redirectLocation: {
     ...
   },
-  routing: {
-    ...
-  },
+  router: connectRouter(history),
 }
 ```
 

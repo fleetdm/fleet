@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { goBack } from "react-router-redux";
+import { goBack } from "connected-react-router";
 import moment from "moment";
 import { authToken } from "utilities/local";
 import { stringToClipboard } from "utilities/copy_text";

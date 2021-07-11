@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { filter, includes, isEqual, noop, size, find } from "lodash";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 
 import permissionUtils from "utilities/permissions";
 import deepDifference from "utilities/deep_difference";

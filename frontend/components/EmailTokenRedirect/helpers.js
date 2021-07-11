@@ -1,5 +1,5 @@
 import PATHS from "router/paths";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import userActions from "redux/nodes/entities/users/actions";
 

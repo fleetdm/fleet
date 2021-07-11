@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import classnames from "classnames";
 
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import ReactTooltip from "react-tooltip";
 import { isEmpty, noop, pick, reduce } from "lodash";
 
@@ -24,7 +24,7 @@ import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import hostActions from "redux/nodes/entities/hosts/actions";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 import PATHS from "router/paths";
 import {
   Accordion,

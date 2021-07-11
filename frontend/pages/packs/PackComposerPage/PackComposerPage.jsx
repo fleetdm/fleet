@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { noop } from "lodash";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 
 import { renderFlash } from "redux/nodes/notifications/actions";
 

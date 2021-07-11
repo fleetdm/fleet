@@ -1,5 +1,5 @@
 import { combineReducers } from "redux";
-import { routerReducer } from "react-router-redux";
+import { connectRouter } from "connected-react-router";
 
 import app from "./nodes/app/reducer";
 import auth from "./nodes/auth/reducer";
@@ -12,7 +12,7 @@ import persistentFlash from "./nodes/persistent_flash/reducer";
 import redirectLocation from "./nodes/redirectLocation/reducer";
 import version from "./nodes/version/reducer";
 
-export default combineReducers({
+const createRootReducer = (history) => combineReducers({
   app,
   auth,
   components,
@@ -22,6 +22,22 @@ export default combineReducers({
   osquery,
   persistentFlash,
   redirectLocation,
-  routing: routerReducer,
+  router: connectRouter(history),
   version,
 });
+
+export default createRootReducer;
+
+// export default combineReducers({
+//   app,
+//   auth,
+//   components,
+//   entities,
+//   errors500,
+//   notifications,
+//   osquery,
+//   persistentFlash,
+//   redirectLocation,
+//   routing: routerReducer,
+//   version,
+// });

@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { isEqual } from "lodash";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 
 import paths from "router/paths";
 import redirectLocationInterface from "interfaces/redirect_location";
@@ -101,7 +101,7 @@ export class AuthenticatedRoutes extends Component {
 
 const mapStateToProps = (state) => {
   const { loading, user } = state.auth;
-  const { locationBeforeTransitions } = state.routing;
+  const { locationBeforeTransitions } = state.router;
 
   return { loading, locationBeforeTransitions, user };
 };

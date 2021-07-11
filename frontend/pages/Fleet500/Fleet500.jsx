@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 import { noop } from "lodash";
 import { resetErrors } from "redux/nodes/errors500/actions";
 import errorsInterface from "interfaces/errors";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 
 import PATHS from "router/paths";
 

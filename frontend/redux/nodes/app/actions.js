@@ -1,5 +1,4 @@
 import Fleet from "fleet";
-import yaml from "js-yaml";
 
 import formatApiErrors from "utilities/format_api_errors";
 import { frontendFormattedConfig } from "fleet/helpers";

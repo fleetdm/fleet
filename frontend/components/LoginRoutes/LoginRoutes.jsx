@@ -56,9 +56,9 @@ export class LoginRoutes extends Component {
 
 const mapStateToProps = (state, ownProps) => {
   const {
-    location: { pathname, query },
+    location: { pathname, search },
   } = ownProps;
-  const { token } = query;
+  const { token } = search;
 
   const isForgotPassPage = pathname.endsWith("/login/forgot");
   const isResetPassPage = pathname.endsWith("/login/reset");

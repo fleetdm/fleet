@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { endsWith, get } from "lodash";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 
 import APP_CONSTANTS from "app_constants";
 

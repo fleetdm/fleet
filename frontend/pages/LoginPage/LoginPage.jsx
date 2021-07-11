@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { size } from "lodash";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import {

@@ -5,8 +5,8 @@ import { connect } from "react-redux";
 import FileSaver from "file-saver";
 import { clone, filter, includes, isEqual, merge } from "lodash";
 import moment from "moment";
-import { push } from "react-router-redux";
-import { Link } from "react-router";
+import { push } from "connected-react-router";
+import { Link } from "react-router-dom";
 
 import Fleet from "fleet";
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";

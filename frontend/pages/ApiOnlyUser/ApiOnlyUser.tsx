@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 // @ts-ignore
 import { fetchCurrentUser, logoutUser } from "redux/nodes/auth/actions";
 import Button from "components/buttons/Button";

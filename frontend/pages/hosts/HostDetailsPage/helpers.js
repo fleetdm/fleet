@@ -1,4 +1,4 @@
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 import PATHS from "router/paths";
 import hostActions from "redux/nodes/entities/hosts/actions";
 

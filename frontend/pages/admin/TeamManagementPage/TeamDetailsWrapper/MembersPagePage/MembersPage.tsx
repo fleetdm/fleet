@@ -6,7 +6,7 @@ import memoize from "memoize-one";
 import { IConfig } from "interfaces/config";
 import { IUser } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";

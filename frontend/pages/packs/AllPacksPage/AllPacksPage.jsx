@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { filter, find, get, includes, isEqual, noop, pull } from "lodash";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 
 import Button from "components/buttons/Button";
 import entityGetter from "redux/utilities/entityGetter";

@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import packInterface from "interfaces/pack";
 import ScheduledQueriesSection from "components/side_panels/PackDetailsSidePanel/ScheduledQueriesSection";
 import scheduledQueryInterface from "interfaces/scheduled_query";

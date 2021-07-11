@@ -1,6 +1,6 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 
 import { IConfig } from "interfaces/config";
 import permissionUtils from "utilities/permissions";

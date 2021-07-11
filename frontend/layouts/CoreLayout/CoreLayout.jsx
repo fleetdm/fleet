@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { logoutUser } from "redux/nodes/auth/actions";
-import { push } from "react-router-redux";
+import { push } from "connected-react-router";
 
 import configInterface from "interfaces/config";
 import FlashMessage from "components/flash_messages/FlashMessage";

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import PATHS from "router/paths";
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
