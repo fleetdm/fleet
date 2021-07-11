@@ -575,7 +575,7 @@ const routes = (
           </App>
         </Route>
 
-        <Route path="*" component={Fleet404} />
+        <Route component={Fleet404} />
       </Switch>
     </ConnectedRouter>
   </Provider>
