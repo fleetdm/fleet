@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -88,7 +89,7 @@ func testSaveUser(t *testing.T, ds fleet.Datastore) {
 
 func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
-		randomText, err := fleet.RandomText(8) //GenerateRandomText(8)
+		randomText, err := server.GenerateRandomText(8) //GenerateRandomText(8)
 		assert.Nil(t, err)
 		user.Password = []byte(randomText)
 		err = ds.SaveUser(user)

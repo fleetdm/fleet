@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/leader"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -146,6 +148,12 @@ the way that the Fleet server works.
 				carveStore = ds
 			}
 
+			locker, ok := ds.(leader.Locker)
+			if !ok {
+				initFatal(errors.New("No leader locker available"), "")
+			}
+			ls := leader.NewLeaderSelector(locker, 20*time.Minute, 20*time.Minute)
+
 			migrationStatus, err := ds.MigrationStatus()
 			if err != nil {
 				initFatal(err, "retrieving migration status")
@@ -202,9 +210,11 @@ the way that the Fleet server works.
 			go func() {
 				ticker := time.NewTicker(1 * time.Hour)
 				for {
-					ds.CleanupDistributedQueryCampaigns(time.Now())
-					ds.CleanupIncomingHosts(time.Now())
-					ds.CleanupCarves(time.Now())
+					if ls.AmILeader() {
+						ds.CleanupDistributedQueryCampaigns(time.Now())
+						ds.CleanupIncomingHosts(time.Now())
+						ds.CleanupCarves(time.Now())
+					}
 					<-ticker.C
 				}
 			}()
@@ -319,7 +329,7 @@ the way that the Fleet server works.
 			if debug {
 				// Add debug endpoints with a random
 				// authorization token
-				debugToken, err := fleet.RandomText(24)
+				debugToken, err := server.GenerateRandomText(24)
 				if err != nil {
 					initFatal(err, "generating debug token")
 				}
@@ -365,6 +375,7 @@ the way that the Fleet server works.
 				defer cancel()
 				errs <- func() error {
 					launcher.GracefulStop()
+					ls.ShutDown()
 					return srv.Shutdown(ctx)
 				}()
 			}()
