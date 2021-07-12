@@ -109,7 +109,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       formData: {
         email: props.defaultEmail || "",
         name: props.defaultName || "",
-        newUserType: NewUserType.AdminCreated,
+        newUserType: props.isNewUser ? NewUserType.AdminCreated : null,
         password: null,
         sso_enabled: props.isNewUser
           ? props.canUseSSO || false
@@ -197,7 +197,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
 
   // UserForm component can be used to create a new user or edit an existing user so submitData will be assembled accordingly
   createSubmitData = (): IFormData => {
-    const { currentUserId } = this.props;
+    const { currentUserId, isNewUser } = this.props;
     const {
       isGlobalUser,
       formData: {
@@ -220,10 +220,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       currentUserId,
     };
 
-    if (
-      newUserType !== NewUserType.AdminCreated &&
-      newUserType !== NewUserType.AdminInvited
-    ) {
+    if (!isNewUser) {
       delete submitData.newUserType; // this field will not be submitted when form is used to edit an existing user
     }
 
