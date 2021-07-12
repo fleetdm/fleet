@@ -377,15 +377,15 @@ const routes = (
                   <LoginRoutes {...props}>
                     <Switch>
                       <Route
-                        path="/invites/:invite_token"
-                        component={ConfirmInvitePage}
+                        path="/login/invites/:invite_token"
+                        render={(props) => <ConfirmInvitePage {...props} />}
                       />
                       <Route
-                        path="/ssoinvites/:invite_token"
-                        component={ConfirmSSOInvitePage}
+                        path="/login/ssoinvites/:invite_token"
+                        render={(props) => <ConfirmSSOInvitePage {...props} />}
                       />
-                      <Route path="/forgot" />
-                      <Route path="/reset" />
+                      <Route path="/login/forgot" />
+                      <Route path="/login/reset" />
                     </Switch>
                   </LoginRoutes>
                 )}

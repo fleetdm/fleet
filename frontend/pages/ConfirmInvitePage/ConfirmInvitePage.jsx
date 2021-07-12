@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { push } from "connected-react-router";
+import queryString from "query-string";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
@@ -80,8 +81,8 @@ class ConfirmInvitePage extends Component {
   }
 }
 
-const mapStateToProps = (state, { location: urlLocation, params }) => {
-  const { email, name } = urlLocation.query;
+const mapStateToProps = (state, { location, params }) => {
+  const { email, name } = queryString.parse(location.search);
   const { invite_token: inviteToken } = params;
   const inviteFormData = { email, invite_token: inviteToken, name };
   const { errors: userErrors } = state.entities.users;
