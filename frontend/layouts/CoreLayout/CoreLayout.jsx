@@ -7,7 +7,6 @@ import { push } from "react-router-redux";
 import configInterface from "interfaces/config";
 import FlashMessage from "components/flash_messages/FlashMessage";
 import PersistentFlash from "components/flash_messages/PersistentFlash";
-import SiteNavHeader from "components/side_panels/SiteNavHeader";
 import SiteNavSidePanel from "components/side_panels/SiteNavSidePanel";
 import userInterface from "interfaces/user";
 import notificationInterface from "interfaces/notification";
@@ -93,12 +92,6 @@ export class CoreLayout extends Component {
     return (
       <div className="app-wrap">
         <nav className="site-nav">
-          <SiteNavHeader
-            config={config}
-            onLogoutUser={onLogoutUser}
-            onNavItemClick={onNavItemClick}
-            user={user}
-          />
           <SiteNavSidePanel
             config={config}
             onLogoutUser={onLogoutUser}
