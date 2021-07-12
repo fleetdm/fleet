@@ -335,19 +335,7 @@ spec:
   agent_options:
     config:
       options:
-        distributed_interval: 3
-        distributed_tls_max_attempts: 3
-        logger_plugin: tls
-        logger_tls_endpoint: /api/v1/osquery/log
-        logger_tls_period: 10
-      decorators:
-        load:
-          - "SELECT version FROM osquery_info"
-          - "SELECT uuid AS host_uuid FROM system_info"
-        always:
-          - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
-        interval:
-          3600: "SELECT total_seconds AS uptime FROM uptime"
+        ...
     overrides:
       platforms:
         darwin:
