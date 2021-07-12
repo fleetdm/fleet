@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // @ts-ignore
@@ -25,7 +25,10 @@ interface IRootState {
 
 const HostsSummary = (): JSX.Element => {
   const dispatch = useDispatch();
-  dispatch(getLabels());
+
+  useEffect(() => {
+    dispatch(getLabels());
+  }, []);
 
   const labels = useSelector((state: IRootState) => state.entities.labels.data);
 
