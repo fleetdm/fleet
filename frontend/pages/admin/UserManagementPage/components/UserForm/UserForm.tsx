@@ -370,7 +370,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             <img src={OpenNewTabIcon} alt="open new tab" />
           </a>
         </InfoBanner>
-        {availableTeams.length !== 0 ? (
+        {availableTeams.length > 0 ? (
           <SelectedTeamsForm
             availableTeams={availableTeams}
             usersCurrentTeams={teams}
