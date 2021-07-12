@@ -35,7 +35,9 @@ const HostsSummary = (): JSX.Element => {
     : "";
   const linuxCount =
     labels[8] && labels[9]
-      ? (labels[8].count + labels[9].count).toLocaleString("en-US")
+      ? (labels[8].count + labels[9].count + labels[11].count).toLocaleString(
+          "en-US"
+        )
       : "";
 
   return (
