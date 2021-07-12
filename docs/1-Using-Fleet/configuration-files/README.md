@@ -322,6 +322,47 @@ spec:
     ...
 ```
 
+#### Auto table construction
+
+You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, see the [Osquery Automatic Table Construction documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction)
+
+If you already know what your ATC configuration needs to look like, you can add it to an options config file:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        distributed_interval: 3
+        distributed_tls_max_attempts: 3
+        logger_plugin: tls
+        logger_tls_endpoint: /api/v1/osquery/log
+        logger_tls_period: 10
+      decorators:
+        load:
+          - "SELECT version FROM osquery_info"
+          - "SELECT uuid AS host_uuid FROM system_info"
+        always:
+          - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
+        interval:
+          3600: "SELECT total_seconds AS uptime FROM uptime"
+    overrides:
+      platforms:
+        darwin:
+          auto_table_construction:
+            tcc_system_entries:
+              query: "select service, client, allowed, prompt_count, last_modified from access"
+              path: "/Library/Application Support/com.apple.TCC/TCC.db"
+              columns:
+                - "service"
+                - "client"
+                - "allowed"
+                - "prompt_count"
+                - "last_modified"
+```
+
 #### SMTP authentication
 
 **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
@@ -335,28 +376,3 @@ The following options are available when configuring SMTP authentication:
   - `authmethod_cram_md5`
   - `authmethod_login`
   - `authmethod_plain`
-
-### Auto table construction
-
-You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, see the [Osquery Automatic Table Construction documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction)
-
-If you already know what your ATC configuration needs to look like, you can add it to an options config file:
-
-```yaml
-apiVersion: v1
-kind: options
-spec:
-  overrides:
-    platforms:
-      darwin:
-        auto_table_construction:
-          tcc_system_entries:
-            query: "select service, client, allowed, prompt_count, last_modified from access"
-            path: "/Library/Application Support/com.apple.TCC/TCC.db"
-            columns:
-              - "service"
-              - "client"
-              - "allowed"
-              - "prompt_count"
-              - "last_modified"
-```
