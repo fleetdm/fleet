@@ -59,7 +59,7 @@ export interface IFormData {
   name: string;
   newUserType?: NewUserType | null;
   password?: string | null;
-  sso_enabled: boolean;
+  sso_enabled?: boolean;
   global_role: string | null;
   teams: ITeam[];
   currentUserId?: number;
@@ -71,17 +71,17 @@ interface ICreateUserFormProps {
   onCancel: () => void;
   onSubmit: (formData: IFormData) => void;
   submitText: string;
-  canUseSSO?: boolean;
   defaultName?: string;
   defaultEmail?: string;
   currentUserId?: number;
   defaultGlobalRole?: string | null;
   defaultTeams?: ITeam[];
   isBasicTier: boolean;
-  isSmtpConfigured?: boolean;
+  smtpConfigured?: boolean;
+  canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
+  isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isNewUser?: boolean;
   validationErrors: any[]; // TODO: proper interface for validationErrors
-  smtpConfigured: boolean;
 }
 
 interface ICreateUserFormState {
@@ -111,9 +111,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
         name: props.defaultName || "",
         newUserType: props.isNewUser ? NewUserType.AdminCreated : null,
         password: null,
-        sso_enabled: props.isNewUser
-          ? props.canUseSSO || false
-          : props.canUseSSO || false, // TODO revisit the else case for editing an existing user; shouldn't this be pulling from the user data instead of global app config?
+        sso_enabled: props.isSsoEnabled,
         global_role: props.defaultGlobalRole || null,
         teams: props.defaultTeams || [],
         currentUserId: props.currentUserId,
@@ -366,7 +364,8 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       onCancel,
       submitText,
       isBasicTier,
-      isSmtpConfigured,
+      smtpConfigured,
+      canUseSso,
       isNewUser,
     } = this.props;
     const {
@@ -398,10 +397,10 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           value={name}
         />
         <div
-          className="smtp-not-configured"
+          className="email-disabled"
           data-tip
-          data-for="smtp-tooltip"
-          data-tip-disable={isSmtpConfigured}
+          data-for="email-disabled-tooltip"
+          data-tip-disable={isNewUser || smtpConfigured}
         >
           <InputFieldWithIcon
             error={errors.email}
@@ -409,14 +408,14 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             onChange={onInputChange("email")}
             placeholder="Email"
             value={email}
-            disabled={!isSmtpConfigured}
+            disabled={!isNewUser && !smtpConfigured}
           />
         </div>
         <ReactTooltip
           place="bottom"
           type="dark"
           effect="solid"
-          id="smtp-tooltip"
+          id="email-disabled-tooltip"
           backgroundColor="#3e4771"
           data-html
         >
@@ -430,18 +429,42 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           </span>
         </ReactTooltip>
         <div className={`${baseClass}__sso-input`}>
-          <Checkbox
-            name="sso_enabled"
-            onChange={onCheckboxChange("sso_enabled")}
-            value={sso_enabled}
-            disabled={!this.props.canUseSSO}
-            wrapperClassName={`${baseClass}__invite-admin`}
+          <div
+            className="sso-disabled"
+            data-tip
+            data-for="sso-disabled-tooltip"
+            data-tip-disable={canUseSso}
           >
-            Enable single sign on
-          </Checkbox>
-          <p className={`${baseClass}__sso-input sublabel`}>
-            Password authentication will be disabled for this user.
-          </p>
+            <Checkbox
+              name="sso_enabled"
+              onChange={onCheckboxChange("sso_enabled")}
+              value={canUseSso && sso_enabled}
+              disabled={!canUseSso}
+              wrapperClassName={`${baseClass}__invite-admin`}
+            >
+              Enable single sign on
+            </Checkbox>
+            <p className={`${baseClass}__sso-input sublabel`}>
+              Password authentication will be disabled for this user.
+            </p>
+          </div>
+          <ReactTooltip
+            place="bottom"
+            type="dark"
+            effect="solid"
+            id="sso-disabled-tooltip"
+            backgroundColor="#3e4771"
+            data-html
+          >
+            <span className={`${baseClass}__tooltip-text`}>
+              Enabling single sign on for a user requires that SSO is <br />
+              first enabled for the organization. <br />
+              <br />
+              Users with Admin role can configure SSO in
+              <br />
+              <strong>Settings &gt; Organization settings</strong>.
+            </span>
+          </ReactTooltip>
         </div>
         {isNewUser && (
           <div className={`${baseClass}__new-user-container`}>
@@ -456,16 +479,16 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                 onChange={onRadioChange("newUserType")}
               />
               <div
-                className="smtp-not-configured"
+                className="invite-diabled"
                 data-tip
-                data-for="invite-user-tooltip"
-                data-tip-disable={isSmtpConfigured}
+                data-for="invite-disabled-tooltip"
+                data-tip-disable={smtpConfigured}
               >
                 <Radio
                   className={`${baseClass}__radio-input`}
                   label={"Invite user"}
                   id={"invite-user"}
-                  disabled={!isSmtpConfigured}
+                  disabled={!smtpConfigured}
                   checked={newUserType === NewUserType.AdminInvited}
                   value={NewUserType.AdminInvited}
                   name={"newUserType"}
@@ -475,16 +498,21 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                   place="bottom"
                   type="dark"
                   effect="solid"
-                  id="invite-user-tooltip"
+                  id="invite-disabled-tooltip"
                   backgroundColor="#3e4771"
                   data-html
                 >
                   <span className={`${baseClass}__tooltip-text`}>
-                    The Invite user feature requires that SMTP is
+                    The &quot;Invite user&quot; feature requires that SMTP is
                     <br />
-                    configured in order to send an invitation email. <br />
+                    configured in order to send invitation emails. <br />
                     <br />
-                    SMTP can be configured in Organization settings.
+                    SMTP can be configured in{" "}
+                    <strong>
+                      Settings &gt; <br />
+                      Organization settings
+                    </strong>
+                    .
                   </span>
                 </ReactTooltip>
               </div>

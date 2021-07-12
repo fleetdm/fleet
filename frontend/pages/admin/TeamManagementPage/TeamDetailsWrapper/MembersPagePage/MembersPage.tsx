@@ -99,6 +99,10 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     return state.app.config.configured;
   });
 
+  const canUseSso = useSelector((state: IRootState) => {
+    return state.app.config.enable_sso;
+  });
+
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
@@ -267,11 +271,12 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           defaultEmail={userEditing?.email}
           defaultGlobalRole={userEditing?.global_role}
           defaultTeams={userEditing?.teams}
-          defaultSSOEnabled={userEditing?.sso_enabled}
           availableTeams={teams}
           validationErrors={[]}
           isBasicTier={isBasicTier}
           smtpConfigured={smtpConfigured}
+          canUseSso={canUseSso}
+          isSsoEnabled={userEditing?.sso_enabled}
         />
       ) : null}
       {showRemoveMemberModal ? (
