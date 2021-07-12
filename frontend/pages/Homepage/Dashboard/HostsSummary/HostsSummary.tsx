@@ -29,36 +29,45 @@ const HostsSummary = (): JSX.Element => {
 
   const labels = useSelector((state: RootState) => state.entities.labels.data);
 
-  const numberWithCommas = (x: number): string => {
-    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  };
+  // const numberWithCommas = (x: number): string => {
+  //   return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  // };
 
-  const createMacCount = () => {
-    let macCount = 0;
-    if (labels[7]) {
-      macCount = labels[7].count;
-    }
+  // const createMacCount = () => {
+  //   let macCount = 0;
+  //   if (labels[7]) {
+  //     macCount = labels[7].count;
+  //   }
 
-    return numberWithCommas(macCount);
-  };
+  //   return numberWithCommas(macCount);
+  // };
 
-  const createWindowsCount = () => {
-    let windowsCount = 0;
-    if (labels[10]) {
-      windowsCount = labels[10].count;
-    }
+  // const createWindowsCount = () => {
+  //   let windowsCount = 0;
+  //   if (labels[10]) {
+  //     windowsCount = labels[10].count;
+  //   }
 
-    return numberWithCommas(windowsCount);
-  };
+  //   return numberWithCommas(windowsCount);
+  // };
 
-  const createLinuxCount = () => {
-    let linuxCount = 0;
-    if (labels[8] && labels[9]) {
-      linuxCount = labels[8].count + labels[9].count;
-    }
+  // const createLinuxCount = () => {
+  //   let linuxCount = 0;
+  //   if (labels[8] && labels[9]) {
+  //     linuxCount = labels[8].count + labels[9].count;
+  //   }
 
-    return numberWithCommas(linuxCount);
-  };
+  //   return numberWithCommas(linuxCount);
+  // };
+
+  const macCount = labels[7] ? labels[7].count.toLocaleString("en-US") : "";
+  const windowsCount = labels[10]
+    ? labels[10].count.toLocaleString("en-US")
+    : "";
+  const linuxCount =
+    labels[8] && labels[9]
+      ? (labels[8].count + labels[9].count).toLocaleString("en-US")
+      : "";
 
   return (
     <div className={baseClass}>
@@ -67,9 +76,7 @@ const HostsSummary = (): JSX.Element => {
           <div className={`${baseClass}__tile-icon`}>
             <img src={MacIcon} alt="mac icon" id="mac-icon" />
           </div>
-          <div className={`${baseClass}__tile-count mac-count`}>
-            {createMacCount()}
-          </div>
+          <div className={`${baseClass}__tile-count mac-count`}>{macCount}</div>
           <div className={`${baseClass}__tile-description`}>macOS hosts</div>
         </div>
         <div className={`${baseClass}__tile windows-tile`}>
@@ -77,7 +84,7 @@ const HostsSummary = (): JSX.Element => {
             <img src={WindowsIcon} alt="windows icon" id="windows-icon" />
           </div>
           <div className={`${baseClass}__tile-count windows-count`}>
-            {createWindowsCount()}
+            {windowsCount}
           </div>
           <div className={`${baseClass}__tile-description`}>Windows hosts</div>
         </div>
@@ -86,7 +93,7 @@ const HostsSummary = (): JSX.Element => {
             <img src={LinuxIcon} alt="linux icon" id="linux-icon" />
           </div>
           <div className={`${baseClass}__tile-count linux-count`}>
-            {createLinuxCount()}
+            {linuxCount}
           </div>
           <div className={`${baseClass}__tile-description`}>Linux hosts</div>
         </div>

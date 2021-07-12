@@ -10,7 +10,7 @@ import LinkArrow from "../../../../assets/images/icon-arrow-right-vibrant-blue-1
 
 const baseClass = "dashboard";
 
-interface RootState {
+interface IRootState {
   auth: {
     user: IUser;
   };
@@ -24,8 +24,8 @@ interface RootState {
 const Dashboard = (): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 
-  const user = useSelector((state: RootState) => state.auth.user);
-  const orgName = useSelector((state: RootState) => state.app.config.org_name);
+  const user = useSelector((state: IRootState) => state.auth.user);
+  const orgName = useSelector((state: IRootState) => state.app.config.org_name);
 
   return (
     <div className={baseClass}>
@@ -51,12 +51,6 @@ const Dashboard = (): JSX.Element => {
             <HostsSummary />
           </div>
         </div>
-        {/* <div className={`${baseClass}__section activity-section`}>
-          <div className={`${baseClass}__section-title`}>
-            <h2>Activity</h2>
-          </div>
-          <div className={`${baseClass}__section-details`}>Details</div>
-        </div> */}
       </div>
     </div>
   );
