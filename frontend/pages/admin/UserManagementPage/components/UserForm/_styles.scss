@@ -1,9 +1,22 @@
 .create-user-form {
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
+  img {
+    width: 12px;
+    height: 12px;
+    margin-left: 6px;
+  }
+
   &__new-user-container {
     margin-top: $pad-large;
     margin-bottom: $pad-large;
   }
-  
+
   &__sso-input {
     margin-top: $pad-large;
     margin-bottom: $pad-large;
@@ -34,19 +47,6 @@
 
     p {
       margin: 0 0 $pad-medium 0;
-    }
-
-    a {
-      color: $core-vibrant-blue;
-      font-size: $x-small;
-      font-weight: $bold;
-      text-decoration: none;
-    }
-
-    img {
-      width: 12px;
-      height: 12px;
-      margin-left: 6px;
     }
   }
 
@@ -90,10 +90,10 @@
       width: 100%;
     }
   }
-  
+
   &__details {
-  float: right;
-  width: 2%;
+    float: right;
+    width: 2%;
 
     .icon-tooltip {
       margin-top: 12px;
