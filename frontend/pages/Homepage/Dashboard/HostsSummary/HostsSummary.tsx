@@ -10,7 +10,7 @@ import MacIcon from "../../../../../assets/images/icon-mac-48x48@2x.png";
 
 const baseClass = "hosts-summary";
 
-interface RootState {
+interface IRootState {
   entities: {
     labels: {
       isLoading: boolean;
@@ -27,38 +27,7 @@ const HostsSummary = (): JSX.Element => {
   const dispatch = useDispatch();
   dispatch(getLabels());
 
-  const labels = useSelector((state: RootState) => state.entities.labels.data);
-
-  // const numberWithCommas = (x: number): string => {
-  //   return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  // };
-
-  // const createMacCount = () => {
-  //   let macCount = 0;
-  //   if (labels[7]) {
-  //     macCount = labels[7].count;
-  //   }
-
-  //   return numberWithCommas(macCount);
-  // };
-
-  // const createWindowsCount = () => {
-  //   let windowsCount = 0;
-  //   if (labels[10]) {
-  //     windowsCount = labels[10].count;
-  //   }
-
-  //   return numberWithCommas(windowsCount);
-  // };
-
-  // const createLinuxCount = () => {
-  //   let linuxCount = 0;
-  //   if (labels[8] && labels[9]) {
-  //     linuxCount = labels[8].count + labels[9].count;
-  //   }
-
-  //   return numberWithCommas(linuxCount);
-  // };
+  const labels = useSelector((state: IRootState) => state.entities.labels.data);
 
   const macCount = labels[7] ? labels[7].count.toLocaleString("en-US") : "";
   const windowsCount = labels[10]
