@@ -5,10 +5,8 @@ import { isEqual } from "lodash";
 import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
-import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import Modal from "components/modals/Modal";
-import WarningBanner from "components/WarningBanner";
 import inviteInterface from "interfaces/invite";
 import configInterface from "interfaces/config";
 import userInterface from "interfaces/user";
@@ -28,6 +26,7 @@ import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserForm from "./components/DeleteUserForm";
 import ResetPasswordModal from "./components/ResetPasswordModal";
 import ResetSessionsModal from "./components/ResetSessionsModal";
+import { NewUserType } from "./components/UserForm/UserForm";
 
 const baseClass = "user-management";
 
@@ -148,28 +147,53 @@ export class UserManagementPage extends Component {
 
   onCreateUserSubmit = (formData) => {
     const { dispatch, config } = this.props;
-    // Do some data formatting adding `invited_by` for the request to be correct.
-    const requestData = {
-      ...formData,
-      invited_by: formData.currentUserId,
-    };
-    delete requestData.currentUserId; // dont need this for the request.
-    dispatch(inviteActions.create(requestData))
-      .then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
-          )
-        );
-        this.toggleCreateUserModal();
-      })
-      .catch(() => {
-        dispatch(
-          renderFlash("error", "Could not create user. Please try again.")
-        );
-        this.toggleCreateUserModal();
-      });
+
+    if (formData.newUserType === NewUserType.AdminInvited) {
+      // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
+      const requestData = {
+        ...formData,
+        invited_by: formData.currentUserId,
+      };
+      delete requestData.currentUserId; // this field is not needed for the request
+      delete requestData.newUserType; // this field is not needed for the request
+      delete requestData.password; // this field is not needed for the request
+      dispatch(inviteActions.create(requestData))
+        .then(() => {
+          dispatch(
+            renderFlash(
+              "success",
+              `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
+            )
+          );
+          this.toggleCreateUserModal();
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash("error", "Could not create user. Please try again.")
+          );
+          this.toggleCreateUserModal();
+        });
+    } else {
+      // Do some data formatting deleteing uncessary fields
+      const requestData = {
+        ...formData,
+      };
+      delete requestData.currentUserId; // this field is not needed for the request
+      delete requestData.newUserType; // this field is not needed for the request
+      dispatch(userActions.createUserWithoutInvitation(requestData))
+        .then(() => {
+          dispatch(
+            renderFlash("success", `Successfully created ${requestData.name}.`)
+          );
+          this.toggleCreateUserModal();
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash("error", "Could not create user. Please try again.")
+          );
+          this.toggleCreateUserModal();
+        });
+    }
   };
 
   onCreateCancel = (evt) => {
@@ -453,9 +477,11 @@ export class UserManagementPage extends Component {
           availableTeams={teams}
           defaultGlobalRole={"observer"}
           defaultTeams={[]}
+          defaultNewUserType={false}
           submitText={"Create"}
           isBasicTier={isBasicTier}
-          smtpConfigured={config.configured}
+          isSmtpConfigured={config.configured}
+          isNewUser
         />
       </Modal>
     );
@@ -514,34 +540,6 @@ export class UserManagementPage extends Component {
     );
   };
 
-  renderSmtpWarning = () => {
-    const { appConfigLoading, config } = this.props;
-    const { goToAppConfigPage } = this;
-
-    if (appConfigLoading) {
-      return false;
-    }
-
-    return (
-      <div className={`${baseClass}__smtp-warning-wrapper`}>
-        <WarningBanner shouldShowWarning={!config.configured}>
-          <span>
-            SMTP is not currently configured in Fleet. The &quot;Create
-            User&quot; feature requires that SMTP is configured in order to send
-            invitation emails.
-          </span>
-          <Button
-            className={`${baseClass}__config-button`}
-            onClick={goToAppConfigPage}
-            variant={"unstyled"}
-          >
-            Configure SMTP
-          </Button>
-        </WarningBanner>
-      </div>
-    );
-  };
-
   render() {
     const {
       tableHeaders,
@@ -550,18 +548,11 @@ export class UserManagementPage extends Component {
       renderDeleteUserModal,
       renderResetPasswordModal,
       renderResetSessionsModal,
-      renderSmtpWarning,
       toggleCreateUserModal,
       onTableQueryChange,
       onActionSelect,
     } = this;
-    const {
-      config,
-      loadingTableData,
-      users,
-      invites,
-      currentUser,
-    } = this.props;
+    const { loadingTableData, users, invites, currentUser } = this.props;
 
     let tableData = [];
     if (!loadingTableData) {
@@ -579,7 +570,6 @@ export class UserManagementPage extends Component {
           Create new users, customize user permissions, and remove users from
           Fleet.
         </p>
-        {renderSmtpWarning()}
         {/* TODO: find a way to move these controls into the table component */}
         <TableContainer
           columns={tableHeaders}
@@ -588,8 +578,7 @@ export class UserManagementPage extends Component {
           defaultSortHeader={"name"}
           defaultSortDirection={"desc"}
           inputPlaceHolder={"Search"}
-          disableActionButton={!config.configured}
-          actionButtonText={"Create User"}
+          actionButtonText={"Create user"}
           onActionButtonClick={toggleCreateUserModal}
           onQueryChange={onTableQueryChange}
           resultsTitle={"users"}
@@ -599,7 +588,6 @@ export class UserManagementPage extends Component {
         {renderEditUserModal()}
         {renderDeleteUserModal()}
         {renderResetSessionsModal()}
-
         {renderResetPasswordModal()}
       </div>
     );

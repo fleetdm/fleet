@@ -8,6 +8,12 @@ import validEmail from "components/forms/validators/valid_email";
 
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
+import validPassword from "components/forms/validators/valid_password";
+// @ts-ignore
+import IconToolTip from "components/IconToolTip";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+// @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -19,6 +25,11 @@ import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const baseClass = "create-user-form";
+
+export enum NewUserType {
+  AdminInvited = "ADMIN_INVITED",
+  AdminCreated = "ADMIN_CREATED",
+}
 
 enum UserTeamType {
   GlobalUser = "GLOBAL_USER",
@@ -46,6 +57,8 @@ const globalUserRoles = [
 export interface IFormData {
   email: string;
   name: string;
+  newUserType?: NewUserType | null;
+  password?: string | null;
   sso_enabled: boolean;
   global_role: string | null;
   teams: ITeam[];
@@ -65,6 +78,8 @@ interface ICreateUserFormProps {
   defaultGlobalRole?: string | null;
   defaultTeams?: ITeam[];
   isBasicTier: boolean;
+  isSmtpConfigured?: boolean;
+  isNewUser?: boolean;
   validationErrors: any[]; // TODO: proper interface for validationErrors
   smtpConfigured: boolean;
 }
@@ -73,6 +88,7 @@ interface ICreateUserFormState {
   errors: {
     email: string | null;
     name: string | null;
+    password: string | null;
     sso_enabled: boolean | null;
   };
   formData: IFormData;
@@ -87,12 +103,17 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       errors: {
         email: null,
         name: null,
+        password: null,
         sso_enabled: null,
       },
       formData: {
         email: props.defaultEmail || "",
         name: props.defaultName || "",
-        sso_enabled: props.canUseSSO || false,
+        newUserType: props.isNewUser ? NewUserType.AdminCreated : null,
+        password: null,
+        sso_enabled: props.isNewUser
+          ? props.canUseSSO || false
+          : props.canUseSSO || false, // TODO revisit the else case for editing an existing user; shouldn't this be pulling from the user data instead of global app config?
         global_role: props.defaultGlobalRole || null,
         teams: props.defaultTeams || [],
         currentUserId: props.currentUserId,
@@ -121,6 +142,12 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   };
 
   onCheckboxChange = (formField: string): ((evt: string) => void) => {
+    return (evt: string) => {
+      return this.onInputChange(formField)(evt);
+    };
+  };
+
+  onRadioChange = (formField: string): ((evt: string) => void) => {
     return (evt: string) => {
       return this.onInputChange(formField)(evt);
     };
@@ -168,19 +195,39 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     }
   };
 
+  // UserForm component can be used to create a new user or edit an existing user so submitData will be assembled accordingly
   createSubmitData = (): IFormData => {
-    const { currentUserId } = this.props;
+    const { currentUserId, isNewUser } = this.props;
     const {
       isGlobalUser,
-      formData: { email, name, sso_enabled, global_role, teams },
+      formData: {
+        email,
+        name,
+        newUserType,
+        password,
+        sso_enabled,
+        global_role,
+        teams,
+      },
     } = this.state;
 
     const submitData = {
       email,
       name,
+      newUserType,
+      password,
       sso_enabled,
       currentUserId,
     };
+
+    if (!isNewUser) {
+      delete submitData.newUserType; // this field will not be submitted when form is used to edit an existing user
+    }
+
+    if (submitData.sso_enabled || newUserType === NewUserType.AdminInvited) {
+      delete submitData.password; // this field will not be submitted with the form
+    }
+
     return isGlobalUser
       ? { ...submitData, global_role, teams: [] }
       : { ...submitData, global_role: null, teams };
@@ -189,8 +236,9 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   validate = (): boolean => {
     const {
       errors,
-      formData: { email },
+      formData: { email, password, newUserType, sso_enabled },
     } = this.state;
+    const { isNewUser } = this.props;
 
     if (!validatePresence(email)) {
       this.setState({
@@ -212,6 +260,29 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       });
 
       return false;
+    }
+
+    if (isNewUser && newUserType === NewUserType.AdminCreated && !sso_enabled) {
+      if (!validatePresence(password)) {
+        this.setState({
+          errors: {
+            ...errors,
+            password: "Password field must be completed",
+          },
+        });
+
+        return false;
+      }
+      if (!validPassword(password)) {
+        this.setState({
+          errors: {
+            ...errors,
+            password: "Password must meet the criteria below",
+          },
+        });
+
+        return false;
+      }
     }
 
     return true;
@@ -288,14 +359,21 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   render(): JSX.Element {
     const {
       errors,
-      formData: { email, name, sso_enabled },
+      formData: { email, name, newUserType, password, sso_enabled },
       isGlobalUser,
     } = this.state;
-    const { onCancel, submitText, isBasicTier, smtpConfigured } = this.props;
+    const {
+      onCancel,
+      submitText,
+      isBasicTier,
+      isSmtpConfigured,
+      isNewUser,
+    } = this.props;
     const {
       onFormSubmit,
       onInputChange,
       onCheckboxChange,
+      onRadioChange,
       onIsGlobalUserChange,
       renderGlobalRoleForm,
       renderTeamsForm,
@@ -323,7 +401,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           className="smtp-not-configured"
           data-tip
           data-for="smtp-tooltip"
-          data-tip-disable={smtpConfigured}
+          data-tip-disable={isSmtpConfigured}
         >
           <InputFieldWithIcon
             error={errors.email}
@@ -331,7 +409,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             onChange={onInputChange("email")}
             placeholder="Email"
             value={email}
-            disabled={!smtpConfigured}
+            disabled={!isSmtpConfigured}
           />
         </div>
         <ReactTooltip
@@ -365,6 +443,83 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             Password authentication will be disabled for this user.
           </p>
         </div>
+        {isNewUser && (
+          <div className={`${baseClass}__new-user-container`}>
+            <div className={`${baseClass}__new-user-radios`}>
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label={"Create user"}
+                id={"create-user"}
+                checked={newUserType !== NewUserType.AdminInvited}
+                value={NewUserType.AdminCreated}
+                name={"newUserType"}
+                onChange={onRadioChange("newUserType")}
+              />
+              <div
+                className="smtp-not-configured"
+                data-tip
+                data-for="invite-user-tooltip"
+                data-tip-disable={isSmtpConfigured}
+              >
+                <Radio
+                  className={`${baseClass}__radio-input`}
+                  label={"Invite user"}
+                  id={"invite-user"}
+                  disabled={!isSmtpConfigured}
+                  checked={newUserType === NewUserType.AdminInvited}
+                  value={NewUserType.AdminInvited}
+                  name={"newUserType"}
+                  onChange={onRadioChange("newUserType")}
+                />
+                <ReactTooltip
+                  place="bottom"
+                  type="dark"
+                  effect="solid"
+                  id="invite-user-tooltip"
+                  backgroundColor="#3e4771"
+                  data-html
+                >
+                  <span className={`${baseClass}__tooltip-text`}>
+                    The Invite user feature requires that SMTP is
+                    <br />
+                    configured in order to send an invitation email. <br />
+                    <br />
+                    SMTP can be configured in Organization settings.
+                  </span>
+                </ReactTooltip>
+              </div>
+            </div>
+            {newUserType !== NewUserType.AdminInvited && !sso_enabled && (
+              <>
+                <div className={`${baseClass}__password`}>
+                  <InputField
+                    error={errors.password}
+                    name="password"
+                    onChange={onInputChange("password")}
+                    placeholder="Password"
+                    value={password}
+                    type="password"
+                    hint={[
+                      "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+                    ]}
+                  />
+                </div>
+                <div className={`${baseClass}__details`}>
+                  <IconToolTip
+                    isHtml
+                    text={`\
+                      <div class="tooltip-text">\
+                        <p>This password is temporary.</p>\
+                        <p> This user will be asked to set a new password after logging in to the Fleet UI.</p>\
+                        <p>This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.</p>\
+                      </div>\
+                    `}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {isBasicTier && (
           <div className={`${baseClass}__selected-teams-container`}>
             <div className={`${baseClass}__team-radios`}>

@@ -36,6 +36,7 @@ export default {
   STATUS_LABEL_COUNTS: "/v1/fleet/host_summary",
   TARGETS: "/v1/fleet/targets",
   USERS: "/v1/fleet/users",
+  USERS_ADMIN: "/v1/fleet/users/admin",
   UPDATE_USER_ADMIN: (id: number): string => {
     return `/v1/fleet/users/${id}/admin`;
   },

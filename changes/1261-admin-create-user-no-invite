@@ -1,0 +1,8 @@
+- Add `USERS_ADMIN` endpoint to `fleet/endpoints`
+- Add `createUserWithoutInvitation` action to `redux/nodes/entities/users`
+- Revise `UserManagementPage`
+- Revise `UserForm`
+- Update existing Cypress test
+- Remove `renderSmtpWarning` from `UserManagementPage`
+
+Implements #369
