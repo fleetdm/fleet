@@ -178,7 +178,7 @@ func (f *firehoseLogWriter) putRecordBatch(try int, records []*firehose.Record) 
 
 			return errors.Errorf(
 				"failed to put %d records, retries exhausted. First error: %s",
-				output.FailedPutCount, errMsg,
+				*output.FailedPutCount, errMsg,
 			)
 		}
 
