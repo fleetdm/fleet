@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-/*
-Test cases:
-- if leader dies, some other instance can be leader
-- only one of a few is leader
-*/
-
 type globalMutexLock struct {
 	ch     chan struct{}
 	locked bool
