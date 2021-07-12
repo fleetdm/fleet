@@ -439,11 +439,12 @@ export class UserManagementPage extends Component {
           currentUserId={currentUser.id}
           onCancel={toggleEditUserModal}
           onSubmit={onEditUser}
-          canUseSSO={config.enable_sso}
           availableTeams={teams}
           submitText={"Save"}
           isBasicTier={isBasicTier}
           smtpConfigured={config.configured}
+          canUseSso={config.enable_sso}
+          isSsoEnabled={userData.sso_enabled}
         />
       </Modal>
     );
@@ -473,14 +474,14 @@ export class UserManagementPage extends Component {
           currentUserId={currentUser.id}
           onCancel={toggleCreateUserModal}
           onSubmit={onCreateUserSubmit}
-          canUseSSO={config.enable_sso}
           availableTeams={teams}
           defaultGlobalRole={"observer"}
           defaultTeams={[]}
           defaultNewUserType={false}
           submitText={"Create"}
           isBasicTier={isBasicTier}
-          isSmtpConfigured={config.configured}
+          smtpConfigured={config.configured}
+          canUseSso={config.enable_sso}
           isNewUser
         />
       </Modal>
