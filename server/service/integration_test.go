@@ -120,7 +120,7 @@ func doReq(
 	return resp
 }
 
-func doJsonReq(
+func doJSONReq(
 	t *testing.T,
 	params interface{},
 	method string,
@@ -155,7 +155,7 @@ func testQueryCreationLogsActivity(t *testing.T, ds fleet.Datastore) {
 		Activities []map[string]interface{} `json:"activities"`
 	}
 	activities := activitiesRespose{}
-	doJsonReq(t, nil, "GET", server, "/api/v1/fleet/activities", token, http.StatusOK, &activities)
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/activities", token, http.StatusOK, &activities)
 
 	assert.Len(t, activities.Activities, 1)
 	assert.Equal(t, "Test Name admin1@example.com", activities.Activities[0]["actor_full_name"])
@@ -198,7 +198,7 @@ func applyConfig(t *testing.T, spec []byte, server *httptest.Server, token strin
 
 func getConfig(t *testing.T, server *httptest.Server, token string) *fleet.AppConfigPayload {
 	var responseBody *fleet.AppConfigPayload
-	doJsonReq(t, nil, "GET", server, "/api/v1/fleet/config", token, http.StatusOK, &responseBody)
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/config", token, http.StatusOK, &responseBody)
 	return responseBody
 }
 

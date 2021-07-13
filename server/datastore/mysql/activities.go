@@ -13,8 +13,9 @@ func (d *Datastore) NewActivity(user *fleet.User, activityType string, details *
 		return errors.Wrap(err, "marshaling activity details")
 	}
 	_, err = d.db.Exec(
-		`INSERT INTO activities (user_id, activity_type, details) VALUES(?,?,?)`,
+		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
 		user.ID,
+		user.Name,
 		activityType,
 		detailsBytes,
 	)
@@ -26,7 +27,9 @@ func (d *Datastore) NewActivity(user *fleet.User, activityType string, details *
 
 func (d *Datastore) ListActivities(opt fleet.ListOptions) ([]*fleet.Activity, error) {
 	activities := []*fleet.Activity{}
-	query := "SELECT a.*, u.name as name FROM activities a JOIN users u ON (a.user_id=u.id) WHERE true"
+	query := `SELECT a.id, a.user_id, a.created_at, a.activity_type, a.details, coalesce(u.name, a.user_name) as name 
+	          FROM activities a LEFT JOIN users u ON (a.user_id=u.id)
+			  WHERE true`
 	query = appendListOptionsToSQL(query, opt)
 
 	err := d.db.Select(&activities, query)

@@ -17,7 +17,7 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 
 	return svc.ds.NewActivity(
 		authz.UserFromContext(ctx),
-		fleet.AppliedSpecPackActivityType,
+		fleet.ActivityTypeAppliedSpecPack,
 		&map[string]interface{}{},
 	)
 }
@@ -84,7 +84,7 @@ func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pa
 
 	if err := svc.ds.NewActivity(
 		authz.UserFromContext(ctx),
-		fleet.CreatedPackActivityType,
+		fleet.ActivityTypeCreatedPack,
 		&map[string]interface{}{"pack_id": pack.ID, "pack_name": pack.Name},
 	); err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 
 	if err := svc.ds.NewActivity(
 		authz.UserFromContext(ctx),
-		fleet.EditedPackActivityType,
+		fleet.ActivityTypeEditedPack,
 		&map[string]interface{}{"pack_id": pack.ID, "pack_name": pack.Name},
 	); err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func (svc *Service) DeletePack(ctx context.Context, name string) error {
 
 	return svc.ds.NewActivity(
 		authz.UserFromContext(ctx),
-		fleet.DeletedPackActivityType,
+		fleet.ActivityTypeDeletedPack,
 		&map[string]interface{}{"pack_name": name},
 	)
 }
@@ -178,7 +178,7 @@ func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 
 	return svc.ds.NewActivity(
 		authz.UserFromContext(ctx),
-		fleet.DeletedPackActivityType,
+		fleet.ActivityTypeDeletedPack,
 		&map[string]interface{}{"pack_name": pack.Name},
 	)
 }

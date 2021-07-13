@@ -40,3 +40,38 @@ func testNewActivity(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, "fullname", activities[0].ActorFullName)
 	assert.Equal(t, "test2", activities[0].Type)
 }
+
+func testActivityUsernameChange(t *testing.T, ds fleet.Datastore) {
+	u := &fleet.User{
+		Password:   []byte("asd"),
+		Name:       "fullname",
+		Email:      "email@asd.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	_, err := ds.NewUser(u)
+	require.Nil(t, err)
+	require.NoError(t, ds.NewActivity(u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
+	require.NoError(t, ds.NewActivity(u, "test2", &map[string]interface{}{"detail": 2}))
+
+	activities, err := ds.ListActivities(fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, activities, 2)
+	assert.Equal(t, "fullname", activities[0].ActorFullName)
+
+	u.Name = "newname"
+	err = ds.SaveUser(u)
+	require.NoError(t, err)
+
+	activities, err = ds.ListActivities(fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, activities, 2)
+	assert.Equal(t, "newname", activities[0].ActorFullName)
+
+	err = ds.DeleteUser(u.ID)
+	require.NoError(t, err)
+
+	activities, err = ds.ListActivities(fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, activities, 2)
+	assert.Equal(t, "fullname", activities[0].ActorFullName)
+}

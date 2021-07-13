@@ -6,18 +6,18 @@ import (
 )
 
 const (
-	CreatedPackActivityType               = "created_pack"
-	EditedPackActivityType                = "edited_pack"
-	DeletedPackActivityType               = "deleted_pack"
-	AppliedSpecPackActivityType           = "applied_spec_pack"
-	CreatedSavedQueryActivityType         = "created_saved_query"
-	EditedSavedQueryActivityType          = "edited_saved_query"
-	DeletedSavedQueryActivityType         = "deleted_saved_query"
-	DeletedMultipleSavedQueryActivityType = "deleted_multiple_saved_query"
-	AppliedSpecSavedQueryActivityType     = "applied_spec_saved_query"
-	CreatedTeamActivityType               = "created_team"
-	DeletedTeamActivityType               = "deleted_team"
-	LiveQueryActivityType                 = "live_query"
+	ActivityTypeCreatedPack               = "created_pack"
+	ActivityTypeEditedPack                = "edited_pack"
+	ActivityTypeDeletedPack               = "deleted_pack"
+	ActivityTypeAppliedSpecPack           = "applied_spec_pack"
+	ActivityTypeCreatedSavedQuery         = "created_saved_query"
+	ActivityTypeEditedSavedQuery          = "edited_saved_query"
+	ActivityTypeDeletedSavedQuery         = "deleted_saved_query"
+	ActivityTypeDeletedMultipleSavedQuery = "deleted_multiple_saved_query"
+	ActivityTypeAppliedSpecSavedQuery     = "applied_spec_saved_query"
+	ActivityTypeCreatedTeam               = "created_team"
+	ActivityTypeDeletedTeam               = "deleted_team"
+	ActivityTypeLiveQuery                 = "live_query"
 )
 
 type ActivitiesStore interface {
@@ -36,4 +36,8 @@ type Activity struct {
 	ActorId       uint             `json:"actor_id" db:"user_id"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
+}
+
+func (*Activity) AuthzType() string {
+	return "activity"
 }

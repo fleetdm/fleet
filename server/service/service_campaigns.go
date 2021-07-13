@@ -138,8 +138,8 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 
 	if err := svc.ds.NewActivity(
 		authz.UserFromContext(ctx),
-		fleet.LiveQueryActivityType,
-		&map[string]interface{}{"target_counts": len(targets.HostIDs)},
+		fleet.ActivityTypeLiveQuery,
+		&map[string]interface{}{"target_counts": campaign.Metrics.TotalHosts},
 	); err != nil {
 		return nil, err
 	}

@@ -15,10 +15,10 @@ func Up_20210709124443(tx *sql.Tx) error {
 			id int(10) unsigned NOT NULL AUTO_INCREMENT,
 			created_at timestamp DEFAULT CURRENT_TIMESTAMP,
 			user_id int unsigned NOT NULL,
+			user_name varchar(255),
 			activity_type varchar(255) NOT NULL,
 			details json DEFAULT NULL,
-			PRIMARY KEY (id),
-			FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
+			PRIMARY KEY (id)
 		)
 	`
 	if _, err := tx.Exec(sql); err != nil {
