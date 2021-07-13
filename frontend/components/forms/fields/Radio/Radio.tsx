@@ -27,8 +27,12 @@ const Radio = (props: IRadioProps): JSX.Element => {
   } = props;
   const wrapperClasses = classnames(baseClass, className);
 
+  const radioControlClass = classnames({
+    [`disabled`]: disabled,
+  });
+
   return (
-    <label htmlFor={id} className={wrapperClasses}>
+    <label htmlFor={id} className={`${wrapperClasses} ${radioControlClass}`}>
       <span className={`${baseClass}__input`}>
         <input
           type="radio"

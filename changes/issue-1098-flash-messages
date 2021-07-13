@@ -1,0 +1,3 @@
+* Packs success and error messages render
+* Updates styling of flash messages
+* Success flash message only persists for 4 seconds

@@ -9,6 +9,7 @@ export default PropTypes.shape({
   domain: PropTypes.string,
   enable_analytics: PropTypes.bool,
   enable_ssl_tls: PropTypes.bool,
+  enabled_sso: PropTypes.bool,
   enable_start_tls: PropTypes.bool,
   host_expiry_enabled: PropTypes.bool,
   host_expiry_window: PropTypes.number,
@@ -33,6 +34,7 @@ export interface IConfig {
   domain: string;
   enable_analytics: boolean;
   enable_ssl_tls: boolean;
+  enable_sso: boolean;
   enable_start_tls: boolean;
   host_expiry_enabled: boolean;
   host_expiry_window: number;

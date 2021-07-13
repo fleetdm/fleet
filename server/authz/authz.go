@@ -84,7 +84,7 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 		authctx.Checked = true
 	}
 
-	subject := userFromContext(ctx)
+	subject := UserFromContext(ctx)
 	if subject == nil {
 		return ForbiddenWithInternal("nil subject always forbidden", subject, object, action)
 	}
@@ -162,9 +162,9 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	return out, nil
 }
 
-// userFromContext retrieves a user from the viewer context, returning nil if
+// UserFromContext retrieves a user from the viewer context, returning nil if
 // there is no user.
-func userFromContext(ctx context.Context) *fleet.User {
+func UserFromContext(ctx context.Context) *fleet.User {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil

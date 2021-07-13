@@ -1,0 +1,1 @@
+* When creating packs, store the host, label, and team ids provided. Fixes issue 1206

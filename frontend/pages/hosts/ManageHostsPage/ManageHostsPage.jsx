@@ -100,6 +100,8 @@ export class ManageHostsPage extends PureComponent {
           ? storedHiddenColumns
           : defaultHiddenColumns,
       selectedHostIds: [],
+      isAllMatchingHostsSelected: false,
+      searchQuery: "",
     };
   }
 
@@ -191,6 +193,10 @@ export class ManageHostsPage extends PureComponent {
     if (sortHeader !== "") {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
+
+    // keep track as a local state to be used later
+    this.setState({ searchQuery });
+
     dispatch(
       getHosts(pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
     );
@@ -268,11 +274,35 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onTransferHostSubmit = (team) => {
-    const { toggleTransferHostModal } = this;
-    const { dispatch } = this.props;
-    const { selectedHostIds } = this.state;
+    const { toggleTransferHostModal, isAcceptableStatus } = this;
+    const { dispatch, selectedFilter, selectedLabel } = this.props;
+    const {
+      selectedHostIds,
+      isAllMatchingHostsSelected,
+      searchQuery,
+    } = this.state;
     const teamId = team.id === "no-team" ? null : team.id;
-    dispatch(hostActions.transferToTeam(teamId, selectedHostIds))
+    let action = hostActions.transferToTeam(teamId, selectedHostIds);
+
+    if (isAllMatchingHostsSelected) {
+      let status = "";
+      let labelId = null;
+
+      if (isAcceptableStatus(selectedFilter)) {
+        status = selectedFilter;
+      } else {
+        labelId = selectedLabel.id;
+      }
+
+      action = hostActions.transferToTeamByFilter(
+        teamId,
+        searchQuery,
+        status,
+        labelId
+      );
+    }
+
+    dispatch(action)
       .then(() => {
         const successMessage =
           teamId === null
@@ -286,8 +316,19 @@ export class ManageHostsPage extends PureComponent {
           renderFlash("error", "Could not transfer hosts. Please try again.")
         );
       });
+
     toggleTransferHostModal();
     this.setState({ selectedHostIds: [] });
+    this.setState({ isAllMatchingHostsSelected: false });
+  };
+
+  isAcceptableStatus = (filter) => {
+    return (
+      filter === "new" ||
+      filter === "online" ||
+      filter === "offline" ||
+      filter === "mia"
+    );
   };
 
   clearHostUpdates() {
@@ -310,6 +351,19 @@ export class ManageHostsPage extends PureComponent {
   toggleTransferHostModal = () => {
     const { showTransferHostModal } = this.state;
     this.setState({ showTransferHostModal: !showTransferHostModal });
+  };
+
+  toggleAllMatchingHosts = (shouldSelect = undefined) => {
+    // shouldSelect?: boolean
+    const { isAllMatchingHostsSelected } = this.state;
+
+    if (shouldSelect !== undefined) {
+      this.setState({ isAllMatchingHostsSelected: shouldSelect });
+    } else {
+      this.setState({
+        isAllMatchingHostsSelected: !isAllMatchingHostsSelected,
+      });
+    }
   };
 
   renderEditColumnsModal = () => {
@@ -578,11 +632,12 @@ export class ManageHostsPage extends PureComponent {
       hosts,
       loadingHosts,
     } = this.props;
-    const { hiddenColumns } = this.state;
+    const { hiddenColumns, isAllMatchingHostsSelected } = this.state;
     const {
       onTableQueryChange,
       onEditColumnsClick,
       onTransferToTeamClick,
+      toggleAllMatchingHosts,
     } = this;
 
     // The data has not been fetched yet.
@@ -615,6 +670,9 @@ export class ManageHostsPage extends PureComponent {
         onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
         emptyComponent={EmptyHosts}
+        showMarkAllPages
+        isAllPagesSelected={isAllMatchingHostsSelected}
+        toggleAllPagesSelected={toggleAllMatchingHosts}
       />
     );
   };

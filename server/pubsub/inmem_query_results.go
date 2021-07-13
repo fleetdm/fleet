@@ -34,10 +34,7 @@ func (im *inmemQueryResults) getChannel(id uint) chan interface{} {
 }
 
 func (im *inmemQueryResults) WriteResult(result fleet.DistributedQueryResult) error {
-	channel, ok := im.resultChannels[result.DistributedQueryCampaignID]
-	if !ok {
-		return noSubscriberError{strconv.Itoa(int(result.DistributedQueryCampaignID))}
-	}
+	channel := im.getChannel(result.DistributedQueryCampaignID)
 
 	select {
 	case channel <- result:

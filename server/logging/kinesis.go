@@ -186,7 +186,7 @@ func (k *kinesisLogWriter) putRecords(try int, records []*kinesis.PutRecordsRequ
 
 			return errors.Errorf(
 				"failed to put %d records, retries exhausted. First error: %s",
-				output.FailedRecordCount, errMsg,
+				*output.FailedRecordCount, errMsg,
 			)
 		}
 

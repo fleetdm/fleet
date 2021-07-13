@@ -14,6 +14,10 @@ var userSearchColumns = []string{"name", "email"}
 
 // NewUser creates a new user
 func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
+	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
+		return nil, err
+	}
+
 	sqlStatement := `
       INSERT INTO users (
       	password,
@@ -115,6 +119,10 @@ func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
 }
 
 func (d *Datastore) SaveUser(user *fleet.User) error {
+	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
+		return err
+	}
+
 	sqlStatement := `
       UPDATE users SET
       	password = ?,
