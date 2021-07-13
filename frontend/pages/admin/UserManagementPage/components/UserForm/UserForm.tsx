@@ -1,5 +1,7 @@
 import React, { Component, FormEvent } from "react";
 import ReactTooltip from "react-tooltip";
+import { Link } from "react-router";
+import PATHS from "router/paths";
 
 import { ITeam } from "interfaces/team";
 import Button from "components/buttons/Button";
@@ -322,8 +324,29 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     );
   };
 
+  renderNoTeamsMessage = (): JSX.Element => {
+    return (
+      <div>
+        <p>
+          <strong>You have no teams.</strong>
+        </p>
+        <p>
+          Expecting to see teams? Try again in a few seconds as the system
+          catches up or&nbsp;
+          <Link
+            className={`${baseClass}__create-team-link`}
+            to={PATHS.ADMIN_TEAMS}
+          >
+            create a team
+          </Link>
+          .
+        </p>
+      </div>
+    );
+  };
+
   renderTeamsForm = (): JSX.Element => {
-    const { onSelectedTeamChange } = this;
+    const { onSelectedTeamChange, renderNoTeamsMessage } = this;
     const { availableTeams, isBasicTier } = this.props;
     const {
       formData: { teams },
@@ -345,11 +368,15 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             <img src={OpenNewTabIcon} alt="open new tab" />
           </a>
         </InfoBanner>
-        <SelectedTeamsForm
-          availableTeams={availableTeams}
-          usersCurrentTeams={teams}
-          onFormChange={onSelectedTeamChange}
-        />
+        {availableTeams.length > 0 ? (
+          <SelectedTeamsForm
+            availableTeams={availableTeams}
+            usersCurrentTeams={teams}
+            onFormChange={onSelectedTeamChange}
+          />
+        ) : (
+          renderNoTeamsMessage()
+        )}
       </>
     );
   };
