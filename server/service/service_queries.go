@@ -51,14 +51,11 @@ func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec
 		return errors.Wrap(err, "applying queries")
 	}
 
-	if err := svc.ds.NewActivity(
+	return svc.ds.NewActivity(
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecSavedQuery,
 		&map[string]interface{}{"specs": specs},
-	); err != nil {
-		return err
-	}
-	return nil
+	)
 }
 
 func (svc Service) GetQuerySpecs(ctx context.Context) ([]*fleet.QuerySpec, error) {

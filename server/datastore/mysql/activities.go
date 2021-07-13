@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// NewActivity stores an activity item that the user performed
 func (d *Datastore) NewActivity(user *fleet.User, activityType string, details *map[string]interface{}) error {
 	detailsBytes, err := json.Marshal(details)
 	if err != nil {
@@ -25,6 +26,7 @@ func (d *Datastore) NewActivity(user *fleet.User, activityType string, details *
 	return nil
 }
 
+// ListActivities returns a slice of activities performed across the organization
 func (d *Datastore) ListActivities(opt fleet.ListOptions) ([]*fleet.Activity, error) {
 	activities := []*fleet.Activity{}
 	query := `SELECT a.id, a.user_id, a.created_at, a.activity_type, a.details, coalesce(u.name, a.user_name) as name 
