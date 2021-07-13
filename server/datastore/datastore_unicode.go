@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"testing"
 	"time"
 
@@ -39,7 +40,12 @@ func testUnicode(t *testing.T, ds fleet.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, "🍌", host.Hostname)
 
-	user, err := ds.NewUser(&fleet.User{Name: "🍱", Email: "test@example.com", Password: []byte{}})
+	user, err := ds.NewUser(&fleet.User{
+		Name:       "🍱",
+		Email:      "test@example.com",
+		Password:   []byte{},
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	})
 	require.Nil(t, err)
 
 	user, err = ds.UserByID(user.ID)
