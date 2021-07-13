@@ -139,6 +139,24 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 		}
 	}
 
+	if host.HostSoftware.Modified {
+		if err := d.SaveHostSoftware(host); err != nil {
+			return errors.Wrap(err, "failed to save host software")
+		}
+	}
+
+	if host.Modified {
+		if err := d.SaveHostAdditional(host); err != nil {
+			return errors.Wrap(err, "failed to save host additional")
+		}
+
+		if err := d.SaveHostUsers(host); err != nil {
+			return errors.Wrap(err, "failed to save host users")
+		}
+	}
+
+	host.Modified = false
+
 	return nil
 }
 
@@ -254,6 +272,14 @@ WHERE host_id = ?
 	return nil
 }
 
+func (d *Datastore) loadHostUsers(host *fleet.Host) error {
+	sql := `SELECT id, username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
+	if err := d.db.Select(&host.Users, sql, host.ID); err != nil {
+		return errors.Wrap(err, "load pack stats")
+	}
+	return nil
+}
+
 func (d *Datastore) DeleteHost(hid uint) error {
 	err := d.deleteEntity("hosts", hid)
 	if err != nil {
@@ -275,6 +301,9 @@ func (d *Datastore) Host(id uint) (*fleet.Host, error) {
 		return nil, errors.Wrap(err, "get host by id")
 	}
 	if err := d.loadHostPackStats(host); err != nil {
+		return nil, err
+	}
+	if err := d.loadHostUsers(host); err != nil {
 		return nil, err
 	}
 
@@ -744,6 +773,61 @@ func (d *Datastore) SaveHostAdditional(host *fleet.Host) error {
 	`
 	if _, err := d.db.Exec(sql, host.ID, host.Additional); err != nil {
 		return errors.Wrap(err, "insert additional")
+	}
+
+	return nil
+}
+
+func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
+	if len(host.Users) == 0 {
+		if _, err := d.db.Exec(
+			`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE host_id = ?`,
+			host.ID,
+		); err != nil {
+			return errors.Wrap(err, "mark all users as removed")
+		}
+
+		return nil
+	}
+
+	currentHost := &fleet.Host{ID: host.ID}
+	if err := d.loadHostUsers(currentHost); err != nil {
+		return err
+	}
+
+	incomingUsers := make(map[uint]bool)
+	var insertArgs []interface{}
+	for _, u := range host.Users {
+		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName)
+		incomingUsers[u.Uid] = true
+	}
+
+	var removedArgs []interface{}
+	for _, u := range currentHost.Users {
+		if _, ok := incomingUsers[u.Uid]; !ok {
+			removedArgs = append(removedArgs, u.ID)
+		}
+	}
+
+	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(host.Users)), ",")
+	insertSql := fmt.Sprintf(
+		`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s`,
+		insertValues,
+	)
+	if _, err := d.db.Exec(insertSql, insertArgs...); err != nil {
+		return errors.Wrap(err, "insert users")
+	}
+
+	if len(removedArgs) == 0 {
+		return nil
+	}
+	removedValues := strings.TrimSuffix(strings.Repeat("?,", len(removedArgs)), ",")
+	removedSql := fmt.Sprintf(
+		`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE id IN (%s)`,
+		removedValues,
+	)
+	if _, err := d.db.Exec(removedSql, removedArgs...); err != nil {
+		return errors.Wrap(err, "mark users as removed")
 	}
 
 	return nil
