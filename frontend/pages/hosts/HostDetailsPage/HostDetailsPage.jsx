@@ -15,9 +15,15 @@ import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities";
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 import TableContainer from "components/TableContainer";
+import {
+  generateTableHeaders,
+  generateDataSet,
+} from "./SoftwareTable/SoftwareTableConfig";
+import EmptySoftware from "./EmptySoftware";
 
 import permissionUtils from "utilities/permissions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
+import softwareActions from "redux/nodes/entities/software/actions";
 import { getHosts } from "redux/nodes/components/ManageHostsPage/actions";
 import queryActions from "redux/nodes/entities/queries/actions";
 import teamInterface from "interfaces/team";
@@ -453,8 +459,48 @@ export class HostDetailsPage extends Component {
   };
 
   renderSoftware = () => {
+    // const { EmptySoftware } = this;
     const { host } = this.props;
     const wrapperClassName = `${baseClass}__table`;
+
+    const tableHeaders = generateTableHeaders();
+
+    // Hardcoded in false for loading table data
+    const loadingTableData = false;
+
+    // Search functionality
+    // NOTE: this is called once on the initial rendering. The initial render of
+    // the TableContainer child component will call this handler.
+    const onQueryChange = (queryData) => {
+      const { selectedFilter, dispatch } = this.props;
+      const {
+        pageIndex,
+        pageSize,
+        searchQuery,
+        sortHeader,
+        sortDirection,
+      } = queryData;
+      let sortBy = [];
+      if (sortHeader !== "") {
+        sortBy = [{ id: sortHeader, direction: sortDirection }];
+      }
+      // TODO: LOAD ALL OR GET SOFTWARE? IDK!
+      // dispatch(
+      //   softwareActions.loadAll({
+      //     page: pageIndex,
+      //     perPage: pageSize,
+      //     globalFilter: searchQuery,
+      //     sortBy,
+      //   })
+      // );
+
+      // // keep track as a local state to be used later
+      // this.setState({ searchQuery });
+
+      // dispatch(
+      //   getSoftware(pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
+      // );
+    };
 
     return (
       <div className="section section--software">
@@ -472,23 +518,21 @@ export class HostDetailsPage extends Component {
           </div>
         ) : (
           <>
+            <SoftwareVulnerabilities softwareList={host.software} />
+
             <TableContainer
               columns={tableHeaders}
-              data={teams}
+              data={generateDataSet(host.software)}
               isLoading={loadingTableData}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
               inputPlaceHolder={"Filter software"}
-              actionButtonText={"Create Team"}
-              actionButtonVariant={"primary"}
-              onActionButtonClick={toggleCreateTeamModal}
               onQueryChange={onQueryChange}
-              resultsTitle={"teams"}
-              emptyComponent={EmptyTeams}
+              resultsTitle={"software"}
+              emptyComponent={EmptySoftware}
               showMarkAllPages={false}
-              isAllPagesSelected={false}
             />
-            <SoftwareVulnerabilities softwareList={host.software} />
+
             <div className={`${baseClass}__wrapper`}>
               <table className={wrapperClassName}>
                 <thead>
