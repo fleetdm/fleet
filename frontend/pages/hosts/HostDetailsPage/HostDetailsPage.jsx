@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import classnames from "classnames";
+import _ from "lodash";
 
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
@@ -484,6 +485,22 @@ export class HostDetailsPage extends Component {
       if (sortHeader !== "") {
         sortBy = [{ id: sortHeader, direction: sortDirection }];
       }
+
+      console.log("queryData:", queryData);
+
+      console.log("searchQuery:", searchQuery);
+
+      const results = [
+        {
+          id: 1,
+          name: "Figma.app",
+          version: "4.2.0",
+          source: "apps",
+          generated_cpe: "",
+          vulnerabilities: {},
+        },
+      ];
+
       // TODO: LOAD ALL OR GET SOFTWARE? IDK!
       // dispatch(
       //   softwareActions.loadAll({
@@ -495,7 +512,7 @@ export class HostDetailsPage extends Component {
       // );
 
       // // keep track as a local state to be used later
-      // this.setState({ searchQuery });
+      // this.setState({ software: results });
 
       // dispatch(
       //   getSoftware(pageIndex, pageSize, selectedFilter, searchQuery, sortBy)

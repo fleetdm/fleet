@@ -6,6 +6,6 @@ const { SOFTWARE } = schemas;
 
 export default new Config({
   entityName: "software",
-  loadAllFunc: Fleet.software.loadAll,
+  // loadAllFunc: Fleet.software.loadAll,
   schema: SOFTWARE,
 });

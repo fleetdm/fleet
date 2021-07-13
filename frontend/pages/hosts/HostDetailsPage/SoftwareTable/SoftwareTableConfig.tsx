@@ -58,7 +58,7 @@ const generateTableHeaders = (): IDataColumn[] => {
 };
 
 const generateDataSet = (software: { [id: number]: ISoftware }): any => {
-  return software;
+  return software || [];
 };
 
 export { generateTableHeaders, generateDataSet };
