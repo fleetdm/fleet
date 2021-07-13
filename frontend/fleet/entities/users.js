@@ -11,6 +11,16 @@ export default (client) => {
         .authenticatedPost(client._endpoint(USERS), JSON.stringify(formData))
         .then((response) => helpers.addGravatarUrlToResource(response.user));
     },
+    createUserWithoutInvitation: (formData) => {
+      const { USERS_ADMIN } = endpoints;
+
+      return client
+        .authenticatedPost(
+          client._endpoint(USERS_ADMIN),
+          JSON.stringify(formData)
+        )
+        .then((response) => helpers.addGravatarUrlToResource(response.user)); // TODO confirm
+    },
     deleteSessions: (user) => {
       const { USER_SESSIONS } = endpoints;
       const endpoint = client._endpoint(USER_SESSIONS(user.id));

@@ -190,6 +190,8 @@ func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppCon
 		if settings.AdditionalQueries != nil {
 			config.AdditionalQueries = settings.AdditionalQueries
 		}
+	} else {
+		config.AdditionalQueries = nil
 	}
 
 	if p.AgentOptions != nil {

@@ -3,6 +3,7 @@
   transition: color 200ms ease-in-out;
   cursor: pointer;
   border-bottom: 3px solid transparent;
+  max-height: 50px;
 
   &:hover {
     background-color: $core-fleet-black;
@@ -29,6 +30,13 @@
     width: 16px;
     height: 16px;
     vertical-align: sub;
+  }
+
+  .logo {
+    @include size(48px);
+    border-radius: 20%;
+    padding: 0;
+    margin: -12px -15px 0;
   }
 
   &__name {
@@ -58,6 +66,10 @@
       font-weight: $bold;
     }
   }
+}
+
+.logo {
+  transform: scale(0.5);
 }
 
 .site-nav-container {

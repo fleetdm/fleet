@@ -114,6 +114,37 @@ func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 	return backoff.Retry(operation, bo)
 }
 
+// withTx provides a common way to commit/rollback a txFn
+func (d *Datastore) withTx(fn txFn) (err error) {
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return errors.Wrap(err, "create transaction")
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			if err := tx.Rollback(); err != nil {
+				d.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+			}
+			panic(p)
+		}
+	}()
+
+	if err := fn(tx); err != nil {
+		rbErr := tx.Rollback()
+		if rbErr != nil && rbErr != sql.ErrTxDone {
+			return errors.Wrapf(err, "got err '%s' rolling back after err", rbErr.Error())
+		}
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "commit transaction")
+	}
+
+	return nil
+}
+
 // New creates an MySQL datastore.
 func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
 	options := &dbOptions{

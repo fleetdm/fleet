@@ -3,12 +3,17 @@ import Fleet from "fleet";
 import config from "redux/nodes/entities/users/config";
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import { logoutUser, updateUserSuccess } from "redux/nodes/auth/actions";
+import { create } from "lodash";
 
 const { actions } = config;
 
 // Actions for admin to require password reset for a user
 export const REQUIRE_PASSWORD_RESET_SUCCESS = "REQUIRE_PASSWORD_RESET_SUCCESS";
 export const REQUIRE_PASSWORD_RESET_FAILURE = "REQUIRE_PASSWORD_RESET_FAILURE";
+export const CREATE_USER_WITHOUT_INVITE_SUCCESS =
+  "CREATE_USER_WITHOUT_INVITE_SUCCESS";
+export const CREATE_USER_WITHOUT_INVITE_FAILURE =
+  "CREATE_USER_WITHOUT_INVITE_FAILURE";
 
 export const requirePasswordResetSuccess = (user) => {
   return {
@@ -20,6 +25,21 @@ export const requirePasswordResetSuccess = (user) => {
 export const requirePasswordResetFailure = (errors) => {
   return {
     type: REQUIRE_PASSWORD_RESET_FAILURE,
+    payload: { errors },
+  };
+};
+
+// TODO does below need user
+export const createUserWithoutInviteSuccess = () => {
+  return {
+    type: CREATE_USER_WITHOUT_INVITE_SUCCESS,
+    payload: {},
+  };
+};
+
+export const createUserWithoutInviteFailure = (errors) => {
+  return {
+    type: CREATE_USER_WITHOUT_INVITE_FAILURE,
     payload: { errors },
   };
 };
@@ -73,6 +93,23 @@ export const confirmEmailChange = (user, token) => {
         dispatch(updateFailure(errorsObject));
 
         return dispatch(logoutUser());
+      });
+  };
+};
+
+export const createUserWithoutInvitation = (formData) => {
+  return (dispatch) => {
+    return Fleet.users
+      .createUserWithoutInvitation(formData)
+      .then((response) => {
+        return dispatch(createUserWithoutInviteSuccess(response));
+      })
+      .catch((response) => {
+        const errorsObject = formatErrorResponse(response);
+
+        dispatch(createUserWithoutInviteFailure(errorsObject));
+
+        throw errorsObject;
       });
   };
 };
@@ -156,6 +193,7 @@ export default {
   ...actions,
   changePassword,
   confirmEmailChange,
+  createUserWithoutInvitation,
   enableUser,
   requirePasswordReset,
   deleteSessions,
