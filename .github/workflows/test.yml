@@ -1,4 +1,4 @@
-on: [push, pull_request]
+on: [push]
 name: Run Tests
 jobs:
   test-e2e:
