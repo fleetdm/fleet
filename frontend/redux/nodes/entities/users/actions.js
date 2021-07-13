@@ -3,7 +3,6 @@ import Fleet from "fleet";
 import config from "redux/nodes/entities/users/config";
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import { logoutUser, updateUserSuccess } from "redux/nodes/auth/actions";
-import { create } from "lodash";
 
 const { actions } = config;
 
