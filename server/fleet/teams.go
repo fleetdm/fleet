@@ -149,13 +149,13 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	if globalRole == nil || *globalRole == "" {
 		if teamUsers == nil || len(teamUsers) == 0 {
 			return NewError(ErrNoRoleNeeded, "either global role or team role needs to be defined")
-		} else {
-			for _, t := range teamUsers {
-				if !ValidTeamRole(t.Role) {
-					return NewError(ErrNoRoleNeeded, "Team roles can be observer or maintainer")
-				}
+		}
+		for _, t := range teamUsers {
+			if !ValidTeamRole(t.Role) {
+				return NewError(ErrNoRoleNeeded, "Team roles can be observer or maintainer")
 			}
 		}
+		return nil
 	}
 
 	if !ValidGlobalRole(*globalRole) {
