@@ -45,7 +45,7 @@ type Activity struct {
 	CreateTimestamp
 	ID            uint             `json:"id" db:"id"`
 	ActorFullName string           `json:"actor_full_name" db:"name"`
-	ActorID       uint             `json:"actor_id" db:"user_id"`
+	ActorID       *uint            `json:"actor_id" db:"user_id"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
 }

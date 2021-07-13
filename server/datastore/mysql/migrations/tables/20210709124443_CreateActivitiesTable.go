@@ -14,12 +14,12 @@ func Up_20210709124443(tx *sql.Tx) error {
 		CREATE TABLE IF NOT EXISTS activities (
 			id int(10) unsigned NOT NULL AUTO_INCREMENT,
 			created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-			user_id int unsigned NOT NULL,
+			user_id int(10) unsigned,
 			user_name varchar(255),
 			activity_type varchar(255) NOT NULL,
 			details json DEFAULT NULL,
 			PRIMARY KEY (id),
-			FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL 
+			FOREIGN KEY fk_activities_user_id (user_id) REFERENCES users (id) ON DELETE SET NULL 
 		)
 	`
 	if _, err := tx.Exec(sql); err != nil {
