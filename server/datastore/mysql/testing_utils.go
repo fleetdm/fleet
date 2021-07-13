@@ -127,3 +127,17 @@ func RunTestsAgainstMySQL(t *testing.T, tests []func(*testing.T, fleet.Datastore
 		runTest(t, f)
 	}
 }
+
+func CreateMySQLDS(t *testing.T) *Datastore {
+	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
+		t.Skip("MySQL tests are disabled")
+	}
+
+	// Initialize the schema once for the entire test run.
+	initializeSchema(t)
+	t.Parallel()
+
+	initializeDatabase(t, t.Name())
+
+	return connectMySQL(t, t.Name())
+}
