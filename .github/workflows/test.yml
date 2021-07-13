@@ -1,4 +1,8 @@
-on: [push]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 name: Run Tests
 jobs:
   test-e2e:
