@@ -15,17 +15,25 @@ type globalMutexLock struct {
 	m      sync.Mutex
 }
 
-func (m *globalMutexLock) Lock(name string, expiration time.Duration) error {
+func (m *globalMutexLock) Lock(name string, owner string, expiration time.Duration) (bool, error) {
+	m.m.Lock()
+	defer m.m.Unlock()
+	if m.locked {
+		return true, nil
+	}
 	select {
 	case m.ch <- struct{}{}:
 		m.locked = true
-		return nil
+		go func() {
+			time.Sleep(expiration)
+		}()
+		return true, nil
 	default:
 	}
-	return errors.New("not locked")
+	return false, errors.New("not locked")
 }
 
-func (m *globalMutexLock) Unlock(name string) error {
+func (m *globalMutexLock) Unlock(name string, owner string) error {
 	m.m.Lock()
 	defer m.m.Unlock()
 	if !m.locked {
@@ -46,11 +54,10 @@ func TestOnlyOneIsLeader(t *testing.T) {
 	ls2 := NewLeaderSelector(&globalMutexLock{ch: ch}, 5*time.Second, 2*time.Second)
 	defer ls2.ShutDown()
 
-	time.Sleep(2 * time.Second)
-
 	tries := 100
 	for !ls1.AmILeader() && !ls2.AmILeader() && tries > 0 {
 		tries--
+		time.Sleep(1 * time.Second)
 	}
 	require.Greater(t, tries, 0)
 
@@ -62,6 +69,6 @@ func TestOnlyOneIsLeader(t *testing.T) {
 		assert.False(t, ls1.AmILeader())
 	} else {
 		assert.False(t, ls1.AmILeader())
-		require.False(t, true, "ls2 shouldn't have won")
+		t.Error(t, "ls2 shouldn't have won")
 	}
 }

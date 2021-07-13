@@ -34,6 +34,7 @@ services:
 
   ubuntu20-osquery:
     image: "dactiv/osquery:4.5.1-ubuntu20.04"
+    platform: linux/x86_64
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
