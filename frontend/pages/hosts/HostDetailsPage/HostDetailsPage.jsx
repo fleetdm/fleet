@@ -14,6 +14,7 @@ import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities";
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
+import TableContainer from "components/TableContainer";
 
 import permissionUtils from "utilities/permissions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
@@ -471,6 +472,22 @@ export class HostDetailsPage extends Component {
           </div>
         ) : (
           <>
+            <TableContainer
+              columns={tableHeaders}
+              data={teams}
+              isLoading={loadingTableData}
+              defaultSortHeader={"name"}
+              defaultSortDirection={"asc"}
+              inputPlaceHolder={"Filter software"}
+              actionButtonText={"Create Team"}
+              actionButtonVariant={"primary"}
+              onActionButtonClick={toggleCreateTeamModal}
+              onQueryChange={onQueryChange}
+              resultsTitle={"teams"}
+              emptyComponent={EmptyTeams}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+            />
             <SoftwareVulnerabilities softwareList={host.software} />
             <div className={`${baseClass}__wrapper`}>
               <table className={wrapperClassName}>
