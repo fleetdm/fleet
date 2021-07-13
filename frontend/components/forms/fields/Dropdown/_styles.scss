@@ -54,6 +54,10 @@
       border-radius: 4px;
       background-color: $ui-off-white;
       border: solid 1px $core-dark-blue-grey;
+
+      &.is-focused {
+        border: 1px solid $core-vibrant-blue;
+      }
     }
   }
 
@@ -97,9 +101,12 @@
   &--single {
     > .Select-control {
       .Select-value {
-        line-height: 38px;
-        margin-top: 4px;
+        line-height: 40px;
         border: none;
+        top: 1px;
+        right: 1px;
+        left: 1px;
+        bottom: 1px;
       }
     }
   }
@@ -140,21 +147,17 @@
     }
   }
 
-  // .Select-arrow {
-  //   border-top-color: $core-vibrant-blue;
-  // }
+  &.is-focused {
+    .Select-control {
+      border: 1px solid $core-vibrant-blue;
+    }
 
-  // &.is-focused {
-  //   .Select-control {
-  //     border: 1px solid $core-vibrant-blue;
-  //   }
-
-  //   &:not(.is-open) {
-  //     .Select-control {
-  //       box-shadow: none;
-  //     }
-  //   }
-  // }
+    &:not(.is-open) {
+      .Select-control {
+        box-shadow: none;
+      }
+    }
+  }
 
   &.has-value {
     > .Select-control,
@@ -169,12 +172,12 @@
   }
 
   .Select-menu-outer {
-    margin-top: $pad-xsmall;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
-    border-radius: $border-radius;
+    border-radius: 0 0 $border-radius $border-radius;
     z-index: 6;
     overflow: hidden;
     border: 0;
+    margin: 0;
   }
 
   .Select-noresults {
@@ -194,6 +197,11 @@
       .Select-icon {
         color: $ui-vibrant-blue-10;
       }
+    }
+
+    &:last-child {
+      border-bottom-right-radius: 0;
+      border-bottom-left-radius: 0;
     }
 
     &.is-disabled {
@@ -246,10 +254,6 @@
           color: $core-white;
         }
       }
-    }
-
-    .Select-value {
-      margin-top: 4px;
     }
 
     .Select-value-label {

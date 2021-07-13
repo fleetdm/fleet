@@ -1,0 +1,4 @@
+- Update create/edit user modal to accurately reflect if SSO is enabled for the individual user (rather than if enabled for the organization as a whole)
+- Update create/edit user modal tooltips and disabled fields based on state of organization settings (SSO and SMTP)
+
+Closes #1348

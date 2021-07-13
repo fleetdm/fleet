@@ -22,9 +22,9 @@ interface ITableQueryData {
   pageIndex: number;
 }
 
-interface ITableContainerProps<T, U> {
-  columns: T[];
-  data: U[];
+interface ITableContainerProps {
+  columns: any; // TODO: Figure out type
+  data: any; // TODO: Figure out type
   isLoading: boolean;
   defaultSortHeader: string;
   defaultSortDirection: string;
@@ -36,10 +36,13 @@ interface ITableContainerProps<T, U> {
   onSelectActionClick?: (selectedItemIds: number[]) => void;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
-  resultsTitle?: string;
+  resultsTitle: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
   className?: string;
+  showMarkAllPages: boolean;
+  isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
+  toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
 }
 
 const baseClass = "table-container";
@@ -48,29 +51,28 @@ const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 
-const TableContainer = <T, U>(
-  props: ITableContainerProps<T, U>
-): JSX.Element => {
-  const {
-    columns,
-    data,
-    isLoading,
-    defaultSortHeader,
-    defaultSortDirection,
-    onActionButtonClick,
-    inputPlaceHolder,
-    additionalQueries,
-    onQueryChange,
-    resultsTitle,
-    emptyComponent,
-    className,
-    disableActionButton,
-    actionButtonText,
-    actionButtonIcon,
-    actionButtonVariant,
-    onSelectActionClick,
-  } = props;
-
+const TableContainer = ({
+  columns,
+  data,
+  isLoading,
+  defaultSortHeader,
+  defaultSortDirection,
+  onActionButtonClick,
+  inputPlaceHolder,
+  additionalQueries,
+  onQueryChange,
+  resultsTitle,
+  emptyComponent,
+  className,
+  disableActionButton,
+  actionButtonText,
+  actionButtonIcon,
+  actionButtonVariant,
+  onSelectActionClick,
+  showMarkAllPages,
+  isAllPagesSelected,
+  toggleAllPagesSelected,
+}: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
@@ -215,6 +217,11 @@ const TableContainer = <T, U>(
               sortDirection={sortDirection}
               onSort={onSortChange}
               onSelectActionClick={onSelectActionClick}
+              showMarkAllPages={showMarkAllPages}
+              isAllPagesSelected={isAllPagesSelected}
+              toggleAllPagesSelected={toggleAllPagesSelected}
+              resultsTitle={resultsTitle}
+              defaultPageSize={DEFAULT_PAGE_SIZE}
             />
             <Pagination
               resultsOnCurrentPage={data.length}

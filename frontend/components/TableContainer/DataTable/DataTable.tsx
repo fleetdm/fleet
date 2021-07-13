@@ -1,25 +1,44 @@
 import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
+import useDeepEffect from "utilities/hooks/useDeepEffect";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "../../buttons/Button";
 
 const baseClass = "data-table-container";
 
+interface IDataTableProps {
+  columns: any;
+  data: any;
+  isLoading: boolean;
+  sortHeader: any;
+  sortDirection: any;
+  onSort: any; // TODO: an event type
+  onSelectActionClick: any; // TODO: an event type
+  showMarkAllPages: boolean;
+  isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
+  toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
+  resultsTitle: string;
+  defaultPageSize: number;
+}
+
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
-const DataTable = (props) => {
-  const {
-    columns: tableColumns,
-    data: tableData,
-    isLoading,
-    sortHeader,
-    sortDirection,
-    onSort,
-    onSelectActionClick,
-  } = props;
-
+const DataTable = ({
+  columns: tableColumns,
+  data: tableData,
+  isLoading,
+  sortHeader,
+  sortDirection,
+  onSort,
+  onSelectActionClick,
+  showMarkAllPages,
+  isAllPagesSelected,
+  toggleAllPagesSelected,
+  resultsTitle,
+  defaultPageSize,
+}: IDataTableProps) => {
   const columns = useMemo(() => {
     return tableColumns;
   }, [tableColumns]);
@@ -35,6 +54,7 @@ const DataTable = (props) => {
     prepareRow,
     selectedFlatRows,
     toggleAllRowsSelected,
+    isAllRowsSelected,
     state: tableState,
   } = useTable(
     {
@@ -69,15 +89,55 @@ const DataTable = (props) => {
     }
   }, [sortBy, sortHeader, onSort, sortDirection]);
 
+  useEffect(() => {
+    if (isAllPagesSelected) {
+      toggleAllRowsSelected(true);
+    }
+  }, [isAllPagesSelected]);
+
+  useDeepEffect(() => {
+    if (
+      Object.keys(selectedRowIds).length < rows.length &&
+      toggleAllPagesSelected
+    ) {
+      toggleAllPagesSelected(false);
+    }
+  }, [tableState.selectedRowIds, toggleAllPagesSelected]);
+
   const onSelectActionButtonClick = useCallback(() => {
-    const entityIds = selectedFlatRows.map((row) => row.original.id);
+    const entityIds = selectedFlatRows.map((row: any) => row.original.id);
     onSelectActionClick(entityIds);
   }, [onSelectActionClick, selectedFlatRows]);
 
+  const onToggleAllPagesClick = useCallback(() => {
+    toggleAllPagesSelected();
+  }, [toggleAllPagesSelected]);
+
   const onClearSelectionClick = useCallback(() => {
     toggleAllRowsSelected(false);
+    toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
 
+  const renderSelectedText = (): JSX.Element => {
+    if (isAllPagesSelected) {
+      return <p>All matching {resultsTitle} are selected</p>;
+    }
+
+    if (isAllRowsSelected) {
+      return <p>All {resultsTitle} on this page are selected</p>;
+    }
+
+    return (
+      <p>
+        <span>{selectedFlatRows.length}</span> selected
+      </p>
+    );
+  };
+
+  const shouldRenderToggleAllPages =
+    Object.keys(selectedRowIds).length >= defaultPageSize &&
+    showMarkAllPages &&
+    !isAllPagesSelected;
   return (
     <div className={baseClass}>
       <div className={"data-table data-table__wrapper"}>
@@ -99,18 +159,29 @@ const DataTable = (props) => {
                 </th>
                 <th className={"active-selection__container"}>
                   <div className={"active-selection__inner"}>
-                    <p>
-                      <span>{selectedFlatRows.length}</span> selected
-                    </p>
-                    <Button
-                      onClick={onClearSelectionClick}
-                      variant={"text-link"}
-                    >
-                      Clear selection
-                    </Button>
-                    <Button onClick={onSelectActionButtonClick}>
-                      Transfer to team
-                    </Button>
+                    <div className={"active-selection__inner-left"}>
+                      {renderSelectedText()}
+                      {shouldRenderToggleAllPages && (
+                        <Button
+                          onClick={onToggleAllPagesClick}
+                          variant={"text-link"}
+                          className={"light-text"}
+                        >
+                          <>Select all matching {resultsTitle}</>
+                        </Button>
+                      )}
+                      <Button
+                        onClick={onClearSelectionClick}
+                        variant={"text-link"}
+                      >
+                        Clear selection
+                      </Button>
+                    </div>
+                    <div className={"active-selection__inner-right"}>
+                      <Button onClick={onSelectActionButtonClick}>
+                        Transfer to team
+                      </Button>
+                    </div>
                   </div>
                 </th>
               </tr>

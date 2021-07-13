@@ -12,11 +12,12 @@ interface IEditUserModalProps {
   defaultEmail?: string;
   defaultGlobalRole?: string | null;
   defaultTeams?: ITeam[];
-  defaultSSOEnabled?: boolean;
   availableTeams: ITeam[];
   validationErrors: any[];
   isBasicTier: boolean;
   smtpConfigured: boolean;
+  canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
+  isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
 }
 
 const baseClass = "edit-user-modal";
@@ -29,11 +30,12 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
     defaultEmail,
     defaultGlobalRole,
     defaultTeams,
-    defaultSSOEnabled,
     availableTeams,
     isBasicTier,
     validationErrors,
     smtpConfigured,
+    canUseSso,
+    isSsoEnabled,
   } = props;
 
   return (
@@ -50,11 +52,12 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
         defaultTeams={defaultTeams}
         onCancel={onCancel}
         onSubmit={onSubmit}
-        canUseSSO={defaultSSOEnabled}
         availableTeams={availableTeams}
         submitText={"Save"}
         isBasicTier={isBasicTier}
         smtpConfigured={smtpConfigured}
+        canUseSso={canUseSso}
+        isSsoEnabled={isSsoEnabled}
       />
     </Modal>
   );
