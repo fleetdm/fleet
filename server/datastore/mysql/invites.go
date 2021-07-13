@@ -14,11 +14,8 @@ var inviteSearchColumns = []string{"name", "email"}
 
 // NewInvite generates a new invitation.
 func (d *Datastore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
-	if i.GlobalRole.IsZero() {
-		return nil, fleet.NewError(fleet.ErrNoRoleNeeded, "need a role for the invite")
-	}
-	if !fleet.ValidGlobalRole(i.GlobalRole.String) {
-		return nil, fleet.NewErrorf(fleet.ErrNoRoleNeeded, "'%s' is not a valid team role", i.GlobalRole.String)
+	if err := fleet.ValidateRole(i.GlobalRole.Ptr(), i.Teams); err != nil {
+		return nil, err
 	}
 
 	sqlStmt := `

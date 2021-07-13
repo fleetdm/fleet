@@ -14,12 +14,10 @@ var userSearchColumns = []string{"name", "email"}
 
 // NewUser creates a new user
 func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
-	if user.GlobalRole == nil {
-		return nil, fleet.NewError(fleet.ErrNoRoleNeeded, "All users need a role defined")
+	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
+		return nil, err
 	}
-	if !fleet.ValidGlobalRole(*user.GlobalRole) {
-		return nil, fleet.NewErrorf(fleet.ErrNoRoleNeeded, "'%s' is not a valid team role", *user.GlobalRole)
-	}
+
 	sqlStatement := `
       INSERT INTO users (
       	password,
@@ -121,12 +119,10 @@ func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
 }
 
 func (d *Datastore) SaveUser(user *fleet.User) error {
-	if user.GlobalRole == nil {
-		return fleet.NewError(fleet.ErrNoRoleNeeded, "All users need a role defined")
+	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
+		return err
 	}
-	if !fleet.ValidGlobalRole(*user.GlobalRole) {
-		return fleet.NewErrorf(fleet.ErrNoRoleNeeded, "'%s' is not a valid team role", *user.GlobalRole)
-	}
+
 	sqlStatement := `
       UPDATE users SET
       	password = ?,

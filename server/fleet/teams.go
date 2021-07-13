@@ -143,6 +143,25 @@ func ValidGlobalRoles() []string {
 	return roles
 }
 
+func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
+	if globalRole == nil || *globalRole == "" {
+		if teamUsers == nil || len(teamUsers) == 0 {
+			return NewError(ErrNoRoleNeeded, "either global role or team role needs to be defined")
+		} else {
+			for _, t := range teamUsers {
+				if !ValidTeamRole(t.Role) {
+					return NewError(ErrNoRoleNeeded, "Team roles can be observer or maintainer")
+				}
+			}
+		}
+	} else {
+		if !ValidGlobalRole(*globalRole) {
+			return NewError(ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
+		}
+	}
+	return nil
+}
+
 // TeamFilter is the filtering information passed to the datastore for queries
 // that may be filtered by team.
 type TeamFilter struct {

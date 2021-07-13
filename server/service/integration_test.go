@@ -91,7 +91,7 @@ func testUserWithoutRoleErrors(t *testing.T, ds fleet.Datastore) {
 	resp, err := client.Do(req)
 	require.Nil(t, err)
 	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
-	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "All users need a role defined")
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
 }
 
 func testUserWithWrongRoleErrors(t *testing.T, ds fleet.Datastore) {
@@ -114,7 +114,7 @@ func testUserWithWrongRoleErrors(t *testing.T, ds fleet.Datastore) {
 	resp, err := client.Do(req)
 	require.Nil(t, err)
 	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
-	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, `'wrongrole' is not a valid team role`)
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
 }
 
 func testUserCreationWrongTeamErrors(t *testing.T, ds fleet.Datastore) {
