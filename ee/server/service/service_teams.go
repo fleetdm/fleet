@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -40,7 +41,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		team.Secrets = p.Secrets
 	} else {
 		// Set up a default enroll secret
-		secret, err := fleet.RandomText(fleet.EnrollSecretDefaultLength)
+		secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
 		if err != nil {
 			return nil, errors.Wrap(err, "generate enroll secret string")
 		}

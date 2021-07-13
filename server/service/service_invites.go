@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"github.com/fleetdm/fleet/v4/server"
 	"html/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -32,7 +33,7 @@ func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayloa
 	}
 	inviter := v.User
 
-	random, err := fleet.RandomText(svc.config.App.TokenKeySize)
+	random, err := server.GenerateRandomText(svc.config.App.TokenKeySize)
 	if err != nil {
 		return nil, err
 	}

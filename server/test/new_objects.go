@@ -1,6 +1,7 @@
 package test
 
 import (
+	"github.com/fleetdm/fleet/v4/server"
 	"testing"
 	"time"
 
@@ -92,7 +93,7 @@ func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 }
 
 func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now time.Time) *fleet.Host {
-	osqueryHostID, _ := fleet.RandomText(10)
+	osqueryHostID, _ := server.GenerateRandomText(10)
 	h, err := ds.NewHost(&fleet.Host{
 		Hostname:        name,
 		NodeKey:         key,

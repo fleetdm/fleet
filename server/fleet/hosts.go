@@ -2,8 +2,6 @@ package fleet
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"time"
 )
@@ -194,18 +192,6 @@ type HostSummary struct {
 	OfflineCount uint `json:"offline_count"`
 	MIACount     uint `json:"mia_count"`
 	NewCount     uint `json:"new_count"`
-}
-
-// RandomText returns a stdEncoded string of
-// just what it says
-func RandomText(keySize int) (string, error) {
-	key := make([]byte, keySize)
-	_, err := rand.Read(key)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(key), nil
 }
 
 // Status calculates the online status of the host

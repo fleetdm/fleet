@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server"
 	"net"
 	"os"
 	"strconv"
@@ -93,7 +94,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		}
 	}
 
-	nodeKey, err := fleet.RandomText(svc.config.Osquery.NodeKeySize)
+	nodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", osqueryError{
 			message:     "generate node key failed: " + err.Error(),

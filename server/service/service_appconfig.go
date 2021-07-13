@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server"
 	"html/template"
 	"strings"
 
@@ -50,7 +51,7 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfigPayload) 
 	}
 
 	// Set up a default enroll secret
-	secret, err := fleet.RandomText(fleet.EnrollSecretDefaultLength)
+	secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
 	if err != nil {
 		return nil, errors.Wrap(err, "generate enroll secret string")
 	}
