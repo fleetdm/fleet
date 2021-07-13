@@ -22,6 +22,57 @@ const (
 	testAddress  = "localhost:3307"
 )
 
+func init() {
+	// Initialize the schema once for the entire test run.
+	initializeSchemaOrPanic()
+}
+
+func panicif(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+// initializeSchemaOrPanic initializes a database schema using the normal Fleet
+// migrations, then outputs the schema with mysqldump within the MySQL Docker
+// container.
+func initializeSchemaOrPanic() {
+	// Create the database (must use raw MySQL client to do this)
+	db, err := sql.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+	)
+	panicif(err)
+	defer db.Close()
+	_, err = db.Exec("DROP DATABASE IF EXISTS schemadb; CREATE DATABASE schemadb;")
+	panicif(err)
+
+	// Create a datastore client in order to run migrations as usual
+	config := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Address:  testAddress,
+		Database: schemaDbName,
+	}
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	panicif(err)
+	defer ds.Close()
+	panicif(ds.MigrateTables())
+
+	// Dump schema to dumpfile
+	if _, err := exec.Command(
+		"docker-compose", "exec", "-T", "mysql_test",
+		// Command run inside container
+		"mysqldump",
+		"-u"+testUsername, "-p"+testPassword,
+		"schemadb",
+		"--compact", "--skip-comments",
+		"--result-file="+dumpfile,
+	).CombinedOutput(); err != nil {
+		panicif(err)
+	}
+}
+
 func connectMySQL(t *testing.T, testName string) *Datastore {
 	config := config.MysqlConfig{
 		Username: testUsername,
@@ -34,48 +85,6 @@ func connectMySQL(t *testing.T, testName string) *Datastore {
 	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
 	require.Nil(t, err)
 	return ds
-}
-
-// initializeSchema initializes a database schema using the normal Fleet
-// migrations, then outputs the schema with mysqldump within the MySQL Docker
-// container.
-func initializeSchema(t *testing.T) {
-	// Create the database (must use raw MySQL client to do this)
-	db, err := sql.Open(
-		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
-	)
-	require.NoError(t, err)
-	defer db.Close()
-	_, err = db.Exec("DROP DATABASE IF EXISTS schemadb; CREATE DATABASE schemadb;")
-	require.NoError(t, err)
-
-	// Create a datastore client in order to run migrations as usual
-	config := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
-		Address:  testAddress,
-		Database: schemaDbName,
-	}
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
-	require.Nil(t, err)
-	defer ds.Close()
-	require.Nil(t, ds.MigrateTables())
-
-	// Dump schema to dumpfile
-	if out, err := exec.Command(
-		"docker-compose", "exec", "-T", "mysql_test",
-		// Command run inside container
-		"mysqldump",
-		"-u"+testUsername, "-p"+testPassword,
-		"schemadb",
-		"--compact", "--skip-comments",
-		"--result-file="+dumpfile,
-	).CombinedOutput(); err != nil {
-		t.Error(err)
-		t.Error(string(out))
-		t.FailNow()
-	}
 }
 
 // initializeDatabase loads the dumped schema into a newly created database in
@@ -120,9 +129,6 @@ func RunTestsAgainstMySQL(t *testing.T, tests []func(*testing.T, fleet.Datastore
 		t.Skip("MySQL tests are disabled")
 	}
 
-	// Initialize the schema once for the entire test run.
-	initializeSchema(t)
-
 	for _, f := range tests {
 		runTest(t, f)
 	}
@@ -133,8 +139,6 @@ func CreateMySQLDS(t *testing.T) *Datastore {
 		t.Skip("MySQL tests are disabled")
 	}
 
-	// Initialize the schema once for the entire test run.
-	initializeSchema(t)
 	t.Parallel()
 
 	initializeDatabase(t, t.Name())
