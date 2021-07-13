@@ -111,6 +111,17 @@ allow {
 }
 
 ##
+# Activities
+##
+
+# All users can read activities
+allow {
+  not is_null(subject)
+  object.type == "activity"
+  action == read
+}
+
+##
 # Sessions
 ##
 

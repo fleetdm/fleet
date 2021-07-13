@@ -56,6 +56,9 @@ func TestNewSavesTargets(t *testing.T) {
 	ds.NewPackFunc = func(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
 		return pack, nil
 	}
+	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
 
 	packPayload := fleet.PackPayload{
 		Name:     ptr.String("foo"),
@@ -71,4 +74,5 @@ func TestNewSavesTargets(t *testing.T) {
 	assert.Equal(t, uint(123), pack.HostIDs[0])
 	assert.Equal(t, uint(456), pack.LabelIDs[0])
 	assert.Equal(t, uint(789), pack.TeamIDs[0])
+	assert.True(t, ds.NewActivityFuncInvoked)
 }
