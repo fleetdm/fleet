@@ -143,6 +143,8 @@ func ValidGlobalRoles() []string {
 	return roles
 }
 
+// ValidateRole returns nil if the global and team roles combination is a valid
+// one within fleet, or a fleet Error otherwise.
 func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	if globalRole == nil || *globalRole == "" {
 		if teamUsers == nil || len(teamUsers) == 0 {
@@ -154,11 +156,12 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 				}
 			}
 		}
-	} else {
-		if !ValidGlobalRole(*globalRole) {
-			return NewError(ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
-		}
 	}
+
+	if !ValidGlobalRole(*globalRole) {
+		return NewError(ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
+	}
+
 	return nil
 }
 

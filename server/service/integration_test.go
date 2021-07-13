@@ -156,13 +156,13 @@ func assertBodyContains(t *testing.T, resp *http.Response, expectedError string)
 	assert.Contains(t, bodyString, expectedError)
 }
 
-func getJson(r *http.Response, target interface{}) error {
+func getJSON(r *http.Response, target interface{}) error {
 	return json.NewDecoder(r.Body).Decode(target)
 }
 
 func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, message string) {
 	err := &fleet.Error{}
-	require.Nil(t, getJson(resp, err))
+	require.Nil(t, getJSON(resp, err))
 	assert.Equal(t, code, err.Code)
 	assert.Equal(t, message, err.Message)
 }
