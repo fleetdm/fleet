@@ -47,10 +47,10 @@ func testDoubleUserCreationErrors(t *testing.T, ds fleet.Datastore) {
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
-		Name:     ptr.String("user1"),
-		Email:    ptr.String("email@asd.com"),
-		Password: ptr.String("pass"),
-		//Teams                    *[]UserTeam `json:"teams,omitempty"`
+		Name:       ptr.String("user1"),
+		Email:      ptr.String("email@asd.com"),
+		Password:   ptr.String("pass"),
+		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 	j, err := json.Marshal(&params)
 	assert.Nil(t, err)
@@ -72,6 +72,51 @@ func testDoubleUserCreationErrors(t *testing.T, ds fleet.Datastore) {
 	assertBodyContains(t, resp, `Error 1062: Duplicate entry 'email@asd.com'`)
 }
 
+func testUserWithoutRoleErrors(t *testing.T, ds fleet.Datastore) {
+	_, server := runServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	params := fleet.UserPayload{
+		Name:     ptr.String("user1"),
+		Email:    ptr.String("email@asd.com"),
+		Password: ptr.String("pass"),
+	}
+	j, err := json.Marshal(&params)
+	assert.Nil(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/users/admin", requestBody)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
+}
+
+func testUserWithWrongRoleErrors(t *testing.T, ds fleet.Datastore) {
+	_, server := runServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	params := fleet.UserPayload{
+		Name:       ptr.String("user1"),
+		Email:      ptr.String("email@asd.com"),
+		Password:   ptr.String("pass"),
+		GlobalRole: ptr.String("wrongrole"),
+	}
+	j, err := json.Marshal(&params)
+	assert.Nil(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/users/admin", requestBody)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
+}
+
 func testUserCreationWrongTeamErrors(t *testing.T, ds fleet.Datastore) {
 	_, server := runServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
@@ -85,10 +130,11 @@ func testUserCreationWrongTeamErrors(t *testing.T, ds fleet.Datastore) {
 	}
 
 	params := fleet.UserPayload{
-		Name:     ptr.String("user1"),
-		Email:    ptr.String("email@asd.com"),
-		Password: ptr.String("pass"),
-		Teams:    &teams,
+		Name:       ptr.String("user1"),
+		Email:      ptr.String("email@asd.com"),
+		Password:   ptr.String("pass"),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		Teams:      &teams,
 	}
 	method := "POST"
 	path := "/api/v1/fleet/users/admin"
@@ -162,6 +208,17 @@ func testQueryCreationLogsActivity(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, "created_saved_query", activities.Activities[0]["type"])
 }
 
+func getJSON(r *http.Response, target interface{}) error {
+	return json.NewDecoder(r.Body).Decode(target)
+}
+
+func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, message string) {
+	err := &fleet.Error{}
+	require.Nil(t, getJSON(resp, err))
+	assert.Equal(t, code, err.Code)
+	assert.Equal(t, message, err.Message)
+}
+
 func testAppConfigAdditionalQueriesCanBeRemoved(t *testing.T, ds fleet.Datastore) {
 	_, server := runServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
@@ -207,6 +264,8 @@ func TestSQLErrorsAreProperlyHandled(t *testing.T) {
 		testDoubleUserCreationErrors,
 		testUserCreationWrongTeamErrors,
 		testQueryCreationLogsActivity,
+		testUserWithoutRoleErrors,
+		testUserWithWrongRoleErrors,
 		testAppConfigAdditionalQueriesCanBeRemoved,
 	})
 }

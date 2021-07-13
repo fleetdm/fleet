@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -13,8 +14,9 @@ func testChangeEmail(t *testing.T, ds fleet.Datastore) {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
 	user := &fleet.User{
-		Password: []byte("foobar"),
-		Email:    "bob@bob.com",
+		Password:   []byte("foobar"),
+		Email:      "bob@bob.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 	user, err := ds.NewUser(user)
 	require.Nil(t, err)
@@ -34,8 +36,9 @@ func testChangeEmail(t *testing.T, ds fleet.Datastore) {
 	err = ds.PendingEmailChange(user.ID, "other@bob.com", "uniquetoken")
 	require.Nil(t, err)
 	otheruser, err := ds.NewUser(&fleet.User{
-		Password: []byte("supersecret"),
-		Email:    "other@bobcom",
+		Password:   []byte("supersecret"),
+		Email:      "other@bobcom",
+		GlobalRole: ptr.String(fleet.RoleObserver),
 	})
 	require.Nil(t, err)
 	_, err = ds.ConfirmPendingEmailChange(otheruser.ID, "uniquetoken")

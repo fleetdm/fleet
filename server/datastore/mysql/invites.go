@@ -14,6 +14,10 @@ var inviteSearchColumns = []string{"name", "email"}
 
 // NewInvite generates a new invitation.
 func (d *Datastore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
+	if err := fleet.ValidateRole(i.GlobalRole.Ptr(), i.Teams); err != nil {
+		return nil, err
+	}
+
 	sqlStmt := `
 	INSERT INTO invites ( invited_by, email, name, position, token, sso_enabled, global_role )
 	  VALUES ( ?, ?, ?, ?, ?, ?, ?)
