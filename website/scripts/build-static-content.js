@@ -195,7 +195,7 @@ module.exports = {
 
               // Generate HTML file
               let htmlId = `${sectionRepoPath.slice(0,20)}--${sails.helpers.strings.random.with({len:8})}--${pageNormalizedRelPath.slice(-20)}`.replace(/[^a-z0-9\-]/ig,'');
-              let htmlOutputPath = path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId);
+              let htmlOutputPath = path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs');
               if (dry) {
                 sails.log('Dry run: Would have generated file:', htmlOutputPath);
               } else {
