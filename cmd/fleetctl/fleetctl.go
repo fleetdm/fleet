@@ -18,6 +18,12 @@ func init() {
 }
 
 func main() {
+	app := createApp()
+
+	app.RunAndExitOnError()
+}
+
+func createApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "fleetctl"
 	app.Usage = "CLI for operating Fleet"
@@ -49,6 +55,5 @@ func main() {
 		previewCommand(),
 		eefleetctl.UpdatesCommand(),
 	}
-
-	app.RunAndExitOnError()
+	return app
 }

@@ -92,6 +92,10 @@ type UserService interface {
 	ChangeUserEmail(ctx context.Context, token string) (string, error)
 }
 
+const (
+	UserRolesKind = "user_roles"
+)
+
 // User is the model struct that represents a Fleet user.
 type User struct {
 	UpdateCreateTimestamps

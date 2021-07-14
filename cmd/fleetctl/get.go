@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/guregu/null.v3"
 	"io"
 	"os"
 	"strconv"
@@ -173,6 +174,56 @@ func printConfig(c *cli.Context, config *fleet.AppConfigPayload) error {
 	return err
 }
 
+type UserRoles struct {
+	Roles map[string]UserRole `json:"roles"`
+}
+
+type TeamRole struct {
+	Team string `json:"team"`
+	Role string `json:"role"`
+}
+
+type UserRole struct {
+	GlobalRole *string    `json:"global_role"`
+	Teams      []TeamRole `json:"teams"`
+}
+
+func usersToUserRoles(users []fleet.User) UserRoles {
+	roles := make(map[string]UserRole)
+	for _, u := range users {
+		var teams []TeamRole
+		for _, t := range u.Teams {
+			teams = append(teams, TeamRole{
+				Team: t.Name,
+				Role: t.Role,
+			})
+		}
+		roles[u.Name] = UserRole{
+			GlobalRole: u.GlobalRole,
+			Teams:      teams,
+		}
+	}
+	return UserRoles{Roles: roles}
+}
+
+func printUserRoles(c *cli.Context, users []fleet.User) error {
+	spec := specGeneric{
+		Kind:    fleet.UserRolesKind,
+		Version: fleet.ApiVersion,
+		Spec:    usersToUserRoles(users),
+	}
+
+	var err error
+
+	if c.Bool(jsonFlagName) {
+		err = printJSON(spec)
+	} else {
+		err = printYaml(spec)
+	}
+
+	return err
+}
+
 func getCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "get",
@@ -186,6 +237,7 @@ func getCommand() *cli.Command {
 			getAppConfigCommand(),
 			getCarveCommand(),
 			getCarvesCommand(),
+			getUserRolesCommand(),
 		},
 	}
 }
@@ -724,6 +776,62 @@ func getCarveCommand() *cli.Command {
 			if err := printYaml(carve); err != nil {
 				return errors.Wrap(err, "print carve yaml")
 			}
+
+			return nil
+		},
+	}
+}
+
+func getUserRolesCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "user_roles",
+		Aliases: []string{"user_roles", "ur"},
+		Usage:   "List global and team roles for users",
+		Flags: []cli.Flag{
+			jsonFlag(),
+			yamlFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			users, err := client.ListUsers()
+			if err != nil {
+				return errors.Wrap(err, "could not list users")
+			}
+
+			if len(users) == 0 {
+				fmt.Println("No users found")
+				return nil
+			}
+
+			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+				err = printUserRoles(c, users)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+
+			// Default to printing as table
+			data := [][]string{}
+
+			for _, u := range users {
+				data = append(data, []string{
+					u.Name,
+					null.StringFromPtr(u.GlobalRole).ValueOrZero(),
+				})
+			}
+
+			table := defaultTable()
+			table.SetHeader([]string{"User", "Global Role"})
+			table.AppendBulk(data)
+			table.Render()
 
 			return nil
 		},

@@ -209,3 +209,33 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	return res, nil
 }
+
+func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseBody interface{}) error {
+	response, err := c.AuthenticatedDo(verb, path, "", params)
+	if err != nil {
+		return errors.Wrapf(err, "%s %s", verb, path)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return errors.Errorf(
+			"%s %s received status %d %s",
+			verb, path,
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
+	}
+
+	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	if err != nil {
+		return errors.Wrapf(err, "decode %s %s response", verb, path)
+	}
+
+	if e, ok := responseBody.(errorer); ok {
+		if e.error() != nil {
+			return errors.Errorf("%s %s error: %s", verb, path, e.error())
+		}
+	}
+
+	return nil
+}
