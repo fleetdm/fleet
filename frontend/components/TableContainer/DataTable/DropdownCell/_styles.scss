@@ -1,4 +1,6 @@
 .dropdown-cell {
+  width: 80px;
+
   .Select {
     position: unset;
 
@@ -35,6 +37,7 @@
       left: unset;
       top: unset;
       max-height: 220px;
+      padding: $pad-small;
     }
 
     &:not(.is-open) {
