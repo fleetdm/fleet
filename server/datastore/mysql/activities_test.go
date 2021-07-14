@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -8,7 +8,10 @@ import (
 	"testing"
 )
 
-func testNewActivity(t *testing.T, ds fleet.Datastore) {
+func TestActivityUsernameChange(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	u := &fleet.User{
 		Password:   []byte("asd"),
 		Name:       "fullname",
@@ -20,23 +23,25 @@ func testNewActivity(t *testing.T, ds fleet.Datastore) {
 	require.NoError(t, ds.NewActivity(u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
 	require.NoError(t, ds.NewActivity(u, "test2", &map[string]interface{}{"detail": 2}))
 
-	opt := fleet.ListOptions{
-		Page:    0,
-		PerPage: 1,
-	}
-	activities, err := ds.ListActivities(opt)
+	activities, err := ds.ListActivities(fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, activities, 1)
+	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", activities[0].ActorFullName)
-	assert.Equal(t, "test1", activities[0].Type)
 
-	opt = fleet.ListOptions{
-		Page:    1,
-		PerPage: 1,
-	}
-	activities, err = ds.ListActivities(opt)
+	u.Name = "newname"
+	err = ds.SaveUser(u)
 	require.NoError(t, err)
-	assert.Len(t, activities, 1)
+
+	activities, err = ds.ListActivities(fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, activities, 2)
+	assert.Equal(t, "newname", activities[0].ActorFullName)
+
+	err = ds.DeleteUser(u.ID)
+	require.NoError(t, err)
+
+	activities, err = ds.ListActivities(fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", activities[0].ActorFullName)
-	assert.Equal(t, "test2", activities[0].Type)
 }
