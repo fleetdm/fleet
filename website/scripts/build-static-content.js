@@ -111,7 +111,7 @@ module.exports = {
           'handbook/': { urlPrefix: '/handbook', },
         };
         let rootRelativeUrlPathsSeen = [];
-        for (let sectionRepoPath of Object.keys(SECTION_INFOS_BY_SECTION_REPO_PATHS)) {
+        for (let sectionRepoPath of Object.keys(SECTION_INFOS_BY_SECTION_REPO_PATHS)) {// FUTURE: run this in parallel
           let thinTree = await sails.helpers.fs.ls.with({
             dir: path.join(topLvlRepoPath, sectionRepoPath),
             depth: 100,
@@ -119,7 +119,7 @@ module.exports = {
             includeSymlinks: false,
           });
 
-          for (let pageSourcePath of thinTree) {
+          for (let pageSourcePath of thinTree) {// FUTURE: run this in parallel
 
             // Determine URL for this page
             // (+ other path maths)
@@ -154,6 +154,7 @@ module.exports = {
               // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
               let mdString = await sails.helpers.fs.read(pageSourcePath);
               let htmlString = await sails.helpers.strings.toHtml(mdString);
+              // TODO: bring in the custom conversion logic (stuff from the old "beforeConvert" / "afterConvert" functions)
 
               // Extract metadata.
               // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
