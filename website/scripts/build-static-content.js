@@ -93,12 +93,12 @@ module.exports = {
           query.contributors = contributorProfiles;
         }
 
-        // Attach to Sails app configuration.
+        // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
         builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and prepare to bake directory trees into the Sails app's configuration.
-
+        let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // // Original way that still works:  (versus new stuff below)
         // builtStaticContent.markdownPages = await sails.helpers.compileMarkdownContent('docs/');  // TODO remove this and helper once everything works again
@@ -106,12 +106,12 @@ module.exports = {
 
         builtStaticContent.markdownPages = [];// « dir tree representation that will be injected into Sails app's configuration
 
-        let ROOT_RELATIVE_URL_PREFIXES_BY_SECTION_REPO_PATHS = {
-          'docs/':     '/docs',
-          'handbook/': '/handbook'
+        let SECTION_INFOS_BY_SECTION_REPO_PATHS = {
+          'docs/':     { urlPrefix: '/docs', },
+          'handbook/': { urlPrefix: '/handbook', },
         };
         let rootRelativeUrlPathsSeen = [];
-        for (let sectionRepoPath of Object.keys(ROOT_RELATIVE_URL_PREFIXES_BY_SECTION_REPO_PATHS)) {
+        for (let sectionRepoPath of Object.keys(SECTION_INFOS_BY_SECTION_REPO_PATHS)) {
           let thinTree = await sails.helpers.fs.ls.with({
             dir: path.join(topLvlRepoPath, sectionRepoPath),
             depth: 100,
@@ -127,14 +127,15 @@ module.exports = {
             // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
             let fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
             let pageRelSourcePath = path.relative(path.join(topLvlRepoPath, sectionRepoPath), path.resolve(pageSourcePath));
+            let pageNormalizedRelPath = (
+              pageRelSourcePath
+              .replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2')
+              .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.toLowerCase()))
+              .join('/')
+            );
             let rootRelativeUrlPath = (
-              ROOT_RELATIVE_URL_PREFIXES_BY_SECTION_REPO_PATHS[sectionRepoPath] +
-              '/' + (
-                pageRelSourcePath
-                .replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2')
-                .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.toLowerCase()))
-                .join('/')
-              )
+              SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
+              '/' + pageNormalizedRelPath
             );
 
             // Assert uniqueness of URL paths.
@@ -145,7 +146,7 @@ module.exports = {
 
             if (path.extname(pageSourcePath) !== '.md') {// If this file doesn't end in `.md`: skip it (we won't create a page for it)
               // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
-              sails.log.verbose(`Skipping ${pageSourcePath}`);
+              sails.log(`Skipping ${pageSourcePath}`);
             } else {// Otherwise, this is markdown, so: Compile to HTML, parse docpage metadata, and build+track it as a page
               sails.log.verbose(`Building page ${rootRelativeUrlPath} (from ${pageSourcePath})`);
 
@@ -176,28 +177,36 @@ module.exports = {
               }
 
               // Generate HTML file
-              let htmlOutputPath = '';//TODO
+              let htmlId = `${sectionRepoPath.slice(0,20)}--${sails.helpers.strings.random.with({len:8})}--${pageNormalizedRelPath.slice(-20)}`.replace(/[^a-z0-9\-]/ig,'');
+              let htmlOutputPath = path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId);
               if (dry) {
                 sails.log('Dry run: Would have generated file:', htmlOutputPath);
               } else {
                 // TODO
               }
 
-              // TODO: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
-              // * * *
+              // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+              // ~~TODO: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)~~
+              //
+              // Actually...
               // (A good long term solution to this that wouldn't be that hard and would only be slightly annoying going forward would be to have the docs refer to images like https://fleetdm.com/images/foobar.png)
-              // …maybe we should just do that from the get-go.
-              // * * *
+              // …maybe we should just do that from the get-go.  In that case, we just change the markdown in the Fleet repo, upload the image, and then we're good!
+              // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
               // Append to what will become configuration for the Sails app.
               builtStaticContent.markdownPages.push({
                 url: rootRelativeUrlPath,
                 title: pageTitle,
-                lastModifiedAt: lastModifiedAt
+                lastModifiedAt: lastModifiedAt,
+                htmlId: htmlId
               });
             }
           }//∞ </each source file>
         }//∞ </each section repo path>
+
+        // Attach partials dir path in what will become configuration for the Sails app.
+        // (This is for easier access later, without defining this constant in more than one place.)
+        builtStaticContent.compiledPagePartialsAppPath = APP_PATH_TO_COMPILED_PAGE_PARTIALS;
 
         // Decorate markdownPages tree with easier-to-use properties related to metadata embedded in the markdown and parent/child relationships.
         // Note: Maybe skip the parent/child relationships.
