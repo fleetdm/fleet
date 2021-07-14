@@ -11,8 +11,11 @@ type ScheduledQueryStore interface {
 	ListScheduledQueriesInPack(id uint, opts ListOptions) ([]*ScheduledQuery, error)
 	NewScheduledQuery(sq *ScheduledQuery, opts ...OptionalArg) (*ScheduledQuery, error)
 	SaveScheduledQuery(sq *ScheduledQuery) (*ScheduledQuery, error)
+	ReplaceScheduledQueriesInPack(id uint, sqs []*ScheduledQuery) ([]*ScheduledQuery, error)
 	DeleteScheduledQuery(id uint) error
+	DeleteScheduledQueries(ids []uint) error
 	ScheduledQuery(id uint) (*ScheduledQuery, error)
+	ScheduledQueryByQueryID(id uint) (*ScheduledQuery, error)
 }
 
 type ScheduledQueryService interface {

@@ -40,6 +40,8 @@ type ListHostsInPackFunc func(pid uint, opt fleet.ListOptions) ([]uint, error)
 
 type ListExplicitHostsInPackFunc func(pid uint, opt fleet.ListOptions) ([]uint, error)
 
+type EnsureGlobalPackFunc func() (*fleet.Pack, error)
+
 type PackStore struct {
 	ApplyPackSpecsFunc        ApplyPackSpecsFunc
 	ApplyPackSpecsFuncInvoked bool
@@ -91,6 +93,13 @@ type PackStore struct {
 
 	ListExplicitHostsInPackFunc        ListExplicitHostsInPackFunc
 	ListExplicitHostsInPackFuncInvoked bool
+
+	EnsureGlobalPackFunc        EnsureGlobalPackFunc
+	EnsureGlobalPackFuncInvoked bool
+}
+
+func (s *PackStore) EnsureGlobalPack() (*fleet.Pack, error) {
+	panic("implement me")
 }
 
 func (s *PackStore) ApplyPackSpecs(specs []*fleet.PackSpec) error {
