@@ -134,16 +134,26 @@ module.exports = {
             // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
             let lastModifiedAt = Date.now();// TODO
 
+            let embeddedMetadata = {};
+            if (true) {// If markdown: Compile to HTML and parse docpage metadata
+              // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+              // > • Parsing docmeta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
+              // >   e.g. stuff like:
+              // >   ```
+              // >   <docmeta name="foo" value="bar">
+              // >   <docmeta name="title" value="Lorem ipsum() with.lots of punctuATION and weird CAPS ... but never this long, please">
+              // >   ```
+
+              // TODO
+            } else {// Else: Skip this page.
+              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
+
+              // TODO
+            }
+
+            // Determine title to use
             let fallbackTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
-
-            // If markdown: Compile to HTML and parse docpage metadata
-            // > Parsing docmeta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
-            // > Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
-            // TODO
-
-            // Skip this page, if appropriate
-            // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
-            // TODO
+            embeddedMetadata
 
             // Generate HTML file
             let htmlOutputPath = '';//TODO
