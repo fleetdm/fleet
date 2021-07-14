@@ -222,7 +222,7 @@ module.exports = {
                 title: pageTitle,
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
-                other: _.omit(embeddedMetadata, 'title')
+                meta: _.omit(embeddedMetadata, 'title')
               });
             }
           }//∞ </each source file>
