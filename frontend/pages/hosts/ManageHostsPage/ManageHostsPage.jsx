@@ -673,6 +673,7 @@ export class ManageHostsPage extends PureComponent {
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
         toggleAllPagesSelected={toggleAllMatchingHosts}
+        searchable
       />
     );
   };

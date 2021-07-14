@@ -28,14 +28,15 @@ interface ITableContainerProps {
   isLoading: boolean;
   defaultSortHeader: string;
   defaultSortDirection: string;
-  onActionButtonClick: () => void;
-  actionButtonText: string;
+  onActionButtonClick?: () => void;
+  actionButtonText?: string;
   actionButtonIcon?: string;
-  actionButtonVariant: string;
+  actionButtonVariant?: string;
   onQueryChange: (queryData: ITableQueryData) => void;
   onSelectActionClick?: (selectedItemIds: number[]) => void;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
+  selectActionButtonText?: string;
   resultsTitle: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
@@ -43,6 +44,9 @@ interface ITableContainerProps {
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
+  searchable?: boolean;
+  wideSearch?: boolean;
+  disablePagination?: boolean;
 }
 
 const baseClass = "table-container";
@@ -72,6 +76,10 @@ const TableContainer = ({
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
+  selectActionButtonText,
+  searchable,
+  wideSearch,
+  disablePagination,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -165,6 +173,17 @@ const TableContainer = ({
 
   return (
     <div className={wrapperClasses}>
+      {!isLoading && wideSearch && searchable && (
+        <div className={`${baseClass}__search-input wide-search`}>
+          <InputField
+            placeholder={inputPlaceHolder}
+            name="searchQuery"
+            onChange={onSearchQueryChange}
+            value={searchQuery}
+            inputWrapperClass={`${baseClass}__input-wrapper`}
+          />
+        </div>
+      )}
       <div className={`${baseClass}__header`}>
         {data && data.length ? (
           <p className={`${baseClass}__results-count`}>
@@ -179,33 +198,41 @@ const TableContainer = ({
           <p />
         )}
         <div className={`${baseClass}__table-controls`}>
-          <Button
-            disabled={disableActionButton}
-            onClick={onActionButtonClick}
-            variant={actionButtonVariant}
-            className={`${baseClass}__table-action-button`}
-          >
-            <>
-              {actionButtonIcon && (
-                <img src={actionButtonIcon} alt={`${actionButtonText} icon`} />
-              )}
-              {actionButtonText}
-            </>
-          </Button>
-          <div className={`${baseClass}__search-input`}>
-            <InputField
-              placeholder={inputPlaceHolder}
-              name="searchQuery"
-              onChange={onSearchQueryChange}
-              value={searchQuery}
-              inputWrapperClass={`${baseClass}__input-wrapper`}
-            />
-          </div>
+          {actionButtonText && (
+            <Button
+              disabled={disableActionButton}
+              onClick={onActionButtonClick}
+              variant={actionButtonVariant}
+              className={`${baseClass}__table-action-button`}
+            >
+              <>
+                {actionButtonIcon && (
+                  <img
+                    src={actionButtonIcon}
+                    alt={`${actionButtonText} icon`}
+                  />
+                )}
+                {actionButtonText}
+              </>
+            </Button>
+          )}
+          {/* Render search bar only if not empty component */}
+          {!isLoading && searchable && !wideSearch && (
+            <div className={`${baseClass}__search-input`}>
+              <InputField
+                placeholder={inputPlaceHolder}
+                name="searchQuery"
+                onChange={onSearchQueryChange}
+                value={searchQuery}
+                inputWrapperClass={`${baseClass}__input-wrapper`}
+              />
+            </div>
+          )}
         </div>
       </div>
       <div className={`${baseClass}__data-table-container`}>
         {/* No entities for this result. */}
-        {!isLoading && data.length === 0 ? (
+        {!isLoading && !data ? (
           <EmptyComponent />
         ) : (
           <>
@@ -222,13 +249,16 @@ const TableContainer = ({
               toggleAllPagesSelected={toggleAllPagesSelected}
               resultsTitle={resultsTitle}
               defaultPageSize={DEFAULT_PAGE_SIZE}
+              selectActionButtonText={selectActionButtonText}
             />
-            <Pagination
-              resultsOnCurrentPage={data.length}
-              currentPage={pageIndex}
-              resultsPerPage={pageSize}
-              onPaginationChange={onPaginationChange}
-            />
+            {!disablePagination && (
+              <Pagination
+                resultsOnCurrentPage={data.length}
+                currentPage={pageIndex}
+                resultsPerPage={pageSize}
+                onPaginationChange={onPaginationChange}
+              />
+            )}
           </>
         )}
       </div>

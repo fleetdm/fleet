@@ -254,6 +254,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
         emptyComponent={EmptyMembers}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        searchable
       />
       {showAddMemberModal ? (
         <AddMemberModal

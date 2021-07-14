@@ -584,6 +584,7 @@ export class UserManagementPage extends Component {
           onQueryChange={onTableQueryChange}
           resultsTitle={"users"}
           emptyComponent={EmptyUsers}
+          searchable
         />
         {renderCreateUserModal()}
         {renderEditUserModal()}
