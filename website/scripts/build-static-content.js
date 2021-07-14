@@ -120,6 +120,10 @@ module.exports = {
             // Perform path maths (determine this using sectionRepoPath, etc)
             // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
             // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
+            let pageSourceBasename = path.basename(pageSourcePath, '.md');
+            // TODO: I think one more var goes here probably
+
+            // Determine URL
             let rootRelativeUrlPath = `/todo-${_.trimRight(sectionRepoPath,'/')}-${pageSourcePath.slice(-30).replace(/[^a-z0-9\-]/ig,'')}-${Math.floor(Math.random()*10000000)}`;
             sails.log.verbose(`Building page ${rootRelativeUrlPath} from ${pageSourcePath} (${sectionRepoPath})`);
             // ^^TODO: replace that with the actual desired root relative URL path
@@ -134,26 +138,35 @@ module.exports = {
             // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
             let lastModifiedAt = Date.now();// TODO
 
+            // Process file and extract metadata.
             let embeddedMetadata = {};
             if (true) {// If markdown: Compile to HTML and parse docpage metadata
               // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
-              // > • Parsing docmeta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
+              // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
               // >   e.g. stuff like:
               // >   ```
-              // >   <docmeta name="foo" value="bar">
-              // >   <docmeta name="title" value="Lorem ipsum() with.lots of punctuATION and weird CAPS ... but never this long, please">
+              // >   <meta name="foo" value="bar">
+              // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
               // >   ```
 
               // TODO
+              // TODO: ensure embedded metadata is interpreted as strings (at least the title, but prbly all of it)
             } else {// Else: Skip this page.
               // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
 
               // TODO
             }
 
-            // Determine title to use
-            let fallbackTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, '.ejs'));// « for clarity (the page isn't a template, necessarily, and this title is just a guess.  Display title will, more likely than not, come from a <docmeta> tag -- see the bottom of the original, raw unformatted markdown of any page in the sailsjs docs for an example of how to use docmeta tags)
-            embeddedMetadata
+            // Determine display title to use for this page.
+            let pageTitle;
+            if (embeddedMetadata.title) {// Attempt to use custom title, if one was provided.
+              if (embeddedMetadata.title.length > 40) {
+                throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a different, valid value, then rebuild.`);
+              }//•
+              pageTitle = embeddedMetadata.title;
+            } else {// Otherwise automatically determine a fallback title.
+              pageTitle = sails.helpers.strings.toSentenceCase(pageSourceBasename);
+            }
 
             // Generate HTML file
             let htmlOutputPath = '';//TODO
@@ -168,7 +181,7 @@ module.exports = {
             // Append to what will become configuration for the Sails app.
             builtStaticContent.markdownPages.push({
               url: rootRelativeUrlPath,
-              title: '' || fallbackTitle,// TODO use metadata title if available
+              title: pageTitle,
               lastModifiedAt: lastModifiedAt
             });
           }//∞ </each source file>

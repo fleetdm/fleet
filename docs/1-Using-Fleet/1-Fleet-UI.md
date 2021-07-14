@@ -78,3 +78,5 @@ Let's say you have two teams in Fleet. One team is named "Workstations" and the 
 To configure team agent options, head to **Settings > Teams > `Team-name-here` > Agent options**.
 
 ![Team agent options](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/team-agent-options.png)
+
+<meta name="title" value="Fleet UI">
