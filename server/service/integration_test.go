@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -260,6 +261,8 @@ func getConfig(t *testing.T, server *httptest.Server, token string) *fleet.AppCo
 }
 
 func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
+	test.AddAllHostsLabel(t, ds)
+
 	_, server := runServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
