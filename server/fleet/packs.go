@@ -35,6 +35,9 @@ type PackStore interface {
 
 	// ListPacksForHost lists the packs that a host should execute.
 	ListPacksForHost(hid uint) (packs []*Pack, err error)
+
+	// EnsureGlobalPack gets or inserts a pack with type global
+	EnsureGlobalPack() (*Pack, error)
 }
 
 // PackService is the service interface for managing query packs.
@@ -72,14 +75,15 @@ type PackService interface {
 // Pack is the structure which represents an osquery query pack.
 type Pack struct {
 	UpdateCreateTimestamps
-	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Platform    string `json:"platform,omitempty"`
-	Disabled    bool   `json:"disabled,omitempty"`
-	LabelIDs    []uint `json:"label_ids"`
-	HostIDs     []uint `json:"host_ids"`
-	TeamIDs     []uint `json:"team_ids"`
+	ID          uint    `json:"id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description,omitempty"`
+	Platform    string  `json:"platform,omitempty"`
+	Disabled    bool    `json:"disabled,omitempty"`
+	Type        *string `json:"type" db:"pack_type"`
+	LabelIDs    []uint  `json:"label_ids"`
+	HostIDs     []uint  `json:"host_ids"`
+	TeamIDs     []uint  `json:"team_ids"`
 }
 
 func (p Pack) AuthzType() string {
