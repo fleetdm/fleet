@@ -215,7 +215,8 @@ module.exports = {
                 url: rootRelativeUrlPath,
                 title: pageTitle,
                 lastModifiedAt: lastModifiedAt,
-                htmlId: htmlId
+                htmlId: htmlId,
+                other: _.omit(embeddedMetadata, 'title')
               });
             }
           }//∞ </each source file>
