@@ -21,6 +21,8 @@ type LiveQueryResultsHandler struct {
 	results chan fleet.DistributedQueryResult
 	totals  atomic.Value // real type: targetTotals
 	status  atomic.Value // real type: campaignStatus
+
+	conn *websocket.Conn
 }
 
 func NewLiveQueryResultsHandler() *LiveQueryResultsHandler {
@@ -54,6 +56,13 @@ func (h *LiveQueryResultsHandler) Status() *campaignStatus {
 	s := h.status.Load()
 	if s != nil {
 		return s.(*campaignStatus)
+	}
+	return nil
+}
+
+func (h *LiveQueryResultsHandler) Close() error {
+	if h.conn != nil {
+		return h.conn.Close()
 	}
 	return nil
 }
@@ -124,6 +133,7 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 	}
 
 	resHandler := NewLiveQueryResultsHandler()
+	resHandler.conn = conn
 	go func() {
 		defer conn.Close()
 		for {
