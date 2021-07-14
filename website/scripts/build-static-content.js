@@ -146,26 +146,38 @@ module.exports = {
 
             if (path.extname(pageSourcePath) !== '.md') {// If this file doesn't end in `.md`: skip it (we won't create a page for it)
               // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
-              sails.log(`Skipping ${pageSourcePath}`);
+              sails.log.verbose(`Skipping ${pageSourcePath}`);
             } else {// Otherwise, this is markdown, so: Compile to HTML, parse docpage metadata, and build+track it as a page
               sails.log.verbose(`Building page ${rootRelativeUrlPath} (from ${pageSourcePath})`);
 
-              // Compile markdown and extract metadata.
+              // Compile markdown to HTML.
               // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+              let mdString = await sails.helpers.fs.read(pageSourcePath);
+              let htmlString = await sails.helpers.strings.toHtml(mdString);
+
+              // Extract metadata.
               // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
-              // >   e.g. stuff like:
+              // >   See also https://github.com/mikermcneil/machinepack-markdown/blob/5d8cee127e8ce45c702ec9bbb2b4f9bc4b7fafac/machines/parse-docmeta-tags.js#L42-L47
+              // >
+              // >   e.g. referring to stuff like:
               // >   ```
               // >   <meta name="foo" value="bar">
               // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
               // >   ```
-              let mdString = await sails.helpers.fs.read(pageSourcePath);
-              let htmlString = await sails.helpers.strings.toHtml(mdString);
-              let embeddedMetadata = {};// TODO
-              // TODO: ensure embedded metadata is interpreted as strings (at least the title, but prbly all of it)
+              let embeddedMetadata = {};
+              for (let tag of (mdString.match(/<meta[^>]*>/igm)||[])) {
+                let name = tag.match(/name="([^">]+)"/i)[1];
+                let value = tag.match(/value="([^">]+)"/i)[1];
+                embeddedMetadata[name] = value;
+              }//∞
+              if (Object.keys(embeddedMetadata).length >= 1) {
+                sails.log.silly(`Parsed ${Object.keys(embeddedMetadata).length} <meta> tags:`, embeddedMetadata);
+              }//ﬁ
 
               // Get last modified timestamp using git
               // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
               let lastModifiedAt = Date.now();// TODO
+
 
               // Determine display title (human-readable title) to use for this page.
               let pageTitle;
