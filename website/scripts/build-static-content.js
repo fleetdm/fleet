@@ -174,10 +174,12 @@ module.exports = {
                 sails.log.silly(`Parsed ${Object.keys(embeddedMetadata).length} <meta> tags:`, embeddedMetadata);
               }//ﬁ
 
-              // Get last modified timestamp using git
+              // Get last modified timestamp using git, and represent it as a JS timestamp.
               // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-              let lastModifiedAt = Date.now();// TODO
-
+              let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+                command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
+                dir: topLvlRepoPath,
+              })).stdout)).getTime();
 
               // Determine display title (human-readable title) to use for this page.
               let pageTitle;
