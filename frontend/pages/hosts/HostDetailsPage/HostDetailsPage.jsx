@@ -189,8 +189,6 @@ export class HostDetailsPage extends Component {
   };
 
   // Search functionality
-  // NOTE: this is called once on the initial rendering. The initial render of
-  // the TableContainer child component will call this handler.
   onQueryChange = (queryData) => {
     const { host } = this.props;
     const {

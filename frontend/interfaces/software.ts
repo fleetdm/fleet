@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import vulnerabilitiesInterface, { IVulnerabilities } from "./vulnerabilities";
+import vulnerabilityInterface, { IVulnerability } from "./vulnerability";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -7,7 +7,7 @@ export default PropTypes.shape({
   version: PropTypes.string,
   source: PropTypes.string,
   id: PropTypes.number,
-  vulnerabilities: PropTypes.arrayOf(vulnerabilitiesInterface),
+  vulnerabilities: PropTypes.arrayOf(vulnerabilityInterface),
 });
 
 export interface ISoftware {
@@ -16,5 +16,5 @@ export interface ISoftware {
   version: string;
   source: string;
   id: number;
-  vulnerabilities: IVulnerabilities[];
+  vulnerabilities: IVulnerability[];
 }

@@ -4,6 +4,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import IconTooltipCell from "components/TableContainer/DataTable/IconTooltipCell";
 import { ISoftware } from "interfaces/software";
+import { IVulnerability } from "interfaces/vulnerability";
 
 interface IHeaderProps {
   column: {
@@ -78,7 +79,7 @@ const generateTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-const TYPE_CONVERSION: any = {
+const TYPE_CONVERSION: Record<string, string> = {
   apt_sources: "Package (APT)",
   deb_packages: "Package (deb)",
   portage_packages: "Package (Portage)",
@@ -98,7 +99,7 @@ const TYPE_CONVERSION: any = {
   pkg_packages: "Package (pkg)",
 };
 
-const generateTooltip = (vulnerabilities: any): any => {
+const generateTooltip = (vulnerabilities: IVulnerability[]): string | null => {
   if (!vulnerabilities) {
     // Uncomment to test tooltip rendering:
     // return "0 vulnerabilities detected";
@@ -125,7 +126,7 @@ const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
   });
 };
 
-const generateDataSet = (software: ISoftware[]): any => {
+const generateDataSet = (software: ISoftware[]): ISoftwareTableData[] => {
   // Cannot pass undefined to enhanceSoftwareData
   if (!software) {
     return software;
