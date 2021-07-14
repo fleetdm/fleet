@@ -158,6 +158,8 @@ module.exports = {
               // >   <meta name="foo" value="bar">
               // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
               // >   ```
+              let mdString = await sails.helpers.fs.read(pageSourcePath);
+              let htmlString = await sails.helpers.strings.toHtml(mdString);
               let embeddedMetadata = {};// TODO
               // TODO: ensure embedded metadata is interpreted as strings (at least the title, but prbly all of it)
 
@@ -182,7 +184,7 @@ module.exports = {
               if (dry) {
                 sails.log('Dry run: Would have generated file:', htmlOutputPath);
               } else {
-                // TODO
+                await sails.helpers.fs.write(htmlOutputPath, htmlString);
               }
 
               // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
