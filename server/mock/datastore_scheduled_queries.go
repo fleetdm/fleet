@@ -20,8 +20,6 @@ type ScheduledQueryByQueryIDFunc func(id uint) (*fleet.ScheduledQuery, error)
 
 type SaveScheduledQueriesFunc func(sqs []*fleet.ScheduledQuery) ([]*fleet.ScheduledQuery, error)
 
-type DeleteScheduledQueriesFunc func(ids []uint) error
-
 type ScheduledQueryStore struct {
 	ListScheduledQueriesInPackFunc        ListScheduledQueriesInPackFunc
 	ListScheduledQueriesInPackFuncInvoked bool
@@ -43,19 +41,6 @@ type ScheduledQueryStore struct {
 
 	SaveScheduledQueriesFunc        SaveScheduledQueriesFunc
 	SaveScheduledQueriesFuncInvoked bool
-
-	DeleteScheduledQueriesFunc        DeleteScheduledQueriesFunc
-	DeleteScheduledQueriesFuncInvoked bool
-}
-
-func (s *ScheduledQueryStore) ReplaceScheduledQueriesInPack(id uint, sqs []*fleet.ScheduledQuery) ([]*fleet.ScheduledQuery, error) {
-	s.SaveScheduledQueriesFuncInvoked = true
-	return s.SaveScheduledQueriesFunc(sqs)
-}
-
-func (s *ScheduledQueryStore) DeleteScheduledQueries(ids []uint) error {
-	s.DeleteScheduledQueriesFuncInvoked = true
-	return s.DeleteScheduledQueriesFunc(ids)
 }
 
 func (s *ScheduledQueryStore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
@@ -83,7 +68,7 @@ func (s *ScheduledQueryStore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, er
 	return s.ScheduledQueryFunc(id)
 }
 
-func (s *ScheduledQueryStore) ScheduledQueryByQueryID(id uint) (*fleet.ScheduledQuery, error) {
+func (s *ScheduledQueryStore) ScheduledQueryByQueryAndPack(queryID uint, packID uint) (*fleet.ScheduledQuery, error) {
 	s.ScheduledQueryByQueryIDFuncInvoked = true
-	return s.ScheduledQueryByQueryIDFunc(id)
+	return s.ScheduledQueryByQueryIDFunc(queryID)
 }

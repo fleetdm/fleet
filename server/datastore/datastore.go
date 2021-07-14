@@ -104,5 +104,5 @@ var TestFunctions = []func(*testing.T, fleet.Datastore){
 	testNewActivity,
 	testActivityUsernameChange,
 	testEnsureGlobalPack,
-	testScheduledQueryBulkSave,
+	testScheduledQuerySelectByQueryAndPackID,
 }

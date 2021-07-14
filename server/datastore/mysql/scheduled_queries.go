@@ -129,43 +129,8 @@ func (d *Datastore) saveScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) (*
 	return sq, nil
 }
 
-func (d *Datastore) ReplaceScheduledQueriesInPack(id uint, sqs []*fleet.ScheduledQuery) ([]*fleet.ScheduledQuery, error) {
-	var finalSqs []*fleet.ScheduledQuery
-	err := d.withTx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec(`DELETE FROM scheduled_queries WHERE pack_id = ?`, id)
-		if err != nil {
-			return err
-		}
-		for _, sq := range sqs {
-			_, err := d.saveScheduledQuery(tx, sq)
-			if err != nil {
-				_, ok := err.(*notFoundError)
-				if !ok {
-					return err
-				}
-				sq, err = d.insertScheduledQuery(tx, sq)
-				if err != nil {
-					return err
-				}
-			}
-			finalSqs = append(finalSqs, sq)
-		}
-		return nil
-	})
-
-	return finalSqs, err
-}
-
 func (d *Datastore) DeleteScheduledQuery(id uint) error {
 	return d.deleteEntity("scheduled_queries", id)
-}
-
-func (d *Datastore) DeleteScheduledQueries(ids []uint) error {
-	_, err := d.deleteEntities("scheduled_queries", ids)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (d *Datastore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
@@ -200,7 +165,7 @@ func (d *Datastore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
 	return sq, nil
 }
 
-func (d *Datastore) ScheduledQueryByQueryID(id uint) (*fleet.ScheduledQuery, error) {
+func (d *Datastore) ScheduledQueryByQueryAndPack(queryID uint, packID uint) (*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT
 			sq.id,
@@ -222,10 +187,10 @@ func (d *Datastore) ScheduledQueryByQueryID(id uint) (*fleet.ScheduledQuery, err
 		FROM scheduled_queries sq
 		JOIN queries q
 		ON sq.query_name = q.name
-		WHERE q.id = ?
+		WHERE q.id = ? and sq.pack_id = ?
 	`
 	sq := &fleet.ScheduledQuery{}
-	if err := d.db.Get(sq, query, id); err != nil {
+	if err := d.db.Get(sq, query, queryID, packID); err != nil {
 		return nil, errors.Wrap(err, "select scheduled query")
 	}
 

@@ -211,8 +211,6 @@ type Error struct {
 const (
 	// ErrNoRoleNeeded is the error number for valid role needed
 	ErrNoRoleNeeded = 1
-	// ErrNoQueryIDNeeded is the error number for needing a query ID in the payload
-	ErrNoQueryIDNeeded = 2
 )
 
 // NewError returns a fleet error with the code and message specified

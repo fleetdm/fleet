@@ -41,12 +41,13 @@ func makeGetGlobalScheduleEndpoint(svc fleet.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyGlobalScheduleRequest struct {
-	payload fleet.GlobalSchedulePayload
+	ID      uint
+	payload fleet.ScheduledQueryPayload
 }
 
 type modifyGlobalScheduleResponse struct {
-	GlobalSchedule []*fleet.ScheduledQuery `json:"global_schedule"`
-	Err            error                   `json:"error,omitempty"`
+	Scheduled *fleet.ScheduledQuery `json:"scheduled,omitempty"`
+	Err       error                 `json:"error,omitempty"`
 }
 
 func (r modifyGlobalScheduleResponse) error() error { return r.Err }
@@ -55,13 +56,13 @@ func makeModifyGlobalScheduleEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyGlobalScheduleRequest)
 
-		sqs, err := svc.ModifyGlobalScheduledQueries(ctx, req.payload.GlobalSchedule)
+		sq, err := svc.ModifyGlobalScheduledQueries(ctx, req.ID, req.payload)
 		if err != nil {
 			return modifyGlobalScheduleResponse{Err: err}, nil
 		}
 
 		return modifyGlobalScheduleResponse{
-			GlobalSchedule: sqs,
+			Scheduled: sq,
 		}, nil
 	}
 }
@@ -70,7 +71,9 @@ func makeModifyGlobalScheduleEndpoint(svc fleet.Service) endpoint.Endpoint {
 // Delete Global Schedule
 ////////////////////////////////////////////////////////////////////////////////
 
-type deleteGlobalScheduleRequest struct{}
+type deleteGlobalScheduleRequest struct {
+	ID uint
+}
 
 type deleteGlobalScheduleResponse struct {
 	Err error `json:"error,omitempty"`
@@ -80,11 +83,53 @@ func (r deleteGlobalScheduleResponse) error() error { return r.Err }
 
 func makeDeleteGlobalScheduleEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		err := svc.DeleteGlobalScheduledQueries(ctx)
+		req := request.(deleteGlobalScheduleRequest)
+		err := svc.DeleteGlobalScheduledQueries(ctx, req.ID)
 		if err != nil {
 			return deleteGlobalScheduleResponse{Err: err}, nil
 		}
 
 		return deleteGlobalScheduleResponse{}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Global Schedule Query
+////////////////////////////////////////////////////////////////////////////////
+
+type globalScheduleQueryRequest struct {
+	QueryID  uint    `json:"query_id"`
+	Interval uint    `json:"interval"`
+	Snapshot *bool   `json:"snapshot"`
+	Removed  *bool   `json:"removed"`
+	Platform *string `json:"platform"`
+	Version  *string `json:"version"`
+	Shard    *uint   `json:"shard"`
+}
+
+type globalScheduleQueryResponse struct {
+	Scheduled *fleet.ScheduledQuery `json:"scheduled,omitempty"`
+	Err       error                 `json:"error,omitempty"`
+}
+
+func (r globalScheduleQueryResponse) error() error { return r.Err }
+
+func makeGlobalScheduleQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(globalScheduleQueryRequest)
+
+		scheduled, err := svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{
+			QueryID:  req.QueryID,
+			Interval: req.Interval,
+			Snapshot: req.Snapshot,
+			Removed:  req.Removed,
+			Platform: req.Platform,
+			Version:  req.Version,
+			Shard:    req.Shard,
+		})
+		if err != nil {
+			return globalScheduleQueryResponse{Err: err}, nil
+		}
+		return globalScheduleQueryResponse{Scheduled: scheduled}, nil
 	}
 }

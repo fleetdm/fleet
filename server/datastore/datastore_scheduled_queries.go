@@ -182,48 +182,6 @@ func testCascadingDeletionOfQueries(t *testing.T, ds fleet.Datastore) {
 	require.Len(t, gotQueries, 1)
 }
 
-func testScheduledQueryBulkSave(t *testing.T, ds fleet.Datastore) {
-	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
-	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
-	q2 := test.NewQuery(t, ds, "foo2", "select 1 from time;", u1.ID, true)
-	q3 := test.NewQuery(t, ds, "foo3", "select 1 from time;", u1.ID, true)
-	p1 := test.NewPack(t, ds, "baz")
-
-	sq1 := &fleet.ScheduledQuery{PackID: p1.ID, QueryID: q1.ID, Interval: 60, Name: q1.Name}
-	sq2 := &fleet.ScheduledQuery{PackID: p1.ID, QueryID: q2.ID, Interval: 42, Name: q2.Name}
-	sq3 := &fleet.ScheduledQuery{PackID: p1.ID, QueryID: q3.ID, Interval: 23, Name: q3.Name}
-
-	_, err := ds.ReplaceScheduledQueriesInPack(p1.ID, []*fleet.ScheduledQuery{sq1, sq2})
-	require.Nil(t, err)
-
-	query, err := ds.ScheduledQuery(sq1.ID)
-	require.Nil(t, err)
-	assert.Equal(t, uint(60), query.Interval)
-
-	// Test updates on already inserted sched queries
-	sq1.Denylist = ptr.Bool(true)
-
-	_, err = ds.ReplaceScheduledQueriesInPack(p1.ID, []*fleet.ScheduledQuery{sq1, sq2})
-	require.Nil(t, err)
-
-	query, err = ds.ScheduledQuery(sq1.ID)
-	require.Nil(t, err)
-	assert.Equal(t, uint(60), query.Interval)
-	require.NotNil(t, query.Denylist)
-	assert.True(t, *query.Denylist)
-
-	query, err = ds.ScheduledQuery(sq2.ID)
-	require.Nil(t, err)
-	assert.Equal(t, uint(42), query.Interval)
-
-	// replacement
-	_, err = ds.ReplaceScheduledQueriesInPack(p1.ID, []*fleet.ScheduledQuery{sq1, sq3})
-	require.Nil(t, err)
-
-	sqs, err := ds.ListScheduledQueriesInPack(p1.ID, fleet.ListOptions{})
-	require.Nil(t, err)
-	require.Len(t, sqs, 2)
-
-	assert.Equal(t, q1.Name, sqs[0].Name)
-	assert.Equal(t, q3.Name, sqs[1].Name)
+func testScheduledQuerySelectByQueryAndPackID(t *testing.T, ds fleet.Datastore) {
+	// TODO: test select works when the same query is in two packs
 }
