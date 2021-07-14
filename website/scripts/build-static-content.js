@@ -137,67 +137,65 @@ module.exports = {
               )
             );
 
-            // Process file and extract metadata.
-            let embeddedMetadata = {};
-            if (path.extname(pageSourcePath) !== '.md') {// If this file doesn't end in `.md`: skip it (we won't create a page for it)
-              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
-              sails.log.verbose(`Skipping ${pageSourcePath}`);
-              continue;
-            }//•
-
-            // Otherwise, this is markdown, so: Compile to HTML and parse docpage metadata
-            sails.log.verbose(`Building page ${rootRelativeUrlPath} (from ${pageSourcePath})`);
-            // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
-            // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
-            // >   e.g. stuff like:
-            // >   ```
-            // >   <meta name="foo" value="bar">
-            // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
-            // >   ```
-            // TODO
-            // TODO: ensure embedded metadata is interpreted as strings (at least the title, but prbly all of it)
-
             // Assert uniqueness of URL paths.
             if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
               throw new Error('Failed compiling markdown content: Files as currently named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ' + rootRelativeUrlPath);
             }//•
             rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
 
-            // Get last modified timestamp using git
-            // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-            let lastModifiedAt = Date.now();// TODO
+            if (path.extname(pageSourcePath) !== '.md') {// If this file doesn't end in `.md`: skip it (we won't create a page for it)
+              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
+              sails.log.verbose(`Skipping ${pageSourcePath}`);
+            } else {// Otherwise, this is markdown, so: Compile to HTML, parse docpage metadata, and build+track it as a page
+              sails.log.verbose(`Building page ${rootRelativeUrlPath} (from ${pageSourcePath})`);
 
-            // Determine display title (human-readable title) to use for this page.
-            let pageTitle;
-            if (embeddedMetadata.title) {// Attempt to use custom title, if one was provided.
-              if (embeddedMetadata.title.length > 40) {
-                throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a different, valid value, then rebuild.`);
-              }//•
-              pageTitle = embeddedMetadata.title;
-            } else {// Otherwise use the automatically-determined fallback title.
-              pageTitle = fallbackPageTitle;
+              // Compile markdown and extract metadata.
+              // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+              // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
+              // >   e.g. stuff like:
+              // >   ```
+              // >   <meta name="foo" value="bar">
+              // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
+              // >   ```
+              let embeddedMetadata = {};// TODO
+              // TODO: ensure embedded metadata is interpreted as strings (at least the title, but prbly all of it)
+
+              // Get last modified timestamp using git
+              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+              let lastModifiedAt = Date.now();// TODO
+
+              // Determine display title (human-readable title) to use for this page.
+              let pageTitle;
+              if (embeddedMetadata.title) {// Attempt to use custom title, if one was provided.
+                if (embeddedMetadata.title.length > 40) {
+                  throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a different, valid value, then rebuild.`);
+                }//•
+                pageTitle = embeddedMetadata.title;
+              } else {// Otherwise use the automatically-determined fallback title.
+                pageTitle = fallbackPageTitle;
+              }
+
+              // Generate HTML file
+              let htmlOutputPath = '';//TODO
+              if (dry) {
+                sails.log('Dry run: Would have generated file:', htmlOutputPath);
+              } else {
+                // TODO
+              }
+
+              // TODO: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
+              // * * *
+              // (A good long term solution to this that wouldn't be that hard and would only be slightly annoying going forward would be to have the docs refer to images like https://fleetdm.com/images/foobar.png)
+              // …maybe we should just do that from the get-go.
+              // * * *
+
+              // Append to what will become configuration for the Sails app.
+              builtStaticContent.markdownPages.push({
+                url: rootRelativeUrlPath,
+                title: pageTitle,
+                lastModifiedAt: lastModifiedAt
+              });
             }
-
-            // Generate HTML file
-            let htmlOutputPath = '';//TODO
-            if (dry) {
-              sails.log('Dry run: Would have generated file:', htmlOutputPath);
-            } else {
-              // TODO
-            }
-
-            // TODO: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
-            // * * *
-            // (A good long term solution to this that wouldn't be that hard and would only be slightly annoying going forward would be to have the docs refer to images like https://fleetdm.com/images/foobar.png)
-            // …maybe we should just do that from the get-go.
-            // * * *
-
-            // Append to what will become configuration for the Sails app.
-            builtStaticContent.markdownPages.push({
-              url: rootRelativeUrlPath,
-              title: pageTitle,
-              lastModifiedAt: lastModifiedAt
-            });
           }//∞ </each source file>
         }//∞ </each section repo path>
 
