@@ -31,5 +31,6 @@ module.exports.policies = {
   'receive-usage-analytics': true,
   'view-docs-template': true,
   'view-documentation': true,
+  'view-transparency': true,
 
 };
