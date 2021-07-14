@@ -72,7 +72,10 @@ module.exports = {
         // Talk to GitHub and get additional information about each contributor.
         let githubDataByUsername = {};
         await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
-          githubDataByUsername[username] = await sails.helpers.http.get('https://api.github.com/users/' + encodeURIComponent(username), {}, { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' });
+          githubDataByUsername[username] = await sails.helpers.http.get.with({
+            url: 'https://api.github.com/users/' + encodeURIComponent(username),
+            headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+          });
         });//∞
 
         // Now expand queries with relevant profile data for the contributors.
@@ -96,17 +99,19 @@ module.exports = {
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and prepare to bake directory trees into the Sails app's configuration.
 
-        // Note:
-        // • path maths inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // // Original way that works:  (versus new stuff below)
+        // // Original way that still works:  (versus new stuff below)
         // builtStaticContent.markdownPages = await sails.helpers.compileMarkdownContent('docs/');  // TODO remove this and helper once everything works again
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         builtStaticContent.markdownPages = [];// « dir tree representation that will be injected into Sails app's configuration
 
-        let SECTION_REPO_PATHS = ['docs/', 'handbook/'];
-        for (let sectionRepoPath of SECTION_REPO_PATHS) {
+        let ROOT_RELATIVE_URL_PREFIXES_BY_SECTION_REPO_PATHS = {
+          'docs/':     '/docs',
+          'handbook/': '/handbook'
+        };
+        let rootRelativeUrlPathsSeen = [];
+        for (let sectionRepoPath of Object.keys(ROOT_RELATIVE_URL_PREFIXES_BY_SECTION_REPO_PATHS)) {
           let thinTree = await sails.helpers.fs.ls.with({
             dir: path.join(topLvlRepoPath, sectionRepoPath),
             depth: 100,
@@ -114,19 +119,43 @@ module.exports = {
             includeSymlinks: false,
           });
 
-          let rootRelativeUrlPathsSeen = [];
           for (let pageSourcePath of thinTree) {
 
-            // Perform path maths (determine this using sectionRepoPath, etc)
+            // Determine URL for this page
+            // (+ other path maths)
             // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
             // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
-            let pageSourceBasename = path.basename(pageSourcePath, '.md');
-            // TODO: I think one more var goes here probably
+            let fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
+            let pageRelSourcePath = path.relative(path.join(topLvlRepoPath, sectionRepoPath), path.resolve(pageSourcePath));
+            let rootRelativeUrlPath = (
+              ROOT_RELATIVE_URL_PREFIXES_BY_SECTION_REPO_PATHS[sectionRepoPath] +
+              '/' + (
+                pageRelSourcePath
+                .replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2')
+                .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.toLowerCase()))
+                .join('/')
+              )
+            );
 
-            // Determine URL
-            let rootRelativeUrlPath = `/todo-${_.trimRight(sectionRepoPath,'/')}-${pageSourcePath.slice(-30).replace(/[^a-z0-9\-]/ig,'')}-${Math.floor(Math.random()*10000000)}`;
-            sails.log.verbose(`Building page ${rootRelativeUrlPath} from ${pageSourcePath} (${sectionRepoPath})`);
-            // ^^TODO: replace that with the actual desired root relative URL path
+            // Process file and extract metadata.
+            let embeddedMetadata = {};
+            if (path.extname(pageSourcePath) !== '.md') {// If this file doesn't end in `.md`: skip it (we won't create a page for it)
+              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
+              sails.log.verbose(`Skipping ${pageSourcePath}`);
+              continue;
+            }//•
+
+            // Otherwise, this is markdown, so: Compile to HTML and parse docpage metadata
+            sails.log.verbose(`Building page ${rootRelativeUrlPath} (from ${pageSourcePath})`);
+            // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+            // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
+            // >   e.g. stuff like:
+            // >   ```
+            // >   <meta name="foo" value="bar">
+            // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
+            // >   ```
+            // TODO
+            // TODO: ensure embedded metadata is interpreted as strings (at least the title, but prbly all of it)
 
             // Assert uniqueness of URL paths.
             if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
@@ -138,34 +167,15 @@ module.exports = {
             // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
             let lastModifiedAt = Date.now();// TODO
 
-            // Process file and extract metadata.
-            let embeddedMetadata = {};
-            if (true) {// If markdown: Compile to HTML and parse docpage metadata
-              // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
-              // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
-              // >   e.g. stuff like:
-              // >   ```
-              // >   <meta name="foo" value="bar">
-              // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
-              // >   ```
-
-              // TODO
-              // TODO: ensure embedded metadata is interpreted as strings (at least the title, but prbly all of it)
-            } else {// Else: Skip this page.
-              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
-
-              // TODO
-            }
-
-            // Determine display title to use for this page.
+            // Determine display title (human-readable title) to use for this page.
             let pageTitle;
             if (embeddedMetadata.title) {// Attempt to use custom title, if one was provided.
               if (embeddedMetadata.title.length > 40) {
                 throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a different, valid value, then rebuild.`);
               }//•
               pageTitle = embeddedMetadata.title;
-            } else {// Otherwise automatically determine a fallback title.
-              pageTitle = sails.helpers.strings.toSentenceCase(pageSourceBasename);
+            } else {// Otherwise use the automatically-determined fallback title.
+              pageTitle = fallbackPageTitle;
             }
 
             // Generate HTML file
@@ -177,6 +187,10 @@ module.exports = {
             }
 
             // TODO: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative.  Also GitHub could just change image URLs whenever.)
+            // * * *
+            // (A good long term solution to this that wouldn't be that hard and would only be slightly annoying going forward would be to have the docs refer to images like https://fleetdm.com/images/foobar.png)
+            // …maybe we should just do that from the get-go.
+            // * * *
 
             // Append to what will become configuration for the Sails app.
             builtStaticContent.markdownPages.push({
