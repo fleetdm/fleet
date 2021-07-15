@@ -646,13 +646,6 @@ FROM homebrew_packages;
 SELECT
   name AS name,
   version AS version,
-  'Package (APT)' AS type,
-  'apt_sources' AS source
-FROM apt_sources
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (deb)' AS type,
   'deb_packages' AS source
 FROM deb_packages
@@ -670,13 +663,6 @@ SELECT
   'Package (RPM)' AS type,
   'rpm_packages' AS source
 FROM rpm_packages
-UNION
-SELECT
-  name AS name,
-  '' AS version,
-  'Package (YUM)' AS type,
-  'yum_sources' AS source
-FROM yum_sources
 UNION
 SELECT
   name AS name,
