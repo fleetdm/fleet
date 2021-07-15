@@ -1,0 +1,3 @@
+* Refactore software inventory table on host details page to use TableContainer
+* Now searchable, shows count, reorder by name and type
+* Vulnerabilities flag still sleeper feature in frontend waiting for backend work
