@@ -2,11 +2,17 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { pull } from "lodash";
 
+import TableContainer from "components/TableContainer";
 import Button from "components/buttons/Button";
 import helpers from "components/queries/ScheduledQueriesListWrapper/helpers";
 import InputField from "components/forms/fields/InputField";
 import QueriesList from "components/queries/ScheduledQueriesList";
 import queryInterface from "interfaces/query";
+import EmptyPack from "./EmptyPack";
+import {
+  generateTableHeaders,
+  generateDataSet,
+} from "./PackQueriesTable/PackQueriesTableConfig";
 
 const baseClass = "scheduled-queries-list-wrapper";
 
@@ -41,6 +47,33 @@ class ScheduledQueriesListWrapper extends Component {
     return handleRemoveScheduledQueries(checkedScheduledQueryIDs);
   };
 
+  // 7/15 ADDED for New table
+  // NOTE: this is called once on the initial rendering. The initial render of
+  // the TableContainer child component will call this handler.
+  onTableQueryChange = (queryData) => {
+    const { selectedFilter, dispatch } = this.props;
+    const {
+      pageIndex,
+      pageSize,
+      searchQuery,
+      sortHeader,
+      sortDirection,
+    } = queryData;
+    let sortBy = [];
+    if (sortHeader !== "") {
+      sortBy = [{ id: sortHeader, direction: sortDirection }];
+    }
+
+    // keep track as a local state to be used later
+    this.setState({ searchQuery });
+
+    // comment out for now, look into this
+    // dispatch(
+    //   getQueries(pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
+    // );
+  };
+
+  // Old table
   onCheckAllQueries = (shouldCheckAll) => {
     if (shouldCheckAll) {
       const allScheduledQueries = this.getQueries();
@@ -56,6 +89,7 @@ class ScheduledQueriesListWrapper extends Component {
     return false;
   };
 
+  // old table
   onCheckQuery = (shouldCheckQuery, scheduledQueryID) => {
     const { checkedScheduledQueryIDs } = this.state;
     const newCheckedScheduledQueryIDs = shouldCheckQuery
@@ -67,10 +101,12 @@ class ScheduledQueriesListWrapper extends Component {
     return false;
   };
 
+  // old table
   onUpdateQuerySearchText = (querySearchText) => {
     this.setState({ querySearchText });
   };
 
+  // old table
   getQueries = () => {
     const { scheduledQueries } = this.props;
     const { querySearchText } = this.state;
@@ -78,6 +114,7 @@ class ScheduledQueriesListWrapper extends Component {
     return helpers.filterQueries(scheduledQueries, querySearchText);
   };
 
+  // old table
   renderButton = () => {
     const { onRemoveScheduledQueries } = this;
     const { checkedScheduledQueryIDs } = this.state;
@@ -101,6 +138,7 @@ class ScheduledQueriesListWrapper extends Component {
     return false;
   };
 
+  // old table
   renderQueryCount = () => {
     const { scheduledQueries } = this.props;
     const queryCount = scheduledQueries.length;
@@ -114,6 +152,7 @@ class ScheduledQueriesListWrapper extends Component {
     );
   };
 
+  // this is the old table
   renderQueriesList = () => {
     const {
       getQueries,
@@ -148,15 +187,39 @@ class ScheduledQueriesListWrapper extends Component {
 
   render() {
     const {
+      onTableQueryChange,
       onUpdateQuerySearchText,
       renderButton,
       renderQueryCount,
       renderQueriesList,
+      getQueries,
     } = this;
     const { querySearchText } = this.state;
 
+    // hardcoded to false right now 7/15
+    const loadingTableData = false;
+
+    const tableHeaders = generateTableHeaders();
+
     return (
       <div className={`${baseClass} body-wrap`}>
+        <TableContainer
+          columns={tableHeaders}
+          data={generateDataSet(getQueries())}
+          isLoading={loadingTableData}
+          defaultSortHeader={"name"}
+          defaultSortDirection={"asc"}
+          inputPlaceHolder={"Search queries"}
+          onQueryChange={onTableQueryChange}
+          resultsTitle={"queries"}
+          emptyComponent={EmptyPack}
+          showMarkAllPages={false}
+          selectActionButtonText={"Remove"}
+          searchable
+          wideSearch
+          disablePagination
+        />
+
         {renderQueryCount()}
         <div className={`${baseClass}__query-list-action`}>
           <InputField
