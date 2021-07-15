@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"database/sql"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -159,38 +160,6 @@ func (d *Datastore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
 	`
 	sq := &fleet.ScheduledQuery{}
 	if err := d.db.Get(sq, query, id); err != nil {
-		return nil, errors.Wrap(err, "select scheduled query")
-	}
-
-	return sq, nil
-}
-
-func (d *Datastore) ScheduledQueryByQueryAndPack(queryID uint, packID uint) (*fleet.ScheduledQuery, error) {
-	query := `
-		SELECT
-			sq.id,
-			sq.created_at,
-			sq.updated_at,
-			sq.pack_id,
-			sq.interval,
-			sq.snapshot,
-			sq.removed,
-			sq.platform,
-			sq.version,
-			sq.shard,
-			sq.query_name,
-			sq.description,
-			sq.denylist,
-			q.query,
-			q.name,
-			q.id AS query_id
-		FROM scheduled_queries sq
-		JOIN queries q
-		ON sq.query_name = q.name
-		WHERE q.id = ? and sq.pack_id = ?
-	`
-	sq := &fleet.ScheduledQuery{}
-	if err := d.db.Get(sq, query, queryID, packID); err != nil {
 		return nil, errors.Wrap(err, "select scheduled query")
 	}
 

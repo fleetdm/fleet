@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -11,10 +16,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 func getTestAdminToken(t *testing.T, server *httptest.Server) string {
@@ -270,19 +271,15 @@ func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
 	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
 	assert.Len(t, gs.GlobalSchedule, 0)
 
-	params := fleet.QueryPayload{
-		Name:           ptr.String("TestQuery"),
-		Description:    ptr.String("Some description"),
-		Query:          ptr.String("select * from osquery;"),
-		ObserverCanRun: ptr.Bool(true),
-	}
-	type queryRespose struct {
-		Query *fleet.Query `json:"query"`
-	}
-	qr := queryRespose{}
-	doJSONReq(t, params, "POST", server, "/api/v1/fleet/queries", token, http.StatusOK, &qr)
+	qr, err := ds.NewQuery(&fleet.Query{
+		Name:           "TestQuery",
+		Description:    "Some description",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+	})
+	require.NoError(t, err)
 
-	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.Query.ID), Interval: ptr.Uint(42)}
+	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
 	type responseType struct {
 		Scheduled *fleet.ScheduledQuery `json:"scheduled,omitempty"`
 		Err       error                 `json:"error,omitempty"`
@@ -296,12 +293,13 @@ func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
 	require.Len(t, gs.GlobalSchedule, 1)
 	assert.Equal(t, uint(42), gs.GlobalSchedule[0].Interval)
 	assert.Equal(t, "TestQuery", gs.GlobalSchedule[0].Name)
+	id := gs.GlobalSchedule[0].ID
 
 	gs = fleet.GlobalSchedulePayload{}
 	gsParams = fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}
 	doJSONReq(
 		t, gsParams, "PATCH", server,
-		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", qr.Query.ID),
+		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id),
 		token, http.StatusOK, &gs,
 	)
 
@@ -313,7 +311,7 @@ func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
 	r = responseType{}
 	doJSONReq(
 		t, nil, "DELETE", server,
-		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", qr.Query.ID),
+		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id),
 		token, http.StatusOK, &r,
 	)
 	require.Nil(t, r.Err)
