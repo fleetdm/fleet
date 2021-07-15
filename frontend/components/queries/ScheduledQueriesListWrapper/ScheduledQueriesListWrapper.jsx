@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { pull } from "lodash";
 
+import simpleSearch from "utilities/simple_search";
 import TableContainer from "components/TableContainer";
 import Button from "components/buttons/Button";
 import helpers from "components/queries/ScheduledQueriesListWrapper/helpers";
@@ -33,6 +34,7 @@ class ScheduledQueriesListWrapper extends Component {
     this.state = {
       querySearchText: "",
       checkedScheduledQueryIDs: [],
+      queryState: props.scheduledQueries,
     };
   }
 
@@ -53,7 +55,7 @@ class ScheduledQueriesListWrapper extends Component {
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   onTableQueryChange = (queryData) => {
-    const { selectedFilter, dispatch, packId } = this.props;
+    const { selectedFilter, dispatch, packId, scheduledQueries } = this.props;
     const {
       pageIndex,
       pageSize,
@@ -66,14 +68,12 @@ class ScheduledQueriesListWrapper extends Component {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
 
-    // keep track as a local state to be used later
-    this.setState({ searchQuery });
+    if (!searchQuery) {
+      this.setState({ queryState: scheduledQueries });
+      return;
+    }
 
-    // comment out for now, look into this
-    dispatch(
-      scheduledQueryActions.loadAll(packId)
-      // (pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
-    );
+    this.setState({ queryState: simpleSearch(searchQuery, scheduledQueries) });
   };
 
   // Old table
@@ -197,7 +197,7 @@ class ScheduledQueriesListWrapper extends Component {
       renderQueriesList,
       getQueries,
     } = this;
-    const { querySearchText } = this.state;
+    const { querySearchText, queryState } = this.state;
 
     // hardcoded to false right now 7/15
     const loadingTableData = false;
@@ -208,7 +208,7 @@ class ScheduledQueriesListWrapper extends Component {
       <div className={`${baseClass} body-wrap`}>
         <TableContainer
           columns={tableHeaders}
-          data={generateDataSet(getQueries())}
+          data={generateDataSet(queryState)}
           isLoading={loadingTableData}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
