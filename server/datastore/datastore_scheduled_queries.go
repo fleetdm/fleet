@@ -183,5 +183,50 @@ func testCascadingDeletionOfQueries(t *testing.T, ds fleet.Datastore) {
 }
 
 func testScheduledQuerySelectByQueryAndPackID(t *testing.T, ds fleet.Datastore) {
-	// TODO: test select works when the same query is in two packs
+	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+	queries := []*fleet.Query{
+		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+	}
+	err := ds.ApplyQueries(zwass.ID, queries)
+	require.Nil(t, err)
+
+	specs := []*fleet.PackSpec{
+		{
+			Name:    "baz",
+			Targets: fleet.PackSpecTargets{Labels: []string{}},
+			Queries: []fleet.PackSpecQuery{
+				{
+					QueryName:   queries[0].Name,
+					Description: "test_foo",
+					Interval:    60,
+				},
+			},
+		},
+		{
+			Name:    "foo",
+			Targets: fleet.PackSpecTargets{Labels: []string{}},
+			Queries: []fleet.PackSpecQuery{
+				{
+					QueryName:   queries[0].Name,
+					Description: "test_foo",
+					Interval:    60,
+				},
+			},
+		},
+	}
+	err = ds.ApplyPackSpecs(specs)
+	require.Nil(t, err)
+
+	p, exists, err := ds.PackByName("baz")
+	require.Nil(t, err)
+	require.True(t, exists)
+
+	gotQueries, err := ds.ListScheduledQueriesInPack(p.ID, fleet.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, gotQueries, 1)
+
+	sq, err := ds.ScheduledQueryByQueryAndPack(gotQueries[0].ID, p.ID)
+	require.Nil(t, err)
+	assert.Equal(t, queries[0].Name, sq.QueryName)
 }
