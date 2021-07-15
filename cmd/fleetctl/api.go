@@ -65,6 +65,11 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	configPath, context := c.String("config"), c.String("context")
 
+	if flag.Lookup("test.v") != nil {
+		fleet.SetToken("AAAA")
+		return fleet, nil
+	}
+
 	// Add authentication token
 	t, err := getConfigValue(configPath, context, "token")
 	if err != nil {

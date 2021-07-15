@@ -91,7 +91,7 @@ spec:
         team: team1
 `)
 
-	assert.Equal(t, "[+] applied user roles", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	assert.Equal(t, "[+] applied user roles\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
 }
