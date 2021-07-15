@@ -1,0 +1,1 @@
+* Remove YUM and APT sources from software inventory. Fixes issue 966.
