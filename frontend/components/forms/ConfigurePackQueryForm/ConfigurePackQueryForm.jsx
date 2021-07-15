@@ -13,7 +13,7 @@ import {
   PLATFORM_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
-} from "utlities/constants";
+} from "utilities/constants";
 
 const baseClass = "configure-pack-query-form";
 const fieldNames = [
