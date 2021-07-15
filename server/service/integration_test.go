@@ -276,12 +276,12 @@ func testUserRolesSpec(t *testing.T, ds fleet.Datastore) {
 
 func TestSQLErrorsAreProperlyHandled(t *testing.T) {
 	mysql.RunTestsAgainstMySQL(t, []func(t *testing.T, ds fleet.Datastore){
-		//testDoubleUserCreationErrors,
-		//testUserCreationWrongTeamErrors,
-		//testQueryCreationLogsActivity,
-		//testUserWithoutRoleErrors,
-		//testUserWithWrongRoleErrors,
-		//testAppConfigAdditionalQueriesCanBeRemoved,
+		testDoubleUserCreationErrors,
+		testUserCreationWrongTeamErrors,
+		testQueryCreationLogsActivity,
+		testUserWithoutRoleErrors,
+		testUserWithWrongRoleErrors,
+		testAppConfigAdditionalQueriesCanBeRemoved,
 		testUserRolesSpec,
 	})
 }
