@@ -199,3 +199,31 @@ func (e passwordResetRequiredError) Error() string {
 func (e passwordResetRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
 }
+
+// Error is a user facing error (API user). It's meant to be used for errors that are
+// related to fleet logic specifically. Other errors, such as mysql errors, shouldn't
+// be translated to this.
+type Error struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+const (
+	// ErrNoRoleNeeded is the error number number for valid role needed
+	ErrNoRoleNeeded = 1
+)
+
+// NewError returns a fleet error with the code and message specified
+func NewError(code int, message string) error {
+	return &Error{code, message}
+}
+
+// NewErrorf returns a fleet error with the code, and message formatted
+// based on the format string and args specified
+func NewErrorf(code int, format string, args ...interface{}) error {
+	return &Error{code, fmt.Sprintf(format, args...)}
+}
+
+func (ge *Error) Error() string {
+	return ge.Message
+}

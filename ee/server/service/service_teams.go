@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/authz"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -51,6 +52,15 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if err != nil {
 		return nil, err
 	}
+
+	if err := svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeCreatedTeam,
+		&map[string]interface{}{"team_id": team.ID, "team_name": team.Name},
+	); err != nil {
+		return nil, err
+	}
+
 	return team, nil
 }
 
@@ -192,7 +202,15 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 
-	return svc.ds.DeleteTeam(teamID)
+	if err := svc.ds.DeleteTeam(teamID); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedTeam,
+		&map[string]interface{}{"team_id": teamID},
+	)
 }
 
 func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {

@@ -21,6 +21,7 @@ interface IDataTableProps {
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
+  selectActionButtonText?: string;
 }
 
 // This data table uses react-table for implementation. The relevant documentation of the library
@@ -38,6 +39,7 @@ const DataTable = ({
   toggleAllPagesSelected,
   resultsTitle,
   defaultPageSize,
+  selectActionButtonText,
 }: IDataTableProps) => {
   const columns = useMemo(() => {
     return tableColumns;
@@ -134,6 +136,10 @@ const DataTable = ({
     );
   };
 
+  const generateButtonText = (text = "Transfer to team") => {
+    return text;
+  };
+
   const shouldRenderToggleAllPages =
     Object.keys(selectedRowIds).length >= defaultPageSize &&
     showMarkAllPages &&
@@ -179,7 +185,7 @@ const DataTable = ({
                     </div>
                     <div className={"active-selection__inner-right"}>
                       <Button onClick={onSelectActionButtonClick}>
-                        Transfer to team
+                        {generateButtonText(selectActionButtonText)}
                       </Button>
                     </div>
                   </div>

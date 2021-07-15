@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -11,7 +11,15 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 		return err
 	}
 
-	return svc.ds.ApplyPackSpecs(specs)
+	if err := svc.ds.ApplyPackSpecs(specs); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAppliedSpecPack,
+		&map[string]interface{}{},
+	)
 }
 
 func (svc *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
@@ -86,6 +94,14 @@ func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pa
 		return nil, err
 	}
 
+	if err := svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeCreatedPack,
+		&map[string]interface{}{"pack_id": pack.ID, "pack_name": pack.Name},
+	); err != nil {
+		return nil, err
+	}
+
 	return &pack, nil
 }
 
@@ -132,6 +148,14 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 		return nil, err
 	}
 
+	if err := svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedPack,
+		&map[string]interface{}{"pack_id": pack.ID, "pack_name": pack.Name},
+	); err != nil {
+		return nil, err
+	}
+
 	return pack, err
 }
 
@@ -140,7 +164,15 @@ func (svc *Service) DeletePack(ctx context.Context, name string) error {
 		return err
 	}
 
-	return svc.ds.DeletePack(name)
+	if err := svc.ds.DeletePack(name); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedPack,
+		&map[string]interface{}{"pack_name": name},
+	)
 }
 
 func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
@@ -152,7 +184,15 @@ func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 	if err != nil {
 		return err
 	}
-	return svc.ds.DeletePack(pack.Name)
+	if err := svc.ds.DeletePack(pack.Name); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedPack,
+		&map[string]interface{}{"pack_name": pack.Name},
+	)
 }
 
 func (svc *Service) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
