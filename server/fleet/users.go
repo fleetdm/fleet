@@ -16,6 +16,7 @@ type UserStore interface {
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
 	SaveUser(user *User) error
+	SaveUsers(users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(id uint) error
 	// PendingEmailChange creates a record with a pending email change for a user identified
@@ -91,10 +92,6 @@ type UserService interface {
 	// write the new email address to user.
 	ChangeUserEmail(ctx context.Context, token string) (string, error)
 }
-
-const (
-	UserRolesKind = "user_roles"
-)
 
 // User is the model struct that represents a Fleet user.
 type User struct {

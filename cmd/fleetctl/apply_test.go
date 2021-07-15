@@ -1,15 +1,18 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-var userRoleList = []*fleet.User{
+var userRoleSpecList = []*fleet.User{
 	&fleet.User{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
@@ -29,38 +32,51 @@ var userRoleList = []*fleet.User{
 		Name:       "Test Name2 admin2@example.com",
 		Email:      "admin2@example.com",
 		GlobalRole: nil,
-		Teams: []fleet.UserTeam{
-			fleet.UserTeam{
-				Team: fleet.Team{
-					ID:        1,
-					CreatedAt: time.Now(),
-					Name:      "team1",
-					UserCount: 1,
-					HostCount: 1,
-				},
-				Role: fleet.RoleMaintainer,
-			},
-		},
+		Teams:      []fleet.UserTeam{},
 	},
 }
 
-func TestGetUserRoles(t *testing.T) {
+func TestApplyUserRoles(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
 	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleList, nil
+		return userRoleSpecList, nil
 	}
 
-	expectedText := `+-------------------------------+-------------+
-|             USER              | GLOBAL ROLE |
-+-------------------------------+-------------+
-| Test Name admin1@example.com  | admin       |
-+-------------------------------+-------------+
-| Test Name2 admin2@example.com |             |
-+-------------------------------+-------------+
-`
-	expectedYaml := `---
+	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+		return &fleet.Team{
+			ID:        1,
+			CreatedAt: time.Now(),
+			Name:      "team1",
+		}, nil
+	}
+
+	ds.SaveUsersFunc = func(users []*fleet.User) error {
+		for _, u := range users {
+			switch u.Email {
+			case "admin1@example.com":
+				userRoleList[0] = u
+			case "admin2@example.com":
+				userRoleList[1] = u
+			}
+		}
+		return nil
+	}
+
+	tmpFile, err := ioutil.TempFile(os.TempDir(), "*.yml")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	tmpFile.WriteString(`
+---
 apiVersion: v1
 kind: user_roles
 spec:
@@ -73,11 +89,9 @@ spec:
       teams:
       - role: maintainer
         team: team1
-`
-	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"admin2@example.com":{"global_role":null,"teams":[{"team":"team1","role":"maintainer"}]}}}}
-`
+`)
 
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "user_roles", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "user_roles", "--json"}))
+	assert.Equal(t, "", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	require.Len(t, userRoleSpecList[1].Teams, 1)
+	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
 }

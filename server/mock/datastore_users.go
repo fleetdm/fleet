@@ -16,6 +16,8 @@ type UserByIDFunc func(id uint) (*fleet.User, error)
 
 type SaveUserFunc func(user *fleet.User) error
 
+type SaveUsersFunc func(user []*fleet.User) error
+
 type DeleteUserFunc func(id uint) error
 
 type PendingEmailChangeFunc func(userID uint, newEmail string, token string) error
@@ -37,6 +39,9 @@ type UserStore struct {
 
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
+
+	SaveUsersFunc        SaveUsersFunc
+	SaveUsersFuncInvoked bool
 
 	DeleteUserFunc        DeleteUserFunc
 	DeleteUserFuncInvoked bool
@@ -71,6 +76,11 @@ func (s *UserStore) UserByID(id uint) (*fleet.User, error) {
 func (s *UserStore) SaveUser(user *fleet.User) error {
 	s.SaveUserFuncInvoked = true
 	return s.SaveUserFunc(user)
+}
+
+func (s *UserStore) SaveUsers(users []*fleet.User) error {
+	s.SaveUsersFuncInvoked = true
+	return s.SaveUsersFunc(users)
 }
 
 func (s *UserStore) DeleteUser(id uint) error {

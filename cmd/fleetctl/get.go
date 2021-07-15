@@ -29,10 +29,20 @@ type specGeneric struct {
 	Spec    interface{} `json:"spec"`
 }
 
-func defaultTable() *tablewriter.Table {
-	table := tablewriter.NewWriter(os.Stdout)
+func defaultTable(writer ...io.Writer) *tablewriter.Table {
+	w := writerOrStdout(writer)
+	table := tablewriter.NewWriter(w)
 	table.SetRowLine(true)
 	return table
+}
+
+func writerOrStdout(writer []io.Writer) io.Writer {
+	var w io.Writer
+	w = os.Stdout
+	if writer != nil && len(writer) > 0 {
+		w = writer[0]
+	}
+	return w
 }
 
 func yamlFlag() cli.Flag {
@@ -49,21 +59,23 @@ func jsonFlag() cli.Flag {
 	}
 }
 
-func printJSON(spec interface{}) error {
+func printJSON(spec interface{}, writer ...io.Writer) error {
+	w := writerOrStdout(writer)
 	b, err := json.Marshal(spec)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s\n", b)
+	fmt.Fprintf(w, "%s\n", b)
 	return nil
 }
 
-func printYaml(spec interface{}) error {
+func printYaml(spec interface{}, writer ...io.Writer) error {
+	w := writerOrStdout(writer)
 	b, err := yaml.Marshal(spec)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("---\n%s", string(b))
+	fmt.Fprintf(w, "---\n%s", string(b))
 	return nil
 }
 
@@ -74,15 +86,7 @@ func printLabel(c *cli.Context, label *fleet.LabelSpec) error {
 		Spec:    label,
 	}
 
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
 func printQuery(c *cli.Context, query *fleet.QuerySpec) error {
@@ -92,15 +96,7 @@ func printQuery(c *cli.Context, query *fleet.QuerySpec) error {
 		Spec:    query,
 	}
 
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
 func printPack(c *cli.Context, pack *fleet.PackSpec) error {
@@ -110,15 +106,7 @@ func printPack(c *cli.Context, pack *fleet.PackSpec) error {
 		Spec:    pack,
 	}
 
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
 func printSecret(c *cli.Context, secret *fleet.EnrollSecretSpec) error {
@@ -128,15 +116,7 @@ func printSecret(c *cli.Context, secret *fleet.EnrollSecretSpec) error {
 		Spec:    secret,
 	}
 
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
 func printHost(c *cli.Context, host *fleet.Host) error {
@@ -146,15 +126,7 @@ func printHost(c *cli.Context, host *fleet.Host) error {
 		Spec:    host,
 	}
 
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
 func printConfig(c *cli.Context, config *fleet.AppConfigPayload) error {
@@ -163,15 +135,8 @@ func printConfig(c *cli.Context, config *fleet.AppConfigPayload) error {
 		Version: fleet.ApiVersion,
 		Spec:    config,
 	}
-	var err error
 
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
 type UserRoles struct {
@@ -198,7 +163,7 @@ func usersToUserRoles(users []fleet.User) UserRoles {
 				Role: t.Role,
 			})
 		}
-		roles[u.Name] = UserRole{
+		roles[u.Email] = UserRole{
 			GlobalRole: u.GlobalRole,
 			Teams:      teams,
 		}
@@ -213,14 +178,17 @@ func printUserRoles(c *cli.Context, users []fleet.User) error {
 		Spec:    usersToUserRoles(users),
 	}
 
+	return printSpec(c, spec)
+}
+
+func printSpec(c *cli.Context, spec specGeneric) error {
 	var err error
 
 	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
+		err = printJSON(spec, c.App.Writer)
 	} else {
-		err = printYaml(spec)
+		err = printYaml(spec, c.App.Writer)
 	}
-
 	return err
 }
 
@@ -782,10 +750,18 @@ func getCarveCommand() *cli.Command {
 	}
 }
 
+func log(c *cli.Context, msg ...interface{}) {
+	fmt.Fprint(c.App.Writer, msg...)
+}
+
+func logf(c *cli.Context, format string, a ...interface{}) {
+	fmt.Fprintf(c.App.Writer, format, a...)
+}
+
 func getUserRolesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "user_roles",
-		Aliases: []string{"user_roles", "ur"},
+		Aliases: []string{"user_role", "ur"},
 		Usage:   "List global and team roles for users",
 		Flags: []cli.Flag{
 			jsonFlag(),
@@ -806,7 +782,7 @@ func getUserRolesCommand() *cli.Command {
 			}
 
 			if len(users) == 0 {
-				fmt.Println("No users found")
+				log(c, "No users found")
 				return nil
 			}
 
@@ -827,13 +803,17 @@ func getUserRolesCommand() *cli.Command {
 					null.StringFromPtr(u.GlobalRole).ValueOrZero(),
 				})
 			}
-
-			table := defaultTable()
-			table.SetHeader([]string{"User", "Global Role"})
-			table.AppendBulk(data)
-			table.Render()
+			columns := []string{"User", "Global Role"}
+			printTable(c, columns, data)
 
 			return nil
 		},
 	}
+}
+
+func printTable(c *cli.Context, columns []string, data [][]string) {
+	table := defaultTable(c.App.Writer)
+	table.SetHeader(columns)
+	table.AppendBulk(data)
+	table.Render()
 }

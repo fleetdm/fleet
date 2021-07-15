@@ -41,7 +41,7 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 		return nil, errors.Wrap(err, "parsing URL")
 	}
 
-	if baseURL.Scheme != "https" && !strings.Contains(baseURL.Host, "localhost") {
+	if baseURL.Scheme != "https" && !strings.Contains(baseURL.Host, "localhost") && !strings.Contains(baseURL.Host, "127.0.0.1") {
 		return nil, errors.New("address must start with https:// for remote connections")
 	}
 
@@ -210,7 +210,7 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return res, nil
 }
 
-func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseBody interface{}) error {
+func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
 	response, err := c.AuthenticatedDo(verb, path, "", params)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)
@@ -226,12 +226,12 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 		)
 	}
 
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	err = json.NewDecoder(response.Body).Decode(&responseDest)
 	if err != nil {
 		return errors.Wrapf(err, "decode %s %s response", verb, path)
 	}
 
-	if e, ok := responseBody.(errorer); ok {
+	if e, ok := responseDest.(errorer); ok {
 		if e.error() != nil {
 			return errors.Errorf("%s %s error: %s", verb, path, e.error())
 		}
