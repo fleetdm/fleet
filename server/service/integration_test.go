@@ -258,7 +258,7 @@ func testUserRolesSpec(t *testing.T, ds fleet.Datastore) {
 `)
 
 	var userRoleSpec applyUserRoleSpecsRequest
-	err = yaml.Unmarshal(spec, &userRoleSpec)
+	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
 	require.NoError(t, err)
 
 	doReq(t, userRoleSpec, "POST", server, "/api/v1/fleet/users/roles/spec", token, http.StatusOK)
