@@ -282,10 +282,7 @@ func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
 	qr := queryRespose{}
 	doJSONReq(t, params, "POST", server, "/api/v1/fleet/queries", token, http.StatusOK, &qr)
 
-	gsParams := fleet.ScheduledQuery{
-		QueryID:  qr.Query.ID,
-		Interval: 42,
-	}
+	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.Query.ID), Interval: ptr.Uint(42)}
 	type responseType struct {
 		Scheduled *fleet.ScheduledQuery `json:"scheduled,omitempty"`
 		Err       error                 `json:"error,omitempty"`
@@ -297,35 +294,43 @@ func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
 	gs = fleet.GlobalSchedulePayload{}
 	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
-
 	assert.Equal(t, uint(42), gs.GlobalSchedule[0].Interval)
 	assert.Equal(t, "TestQuery", gs.GlobalSchedule[0].Name)
 
-	//gs = fleet.GlobalSchedulePayload{}
-	//gsParams := fleet.GlobalSchedulePayload{
-	//	GlobalSchedule: []fleet.GlobalScheduleQueryPayload{
-	//		{
-	//			QueryID:  ptr.Uint(qr.Query.ID),
-	//			Interval: ptr.Uint(1),
-	//		},
-	//	},
-	//}
-	//doJSONReq(t, gsParams, "PATCH", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
+	gs = fleet.GlobalSchedulePayload{}
+	gsParams = fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}
+	doJSONReq(
+		t, gsParams, "PATCH", server,
+		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", qr.Query.ID),
+		token, http.StatusOK, &gs,
+	)
 
-	// and then DELETE
+	gs = fleet.GlobalSchedulePayload{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
+	require.Len(t, gs.GlobalSchedule, 1)
+	assert.Equal(t, uint(55), gs.GlobalSchedule[0].Interval)
 
-	//assert.Len(t, gs.GlobalSchedule, 1)
-	//assert.Equal(t, qr.Query.ID, *gs.GlobalSchedule[0].QueryID)
+	r = responseType{}
+	doJSONReq(
+		t, nil, "DELETE", server,
+		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", qr.Query.ID),
+		token, http.StatusOK, &r,
+	)
+	require.Nil(t, r.Err)
+
+	gs = fleet.GlobalSchedulePayload{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
+	require.Len(t, gs.GlobalSchedule, 0)
 }
 
 func TestIntegration(t *testing.T) {
 	mysql.RunTestsAgainstMySQL(t, []func(t *testing.T, ds fleet.Datastore){
-		//testDoubleUserCreationErrors,
-		//testUserCreationWrongTeamErrors,
-		//testQueryCreationLogsActivity,
-		//testUserWithoutRoleErrors,
-		//testUserWithWrongRoleErrors,
-		//testAppConfigAdditionalQueriesCanBeRemoved,
+		testDoubleUserCreationErrors,
+		testUserCreationWrongTeamErrors,
+		testQueryCreationLogsActivity,
+		testUserWithoutRoleErrors,
+		testUserWithWrongRoleErrors,
+		testAppConfigAdditionalQueriesCanBeRemoved,
 		testGlobalSchedule,
 	})
 }

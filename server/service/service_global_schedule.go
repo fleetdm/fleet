@@ -42,9 +42,6 @@ func (svc *Service) ModifyGlobalScheduledQueries(
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	if err := svc.authz.Authorize(ctx, &fleet.ScheduledQuery{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
 
 	gp, err := svc.ds.EnsureGlobalPack()
 	if err != nil {
@@ -78,7 +75,7 @@ func (svc *Service) ModifyGlobalScheduledQueries(
 }
 
 func (svc *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.ScheduledQuery{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
