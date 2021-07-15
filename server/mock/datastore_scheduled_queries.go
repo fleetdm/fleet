@@ -16,7 +16,7 @@ type DeleteScheduledQueryFunc func(id uint) error
 
 type ScheduledQueryFunc func(id uint) (*fleet.ScheduledQuery, error)
 
-type ScheduledQueryByQueryIDFunc func(id uint) (*fleet.ScheduledQuery, error)
+type ScheduledQueryByQueryAndPackFunc func(queryID uint, packID uint) (*fleet.ScheduledQuery, error)
 
 type SaveScheduledQueriesFunc func(sqs []*fleet.ScheduledQuery) ([]*fleet.ScheduledQuery, error)
 
@@ -36,8 +36,8 @@ type ScheduledQueryStore struct {
 	ScheduledQueryFunc        ScheduledQueryFunc
 	ScheduledQueryFuncInvoked bool
 
-	ScheduledQueryByQueryIDFunc        ScheduledQueryByQueryIDFunc
-	ScheduledQueryByQueryIDFuncInvoked bool
+	ScheduledQueryByQueryAndPackFunc        ScheduledQueryByQueryAndPackFunc
+	ScheduledQueryByQueryAndPackFuncInvoked bool
 
 	SaveScheduledQueriesFunc        SaveScheduledQueriesFunc
 	SaveScheduledQueriesFuncInvoked bool
@@ -69,6 +69,6 @@ func (s *ScheduledQueryStore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, er
 }
 
 func (s *ScheduledQueryStore) ScheduledQueryByQueryAndPack(queryID uint, packID uint) (*fleet.ScheduledQuery, error) {
-	s.ScheduledQueryByQueryIDFuncInvoked = true
-	return s.ScheduledQueryByQueryIDFunc(queryID)
+	s.ScheduledQueryByQueryAndPackFuncInvoked = true
+	return s.ScheduledQueryByQueryAndPackFunc(queryID, packID)
 }
