@@ -385,6 +385,49 @@ func (d *Datastore) Pack(pid uint) (*fleet.Pack, error) {
 	return pack, nil
 }
 
+// EnsureGlobalPack gets or inserts a pack with type global
+func (d *Datastore) EnsureGlobalPack() (*fleet.Pack, error) {
+	pack := &fleet.Pack{}
+	err := d.db.Get(pack, `SELECT * FROM packs WHERE pack_type = 'global'`)
+	if err == sql.ErrNoRows {
+		return d.insertNewGlobalPack()
+	} else if err != nil {
+		return nil, errors.Wrap(err, "get pack")
+	}
+
+	if err := d.loadPackTargets(pack); err != nil {
+		return nil, err
+	}
+
+	return pack, nil
+}
+
+func (d *Datastore) insertNewGlobalPack() (*fleet.Pack, error) {
+	var packID uint
+	d.withTx(func(tx *sqlx.Tx) error {
+		res, err := tx.Exec(
+			`INSERT INTO packs (name, description, platform, pack_type) VALUES ('Global', 'Global pack', '','global')`,
+		)
+		if err != nil {
+			return err
+		}
+		packId, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		packID = uint(packId)
+		if _, err := tx.Exec(
+			`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))`,
+			packID, fleet.TargetLabel, "All Hosts",
+		); err != nil {
+			return errors.Wrap(err, "adding label to pack")
+		}
+		return nil
+	})
+
+	return d.Pack(packID)
+}
+
 // ListPacks returns all fleet.Pack records limited and sorted by fleet.ListOptions
 func (d *Datastore) ListPacks(opt fleet.ListOptions) ([]*fleet.Pack, error) {
 	query := `SELECT * FROM packs`

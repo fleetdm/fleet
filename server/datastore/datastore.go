@@ -103,4 +103,5 @@ var TestFunctions = []func(*testing.T, fleet.Datastore){
 	testSaveUsers,
 	testNewActivity,
 	testActivityUsernameChange,
+	testEnsureGlobalPack,
 }

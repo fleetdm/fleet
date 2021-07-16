@@ -19,4 +19,5 @@ type Service interface {
 	CarveService
 	TeamService
 	ActivitiesService
+	GlobalScheduleService
 }

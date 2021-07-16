@@ -180,5 +180,4 @@ func testCascadingDeletionOfQueries(t *testing.T, ds fleet.Datastore) {
 	gotQueries, err = ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 1)
-
 }
