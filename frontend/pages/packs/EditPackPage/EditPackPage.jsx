@@ -219,10 +219,26 @@ export class EditPackPage extends Component {
       return dispatch(destroy({ id }));
     });
 
-    return Promise.all(promises).then(() => {
-      this.setState({ selectedScheduledQuery: null, selectedQuery: null });
-      dispatch(renderFlash("success", "Scheduled queries removed"));
-    });
+    const queryOrQueries = scheduledQueryIDs.length === 1 ? "query" : "queries";
+
+    return Promise.all(promises)
+      .then(() => {
+        this.setState({ selectedScheduledQuery: null, selectedQuery: null });
+        dispatch(
+          renderFlash(
+            "success",
+            `Scheduled ${queryOrQueries} removed from pack.`
+          )
+        );
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            `Could not remove ${queryText}. Please try again.`
+          )
+        );
+      });
   };
 
   handleConfigurePackQuerySubmit = (formData) => {
