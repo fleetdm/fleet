@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/guregu/null.v3"
 	"io"
 	"os"
 	"strconv"
+
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
@@ -59,7 +60,7 @@ func jsonFlag() cli.Flag {
 	}
 }
 
-func printJSON(spec interface{}, writer ...io.Writer) error {
+func printJSON(spec interface{}, writer io.Writer) error {
 	w := writerOrStdout(writer)
 	b, err := json.Marshal(spec)
 	if err != nil {
@@ -69,7 +70,7 @@ func printJSON(spec interface{}, writer ...io.Writer) error {
 	return nil
 }
 
-func printYaml(spec interface{}, writer ...io.Writer) error {
+func printYaml(spec interface{}, writer io.Writer) error {
 	w := writerOrStdout(writer)
 	b, err := yaml.Marshal(spec)
 	if err != nil {
@@ -731,7 +732,7 @@ func getCarveCommand() *cli.Command {
 				return err
 			}
 
-			if err := printYaml(carve); err != nil {
+			if err := printYaml(carve, c.App.Writer); err != nil {
 				return errors.Wrap(err, "print carve yaml")
 			}
 
