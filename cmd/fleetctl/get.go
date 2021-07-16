@@ -29,18 +29,18 @@ type specGeneric struct {
 	Spec    interface{} `json:"spec"`
 }
 
-func defaultTable(writer ...io.Writer) *tablewriter.Table {
+func defaultTable(writer io.Writer) *tablewriter.Table {
 	w := writerOrStdout(writer)
 	table := tablewriter.NewWriter(w)
 	table.SetRowLine(true)
 	return table
 }
 
-func writerOrStdout(writer []io.Writer) io.Writer {
+func writerOrStdout(writer io.Writer) io.Writer {
 	var w io.Writer
 	w = os.Stdout
-	if writer != nil && len(writer) > 0 {
-		w = writer[0]
+	if writer != nil {
+		w = writer
 	}
 	return w
 }
@@ -260,10 +260,8 @@ func getQueriesCommand() *cli.Command {
 						})
 					}
 
-					table := defaultTable()
-					table.SetHeader([]string{"name", "description", "query"})
-					table.AppendBulk(data)
-					table.Render()
+					columns := []string{"name", "description", "query"}
+					printTable(c, columns, data)
 				}
 				return nil
 			}
@@ -377,10 +375,8 @@ func getPacksCommand() *cli.Command {
 					})
 				}
 
-				table := defaultTable()
-				table.SetHeader([]string{"name", "platform", "description", "disabled"})
-				table.AppendBulk(data)
-				table.Render()
+				columns := []string{"name", "platform", "description", "disabled"}
+				printTable(c, columns, data)
 
 				return nil
 			}
@@ -454,10 +450,8 @@ func getLabelsCommand() *cli.Command {
 					})
 				}
 
-				table := defaultTable()
-				table.SetHeader([]string{"name", "platform", "description", "query"})
-				table.AppendBulk(data)
-				table.Render()
+				columns := []string{"name", "platform", "description", "query"}
+				printTable(c, columns, data)
 
 				return nil
 			}
@@ -594,10 +588,8 @@ func getHostsCommand() *cli.Command {
 					})
 				}
 
-				table := defaultTable()
-				table.SetHeader([]string{"uuid", "hostname", "platform", "osquery_version", "status"})
-				table.AppendBulk(data)
-				table.Render()
+				columns := []string{"uuid", "hostname", "platform", "osquery_version", "status"}
+				printTable(c, columns, data)
 			} else {
 				host, err := client.HostByIdentifier(identifier)
 				if err != nil {
@@ -665,10 +657,8 @@ func getCarvesCommand() *cli.Command {
 				})
 			}
 
-			table := defaultTable()
-			table.SetHeader([]string{"id", "created_at", "request_id", "carve_size", "completion"})
-			table.AppendBulk(data)
-			table.Render()
+			columns := []string{"id", "created_at", "request_id", "carve_size", "completion"}
+			printTable(c, columns, data)
 
 			return nil
 		},

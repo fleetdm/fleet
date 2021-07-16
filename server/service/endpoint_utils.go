@@ -10,6 +10,8 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
+type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error)
+
 func makeDecoderForType(v interface{}) func(ctx context.Context, r *http.Request) (interface{}, error) {
 	t := reflect.TypeOf(v)
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -21,11 +23,11 @@ func makeDecoderForType(v interface{}) func(ctx context.Context, r *http.Request
 	}
 }
 
-func makeAuthenticatedServiceEndpoint(svc fleet.Service, f func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error)) endpoint.Endpoint {
+func makeAuthenticatedServiceEndpoint(svc fleet.Service, f handlerFunc) endpoint.Endpoint {
 	return authenticatedUser(svc, makeServiceEndpoint(svc, f))
 }
 
-func makeServiceEndpoint(svc fleet.Service, f func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error)) endpoint.Endpoint {
+func makeServiceEndpoint(svc fleet.Service, f handlerFunc) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		return f(ctx, request, svc)
 	}
