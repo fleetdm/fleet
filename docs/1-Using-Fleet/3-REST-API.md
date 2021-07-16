@@ -3163,9 +3163,9 @@ None.
       "created_at": "0001-01-01T00:00:00Z",
       "updated_at": "0001-01-01T00:00:00Z",
       "id": 461,
-      "pack_id": 5,
+      "pack_id": 1,
       "name": "arp_cache",
-      "query_id": 275,
+      "query_id": 2,
       "query_name": "arp_cache",
       "query": "select * from arp_cache;",
       "interval": 120,
@@ -3178,11 +3178,11 @@ None.
       "created_at": "0001-01-01T00:00:00Z",
       "updated_at": "0001-01-01T00:00:00Z",
       "id": 463,
-      "pack_id": 5,
-      "name": "distributed_testexample.com_1624654109",
-      "query_id": 84,
-      "query_name": "distributed_testexample.com_1624654109",
-      "query": "Get",
+      "pack_id": 1,
+      "name": "disk_encryption",
+      "query_id": 7,
+      "query_name": "disk_encryption",
+      "query": "select * from disk_encryption;",
       "interval": 86400,
       "snapshot": true,
       "removed": null,
@@ -3217,8 +3217,8 @@ None.
 
 ```
 {
-  "interval": 120,
-  "query_id": 23,
+  "interval": 86400,
+  "query_id": 2,
   "snapshot": true,
 }
 ```
@@ -3232,13 +3232,13 @@ None.
   "scheduled": {
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
-    "id": 461,
+    "id": 1,
     "pack_id": 5,
     "name": "arp_cache",
-    "query_id": 275,
+    "query_id": 2,
     "query_name": "arp_cache",
     "query": "select * from arp_cache;",
-    "interval": 120,
+    "interval": 86400,
     "snapshot": true,
     "removed": null,
     "shard": null,
@@ -3267,13 +3267,13 @@ None.
 
 #### Example
 
-`PATCH /api/v1/fleet/global/schedule/462`
+`PATCH /api/v1/fleet/global/schedule/5`
 
 ##### Request body
 
 ```
 {
-  "interval": 86400,
+  "interval": 604800,
 }
 ```
 
@@ -3286,13 +3286,13 @@ None.
   "scheduled": {
     "created_at": "2021-07-16T14:40:15Z",
     "updated_at": "2021-07-16T14:40:15Z",
-    "id": 462,
-    "pack_id": 5,
+    "id": 5,
+    "pack_id": 1,
     "name": "arp_cache",
-    "query_id": 275,
+    "query_id": 2,
     "query_name": "arp_cache",
     "query": "select * from arp_cache;",
-    "interval": 86400,
+    "interval": 604800,
     "snapshot": true,
     "removed": null,
     "platform": "",
@@ -3312,7 +3312,7 @@ None.
 
 #### Example
 
-`DELETE /api/v1/fleet/global/schedule/462`
+`DELETE /api/v1/fleet/global/schedule/5`
 
 ##### Default response
 
