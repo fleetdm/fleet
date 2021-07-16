@@ -335,6 +335,8 @@ func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
 	require.Len(t, gs.GlobalSchedule, 0)
 }
 
+// TODO: write integration tests for team spec!!
+
 func TestIntegration(t *testing.T) {
 	mysql.RunTestsAgainstMySQL(t, []func(t *testing.T, ds fleet.Datastore){
 		testDoubleUserCreationErrors,

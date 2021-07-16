@@ -53,6 +53,8 @@ type TeamService interface {
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
+	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
+	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
 }
 
 type TeamPayload struct {
@@ -172,4 +174,14 @@ type TeamFilter struct {
 	User *User
 	// IncludeObserver determines whether to include teams the user is an observer on.
 	IncludeObserver bool
+}
+
+const (
+	TeamKind = "team"
+)
+
+type TeamSpec struct {
+	Name         string           `json:"name"`
+	AgentOptions *json.RawMessage `json:"agent_options"`
+	Secrets      []string         `json:"secrets"`
 }

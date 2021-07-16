@@ -14,7 +14,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func runServerWithMockedDS(t *testing.T) (*httptest.Server, *mock.Store) {
+func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httptest.Server, *mock.Store) {
 	ds := new(mock.Store)
 	var users []*fleet.User
 	ds.NewUserFunc = func(user *fleet.User) (*fleet.User, error) {
@@ -39,7 +39,7 @@ func runServerWithMockedDS(t *testing.T) (*httptest.Server, *mock.Store) {
 	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return users, nil
 	}
-	_, server := service.RunServerForTestsWithDS(t, ds)
+	_, server := service.RunServerForTestsWithDS(t, ds, opts...)
 	os.Setenv("FLEET_SERVER_ADDRESS", server.URL)
 
 	return server, ds
