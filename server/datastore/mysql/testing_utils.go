@@ -3,15 +3,16 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"os/exec"
+	"testing"
+
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
-	"os"
-	"os/exec"
-	"testing"
 )
 
 const (
@@ -60,7 +61,7 @@ func initializeSchemaOrPanic() {
 	panicif(ds.MigrateTables())
 
 	// Dump schema to dumpfile
-	if _, err := exec.Command(
+	if out, err := exec.Command(
 		"docker-compose", "exec", "-T", "mysql_test",
 		// Command run inside container
 		"mysqldump",
@@ -69,6 +70,7 @@ func initializeSchemaOrPanic() {
 		"--compact", "--skip-comments",
 		"--result-file="+dumpfile,
 	).CombinedOutput(); err != nil {
+		fmt.Println(string(out))
 		panicif(err)
 	}
 }
@@ -90,7 +92,7 @@ func connectMySQL(t *testing.T, testName string) *Datastore {
 // initializeDatabase loads the dumped schema into a newly created database in
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
-func initializeDatabase(t *testing.T, dbName string) {
+func initializeDatabase(t *testing.T, testName string) *Datastore {
 	// Load schema from dumpfile
 	if out, err := exec.Command(
 		"docker-compose", "exec", "-T", "mysql_test",
@@ -100,14 +102,14 @@ func initializeDatabase(t *testing.T, dbName string) {
 		"-e",
 		fmt.Sprintf(
 			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; SOURCE %s;",
-			dbName, dbName, dbName, dumpfile,
+			testName, testName, testName, dumpfile,
 		),
 	).CombinedOutput(); err != nil {
 		t.Error(err)
 		t.Error(string(out))
 		t.FailNow()
 	}
-
+	return connectMySQL(t, testName)
 }
 
 func runTest(t *testing.T, testFunc func(*testing.T, fleet.Datastore)) {
@@ -115,9 +117,7 @@ func runTest(t *testing.T, testFunc func(*testing.T, fleet.Datastore)) {
 		t.Parallel()
 
 		// Create a new database and load the schema for each test
-		initializeDatabase(t, test.FunctionName(testFunc))
-
-		ds := connectMySQL(t, test.FunctionName(testFunc))
+		ds := initializeDatabase(t, test.FunctionName(testFunc))
 		defer ds.Close()
 
 		testFunc(t, ds)
@@ -141,7 +141,5 @@ func CreateMySQLDS(t *testing.T) *Datastore {
 
 	t.Parallel()
 
-	initializeDatabase(t, t.Name())
-
-	return connectMySQL(t, t.Name())
+	return initializeDatabase(t, t.Name())
 }
