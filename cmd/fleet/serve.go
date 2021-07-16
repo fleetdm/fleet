@@ -203,28 +203,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			locker, ok := ds.(lock.Locker)
-			if !ok {
-				initFatal(errors.New("No global locker available"), "")
-			}
-			ctx, cancelBackground := context.WithCancel(context.Background())
-
-			go func() {
-				ticker := time.NewTicker(1 * time.Hour)
-				for {
-					if locked, err := lock.Leader(locker, time.Hour); err != nil || !locked {
-						select {
-						case <-ticker.C:
-							continue
-						case <-ctx.Done():
-							break
-						}
-					}
-					ds.CleanupDistributedQueryCampaigns(time.Now())
-					ds.CleanupIncomingHosts(time.Now())
-					ds.CleanupCarves(time.Now())
-				}
-			}()
+			cancelBackground := runCrons(ds)
 
 			// Flush seen hosts every second
 			go func() {
@@ -396,6 +375,37 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 
 	return serveCmd
+}
+
+func runCrons(ds fleet.Datastore) context.CancelFunc {
+	locker, ok := ds.(lock.Locker)
+	if !ok {
+		initFatal(errors.New("No global locker available"), "")
+	}
+	ctx, cancelBackground := context.WithCancel(context.Background())
+
+	ourIdentifier, err := server.GenerateRandomText(64)
+	if err != nil {
+		initFatal(errors.New("Error generating random instance identifier"), "")
+	}
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		for {
+			select {
+			case <-ticker.C:
+			case <-ctx.Done():
+				break
+			}
+			if locked, err := locker.Lock("leader", ourIdentifier, time.Hour); err != nil || !locked {
+				continue
+			}
+			ds.CleanupDistributedQueryCampaigns(time.Now())
+			ds.CleanupIncomingHosts(time.Now())
+			ds.CleanupCarves(time.Now())
+		}
+	}()
+	return cancelBackground
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on
