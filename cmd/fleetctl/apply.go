@@ -32,6 +32,10 @@ type specGroup struct {
 	UsersRoles   *fleet.UsersRoleSpec
 }
 
+type TeamSpec struct {
+	Team *fleet.TeamSpec `json:"team"`
+}
+
 func specGroupFromBytes(b []byte) (*specGroup, error) {
 	specs := &specGroup{
 		Queries: []*fleet.QuerySpec{},
@@ -103,11 +107,11 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 			specs.UsersRoles = userRoleSpec
 
 		case fleet.TeamKind:
-			var teamSpec *fleet.TeamSpec
+			var teamSpec TeamSpec
 			if err := yaml.Unmarshal(s.Spec, &teamSpec); err != nil {
 				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
-			specs.Teams = append(specs.Teams, teamSpec)
+			specs.Teams = append(specs.Teams, teamSpec.Team)
 
 		default:
 			return nil, errors.Errorf("unknown kind %q", s.Kind)
