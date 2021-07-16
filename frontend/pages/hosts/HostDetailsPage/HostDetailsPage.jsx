@@ -83,7 +83,7 @@ export class HostDetailsPage extends Component {
       showQueryHostModal: false,
       showTransferHostModal: false,
       showRefetchLoadingSpinner: false,
-      softwareState: props.host.software,
+      softwareState: [],
     };
   }
 
@@ -495,13 +495,9 @@ export class HostDetailsPage extends Component {
     // const { EmptySoftware } = this;
     const { onQueryChange } = this;
     const { softwareState } = this.state;
-    const { host } = this.props;
-    const wrapperClassName = `${baseClass}__table`;
+    const { host, isLoadingHost } = this.props;
 
     const tableHeaders = generateTableHeaders();
-
-    // Hardcoded in false for loading table data
-    const loadingTableData = false;
 
     return (
       <div className="section section--software">
@@ -524,7 +520,7 @@ export class HostDetailsPage extends Component {
               <TableContainer
                 columns={tableHeaders}
                 data={generateDataSet(softwareState)}
-                isLoading={loadingTableData}
+                isLoading={isLoadingHost}
                 defaultSortHeader={"name"}
                 defaultSortDirection={"asc"}
                 inputPlaceHolder={"Filter software"}
