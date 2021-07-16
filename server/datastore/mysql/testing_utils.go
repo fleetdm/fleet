@@ -17,7 +17,7 @@ import (
 
 const (
 	schemaDbName = "schemadb"
-	dumpfile     = "dump.sql"
+	dumpfile     = "/tmpfs/dump.sql"
 	testUsername = "root"
 	testPassword = "toor"
 	testAddress  = "localhost:3307"
