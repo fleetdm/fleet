@@ -4,19 +4,24 @@ import { connect } from "react-redux";
 import { filter, get, includes, pull } from "lodash";
 import { push } from "react-router-redux";
 
-import Button from "components/buttons/Button";
 import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
-import InputField from "components/forms/fields/InputField";
+import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
-import PATHS from "router/paths";
 import QueryDetailsSidePanel from "components/side_panels/QueryDetailsSidePanel";
-import QueriesList from "components/queries/QueriesList";
+import TableContainer from "components/TableContainer";
+
+import PATHS from "router/paths";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
 import userInterface from "interfaces/user";
 import { renderFlash } from "redux/nodes/notifications/actions";
+
+import {
+  generateTableHeaders,
+  generateTableData,
+} from "./ManageQueriesTableConfig";
 
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
 
@@ -45,6 +50,10 @@ export class ManageQueriesPage extends Component {
       queriesFilter: "",
       showModal: false,
     };
+
+    this.tableHeaders = generateTableHeaders(
+      permissionUtils.isOnlyObserver(props.currentUser)
+    );
   }
 
   componentWillMount() {
@@ -271,31 +280,25 @@ export class ManageQueriesPage extends Component {
     const { checkedQueryIDs, queriesFilter } = this.state;
     const {
       getQueries,
-      onCheckAllQueries,
-      onCheckQuery,
-      onSelectQuery,
-      onDblClickQuery,
-      onFilterQueries,
+      // onCheckAllQueries,
+      // onCheckQuery,
+      // onSelectQuery,
+      // onDblClickQuery,
+      // onFilterQueries,
       renderCTAs,
       renderModal,
       renderSidePanel,
+      tableHeaders,
     } = this;
     const {
       loadingQueries,
       queries: allQueries,
-      selectedQuery,
-      currentUser,
+      // selectedQuery,
     } = this.props;
-    const queries = getQueries();
-    const queriesCount = queries.length;
-    const queriesTotalDisplay =
-      queriesCount === 1 ? "1 query" : `${queriesCount} queries`;
-    const isQueriesAvailable = allQueries.length > 0;
-    const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
-    if (loadingQueries) {
-      return false;
-    }
+    // if (loadingQueries) {
+    //   return false;
+    // }
 
     return (
       <div className={`${baseClass} has-sidebar`}>
@@ -304,27 +307,19 @@ export class ManageQueriesPage extends Component {
             <h1 className={`${baseClass}__title`}>Queries</h1>
             {renderCTAs()}
           </div>
-          <div className={`${baseClass}__filter-and-cta`}>
-            <div className={`${baseClass}__filter-queries`}>
-              <InputField
-                name="query-filter"
-                onChange={onFilterQueries}
-                placeholder="Filter queries"
-                value={queriesFilter}
-              />
-            </div>
-          </div>
-          <p className={`${baseClass}__query-count`}>{queriesTotalDisplay}</p>
-          <QueriesList
-            checkedQueryIDs={checkedQueryIDs}
-            isQueriesAvailable={isQueriesAvailable}
-            onCheckAll={onCheckAllQueries}
-            onCheckQuery={onCheckQuery}
-            onSelectQuery={onSelectQuery}
-            onDblClickQuery={onDblClickQuery}
-            queries={queries}
-            selectedQuery={selectedQuery}
-            isOnlyObserver={isOnlyObserver}
+          <TableContainer
+            columns={tableHeaders}
+            data={allQueries}
+            isLoading={loadingQueries}
+            defaultSortHeader={"name"}
+            defaultSortDirection={"desc"}
+            inputPlaceHolder={"Search"}
+            actionButtonText={"Action button"}
+            onActionButtonClick={() => null}
+            onQueryChange={() => null}
+            resultsTitle={"queries"}
+            emptyComponent={null}
+            searchable
           />
         </div>
         {renderSidePanel()}
