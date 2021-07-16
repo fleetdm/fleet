@@ -24,8 +24,10 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	// Initialize the schema once for the entire test run.
-	initializeSchemaOrPanic()
+	if _, ok := os.LookupEnv("MYSQL_TEST"); ok {
+		// Initialize the schema once for the entire test run.
+		initializeSchemaOrPanic()
+	}
 	os.Exit(m.Run())
 }
 
