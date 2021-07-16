@@ -3,6 +3,10 @@
   padding: $pad-xxlarge 30px;
   margin-bottom: $pad-medium;
 
+  h1 {
+    margin: 0 0 20px;
+  }
+
   &__query-count {
     font-size: $x-small;
     font-weight: $bold;
