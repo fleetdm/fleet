@@ -1,0 +1,127 @@
+<div id="transparency" v-cloak>
+
+  <div style="max-width: 1008px;" class="container-fluid d-flex flex-column justify-content-center align-items-center px-3 px-md-4 pt-3 pt-lg-5 pb-5 mx-auto my-5">
+    <div class="container-fluid d-flex flex-column text-center justify-content-center align-items-center pb-5 mb-3 mx-auto">
+      <h3 class="pb-3">What personal information can osquery see?</h3>
+      <p class="m-0">End users deserve to know what their employer can see on their laptops and the systems they manage.</p>
+    </div>
+    <div purpose="card" class="d-flex">
+      <h4 class="text-center pb-4 mb-3">Osquery does <span style="font-weight: 900">NOT</span> have access to:</h4>
+      <div class="d-flex flex-column flex-sm-row flex-wrap w-100 justify-content-center pb-lg-4">
+        <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
+          <img style="max-height: 80px; width: auto" alt="keyboard icon" src="/images/keystrokes-93x80@2x.png"/>
+          <p class="pt-2 pt-sm-3 m-0">Keystrokes</p>
+        </div>
+        <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
+          <img style="max-height: 80px; width: auto" alt="mouse icon" src="/images/mouse-movement-98x80@2x.png"/>
+          <p class="pt-2 pt-sm-3 m-0">Mouse movements</p>
+        </div>
+        <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
+          <img style="max-height: 80px; width: auto" alt="messages icon" src="/images/emails-and-chat-101x81@2x.png"/>
+          <p class="pt-2 pt-sm-3 m-0">Email & text messages</p>
+        </div>
+        <div class="d-flex flex-column flex-sm-row flex-wrap align-items-center justify-content-center">
+          <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
+            <img style="max-height: 80px; width: auto" alt="webcam icon" src="/images/webcam-81x80@2x.png"/>
+            <p class="pt-2 pt-sm-3 m-0">Webcams & mic</p>
+          </div>
+          <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
+            <img style="max-height: 80px; width: auto" alt="computer screen icon" src="/images/screen-82x81@2x.png"/>
+            <p class="pt-2 pt-sm-3 m-0">Screen content</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center pt-5 pb-5 mt-5 mx-auto">
+      <h3 class="text-center pb-3 m-0">Here’s what osquery can see about you and your devices:</h3>
+      <div style="max-width: 800px; color: #192147;" class="pt-5 w-100 mx-auto">
+        <div class="mb-5">
+          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+            <p id="accordion__header1" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body1" aria-controls="accordion__body1">
+              User account logins
+              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+            </p>
+            <p id="accordion__body1" class="collapse" aria-labelledby="accordion__header1">
+              Osquery can see details about the user accounts associated with your device, including which accounts have logged in recently. This is useful for IT and security teams to identify logins from suspicious accounts.
+            </p>
+          </div>
+          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+            <p id="accordion__header2" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body2" aria-controls="accordion__body2">
+              Device health & performance
+              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+            </p>
+            <p id="accordion__body2" class="collapse" aria-labelledby="accordion__header2">
+              Osquery can see details about your device’s hardware. E.g., what processor is used, how much memory is installed, storage capacity, battery health, etc. This allows IT teams to preemptively address device health problems, which can mitigate data loss and reduce disruption to your workflow caused by IT related issues.
+            </p>
+          </div>
+          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+            <p id="accordion__header3" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body3" aria-controls="accordion__body3">
+              Installed software packages
+              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+            </p>
+            <p id="accordion__body3" class="collapse" aria-labelledby="accordion__header3">
+              Osquery can access a detailed list of the software installed on your device. With this information, IT teams can better manage software update schedules, and reduce disruption to your workflow. Security teams can also use this data to determine if any of your software has been compromised, by referencing your software’s version number against known vulnerable software databases.
+            </p>
+          </div>
+          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+            <p id="accordion__header4" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body4" aria-controls="accordion__body4">
+              Running processes
+              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+            </p>
+            <p id="accordion__body4" class="collapse" aria-labelledby="accordion__header4">
+              Osquery can access a detailed list of the software installed on your device. With this information, IT teams can better manage software update schedules, and reduce disruption to your workflow. Security teams can also use this data to determine if any of your software has been compromised, by referencing your software’s version number against known vulnerable software databases.
+            </p>
+          </div>
+          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+            <p id="accordion__header5" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body5" aria-controls="accordion__body5">
+              Security configurations
+              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+            </p>
+            <p id="accordion__body5" class="collapse" aria-labelledby="accordion__header5">
+              Osquery can see information about the status of firewalls and other security software installed on your device.
+            </p>
+          </div>
+          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+            <p id="accordion__header8" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body8" aria-controls="accordion__body8">
+              Connected hardware devices
+              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+            </p>
+            <p id="accordion__body8" class="collapse" aria-labelledby="accordion__header8">
+              Osquery can see information about connected hardware devices. This is typically limited to only the type of hardware connected, and not specific details about the device. E.g., connected smartphones, USB devices, network devices, audio/visual hardware. 
+            </p>
+          </div>
+          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+            <p id="accordion__header10" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body10" aria-controls="accordion__body10">
+              Device location
+              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+            </p>
+            <p id="accordion__body10" class="collapse" aria-labelledby="accordion__header10">
+              Osquery uses IP geolocation to provide an approximate location of your device. Accuracy of IP geolocation services vary depending on where you are, but can typically be pinpointed within the nearest state or city. Organizations typically use this feature to track stolen or misplaced devices, and in some cases to ensure the safety of employees.
+            </p>
+          </div>
+          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+            <p id="accordion__header11" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body11" aria-controls="accordion__body10">
+              File contents
+              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+            </p>
+            <p id="accordion__body11" class="collapse" aria-labelledby="accordion__header11">
+              In the case of a cyber attack, it is possible with osquery to gain read access to files on your system. This is not a feature designed for privacy invasion, but rather a means for security teams to locate files on your device that may have been created or affected by a malicious virus.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div purpose="card" class="d-flex flex-column flex-md-row align-items-center py-5 mb-5">
+      <div class="d-flex align-items-start px-4 pb-4 pb-lg-0">
+        <img style="max-height: 92px; width: auto" alt="privacy icon" src="/images/privacy-80x92@2x.png"/>
+      </div>
+      <div class="text-center text-md-left px-4">
+        <p class="font-weight-bold">It’s important to be vigilant about the personal information you share on your devices.</p>
+        <p>If you are unsure, or still have concerns about your privacy, it’s a good idea to talk to your employer about your organization’s privacy policy, and how your personal information is handled.</p>
+        <a href="https://www.nytimes.com/wirecutter/blog/what-not-to-do-on-your-work-computer/" target="_blank" class="d-inline-flex">Read about what not to do on your work computer</a>  
+      </div>
+    </div>
+  </div>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -20,4 +20,5 @@ type Service interface {
 	TeamService
 	ActivitiesService
 	UserRolesService
+	GlobalScheduleService
 }
