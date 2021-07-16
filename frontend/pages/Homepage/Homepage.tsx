@@ -6,9 +6,9 @@ import { Link } from "react-router";
 import { IUser } from "interfaces/user";
 import HostsSummary from "./HostsSummary";
 
-import LinkArrow from "../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
+import LinkArrow from "../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
-const baseClass = "dashboard";
+const baseClass = "homepage";
 
 interface IRootState {
   auth: {
@@ -21,7 +21,7 @@ interface IRootState {
   };
 }
 
-const Dashboard = (): JSX.Element => {
+const Homepage = (): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 
   const user = useSelector((state: IRootState) => state.auth.user);
@@ -56,4 +56,4 @@ const Dashboard = (): JSX.Element => {
   );
 };
 
-export default Dashboard;
+export default Homepage;
