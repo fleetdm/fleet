@@ -133,7 +133,7 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	})
 	require.IsType(t, &fleet.Error{}, err)
 	flErr := err.(*fleet.Error)
-	assert.Equal(t, flErr.Error(), "Cannot specify both Global Role and Team Roles")
+	assert.Equal(t, flErr.Message, "Cannot specify both Global Role and Team Roles")
 }
 
 func testListUsers(t *testing.T, ds fleet.Datastore) {
