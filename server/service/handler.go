@@ -521,6 +521,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	r := mux.NewRouter()
 
 	attachFleetAPIRoutes(r, fleetHandlers)
+	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)
 
 	// Results endpoint is handled different due to websockets use
 	r.PathPrefix("/api/v1/fleet/results/").
@@ -663,6 +664,23 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
 
 	r.Handle("/api/v1/fleet/activities", h.ListActivities).Methods("GET").Name("list_activities")
+}
+
+func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
+	handle("POST", "/api/v1/fleet/users/roles/spec", makeApplyUserRoleSpecsEndpoint(svc, opts), "apply_user_roles_spec", r)
+}
+
+func handle(verb, path string, handler http.Handler, name string, r *mux.Router) {
+	r.Handle(
+		path,
+		handler,
+	).Methods(verb).Name(name)
+}
+
+// TODO: this duplicates the one in makeKitHandler
+func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
+	e = authzcheck.NewMiddleware().AuthzCheck()(e)
+	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.

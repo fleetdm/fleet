@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/go-kit/kit/transport"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"testing"
 
@@ -17,13 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
-	kitlog "github.com/go-kit/kit/log"
-
-	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 func TestLogin(t *testing.T) {
@@ -115,35 +108,34 @@ func TestLogin(t *testing.T) {
 
 func setupAuthTest(t *testing.T) (*inmem.Datastore, map[string]fleet.User, *httptest.Server) {
 	ds, _ := inmem.New(config.TestConfig())
-	users, server := runServerForTestsWithDS(t, ds)
+	users, server := RunServerForTestsWithDS(t, ds)
 	return ds, users, server
 }
 
-func runServerForTestsWithDS(t *testing.T, ds fleet.Datastore) (map[string]fleet.User, *httptest.Server) {
-	svc := newTestService(ds, nil, nil)
-	users := createTestUsers(t, ds)
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+func getTestAdminToken(t *testing.T, server *httptest.Server) string {
+	testUser := testUsers["admin1"]
 
-	opts := []kithttp.ServerOption{
-		kithttp.ServerBefore(
-			setRequestsContexts(svc),
-		),
-		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
-		kithttp.ServerAfter(
-			kithttp.SetContentType("application/json; charset=utf-8"),
-		),
+	params := loginRequest{
+		Email:    testUser.Email,
+		Password: testUser.PlaintextPassword,
 	}
-	r := mux.NewRouter()
-	limitStore, _ := memstore.New(0)
-	ke := MakeFleetServerEndpoints(svc, "", limitStore)
-	kh := makeKitHandlers(ke, opts)
-	attachFleetAPIRoutes(r, kh)
-	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "index")
-	}))
+	j, err := json.Marshal(&params)
+	assert.Nil(t, err)
 
-	server := httptest.NewServer(r)
-	return users, server
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var jsn = struct {
+		User  *fleet.User         `json:"user"`
+		Token string              `json:"token"`
+		Err   []map[string]string `json:"errors,omitempty"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&jsn)
+	require.Nil(t, err)
+
+	return jsn.Token
 }
 
 func TestNoHeaderErrorsDifferently(t *testing.T) {

@@ -17,7 +17,7 @@ type getQueryRequest struct {
 
 type getQueryResponse struct {
 	Query *fleet.Query `json:"query,omitempty"`
-	Err   error         `json:"error,omitempty"`
+	Err   error        `json:"error,omitempty"`
 }
 
 func (r getQueryResponse) error() error { return r.Err }
@@ -42,7 +42,7 @@ type listQueriesRequest struct {
 
 type listQueriesResponse struct {
 	Queries []fleet.Query `json:"queries"`
-	Err     error          `json:"error,omitempty"`
+	Err     error         `json:"error,omitempty"`
 }
 
 func (r listQueriesResponse) error() error { return r.Err }
@@ -73,7 +73,7 @@ type createQueryRequest struct {
 
 type createQueryResponse struct {
 	Query *fleet.Query `json:"query,omitempty"`
-	Err   error         `json:"error,omitempty"`
+	Err   error        `json:"error,omitempty"`
 }
 
 func (r createQueryResponse) error() error { return r.Err }
@@ -100,7 +100,7 @@ type modifyQueryRequest struct {
 
 type modifyQueryResponse struct {
 	Query *fleet.Query `json:"query,omitempty"`
-	Err   error         `json:"error,omitempty"`
+	Err   error        `json:"error,omitempty"`
 }
 
 func (r modifyQueryResponse) error() error { return r.Err }
@@ -193,7 +193,7 @@ func makeDeleteQueriesEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Apply Query Specs
+// Apply Query Spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyQuerySpecsRequest struct {
@@ -218,12 +218,12 @@ func makeApplyQuerySpecsEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Query Specs
+// Get Query Spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type getQuerySpecsResponse struct {
 	Specs []*fleet.QuerySpec `json:"specs"`
-	Err   error               `json:"error,omitempty"`
+	Err   error              `json:"error,omitempty"`
 }
 
 func (r getQuerySpecsResponse) error() error { return r.Err }
@@ -244,7 +244,7 @@ func makeGetQuerySpecsEndpoint(svc fleet.Service) endpoint.Endpoint {
 
 type getQuerySpecResponse struct {
 	Spec *fleet.QuerySpec `json:"specs,omitempty"`
-	Err  error             `json:"error,omitempty"`
+	Err  error            `json:"error,omitempty"`
 }
 
 func (r getQuerySpecResponse) error() error { return r.Err }

@@ -79,5 +79,4 @@ func decodeApplyQuerySpecsRequest(ctx context.Context, r *http.Request) (interfa
 		return nil, err
 	}
 	return req, nil
-
 }
