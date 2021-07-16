@@ -3142,7 +3142,7 @@ o
 
 Fleet’s query schedule lets you add queries which are executed on your devices at regular intervals.
 
-For those familiar with osquery query packs, Fleet's query schedule can be thought of as a query pack built in to Fleet. Instead of creating a query pack and then adding queries, just add queries to Fleet's query schedule to start running them against all your devices.
+For those familiar with osquery query packs, Fleet's query schedule can be thought of as a query pack built into Fleet. Instead of creating a query pack and then adding queries, just add queries to Fleet's query schedule to start running them against all your devices.
 
 ### Get schedule
 
