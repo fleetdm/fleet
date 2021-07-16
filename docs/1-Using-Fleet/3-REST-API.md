@@ -3218,6 +3218,8 @@ None.
 }
 ```
 
+> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses osquery query packs under the hood.
+
 ### Edit query in schedule
 
 `PATCH /api/v1/fleet/global/schedule/{id}`
