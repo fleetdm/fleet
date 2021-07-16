@@ -309,7 +309,7 @@ export class ManageQueriesPage extends Component {
           </div>
           <TableContainer
             columns={tableHeaders}
-            data={allQueries}
+            data={generateTableData(allQueries)}
             isLoading={loadingQueries}
             defaultSortHeader={"name"}
             defaultSortDirection={"desc"}

@@ -1,5 +1,7 @@
 import React from "react";
 
+import moment from "moment";
+
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IQuery } from "interfaces/query";
@@ -31,6 +33,10 @@ interface IDataColumn {
 
 interface IQueryTableData {
   name: string;
+  description: string;
+  observer_can_run: string | boolean;
+  author_name: string;
+  last_modified: string;
   // status: string;
   // email: string;
   // teams: string;
@@ -55,14 +61,6 @@ const generateTableHeaders = (isOnlyObserver = false): IDataColumn[] => {
       accessor: "name",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
-    // TODO: need to add this info to API
-    // {
-    //   title: "Status",
-    //   Header: "Status",
-    //   disableSortBy: true,
-    //   accessor: "status",
-    //   Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
-    // },
     {
       title: "Description",
       Header: (cellProps) => (
@@ -74,13 +72,29 @@ const generateTableHeaders = (isOnlyObserver = false): IDataColumn[] => {
       accessor: "description",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
-    // {
-    //   title: "Roles",
-    //   Header: "Roles",
-    //   accessor: "roles",
-    //   disableSortBy: true,
-    //   Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    // },
+    {
+      title: "Author",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      accessor: "author_name",
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
+    {
+      title: "Last modified",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      accessor: "last_modified",
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
+
     // {
     //   title: "Actions",
     //   Header: "Actions",
@@ -99,15 +113,19 @@ const generateTableHeaders = (isOnlyObserver = false): IDataColumn[] => {
   ];
 
   // Add Teams tab for basic tier only
-  // if (isBasicTier) {
-  //   tableHeaders.splice(3, 0, {
-  //     title: "Teams",
-  //     Header: "Teams",
-  //     accessor: "teams",
-  //     disableSortBy: true,
-  //     Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-  //   });
-  // }
+  if (!isOnlyObserver) {
+    tableHeaders.splice(3, 0, {
+      title: "Observers can run",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      accessor: "observer_can_run",
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    });
+  }
 
   return tableHeaders;
 };
@@ -116,6 +134,11 @@ const generateTableData = (queries: IQuery[]): IQueryTableData[] => {
   return queries.map((query) => {
     return {
       name: query.name || "---",
+      description: query.description || "--",
+      observer_can_run: query.observer_can_run,
+      author_name: query.author_name,
+      last_modified: moment(query.updated_at).format("MM/DD/YY"),
+
       // status: generateStatus("user", user),
       // email: user.email,
       // teams: generateTeam(user.teams, user.global_role),
