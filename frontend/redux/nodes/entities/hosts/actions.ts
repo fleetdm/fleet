@@ -41,6 +41,27 @@ const transferToTeam = (teamId: number | null, hostIds: number[]): any => {
   };
 };
 
+const transferToTeamByFilter = (
+  teamId: number | null,
+  query: string,
+  status: string,
+  labelId: number | null
+): any => {
+  return (dispatch: any) => {
+    dispatch(loadRequest());
+    return Fleet.hosts
+      .transferToTeamByFilter(teamId, query, status, labelId)
+      .then(() => {
+        dispatch(transferHostsSuccess());
+      })
+      .catch((res: IApiError) => {
+        const errorsObject = formatErrorResponse(res);
+        dispatch(transferHostsFailure(errorsObject));
+        throw errorsObject;
+      });
+  };
+};
+
 export const LOAD_PAGINATED = "LOAD_PAGINATED";
 export const loadPaginated = (): any => {
   return (dispatch: any) => {
@@ -80,6 +101,7 @@ export const refetchHostStart = (host: IHost): any => {
 export default {
   ...actions,
   transferToTeam,
+  transferToTeamByFilter,
   refetchHostSuccess,
   refetchHostFailure,
   refetchHostStart,

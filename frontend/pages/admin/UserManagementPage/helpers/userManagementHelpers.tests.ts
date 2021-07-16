@@ -1,5 +1,5 @@
 import { userStub, userTeamStub } from "test/stubs";
-import { IFormData } from "../components/UserForm/UserForm";
+import { IFormData, NewUserType } from "../components/UserForm/UserForm";
 import userManagementHelpers from "./userManagementHelpers";
 
 describe("userManagementHelpers module", () => {
@@ -19,6 +19,7 @@ describe("userManagementHelpers module", () => {
         email: "newemail@test.com",
         sso_enabled: false,
         name: "Gnar Mike",
+        newUserType: NewUserType.AdminCreated, // TODO revisit test
         global_role: "admin",
         teams: [updatedTeam, newTeam],
       };

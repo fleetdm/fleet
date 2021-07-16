@@ -647,13 +647,6 @@ FROM homebrew_packages;
 SELECT
   name AS name,
   version AS version,
-  'Package (APT)' AS type,
-  'apt_sources' AS source
-FROM apt_sources
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (deb)' AS type,
   'deb_packages' AS source
 FROM deb_packages
@@ -671,13 +664,6 @@ SELECT
   'Package (RPM)' AS type,
   'rpm_packages' AS source
 FROM rpm_packages
-UNION
-SELECT
-  name AS name,
-  '' AS version,
-  'Package (YUM)' AS type,
-  'yum_sources' AS source
-FROM yum_sources
 UNION
 SELECT
   name AS name,
@@ -834,6 +820,31 @@ FROM python_packages;
 					},
 				)
 			}
+
+			return nil
+		},
+	},
+	"users": {
+		Query: `SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid=u.gid;`,
+		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+			var users []fleet.HostUser
+			for _, row := range rows {
+				uid, err := strconv.Atoi(row["uid"])
+				if err != nil {
+					return errors.Wrapf(err, "converting uid %s to int", row["uid"])
+				}
+				username := row["username"]
+				type_ := row["type"]
+				groupname := row["groupname"]
+				u := fleet.HostUser{
+					Uid:       uint(uid),
+					Username:  username,
+					Type:      type_,
+					GroupName: groupname,
+				}
+				users = append(users, u)
+			}
+			host.Users = users
 
 			return nil
 		},
@@ -1120,6 +1131,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 	}
 
 	if len(labelResults) > 0 {
+		host.Modified = true
 		host.LabelUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordLabelQueryExecutions(&host, labelResults, svc.clock.Now())
 		if err != nil {
@@ -1128,6 +1140,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 	}
 
 	if detailUpdated {
+		host.Modified = true
 		host.DetailUpdatedAt = svc.clock.Now()
 		additionalJSON, err := json.Marshal(additionalResults)
 		if err != nil {
@@ -1137,22 +1150,10 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		host.Additional = &additional
 	}
 
-	if len(labelResults) > 0 || detailUpdated {
+	if host.Modified {
 		err = svc.ds.SaveHost(&host)
 		if err != nil {
 			return osqueryError{message: "failed to update host details: " + err.Error()}
-		}
-
-		if host.HostSoftware.Modified {
-			if err := svc.ds.SaveHostSoftware(&host); err != nil {
-				return osqueryError{message: "failed to save host software: " + err.Error()}
-			}
-		}
-
-		if detailUpdated {
-			if err := svc.ds.SaveHostAdditional(&host); err != nil {
-				return osqueryError{message: "failed to save host additional: " + err.Error()}
-			}
 		}
 	}
 

@@ -18,7 +18,6 @@ func testCreateInvite(t *testing.T, ds fleet.Datastore) {
 	}
 
 	invite := &fleet.Invite{
-
 		Email: "user@foo.com",
 		Name:  "user",
 		Token: "some_user",

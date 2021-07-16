@@ -26,6 +26,7 @@ func testCreateUser(t *testing.T, ds fleet.Datastore) {
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
 			SSOEnabled:               tt.sso,
+			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 		user, err := ds.NewUser(u)
 		assert.Nil(t, err)
@@ -69,6 +70,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 			Password:                 []byte(tt.password),
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
+			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 
 		user, err := ds.NewUser(u)
@@ -238,15 +240,15 @@ func testUserCreateWithTeams(t *testing.T, ds fleet.Datastore) {
 		Teams: []fleet.UserTeam{
 			{
 				Team: fleet.Team{ID: 6},
-				Role: "admin",
+				Role: fleet.RoleObserver,
 			},
 			{
 				Team: fleet.Team{ID: 3},
-				Role: "observer",
+				Role: fleet.RoleObserver,
 			},
 			{
 				Team: fleet.Team{ID: 9},
-				Role: "maintainer",
+				Role: fleet.RoleMaintainer,
 			},
 		},
 	}
@@ -261,7 +263,7 @@ func testUserCreateWithTeams(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, uint(3), user.Teams[0].ID)
 	assert.Equal(t, "observer", user.Teams[0].Role)
 	assert.Equal(t, uint(6), user.Teams[1].ID)
-	assert.Equal(t, "admin", user.Teams[1].Role)
+	assert.Equal(t, "observer", user.Teams[1].Role)
 	assert.Equal(t, uint(9), user.Teams[2].ID)
 	assert.Equal(t, "maintainer", user.Teams[2].Role)
 }

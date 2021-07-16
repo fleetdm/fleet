@@ -16,6 +16,10 @@ describe("User invite and activation", () => {
 
     cy.findByLabelText(/email/i).click().type("ash@example.com");
 
+    cy.get(".create-user-form__new-user-radios").within(() => {
+      cy.findByRole("radio", { name: "Invite user" }).parent().click();
+    });
+
     cy.findByRole("button", { name: /^create$/i }).click();
 
     // Ensure the email has been delivered

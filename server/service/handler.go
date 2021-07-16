@@ -72,6 +72,10 @@ type FleetEndpoints struct {
 	ApplyPackSpecs                        endpoint.Endpoint
 	GetPackSpecs                          endpoint.Endpoint
 	GetPackSpec                           endpoint.Endpoint
+	GlobalScheduleQuery                   endpoint.Endpoint
+	GetGlobalSchedule                     endpoint.Endpoint
+	ModifyGlobalSchedule                  endpoint.Endpoint
+	DeleteGlobalSchedule                  endpoint.Endpoint
 	EnrollAgent                           endpoint.Endpoint
 	GetClientConfig                       endpoint.Endpoint
 	GetDistributedQueries                 endpoint.Endpoint
@@ -118,6 +122,7 @@ type FleetEndpoints struct {
 	AddTeamUsers                          endpoint.Endpoint
 	DeleteTeamUsers                       endpoint.Endpoint
 	TeamEnrollSecrets                     endpoint.Endpoint
+	ListActivities                        endpoint.Endpoint
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
@@ -191,6 +196,10 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		ApplyPackSpecs:                        authenticatedUser(svc, makeApplyPackSpecsEndpoint(svc)),
 		GetPackSpecs:                          authenticatedUser(svc, makeGetPackSpecsEndpoint(svc)),
 		GetPackSpec:                           authenticatedUser(svc, makeGetPackSpecEndpoint(svc)),
+		GlobalScheduleQuery:                   authenticatedUser(svc, makeGlobalScheduleQueryEndpoint(svc)),
+		GetGlobalSchedule:                     authenticatedUser(svc, makeGetGlobalScheduleEndpoint(svc)),
+		ModifyGlobalSchedule:                  authenticatedUser(svc, makeModifyGlobalScheduleEndpoint(svc)),
+		DeleteGlobalSchedule:                  authenticatedUser(svc, makeDeleteGlobalScheduleEndpoint(svc)),
 		GetHost:                               authenticatedUser(svc, makeGetHostEndpoint(svc)),
 		HostByIdentifier:                      authenticatedUser(svc, makeHostByIdentifierEndpoint(svc)),
 		ListHosts:                             authenticatedUser(svc, makeListHostsEndpoint(svc)),
@@ -225,6 +234,7 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		AddTeamUsers:                          authenticatedUser(svc, makeAddTeamUsersEndpoint(svc)),
 		DeleteTeamUsers:                       authenticatedUser(svc, makeDeleteTeamUsersEndpoint(svc)),
 		TeamEnrollSecrets:                     authenticatedUser(svc, makeTeamEnrollSecretsEndpoint(svc)),
+		ListActivities:                        authenticatedUser(svc, makeListActivitiesEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
@@ -298,6 +308,10 @@ type fleetHandlers struct {
 	ApplyPackSpecs                        http.Handler
 	GetPackSpecs                          http.Handler
 	GetPackSpec                           http.Handler
+	GlobalScheduleQuery                   http.Handler
+	GetGlobalSchedule                     http.Handler
+	ModifyGlobalSchedule                  http.Handler
+	DeleteGlobalSchedule                  http.Handler
 	EnrollAgent                           http.Handler
 	GetClientConfig                       http.Handler
 	GetDistributedQueries                 http.Handler
@@ -344,6 +358,7 @@ type fleetHandlers struct {
 	AddTeamUsers                          http.Handler
 	DeleteTeamUsers                       http.Handler
 	TeamEnrollSecrets                     http.Handler
+	ListActivities                        http.Handler
 }
 
 func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
@@ -404,6 +419,10 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		ApplyPackSpecs:                        newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
 		GetPackSpecs:                          newServer(e.GetPackSpecs, decodeNoParamsRequest),
 		GetPackSpec:                           newServer(e.GetPackSpec, decodeGetGenericSpecRequest),
+		GlobalScheduleQuery:                   newServer(e.GlobalScheduleQuery, decodeGlobalScheduleQueryRequest),
+		GetGlobalSchedule:                     newServer(e.GetGlobalSchedule, decodeGetGlobalScheduleRequest),
+		ModifyGlobalSchedule:                  newServer(e.ModifyGlobalSchedule, decodeModifyGlobalScheduleRequest),
+		DeleteGlobalSchedule:                  newServer(e.DeleteGlobalSchedule, decodeDeleteGlobalScheduleRequest),
 		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:                       newServer(e.GetClientConfig, decodeGetClientConfigRequest),
 		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
@@ -450,6 +469,7 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		AddTeamUsers:                          newServer(e.AddTeamUsers, decodeModifyTeamUsersRequest),
 		DeleteTeamUsers:                       newServer(e.DeleteTeamUsers, decodeModifyTeamUsersRequest),
 		TeamEnrollSecrets:                     newServer(e.TeamEnrollSecrets, decodeTeamEnrollSecretsRequest),
+		ListActivities:                        newServer(e.ListActivities, decodeListActivitiesRequest),
 	}
 }
 
@@ -588,6 +608,11 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
 	r.Handle("/api/v1/fleet/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
 
+	r.Handle("/api/v1/fleet/global/schedule", h.GetGlobalSchedule).Methods("GET").Name("set_global_schedule")
+	r.Handle("/api/v1/fleet/global/schedule", h.GlobalScheduleQuery).Methods("POST").Name("add_to_global_schedule")
+	r.Handle("/api/v1/fleet/global/schedule/{id}", h.ModifyGlobalSchedule).Methods("PATCH").Name("modify_global_schedule")
+	r.Handle("/api/v1/fleet/global/schedule/{id}", h.DeleteGlobalSchedule).Methods("DELETE").Name("delete_global_schedule")
+
 	r.Handle("/api/v1/fleet/labels", h.CreateLabel).Methods("POST").Name("create_label")
 	r.Handle("/api/v1/fleet/labels/{id}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
 	r.Handle("/api/v1/fleet/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
@@ -636,6 +661,8 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
 	r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
 	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
+
+	r.Handle("/api/v1/fleet/activities", h.ListActivities).Methods("GET").Name("list_activities")
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.

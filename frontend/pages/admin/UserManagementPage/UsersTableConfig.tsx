@@ -185,7 +185,7 @@ const generateRole = (teams: ITeam[], globalRole: string | null): string => {
 const generateActionDropdownOptions = (
   isCurrentUser: boolean,
   isInvitePending: boolean,
-  isSSOEnabled: boolean
+  isSsoEnabled: boolean
 ): IDropdownOption[] => {
   let dropdownOptions = [
     {
@@ -209,7 +209,7 @@ const generateActionDropdownOptions = (
       value: "delete",
     },
   ];
-  if (isCurrentUser || isSSOEnabled) {
+  if (isSsoEnabled) {
     // remove "Require password reset" from dropdownOptions
     dropdownOptions = dropdownOptions.filter(
       (option) => option.label !== "Require password reset"

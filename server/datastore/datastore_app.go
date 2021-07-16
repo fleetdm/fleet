@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"encoding/json"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"sort"
 	"testing"
 
@@ -60,6 +61,7 @@ func testOrgInfo(t *testing.T, ds fleet.Datastore) {
 		Password:   []byte("pass"),
 		Email:      email,
 		SSOEnabled: true,
+		GlobalRole: ptr.String(fleet.RoleAdmin),
 	}
 	_, err = ds.NewUser(u)
 	assert.Nil(t, err)

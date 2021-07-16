@@ -18,6 +18,7 @@ type errorer interface {
 
 type jsonError struct {
 	Message string              `json:"message"`
+	Code    int                 `json:"code,omitempty"`
 	Errors  []map[string]string `json:"errors,omitempty"`
 }
 
@@ -127,6 +128,13 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			statusCode = http.StatusConflict
 		}
 		w.WriteHeader(statusCode)
+		enc.Encode(je)
+	case *fleet.Error:
+		je := jsonError{
+			Message: e.Error(),
+			Code:    e.Code,
+		}
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		enc.Encode(je)
 	default:
 		if fleet.IsForeignKey(errors.Cause(err)) {

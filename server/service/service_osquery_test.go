@@ -382,6 +382,7 @@ func TestLabelQueries(t *testing.T) {
 	)
 	assert.Nil(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
+	host.Modified = true
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
 	if assert.Len(t, gotResults, 1) {
@@ -796,6 +797,14 @@ func TestDetailQueries(t *testing.T) {
       "name":"logger_tls_period",
       "value":"60"
     }
+],
+"fleet_detail_query_users": [
+    {
+      "uid": "1234",
+      "username": "user1",
+      "type": "sometype",
+      "groupname": "somegroup"
+    }
 ]
 }
 `
@@ -837,6 +846,15 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, uint(10), gotHost.ConfigTLSRefresh)
 	assert.Equal(t, uint(5), gotHost.DistributedInterval)
 	assert.Equal(t, uint(60), gotHost.LoggerTLSPeriod)
+
+	// users
+	require.Len(t, gotHost.Users, 1)
+	assert.Equal(t, fleet.HostUser{
+		Uid:       1234,
+		Username:  "user1",
+		Type:      "sometype",
+		GroupName: "somegroup",
+	}, gotHost.Users[0])
 
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"
@@ -1170,9 +1188,13 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
+	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
 	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.Nil(t, err)
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
+	assert.True(t, ds.NewActivityFuncInvoked)
 	assert.Equal(t, []*fleet.DistributedQueryCampaignTarget{
 		{
 			Type:                       fleet.TargetHost,

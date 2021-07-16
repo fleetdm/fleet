@@ -112,11 +112,16 @@ func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now t
 }
 
 func NewUser(t *testing.T, ds fleet.Datastore, name, email string, admin bool) *fleet.User {
+	role := fleet.RoleObserver
+	if admin {
+		role = fleet.RoleAdmin
+	}
 	u, err := ds.NewUser(&fleet.User{
-		Password: []byte("garbage"),
-		Salt:     "garbage",
-		Name:     name,
-		Email:    email,
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       name,
+		Email:      email,
+		GlobalRole: &role,
 	})
 
 	require.Nil(t, err)
