@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"errors"
@@ -11,7 +11,10 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func testCreateInvite(t *testing.T, ds fleet.Datastore) {
+func TestCreateInvite(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 0; i < 3; i++ {
 		_, err := ds.NewTeam(&fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
@@ -64,7 +67,10 @@ func setupTestInvites(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testListInvites(t *testing.T, ds fleet.Datastore) {
+func TestListInvites(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	setupTestInvites(t, ds)
 
 	opt := fleet.ListOptions{
@@ -91,7 +97,9 @@ func testListInvites(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testDeleteInvite(t *testing.T, ds fleet.Datastore) {
+func TestDeleteInvite(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
 
 	setupTestInvites(t, ds)
 
@@ -109,7 +117,10 @@ func testDeleteInvite(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testInviteByToken(t *testing.T, ds fleet.Datastore) {
+func TestInviteByToken(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	setupTestInvites(t, ds)
 
 	var inviteTests = []struct {
@@ -141,7 +152,10 @@ func testInviteByToken(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testInviteByEmail(t *testing.T, ds fleet.Datastore) {
+func TestInviteByEmail(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	setupTestInvites(t, ds)
 
 	var inviteTests = []struct {

@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"fmt"
@@ -11,7 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testApplyQueries(t *testing.T, ds fleet.Datastore) {
+func TestApplyQueries(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
@@ -75,7 +78,10 @@ func testApplyQueries(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, &zwass.ID, queries[2].AuthorID)
 }
 
-func testDeleteQuery(t *testing.T, ds fleet.Datastore) {
+func TestDeleteQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	query := &fleet.Query{
@@ -96,7 +102,10 @@ func testDeleteQuery(t *testing.T, ds fleet.Datastore) {
 	assert.NotNil(t, err)
 }
 
-func testGetQueryByName(t *testing.T, ds fleet.Datastore) {
+func TestGetQueryByName(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
 	actual, err := ds.QueryByName("q1")
@@ -109,7 +118,10 @@ func testGetQueryByName(t *testing.T, ds fleet.Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 }
 
-func testDeleteQueries(t *testing.T, ds fleet.Datastore) {
+func TestDeleteQueries(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	q1 := test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
@@ -147,7 +159,10 @@ func testDeleteQueries(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testSaveQuery(t *testing.T, ds fleet.Datastore) {
+func TestSaveQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	query := &fleet.Query{
@@ -174,7 +189,10 @@ func testSaveQuery(t *testing.T, ds fleet.Datastore) {
 	assert.True(t, queryVerify.ObserverCanRun)
 }
 
-func testListQuery(t *testing.T, ds fleet.Datastore) {
+func TestListQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	for i := 0; i < 10; i++ {
@@ -202,7 +220,10 @@ func testListQuery(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, 10, len(results))
 }
 
-func testLoadPacksForQueries(t *testing.T, ds fleet.Datastore) {
+func TestLoadPacksForQueries(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "q1", Query: "select * from time"},
@@ -326,7 +347,10 @@ func testLoadPacksForQueries(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testDuplicateNewQuery(t *testing.T, ds fleet.Datastore) {
+func TestDuplicateNewQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Mike Arpaia", "mike@fleet.co", true)
 	q1, err := ds.NewQuery(&fleet.Query{
 		Name:     "foo",

@@ -23,9 +23,10 @@ const (
 	testAddress  = "localhost:3307"
 )
 
-func init() {
+func TestMain(m *testing.M) {
 	// Initialize the schema once for the entire test run.
 	initializeSchemaOrPanic()
+	os.Exit(m.Run())
 }
 
 func panicif(err error) {

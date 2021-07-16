@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"testing"
@@ -19,7 +19,10 @@ func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTar
 	assert.ElementsMatch(t, expectedTargets.TeamIDs, targets.TeamIDs)
 }
 
-func testDistributedQueryCampaign(t *testing.T, ds fleet.Datastore) {
+func TestDistributedQueryCampaign(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	mockClock := clock.NewMockClock()
@@ -70,7 +73,10 @@ func testDistributedQueryCampaign(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testCleanupDistributedQueryCampaigns(t *testing.T, ds fleet.Datastore) {
+func TestCleanupDistributedQueryCampaigns(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	mockClock := clock.NewMockClock()

@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"strconv"
@@ -13,7 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testCountHostsInTargets(t *testing.T, ds fleet.Datastore) {
+func TestCountHostsInTargets(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	if ds.Name() == "inmem" {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
@@ -159,7 +162,10 @@ func testCountHostsInTargets(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testHostStatus(t *testing.T, ds fleet.Datastore) {
+func TestHostStatus(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 
 	if ds.Name() == "inmem" {
@@ -223,7 +229,10 @@ func testHostStatus(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testHostIDsInTargets(t *testing.T, ds fleet.Datastore) {
+func TestHostIDsInTargets(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	if ds.Name() == "inmem" {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
