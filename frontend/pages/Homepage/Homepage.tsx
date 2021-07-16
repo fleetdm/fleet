@@ -5,6 +5,7 @@ import paths from "router/paths";
 import { Link } from "react-router";
 import { IUser } from "interfaces/user";
 import HostsSummary from "./HostsSummary";
+import ActivityFeed from "./ActivityFeed";
 
 import LinkArrow from "../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
@@ -49,6 +50,16 @@ const Homepage = (): JSX.Element => {
           </div>
           <div className={`${baseClass}__section-details`}>
             <HostsSummary />
+          </div>
+        </div>
+        <div className={`${baseClass}__section hosts-section`}>
+          <div className={`${baseClass}__section-title`}>
+            <div>
+              <h2>Activity</h2>
+            </div>
+          </div>
+          <div className={`${baseClass}__section-details`}>
+            <ActivityFeed />
           </div>
         </div>
       </div>

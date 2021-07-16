@@ -12,6 +12,7 @@ export default {
     return `/v1/fleet/users/${id}/enable`;
   },
   FORGOT_PASSWORD: "/v1/fleet/forgot_password",
+  ACTIVITIES: "/v1/fleet/activities",
   HOSTS: "/v1/fleet/hosts",
   HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
   HOSTS_TRANSFER_BY_FILTER: "/v1/fleet/hosts/transfer/filter",
