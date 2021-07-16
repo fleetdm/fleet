@@ -209,7 +209,7 @@ type Error struct {
 }
 
 const (
-	// ErrNoRoleNeeded is the error number number for valid role needed
+	// ErrNoRoleNeeded is the error number for valid role needed
 	ErrNoRoleNeeded = 1
 )
 

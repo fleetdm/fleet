@@ -4,16 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/ghodss/yaml"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/ghodss/yaml"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getTestAdminToken(t *testing.T, server *httptest.Server) string {
@@ -259,7 +261,67 @@ func getConfig(t *testing.T, server *httptest.Server, token string) *fleet.AppCo
 	return responseBody
 }
 
-func TestSQLErrorsAreProperlyHandled(t *testing.T) {
+func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
+	test.AddAllHostsLabel(t, ds)
+
+	_, server := runServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	gs := fleet.GlobalSchedulePayload{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
+	assert.Len(t, gs.GlobalSchedule, 0)
+
+	qr, err := ds.NewQuery(&fleet.Query{
+		Name:           "TestQuery",
+		Description:    "Some description",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+	})
+	require.NoError(t, err)
+
+	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
+	type responseType struct {
+		Scheduled *fleet.ScheduledQuery `json:"scheduled,omitempty"`
+		Err       error                 `json:"error,omitempty"`
+	}
+	r := responseType{}
+	doJSONReq(t, gsParams, "POST", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &r)
+	require.Nil(t, r.Err)
+
+	gs = fleet.GlobalSchedulePayload{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
+	require.Len(t, gs.GlobalSchedule, 1)
+	assert.Equal(t, uint(42), gs.GlobalSchedule[0].Interval)
+	assert.Equal(t, "TestQuery", gs.GlobalSchedule[0].Name)
+	id := gs.GlobalSchedule[0].ID
+
+	gs = fleet.GlobalSchedulePayload{}
+	gsParams = fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}
+	doJSONReq(
+		t, gsParams, "PATCH", server,
+		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id),
+		token, http.StatusOK, &gs,
+	)
+
+	gs = fleet.GlobalSchedulePayload{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
+	require.Len(t, gs.GlobalSchedule, 1)
+	assert.Equal(t, uint(55), gs.GlobalSchedule[0].Interval)
+
+	r = responseType{}
+	doJSONReq(
+		t, nil, "DELETE", server,
+		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id),
+		token, http.StatusOK, &r,
+	)
+	require.Nil(t, r.Err)
+
+	gs = fleet.GlobalSchedulePayload{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
+	require.Len(t, gs.GlobalSchedule, 0)
+}
+
+func TestIntegration(t *testing.T) {
 	mysql.RunTestsAgainstMySQL(t, []func(t *testing.T, ds fleet.Datastore){
 		testDoubleUserCreationErrors,
 		testUserCreationWrongTeamErrors,
@@ -267,5 +329,6 @@ func TestSQLErrorsAreProperlyHandled(t *testing.T) {
 		testUserWithoutRoleErrors,
 		testUserWithWrongRoleErrors,
 		testAppConfigAdditionalQueriesCanBeRemoved,
+		testGlobalSchedule,
 	})
 }

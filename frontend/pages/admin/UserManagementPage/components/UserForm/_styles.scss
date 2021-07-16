@@ -33,6 +33,18 @@
     }
   }
 
+  .sso-disabled {
+    width: 375px;
+  }
+
+  .invite-disabled {
+    width: 100px;
+  }
+
+  .password-tooltip-text {
+    width: 310px;
+  }
+
   &__label {
     color: $core-fleet-black;
     font-size: $x-small;

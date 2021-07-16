@@ -188,6 +188,7 @@ const TeamManagementPage = (): JSX.Element => {
         emptyComponent={EmptyTeams}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        searchable
       />
       {showCreateTeamModal ? (
         <CreateTeamModal

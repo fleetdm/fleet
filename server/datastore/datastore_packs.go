@@ -383,3 +383,34 @@ func testListPacksForHost(t *testing.T, ds fleet.Datastore) {
 		assert.Equal(t, "foo_pack", packs[0].Name)
 	}
 }
+
+func testEnsureGlobalPack(t *testing.T, ds fleet.Datastore) {
+	test.AddAllHostsLabel(t, ds)
+
+	packs, err := ds.ListPacks(fleet.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, packs, 0)
+
+	gp, err := ds.EnsureGlobalPack()
+	require.Nil(t, err)
+
+	packs, err = ds.ListPacks(fleet.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, packs, 1)
+	assert.Equal(t, gp.ID, packs[0].ID)
+	assert.Equal(t, "global", *gp.Type)
+
+	labels, err := ds.LabelIDsByName([]string{"All Hosts"})
+	require.Nil(t, err)
+
+	assert.Equal(t, []uint{labels[0]}, gp.LabelIDs)
+
+	_, err = ds.EnsureGlobalPack()
+	require.Nil(t, err)
+
+	packs, err = ds.ListPacks(fleet.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, packs, 1)
+	assert.Equal(t, gp.ID, packs[0].ID)
+	assert.Equal(t, "global", *gp.Type)
+}
