@@ -3169,7 +3169,7 @@ None.
       "query_name": "arp_cache",
       "query": "select * from arp_cache;",
       "interval": 120,
-      "snapshot": null,
+      "snapshot": true,
       "removed": null,
       "shard": null,
       "denylist": null
@@ -3184,7 +3184,7 @@ None.
       "query_name": "distributed_testexample.com_1624654109",
       "query": "Get",
       "interval": 86400,
-      "snapshot": null,
+      "snapshot": true,
       "removed": null,
       "shard": null,
       "denylist": null
@@ -3239,7 +3239,7 @@ None.
     "query_name": "arp_cache",
     "query": "select * from arp_cache;",
     "interval": 120,
-    "snapshot": null,
+    "snapshot": true,
     "removed": null,
     "shard": null,
     "denylist": null
