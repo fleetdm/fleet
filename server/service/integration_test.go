@@ -102,15 +102,15 @@ func testUserCreationWrongTeamErrors(t *testing.T, ds fleet.Datastore) {
 			Team: fleet.Team{
 				ID: 9999,
 			},
+			Role: fleet.RoleObserver,
 		},
 	}
 
 	params := fleet.UserPayload{
-		Name:       ptr.String("user1"),
-		Email:      ptr.String("email@asd.com"),
-		Password:   ptr.String("pass"),
-		GlobalRole: ptr.String(fleet.RoleObserver),
-		Teams:      &teams,
+		Name:     ptr.String("user1"),
+		Email:    ptr.String("email@asd.com"),
+		Password: ptr.String("pass"),
+		Teams:    &teams,
 	}
 	method := "POST"
 	path := "/api/v1/fleet/users/admin"
