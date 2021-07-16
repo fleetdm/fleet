@@ -23,14 +23,6 @@ const (
 	testAddress  = "localhost:3307"
 )
 
-func TestMain(m *testing.M) {
-	if _, ok := os.LookupEnv("MYSQL_TEST"); ok {
-		// Initialize the schema once for the entire test run.
-		initializeSchemaOrPanic()
-	}
-	os.Exit(m.Run())
-}
-
 func panicif(err error) {
 	if err != nil {
 		panic(err)
