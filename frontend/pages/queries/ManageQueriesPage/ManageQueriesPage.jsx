@@ -5,6 +5,7 @@ import { filter, get, includes, pull } from "lodash";
 import { push } from "react-router-redux";
 
 import permissionUtils from "utilities/permissions";
+import simpleSearch from "utilities/simple_search";
 import entityGetter from "redux/utilities/entityGetter";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
@@ -49,6 +50,7 @@ export class ManageQueriesPage extends Component {
       checkedQueryIDs: [],
       queriesFilter: "",
       showModal: false,
+      filteredQueriesState: props.queries, // TODO figure out intitial state
     };
 
     this.tableHeaders = generateTableHeaders(
@@ -145,6 +147,28 @@ export class ManageQueriesPage extends Component {
     dispatch(push(PATHS.EDIT_QUERY(selectedQuery)));
 
     return false;
+  };
+
+  onTableQueryChange = (queryData) => {
+    const { queries } = this.props;
+    const {
+      // pageIndex,
+      // pageSize,
+      searchQuery,
+      // sortHeader,
+      // sortDirection,
+    } = queryData;
+    // let sortBy = [];
+    // if (sortHeader !== "") {
+    //   sortBy = [{ id: sortHeader, direction: sortDirection }];
+    // }
+
+    if (!searchQuery) {
+      this.setState({ filteredQueriesState: queries });
+      return;
+    }
+
+    this.setState({ filteredQueriesState: simpleSearch(searchQuery, queries) });
   };
 
   onToggleModal = () => {
@@ -277,8 +301,9 @@ export class ManageQueriesPage extends Component {
   };
 
   render() {
-    const { checkedQueryIDs, queriesFilter } = this.state;
+    const { checkedQueryIDs, queriesFilter, filteredQueriesState } = this.state;
     const {
+      onTableQueryChange,
       getQueries,
       // onCheckAllQueries,
       // onCheckQuery,
@@ -292,7 +317,6 @@ export class ManageQueriesPage extends Component {
     } = this;
     const {
       loadingQueries,
-      queries: allQueries,
       // selectedQuery,
     } = this.props;
 
@@ -309,14 +333,14 @@ export class ManageQueriesPage extends Component {
           </div>
           <TableContainer
             columns={tableHeaders}
-            data={generateTableData(allQueries)}
+            data={generateTableData(filteredQueriesState)}
             isLoading={loadingQueries}
             defaultSortHeader={"name"}
             defaultSortDirection={"desc"}
             inputPlaceHolder={"Search"}
             actionButtonText={"Action button"}
             onActionButtonClick={() => null}
-            onQueryChange={() => null}
+            onQueryChange={onTableQueryChange}
             resultsTitle={"queries"}
             emptyComponent={null}
             searchable
