@@ -3,8 +3,6 @@ import { filter, includes } from "lodash";
 const simpleSearch = (searchQuery = "", dictionary) => {
   const lowerSearchQuery = searchQuery.toLowerCase();
 
-  console.log("Hello");
-
   const filterResults = filter(dictionary, (item) => {
     if (!item.name) {
       return false;
