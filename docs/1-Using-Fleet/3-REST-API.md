@@ -3158,9 +3158,38 @@ None.
 
 ```
 {
-  "global_schedule": {
-
-  }
+  "global_schedule": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 461,
+      "pack_id": 5,
+      "name": "arp_cache",
+      "query_id": 275,
+      "query_name": "arp_cache",
+      "query": "select * from arp_cache;",
+      "interval": 120,
+      "snapshot": null,
+      "removed": null,
+      "shard": null,
+      "denylist": null
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 463,
+      "pack_id": 5,
+      "name": "distributed_testexample.com_1624654109",
+      "query_id": 84,
+      "query_name": "distributed_testexample.com_1624654109",
+      "query": "Get",
+      "interval": 86400,
+      "snapshot": null,
+      "removed": null,
+      "shard": null,
+      "denylist": null
+    }
+  ]
 }
 ```
 
