@@ -2,6 +2,7 @@ import React from "react";
 
 import moment from "moment";
 
+import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IQuery } from "interfaces/query";
@@ -11,6 +12,8 @@ interface IHeaderProps {
     title: string;
     isSortedDesc: boolean;
   };
+  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  toggleAllRowsSelected: () => void;
 }
 
 interface ICellProps {
@@ -19,37 +22,55 @@ interface ICellProps {
   };
   row: {
     original: IQuery;
+    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    toggleRowSelected: () => void;
   };
 }
 
 interface IDataColumn {
-  title: string;
+  id?: string;
+  title?: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
+  accessor?: string;
   Cell: (props: ICellProps) => JSX.Element;
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
 
 interface IQueryTableData {
+  id: number;
   name: string;
   description: string;
   observer_can_run: string | boolean;
   author_name: string;
   last_modified: string;
-  // status: string;
-  // email: string;
-  // teams: string;
-  // roles: string;
-  // actions: IDropdownOption[];
-  // id: number;
-  // type: string;
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (isOnlyObserver = false): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
+    {
+      id: "selection",
+      Header: (cellProps: IHeaderProps): JSX.Element => {
+        const props = cellProps.getToggleAllRowsSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          indeterminate: props.indeterminate,
+          onChange: () => cellProps.toggleAllRowsSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const props = cellProps.row.getToggleRowSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          onChange: () => cellProps.row.toggleRowSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      disableHidden: true,
+    },
     {
       title: "Name",
       Header: (cellProps) => (
@@ -94,25 +115,9 @@ const generateTableHeaders = (isOnlyObserver = false): IDataColumn[] => {
       accessor: "last_modified",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
-
-    // {
-    //   title: "Actions",
-    //   Header: "Actions",
-    //   disableSortBy: true,
-    //   accessor: "actions",
-    //   Cell: (cellProps) => (
-    //     <DropdownCell
-    //       options={cellProps.cell.value}
-    //       onChange={(value: string) =>
-    //         actionSelectHandler(value, cellProps.row.original)
-    //       }
-    //       placeholder={"Actions"}
-    //     />
-    //   ),
-    // },
   ];
 
-  // Add Teams tab for basic tier only
+  // Add observers can run column for non-observer (i.e. maintainer and admin) users only
   if (!isOnlyObserver) {
     tableHeaders.splice(3, 0, {
       title: "Observers can run",
@@ -133,23 +138,12 @@ const generateTableHeaders = (isOnlyObserver = false): IDataColumn[] => {
 const generateTableData = (queries: IQuery[]): IQueryTableData[] => {
   return queries.map((query) => {
     return {
+      id: query.id,
       name: query.name || "---",
       description: query.description || "--",
       observer_can_run: query.observer_can_run,
       author_name: query.author_name,
       last_modified: moment(query.updated_at).format("MM/DD/YY"),
-
-      // status: generateStatus("user", user),
-      // email: user.email,
-      // teams: generateTeam(user.teams, user.global_role),
-      // roles: generateRole(user.teams, user.global_role),
-      // actions: generateActionDropdownOptions(
-      //   user.id === currentUserId,
-      //   false,
-      //   user.sso_enabled
-      // ),
-      // id: user.id,
-      // type: "user",
     };
   });
 };
