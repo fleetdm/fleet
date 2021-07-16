@@ -179,9 +179,10 @@ func testUserTeams(t *testing.T, ds fleet.Datastore) {
 	users[0].Teams = []fleet.UserTeam{
 		{
 			Team: fleet.Team{ID: 3},
-			Role: "foobar",
+			Role: fleet.RoleObserver,
 		},
 	}
+	users[0].GlobalRole = nil
 	err = ds.SaveUser(users[0])
 	require.NoError(t, err)
 
@@ -198,17 +199,18 @@ func testUserTeams(t *testing.T, ds fleet.Datastore) {
 	users[1].Teams = []fleet.UserTeam{
 		{
 			Team: fleet.Team{ID: 1},
-			Role: "foobar",
+			Role: fleet.RoleObserver,
 		},
 		{
 			Team: fleet.Team{ID: 2},
-			Role: "foobar",
+			Role: fleet.RoleObserver,
 		},
 		{
 			Team: fleet.Team{ID: 3},
-			Role: "foobar",
+			Role: fleet.RoleObserver,
 		},
 	}
+	users[1].GlobalRole = nil
 	err = ds.SaveUser(users[1])
 	require.NoError(t, err)
 
@@ -224,6 +226,7 @@ func testUserTeams(t *testing.T, ds fleet.Datastore) {
 
 	// Clear teams
 	users[1].Teams = []fleet.UserTeam{}
+	users[1].GlobalRole = ptr.String(fleet.RoleObserver)
 	err = ds.SaveUser(users[1])
 	require.NoError(t, err)
 
