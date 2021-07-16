@@ -278,7 +278,7 @@ func testUserRolesSpec(t *testing.T, ds fleet.Datastore) {
 func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
-	_, server := runServerForTestsWithDS(t, ds)
+	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
 	gs := fleet.GlobalSchedulePayload{}
