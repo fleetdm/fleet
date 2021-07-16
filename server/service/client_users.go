@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/users"
 )
 
 // CreateUser creates a new user, skipping the invitation process.
@@ -15,7 +16,7 @@ func (c *Client) CreateUser(p fleet.UserPayload) error {
 // ListUsers retrieves the list of users.
 func (c *Client) ListUsers() ([]fleet.User, error) {
 	verb, path := "GET", "/api/v1/fleet/users"
-	var responseBody listUsersResponse
+	var responseBody users.ListUsersResponse
 
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	if err != nil {
@@ -30,4 +31,12 @@ func (c *Client) ApplyUsersRoleSecretSpec(spec *fleet.UsersRoleSpec) error {
 	verb, path := "POST", "/api/v1/fleet/users/roles/spec"
 	var responseBody applyUserRoleSpecsResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
+}
+
+// CreateUser creates a new user, skipping the invitation process.
+func (c *Client) DeleteUser(p fleet.UserPayload) error {
+	verb, path := "POST", "/api/v1/fleet/users/admin"
+	var responseBody createUserResponse
+
+	return c.authenticatedRequest(p, verb, path, &responseBody)
 }
