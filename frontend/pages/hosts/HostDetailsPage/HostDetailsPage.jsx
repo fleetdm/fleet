@@ -49,6 +49,10 @@ import {
   generateTableHeaders,
   generateDataSet,
 } from "./SoftwareTable/SoftwareTableConfig";
+import {
+  generatePackTableHeaders,
+  generateDataSet,
+} from "./SoftwareTable/PackTableConfig";
 import EmptySoftware from "./EmptySoftware";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
@@ -394,6 +398,8 @@ export class HostDetailsPage extends Component {
     const { pack_stats } = host;
     const wrapperClassName = `${baseClass}__table`;
 
+    const tableHeaders = generatePackTableHeaders();
+
     let packsAccordion;
     if (pack_stats) {
       packsAccordion = pack_stats.map((pack) => {
@@ -406,29 +412,42 @@ export class HostDetailsPage extends Component {
               {pack.query_stats.length === 0 ? (
                 <div>There are no schedule queries for this pack.</div>
               ) : (
-                <div className={`${baseClass}__wrapper`}>
-                  <table className={wrapperClassName}>
-                    <thead>
-                      <tr>
-                        <th>Query name</th>
-                        <th>Description</th>
-                        <th>Frequency</th>
-                        <th>Last run</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {!!pack.query_stats.length &&
-                        pack.query_stats.map((query) => {
-                          return (
-                            <PackQueriesListRow
-                              key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
-                              query={query}
-                            />
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {!!pack.query_stats.length && (
+                    <TableContainer
+                      columns={tableHeaders}
+                      data={pack.query_stats}
+                      isLoading={isLoadingHost}
+                      defaultSortHeader={"name"}
+                      defaultSortDirection={"asc"}
+                      showMarkAllPages={false}
+                      disablePagination
+                    />
+                  )}
+                  <div className={`${baseClass}__wrapper`}>
+                    <table className={wrapperClassName}>
+                      <thead>
+                        <tr>
+                          <th>Query name</th>
+                          <th>Description</th>
+                          <th>Frequency</th>
+                          <th>Last run</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {!!pack.query_stats.length &&
+                          pack.query_stats.map((query) => {
+                            return (
+                              <PackQueriesListRow
+                                key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
+                                query={query}
+                              />
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </AccordionItemPanel>
           </AccordionItem>
