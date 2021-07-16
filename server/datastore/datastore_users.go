@@ -124,6 +124,16 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		assert.Nil(t, err)
 		assert.Equal(t, user.GlobalRole, verify.GlobalRole)
 	}
+	err := ds.SaveUser(&fleet.User{
+		Name:       "some@email.asd",
+		Password:   []byte("asdasd"),
+		Email:      "some@email.asd",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		Teams:      []fleet.UserTeam{{Role: fleet.RoleMaintainer}},
+	})
+	require.IsType(t, &fleet.Error{}, err)
+	flErr := err.(*fleet.Error)
+	assert.Equal(t, flErr.Error(), "Cannot specify both Global Role and Team Roles")
 }
 
 func testListUsers(t *testing.T, ds fleet.Datastore) {
