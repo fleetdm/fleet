@@ -183,5 +183,5 @@ const (
 type TeamSpec struct {
 	Name         string           `json:"name"`
 	AgentOptions *json.RawMessage `json:"agent_options"`
-	Secrets      []string         `json:"secrets"`
+	Secrets      []EnrollSecret   `json:"secrets"`
 }

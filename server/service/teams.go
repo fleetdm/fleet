@@ -53,7 +53,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		var secrets []*fleet.EnrollSecret
 		for _, secret := range spec.Secrets {
 			secrets = append(secrets, &fleet.EnrollSecret{
-				Secret: secret,
+				Secret: secret.Secret,
 			})
 		}
 
