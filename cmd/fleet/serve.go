@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/leader"
+	"github.com/fleetdm/fleet/v4/server/lock"
+
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -148,12 +150,6 @@ the way that the Fleet server works.
 				carveStore = ds
 			}
 
-			locker, ok := ds.(leader.Locker)
-			if !ok {
-				initFatal(errors.New("No leader locker available"), "")
-			}
-			ls := leader.NewLeaderSelector(locker, 20*time.Minute, 20*time.Minute)
-
 			migrationStatus, err := ds.MigrationStatus()
 			if err != nil {
 				initFatal(err, "retrieving migration status")
@@ -207,15 +203,26 @@ the way that the Fleet server works.
 				}
 			}
 
+			locker, ok := ds.(lock.Locker)
+			if !ok {
+				initFatal(errors.New("No global locker available"), "")
+			}
+			ctx, cancelBackground := context.WithCancel(context.Background())
+
 			go func() {
 				ticker := time.NewTicker(1 * time.Hour)
 				for {
-					if ls.AmILeader() {
-						ds.CleanupDistributedQueryCampaigns(time.Now())
-						ds.CleanupIncomingHosts(time.Now())
-						ds.CleanupCarves(time.Now())
+					if locked, err := lock.Leader(locker, time.Hour); err != nil || !locked {
+						select {
+						case <-ticker.C:
+							continue
+						case <-ctx.Done():
+							break
+						}
 					}
-					<-ticker.C
+					ds.CleanupDistributedQueryCampaigns(time.Now())
+					ds.CleanupIncomingHosts(time.Now())
+					ds.CleanupCarves(time.Now())
 				}
 			}()
 
@@ -374,8 +381,8 @@ the way that the Fleet server works.
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
+					cancelBackground()
 					launcher.GracefulStop()
-					ls.ShutDown()
 					return srv.Shutdown(ctx)
 				}()
 			}()
