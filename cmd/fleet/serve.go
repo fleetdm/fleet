@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/lock"
 
 	"io/ioutil"
 	"net/http"
@@ -377,8 +376,28 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
+// Locker represents an object that can obtain an atomic lock on a resource
+// in a non blocking manner for an owner, with an expiration time.
+type Locker interface {
+	// Lock tries to get an atomic lock on an instance named with `name`
+	// and an `owner` identified by a random string per instance.
+	// Subsequently locking the same resource name for the same owner
+	// renews the lock expiration.
+	// It returns true, nil if it managed to obtain a lock on the instance.
+	// false and potentially an error otherwise.
+	// This must not be blocking.
+	Lock(name string, owner string, expiration time.Duration) (bool, error)
+	// Unlock tries to unlock the lock by that `name` for the specified
+	// `owner`. Unlocking when not holding the lock shouldn't error
+	Unlock(name string, owner string) error
+}
+
+const (
+	LockKeyLeader = "leader"
+)
+
 func runCrons(ds fleet.Datastore) context.CancelFunc {
-	locker, ok := ds.(lock.Locker)
+	locker, ok := ds.(Locker)
 	if !ok {
 		initFatal(errors.New("No global locker available"), "")
 	}
@@ -397,7 +416,7 @@ func runCrons(ds fleet.Datastore) context.CancelFunc {
 			case <-ctx.Done():
 				break
 			}
-			if locked, err := locker.Lock("leader", ourIdentifier, time.Hour); err != nil || !locked {
+			if locked, err := locker.Lock(LockKeyLeader, ourIdentifier, time.Hour); err != nil || !locked {
 				continue
 			}
 			ds.CleanupDistributedQueryCampaigns(time.Now())
