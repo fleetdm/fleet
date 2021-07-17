@@ -1,8 +1,9 @@
 #query-detail {
 
   h5 {
-    font-size: 18px;
     font-weight: bold;
+    font-size: 16px;
+    line-height: 25px;
   }
 
   h6 {
@@ -12,41 +13,30 @@
   }
 
   p {
-    &.platform, &.purpose {
-      margin-bottom: 8px;
-    }
+    line-height: 25px;
   }
 
   a {
-    font-size: 18px;
+    font-size: 16px;
+    line-height: 25px;
     color: @core-vibrant-blue;
   }
 
-  img {
-    &.logo {
-      height: 24px;
-      width: 24px;
-    }
-  }
-
-  .query-tip {
-    background-color: @ui-off-white;
-
-    .lightbulb {
-      height: 24px;
-      width: auto;
-      margin-left: 4px;
-      margin-right: 20px;
-    }
-
-  }
-
-  .query-sidebar {
+  .border-top {
     border-color: #E2E4EA;
-
   }
 
-  .avatar-frame {
+  [purpose='remediation'] {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    p {
+      font-size: 16px;
+      line-height: 24px;
+    }
+  }
+
+  [purpose='avatar-frame'] {
     width: 24px;
     height: 24px;
     position: relative;
@@ -62,45 +52,35 @@
       height: 100%;
       width: auto;
     }
+
   }
 
-  .divider {
-    border-bottom: 1px solid;
-    border-color: #E2E4EA;
-  }
-
-  .platforms, .purpose, .contributors, .contribute {
-    min-height: 36px;
-    line-height: 24px;
-    p, a {
-      font-family: 'Nunito';
-      font-size: 16px;
+  [purpose='platforms'] {
+    img {
+      height: 18px;
+      width: 18px;
     }
   }
 
-  .remediation {
-    overflow-wrap: break-word;
-    word-wrap: break-word;
-    word-break: break-word;
-    p {
-      font-family: 'Nunito';
-      font-size: 16px;
-      line-height: 24px;
+  @media (min-width: 768px) {
+
+    h5, p, a {
+      font-size: 18px;
     }
-  }
 
-  @media (max-width: 700px) {
+    [purpose='avatar-frame'] {
+      width: 32px;
+      height: 32px;
+    }
 
-    .contribute {
-      flex-wrap: wrap;
-      min-height: 24px;
-      h5 {
-        padding: 6px 0px 6px 0px;
+    [purpose='platforms'] {
+      img {
+        height: 24px;
+        width: 24px;
       }
     }
 
   }
-
 
   @media (max-width: 575px) {
 
