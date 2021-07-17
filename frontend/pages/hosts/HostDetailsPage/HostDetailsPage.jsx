@@ -10,7 +10,6 @@ import { isEmpty, noop, pick, reduce, filter, includes } from "lodash";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
-import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities";
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 import TableContainer from "components/TableContainer";
@@ -51,8 +50,8 @@ import {
 } from "./SoftwareTable/SoftwareTableConfig";
 import {
   generatePackTableHeaders,
-  generateDataSet,
-} from "./SoftwareTable/PackTableConfig";
+  generatePackDataSet,
+} from "./PackTable/PackTableConfig";
 import EmptySoftware from "./EmptySoftware";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
@@ -394,7 +393,7 @@ export class HostDetailsPage extends Component {
   };
 
   renderPacks = () => {
-    const { host } = this.props;
+    const { host, isLoadingHost } = this.props;
     const { pack_stats } = host;
     const wrapperClassName = `${baseClass}__table`;
 
@@ -416,37 +415,16 @@ export class HostDetailsPage extends Component {
                   {!!pack.query_stats.length && (
                     <TableContainer
                       columns={tableHeaders}
-                      data={pack.query_stats}
+                      data={generatePackDataSet(pack.query_stats)}
                       isLoading={isLoadingHost}
-                      defaultSortHeader={"name"}
+                      onQueryChange={() => null}
+                      resultsTitle={"queries"}
+                      defaultSortHeader={"scheduled_query_name"}
                       defaultSortDirection={"asc"}
                       showMarkAllPages={false}
                       disablePagination
                     />
                   )}
-                  <div className={`${baseClass}__wrapper`}>
-                    <table className={wrapperClassName}>
-                      <thead>
-                        <tr>
-                          <th>Query name</th>
-                          <th>Description</th>
-                          <th>Frequency</th>
-                          <th>Last run</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {!!pack.query_stats.length &&
-                          pack.query_stats.map((query) => {
-                            return (
-                              <PackQueriesListRow
-                                key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
-                                query={query}
-                              />
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
                 </>
               )}
             </AccordionItemPanel>

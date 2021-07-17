@@ -2,7 +2,8 @@ import React from "react";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { IScheduledQuery } from "interfaces/scheduled_query";
+import { IQueryStats } from "interfaces/query_stats";
+import { humanQueryLastRun, secondsToHms } from "fleet/helpers";
 
 interface IHeaderProps {
   column: {
@@ -16,7 +17,7 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: IScheduledQuery;
+    original: IQueryStats;
   };
 }
 
@@ -29,8 +30,9 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-interface ISoftwareTableData extends IScheduledQuery {
+interface IPackTable extends IQueryStats {
   frequency: string;
+  last_run: string;
 }
 
 // NOTE: cellProps come from react-table
@@ -45,82 +47,48 @@ const generatePackTableHeaders = (): IDataColumn[] => {
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      disableSortBy: true,
-      accessor: "name",
+      accessor: "scheduled_query_name",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
       title: "Description",
       Header: "Description",
       accessor: "description",
+      disableSortBy: true,
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
       title: "Frequency",
       Header: "Frequency",
-      disableSortBy: false,
+      disableSortBy: true,
       accessor: "frequency",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Last Run",
-      Header: "Last Run",
+      title: "Last run",
+      Header: "Last run",
       disableSortBy: true,
-      accessor: "lastRun",
+      accessor: "last_run",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
   ];
 };
 
-// const TYPE_CONVERSION: Record<string, string> = {
-//   apt_sources: "Package (APT)",
-//   deb_packages: "Package (deb)",
-//   portage_packages: "Package (Portage)",
-//   rpm_packages: "Package (RPM)",
-//   yum_sources: "Package (YUM)",
-//   npm_packages: "Package (NPM)",
-//   atom_packages: "Package (Atom)",
-//   python_packages: "Package (Python)",
-//   apps: "Application (macOS)",
-//   chrome_extensions: "Browser plugin (Chrome)",
-//   firefox_addons: "Browser plugin (Firefox)",
-//   safari_extensions: "Browser plugin (Safari)",
-//   homebrew_packages: "Package (Homebrew)",
-//   programs: "Program (Windows)",
-//   ie_extensions: "Browser plugin (IE)",
-//   chocolatey_packages: "Package (Chocolatey)",
-//   pkg_packages: "Package (pkg)",
-// };
-
-// const generateTooltip = (vulnerabilities: IVulnerability[]): string | null => {
-//   if (!vulnerabilities) {
-//     // Uncomment to test tooltip rendering:
-//     // return "0 vulnerabilities detected";
-//     return null;
-//   }
-
-//   const vulText =
-//     vulnerabilities.length === 1 ? "vulnerability" : "vulnerabilities";
-
-//   return `${vulnerabilities.length} ${vulText} detected`;
-// };
-
-const enhancePackData = (query_stats: IScheduledQuery[]): IPackTable[] => {
-  // return Object.values(software).map((softwareItem) => {
-  //   return {
-  //     id: softwareItem.id,
-  //     name: softwareItem.name,
-  //     source: softwareItem.source,
-  //     type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
-  //     version: softwareItem.version,
-  //     vulnerabilities: softwareItem.vulnerabilities,
-  //     vulnerabilitiesTooltip: generateTooltip(softwareItem.vulnerabilities),
-  //   };
+const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
+  return Object.values(query_stats).map((query) => {
+    return {
+      scheduled_query_name: query.scheduled_query_name,
+      description: query.description,
+      interval: query.interval,
+      last_executed: query.last_executed,
+      frequency: secondsToHms(query.interval),
+      last_run: humanQueryLastRun(query.last_executed),
+    };
   });
 };
 
-const generateDataSet = (query_stats: IScheduledQuery[]): IPackTable[] => {
-  // Cannot pass undefined to enhanceSoftwareData
+const generatePackDataSet = (query_stats: IQueryStats[]): IPackTable[] => {
+  // Cannot pass undefined to enhancePackData
   if (!query_stats) {
     return query_stats;
   }
@@ -128,4 +96,4 @@ const generateDataSet = (query_stats: IScheduledQuery[]): IPackTable[] => {
   return [...enhancePackData(query_stats)];
 };
 
-export { generatePackTableHeaders, generateDataSet };
+export { generatePackTableHeaders, generatePackDataSet };
