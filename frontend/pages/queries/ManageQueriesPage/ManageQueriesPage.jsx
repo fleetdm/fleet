@@ -50,7 +50,7 @@ export class ManageQueriesPage extends Component {
       checkedQueryIDs: [],
       queriesFilter: "",
       showModal: false,
-      filteredQueriesState: props.queries, // TODO figure out intitial state
+      queryState: props.queries, // TODO figure out intitial state
     };
 
     this.tableHeaders = generateTableHeaders(
@@ -64,6 +64,10 @@ export class ManageQueriesPage extends Component {
     dispatch(queryActions.loadAll()).catch(() => false);
 
     return false;
+  }
+
+  componentWillReceiveProps(nextProps) {
+    this.setState({ queryState: nextProps.queries });
   }
 
   onDeleteQueries = (evt) => {
@@ -164,11 +168,11 @@ export class ManageQueriesPage extends Component {
     // }
 
     if (!searchQuery) {
-      this.setState({ filteredQueriesState: queries });
+      this.setState({ queryState: queries });
       return;
     }
 
-    this.setState({ filteredQueriesState: simpleSearch(searchQuery, queries) });
+    this.setState({ queryState: simpleSearch(searchQuery, queries) });
   };
 
   onToggleModal = () => {
@@ -301,7 +305,7 @@ export class ManageQueriesPage extends Component {
   };
 
   render() {
-    const { checkedQueryIDs, queriesFilter, filteredQueriesState } = this.state;
+    const { checkedQueryIDs, queriesFilter, queryState } = this.state;
     const {
       onTableQueryChange,
       getQueries,
@@ -333,7 +337,7 @@ export class ManageQueriesPage extends Component {
           </div>
           <TableContainer
             columns={tableHeaders}
-            data={generateTableData(filteredQueriesState)}
+            data={generateTableData(queryState)}
             isLoading={loadingQueries}
             defaultSortHeader={"name"}
             defaultSortDirection={"desc"}
