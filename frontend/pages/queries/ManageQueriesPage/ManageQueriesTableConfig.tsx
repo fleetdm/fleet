@@ -51,27 +51,6 @@ interface IQueryTableData {
 const generateTableHeaders = (isOnlyObserver = false): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
-      id: "selection",
-      Header: (cellProps: IHeaderProps): JSX.Element => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const props = cellProps.row.getToggleRowSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          onChange: () => cellProps.row.toggleRowSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      disableHidden: true,
-    },
-    {
       title: "Name",
       Header: (cellProps) => (
         <HeaderCell
@@ -117,8 +96,30 @@ const generateTableHeaders = (isOnlyObserver = false): IDataColumn[] => {
     },
   ];
 
-  // Add observers can run column for non-observer (i.e. maintainer and admin) users only
+  // Add select checkbox and observers can run columns for non-observer (i.e. maintainer and admin) users only
   if (!isOnlyObserver) {
+    tableHeaders.splice(0, 0, {
+      id: "selection",
+      Header: (cellProps: IHeaderProps): JSX.Element => {
+        const props = cellProps.getToggleAllRowsSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          indeterminate: props.indeterminate,
+          onChange: () => cellProps.toggleAllRowsSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const props = cellProps.row.getToggleRowSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          onChange: () => cellProps.row.toggleRowSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      disableHidden: true,
+    });
+
     tableHeaders.splice(3, 0, {
       title: "Observers can run",
       Header: (cellProps) => (
