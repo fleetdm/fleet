@@ -347,3 +347,29 @@ func TestIntegration(t *testing.T) {
 		testGlobalSchedule,
 	})
 }
+
+func TestTranslator(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	users, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	payload := translatorResponse{}
+	params := translatorRequest{List: []fleet.TranslatePayload{
+		{
+			Type:    fleet.TranslatorTypeUserEmail,
+			Payload: []byte(`{"email": "admin1@example.com"}`),
+		},
+	}}
+	doJSONReq(t, &params, "POST", server, "/api/v1/fleet/translate", token, http.StatusOK, &payload)
+
+	require.Nil(t, payload.Err)
+	assert.Len(t, payload.List, 1)
+
+	translated := fleet.EmailToIdPayload{}
+	err := json.Unmarshal(payload.List[0].Payload, &translated)
+	require.NoError(t, err)
+
+	assert.Equal(t, users[translated.Email].ID, translated.ID)
+}

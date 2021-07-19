@@ -21,4 +21,5 @@ type Service interface {
 	ActivitiesService
 	UserRolesService
 	GlobalScheduleService
+	TranslatorService
 }

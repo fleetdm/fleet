@@ -31,6 +31,7 @@ func userCommand() *cli.Command {
 		Usage: "Manage Fleet users",
 		Subcommands: []*cli.Command{
 			createUserCommand(),
+			deleteUserCommand(),
 		},
 	}
 }
@@ -195,7 +196,7 @@ func deleteUserCommand() *cli.Command {
 			}
 
 			email := c.String(emailFlagName)
-			return client.Del
+			return client.DeleteUser(email)
 		},
 	}
 }

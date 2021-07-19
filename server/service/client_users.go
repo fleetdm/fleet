@@ -1,8 +1,11 @@
 package service
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service/users"
+	"github.com/pkg/errors"
 )
 
 // CreateUser creates a new user, skipping the invitation process.
@@ -16,7 +19,7 @@ func (c *Client) CreateUser(p fleet.UserPayload) error {
 // ListUsers retrieves the list of users.
 func (c *Client) ListUsers() ([]fleet.User, error) {
 	verb, path := "GET", "/api/v1/fleet/users"
-	var responseBody users.ListUsersResponse
+	var responseBody listUsersResponse
 
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	if err != nil {
@@ -33,10 +36,46 @@ func (c *Client) ApplyUsersRoleSecretSpec(spec *fleet.UsersRoleSpec) error {
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
-// CreateUser creates a new user, skipping the invitation process.
-func (c *Client) DeleteUser(p fleet.UserPayload) error {
-	verb, path := "POST", "/api/v1/fleet/users/admin"
-	var responseBody createUserResponse
+func (c *Client) userIdFromEmail(email string) (uint, error) {
+	verb, path := "POST", "/api/v1/fleet/translate"
+	var responseBody translatorResponse
 
-	return c.authenticatedRequest(p, verb, path, &responseBody)
+	toTranslate := fleet.EmailToIdPayload{Email: email}
+	payload, err := json.Marshal(toTranslate)
+	if err != nil {
+		return 0, err
+	}
+	params := translatorRequest{List: []fleet.TranslatePayload{
+		{
+			Type:    fleet.TranslatorTypeUserEmail,
+			Payload: payload,
+		},
+	}}
+
+	err = c.authenticatedRequest(&params, verb, path, &responseBody)
+	if err != nil {
+		return 0, err
+	}
+	if len(responseBody.List) != 1 {
+		return 0, errors.New("Expected 1 item translated, got none")
+	}
+
+	translated := fleet.EmailToIdPayload{}
+	err = json.Unmarshal(responseBody.List[0].Payload, &translated)
+	if err != nil {
+		return 0, err
+	}
+	return translated.ID, nil
+}
+
+// DeleteUser deletes the user specified by the email
+func (c *Client) DeleteUser(email string) error {
+	userID, err := c.userIdFromEmail(email)
+	if err != nil {
+		return err
+	}
+
+	verb, path := "DELETE", fmt.Sprintf("/api/v1/fleet/users/%d", userID)
+	var responseBody deleteUserResponse
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }
