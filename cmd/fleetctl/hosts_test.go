@@ -149,5 +149,5 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 	}
 
 	assert.Equal(t, "", runAppForTest(t,
-		[]string{"hosts", "transfer", "--team", "team1", "--status", "online", "--search_query", "somequerycmd/fleetctl/config.go"}))
+		[]string{"hosts", "transfer", "--team", "team1", "--status", "online", "--search_query", "somequery"}))
 }
