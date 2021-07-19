@@ -70,14 +70,11 @@ export class ManageQueriesPage extends Component {
     this.setState({ queryState: nextProps.queries });
   }
 
-  onDeleteQueries = (evt) => {
-    evt.preventDefault();
-
-    const { checkedQueryIDs } = this.state;
+  onDeleteQueries = (selectedQueryIds) => {
     const { dispatch } = this.props;
     const { destroy } = queryActions;
 
-    const promises = checkedQueryIDs.map((queryID) => {
+    const promises = selectedQueryIds.map((queryID) => {
       return dispatch(destroy({ id: queryID }));
     });
 
@@ -85,7 +82,7 @@ export class ManageQueriesPage extends Component {
       .then(() => {
         dispatch(renderFlash("success", "Queries successfully deleted."));
 
-        this.setState({ checkedQueryIDs: [], showModal: false });
+        this.setState({ showModal: false });
 
         return false;
       })
@@ -183,6 +180,18 @@ export class ManageQueriesPage extends Component {
     return false;
   };
 
+  onActionButtonClick = () => {
+    console.log("Clicked Action Button");
+  };
+
+  onSelectActionButtonClick = (selectedQueryIds) => {
+    const { onDeleteQueries } = this;
+    console.log("Clicked Select Action Button");
+    onDeleteQueries(selectedQueryIds);
+    // TODO render confirmation modal?
+    // TODO render flash for second delete?
+  };
+
   getQueries = () => {
     const { queriesFilter } = this.state;
     const { queries } = this.props;
@@ -220,6 +229,24 @@ export class ManageQueriesPage extends Component {
     dispatch(push(EDIT_QUERY(query)));
 
     return false;
+  };
+
+  generateActionButtonText = () => {
+    const { currentUser } = this.props;
+
+    if (!permissionUtils.isOnlyObserver(currentUser)) {
+      return "Global Admin Action";
+    }
+    return "Default Action";
+  };
+
+  generateSelectActionButtonText = () => {
+    const { currentUser } = this.props;
+
+    if (!permissionUtils.isOnlyObserver(currentUser)) {
+      return "Delete";
+    }
+    return "Default Select Action";
   };
 
   renderCTAs = () => {
@@ -307,8 +334,12 @@ export class ManageQueriesPage extends Component {
   render() {
     const { checkedQueryIDs, queriesFilter, queryState } = this.state;
     const {
+      onActionButtonClick,
+      onSelectActionButtonClick,
       onTableQueryChange,
       getQueries,
+      generateActionButtonText,
+      generateSelectActionButtonText,
       // onCheckAllQueries,
       // onCheckQuery,
       // onSelectQuery,
@@ -342,8 +373,10 @@ export class ManageQueriesPage extends Component {
             defaultSortHeader={"name"}
             defaultSortDirection={"desc"}
             inputPlaceHolder={"Search"}
-            actionButtonText={"Action button"}
-            onActionButtonClick={() => null}
+            actionButtonText={generateActionButtonText()}
+            selectActionButtonText={generateSelectActionButtonText()}
+            onActionButtonClick={onActionButtonClick}
+            onSelectActionClick={onSelectActionButtonClick}
             onQueryChange={onTableQueryChange}
             resultsTitle={"queries"}
             emptyComponent={null}
