@@ -235,7 +235,7 @@ export class EditPackPage extends Component {
         dispatch(
           renderFlash(
             "error",
-            `Could not remove ${queryText}. Please try again.`
+            `Could not remove ${queryOrQueries}. Please try again.`
           )
         );
       });
