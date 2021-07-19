@@ -46,7 +46,7 @@ func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) 
 			"created_at": "CreatedAt",
 			"updated_at": "UpdatedAt",
 			"name":       "Name",
-			"email":      "Identifier",
+			"email":      "Email",
 			"admin":      "Admin",
 			"enabled":    "Enabled",
 			"position":   "Position",

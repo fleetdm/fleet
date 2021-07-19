@@ -180,7 +180,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		return err
 	}
 	changeEmail := fleet.Email{
-		Subject: "Confirm Fleet Identifier Change",
+		Subject: "Confirm Fleet Email Change",
 		To:      []string{email},
 		Config:  config,
 		Mailer: &mail.ChangeEmailMailer{

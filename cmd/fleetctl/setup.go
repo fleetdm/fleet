@@ -27,7 +27,7 @@ func setupCommand() *cli.Command {
 				EnvVars:     []string{"EMAIL"},
 				Value:       "",
 				Destination: &flEmail,
-				Usage:       "Identifier of the admin user to create (required)",
+				Usage:       "Email of the admin user to create (required)",
 				Required:    true,
 			},
 			&cli.StringFlag{

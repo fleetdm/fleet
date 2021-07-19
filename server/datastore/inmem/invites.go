@@ -53,7 +53,7 @@ func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) 
 			"created_at":        "CreatedAt",
 			"updated_at":        "UpdatedAt",
 			"detail_updated_at": "DetailUpdatedAt",
-			"email":             "Identifier",
+			"email":             "Email",
 			"admin":             "Admin",
 			"name":              "Name",
 			"position":          "Position",

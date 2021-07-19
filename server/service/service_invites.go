@@ -107,7 +107,7 @@ func (svc *Service) VerifyInvite(ctx context.Context, token string) (*fleet.Invi
 	}
 
 	if invite.Token != token {
-		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Identifier Address.")
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
 	}
 
 	expiresAt := invite.CreatedAt.Add(svc.config.App.InviteTokenValidityPeriod)
