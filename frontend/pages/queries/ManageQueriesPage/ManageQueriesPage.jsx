@@ -50,7 +50,6 @@ export class ManageQueriesPage extends Component {
       checkedQueryIDs: [],
       queriesFilter: "",
       showModal: false,
-      queryState: props.queries, // TODO figure out intitial state
     };
 
     this.tableHeaders = generateTableHeaders(
@@ -66,9 +65,9 @@ export class ManageQueriesPage extends Component {
     return false;
   }
 
-  componentWillReceiveProps(nextProps) {
-    this.setState({ queryState: nextProps.queries });
-  }
+  // componentWillReceiveProps(nextProps) {
+  //   this.setState({ queryState: nextProps.queries });
+  // }
 
   onDeleteQueries = (selectedQueryIds) => {
     const { dispatch } = this.props;
@@ -165,11 +164,11 @@ export class ManageQueriesPage extends Component {
     // }
 
     if (!searchQuery) {
-      this.setState({ queryState: queries });
+      this.setState({ queriesFilter: "" });
       return;
     }
 
-    this.setState({ queryState: simpleSearch(searchQuery, queries) });
+    this.setState({ queriesFilter: searchQuery });
   };
 
   onToggleModal = () => {
@@ -207,6 +206,7 @@ export class ManageQueriesPage extends Component {
     const { queries } = this.props;
 
     if (!queriesFilter) {
+      // return queries || [];
       return queries;
     }
 
@@ -260,39 +260,39 @@ export class ManageQueriesPage extends Component {
     return "Default Select Action";
   };
 
-  renderCTAs = () => {
-    const { goToNewQueryPage, onToggleModal } = this;
-    const { currentUser } = this.props;
+  // renderCTAs = () => {
+  //   const { goToNewQueryPage, onToggleModal } = this;
+  //   const { currentUser } = this.props;
 
-    const checkedQueryCount = this.state.checkedQueryIDs.length;
+  //   const checkedQueryCount = this.state.checkedQueryIDs.length;
 
-    if (checkedQueryCount) {
-      return (
-        <div className={`${baseClass}__ctas`}>
-          <span className={`${baseClass}__selected-count`}>
-            <strong>{checkedQueryCount}</strong> selected
-          </span>
-          <Button onClick={onToggleModal} variant="text-icon">
-            <>
-              <img src={DeleteIcon} alt="Delete query icon" />
-              Delete
-            </>
-          </Button>
-        </div>
-      );
-    }
+  //   if (checkedQueryCount) {
+  //     return (
+  //       <div className={`${baseClass}__ctas`}>
+  //         <span className={`${baseClass}__selected-count`}>
+  //           <strong>{checkedQueryCount}</strong> selected
+  //         </span>
+  //         <Button onClick={onToggleModal} variant="text-icon">
+  //           <>
+  //             <img src={DeleteIcon} alt="Delete query icon" />
+  //             Delete
+  //           </>
+  //         </Button>
+  //       </div>
+  //     );
+  //   }
 
-    // Render option to create new query only for maintainers and admin
-    if (!permissionUtils.isOnlyObserver(currentUser)) {
-      return (
-        <Button variant="brand" onClick={goToNewQueryPage}>
-          Create new query
-        </Button>
-      );
-    }
+  //   // Render option to create new query only for maintainers and admin
+  //   if (!permissionUtils.isOnlyObserver(currentUser)) {
+  //     return (
+  //       <Button variant="brand" onClick={goToNewQueryPage}>
+  //         Create new query
+  //       </Button>
+  //     );
+  //   }
 
-    return null;
-  };
+  //   return null;
+  // };
 
   renderModal = () => {
     const { onDeleteQueries, onToggleModal } = this;
@@ -348,7 +348,7 @@ export class ManageQueriesPage extends Component {
       onActionButtonClick,
       onSelectActionButtonClick,
       onTableQueryChange,
-      // getQueries,
+      getQueries,
       generateActionButtonText,
       generateSelectActionButtonText,
       // onCheckAllQueries,
@@ -377,7 +377,7 @@ export class ManageQueriesPage extends Component {
           </div>
           <TableContainer
             columns={tableHeaders}
-            data={generateTableData(queryState)}
+            data={generateTableData(getQueries())}
             isLoading={loadingQueries}
             defaultSortHeader={"name"}
             defaultSortDirection={"desc"}

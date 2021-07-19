@@ -137,6 +137,9 @@ const generateTableHeaders = (isOnlyObserver = false): IDataColumn[] => {
 };
 
 const generateTableData = (queries: IQuery[]): IQueryTableData[] => {
+  // if (!queries) {
+  //   return [];
+  // }
   return queries.map((query) => {
     return {
       id: query.id,
