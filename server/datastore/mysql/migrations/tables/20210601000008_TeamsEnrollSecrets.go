@@ -15,7 +15,7 @@ func Up_20210601000008(tx *sql.Tx) error {
 	sql := `
 		ALTER TABLE enroll_secrets
 		ADD COLUMN team_id INT UNSIGNED,
-		ADD FOREIGN KEY fk_team_id (team_id) REFERENCES teams (id) ON DELETE CASCADE ON UPDATE CASCADE
+		ADD FOREIGN KEY fk_enroll_secrets_team_id (team_id) REFERENCES teams (id) ON DELETE CASCADE ON UPDATE CASCADE
 	`
 	if _, err := tx.Exec(sql); err != nil {
 		return errors.Wrap(err, "add team_id to enroll_secrets")
@@ -28,6 +28,42 @@ func Up_20210601000008(tx *sql.Tx) error {
 	`
 	if _, err := tx.Exec(sql); err != nil {
 		return errors.Wrap(err, "remove inactive secrets")
+	}
+
+	// ********* TEST ONLY BEGIN *********
+	// This will make an enroll secrets test fail because it should end up with one unexpected secret
+	//if _, err := tx.Exec(
+	//	`INSERT INTO enroll_secrets (secret, name) VALUES ('aaaa', '1'), ('aaaa', '2'), ('aaaa', '3')`); err != nil {
+	//	return errors.Wrap(err, "add red hat label")
+	//}
+	// ********* TEST ONLY ENDS  *********
+
+	rows, err := tx.Query(`SELECT secret, count(secret) FROM enroll_secrets GROUP BY secret HAVING count(secret) > 1`)
+	if err != nil {
+		return errors.Wrap(err, "remove duplicate secrets")
+	}
+	type sec struct {
+		secret string
+		count  int
+	}
+	var secretsToReduce []sec
+	for rows.Next() {
+		var secret string
+		var c int
+
+		if err = rows.Scan(&secret, &c); err != nil {
+			return errors.Wrap(err, "scanning duplicated secrets")
+		}
+		secretsToReduce = append(secretsToReduce, sec{secret: secret, count: c})
+	}
+	for _, s := range secretsToReduce {
+		// Remove duplicate secrets
+		if _, err := tx.Exec(
+			`DELETE FROM enroll_secrets WHERE secret = ? LIMIT ?`,
+			s.secret, s.count-1,
+		); err != nil {
+			return errors.Wrap(err, "remove inactive secrets")
+		}
 	}
 
 	sql = `

@@ -9,6 +9,7 @@
 - [Users](#users)
 - [Sessions](#sessions)
 - [Queries](#queries)
+- [Schedule](#schedule)
 - [Packs](#packs)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -463,7 +464,6 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Refetch host](#refetch-host)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
-
 
 ### List hosts
 
@@ -1571,9 +1571,9 @@ Creates a user account after an invited user provides registration information a
 | --------------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | email                 | string | body | **Required**. The email address of the user.                                                                                                                                                                                                                                                                                                           |
 | invite_token          | string | body | **Required**. Token provided to the user in the invitation email.                                                                                                                                                                                                                                                                                      |
-| name                  | string | body | The name of the user.                                                                                                                                                                                                                                                                                                                                  |
-| password              | string | body | **Required**. The password chosen by the user.                                                                                                                                                                                                                                                                                                         |
-| password_confirmation | string | body | **Required**. Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                         |
+| name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                    |
+| password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                     |
+| password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                       |
 | global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
 | teams                 | array  | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
@@ -1686,8 +1686,9 @@ Creates a user account without requiring an invitation, the user is enabled imme
 | Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                            |
 | ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                |
-| password    | string  | body | **Required**. The user's password.                                                                                                                                                                                                                                                                                                                     |
-| name    | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                                     |
+| name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                        |
+| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                      |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
 | global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
 | teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
@@ -2243,38 +2244,6 @@ Returns a list of all queries in the Fleet instance.
   {
     "created_at": "2021-01-19T17:08:24Z",
     "updated_at": "2021-01-19T17:08:24Z",
-    "id": 2,
-    "name": "osquery_version",
-    "description": "The version of the Launcher and Osquery process",
-    "query": "select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;",
-    "saved": true,
-    "author_id": 1,
-    "author_name": "noah",
-    "observer_can_run": true,
-    "packs": [
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
-      },
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
-      }
-    ]
-  },
-  {
-    "created_at": "2021-01-19T17:08:24Z",
-    "updated_at": "2021-01-19T17:08:24Z",
     "id": 3,
     "name": "osquery_schedule",
     "description": "Report performance stats for each file in the query schedule.",
@@ -2508,15 +2477,10 @@ None.
         "query": "SELECT * FROM osquery_info"
     },
     {
-        "name": "osquery_version",
-        "description": "The version of the Launcher and Osquery process",
-        "query": "select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;"
-    },
-    {
         "name": "osquery_schedule",
         "description": "Report performance stats for each file in the query schedule.",
         "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;"
-    },
+    }
   ]
 }
 ```
@@ -2576,11 +2540,6 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
         "name": "new_query",
         "description": "This will be a new query because a query with the name 'new_query' doesn't exist in Fleet.",
         "query": "SELECT * FROM osquery_info"
-    },
-    {
-        "name": "osquery_version",
-        "description": "Only this queries description will be modified because a query with the name 'osquery_version' exists in Fleet.",
-        "query": "select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;"
     },
     {
         "name": "osquery_schedule",
@@ -3172,6 +3131,199 @@ o
 
 ---
 
+## Schedule
+
+- [Get schedule](#get-schedule)
+- [Add query to schedule](#add-query-to-schedule)
+- [Edit query in schedule](#edit-query-in-schedule)
+- [Remove query from schedule](#remove-query-from-schedule)
+
+`In Fleet 4.1.0, the Schedule feature was introduced.`
+
+Fleet’s query schedule lets you add queries which are executed on your devices at regular intervals.
+
+For those familiar with osquery query packs, Fleet's query schedule can be thought of as a query pack built into Fleet. Instead of creating a query pack and then adding queries, just add queries to Fleet's query schedule to start running them against all your devices.
+
+### Get schedule
+
+`GET /api/v1/fleet/global/schedule`
+
+#### Parameters
+
+None.
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "global_schedule": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 4,
+      "pack_id": 1,
+      "name": "arp_cache",
+      "query_id": 2,
+      "query_name": "arp_cache",
+      "query": "select * from arp_cache;",
+      "interval": 120,
+      "snapshot": true,
+      "removed": null,
+      "shard": null,
+      "denylist": null
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 5,
+      "pack_id": 1,
+      "name": "disk_encryption",
+      "query_id": 7,
+      "query_name": "disk_encryption",
+      "query": "select * from disk_encryption;",
+      "interval": 86400,
+      "snapshot": true,
+      "removed": null,
+      "shard": null,
+      "denylist": null
+    }
+  ]
+}
+```
+
+### Add query to schedule
+
+`POST /api/v1/fleet/global/schedule`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                      |
+| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------- |
+| query_id | integer | body | **Required.** The query's ID.                                                                                                    |
+| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                                    |
+| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                                     |
+| removed  | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts. Default is `null`.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
+
+#### Example
+
+`POST /api/v1/fleet/global/schedule`
+
+##### Request body
+
+```
+{
+  "interval": 86400,
+  "query_id": 2,
+  "snapshot": true,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 1,
+    "pack_id": 5,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 86400,
+    "snapshot": true,
+    "removed": null,
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses osquery query packs under the hood.
+
+### Edit query in schedule
+
+`PATCH /api/v1/fleet/global/schedule/{id}`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                   |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| id       | integer | path | **Required.** The scheduled query's ID.                                                                       |
+| interval | integer | body | The amount of time, in seconds, the query waits before running.                                               |
+| snapshot | boolean | body | Whether the queries logs show everything in its current state.                                                |
+| removed  | boolean | body | Whether "removed" actions should be logged.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
+
+#### Example
+
+`PATCH /api/v1/fleet/global/schedule/5`
+
+##### Request body
+
+```
+{
+  "interval": 604800,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": {
+    "created_at": "2021-07-16T14:40:15Z",
+    "updated_at": "2021-07-16T14:40:15Z",
+    "id": 5,
+    "pack_id": 1,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 604800,
+    "snapshot": true,
+    "removed": null,
+    "platform": "",
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+### Remove query from schedule
+
+`DELETE /api/v1/fleet/global/schedule/{id}`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/global/schedule/5`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+---
+
 ## Packs
 
 - [Create pack](#create-pack)
@@ -3195,13 +3347,13 @@ o
 
 #### Parameters
 
-| Name        | Type   | In   | Description                                 |
-| ----------- | ------ | ---- | ------------------------------------------- |
-| name        | string | body | **Required**. The pack's name.              |
-| description | string | body | The pack's description.                     |
-| host_ids    | list   | body | A list containing the targeted host IDs.    |
-| label_ids   | list   | body | A list containing the targeted label's IDs. |
-| team_ids   | list   | body | _Available in Fleet Basic_  A list containing the targeted teams' IDs. |
+| Name        | Type   | In   | Description                                                           |
+| ----------- | ------ | ---- | --------------------------------------------------------------------- |
+| name        | string | body | **Required**. The pack's name.                                        |
+| description | string | body | The pack's description.                                               |
+| host_ids    | list   | body | A list containing the targeted host IDs.                              |
+| label_ids   | list   | body | A list containing the targeted label's IDs.                           |
+| team_ids    | list   | body | _Available in Fleet Basic_ A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -3247,14 +3399,14 @@ o
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                 |
-| ----------- | ------- | ---- | ------------------------------------------- |
-| id          | integer | path | **Required.** The pack's id.                |
-| name        | string  | body | The pack's name.                            |
-| description | string  | body | The pack's description.                     |
-| host_ids    | list    | body | A list containing the targeted host IDs.    |
-| label_ids   | list    | body | A list containing the targeted label's IDs. |
-| team_ids   | list   | body | _Available in Fleet Basic_  A list containing the targeted teams' IDs. |
+| Name        | Type    | In   | Description                                                           |
+| ----------- | ------- | ---- | --------------------------------------------------------------------- |
+| id          | integer | path | **Required.** The pack's id.                                          |
+| name        | string  | body | The pack's name.                                                      |
+| description | string  | body | The pack's description.                                               |
+| host_ids    | list    | body | A list containing the targeted host IDs.                              |
+| label_ids   | list    | body | A list containing the targeted label's IDs.                           |
+| team_ids    | list    | body | _Available in Fleet Basic_ A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -4373,7 +4525,7 @@ None.
 
 ```
 {
-  "specs": {
+  "spec": {
     "secrets": [
       {
         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
@@ -4464,12 +4616,12 @@ None.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                              |
-| ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------ |
-| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                          |
-| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                |
-| name        | string  | body | **Required.** The name of the invited user.                                                                              |
-| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                   |
+| Name        | Type    | In   | Description                                                                                                                                         |
+| ----------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                     |
+| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                           |
+| name        | string  | body | **Required.** The name of the invited user.                                                                                                         |
+| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                              |
 | teams       | list    | body | _Available in Fleet Basic_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example

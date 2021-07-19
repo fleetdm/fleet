@@ -139,6 +139,24 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 		}
 	}
 
+	if host.HostSoftware.Modified {
+		if err := d.SaveHostSoftware(host); err != nil {
+			return errors.Wrap(err, "failed to save host software")
+		}
+	}
+
+	if host.Modified {
+		if err := d.SaveHostAdditional(host); err != nil {
+			return errors.Wrap(err, "failed to save host additional")
+		}
+
+		if err := d.SaveHostUsers(host); err != nil {
+			return errors.Wrap(err, "failed to save host users")
+		}
+	}
+
+	host.Modified = false
+
 	return nil
 }
 
@@ -254,6 +272,14 @@ WHERE host_id = ?
 	return nil
 }
 
+func (d *Datastore) loadHostUsers(host *fleet.Host) error {
+	sql := `SELECT id, username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
+	if err := d.db.Select(&host.Users, sql, host.ID); err != nil {
+		return errors.Wrap(err, "load pack stats")
+	}
+	return nil
+}
+
 func (d *Datastore) DeleteHost(hid uint) error {
 	err := d.deleteEntity("hosts", hid)
 	if err != nil {
@@ -277,48 +303,16 @@ func (d *Datastore) Host(id uint) (*fleet.Host, error) {
 	if err := d.loadHostPackStats(host); err != nil {
 		return nil, err
 	}
+	if err := d.loadHostUsers(host); err != nil {
+		return nil, err
+	}
 
 	return host, nil
 }
 
 func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
-		h.id,
-		h.osquery_host_id,
-		h.created_at,
-		h.updated_at,
-		h.detail_updated_at,
-		h.node_key,
-		h.hostname,
-		h.uuid,
-		h.platform,
-		h.osquery_version,
-		h.os_version,
-		h.build,
-		h.platform_like,
-		h.code_name,
-		h.uptime,
-		h.memory,
-		h.cpu_type,
-		h.cpu_subtype,
-		h.cpu_brand,
-		h.cpu_physical_cores,
-		h.cpu_logical_cores,
-		h.hardware_vendor,
-		h.hardware_model,
-		h.hardware_version,
-		h.hardware_serial,
-		h.computer_name,
-		h.primary_ip_id,
-		h.seen_time,
-		h.distributed_interval,
-		h.logger_tls_period,
-		h.config_tls_refresh,
-		h.primary_ip,
-		h.primary_mac,
-		h.label_updated_at,
-		h.team_id,
-		h.refetch_requested,
+		h.*,
 		t.name AS team_name
 		`
 
@@ -779,6 +773,61 @@ func (d *Datastore) SaveHostAdditional(host *fleet.Host) error {
 	`
 	if _, err := d.db.Exec(sql, host.ID, host.Additional); err != nil {
 		return errors.Wrap(err, "insert additional")
+	}
+
+	return nil
+}
+
+func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
+	if len(host.Users) == 0 {
+		if _, err := d.db.Exec(
+			`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE host_id = ?`,
+			host.ID,
+		); err != nil {
+			return errors.Wrap(err, "mark all users as removed")
+		}
+
+		return nil
+	}
+
+	currentHost := &fleet.Host{ID: host.ID}
+	if err := d.loadHostUsers(currentHost); err != nil {
+		return err
+	}
+
+	incomingUsers := make(map[uint]bool)
+	var insertArgs []interface{}
+	for _, u := range host.Users {
+		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName)
+		incomingUsers[u.Uid] = true
+	}
+
+	var removedArgs []interface{}
+	for _, u := range currentHost.Users {
+		if _, ok := incomingUsers[u.Uid]; !ok {
+			removedArgs = append(removedArgs, u.ID)
+		}
+	}
+
+	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(host.Users)), ",")
+	insertSql := fmt.Sprintf(
+		`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s`,
+		insertValues,
+	)
+	if _, err := d.db.Exec(insertSql, insertArgs...); err != nil {
+		return errors.Wrap(err, "insert users")
+	}
+
+	if len(removedArgs) == 0 {
+		return nil
+	}
+	removedValues := strings.TrimSuffix(strings.Repeat("?,", len(removedArgs)), ",")
+	removedSql := fmt.Sprintf(
+		`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE id IN (%s)`,
+		removedValues,
+	)
+	if _, err := d.db.Exec(removedSql, removedArgs...); err != nil {
+		return errors.Wrap(err, "mark users as removed")
 	}
 
 	return nil

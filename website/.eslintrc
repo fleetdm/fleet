@@ -41,7 +41,8 @@
     "_": true,
 
     // Models:
-    "User": true
+    "User": true,
+    "HistoricalUsageSnapshot": true
 
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

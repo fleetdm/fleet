@@ -8,14 +8,26 @@ x-default-settings:
     - "host.docker.internal:${DOCKER_HOST:-172.17.0.1}"
 
 services:
-  ubuntu14-osquery:
+  ubuntu20-osquery:
+    extra_hosts: *linux-extra-hosts
+
+  ubuntu18-osquery:
     extra_hosts: *linux-extra-hosts
 
   ubuntu16-osquery:
+    extra_hosts: *linux-extra-hosts
+
+  centos8-osquery:
     extra_hosts: *linux-extra-hosts
 
   centos7-osquery:
     extra_hosts: *linux-extra-hosts
 
   centos6-osquery:
+    extra_hosts: *linux-extra-hosts
+
+  debian10-osquery:
+    extra_hosts: *linux-extra-hosts
+
+  debian9-osquery:
     extra_hosts: *linux-extra-hosts

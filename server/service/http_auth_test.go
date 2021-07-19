@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"testing"
 
@@ -16,40 +15,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
-	kitlog "github.com/go-kit/kit/log"
-
-	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 func TestLogin(t *testing.T) {
-	ds, _ := inmem.New(config.TestConfig())
-	svc := newTestService(ds, nil, nil)
-	users := createTestUsers(t, ds)
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
-
-	opts := []kithttp.ServerOption{
-		kithttp.ServerBefore(
-			setRequestsContexts(svc),
-		),
-		kithttp.ServerErrorLogger(logger),
-		kithttp.ServerAfter(
-			kithttp.SetContentType("application/json; charset=utf-8"),
-		),
-	}
-	r := mux.NewRouter()
-	limitStore, _ := memstore.New(0)
-	ke := MakeFleetServerEndpoints(svc, "", limitStore)
-	kh := makeKitHandlers(ke, opts)
-	attachFleetAPIRoutes(r, kh)
-	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "index")
-	}))
-
-	server := httptest.NewServer(r)
+	ds, users, server := setupAuthTest(t)
 	var loginTests = []struct {
 		email    string
 		status   int
@@ -133,6 +104,60 @@ func TestLogin(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Len(t, sessions, 0)
 	}
+}
+
+func setupAuthTest(t *testing.T) (*inmem.Datastore, map[string]fleet.User, *httptest.Server) {
+	ds, _ := inmem.New(config.TestConfig())
+	users, server := RunServerForTestsWithDS(t, ds)
+	return ds, users, server
+}
+
+func getTestAdminToken(t *testing.T, server *httptest.Server) string {
+	testUser := testUsers["admin1"]
+
+	params := loginRequest{
+		Email:    testUser.Email,
+		Password: testUser.PlaintextPassword,
+	}
+	j, err := json.Marshal(&params)
+	assert.Nil(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var jsn = struct {
+		User  *fleet.User         `json:"user"`
+		Token string              `json:"token"`
+		Err   []map[string]string `json:"errors,omitempty"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&jsn)
+	require.Nil(t, err)
+
+	return jsn.Token
+}
+
+func TestNoHeaderErrorsDifferently(t *testing.T) {
+	_, _, server := setupAuthTest(t)
+
+	req, _ := http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	require.Nil(t, err)
+	assert.Equal(t, "Authorization header required", string(bodyBytes))
+
+	req, _ = http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
+	req.Header.Add("Authorization", "Bearer AAAA")
+	resp, err = client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	bodyBytes, err = ioutil.ReadAll(resp.Body)
+	require.Nil(t, err)
+	assert.Equal(t, "Authentication required", string(bodyBytes))
 }
 
 // an io.ReadCloser for new request body

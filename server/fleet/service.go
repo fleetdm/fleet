@@ -18,4 +18,7 @@ type Service interface {
 	StatusService
 	CarveService
 	TeamService
+	ActivitiesService
+	UserRolesService
+	GlobalScheduleService
 }

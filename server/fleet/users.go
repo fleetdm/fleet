@@ -16,6 +16,7 @@ type UserStore interface {
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
 	SaveUser(user *User) error
+	SaveUsers(users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(id uint) error
 	// PendingEmailChange creates a record with a pending email change for a user identified
@@ -153,9 +154,6 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 		Name:  *p.Name,
 		Email: *p.Email,
 		Teams: []UserTeam{},
-	}
-	if p.Name != nil {
-		user.Name = *p.Name
 	}
 	if err := user.SetPassword(*p.Password, keySize, cost); err != nil {
 		return nil, err

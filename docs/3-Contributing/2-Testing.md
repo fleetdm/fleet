@@ -164,13 +164,13 @@ Tests can be run in interactive mode, or from the command line.
 For Fleet Core tests:
 
 ```
-CYPRESS_FLEET_TIER=core yarn cypress open
+yarn e2e-browser:core
 ```
 
 For Fleet Basic tests:
 
 ```
-CYPRESS_FLEET_TIER=basic yarn cypress open
+yarn e2e-browser:basic
 ```
 
 Use the graphical UI controls to run and view tests.
@@ -180,13 +180,13 @@ Use the graphical UI controls to run and view tests.
 For Fleet Core tests:
 
 ```
-CYPRESS_FLEET_TIER=core yarn cypress run
+yarn e2e-cli:core
 ```
 
 For Fleet Basic tests:
 
 ```
-CYPRESS_FLEET_TIER=basic yarn cypress run
+yarn e2e-cli:basic
 ```
 
 Tests will run automatically and results are reported to the shell.

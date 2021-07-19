@@ -8,16 +8,16 @@ spec:
       name: fleet-prepare-db
     spec:
       containers:
-      - name: fleet
-        image: kolide/fleet:1.0.5
-        command: ["fleet",  "prepare", "db"]
-        env:
-          - name: FLEET_MYSQL_ADDRESS
-            value: fleet-database-mysql:3306
-          - name: FLEET_MYSQL_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: fleet-database-mysql
-                key: mysql-password
+        - name: fleet
+          image: fleetdm/fleet:4.0.1
+          command: ["fleet", "prepare", "db"]
+          env:
+            - name: FLEET_MYSQL_ADDRESS
+              value: fleet-database-mysql:3306
+            - name: FLEET_MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fleet-database-mysql
+                  key: mysql-password
       restartPolicy: Never
   backoffLimit: 4

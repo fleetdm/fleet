@@ -22,9 +22,9 @@ interface ITableQueryData {
   pageIndex: number;
 }
 
-interface ITableContainerProps<T, U> {
-  columns: T[];
-  data: U[];
+interface ITableContainerProps {
+  columns: any; // TODO: Figure out type
+  data: any; // TODO: Figure out type
   isLoading: boolean;
   defaultSortHeader: string;
   defaultSortDirection: string;
@@ -37,12 +37,17 @@ interface ITableContainerProps<T, U> {
   selectActionButtonText?: string;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
-  resultsTitle?: string;
+  selectActionButtonText?: string;
+  resultsTitle: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
   className?: string;
+  showMarkAllPages: boolean;
+  isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
+  toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   searchable?: boolean;
-  // TODO: Line 203, remove search bar
+  wideSearch?: boolean;
+  disablePagination?: boolean;
 }
 
 const baseClass = "table-container";
@@ -51,31 +56,32 @@ const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 
-const TableContainer = <T, U>(
-  props: ITableContainerProps<T, U>
-): JSX.Element => {
-  const {
-    columns,
-    data,
-    isLoading,
-    defaultSortHeader,
-    defaultSortDirection,
-    onActionButtonClick,
-    inputPlaceHolder,
-    additionalQueries,
-    onQueryChange,
-    resultsTitle,
-    emptyComponent,
-    className,
-    disableActionButton,
-    actionButtonText,
-    actionButtonIcon,
-    actionButtonVariant,
-    onSelectActionClick,
-    selectActionButtonText,
-    searchable,
-  } = props;
-
+const TableContainer = ({
+  columns,
+  data,
+  isLoading,
+  defaultSortHeader,
+  defaultSortDirection,
+  onActionButtonClick,
+  inputPlaceHolder,
+  additionalQueries,
+  onQueryChange,
+  resultsTitle,
+  emptyComponent,
+  className,
+  disableActionButton,
+  actionButtonText,
+  actionButtonIcon,
+  actionButtonVariant,
+  onSelectActionClick,
+  showMarkAllPages,
+  isAllPagesSelected,
+  toggleAllPagesSelected,
+  selectActionButtonText,
+  searchable,
+  wideSearch,
+  disablePagination,
+}: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
@@ -168,6 +174,17 @@ const TableContainer = <T, U>(
 
   return (
     <div className={wrapperClasses}>
+      {!isLoading && wideSearch && searchable && (
+        <div className={`${baseClass}__search-input wide-search`}>
+          <InputField
+            placeholder={inputPlaceHolder}
+            name="searchQuery"
+            onChange={onSearchQueryChange}
+            value={searchQuery}
+            inputWrapperClass={`${baseClass}__input-wrapper`}
+          />
+        </div>
+      )}
       <div className={`${baseClass}__header`}>
         {data && data.length ? (
           <p className={`${baseClass}__results-count`}>
@@ -201,7 +218,7 @@ const TableContainer = <T, U>(
             </Button>
           )}
           {/* Render search bar only if not empty component */}
-          {!(!isLoading && data.length === 0) && (
+          {!isLoading && searchable && !wideSearch && (
             <div className={`${baseClass}__search-input`}>
               <InputField
                 placeholder={inputPlaceHolder}
@@ -228,14 +245,21 @@ const TableContainer = <T, U>(
               sortDirection={sortDirection}
               onSort={onSortChange}
               onSelectActionClick={onSelectActionClick}
+              showMarkAllPages={showMarkAllPages}
+              isAllPagesSelected={isAllPagesSelected}
+              toggleAllPagesSelected={toggleAllPagesSelected}
+              resultsTitle={resultsTitle}
+              defaultPageSize={DEFAULT_PAGE_SIZE}
               selectActionButtonText={selectActionButtonText}
             />
-            <Pagination
-              resultsOnCurrentPage={data.length}
-              currentPage={pageIndex}
-              resultsPerPage={pageSize}
-              onPaginationChange={onPaginationChange}
-            />
+            {!disablePagination && (
+              <Pagination
+                resultsOnCurrentPage={data.length}
+                currentPage={pageIndex}
+                resultsPerPage={pageSize}
+                onPaginationChange={onPaginationChange}
+              />
+            )}
           </>
         )}
       </div>

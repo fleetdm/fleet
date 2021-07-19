@@ -1,0 +1,131 @@
+<div id="docs-template" v-cloak>
+  <div style="max-width: 1200px;" class="container-fluid px-3 px-sm-4 mb-5">
+
+    <div purpose="breadcrumbs-and-search" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0 breadcrumbs-search">
+      
+      <div purpose="breadcrumbs" class="d-none d-lg-flex p-0 m-0 align-items-center breadcrumbs">
+        <a href="/docs" class="pr-3">Documentation</a>
+        <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+        <a :href="'/docs/' + _.kebabCase(currentPage.section)" class="px-3">{{currentPage.section}}</a>
+        <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+        <p class="px-3 m-0">{{currentPage.topic}}</p>
+      </div>
+
+      <div purpose="search" class="d-flex p-0 mb-2 mb-lg-0">
+        <div class="input-group">
+          <div class="input-group-prepend border-right-0">
+            <span class="input-group-text bg-transparent border-right-0 pl-3 pr-2"><img style="height: 16px; width: auto;" class="search" alt="search"
+                src="/images/icon-search-16x16@2x.png"></span>
+          </div>
+          <input class="form-control border-left-0 px-0" placeholder="Search the docs..." aria-label="Search the docs"
+            v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+        </div>
+      </div>
+
+      <div purpose="mobile-docs-nav" class="d-flex-block d-lg-none">
+        <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
+          <button type="button" purpose="docs-nav-button" class="btn btn-block d-flex align-items-center docs-nav-button" @click="toggleDocsNav">
+            <span class="pr-2 m-0">Docs</span>
+            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+            <span class="font-weight-bold px-2 m-0">{{currentPage.section}}</span>
+            <img style="width: 6px; height: 9px;" class="ml-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showDocsNav"/>
+            <img style="width: 9px; height: 6px;" class="ml-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
+          </button>  
+        </div>
+        <div class="d-flex px-0 mobile-docs-nav" v-if="showDocsNav">
+          <div class="container-fluid px-0 py-4">
+            <ul class="px-0">
+              <li class="px-0 mb-2" v-for="section in outline.sections">
+                <a :href="'/docs/' + _.kebabCase(section.title)" class="font-weight-bold">{{section.title}}</a>
+                <ul class="px-0 pt-3" v-if="section.topics && section.topics.length">
+                  <li class="px-0 mb-2" v-for="topic in section.topics">
+                    <a :href="'/docs/' + _.kebabCase(section.title) + '/' + _.kebabCase(topic.title)" :class="topic.title === currentPage.topic ? 'topic active' : 'topic'">{{topic.title}}</a>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>  
+
+      </div> 
+
+    </div>
+
+    <h1 class="d-flex d-lg-none py-4 m-0">{{currentPage.topic}}</h1>
+
+    <div class="container-fluid d-flex flex-column flex-lg-row justify-content-start justify-content-lg-between p-0 pt-lg-4 pb-lg-4 m-0">
+
+      <div purpose="left-sidebar" class="container-fluid d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
+        <ul class="p-0 pb-2 m-0 left-nav">
+          <li v-for="section in outline.sections" :key="section.title">
+            <a :href="'/docs/' + _.kebabCase(section.title)" class="font-weight-bold pb-3">{{section.title}}</a>
+            <div class="pt-2" v-if="section.title === currentPage.section">
+              <ul class="p-0 mb-2">
+                <li v-for="topic in section.topics" :key="topic.title">
+                  <a :href="'/docs/' + _.kebabCase(section.title) + '/' + _.kebabCase(topic.title)" :class="topic.title === currentPage.topic ? 'topic active' : 'topic'">{{topic.title}}</a>
+                </li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+        <a class="font-weight-bold py-3" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+        <a href="/support" class="btn btn-block btn-sm btn-primary">Support</a>
+      </div>
+
+      <div purpose="right-sidebar" class="container-fluid order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar">
+        
+        <h6 class="font-weight-bold pb-2 m-0 mb-2">On this page:</h6>
+        <div class="subtopics">
+          <ul class="p-0">
+            <li class="subtopic" v-for="(subtopic, index) in getSubtopics()">
+              <div class="d-none d-lg-block active" v-if="index === 0"></div>
+              <p class="pl-lg-2 m-0">{{subtopic}}</p>
+            </li>
+            <li class="d-lg-none subtopic">Help and feedback</li>
+          </ul>
+        </div>
+        
+        <h6 class="d-none d-lg-block font-weight-bold py-2">Related topics</h6>
+        <ul class="d-none d-lg-block p-0">
+          <li v-for="relatedTopic in getRelatedTopics()">{{relatedTopic}}</li>
+        </ul>
+
+      </div>
+
+      <div purpose="content" class="d-flex flex-column p-0 pl-lg-5 pr-lg-4 content">
+
+        <h1 class="d-none d-lg-flex pb-3 mb-3">{{currentPage.topic}}</h1>
+
+        <div class="d-flex" v-for="item in body" :key="item.type + _.uniqueId()">
+          <h3 class="d-flex pb-4 m-0" v-if="item.type === 'subtopic'">{{item.content}}</h3>
+          <p class="d-flex pb-4 mb-3" v-if="item.type === 'text'">{{item.content}}</p>
+          <img style="width: 100%; height: 100%;" class="d-flex pb-4 mx-auto mb-3" alt="screenshot" :alt="item.altText || 'A screenshot of ' + currentPage.topic" :src="item.content" v-if="item.type === 'image'" />
+          <div class="w-100 pb-4 mb-3" v-if="item.type === 'note'">
+            <div class="p-4 note">
+              <p class="font-weight-bold">Note:</p>
+              <p>{{item.content}}</p>  
+            </div>
+          </div>
+          <div class="pb-4 m-0" v-if="item.type === 'bullets'">
+            <p class="pb-4 m-0" v-if="item.content.intro">{{item.content.intro}}</p>
+            <ul>
+              <li v-for="bullet in item.content.bullets">{{bullet}}</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="d-none d-lg-block">
+          <h3 class="pb-4 m-0">Is there something missing?</h3>
+          <p>
+            If you notice something we've missed or could be improved on, please follow <a href="https://github.com/fleetdm/fleet">this link</a> and submit a pull request to the Fleet repo. 
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+  
+  </div>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

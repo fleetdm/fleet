@@ -182,7 +182,9 @@ export class EditPackPage extends Component {
     const { dispatch, isEdit, packID } = this.props;
 
     if (isEdit) {
-      return dispatch(push(PATHS.PACK({ id: packID })));
+      dispatch(push(PATHS.PACK({ id: packID })));
+      dispatch(renderFlash("success", `Pack successfully updated.`));
+      return null;
     }
 
     return dispatch(push(PATHS.EDIT_PACK({ id: packID })));
@@ -211,7 +213,15 @@ export class EditPackPage extends Component {
     const { update } = packActions;
     const updatedPack = deepDifference(formData, pack);
 
-    return dispatch(update(pack, updatedPack)).then(() => this.onToggleEdit());
+    return dispatch(update(pack, updatedPack))
+      .then(() => {
+        this.onToggleEdit();
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", `Could not update pack. Please try again.`)
+        );
+      });
   };
 
   handleRemoveScheduledQueries = (scheduledQueryIDs) => {
@@ -242,9 +252,20 @@ export class EditPackPage extends Component {
       pack_id: packID,
     };
 
-    dispatch(create(scheduledQueryData)).catch(() => {
-      dispatch(renderFlash("error", "Unable to schedule your query."));
-    });
+    dispatch(create(scheduledQueryData))
+      // Will not render query name without declaring scheduledQueryData twice
+      // eslint-disable-next-line @typescript-eslint/no-shadow
+      .then((scheduledQueryData) => {
+        dispatch(
+          renderFlash(
+            "success",
+            `${scheduledQueryData.name} successfully scheduled to pack.`
+          )
+        );
+      })
+      .catch(() => {
+        dispatch(renderFlash("error", "Unable to schedule your query."));
+      });
 
     return false;
   };

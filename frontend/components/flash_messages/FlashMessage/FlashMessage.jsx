@@ -6,7 +6,7 @@ import notificationInterface from "interfaces/notification";
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 
-import CloseIcon from "../../../../assets/images/icon-close-fleet-blue-16x16@2x.png";
+import CloseIcon from "../../../../assets/images/icon-close-white-16x16@2x.png";
 
 const baseClass = "flash-message";
 
@@ -28,8 +28,15 @@ const FlashMessage = ({
   const alertIcon =
     alertType === "success" ? "success-check" : "warning-filled";
 
+  // Success alerts will not be visible after 4 seconds
+  if (alertType === "success") {
+    setTimeout(function () {
+      document.getElementById(`${klass}`).style.display = "none";
+    }, 4000);
+  }
+
   return (
-    <div className={klass}>
+    <div className={klass} id={klass}>
       <div className={`${baseClass}__content`}>
         <FleetIcon name={alertIcon} /> <span>{message}</span>
         {undoAction && (

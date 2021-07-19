@@ -1,39 +1,33 @@
 package service
 
 import (
-	"encoding/json"
-	"net/http"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 // CreateUser creates a new user, skipping the invitation process.
 func (c *Client) CreateUser(p fleet.UserPayload) error {
 	verb, path := "POST", "/api/v1/fleet/users/admin"
-	response, err := c.AuthenticatedDo(verb, path, "", p)
-	if err != nil {
-		return errors.Wrapf(err, "%s %s", verb, path)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return errors.Errorf(
-			"create user received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
-
 	var responseBody createUserResponse
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
+
+	return c.authenticatedRequest(p, verb, path, &responseBody)
+}
+
+// ListUsers retrieves the list of users.
+func (c *Client) ListUsers() ([]fleet.User, error) {
+	verb, path := "GET", "/api/v1/fleet/users"
+	var responseBody listUsersResponse
+
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	if err != nil {
-		return errors.Wrap(err, "decode create user response")
+		return nil, err
 	}
+	return responseBody.Users, nil
+}
 
-	if responseBody.Err != nil {
-		return errors.Errorf("create user: %s", responseBody.Err)
-	}
-
-	return nil
+// ApplyUsersRoleSecretSpec applies the global and team roles for users.
+func (c *Client) ApplyUsersRoleSecretSpec(spec *fleet.UsersRoleSpec) error {
+	req := applyUserRoleSpecsRequest{Spec: spec}
+	verb, path := "POST", "/api/v1/fleet/users/roles/spec"
+	var responseBody applyUserRoleSpecsResponse
+	return c.authenticatedRequest(req, verb, path, &responseBody)
 }

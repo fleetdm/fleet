@@ -186,6 +186,9 @@ const TeamManagementPage = (): JSX.Element => {
         onQueryChange={onQueryChange}
         resultsTitle={"teams"}
         emptyComponent={EmptyTeams}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        searchable
       />
       {showCreateTeamModal ? (
         <CreateTeamModal

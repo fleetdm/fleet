@@ -14,14 +14,17 @@ const { version } = require("./package.json");
 // Strip any v4.0.0-1 style suffix (but not -rc1) so that the correct package is
 // downloaded if there is a mistake in the NPM publish and we need to release a
 // -1, etc. (because NPM packages are immutable and can't be fixed after a mistake).
-const strippedVersion = version.replace(/-[0-9]+/i, "");
+let strippedVersion = version.replace(/-[0-9]+/i, "");
+if (!strippedVersion.startsWith("v")) {
+  strippedVersion = `v${strippedVersion}`;
+}
 
 const binDir = path.join(__dirname, "install");
 // Determine the install directory by version so that we can detect when we need
 // to upgrade to a new version.
 const installDir = path.join(binDir, strippedVersion);
 
-const platform = () => {
+const platform = (() => {
   switch (os.type()) {
     case "Windows_NT":
       return "windows";
@@ -32,13 +35,13 @@ const platform = () => {
     default:
       throw new Error(`platform ${os.type} unrecognized`);
   }
-};
+})();
 
-const binName = platform() === "windows" ? "fleetctl.exe" : "fleetctl";
+const binName = platform === "windows" ? "fleetctl.exe" : "fleetctl";
 const binPath = path.join(installDir, binName);
 
 const install = async () => {
-  const url = `https://github.com/fleetdm/fleet/releases/download/${strippedVersion}/fleetctl_${strippedVersion}_${platform()}.tar.gz`;
+  const url = `https://github.com/fleetdm/fleet/releases/download/${strippedVersion}/fleetctl_${strippedVersion}_${platform}.tar.gz`;
 
   fs.mkdirSync(installDir, { recursive: true });
 
@@ -63,7 +66,7 @@ const run = async () => {
   if (!fs.existsSync(binPath)) {
     // Remove any existing binaries before installing the new one.
     rimraf.sync(binDir);
-    console.log(`Installing fleetctl ${version}...`);
+    console.log(`Installing fleetctl ${strippedVersion}...`);
     try {
       await install();
     } catch (err) {

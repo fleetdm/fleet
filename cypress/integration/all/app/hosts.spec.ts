@@ -24,7 +24,7 @@ describe("Hosts page", () => {
 
     // Assert enroll secret downloaded matches the one displayed
     cy.readFile(path.join(Cypress.config("downloadsFolder"), "secret.txt"), {
-      timeout: 3000,
+      timeout: 5000,
     }).then((contents) => {
       cy.get("input[disabled]").should("have.value", contents);
     });

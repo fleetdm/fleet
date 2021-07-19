@@ -34,7 +34,9 @@ This way, the Fleet team can constantly improve the effectiveness and experience
 
 - If you do not understand the question or comment raised, [request more details](#requesting-more-details) to best understand the next steps.
 
-- If an appropriate response is outside your scope, please post to #oncall-chatter, an internal slack channel designed to filter community support questions to the Fleet team.
+- If an appropriate response is outside your scope, please post to `#oncall-chatter`, a confidential Slack channel in the Fleet Slack workspace.
+
+- If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/).  If you aren't sure how best to respond in a positive way, or if you see behavior that violates the Fleet code of conduct, get help.
 
 #### Requesting more details
 

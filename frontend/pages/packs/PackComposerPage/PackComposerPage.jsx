@@ -4,6 +4,8 @@ import { connect } from "react-redux";
 import { noop } from "lodash";
 import { push } from "react-router-redux";
 
+import { renderFlash } from "redux/nodes/notifications/actions";
+
 import packActions from "redux/nodes/entities/packs/actions";
 import PackForm from "components/forms/packs/PackForm";
 import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";
@@ -52,11 +54,18 @@ export class PackComposerPage extends Component {
     const { dispatch } = this.props;
     const { visitPackPage } = this;
 
-    return dispatch(create(formData)).then((pack) => {
-      const { id: packID } = pack;
+    return dispatch(create(formData))
+      .then((pack) => {
+        const { id: packID } = pack;
 
-      return visitPackPage(packID);
-    });
+        return visitPackPage(packID);
+      })
+      .then(() => {
+        dispatch(renderFlash("success", `Pack successfully created.`));
+      })
+      .catch(() => {
+        dispatch(renderFlash("error", "Unable to create pack."));
+      });
   };
 
   render() {

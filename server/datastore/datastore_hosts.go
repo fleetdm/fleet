@@ -255,6 +255,13 @@ func testListHosts(t *testing.T, ds fleet.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts), len(hosts2))
 
+	for _, host := range hosts2 {
+		i, err := strconv.Atoi(host.UUID)
+		assert.Nil(t, err)
+		assert.True(t, i >= 0)
+		assert.True(t, strings.HasPrefix(host.Hostname, "foo.local"))
+	}
+
 	// Test with logic for only a few hosts
 	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{PerPage: 4, Page: 0}})
 	require.Nil(t, err)
@@ -422,6 +429,13 @@ func testEnrollHost(t *testing.T, ds fleet.Datastore) {
 	team, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
+	require.Nil(t, err)
+	for _, host := range hosts {
+		assert.Zero(t, host.LastEnrolledAt)
+	}
+
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, &team.ID, 0)
 		require.Nil(t, err)
@@ -436,6 +450,13 @@ func testEnrollHost(t *testing.T, ds fleet.Datastore) {
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
 		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", nil, 10*time.Second)
 		require.Error(t, err)
+	}
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{})
+
+	require.Nil(t, err)
+	for _, host := range hosts {
+		assert.NotZero(t, host.LastEnrolledAt)
 	}
 }
 
@@ -974,4 +995,61 @@ func testAddHostsToTeam(t *testing.T, ds fleet.Datastore) {
 		}
 		assert.Equal(t, expectedID, host.TeamID)
 	}
+}
+
+func testSaveUsers(t *testing.T, ds fleet.Datastore) {
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	assert.Len(t, host.Users, 0)
+
+	u1 := fleet.HostUser{
+		Uid:       42,
+		Username:  "user",
+		Type:      "aaa",
+		GroupName: "group",
+	}
+	u2 := fleet.HostUser{
+		Uid:       43,
+		Username:  "user2",
+		Type:      "aaa",
+		GroupName: "group",
+	}
+	host.Users = []fleet.HostUser{u1, u2}
+	host.Modified = true
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	require.Len(t, host.Users, 2)
+	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
+
+	// remove u1 user
+	host.Users = []fleet.HostUser{u2}
+	host.Modified = true
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	require.Len(t, host.Users, 1)
+	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }

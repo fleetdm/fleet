@@ -234,7 +234,7 @@ func makeDeleteLabelByIDEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Apply Label Specs
+// Apply Label Spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyLabelSpecsRequest struct {
@@ -259,12 +259,12 @@ func makeApplyLabelSpecsEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Label Specs
+// Get Label Spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type getLabelSpecsResponse struct {
 	Specs []*fleet.LabelSpec `json:"specs"`
-	Err   error               `json:"error,omitempty"`
+	Err   error              `json:"error,omitempty"`
 }
 
 func (r getLabelSpecsResponse) error() error { return r.Err }
@@ -285,7 +285,7 @@ func makeGetLabelSpecsEndpoint(svc fleet.Service) endpoint.Endpoint {
 
 type getLabelSpecResponse struct {
 	Spec *fleet.LabelSpec `json:"specs,omitempty"`
-	Err  error             `json:"error,omitempty"`
+	Err  error            `json:"error,omitempty"`
 }
 
 func (r getLabelSpecResponse) error() error { return r.Err }

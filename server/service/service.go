@@ -95,7 +95,7 @@ func getAssetURL() template.URL {
 		tag = "main"
 	}
 
-	return template.URL("https://github.com/fleetdm/fleet/v4/blob/" + tag)
+	return template.URL("https://github.com/fleetdm/fleet/blob/" + tag)
 }
 
 // seenHostSet implements synchronized storage for the set of seen hosts.

@@ -54,6 +54,10 @@
       border-radius: 4px;
       background-color: $ui-off-white;
       border: solid 1px $core-dark-blue-grey;
+
+      &.is-focused {
+        border: 1px solid $core-vibrant-blue;
+      }
     }
   }
 
@@ -89,7 +93,6 @@
 
     .Select-value-label {
       font-size: $x-small;
-      font-weight: $bold;
       color: $core-dark-blue-grey;
       line-height: 28px;
     }
@@ -98,9 +101,12 @@
   &--single {
     > .Select-control {
       .Select-value {
-        line-height: 38px;
-        margin-top: 4px;
+        line-height: 40px;
         border: none;
+        top: 1px;
+        right: 1px;
+        left: 1px;
+        bottom: 1px;
       }
     }
   }
@@ -112,50 +118,49 @@
     margin-top: 8px;
     margin-left: -4px;
     border: none;
+  }
 
-    &:hover {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+  &.is-focused {
+    .Select-control {
+      border: 1px solid $core-vibrant-blue;
+    }
+
+    &:not(.is-open) {
+      .Select-control {
+        box-shadow: none;
+      }
     }
   }
 
   &.is-open {
     .Select-arrow {
-      content: url("../assets/images/icon-collapse-black-16x16@2x.png");
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
       height: 16px;
       width: 16px;
-      margin-top: 14px;
-      margin-left: -3px;
+      margin-top: 12px;
+      margin-left: -4px;
       border: none;
-
-      &:hover {
-        content: url("../assets/images/icon-collapse-blue-16x16@2x.png");
-      }
     }
-
-    .Select-arrow-zone {
-      &:hover {
-        .Select-arrow {
-          border-top-color: transparent;
-        }
+  }
+  :hover {
+    .Select-arrow {
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      height: 16px;
+      width: 16px;
+      margin-left: -4px;
+      border: none;
+    }
+    &.is-open {
+      .Select-arrow {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+        height: 16px;
+        width: 16px;
+        margin-top: 10px;
+        margin-left: -4px;
+        border: none;
       }
     }
   }
-
-  // .Select-arrow {
-  //   border-top-color: $core-vibrant-blue;
-  // }
-
-  // &.is-focused {
-  //   .Select-control {
-  //     border: 1px solid $core-vibrant-blue;
-  //   }
-
-  //   &:not(.is-open) {
-  //     .Select-control {
-  //       box-shadow: none;
-  //     }
-  //   }
-  // }
 
   &.has-value {
     > .Select-control,
@@ -170,12 +175,13 @@
   }
 
   .Select-menu-outer {
-    margin-top: $pad-xsmall;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
-    border-radius: $border-radius;
+    border-radius: 0 0 $border-radius $border-radius;
     z-index: 6;
     overflow: hidden;
     border: 0;
+    margin: 0;
+    padding: $pad-small;
   }
 
   .Select-noresults {
@@ -185,7 +191,7 @@
   .Select-option {
     color: $core-fleet-black;
     font-size: $x-small;
-    margin: 6px 0;
+    margin: 0;
     padding: 6px $pad-medium;
     display: block;
 
@@ -195,6 +201,11 @@
       .Select-icon {
         color: $ui-vibrant-blue-10;
       }
+    }
+
+    &:last-child {
+      border-bottom-right-radius: 0;
+      border-bottom-left-radius: 0;
     }
 
     &.is-disabled {
@@ -247,10 +258,6 @@
           color: $core-white;
         }
       }
-    }
-
-    .Select-value {
-      margin-top: 4px;
     }
 
     .Select-value-label {

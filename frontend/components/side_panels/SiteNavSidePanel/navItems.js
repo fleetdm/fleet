@@ -17,6 +17,15 @@ export default (currentUser) => {
 
   const userNavItems = [
     {
+      icon: "logo",
+      name: "Home",
+      iconName: "logo",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/home/dashboard`),
+        pathname: PATHS.HOMEPAGE,
+      },
+    },
+    {
       icon: "hosts",
       name: "Hosts",
       iconName: "hosts",

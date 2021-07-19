@@ -17,6 +17,7 @@ type Datastore interface {
 	CarveStore
 	TeamStore
 	SoftwareStore
+	ActivitiesStore
 
 	Name() string
 	Drop() error

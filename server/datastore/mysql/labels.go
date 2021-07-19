@@ -402,7 +402,7 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]*fleet.Label, error) {
 // with fleet.Label referened by Label ID
 func (d *Datastore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := fmt.Sprintf(`
-			SELECT h.*
+			SELECT h.*, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
 			FROM label_membership lm
 			JOIN hosts h
 			ON lm.host_id = h.id
@@ -429,7 +429,7 @@ func (d *Datastore) ListUniqueHostsInLabels(filter fleet.TeamFilter, labels []ui
 	}
 
 	sqlStatement := fmt.Sprintf(`
-			SELECT DISTINCT h.*
+			SELECT DISTINCT h.*, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
 			FROM label_membership lm
 			JOIN hosts h
 			ON lm.host_id = h.id

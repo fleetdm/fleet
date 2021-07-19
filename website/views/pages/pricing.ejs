@@ -151,12 +151,12 @@
                     </div>
                     <div class="col-2 m-0 px-0 px-sm-1 px-md-2">
                       <p class="text-center" style="font-weight: bold; font-size: 15px">
-                        Fleet Core
+                        <span class="d-none d-md-inline">Fleet </span>Core
                       </p>
                     </div>
                     <div class="col-2 m-0 px-0 px-sm-1 px-md-2 ">
                       <p class="text-center" style="font-weight: bold; font-size: 15px">
-                        Fleet Basic
+                        <span class="d-none d-md-inline">Fleet </span>Basic
                       </p>
                     </div>
                   </div>
@@ -418,7 +418,7 @@
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
                       <p class="ml-2 my-0">
-                        Target and configure specific groups of devices*†
+                        Target and configure specific groups of devices†
                       </p>
                     </div>
                     <div class="col-2"></div>
@@ -439,7 +439,7 @@
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
                       <p class="ml-2 my-0">
-                        Aggregate insights for groups of devices*†
+                        Aggregate insights for groups of devices†
                       </p>
                     </div>
                     <div class="col-2"></div>
@@ -570,7 +570,7 @@
                         src="/images/ellipse-6x6@2x.png"
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
-                      <p class="ml-2 my-0">Multiple teams*</p>
+                      <p class="ml-2 my-0">Multiple teams</p>
                     </div>
                     <div class="col-2"></div>
                     <div class="col-2">
@@ -651,7 +651,7 @@
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
                       <p class="ml-2 my-0">
-                        Grant API-only access*†
+                        Grant API-only access†
                       </p>
                     </div>
                     <div class="col-2">
@@ -678,9 +678,16 @@
                         src="/images/ellipse-6x6@2x.png"
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
-                      <p class="ml-2 my-0">Role-based access control*</p>
+                      <p class="ml-2 my-0">Role-based access control</p>
                     </div>
-                    <div class="col-2"></div>
+                    <div class="col-2">
+                      <img
+                          alt="a check mark"
+                          class="mx-auto"
+                          src="/images/check-16x16@2x.png"
+                          style="width: 16px; height: 16px"
+                        />
+                    </div>
                     <div class="col-2">
                       <img
                         alt="a check mark"
@@ -784,7 +791,7 @@
                         src="/images/ellipse-6x6@2x.png"
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
-                      <p class="ml-2 my-0">Standard query library*†</p>
+                      <p class="ml-2 my-0">Standard query library†</p>
                     </div>
                     <div class="col-2">
                       <img
@@ -1115,10 +1122,88 @@
                     * Coming soon
                   </p>
                   <p style="font-size: 13px; left: 0" class="mb-0 w-100">
-                    † Customer promise
+                    † Customer promise (fulfilled and ready to use, unless otherwise noted)
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="max-width: 800px; color: #192147;" class="pt-5 mx-auto">
+          <h2 class="text-center mb-4">FAQ</h2>
+          <div class="mb-5">
+            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+              <p id="faq__question1" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
+                Is Fleet MIT licensed?
+                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+              </p>
+              <p id="faq__answer1" class="collapse" aria-labelledby="faq__question1">
+                We have different licenses for portions of our software which are noted in the LICENSE file in our docs. The majority of Fleet is MIT licensed. Paid features require a license key.
+              </p>
+            </div>
+            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+              <p id="faq__question2" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer2" aria-controls="faq__answer2">
+                What is your commitment to open source stewardship?
+                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+              </p>
+              <ol id="faq__answer2" class="faq-list collapse" aria-labelledby="faq__question2">
+                <li>When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.</li>
+                <li>The majority of new capabilities added to Fleet will benefit all users, not just customers.</li>
+                <li>We won't introduce features into the open source codebase with a fixed delay; if a feature is planned to land in both it will be released simultaneously in both.</li>
+                <li>We will always release and open source all tests that we have for any open source feature.</li>
+                <li>The free version of Fleet is enterprise ready.</li>
+                <li>The open source codebase will not contain any artificial limits on the number of hosts, users, size, or performance.</li>
+                <li>The majority of new features contributed by Fleet Device Management Inc will be open source.</li>
+                <li>The product will be available for download without leaving an email address or logging in.</li>
+                <li>We will always allow you to benchmark the performance of Fleet.</li>
+              </ol>
+
+            </div>
+            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+              <p id="faq__question3" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer3" aria-controls="faq__answer3">
+                What if we choose not to renew?
+                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+              </p>
+              <p id="faq__answer3" class="collapse" aria-labelledby="faq__question3">
+                If you opt not to renew Fleet Basic, you can continue using Fleet Core (same code base, just unconfigure the license key.)
+              </p>
+            </div>
+            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+              <p id="faq__question4" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer4" aria-controls="faq__answer4">
+                Can we buy a licence to access premium features with reduced support for a reduced cost?
+                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+              </p>
+              <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
+                We aren’t able to sell licenses and support separately.
+              </p>
+            </div>
+            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+              <p id="faq__question5" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer5" aria-controls="faq__answer5">
+                Do you offer pricing for ephemeral hosts which may scale up or down?
+                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+              </p>
+              <p id="faq__answer5" class="collapse" aria-labelledby="faq__question5">
+                For now, the number of hosts is the maximum cap of distinct agents enrolled at any given time.
+              </p>
+            </div>
+            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+              <p id="faq__question8" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer8" aria-controls="faq__answer8">
+                When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
+                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+              </p>
+              <p id="faq__answer8" class="collapse" aria-labelledby="faq__question8">
+                Like any modern application, Fleet scales horizontally.  The biggest potential bottleneck for Fleet is the number of hosts being monitored, so that's where we've devoted the most attention when <a href="https://github.com/fleetdm/fleet/blob/19816cee1a261589c54f50e7b965c12e2186ae48/docs/infrastructure/faq.md#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle">testing</a>. The largest number of hosts we've had a customer ask about was 350,000, for all of the production servers and employee laptops of a publicly traded company.
+              </p>
+            </div>
+            <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
+              <p id="faq__question10" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer10" aria-controls="faq__answer10">
+                Where's the data stored?
+                <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
+              </p>
+              <p id="faq__answer10" class="collapse" aria-labelledby="faq__question10">
+                Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, their own data center, hybrid cloud, anything).  That's done using a MySQL database, but the bulk of the data is not stored there — instead, it flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
+              </p>
             </div>
           </div>
         </div>
@@ -1135,9 +1220,9 @@
 
       </section>
       <section id="questions" class="py-5 mx-auto border-top">
-        <h1 class="text-center">
+        <h2 class="text-center">
           Still got questions?
-        </h1>
+        </h2>
         <div
           class="tpbutton btn-toolbar justify-content-center"
           style="text-align: center"

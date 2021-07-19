@@ -33,11 +33,7 @@ For more information on using Fleet, refer to the [Configuration](./2-Configurat
 
 ### Raw binaries
 
-Download the latest raw Fleet binaries:
-
-```
-curl -LO https://github.com/fleetdm/fleet/releases/latest/download/fleet.zip
-```
+Download the latest raw Fleet binaries with `curl` or from the ["Releases" page on GitHub](https://github.com/fleetdm/fleet/releases).
 
 Unzip the binaries for your platform:
 

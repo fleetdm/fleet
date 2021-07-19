@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -31,8 +32,10 @@ func validateServerURL(urlString string) error {
 	if err != nil {
 		return err
 	}
-	if serverURL.Scheme != "https" {
+
+	if serverURL.Scheme != "https" && !strings.Contains(serverURL.Host, "localhost") {
 		return errors.New("url scheme must be https")
 	}
+
 	return nil
 }

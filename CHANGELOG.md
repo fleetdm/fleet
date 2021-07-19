@@ -1,3 +1,11 @@
+## Fleet 4.0.1 (Jul 01, 2021)
+
+* Fix an issue in which migrations failed on MariaDB MySQL.
+
+* Allow `http` to be used when configuring `fleetctl` for `localhost`.
+
+* Fix a bug in which Team information was missing for hosts looked up by Label. 
+
 ## Fleet 4.0.0 (Jun 29, 2021)
 
 The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
@@ -48,7 +56,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * JWT encoding is no longer used for session keys. Sessions now default to expiring in 4 hours of inactivity. `auth_jwt_key` and `auth_jwt_key_file` are no longer accepted as configuration.
 
-* The `username` artifact has been removed in favor of the more recognizable `name` (Full name). As a result the `email` artifact is now used for uniqueness in Fleet. Upon upgrading to Fleet 4.0.0, existing users will have the `name` field populated with `username`.
+* The `username` artifact has been removed in favor of the more recognizable `name` (Full name). As a result the `email` artifact is now used for uniqueness in Fleet. Upon upgrading to Fleet 4.0.0, existing users will have the `name` field populated with `username`. SAML users may need to update their username mapping to match user emails.
 
 * As of Fleet 4.0.0, Fleet Device Management Inc. periodically collects anonymous information about your instance. Sending usage statistics is turned off by default for users upgrading from a previous version of Fleet. Read more about the exact information collected [here](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/11-Usage-statistics.md).
 

@@ -48,6 +48,7 @@
 
         &:last-child {
           border-right: none;
+          width: 180px;
         }
       }
     }
@@ -56,6 +57,9 @@
       position: absolute;
       top: -1px;
       width: 100%;
+      max-width: calc(
+        100vw - 2rem - 2rem - 0.125rem - 300px
+      ); // same as wrapper page for flex layout
       border: 0;
 
       &__container {
@@ -64,6 +68,7 @@
 
       &__inner {
         display: flex;
+        justify-content: space-between;
         align-items: center;
 
         p {
@@ -79,12 +84,19 @@
           margin-right: $pad-medium;
         }
       }
+
+      &__inner-left,
+      &__inner-right {
+        display: flex;
+        align-items: center;
+      }
     }
 
     tbody {
       td {
-        padding: 12px 27px;
+        padding: 0px 27px;
         white-space: nowrap;
+        height: 40px;
 
         // form-field wraps the dropdown menu
         .form-field {

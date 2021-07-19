@@ -143,6 +143,32 @@ func ValidGlobalRoles() []string {
 	return roles
 }
 
+// ValidateRole returns nil if the global and team roles combination is a valid
+// one within fleet, or a fleet Error otherwise.
+func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
+	if globalRole == nil || *globalRole == "" {
+		if len(teamUsers) == 0 {
+			return NewError(ErrNoRoleNeeded, "either global role or team role needs to be defined")
+		}
+		for _, t := range teamUsers {
+			if !ValidTeamRole(t.Role) {
+				return NewError(ErrNoRoleNeeded, "Team roles can be observer or maintainer")
+			}
+		}
+		return nil
+	}
+
+	if len(teamUsers) > 0 {
+		return NewError(ErrNoRoleNeeded, "Cannot specify both Global Role and Team Roles")
+	}
+
+	if !ValidGlobalRole(*globalRole) {
+		return NewError(ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
+	}
+
+	return nil
+}
+
 // TeamFilter is the filtering information passed to the datastore for queries
 // that may be filtered by team.
 type TeamFilter struct {

@@ -1,4 +1,6 @@
 .dropdown-cell {
+  width: 80px;
+
   .Select {
     position: unset;
 
@@ -30,11 +32,12 @@
       z-index: 6;
       overflow: hidden;
       border: 0;
-      width: 150px;
+      width: 188px;
       right: 28px;
       left: unset;
       top: unset;
       max-height: 220px;
+      padding: $pad-small;
     }
 
     &:not(.is-open) {

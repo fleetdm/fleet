@@ -9,7 +9,7 @@ import (
 
 // TestFunctions are the test functions that a Datastore implementation should
 // run to verify proper implementation.
-var TestFunctions = [...]func(*testing.T, fleet.Datastore){
+var TestFunctions = []func(*testing.T, fleet.Datastore){
 	testOrgInfo,
 	testAdditionalQueries,
 	testEnrollSecrets,
@@ -100,4 +100,7 @@ var TestFunctions = [...]func(*testing.T, fleet.Datastore){
 	testUserTeams,
 	testUserCreateWithTeams,
 	testSaveHostSoftware,
+	testSaveUsers,
+	testNewActivity,
+	testEnsureGlobalPack,
 }
