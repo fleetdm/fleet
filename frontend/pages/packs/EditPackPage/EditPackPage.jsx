@@ -307,6 +307,7 @@ export class EditPackPage extends Component {
             onSelectScheduledQuery={onSelectScheduledQuery}
             onDblClickScheduledQuery={onDblClickScheduledQuery}
             scheduledQueries={scheduledQueries}
+            packId={pack.id}
           />
         </div>
         <ScheduleQuerySidePanel

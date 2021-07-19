@@ -8,6 +8,7 @@ import helpers from "components/queries/ScheduledQueriesListWrapper/helpers";
 import InputField from "components/forms/fields/InputField";
 import QueriesList from "components/queries/ScheduledQueriesList";
 import queryInterface from "interfaces/query";
+import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
 import EmptyPack from "./EmptyPack";
 import {
   generateTableHeaders,
@@ -23,6 +24,7 @@ class ScheduledQueriesListWrapper extends Component {
     onDblClickScheduledQuery: PropTypes.func,
     onSelectScheduledQuery: PropTypes.func,
     scheduledQueries: PropTypes.arrayOf(queryInterface),
+    packId: PropTypes.number,
   };
 
   constructor(props) {
@@ -51,7 +53,7 @@ class ScheduledQueriesListWrapper extends Component {
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   onTableQueryChange = (queryData) => {
-    const { selectedFilter, dispatch } = this.props;
+    const { selectedFilter, dispatch, packId } = this.props;
     const {
       pageIndex,
       pageSize,
@@ -68,9 +70,10 @@ class ScheduledQueriesListWrapper extends Component {
     this.setState({ searchQuery });
 
     // comment out for now, look into this
-    // dispatch(
-    //   getQueries(pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
-    // );
+    dispatch(
+      scheduledQueryActions.loadAll(packId)
+      // (pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
+    );
   };
 
   // Old table
