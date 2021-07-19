@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"testing"
@@ -10,7 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testListScheduledQueriesInPack(t *testing.T, ds fleet.Datastore) {
+func TestListScheduledQueriesInPack(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
@@ -76,7 +79,10 @@ func testListScheduledQueriesInPack(t *testing.T, ds fleet.Datastore) {
 	require.Len(t, gotQueries, 3)
 }
 
-func testNewScheduledQuery(t *testing.T, ds fleet.Datastore) {
+func TestNewScheduledQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
@@ -92,7 +98,10 @@ func testNewScheduledQuery(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, "select * from time;", query.Query)
 }
 
-func testScheduledQuery(t *testing.T, ds fleet.Datastore) {
+func TestScheduledQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
@@ -116,7 +125,10 @@ func testScheduledQuery(t *testing.T, ds fleet.Datastore) {
 	assert.False(t, *query.Denylist)
 }
 
-func testDeleteScheduledQuery(t *testing.T, ds fleet.Datastore) {
+func TestDeleteScheduledQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
@@ -133,7 +145,10 @@ func testDeleteScheduledQuery(t *testing.T, ds fleet.Datastore) {
 	require.NotNil(t, err)
 }
 
-func testCascadingDeletionOfQueries(t *testing.T, ds fleet.Datastore) {
+func TestCascadingDeletionOfQueries(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},

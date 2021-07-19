@@ -17,16 +17,11 @@ import (
 
 const (
 	schemaDbName = "schemadb"
-	dumpfile     = "dump.sql"
+	dumpfile     = "/tmpfs/dump.sql"
 	testUsername = "root"
 	testPassword = "toor"
 	testAddress  = "localhost:3307"
 )
-
-func init() {
-	// Initialize the schema once for the entire test run.
-	initializeSchemaOrPanic()
-}
 
 func panicif(err error) {
 	if err != nil {
@@ -114,7 +109,7 @@ func initializeDatabase(t *testing.T, testName string) *Datastore {
 
 func runTest(t *testing.T, testFunc func(*testing.T, fleet.Datastore)) {
 	t.Run(test.FunctionName(testFunc), func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		// Create a new database and load the schema for each test
 		ds := initializeDatabase(t, test.FunctionName(testFunc))
