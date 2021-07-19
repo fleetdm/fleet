@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+
+	"github.com/fleetdm/fleet/v4/server"
+
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -199,15 +202,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			go func() {
-				ticker := time.NewTicker(1 * time.Hour)
-				for {
-					ds.CleanupDistributedQueryCampaigns(time.Now())
-					ds.CleanupIncomingHosts(time.Now())
-					ds.CleanupCarves(time.Now())
-					<-ticker.C
-				}
-			}()
+			cancelBackground := runCrons(ds)
 
 			// Flush seen hosts every second
 			go func() {
@@ -319,7 +314,7 @@ the way that the Fleet server works.
 			if debug {
 				// Add debug endpoints with a random
 				// authorization token
-				debugToken, err := fleet.RandomText(24)
+				debugToken, err := server.GenerateRandomText(24)
 				if err != nil {
 					initFatal(err, "generating debug token")
 				}
@@ -364,6 +359,7 @@ the way that the Fleet server works.
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
+					cancelBackground()
 					launcher.GracefulStop()
 					return srv.Shutdown(ctx)
 				}()
@@ -378,6 +374,57 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 
 	return serveCmd
+}
+
+// Locker represents an object that can obtain an atomic lock on a resource
+// in a non blocking manner for an owner, with an expiration time.
+type Locker interface {
+	// Lock tries to get an atomic lock on an instance named with `name`
+	// and an `owner` identified by a random string per instance.
+	// Subsequently locking the same resource name for the same owner
+	// renews the lock expiration.
+	// It returns true, nil if it managed to obtain a lock on the instance.
+	// false and potentially an error otherwise.
+	// This must not be blocking.
+	Lock(name string, owner string, expiration time.Duration) (bool, error)
+	// Unlock tries to unlock the lock by that `name` for the specified
+	// `owner`. Unlocking when not holding the lock shouldn't error
+	Unlock(name string, owner string) error
+}
+
+const (
+	LockKeyLeader = "leader"
+)
+
+func runCrons(ds fleet.Datastore) context.CancelFunc {
+	locker, ok := ds.(Locker)
+	if !ok {
+		initFatal(errors.New("No global locker available"), "")
+	}
+	ctx, cancelBackground := context.WithCancel(context.Background())
+
+	ourIdentifier, err := server.GenerateRandomText(64)
+	if err != nil {
+		initFatal(errors.New("Error generating random instance identifier"), "")
+	}
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		for {
+			select {
+			case <-ticker.C:
+			case <-ctx.Done():
+				break
+			}
+			if locked, err := locker.Lock(LockKeyLeader, ourIdentifier, time.Hour); err != nil || !locked {
+				continue
+			}
+			ds.CleanupDistributedQueryCampaigns(time.Now())
+			ds.CleanupIncomingHosts(time.Now())
+			ds.CleanupCarves(time.Now())
+		}
+	}()
+	return cancelBackground
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on
