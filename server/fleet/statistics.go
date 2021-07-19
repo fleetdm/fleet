@@ -12,3 +12,7 @@ type StatisticsStore interface {
 	ShouldSendStatistics(frequency time.Duration) (StatisticsPayload, bool, error)
 	RecordStatisticsSent() error
 }
+
+const (
+	StatisticsFrequency = time.Hour * 24 * 7
+)

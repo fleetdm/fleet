@@ -8,7 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-var _ fleet.ActivitiesStore = (*ActivitiesStore)(nil)
+var _ fleet.StatisticsStore = (*StatisticsStore)(nil)
 
 type ShouldSendStatisticsFunc func(frequency time.Duration) (fleet.StatisticsPayload, bool, error)
 type RecordStatisticsSentFunc func() error

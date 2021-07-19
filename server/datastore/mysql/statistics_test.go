@@ -27,7 +27,7 @@ func TestShouldSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 
 	// First time running, we send statistics
-	stats, shouldSend, err := ds.ShouldSendStatistics(StatisticsFrequency)
+	stats, shouldSend, err := ds.ShouldSendStatistics(fleet.StatisticsFrequency)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.NotEmpty(t, stats.AnonymousIdentifier)
@@ -38,7 +38,7 @@ func TestShouldSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 
 	// If we try right away, it shouldn't ask to send
-	stats, shouldSend, err = ds.ShouldSendStatistics(StatisticsFrequency)
+	stats, shouldSend, err = ds.ShouldSendStatistics(fleet.StatisticsFrequency)
 	require.NoError(t, err)
 	assert.False(t, shouldSend)
 

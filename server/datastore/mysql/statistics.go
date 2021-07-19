@@ -14,10 +14,6 @@ type statistics struct {
 	Identifier string `db:"anonymous_identifier"`
 }
 
-const (
-	StatisticsFrequency = time.Hour * 24 * 7
-)
-
 func (d *Datastore) ShouldSendStatistics(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 	amountEnrolledHosts, err := d.amountEnrolledHosts()
 	if err != nil {

@@ -469,7 +469,7 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger) context.CancelFunc {
 				level.Error(logger).Log("err", "cleaning carves", "details", err)
 			}
 
-			err = trySendStatistics(ds, mysql.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
+			err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
 			if err != nil {
 				level.Error(logger).Log("err", "sending statistics", "details", err)
 			}

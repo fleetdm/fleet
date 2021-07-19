@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +42,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(ds, mysql.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","numHostsEnrolled":999}`, requestBody)
@@ -72,7 +71,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(ds, mysql.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.False(t, recorded)
 	assert.False(t, called)
@@ -92,7 +91,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 		return &fleet.AppConfig{EnableAnalytics: false}, nil
 	}
 
-	err := trySendStatistics(ds, mysql.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.False(t, called)
 }
