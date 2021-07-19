@@ -46,42 +46,32 @@ func (svc Service) Translate(ctx context.Context, payloads []fleet.TranslatePayl
 	var finalPayload []fleet.TranslatePayload
 
 	for _, payload := range payloads {
-		var toIDFunc func(string) (interface{}, error)
-		var idExtractorFunc func(interface{}) uint
-
-		switch payload.Type {
-		case fleet.TranslatorTypeUserEmail:
-			toIDFunc = func(email string) (interface{}, error) { return svc.ds.UserByEmail(email) }
-			idExtractorFunc = func(item interface{}) uint { return item.(*fleet.User).ID }
-		case fleet.TranslatorTypeLabel:
-			toIDFunc = func(name string) (interface{}, error) {
-				labelIDs, err := svc.ds.LabelIDsByName([]string{name})
-				if err != nil {
-					return nil, err
-				}
-				return labelIDs[0], nil
-			}
-			idExtractorFunc = func(item interface{}) uint { return item.(uint) }
-		case fleet.TranslatorTypeTeam:
-			toIDFunc = func(name string) (interface{}, error) { return svc.ds.TeamByName(name) }
-			idExtractorFunc = func(item interface{}) uint { return item.(*fleet.Team).ID }
-		case fleet.TranslatorTypeHost:
-			toIDFunc = func(name string) (interface{}, error) { return svc.ds.HostByIdentifier(name) }
-			idExtractorFunc = func(item interface{}) uint { return item.(*fleet.Host).ID }
-		default:
-			return nil, fleet.NewErrorf(fleet.ErrNoUnknownTranslate, "Type %s is unknown.", payload.Type)
-		}
+		var idgetter fleet.IDGetter
 
 		toId := fleet.StringIdentifierToIDPayload{}
 		err := json.Unmarshal(payload.Payload, &toId)
 		if err != nil {
 			return nil, err
 		}
-		user, err := toIDFunc(toId.Identifier)
+
+		switch payload.Type {
+		case fleet.TranslatorTypeUserEmail:
+			idgetter = fleet.NewEmailToUserIDTranslator(svc.ds, toId.Identifier)
+		case fleet.TranslatorTypeLabel:
+			idgetter = fleet.NewLabelNameToIDTranslator(svc.ds, toId.Identifier)
+		case fleet.TranslatorTypeTeam:
+			idgetter = fleet.NewTeamNameToIDTranslator(svc.ds, toId.Identifier)
+		case fleet.TranslatorTypeHost:
+			idgetter = fleet.NewHostIdentifierToIDTranslator(svc.ds, toId.Identifier)
+		default:
+			return nil, fleet.NewErrorf(fleet.ErrNoUnknownTranslate, "Type %s is unknown.", payload.Type)
+		}
+
+		id, err := idgetter.GetID()
 		if err != nil {
 			return nil, err
 		}
-		toId.ID = idExtractorFunc(user)
+		toId.ID = id
 		newPayload, err := repackageNewPayload(toId, payload)
 		if err != nil {
 			return nil, err
