@@ -396,6 +396,10 @@ const (
 	LockKeyLeader = "leader"
 )
 
+func maybeSendStatistics(ds fleet.Datastore) {
+
+}
+
 func runCrons(ds fleet.Datastore) context.CancelFunc {
 	locker, ok := ds.(Locker)
 	if !ok {
@@ -422,6 +426,7 @@ func runCrons(ds fleet.Datastore) context.CancelFunc {
 			ds.CleanupDistributedQueryCampaigns(time.Now())
 			ds.CleanupIncomingHosts(time.Now())
 			ds.CleanupCarves(time.Now())
+			maybeSendStatistics(ds)
 		}
 	}()
 	return cancelBackground
