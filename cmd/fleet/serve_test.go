@@ -26,6 +26,10 @@ func TestMaybeSendStatistics(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{EnableAnalytics: true}, nil
+	}
+
 	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{
 			AnonymousIdentifier: "ident",
@@ -54,6 +58,10 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		called = true
 	}))
 	defer ts.Close()
+
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{EnableAnalytics: true}, nil
+	}
 
 	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{}, false, nil
