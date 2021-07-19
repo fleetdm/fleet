@@ -94,60 +94,60 @@ export class ManageQueriesPage extends Component {
       });
   };
 
-  onCheckAllQueries = (shouldCheck) => {
-    if (shouldCheck) {
-      const queries = this.getQueries();
-      const checkedQueryIDs = queries.map((query) => query.id);
+  // onCheckAllQueries = (shouldCheck) => {
+  //   if (shouldCheck) {
+  //     const queries = this.getQueries();
+  //     const checkedQueryIDs = queries.map((query) => query.id);
 
-      this.setState({ allQueriesChecked: true, checkedQueryIDs });
+  //     this.setState({ allQueriesChecked: true, checkedQueryIDs });
 
-      return false;
-    }
+  //     return false;
+  //   }
 
-    this.setState({ allQueriesChecked: false, checkedQueryIDs: [] });
+  //   this.setState({ allQueriesChecked: false, checkedQueryIDs: [] });
 
-    return false;
-  };
+  //   return false;
+  // };
 
-  onCheckQuery = (checked, id) => {
-    const { checkedQueryIDs } = this.state;
-    const newCheckedQueryIDs = checked
-      ? checkedQueryIDs.concat(id)
-      : pull(checkedQueryIDs, id);
+  // onCheckQuery = (checked, id) => {
+  //   const { checkedQueryIDs } = this.state;
+  //   const newCheckedQueryIDs = checked
+  //     ? checkedQueryIDs.concat(id)
+  //     : pull(checkedQueryIDs, id);
 
-    this.setState({
-      allQueriesChecked: false,
-      checkedQueryIDs: newCheckedQueryIDs,
-    });
+  //   this.setState({
+  //     allQueriesChecked: false,
+  //     checkedQueryIDs: newCheckedQueryIDs,
+  //   });
 
-    return false;
-  };
+  //   return false;
+  // };
 
-  onFilterQueries = (queriesFilter) => {
-    this.setState({ queriesFilter });
+  // onFilterQueries = (queriesFilter) => {
+  //   this.setState({ queriesFilter });
 
-    return false;
-  };
+  //   return false;
+  // };
 
-  onSelectQuery = (selectedQuery) => {
-    const { dispatch } = this.props;
-    const locationObject = {
-      pathname: PATHS.MANAGE_QUERIES,
-      query: { selectedQuery: selectedQuery.id },
-    };
+  // onSelectQuery = (selectedQuery) => {
+  //   const { dispatch } = this.props;
+  //   const locationObject = {
+  //     pathname: PATHS.MANAGE_QUERIES,
+  //     query: { selectedQuery: selectedQuery.id },
+  //   };
 
-    dispatch(push(locationObject));
+  //   dispatch(push(locationObject));
 
-    return false;
-  };
+  //   return false;
+  // };
 
-  onDblClickQuery = (selectedQuery) => {
-    const { dispatch } = this.props;
+  // onDblClickQuery = (selectedQuery) => {
+  //   const { dispatch } = this.props;
 
-    dispatch(push(PATHS.EDIT_QUERY(selectedQuery)));
+  //   dispatch(push(PATHS.EDIT_QUERY(selectedQuery)));
 
-    return false;
-  };
+  //   return false;
+  // };
 
   onTableQueryChange = (queryData) => {
     const { queries } = this.props;
