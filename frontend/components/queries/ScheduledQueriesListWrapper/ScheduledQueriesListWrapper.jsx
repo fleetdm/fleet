@@ -20,6 +20,7 @@ class ScheduledQueriesListWrapper extends Component {
     onSelectScheduledQuery: PropTypes.func,
     scheduledQueries: PropTypes.arrayOf(queryInterface),
     packId: PropTypes.number,
+    isLoadingScheduledQueries: PropTypes.bool,
   };
 
   constructor(props) {
@@ -66,11 +67,25 @@ class ScheduledQueriesListWrapper extends Component {
   };
 
   render() {
-    const { onTableQueryChange, onRemoveScheduledQueries } = this;
+    const {
+      onTableQueryChange,
+      onRemoveScheduledQueries,
+      isLoadingScheduledQueries,
+      scheduledQueries,
+    } = this;
+
     const { queryState } = this.state;
 
-    // hardcoded to false right now 7/15
-    const loadingTableData = false;
+    // This updates the query state if multiple queries were removed
+    // if (queryState !== this.props.scheduledQueries) {
+    //   this.setState({ queryState: this.props.scheduledQueries });
+    // }
+
+    console.log("scheduledlistwrapper queryState ", queryState);
+    console.log(
+      "scheduledlistwrapper this.props.scheduledqueries",
+      this.props.scheduledQueries
+    );
 
     const tableHeaders = generateTableHeaders();
 
@@ -82,7 +97,7 @@ class ScheduledQueriesListWrapper extends Component {
         <TableContainer
           columns={tableHeaders}
           data={generateDataSet(queryState)}
-          isLoading={loadingTableData}
+          isLoading={isLoadingScheduledQueries}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           inputPlaceHolder={"Search queries"}

@@ -212,7 +212,7 @@ export class EditPackPage extends Component {
   };
 
   handleRemoveScheduledQueries = (scheduledQueryIDs) => {
-    const { destroy } = scheduledQueryActions;
+    const { destroy, loadAll } = scheduledQueryActions;
     const { dispatch } = this.props;
 
     const promises = scheduledQueryIDs.map((id) => {
@@ -324,6 +324,7 @@ export class EditPackPage extends Component {
             onDblClickScheduledQuery={onDblClickScheduledQuery}
             scheduledQueries={scheduledQueries}
             packId={pack.id}
+            isLoadingScheduledQueries={isLoadingScheduledQueries}
           />
         </div>
         <ScheduleQuerySidePanel
