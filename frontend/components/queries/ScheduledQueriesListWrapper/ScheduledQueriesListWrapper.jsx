@@ -29,7 +29,6 @@ class ScheduledQueriesListWrapper extends Component {
     this.state = {
       querySearchText: "",
       checkedScheduledQueryIDs: [],
-      queryState: props.scheduledQueries,
     };
   }
 
@@ -59,11 +58,11 @@ class ScheduledQueriesListWrapper extends Component {
     }
 
     if (!searchQuery) {
-      this.setState({ queryState: scheduledQueries });
+      this.setState({ querySearchText: "" });
       return;
     }
 
-    this.setState({ queryState: simpleSearch(searchQuery, scheduledQueries) });
+    this.setState({ querySearchText: queryData });
   };
 
   render() {
@@ -73,19 +72,18 @@ class ScheduledQueriesListWrapper extends Component {
       isLoadingScheduledQueries,
       scheduledQueries,
     } = this;
+    const { querySearchText } = this.state;
 
-    const { queryState } = this.state;
+    // apply the filter to the props and render the filtered list
 
-    // This updates the query state if multiple queries were removed
-    // if (queryState !== this.props.scheduledQueries) {
-    //   this.setState({ queryState: this.props.scheduledQueries });
-    // }
+    // use querySearchText in state to apply the filter for the this.props.scheduledQueries;
 
-    console.log("scheduledlistwrapper queryState ", queryState);
     console.log(
       "scheduledlistwrapper this.props.scheduledqueries",
-      this.props.scheduledQueries
+      scheduledQueries
     );
+
+    const filtered = simpleSearch(querySearchText, scheduledQueries);
 
     const tableHeaders = generateTableHeaders();
 
@@ -96,7 +94,7 @@ class ScheduledQueriesListWrapper extends Component {
         </div>
         <TableContainer
           columns={tableHeaders}
-          data={generateDataSet(queryState)}
+          data={generateDataSet(filtered)}
           isLoading={isLoadingScheduledQueries}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
