@@ -222,10 +222,10 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 	assert.Nil(t, err)
 // 	user1, err := ds.User("user1")
 // 	assert.Nil(t, err)
-// 	var defaultEmailFn = func(e fleet.Email) error {
+// 	var defaultEmailFn = func(e fleet.Identifier) error {
 // 		return nil
 // 	}
-// 	var errEmailFn = func(e fleet.Email) error {
+// 	var errEmailFn = func(e fleet.Identifier) error {
 // 		return errors.New("test err")
 // 	}
 // 	authz, err := authz.NewAuthorizer()
@@ -238,31 +238,31 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 
 // 	var requestPasswordResetTests = []struct {
 // 		email   string
-// 		emailFn func(e fleet.Email) error
+// 		emailFn func(e fleet.Identifier) error
 // 		wantErr error
 // 		user    *fleet.User
 // 		vc      *viewer.Viewer
 // 	}{
 // 		{
-// 			email:   admin1.Email,
+// 			email:   admin1.Identifier,
 // 			emailFn: defaultEmailFn,
 // 			user:    admin1,
 // 			vc:      &viewer.Viewer{User: admin1},
 // 		},
 // 		{
-// 			email:   admin1.Email,
+// 			email:   admin1.Identifier,
 // 			emailFn: defaultEmailFn,
 // 			user:    admin1,
 // 			vc:      nil,
 // 		},
 // 		{
-// 			email:   user1.Email,
+// 			email:   user1.Identifier,
 // 			emailFn: defaultEmailFn,
 // 			user:    user1,
 // 			vc:      &viewer.Viewer{User: admin1},
 // 		},
 // 		{
-// 			email:   admin1.Email,
+// 			email:   admin1.Identifier,
 // 			emailFn: errEmailFn,
 // 			user:    user1,
 // 			vc:      nil,
@@ -299,7 +299,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 	var newUserTests = []struct {
 // 		Username           *string
 // 		Password           *string
-// 		Email              *string
+// 		Identifier              *string
 // 		NeedsPasswordReset *bool
 // 		InviteToken        *string
 // 		wantErr            error
@@ -313,13 +313,13 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 		{
 // 			Username: ptr.String("admin2"),
 // 			Password: ptr.String("foobarbaz1234!"),
-// 			Email:    ptr.String("admin2@example.com"),
+// 			Identifier:    ptr.String("admin2@example.com"),
 // 			wantErr:  &invalidArgumentError{invalidArgument{name: "invite_token", reason: "missing required argument"}},
 // 		},
 // 		{
 // 			Username:           ptr.String("admin2"),
 // 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              ptr.String("admin2@example.com"),
+// 			Identifier:              ptr.String("admin2@example.com"),
 // 			NeedsPasswordReset: ptr.Bool(true),
 // 			InviteToken:        &invites["admin2@example.com"].Token,
 // 		},
@@ -327,7 +327,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 			// after a user signs up
 // 			Username:           ptr.String("admin2"),
 // 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              ptr.String("admin2@example.com"),
+// 			Identifier:              ptr.String("admin2@example.com"),
 // 			NeedsPasswordReset: ptr.Bool(true),
 // 			InviteToken:        &invites["admin2@example.com"].Token,
 // 			wantErr:            errors.New("Invite with token admin2@example.com was not found in the datastore"),
@@ -335,7 +335,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 		{
 // 			Username:           ptr.String("admin3"),
 // 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              &invites["expired"].Email,
+// 			Identifier:              &invites["expired"].Identifier,
 // 			NeedsPasswordReset: ptr.Bool(true),
 // 			InviteToken:        &invites["expired"].Token,
 // 			wantErr:            &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}},
@@ -343,7 +343,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 		{
 // 			Username:           ptr.String("admin3@example.com"),
 // 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              ptr.String("admin3@example.com"),
+// 			Identifier:              ptr.String("admin3@example.com"),
 // 			NeedsPasswordReset: ptr.Bool(true),
 // 			InviteToken:        &invites["admin3@example.com"].Token,
 // 		},
@@ -354,7 +354,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 // 			payload := fleet.UserPayload{
 // 				Username:    tt.Username,
 // 				Password:    tt.Password,
-// 				Email:       tt.Email,
+// 				Identifier:       tt.Identifier,
 // 				InviteToken: tt.InviteToken,
 // 			}
 // 			user, err := svc.CreateUserFromInvite(ctx, payload)

@@ -70,7 +70,7 @@ func TestVerifyInvite(t *testing.T) {
 	_, err := svc.VerifyInvite(test.UserContext(test.UserAdmin), "abcd")
 	assert.Equal(t, err, wantErr)
 
-	wantErr = fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
+	wantErr = fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Identifier Address.")
 
 	_, err = svc.VerifyInvite(test.UserContext(test.UserAdmin), "bad_token")
 	assert.Equal(t, err, wantErr)

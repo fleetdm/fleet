@@ -34,10 +34,10 @@ func (mw validationMiddleware) CreateUserFromInvite(ctx context.Context, p fleet
 	}
 
 	if p.Email == nil {
-		invalid.Append("email", "Email missing required argument")
+		invalid.Append("email", "Identifier missing required argument")
 	} else {
 		if *p.Email == "" {
-			invalid.Append("email", "Email cannot be empty")
+			invalid.Append("email", "Identifier cannot be empty")
 		}
 	}
 
@@ -82,10 +82,10 @@ func (mw validationMiddleware) CreateUser(ctx context.Context, p fleet.UserPaylo
 	}
 
 	if p.Email == nil {
-		invalid.Append("email", "Email missing required argument")
+		invalid.Append("email", "Identifier missing required argument")
 	} else {
 		if *p.Email == "" {
-			invalid.Append("email", "Email cannot be empty")
+			invalid.Append("email", "Identifier cannot be empty")
 		}
 	}
 
@@ -109,7 +109,7 @@ func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p fl
 
 	if p.Email != nil {
 		if *p.Email == "" {
-			invalid.Append("email", "Email cannot be empty")
+			invalid.Append("email", "Identifier cannot be empty")
 		}
 		// if the user is not an admin, or if an admin is changing their own email
 		// address a password is required,

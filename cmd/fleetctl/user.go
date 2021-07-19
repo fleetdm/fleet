@@ -46,7 +46,7 @@ func createUserCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     emailFlagName,
-				Usage:    "Email for new user (required)",
+				Usage:    "Identifier for new user (required)",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -181,7 +181,7 @@ func deleteUserCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     emailFlagName,
-				Usage:    "Email for user (required)",
+				Usage:    "Identifier for user (required)",
 				Required: true,
 			},
 			configFlag(),

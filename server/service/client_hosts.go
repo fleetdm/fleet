@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/pkg/errors"
 )
 
@@ -96,4 +98,98 @@ func (c *Client) DeleteHost(id uint) error {
 	}
 
 	return nil
+}
+
+func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team string) ([]uint, uint, uint, error) {
+	verb, path := "POST", "/api/v1/fleet/translate"
+	var responseBody translatorResponse
+
+	var translatePayloads []fleet.TranslatePayload
+	for _, host := range hosts {
+		translatedPayload, err := encodeTranslatedPayload(fleet.TranslatorTypeHost, host)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		translatePayloads = append(translatePayloads, translatedPayload)
+	}
+
+	if label != "" {
+		translatedPayload, err := encodeTranslatedPayload(fleet.TranslatorTypeLabel, label)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		translatePayloads = append(translatePayloads, translatedPayload)
+	}
+
+	translatedPayload, err := encodeTranslatedPayload(fleet.TranslatorTypeTeam, team)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	translatePayloads = append(translatePayloads, translatedPayload)
+
+	params := translatorRequest{List: translatePayloads}
+
+	err = c.authenticatedRequest(&params, verb, path, &responseBody)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	var hostIDs []uint
+	var labelID uint
+	var teamID uint
+
+	for _, payload := range responseBody.List {
+		translated := fleet.StringIdentifierToIDPayload{}
+		err = json.Unmarshal(payload.Payload, &translated)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		switch payload.Type {
+		case fleet.TranslatorTypeLabel:
+			labelID = translated.ID
+		case fleet.TranslatorTypeTeam:
+			teamID = translated.ID
+		case fleet.TranslatorTypeHost:
+			hostIDs = append(hostIDs, translated.ID)
+		}
+	}
+	return hostIDs, labelID, teamID, nil
+}
+
+func encodeTranslatedPayload(translatorType string, host string) (fleet.TranslatePayload, error) {
+	payloadStruct := fleet.StringIdentifierToIDPayload{Identifier: host}
+	payload, err := json.Marshal(payloadStruct)
+	if err != nil {
+		return fleet.TranslatePayload{}, err
+	}
+	translatedPayload := fleet.TranslatePayload{Type: translatorType, Payload: payload}
+	return translatedPayload, nil
+}
+
+func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery string, team string) error {
+	hostIDs, labelID, teamID, err := c.translateTransferHostsToIDs(hosts, label, team)
+	if err != nil {
+		return err
+	}
+
+	if len(hosts) != 0 {
+		verb, path := "POST", "/api/v1/fleet/hosts/transfer"
+		var responseBody addHostsToTeamResponse
+		params := addHostsToTeamRequest{TeamID: ptr.Uint(teamID), HostIDs: hostIDs}
+		return c.authenticatedRequest(params, verb, path, &responseBody)
+	}
+
+	var labelIDPtr *uint
+	if label != "" {
+		labelIDPtr = &labelID
+	}
+
+	verb, path := "POST", "/api/v1/fleet/hosts/transfer/filter"
+	var responseBody addHostsToTeamByFilterResponse
+	params := addHostsToTeamByFilterRequest{TeamID: ptr.Uint(teamID), Filters: struct {
+		MatchQuery string           `json:"query"`
+		Status     fleet.HostStatus `json:"status"`
+		LabelID    *uint            `json:"label_id"`
+	}{MatchQuery: searchQuery, Status: fleet.HostStatus(status), LabelID: labelIDPtr}}
+	return c.authenticatedRequest(params, verb, path, &responseBody)
 }

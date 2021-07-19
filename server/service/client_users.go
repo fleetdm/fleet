@@ -40,7 +40,7 @@ func (c *Client) userIdFromEmail(email string) (uint, error) {
 	verb, path := "POST", "/api/v1/fleet/translate"
 	var responseBody translatorResponse
 
-	toTranslate := fleet.EmailToIdPayload{Email: email}
+	toTranslate := fleet.StringIdentifierToIDPayload{Identifier: email}
 	payload, err := json.Marshal(toTranslate)
 	if err != nil {
 		return 0, err
@@ -60,7 +60,7 @@ func (c *Client) userIdFromEmail(email string) (uint, error) {
 		return 0, errors.New("Expected 1 item translated, got none")
 	}
 
-	translated := fleet.EmailToIdPayload{}
+	translated := fleet.StringIdentifierToIDPayload{}
 	err = json.Unmarshal(responseBody.List[0].Payload, &translated)
 	if err != nil {
 		return 0, err

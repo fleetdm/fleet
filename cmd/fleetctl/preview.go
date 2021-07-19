@@ -152,7 +152,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Fleet UI is now available at http://localhost:1337.")
-			fmt.Println("Email:", email)
+			fmt.Println("Identifier:", email)
 			fmt.Println("Password:", password)
 
 			// Create client and get enroll secret

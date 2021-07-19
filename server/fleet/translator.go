@@ -7,6 +7,9 @@ import (
 
 const (
 	TranslatorTypeUserEmail = "User"
+	TranslatorTypeLabel     = "Label"
+	TranslatorTypeTeam      = "Team"
+	TranslatorTypeHost      = "Host"
 )
 
 type TranslatePayload struct {
@@ -14,9 +17,9 @@ type TranslatePayload struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-type EmailToIdPayload struct {
-	Email string `json:"email"`
-	ID    uint   `json:"id"`
+type StringIdentifierToIDPayload struct {
+	Identifier string `json:"identifier"`
+	ID         uint   `json:"id"`
 }
 
 type TranslatorService interface {
