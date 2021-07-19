@@ -76,6 +76,8 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}
         // Removed search functionality
+        showMarkAllPages
+        isAllPagesSelected
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search"
         searchable={false}

@@ -37,7 +37,6 @@ interface ITableContainerProps {
   selectActionButtonText?: string;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
-  selectActionButtonText?: string;
   resultsTitle: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
