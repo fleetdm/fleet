@@ -28,11 +28,10 @@ export const requirePasswordResetFailure = (errors) => {
   };
 };
 
-// TODO does below need user
-export const createUserWithoutInviteSuccess = () => {
+export const createUserWithoutInviteSuccess = (user) => {
   return {
     type: CREATE_USER_WITHOUT_INVITE_SUCCESS,
-    payload: {},
+    payload: { user },
   };
 };
 
