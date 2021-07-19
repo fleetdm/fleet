@@ -18,34 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func getTestAdminToken(t *testing.T, server *httptest.Server) string {
-	testUser := testUsers["admin1"]
-
-	params := loginRequest{
-		Email:    testUser.Email,
-		Password: testUser.PlaintextPassword,
-	}
-	j, err := json.Marshal(&params)
-	assert.Nil(t, err)
-
-	requestBody := &nopCloser{bytes.NewBuffer(j)}
-	resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
-	require.Nil(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var jsn = struct {
-		User  *fleet.User         `json:"user"`
-		Token string              `json:"token"`
-		Err   []map[string]string `json:"errors,omitempty"`
-	}{}
-	err = json.NewDecoder(resp.Body).Decode(&jsn)
-	require.Nil(t, err)
-
-	return jsn.Token
-}
-
 func testDoubleUserCreationErrors(t *testing.T, ds fleet.Datastore) {
-	_, server := runServerForTestsWithDS(t, ds)
+	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
@@ -75,7 +49,7 @@ func testDoubleUserCreationErrors(t *testing.T, ds fleet.Datastore) {
 }
 
 func testUserWithoutRoleErrors(t *testing.T, ds fleet.Datastore) {
-	_, server := runServerForTestsWithDS(t, ds)
+	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
@@ -97,7 +71,7 @@ func testUserWithoutRoleErrors(t *testing.T, ds fleet.Datastore) {
 }
 
 func testUserWithWrongRoleErrors(t *testing.T, ds fleet.Datastore) {
-	_, server := runServerForTestsWithDS(t, ds)
+	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
@@ -120,7 +94,7 @@ func testUserWithWrongRoleErrors(t *testing.T, ds fleet.Datastore) {
 }
 
 func testUserCreationWrongTeamErrors(t *testing.T, ds fleet.Datastore) {
-	_, server := runServerForTestsWithDS(t, ds)
+	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
 	teams := []fleet.UserTeam{
@@ -128,15 +102,15 @@ func testUserCreationWrongTeamErrors(t *testing.T, ds fleet.Datastore) {
 			Team: fleet.Team{
 				ID: 9999,
 			},
+			Role: fleet.RoleObserver,
 		},
 	}
 
 	params := fleet.UserPayload{
-		Name:       ptr.String("user1"),
-		Email:      ptr.String("email@asd.com"),
-		Password:   ptr.String("pass"),
-		GlobalRole: ptr.String(fleet.RoleObserver),
-		Teams:      &teams,
+		Name:     ptr.String("user1"),
+		Email:    ptr.String("email@asd.com"),
+		Password: ptr.String("pass"),
+		Teams:    &teams,
 	}
 	method := "POST"
 	path := "/api/v1/fleet/users/admin"
@@ -191,7 +165,7 @@ func assertBodyContains(t *testing.T, resp *http.Response, expectedError string)
 }
 
 func testQueryCreationLogsActivity(t *testing.T, ds fleet.Datastore) {
-	_, server := runServerForTestsWithDS(t, ds)
+	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
 	params := fleet.QueryPayload{
@@ -222,7 +196,7 @@ func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, mess
 }
 
 func testAppConfigAdditionalQueriesCanBeRemoved(t *testing.T, ds fleet.Datastore) {
-	_, server := runServerForTestsWithDS(t, ds)
+	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
 	spec := []byte(`
@@ -261,10 +235,50 @@ func getConfig(t *testing.T, server *httptest.Server, token string) *fleet.AppCo
 	return responseBody
 }
 
+func testUserRolesSpec(t *testing.T, ds fleet.Datastore) {
+	_, server := RunServerForTestsWithDS(t, ds)
+	_, err := ds.NewTeam(&fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+	token := getTestAdminToken(t, server)
+
+	user, err := ds.UserByEmail("user1@example.com")
+	require.NoError(t, err)
+	assert.Len(t, user.Teams, 0)
+
+	spec := []byte(`
+  roles:
+    user1@example.com:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: team1
+`)
+
+	var userRoleSpec applyUserRoleSpecsRequest
+	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
+	require.NoError(t, err)
+
+	doReq(t, userRoleSpec, "POST", server, "/api/v1/fleet/users/roles/spec", token, http.StatusOK)
+
+	user, err = ds.UserByEmail("user1@example.com")
+	require.NoError(t, err)
+	require.Len(t, user.Teams, 1)
+	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
+
+	// But users are not deleted
+	users, err := ds.ListUsers(fleet.UserListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, users, 3)
+}
+
 func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
-	_, server := runServerForTestsWithDS(t, ds)
+	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
 	gs := fleet.GlobalSchedulePayload{}
@@ -329,6 +343,7 @@ func TestIntegration(t *testing.T) {
 		testUserWithoutRoleErrors,
 		testUserWithWrongRoleErrors,
 		testAppConfigAdditionalQueriesCanBeRemoved,
+		testUserRolesSpec,
 		testGlobalSchedule,
 	})
 }

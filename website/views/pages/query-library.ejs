@@ -43,35 +43,35 @@
           <div class="d-flex px-0 align-items-center filters">
             <div class="d-flex">
               <div class="dropdown flex-wrap filter purpose">
-                <p class="d-inline-flex mb-0">Show</p>
-                <button class="btn btn-secondary btn-sm dropdown-toggle px-1 py-0" type="button"
+                <p class="d-inline-flex mb-0 pr-1">Show</p>
+                <button class="btn btn-secondary btn-sm dropdown-toggle p-0" type="button"
                   id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   {{selectedPurpose}}
                 </button>
-                <div class="dropdown-menu px-2 py-1" aria-labelledby="dropdownMenuSelectPurpose">
-                  <button class="dropdown-item p-3" type="button" @click="clickSelectPurpose('all queries')">all
+                <div class="dropdown-menu p-2" aria-labelledby="dropdownMenuSelectPurpose">
+                  <button class="dropdown-item" type="button" @click="clickSelectPurpose('all queries')">all
                     queries</button>
-                  <button class="dropdown-item p-3" type="button"
+                  <button class="dropdown-item" type="button"
                     @click="clickSelectPurpose('informational')">informational</button>
-                  <button class="dropdown-item p-3" type="button"
+                  <button class="dropdown-item" type="button"
                     @click="clickSelectPurpose('detection')">detection</button>
                 </div>
               </div>
             </div>
             <div class="d-flex">
               <div class="dropdown d-flex flex-wrap filter platform">
-                <p class="d-inline-flex flex-wrap pl-1 mb-0">compatible with</p>
-                <button class="btn btn-secondary btn-sm dropdown-toggle pl-2 pr-1 py-0" type="button"
+                <p class="d-inline-flex flex-wrap px-2 mb-0">compatible with</p>
+                <button class="btn btn-secondary btn-sm dropdown-toggle p-0" type="button"
                   id="dropdownMenuSelectPlatform" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   {{selectedPlatform}}
                 </button>
-                <div class="dropdown-menu px-2 py-1" aria-labelledby="dropdownMenuSelectPlatform">
-                  <button class="dropdown-item p-3" type="button" @click="clickSelectPlatform('all platforms')">all platforms</button>
-                  <button class="dropdown-item p-3" type="button" @click="clickSelectPlatform('macOS')">macOS</button>
-                  <button class="dropdown-item p-3" type="button"
+                <div class="dropdown-menu p-2" aria-labelledby="dropdownMenuSelectPlatform">
+                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('all platforms')">all platforms</button>
+                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('macOS')">macOS</button>
+                  <button class="dropdown-item" type="button"
                     @click="clickSelectPlatform('Windows')">Windows</button>
-                  <button class="dropdown-item p-3" type="button" @click="clickSelectPlatform('Linux')">Linux</button>
-                  <button class="dropdown-item p-3" type="button"
+                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('Linux')">Linux</button>
+                  <button class="dropdown-item" type="button"
                     @click="clickSelectPlatform('FreeBSD')">FreeBSD</button>
                 </div>
               </div>

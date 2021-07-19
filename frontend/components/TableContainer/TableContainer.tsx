@@ -232,7 +232,7 @@ const TableContainer = ({
       </div>
       <div className={`${baseClass}__data-table-container`}>
         {/* No entities for this result. */}
-        {!isLoading && !data ? (
+        {!isLoading && data.length === 0 ? (
           <EmptyComponent />
         ) : (
           <>

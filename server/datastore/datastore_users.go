@@ -125,6 +125,16 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		assert.Nil(t, err)
 		assert.Equal(t, user.GlobalRole, verify.GlobalRole)
 	}
+	err := ds.SaveUser(&fleet.User{
+		Name:       "some@email.asd",
+		Password:   []byte("asdasd"),
+		Email:      "some@email.asd",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		Teams:      []fleet.UserTeam{{Role: fleet.RoleMaintainer}},
+	})
+	require.IsType(t, &fleet.Error{}, err)
+	flErr := err.(*fleet.Error)
+	assert.Equal(t, "Cannot specify both Global Role and Team Roles", flErr.Message)
 }
 
 func testListUsers(t *testing.T, ds fleet.Datastore) {
@@ -170,9 +180,10 @@ func testUserTeams(t *testing.T, ds fleet.Datastore) {
 	users[0].Teams = []fleet.UserTeam{
 		{
 			Team: fleet.Team{ID: 3},
-			Role: "foobar",
+			Role: fleet.RoleObserver,
 		},
 	}
+	users[0].GlobalRole = nil
 	err = ds.SaveUser(users[0])
 	require.NoError(t, err)
 
@@ -189,17 +200,18 @@ func testUserTeams(t *testing.T, ds fleet.Datastore) {
 	users[1].Teams = []fleet.UserTeam{
 		{
 			Team: fleet.Team{ID: 1},
-			Role: "foobar",
+			Role: fleet.RoleObserver,
 		},
 		{
 			Team: fleet.Team{ID: 2},
-			Role: "foobar",
+			Role: fleet.RoleObserver,
 		},
 		{
 			Team: fleet.Team{ID: 3},
-			Role: "foobar",
+			Role: fleet.RoleObserver,
 		},
 	}
+	users[1].GlobalRole = nil
 	err = ds.SaveUser(users[1])
 	require.NoError(t, err)
 
@@ -215,6 +227,7 @@ func testUserTeams(t *testing.T, ds fleet.Datastore) {
 
 	// Clear teams
 	users[1].Teams = []fleet.UserTeam{}
+	users[1].GlobalRole = ptr.String(fleet.RoleObserver)
 	err = ds.SaveUser(users[1])
 	require.NoError(t, err)
 

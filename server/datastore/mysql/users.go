@@ -18,7 +18,8 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 		return nil, err
 	}
 
-	sqlStatement := `
+	err := d.withTx(func(tx *sqlx.Tx) error {
+		sqlStatement := `
       INSERT INTO users (
       	password,
       	salt,
@@ -32,25 +33,30 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 		global_role
       ) VALUES (?,?,?,?,?,?,?,?,?,?)
       `
-	result, err := d.db.Exec(sqlStatement,
-		user.Password,
-		user.Salt,
-		user.Name,
-		user.Email,
-		user.AdminForcedPasswordReset,
-		user.GravatarURL,
-		user.Position,
-		user.SSOEnabled,
-		user.APIOnly,
-		user.GlobalRole)
+		result, err := d.db.Exec(sqlStatement,
+			user.Password,
+			user.Salt,
+			user.Name,
+			user.Email,
+			user.AdminForcedPasswordReset,
+			user.GravatarURL,
+			user.Position,
+			user.SSOEnabled,
+			user.APIOnly,
+			user.GlobalRole)
+		if err != nil {
+			return errors.Wrap(err, "create new user")
+		}
+
+		id, _ := result.LastInsertId()
+		user.ID = uint(id)
+
+		if err := d.saveTeamsForUser(tx, user); err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, errors.Wrap(err, "create new user")
-	}
-
-	id, _ := result.LastInsertId()
-	user.ID = uint(id)
-
-	if err := d.saveTeamsForUser(user); err != nil {
 		return nil, err
 	}
 
@@ -119,10 +125,27 @@ func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
 }
 
 func (d *Datastore) SaveUser(user *fleet.User) error {
+	return d.withTx(func(tx *sqlx.Tx) error {
+		return d.saveUser(tx, user)
+	})
+}
+
+func (d *Datastore) SaveUsers(users []*fleet.User) error {
+	return d.withTx(func(tx *sqlx.Tx) error {
+		for _, user := range users {
+			err := d.saveUser(tx, user)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (d *Datastore) saveUser(tx *sqlx.Tx, user *fleet.User) error {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return err
 	}
-
 	sqlStatement := `
       UPDATE users SET
       	password = ?,
@@ -161,7 +184,7 @@ func (d *Datastore) SaveUser(user *fleet.User) error {
 	}
 
 	// REVIEW: Check if teams have been set?
-	if err := d.saveTeamsForUser(user); err != nil {
+	if err := d.saveTeamsForUser(tx, user); err != nil {
 		return err
 	}
 
@@ -211,37 +234,33 @@ func (d *Datastore) loadTeamsForUsers(users []*fleet.User) error {
 	return nil
 }
 
-func (d *Datastore) saveTeamsForUser(user *fleet.User) error {
+func (d *Datastore) saveTeamsForUser(tx *sqlx.Tx, user *fleet.User) error {
 	// Do a full teams update by deleting existing teams and then inserting all
 	// the current teams in a single transaction.
-	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		// Delete before insert
-		sql := `DELETE FROM user_teams WHERE user_id = ?`
-		if _, err := tx.Exec(sql, user.ID); err != nil {
-			return errors.Wrap(err, "delete existing teams")
-		}
 
-		if len(user.Teams) == 0 {
-			return nil
-		}
-
-		// Bulk insert
-		const valueStr = "(?,?,?),"
-		var args []interface{}
-		for _, userTeam := range user.Teams {
-			args = append(args, user.ID, userTeam.Team.ID, userTeam.Role)
-		}
-		sql = "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
-			strings.Repeat(valueStr, len(user.Teams))
-		sql = strings.TrimSuffix(sql, ",")
-		if _, err := tx.Exec(sql, args...); err != nil {
-			return errors.Wrap(err, "insert teams")
-		}
-
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "save teams for user")
+	// Delete before insert
+	sql := `DELETE FROM user_teams WHERE user_id = ?`
+	if _, err := tx.Exec(sql, user.ID); err != nil {
+		return errors.Wrap(err, "delete existing teams")
 	}
+
+	if len(user.Teams) == 0 {
+		return nil
+	}
+
+	// Bulk insert
+	const valueStr = "(?,?,?),"
+	var args []interface{}
+	for _, userTeam := range user.Teams {
+		args = append(args, user.ID, userTeam.Team.ID, userTeam.Role)
+	}
+	sql = "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
+		strings.Repeat(valueStr, len(user.Teams))
+	sql = strings.TrimSuffix(sql, ",")
+	if _, err := tx.Exec(sql, args...); err != nil {
+		return errors.Wrap(err, "insert teams")
+	}
+
 	return nil
 }
 

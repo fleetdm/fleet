@@ -1,6 +1,10 @@
 package service
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -9,7 +13,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/transport"
+	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore) fleet.Service {
@@ -104,4 +112,32 @@ type mockMailService struct {
 func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	svc.Invoked = true
 	return svc.SendEmailFn(e)
+}
+
+func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore) (map[string]fleet.User, *httptest.Server) {
+	svc := newTestService(ds, nil, nil)
+	users := createTestUsers(t, ds)
+	logger := kitlog.NewLogfmtLogger(os.Stdout)
+
+	opts := []kithttp.ServerOption{
+		kithttp.ServerBefore(
+			setRequestsContexts(svc),
+		),
+		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
+		kithttp.ServerAfter(
+			kithttp.SetContentType("application/json; charset=utf-8"),
+		),
+	}
+	r := mux.NewRouter()
+	limitStore, _ := memstore.New(0)
+	ke := MakeFleetServerEndpoints(svc, "", limitStore)
+	kh := makeKitHandlers(ke, opts)
+	attachFleetAPIRoutes(r, kh)
+	attachNewStyleFleetAPIRoutes(r, svc, opts)
+	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "index")
+	}))
+
+	server := httptest.NewServer(r)
+	return users, server
 }

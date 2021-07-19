@@ -158,6 +158,10 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 		return nil
 	}
 
+	if len(teamUsers) > 0 {
+		return NewError(ErrNoRoleNeeded, "Cannot specify both Global Role and Team Roles")
+	}
+
 	if !ValidGlobalRole(*globalRole) {
 		return NewError(ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
 	}
