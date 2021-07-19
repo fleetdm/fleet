@@ -57,8 +57,8 @@ func TestShouldSendStatistics(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Lower the frequency to 1 second
-	stats, shouldSend, err = ds.ShouldSendStatistics(time.Second)
+	// Lower the frequency to trigger an "outdated" sent
+	stats, shouldSend, err = ds.ShouldSendStatistics(time.Millisecond)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
