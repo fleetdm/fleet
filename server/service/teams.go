@@ -40,7 +40,7 @@ func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) error {
-	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 

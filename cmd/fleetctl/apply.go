@@ -197,18 +197,18 @@ func applyCommand() *cli.Command {
 				log(c, "[+] applied enroll secrets\n")
 			}
 
-			if specs.UsersRoles != nil {
-				if err := fleetClient.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
-					return errors.Wrap(err, "applying user roles")
-				}
-				log(c, "[+] applied user roles\n")
-			}
-
 			if len(specs.Teams) > 0 {
 				if err := fleetClient.ApplyTeams(specs.Teams); err != nil {
 					return errors.Wrap(err, "applying queries")
 				}
 				logf(c, "[+] applied %d teams\n", len(specs.Teams))
+			}
+
+			if specs.UsersRoles != nil {
+				if err := fleetClient.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
+					return errors.Wrap(err, "applying user roles")
+				}
+				log(c, "[+] applied user roles\n")
 			}
 
 			return nil
