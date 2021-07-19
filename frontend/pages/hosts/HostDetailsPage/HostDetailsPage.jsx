@@ -423,6 +423,7 @@ export class HostDetailsPage extends Component {
                       defaultSortDirection={"asc"}
                       showMarkAllPages={false}
                       disablePagination
+                      disableCount
                     />
                   )}
                 </>
