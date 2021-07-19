@@ -18,7 +18,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testDoubleUserCreationErrors(t *testing.T, ds fleet.Datastore) {
+func TestDoubleUserCreationErrors(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
@@ -48,7 +51,10 @@ func testDoubleUserCreationErrors(t *testing.T, ds fleet.Datastore) {
 	assertBodyContains(t, resp, `Error 1062: Duplicate entry 'email@asd.com'`)
 }
 
-func testUserWithoutRoleErrors(t *testing.T, ds fleet.Datastore) {
+func TestUserWithoutRoleErrors(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
@@ -70,7 +76,10 @@ func testUserWithoutRoleErrors(t *testing.T, ds fleet.Datastore) {
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
 }
 
-func testUserWithWrongRoleErrors(t *testing.T, ds fleet.Datastore) {
+func TestUserWithWrongRoleErrors(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
@@ -93,7 +102,10 @@ func testUserWithWrongRoleErrors(t *testing.T, ds fleet.Datastore) {
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
 }
 
-func testUserCreationWrongTeamErrors(t *testing.T, ds fleet.Datastore) {
+func TestUserCreationWrongTeamErrors(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
@@ -164,7 +176,10 @@ func assertBodyContains(t *testing.T, resp *http.Response, expectedError string)
 	assert.Contains(t, bodyString, expectedError)
 }
 
-func testQueryCreationLogsActivity(t *testing.T, ds fleet.Datastore) {
+func TestQueryCreationLogsActivity(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
@@ -195,7 +210,10 @@ func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, mess
 	assert.Equal(t, message, err.Message)
 }
 
-func testAppConfigAdditionalQueriesCanBeRemoved(t *testing.T, ds fleet.Datastore) {
+func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
 
@@ -235,7 +253,10 @@ func getConfig(t *testing.T, server *httptest.Server, token string) *fleet.AppCo
 	return responseBody
 }
 
-func testUserRolesSpec(t *testing.T, ds fleet.Datastore) {
+func TestUserRolesSpec(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, server := RunServerForTestsWithDS(t, ds)
 	_, err := ds.NewTeam(&fleet.Team{
 		ID:          42,
@@ -275,7 +296,10 @@ func testUserRolesSpec(t *testing.T, ds fleet.Datastore) {
 	assert.Len(t, users, 3)
 }
 
-func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
+func TestGlobalSchedule(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 
 	_, server := RunServerForTestsWithDS(t, ds)
@@ -335,17 +359,61 @@ func testGlobalSchedule(t *testing.T, ds fleet.Datastore) {
 	require.Len(t, gs.GlobalSchedule, 0)
 }
 
-func TestIntegration(t *testing.T) {
-	mysql.RunTestsAgainstMySQL(t, []func(t *testing.T, ds fleet.Datastore){
-		testDoubleUserCreationErrors,
-		testUserCreationWrongTeamErrors,
-		testQueryCreationLogsActivity,
-		testUserWithoutRoleErrors,
-		testUserWithWrongRoleErrors,
-		testAppConfigAdditionalQueriesCanBeRemoved,
-		testUserRolesSpec,
-		testGlobalSchedule,
+func TestTeamSpecs(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	_, err := ds.NewTeam(&fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
 	})
+	require.NoError(t, err)
+	token := getTestAdminToken(t, server)
+
+	// updates a team
+	agentOpts := json.RawMessage(`{"config": {"foo": "bar"}, "overrides": {"platforms": {"darwin": {"foo": "override"}}}}`)
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team1", AgentOptions: &agentOpts}}}
+	doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
+
+	team, err := ds.TeamByName("team1")
+	require.NoError(t, err)
+
+	assert.Len(t, team.Secrets, 0)
+	assert.Equal(t, &agentOpts, team.AgentOptions)
+
+	// creates a team with default agent options
+	user, err := ds.UserByEmail("admin1@example.com")
+	require.NoError(t, err)
+
+	teams, err := ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, teams, 1)
+
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2"}}}
+	doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
+
+	teams, err = ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, teams, 2)
+
+	team, err = ds.TeamByName("team2")
+	require.NoError(t, err)
+
+	defaultOpts := json.RawMessage("{\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}")
+	assert.Len(t, team.Secrets, 0)
+	assert.Equal(t, &defaultOpts, team.AgentOptions)
+
+	// updates secrets
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
+	doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
+
+	team, err = ds.TeamByName("team2")
+	require.NoError(t, err)
+
+	require.Len(t, team.Secrets, 1)
+	assert.Equal(t, "ABC", team.Secrets[0].Secret)
 }
 
 func TestTranslator(t *testing.T) {

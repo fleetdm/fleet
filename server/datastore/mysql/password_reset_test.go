@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"testing"
@@ -8,7 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func testPasswordResetRequests(t *testing.T, db fleet.Datastore) {
+func TestPasswordResetRequests(t *testing.T) {
+	db := CreateMySQLDS(t)
+	defer db.Close()
+
 	createTestUsers(t, db)
 	now := time.Now().UTC()
 	tomorrow := now.Add(time.Hour * 24)

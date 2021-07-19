@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"sort"
@@ -12,7 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testTeamGetSetDelete(t *testing.T, ds fleet.Datastore) {
+func TestTeamGetSetDelete(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	var createTests = []struct {
 		name, description string
 	}{
@@ -48,7 +51,10 @@ func testTeamGetSetDelete(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testTeamUsers(t *testing.T, ds fleet.Datastore) {
+func TestTeamUsers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	users := createTestUsers(t, ds)
 	user1 := fleet.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID}
 	user2 := fleet.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID}
@@ -104,7 +110,10 @@ func testTeamUsers(t *testing.T, ds fleet.Datastore) {
 	assert.ElementsMatch(t, team2Users, team2.Users)
 }
 
-func testTeamListTeams(t *testing.T, ds fleet.Datastore) {
+func TestTeamListTeams(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	users := createTestUsers(t, ds)
 	user1 := fleet.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID, GlobalRole: ptr.String(fleet.RoleAdmin)}
 	user2 := fleet.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID, GlobalRole: ptr.String(fleet.RoleObserver)}
@@ -158,7 +167,10 @@ func testTeamListTeams(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, 1, teams[1].UserCount)
 }
 
-func testTeamSearchTeams(t *testing.T, ds fleet.Datastore) {
+func TestTeamSearchTeams(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})

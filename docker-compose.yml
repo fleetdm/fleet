@@ -21,10 +21,12 @@ services:
     platform: linux/x86_64
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: mysqld --datadir=/tmpfs --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON --innodb-file-per-table=OFF
-    tmpfs: /tmpfs
     environment: *mysql-default-environment
     ports:
       - "3307:3306"
+    tmpfs:
+      - /var/lib/mysql:rw,noexec,nosuid
+      - /tmpfs
 
   mailhog:
     image: mailhog/mailhog:latest

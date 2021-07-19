@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"testing"
@@ -11,7 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testDeletePack(t *testing.T, ds fleet.Datastore) {
+func TestDeletePack(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	pack := test.NewPack(t, ds, "foo")
 	assert.NotEqual(t, uint(0), pack.ID)
 
@@ -26,7 +29,10 @@ func testDeletePack(t *testing.T, ds fleet.Datastore) {
 	assert.NotNil(t, err)
 }
 
-func testSavePack(t *testing.T, ds fleet.Datastore) {
+func TestSavePack(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	expectedPack := &fleet.Pack{
 		Name:     "foo",
 		HostIDs:  []uint{1},
@@ -60,7 +66,10 @@ func testSavePack(t *testing.T, ds fleet.Datastore) {
 	test.EqualSkipTimestampsID(t, expectedPack, pack)
 }
 
-func testGetPackByName(t *testing.T, ds fleet.Datastore) {
+func TestGetPackByName(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	pack := test.NewPack(t, ds, "foo")
 	assert.NotEqual(t, uint(0), pack.ID)
 
@@ -77,7 +86,10 @@ func testGetPackByName(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testListPacks(t *testing.T, ds fleet.Datastore) {
+func TestListPacks(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	p1 := &fleet.PackSpec{
 		ID:   1,
 		Name: "foo_pack",
@@ -207,7 +219,10 @@ func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 	return expectedSpecs
 }
 
-func testApplyPackSpecRoundtrip(t *testing.T, ds fleet.Datastore) {
+func TestApplyPackSpecRoundtrip(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	expectedSpecs := setupPackSpecsTest(t, ds)
 
 	gotSpec, err := ds.GetPackSpecs()
@@ -215,7 +230,10 @@ func testApplyPackSpecRoundtrip(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, expectedSpecs, gotSpec)
 }
 
-func testGetPackSpec(t *testing.T, ds fleet.Datastore) {
+func TestGetPackSpec(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	expectedSpecs := setupPackSpecsTest(t, ds)
 
 	for _, s := range expectedSpecs {
@@ -225,7 +243,10 @@ func testGetPackSpec(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testApplyPackSpecMissingQueries(t *testing.T, ds fleet.Datastore) {
+func TestApplyPackSpecMissingQueries(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	// Do not define queries mentioned in spec
 	specs := []*fleet.PackSpec{
 		{
@@ -250,7 +271,10 @@ func testApplyPackSpecMissingQueries(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testApplyPackSpecMissingName(t *testing.T, ds fleet.Datastore) {
+func TestApplyPackSpecMissingName(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	setupPackSpecsTest(t, ds)
 
 	specs := []*fleet.PackSpec{
@@ -276,7 +300,10 @@ func testApplyPackSpecMissingName(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, "foo", spec.Queries[0].Name)
 }
 
-func testListPacksForHost(t *testing.T, ds fleet.Datastore) {
+func TestListPacksForHost(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	if ds.Name() == "inmem" {
 		t.Skip("inmem is deprecated")
 	}
@@ -384,7 +411,10 @@ func testListPacksForHost(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testEnsureGlobalPack(t *testing.T, ds fleet.Datastore) {
+func TestEnsureGlobalPack(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 
 	packs, err := ds.ListPacks(fleet.ListOptions{})

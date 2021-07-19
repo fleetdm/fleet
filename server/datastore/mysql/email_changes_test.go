@@ -1,15 +1,19 @@
-package datastore
+package mysql
 
 import (
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testChangeEmail(t *testing.T, ds fleet.Datastore) {
+func TestChangeEmail(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	if ds.Name() == "inmem" {
 		t.Skip("inmem is being deprecated, test skipped")
 	}

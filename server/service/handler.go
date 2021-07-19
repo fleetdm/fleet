@@ -669,6 +669,7 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
 	handle("POST", "/api/v1/fleet/users/roles/spec", makeApplyUserRoleSpecsEndpoint(svc, opts), "apply_user_roles_spec", r)
 	handle("POST", "/api/v1/fleet/translate", makeTranslatorEndpoint(svc, opts), "translator", r)
+	handle("POST", "/api/v1/fleet/spec/teams", makeApplyTeamSpecsEndpoint(svc, opts), "apply_team_specs", r)
 }
 
 func handle(verb, path string, handler http.Handler, name string, r *mux.Router) {

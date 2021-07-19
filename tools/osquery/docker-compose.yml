@@ -14,10 +14,12 @@ x-default-settings:
       soft:  1000000000
   extra_hosts: &extra-hosts
     - "host.docker.internal:host-gateway"
+  platform: &default-platform linux/x86_64
 
 services:
-  ubuntu16-osquery:
-    image: "dactiv/osquery:4.5.1-ubuntu16.04"
+  ubuntu20-osquery:
+    image: "osquery/osquery:4.9.0-ubuntu20.04"
+    platform: *default-platform
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
@@ -25,31 +27,17 @@ services:
     extra_hosts: *extra-hosts
 
   ubuntu18-osquery:
-    image: "dactiv/osquery:4.5.1-ubuntu18.04"
+    image: "osquery/osquery:4.9.0-ubuntu18.04"
+    platform: *default-platform
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
     extra_hosts: *extra-hosts
 
-  ubuntu20-osquery:
-    image: "dactiv/osquery:4.5.1-ubuntu20.04"
-    volumes: *default-volumes
-    environment: *default-environment
-    command: *default-command
-    ulimits: *default-ulimits
-    extra_hosts: *extra-hosts
-
-  centos6-osquery:
-    image: "dactiv/osquery:4.5.1-centos6"
-    volumes: *default-volumes
-    environment: *default-environment
-    command: *default-command
-    ulimits: *default-ulimits
-    extra_hosts: *extra-hosts
-
-  centos7-osquery:
-    image: "dactiv/osquery:4.5.1-centos7"
+  ubuntu16-osquery:
+    image: "osquery/osquery:4.9.0-ubuntu16.04"
+    platform: *default-platform
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
@@ -57,7 +45,44 @@ services:
     extra_hosts: *extra-hosts
 
   centos8-osquery:
-    image: "dactiv/osquery:4.5.1-centos8"
+    image: "osquery/osquery:4.9.0-centos8"
+    platform: *default-platform
+    volumes: *default-volumes
+    environment: *default-environment
+    command: *default-command
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
+
+  centos7-osquery:
+    image: "osquery/osquery:4.9.0-centos7"
+    platform: *default-platform
+    volumes: *default-volumes
+    environment: *default-environment
+    command: *default-command
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
+
+  centos6-osquery:
+    image: "osquery/osquery:4.9.0-centos6"
+    platform: *default-platform
+    volumes: *default-volumes
+    environment: *default-environment
+    command: *default-command
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
+
+  debian10-osquery:
+    image: "osquery/osquery:4.9.0-debian10"
+    platform: *default-platform
+    volumes: *default-volumes
+    environment: *default-environment
+    command: *default-command
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
+
+  debian9-osquery:
+    image: "osquery/osquery:4.9.0-debian9"
+    platform: *default-platform
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
