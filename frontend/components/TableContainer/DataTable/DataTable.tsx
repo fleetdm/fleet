@@ -26,20 +26,6 @@ interface IDataTableProps {
 
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
-<<<<<<< HEAD:frontend/components/TableContainer/DataTable/DataTable.jsx
-const DataTable = (props) => {
-  const {
-    columns: tableColumns,
-    data: tableData,
-    isLoading,
-    sortHeader,
-    sortDirection,
-    onSort,
-    onSelectActionClick,
-    selectActionButtonText,
-  } = props;
-
-=======
 const DataTable = ({
   columns: tableColumns,
   data: tableData,
@@ -55,7 +41,6 @@ const DataTable = ({
   defaultPageSize,
   selectActionButtonText,
 }: IDataTableProps) => {
->>>>>>> main:frontend/components/TableContainer/DataTable/DataTable.tsx
   const columns = useMemo(() => {
     return tableColumns;
   }, [tableColumns]);
@@ -135,12 +120,10 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
 
-<<<<<<< HEAD:frontend/components/TableContainer/DataTable/DataTable.jsx
   const generateButtonText = (selectActionButtonText = "Transfer to team") => {
     return selectActionButtonText;
   };
 
-=======
   const renderSelectedText = (): JSX.Element => {
     if (isAllPagesSelected) {
       return <p>All matching {resultsTitle} are selected</p>;
@@ -157,15 +140,10 @@ const DataTable = ({
     );
   };
 
-  const generateButtonText = (text = "Transfer to team") => {
-    return text;
-  };
-
   const shouldRenderToggleAllPages =
     Object.keys(selectedRowIds).length >= defaultPageSize &&
     showMarkAllPages &&
     !isAllPagesSelected;
->>>>>>> main:frontend/components/TableContainer/DataTable/DataTable.tsx
   return (
     <div className={baseClass}>
       <div className={"data-table data-table__wrapper"}>
@@ -187,20 +165,6 @@ const DataTable = ({
                 </th>
                 <th className={"active-selection__container"}>
                   <div className={"active-selection__inner"}>
-<<<<<<< HEAD:frontend/components/TableContainer/DataTable/DataTable.jsx
-                    <p>
-                      <span>{selectedFlatRows.length}</span> selected
-                    </p>
-                    <Button
-                      onClick={onClearSelectionClick}
-                      variant={"text-link"}
-                    >
-                      Clear selection
-                    </Button>
-                    <Button onClick={onSelectActionButtonClick}>
-                      {generateButtonText(selectActionButtonText)}
-                    </Button>
-=======
                     <div className={"active-selection__inner-left"}>
                       {renderSelectedText()}
                       {shouldRenderToggleAllPages && (
@@ -224,7 +188,6 @@ const DataTable = ({
                         {generateButtonText(selectActionButtonText)}
                       </Button>
                     </div>
->>>>>>> main:frontend/components/TableContainer/DataTable/DataTable.tsx
                   </div>
                 </th>
               </tr>
