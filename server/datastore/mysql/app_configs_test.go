@@ -1,17 +1,21 @@
-package datastore
+package mysql
 
 import (
 	"encoding/json"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"sort"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testOrgInfo(t *testing.T, ds fleet.Datastore) {
+func TestOrgInfo(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	info := &fleet.AppConfig{
 		OrgName:    "Test",
 		OrgLogoURL: "localhost:8080/logo.png",
@@ -79,7 +83,10 @@ func testOrgInfo(t *testing.T, ds fleet.Datastore) {
 	assert.False(t, verify.SSOEnabled)
 }
 
-func testAdditionalQueries(t *testing.T, ds fleet.Datastore) {
+func TestAdditionalQueries(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	additional := json.RawMessage("not valid json")
 	info := &fleet.AppConfig{
 		OrgName:           "Test",
@@ -100,7 +107,10 @@ func testAdditionalQueries(t *testing.T, ds fleet.Datastore) {
 	assert.JSONEq(t, `{"foo":"bar"}`, string(*info.AdditionalQueries))
 }
 
-func testEnrollSecrets(t *testing.T, ds fleet.Datastore) {
+func TestEnrollSecrets(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
@@ -152,7 +162,10 @@ func testEnrollSecrets(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, (*uint)(nil), secret.TeamID)
 }
 
-func testEnrollSecretsCaseSensitive(t *testing.T, ds fleet.Datastore) {
+func TestEnrollSecretsCaseSensitive(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	err := ds.ApplyEnrollSecrets(
 		nil,
 		[]*fleet.EnrollSecret{
@@ -167,7 +180,10 @@ func testEnrollSecretsCaseSensitive(t *testing.T, ds fleet.Datastore) {
 	assert.Error(t, err, "enroll secret with different case should not verify")
 }
 
-func testEnrollSecretRoundtrip(t *testing.T, ds fleet.Datastore) {
+func TestEnrollSecretRoundtrip(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
@@ -206,7 +222,10 @@ func testEnrollSecretRoundtrip(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testEnrollSecretUniqueness(t *testing.T, ds fleet.Datastore) {
+func TestEnrollSecretUniqueness(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 

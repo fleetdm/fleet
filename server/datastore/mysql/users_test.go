@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"fmt"
@@ -11,7 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testCreateUser(t *testing.T, ds fleet.Datastore) {
+func TestCreateUser(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	var createTests = []struct {
 		password, email             string
 		isAdmin, passwordReset, sso bool
@@ -41,7 +44,10 @@ func testCreateUser(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testUserByID(t *testing.T, ds fleet.Datastore) {
+func TestUserByID(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	users := createTestUsers(t, ds)
 	for _, tt := range users {
 		returned, err := ds.UserByID(tt.ID)
@@ -82,7 +88,10 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	return users
 }
 
-func testSaveUser(t *testing.T, ds fleet.Datastore) {
+func TestSaveUser(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	users := createTestUsers(t, ds)
 	testUserGlobalRole(t, ds, users)
 	testEmailAttribute(t, ds, users)
@@ -137,7 +146,10 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	assert.Equal(t, "Cannot specify both Global Role and Team Roles", flErr.Message)
 }
 
-func testListUsers(t *testing.T, ds fleet.Datastore) {
+func TestListUsers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	createTestUsers(t, ds)
 
 	users, err := ds.ListUsers(fleet.UserListOptions{})
@@ -155,7 +167,10 @@ func testListUsers(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, "mike@fleet.co", users[0].Email)
 }
 
-func testUserTeams(t *testing.T, ds fleet.Datastore) {
+func TestUserTeams(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewTeam(&fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
@@ -242,7 +257,10 @@ func testUserTeams(t *testing.T, ds fleet.Datastore) {
 	assert.Len(t, users[1].Teams, 0)
 }
 
-func testUserCreateWithTeams(t *testing.T, ds fleet.Datastore) {
+func TestUserCreateWithTeams(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewTeam(&fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)

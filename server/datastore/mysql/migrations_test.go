@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"testing"
@@ -8,7 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testMigrationStatus(t *testing.T, ds fleet.Datastore) {
+func TestMigrationStatus(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	if ds.Name() == "inmem" {
 		t.Skip("inmem is being deprecated, test skipped")
 	}

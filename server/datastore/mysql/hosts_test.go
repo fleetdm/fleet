@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"encoding/json"
@@ -42,7 +42,10 @@ var enrollTests = []struct {
 	},
 }
 
-func testSaveHosts(t *testing.T, ds fleet.Datastore) {
+func TestSaveHosts(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -93,7 +96,10 @@ func testSaveHosts(t *testing.T, ds fleet.Datastore) {
 	assert.Nil(t, host)
 }
 
-func testSaveHostPackStats(t *testing.T, ds fleet.Datastore) {
+func TestSaveHostPackStats(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -212,7 +218,10 @@ func testSaveHostPackStats(t *testing.T, ds fleet.Datastore) {
 	require.Len(t, host.PackStats, 0)
 }
 
-func testDeleteHost(t *testing.T, ds fleet.Datastore) {
+func TestDeleteHost(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -284,7 +293,10 @@ func testListHosts(t *testing.T, ds fleet.Datastore) {
 	require.Equal(t, hosts[0].ID, hosts2[0].ID)
 }
 
-func testListHostsFilterAdditional(t *testing.T, ds fleet.Datastore) {
+func TestListHostsFilterAdditional(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	h, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -321,7 +333,10 @@ func testListHostsFilterAdditional(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, &additional, hosts[0].Additional)
 }
 
-func testListHostsStatus(t *testing.T, ds fleet.Datastore) {
+func TestListHostsStatus(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(&fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -357,7 +372,10 @@ func testListHostsStatus(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, 10, len(hosts))
 }
 
-func testListHostsQuery(t *testing.T, ds fleet.Datastore) {
+func TestListHostsQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	hosts := []*fleet.Host{}
 	for i := 0; i < 10; i++ {
 		host, err := ds.NewHost(&fleet.Host{
@@ -423,7 +441,10 @@ func testListHostsQuery(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, 1, len(gotHosts))
 }
 
-func testEnrollHost(t *testing.T, ds fleet.Datastore) {
+func TestEnrollHost(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 
 	team, err := ds.NewTeam(&fleet.Team{Name: "team1"})
@@ -460,7 +481,10 @@ func testEnrollHost(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testAuthenticateHost(t *testing.T, ds fleet.Datastore) {
+func TestAuthenticateHost(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, nil, 0)
@@ -478,7 +502,10 @@ func testAuthenticateHost(t *testing.T, ds fleet.Datastore) {
 	assert.Error(t, err)
 }
 
-func testAuthenticateHostCaseSensitive(t *testing.T, ds fleet.Datastore) {
+func TestAuthenticateHostCaseSensitive(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, nil, 0)
@@ -489,7 +516,10 @@ func testAuthenticateHostCaseSensitive(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testSearchHosts(t *testing.T, ds fleet.Datastore) {
+func TestSearchHosts(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, err := ds.NewHost(&fleet.Host{
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
@@ -578,7 +608,10 @@ func testSearchHosts(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, 1, len(hits))
 }
 
-func testSearchHostsLimit(t *testing.T, ds fleet.Datastore) {
+func TestSearchHostsLimit(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	for i := 0; i < 15; i++ {
@@ -599,7 +632,10 @@ func testSearchHostsLimit(t *testing.T, ds fleet.Datastore) {
 	assert.Len(t, hosts, 10)
 }
 
-func testGenerateHostStatusStatistics(t *testing.T, ds fleet.Datastore) {
+func TestGenerateHostStatusStatistics(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	mockClock := clock.NewMockClock()
 
@@ -678,7 +714,10 @@ func testGenerateHostStatusStatistics(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, uint(4), new)
 }
 
-func testMarkHostSeen(t *testing.T, ds fleet.Datastore) {
+func TestMarkHostSeen(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	mockClock := clock.NewMockClock()
 
 	anHourAgo := mockClock.Now().Add(-1 * time.Hour).UTC()
@@ -713,7 +752,10 @@ func testMarkHostSeen(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testMarkHostsSeen(t *testing.T, ds fleet.Datastore) {
+func TestMarkHostsSeen(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	mockClock := clock.NewMockClock()
 
 	aSecondAgo := mockClock.Now().Add(-1 * time.Second).UTC()
@@ -774,7 +816,10 @@ func testMarkHostsSeen(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testCleanupIncomingHosts(t *testing.T, ds fleet.Datastore) {
+func TestCleanupIncomingHosts(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	mockClock := clock.NewMockClock()
 
 	h1, err := ds.NewHost(&fleet.Host{
@@ -820,7 +865,10 @@ func testCleanupIncomingHosts(t *testing.T, ds fleet.Datastore) {
 	assert.Nil(t, err)
 }
 
-func testHostIDsByName(t *testing.T, ds fleet.Datastore) {
+func TestHostIDsByName(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(&fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -841,7 +889,10 @@ func testHostIDsByName(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, hosts, []uint{2, 3, 6})
 }
 
-func testHostAdditional(t *testing.T, ds fleet.Datastore) {
+func TestHostAdditional(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -912,7 +963,10 @@ func testHostAdditional(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, &additional, h.Additional)
 }
 
-func testHostByIdentifier(t *testing.T, ds fleet.Datastore) {
+func TestHostByIdentifier(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 1; i <= 10; i++ {
 		_, err := ds.NewHost(&fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -950,7 +1004,10 @@ func testHostByIdentifier(t *testing.T, ds fleet.Datastore) {
 	require.Error(t, err)
 }
 
-func testAddHostsToTeam(t *testing.T, ds fleet.Datastore) {
+func TestAddHostsToTeam(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
@@ -997,7 +1054,10 @@ func testAddHostsToTeam(t *testing.T, ds fleet.Datastore) {
 	}
 }
 
-func testSaveUsers(t *testing.T, ds fleet.Datastore) {
+func TestSaveUsers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),

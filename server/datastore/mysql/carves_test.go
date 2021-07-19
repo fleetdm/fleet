@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"crypto/rand"
@@ -13,7 +13,10 @@ import (
 
 var mockCreatedAt time.Time = time.Now().UTC().Truncate(time.Second)
 
-func testCarveMetadata(t *testing.T, ds fleet.Datastore) {
+func TestCarveMetadata(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	expectedCarve := &fleet.CarveMetadata{
@@ -71,7 +74,10 @@ func testCarveMetadata(t *testing.T, ds fleet.Datastore) {
 	assert.Equal(t, expectedCarve, carve)
 }
 
-func testCarveBlocks(t *testing.T, ds fleet.Datastore) {
+func TestCarveBlocks(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	blockCount := int64(25)
@@ -112,7 +118,10 @@ func testCarveBlocks(t *testing.T, ds fleet.Datastore) {
 
 }
 
-func testCarveCleanupCarves(t *testing.T, ds fleet.Datastore) {
+func TestCarveCleanupCarves(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	blockCount := int64(25)
@@ -164,7 +173,10 @@ func testCarveCleanupCarves(t *testing.T, ds fleet.Datastore) {
 	assert.True(t, carve.Expired)
 }
 
-func testCarveListCarves(t *testing.T, ds fleet.Datastore) {
+func TestCarveListCarves(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	expectedCarve := &fleet.CarveMetadata{
@@ -222,7 +234,10 @@ func testCarveListCarves(t *testing.T, ds fleet.Datastore) {
 	assert.Len(t, carves, 2)
 }
 
-func testCarveUpdateCarve(t *testing.T, ds fleet.Datastore) {
+func TestCarveUpdateCarve(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	actualCount := int64(10)

@@ -1,4 +1,4 @@
-package datastore
+package mysql
 
 import (
 	"testing"
@@ -10,7 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testSaveHostSoftware(t *testing.T, ds fleet.Datastore) {
+func TestSaveHostSoftware(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
