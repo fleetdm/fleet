@@ -1,5 +1,7 @@
 package fleet
 
+import "time"
+
 type StatisticsPayload struct {
 	AnonymousIdentifier string `json:"anonymousIdentifier"`
 	FleetVersion        string `json:"fleetVersion"`
@@ -7,6 +9,6 @@ type StatisticsPayload struct {
 }
 
 type StatisticsStore interface {
-	ShouldSendStatistics() (StatisticsPayload, bool, error)
+	ShouldSendStatistics(frequency time.Duration) (StatisticsPayload, bool, error)
 	RecordStatisticsSent() error
 }

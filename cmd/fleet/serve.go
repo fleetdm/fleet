@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -396,8 +398,35 @@ const (
 	LockKeyLeader = "leader"
 )
 
-func maybeSendStatistics(ds fleet.Datastore) {
+func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) error {
+	ac, err := ds.AppConfig()
+	if err != nil {
+		return err
+	}
+	if !ac.EnableAnalytics {
+		return nil
+	}
 
+	stats, shouldSend, err := ds.ShouldSendStatistics(frequency)
+	if err != nil {
+		return err
+	}
+	if !shouldSend {
+		return nil
+	}
+
+	statsBytes, err := json.Marshal(stats)
+	if err != nil {
+		return err
+	}
+	req, err := http.Post(url, "application/json", bytes.NewBuffer(statsBytes))
+	if err != nil {
+		return err
+	}
+	if req.StatusCode != http.StatusOK {
+		return errors.Errorf("Error posting to %s: %d", url, req.StatusCode)
+	}
+	return ds.RecordStatisticsSent()
 }
 
 func runCrons(ds fleet.Datastore) context.CancelFunc {
@@ -426,7 +455,8 @@ func runCrons(ds fleet.Datastore) context.CancelFunc {
 			ds.CleanupDistributedQueryCampaigns(time.Now())
 			ds.CleanupIncomingHosts(time.Now())
 			ds.CleanupCarves(time.Now())
-			maybeSendStatistics(ds)
+
+			trySendStatistics(ds, mysql.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
 		}
 	}()
 	return cancelBackground

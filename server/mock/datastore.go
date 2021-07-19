@@ -38,6 +38,7 @@ type Store struct {
 	CarveStore
 	SoftwareStore
 	ActivitiesStore
+	StatisticsStore
 }
 
 func (m *Store) Drop() error {
