@@ -181,13 +181,23 @@ export class ManageQueriesPage extends Component {
   };
 
   onActionButtonClick = () => {
+    const { goToNewQueryPage } = this;
     console.log("Clicked Action Button");
+    goToNewQueryPage();
   };
 
   onSelectActionButtonClick = (selectedQueryIds) => {
     const { onDeleteQueries } = this;
     console.log("Clicked Select Action Button");
     onDeleteQueries(selectedQueryIds);
+    // const { onDeleteQueries } = this;
+    // const isOnlyObserver = permissionUtils.isOnlyObserver(
+    //   this.props.currentUser
+    // );
+
+    // if (!isOnlyObserver) {
+    //   onDeleteQueries(selectedQueryIds);
+    // }
     // TODO render confirmation modal?
     // TODO render flash for second delete?
   };
@@ -235,9 +245,10 @@ export class ManageQueriesPage extends Component {
     const { currentUser } = this.props;
 
     if (!permissionUtils.isOnlyObserver(currentUser)) {
-      return "Global Admin Action";
+      return "Create new query";
     }
-    return "Default Action";
+    // The action button will not be rendered if TableContainer's actionButtonText prop is falsey
+    return false;
   };
 
   generateSelectActionButtonText = () => {
@@ -337,7 +348,7 @@ export class ManageQueriesPage extends Component {
       onActionButtonClick,
       onSelectActionButtonClick,
       onTableQueryChange,
-      getQueries,
+      // getQueries,
       generateActionButtonText,
       generateSelectActionButtonText,
       // onCheckAllQueries,
@@ -345,7 +356,6 @@ export class ManageQueriesPage extends Component {
       // onSelectQuery,
       // onDblClickQuery,
       // onFilterQueries,
-      renderCTAs,
       renderModal,
       renderSidePanel,
       tableHeaders,
@@ -364,7 +374,6 @@ export class ManageQueriesPage extends Component {
         <div className={`${baseClass}__wrapper body-wrap`}>
           <div className={`${baseClass}__header-wrap`}>
             <h1 className={`${baseClass}__title`}>Queries</h1>
-            {renderCTAs()}
           </div>
           <TableContainer
             columns={tableHeaders}
