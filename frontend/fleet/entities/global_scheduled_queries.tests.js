@@ -15,7 +15,7 @@ describe("Fleet - API client (global scheduled queries)", () => {
   const bearerToken = "valid-bearer-token";
 
   describe("#create", () => {
-    it.only("calls the appropriate endpoint with the correct parameters", () => {
+    it("calls the appropriate endpoint with the correct parameters", () => {
       const formData = {
         interval: 60,
         logging_type: "differential",
@@ -42,7 +42,6 @@ describe("Fleet - API client (global scheduled queries)", () => {
         bearerToken,
         scheduledQuery
       );
-
       Fleet.setBearerToken(bearerToken);
       return Fleet.globalScheduledQueries.destroy(scheduledQuery).then(() => {
         expect(request.isDone()).toEqual(true);

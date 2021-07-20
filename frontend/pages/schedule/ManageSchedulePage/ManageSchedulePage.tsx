@@ -9,7 +9,7 @@ import { IQuery } from "interfaces/query";
 import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
 
 // Will I need any of this?
-// import scheduledQueryInterface from "interfaces/scheduled_query";
+// import globalScheduledQueryInterface from "interfaces/global_scheduled_query";
 
 import paths from "router/paths";
 import Button from "components/buttons/Button";
