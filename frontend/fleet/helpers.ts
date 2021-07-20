@@ -274,6 +274,66 @@ export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
   return scheduledQuery;
 };
 
+export const formatGlobalScheduledQueryForServer = (scheduledQuery: any) => {
+  const {
+    interval,
+    logging_type: loggingType,
+    platform,
+    query_id: queryID,
+    shard,
+  } = scheduledQuery;
+  const result = omit(scheduledQuery, ["logging_type"]);
+
+  if (platform === "all") {
+    result.platform = "";
+  }
+
+  if (interval) {
+    result.interval = Number(interval);
+  }
+
+  if (loggingType) {
+    result.removed = loggingType === "differential";
+    result.snapshot = loggingType === "snapshot";
+  }
+
+  if (queryID) {
+    result.query_id = Number(queryID);
+  }
+
+  if (shard) {
+    result.shard = Number(shard);
+  }
+
+  return result;
+};
+
+export const formatGlobalScheduledQueryForClient = (
+  scheduledQuery: any
+): any => {
+  if (scheduledQuery.platform === "") {
+    scheduledQuery.platform = "all";
+  }
+
+  if (scheduledQuery.snapshot) {
+    scheduledQuery.logging_type = "snapshot";
+  } else {
+    scheduledQuery.snapshot = false;
+    if (scheduledQuery.removed === false) {
+      scheduledQuery.logging_type = "differential_ignore_removals";
+    } else {
+      // If both are unset, we should default to differential (like osquery does)
+      scheduledQuery.logging_type = "differential";
+    }
+  }
+
+  if (scheduledQuery.shard === null) {
+    scheduledQuery.shard = undefined;
+  }
+
+  return scheduledQuery;
+};
+
 export const formatTeamForClient = (team: any): any => {
   if (team.display_text === undefined) {
     team.display_text = team.name;
@@ -423,6 +483,8 @@ export default {
   formatLabelResponse,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
+  formatGlobalScheduledQueryForClient,
+  formatGlobalScheduledQueryForServer,
   formatSelectedTargetsForApi,
   humanHostUptime,
   humanHostLastSeen,
