@@ -1,15 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"net/url"
 
+	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
 
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -18,7 +21,6 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -202,7 +204,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds)
+			cancelBackground := runCrons(ds, kitlog.With(logger, "component", "crons"))
 
 			// Flush seen hosts every second
 			go func() {
@@ -396,7 +398,38 @@ const (
 	LockKeyLeader = "leader"
 )
 
-func runCrons(ds fleet.Datastore) context.CancelFunc {
+func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) error {
+	ac, err := ds.AppConfig()
+	if err != nil {
+		return err
+	}
+	if !ac.EnableAnalytics {
+		return nil
+	}
+
+	stats, shouldSend, err := ds.ShouldSendStatistics(frequency)
+	if err != nil {
+		return err
+	}
+	if !shouldSend {
+		return nil
+	}
+
+	statsBytes, err := json.Marshal(stats)
+	if err != nil {
+		return err
+	}
+	req, err := http.Post(url, "application/json", bytes.NewBuffer(statsBytes))
+	if err != nil {
+		return err
+	}
+	if req.StatusCode != http.StatusOK {
+		return errors.Errorf("Error posting to %s: %d", url, req.StatusCode)
+	}
+	return ds.RecordStatisticsSent()
+}
+
+func runCrons(ds fleet.Datastore, logger kitlog.Logger) context.CancelFunc {
 	locker, ok := ds.(Locker)
 	if !ok {
 		initFatal(errors.New("No global locker available"), "")
@@ -411,17 +444,36 @@ func runCrons(ds fleet.Datastore) context.CancelFunc {
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		for {
+			level.Debug(logger).Log("waiting", "on ticker")
 			select {
 			case <-ticker.C:
+				level.Debug(logger).Log("waiting", "done")
 			case <-ctx.Done():
+				level.Debug(logger).Log("exit", "done with crons.")
 				break
 			}
 			if locked, err := locker.Lock(LockKeyLeader, ourIdentifier, time.Hour); err != nil || !locked {
+				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 				continue
 			}
-			ds.CleanupDistributedQueryCampaigns(time.Now())
-			ds.CleanupIncomingHosts(time.Now())
-			ds.CleanupCarves(time.Now())
+			_, err := ds.CleanupDistributedQueryCampaigns(time.Now())
+			if err != nil {
+				level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
+			}
+			err = ds.CleanupIncomingHosts(time.Now())
+			if err != nil {
+				level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
+			}
+			_, err = ds.CleanupCarves(time.Now())
+			if err != nil {
+				level.Error(logger).Log("err", "cleaning carves", "details", err)
+			}
+
+			err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
+			if err != nil {
+				level.Error(logger).Log("err", "sending statistics", "details", err)
+			}
+			level.Debug(logger).Log("loop", "done")
 		}
 	}()
 	return cancelBackground

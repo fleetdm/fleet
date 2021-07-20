@@ -310,6 +310,15 @@ func (d *Datastore) Host(id uint) (*fleet.Host, error) {
 	return host, nil
 }
 
+func (d *Datastore) amountEnrolledHosts() (int, error) {
+	var amount int
+	err := d.db.Get(&amount, `SELECT count(*) FROM hosts`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
 func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
 		h.*,
