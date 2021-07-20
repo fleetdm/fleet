@@ -59,6 +59,11 @@ func BuildMSI(opt Options) error {
 		return errors.Wrap(err, "write wix file")
 	}
 
+	// Make sure permissions are permissive so that the `wine` user in the Wix Docker container can access files.
+	if err := chmodRecursive(tmpDir, os.ModePerm); err != nil {
+		return err
+	}
+
 	if err := wix.Heat(tmpDir); err != nil {
 		return errors.Wrap(err, "package root files")
 	}

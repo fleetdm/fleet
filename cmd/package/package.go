@@ -52,7 +52,7 @@ func main() {
 		&cli.StringFlag{
 			Name:        "version",
 			Usage:       "Version for package product",
-			Value:       "0.0.2",
+			Value:       "0.0.3",
 			Destination: &opt.Version,
 		},
 		&cli.BoolFlag{

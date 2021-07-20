@@ -3,6 +3,7 @@ package packaging
 
 import (
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -113,4 +114,18 @@ func writeSecret(opt Options, orbitRoot string) error {
 	}
 
 	return nil
+}
+
+func chmodRecursive(path string, perm os.FileMode) error {
+		return filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return errors.Wrap(err, "walk error")
+			}
+
+			if err := os.Chmod(path, perm); err != nil {
+				return errors.Wrap(err, "chmod")
+			}
+
+			return nil
+		})
 }

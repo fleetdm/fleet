@@ -8,7 +8,7 @@ Orbit is the recommended agent for Fleet. But Orbit can be used with or without 
 
 ## Try Orbit
 
-#### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet) and [Go](https://golang.org/doc/install) installed:
+#### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet) and [Go](https://golang.org/doc/install) 1.16 installed:
 
 ```bash
 # From within the top-level directory of this repo…
