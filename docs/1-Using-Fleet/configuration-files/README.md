@@ -323,7 +323,7 @@ spec:
 
 #### Auto table construction
 
-You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, see the [osquery Automatic Table Construction documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction)
+You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
 
 If you already know what your ATC configuration needs to look like, you can add it to an options config file:
 
