@@ -56,14 +56,15 @@ export class ManageQueriesPage extends Component {
       permissionUtils.isOnlyObserver(props.currentUser)
     );
 
+    // TODO replace stub actions; consider whether or not this ought to be in constructor
     this.secondarySelectActions = [
       {
-        callback: (selectedRows) => console.log("clicked delete: ", selectedRows),
-        name: "delete",
+        callback: (selectedRows) => console.log("clicked action 1: ", selectedRows),
+        name: "action 1",
       },
       {
-        callback: (selectedRows) => console.log("clicked edit: ", selectedRows),
-        name: "edit",
+        callback: (selectedRows) => console.log("clicked action 2: ", selectedRows),
+        name: "action 2",
       },
     ];
   }
