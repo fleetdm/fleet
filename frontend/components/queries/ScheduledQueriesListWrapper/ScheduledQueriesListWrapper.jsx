@@ -6,6 +6,7 @@ import TableContainer from "components/TableContainer";
 import helpers from "components/queries/ScheduledQueriesListWrapper/helpers";
 import queryInterface from "interfaces/query";
 import EmptyPack from "./EmptyPack";
+import EmptySearch from "./EmptySearch";
 import {
   generateTableHeaders,
   generateDataSet,
@@ -77,37 +78,41 @@ class ScheduledQueriesListWrapper extends Component {
       onTableQueryChange,
       onRemoveScheduledQueries,
       isLoadingScheduledQueries,
-      scheduledQueries,
       getQueries,
     } = this;
-    const { querySearchText } = this.state;
+    const { scheduledQueries } = this.props;
 
     const tableHeaders = generateTableHeaders();
-
     const tableData = generateDataSet(getQueries());
+
+    console.log("scheduledQueries", scheduledQueries);
 
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
           <h1>Queries</h1>
         </div>
-        <TableContainer
-          columns={tableHeaders}
-          data={tableData}
-          isLoading={isLoadingScheduledQueries}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search queries"}
-          onQueryChange={onTableQueryChange}
-          onSelectActionClick={onRemoveScheduledQueries}
-          resultsTitle={"queries"}
-          emptyComponent={EmptyPack}
-          showMarkAllPages={false}
-          selectActionButtonText={"Remove"}
-          searchable
-          wideSearch
-          disablePagination
-        />
+        {scheduledQueries.length === 0 ? (
+          <EmptyPack />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={tableData}
+            isLoading={isLoadingScheduledQueries}
+            defaultSortHeader={"name"}
+            defaultSortDirection={"asc"}
+            inputPlaceHolder={"Search queries"}
+            onQueryChange={onTableQueryChange}
+            onSelectActionClick={onRemoveScheduledQueries}
+            resultsTitle={"queries"}
+            emptyComponent={EmptySearch}
+            showMarkAllPages={false}
+            selectActionButtonText={"Remove"}
+            searchable
+            wideSearch
+            disablePagination
+          />
+        )}
       </div>
     );
   }

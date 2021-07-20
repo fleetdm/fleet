@@ -212,7 +212,7 @@ const TableContainer = ({
         </div>
       )}
       <div className={`${baseClass}__header`}>
-        {data && data.length && !disableCount ? (
+        {data && !disableCount && (
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
@@ -222,8 +222,6 @@ const TableContainer = ({
             )}
             {resultsHtml}
           </p>
-        ) : (
-          <p />
         )}
         <div className={`${baseClass}__table-controls`}>
           {!hideActionButton && actionButtonText && (

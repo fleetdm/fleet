@@ -8,6 +8,7 @@ const EmptyPack = (): JSX.Element => {
       <div className={`${baseClass}__inner`}>
         <div className={`${baseClass}__empty-filter-results`}>
           <h1>No queries matched your search criteria.</h1>
+          <p>Try a different search.</p>
         </div>
       </div>
     </div>
