@@ -45,7 +45,6 @@ class ScheduledQueriesListWrapper extends Component {
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   onTableQueryChange = (queryData) => {
-    const { selectedFilter, dispatch, packId, scheduledQueries } = this.props;
     const {
       pageIndex,
       pageSize,
