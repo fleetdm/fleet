@@ -13,6 +13,7 @@ import scrollToTop from "utilities/scroll_to_top";
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
+import { IActionButtonProps } from "./DataTable/ActionButton";
 
 interface ITableQueryData {
   searchQuery: string;
@@ -36,7 +37,7 @@ interface ITableContainerProps {
   onSelectActionClick?: (selectedItemIds: number[]) => void;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
-  selectActionButtonText?: string;
+  selectActionButtonText?: string | ((targetIds: number[]) => string);
   resultsTitle: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
@@ -47,7 +48,7 @@ interface ITableContainerProps {
   searchable?: boolean;
   wideSearch?: boolean;
   disablePagination?: boolean;
-  secondarySelectActions?: any[]; // TODO create table actions interface
+  secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
 }
 
 const baseClass = "table-container";

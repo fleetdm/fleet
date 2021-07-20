@@ -56,15 +56,19 @@ export class ManageQueriesPage extends Component {
       permissionUtils.isOnlyObserver(props.currentUser)
     );
 
-    // TODO replace stub actions; consider whether or not this ought to be in constructor
+    // TODO replace stub actions; consider whether or not this ought to be in constructor; consider moving to table config
     this.secondarySelectActions = [
       {
         callback: (selectedRows) => console.log("clicked action 1: ", selectedRows),
         name: "action 1",
+        hideButton: (arr) => Array.isArray(arr) && arr.length === 1,
+        variant: "text-link",
       },
       {
-        callback: (selectedRows) => console.log("clicked action 2: ", selectedRows),
+        callback: (selectedRows) =>
+          console.log("clicked action 2: ", selectedRows),
         name: "action 2",
+        // variant: "text-link",
       },
     ];
   }
@@ -158,9 +162,14 @@ export class ManageQueriesPage extends Component {
   };
 
   onSelectActionButtonClick = (selectedQueryIds) => {
-    const { onDeleteQueries } = this;
     console.log("Clicked Select Action Button");
-    onDeleteQueries(selectedQueryIds);
+    const { onDeleteQueries, goToEditQueryPage } = this;
+
+    if (selectedQueryIds && selectedQueryIds.length === 1) {
+      goToEditQueryPage(selectedQueryIds[0]);
+    } else {
+      onDeleteQueries(selectedQueryIds);
+    }
     // const { onDeleteQueries } = this;
     // const isOnlyObserver = permissionUtils.isOnlyObserver(
     //   this.props.currentUser
@@ -223,11 +232,18 @@ export class ManageQueriesPage extends Component {
     return false;
   };
 
-  generateSelectActionButtonText = () => {
+  generateSelectActionButtonText = (selectedQueryIds) => {
     const { currentUser } = this.props;
-
-    if (!permissionUtils.isOnlyObserver(currentUser)) {
-      return "Delete";
+    if (selectedQueryIds && selectedQueryIds.length === 1) {
+      if (!permissionUtils.isOnlyObserver(currentUser)) {
+        return "Edit or run query";
+      }
+      return "View query";
+    } else if (selectedQueryIds && selectedQueryIds.length > 1) {
+      if (!permissionUtils.isOnlyObserver(currentUser)) {
+        return "Delete";
+      }
+      return "Default select action";
     }
     return "Default Select Action";
   };
@@ -352,7 +368,7 @@ export class ManageQueriesPage extends Component {
             defaultSortDirection={"desc"}
             inputPlaceHolder={"Search"}
             actionButtonText={generateActionButtonText()}
-            selectActionButtonText={generateSelectActionButtonText()}
+            selectActionButtonText={generateSelectActionButtonText}
             onActionButtonClick={onActionButtonClick}
             onSelectActionClick={onSelectActionButtonClick}
             onQueryChange={onTableQueryChange}

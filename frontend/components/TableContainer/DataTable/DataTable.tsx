@@ -5,7 +5,7 @@ import useDeepEffect from "utilities/hooks/useDeepEffect";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "../../buttons/Button";
-import ActionButton from "./ActionButton";
+import ActionButton, { IActionButtonProps } from "./ActionButton";
 
 const baseClass = "data-table-container";
 
@@ -22,8 +22,8 @@ interface IDataTableProps {
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
-  selectActionButtonText?: string;
-  secondarySelectActions?: any[]; // TODO create interface
+  selectActionButtonText?: string | ((targetIds: number[]) => string);
+  secondarySelectActions?: IActionButtonProps[];
 }
 
 // This data table uses react-table for implementation. The relevant documentation of the library
@@ -109,11 +109,6 @@ const DataTable = ({
     }
   }, [tableState.selectedRowIds, toggleAllPagesSelected]);
 
-  const onSelectActionButtonClick = useCallback(() => {
-    const entityIds = selectedFlatRows.map((row: any) => row.original.id);
-    onSelectActionClick(entityIds);
-  }, [onSelectActionClick, selectedFlatRows]);
-
   const onToggleAllPagesClick = useCallback(() => {
     toggleAllPagesSelected();
   }, [toggleAllPagesSelected]);
@@ -139,25 +134,44 @@ const DataTable = ({
     );
   };
 
+  const renderActionButton = (actionProps: IActionButtonProps): JSX.Element => {
+    const { variant, name, callback, hideButton, targetIds } = actionProps;
+    return (
+      <ActionButton
+        key={name}
+        variant={variant}
+        name={name}
+        callback={callback}
+        hideButton={hideButton}
+        targetIds={targetIds}
+      />
+    );
+  };
+
+  const renderPrimarySelectAction = (): JSX.Element => {
+    const targetIds = selectedFlatRows.map((row: any) => row.original.id);
+    const name =
+      typeof selectActionButtonText === "function"
+        ? selectActionButtonText(targetIds)
+        : selectActionButtonText;
+    const actionProps = {
+      name: name || "Transfer to team", // TODO refactor this in teams page
+      callback: onSelectActionClick,
+      targetIds,
+    };
+    return renderActionButton(actionProps);
+  };
+
   const renderSecondarySelectActions = (): JSX.Element[] | null => {
     if (secondarySelectActions) {
-      const buttons = secondarySelectActions.map((action) => {
-        const { callback, name } = action;
-        return (
-          <ActionButton
-            name={name}
-            callback={callback}
-            selectedRows={selectedFlatRows}
-          />
-        );
+      const targetIds = selectedFlatRows.map((row: any) => row.original.id);
+      const buttons = secondarySelectActions.map((actionProps) => {
+        actionProps = { ...actionProps, targetIds };
+        return renderActionButton(actionProps);
       });
       return buttons;
     }
     return null;
-  };
-
-  const generateButtonText = (text = "Transfer to team") => {
-    return text;
   };
 
   const shouldRenderToggleAllPages =
@@ -205,9 +219,7 @@ const DataTable = ({
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
                     <div className={"active-selection__inner-right"}>
-                      <Button onClick={onSelectActionButtonClick}>
-                        {generateButtonText(selectActionButtonText)}
-                      </Button>
+                      {renderPrimarySelectAction()}
                     </div>
                   </div>
                 </th>
