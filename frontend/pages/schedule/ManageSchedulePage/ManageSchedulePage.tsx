@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import memoize from "memoize-one";
 
 import { push } from "react-router-redux";
-import { IScheduledQuery } from "interfaces/scheduled_query";
+import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
@@ -80,7 +80,7 @@ const renderTable = (toggleRemoveScheduledQueryModal: any): JSX.Element => {
 interface IRootState {
   entities: {
     queries: {
-      data: IScheduledQuery[];
+      data: IGlobalScheduledQuery[];
     };
   };
 }
@@ -90,7 +90,7 @@ interface IFetchParams {
   searchQuery?: string;
 }
 
-const getQueries = (data: { [id: string]: IScheduledQuery }) => {
+const getQueries = (data: { [id: string]: IGlobalScheduledQuery }) => {
   return Object.keys(data).map((queryId) => {
     return data[queryId];
   });
@@ -150,18 +150,13 @@ const ManageSchedulePage = (): JSX.Element => {
   // Turn object of objects into array of objects
   const allQueriesList = Object.values(allQueries);
 
-  // SIMILAR TO TEAMMANAGEMENTPAGE onCreateSubmit Line 85
-  // SIMILAR TO MEMBERSPAGE onAddMemberSubmit Line 141
-  // MOST SIMILAR TO EDITPACKPAGE handleConfigurePackQuerySubmit
-  // TODO: FUNCTIONALITY OF ONSUBMIT FORM 6/30, 7/2 WORK ON THIS
-  // THIS SHOULD WORK ONCE THE BACKEND IS ROUTED IN
   const onAddScheduledQuerySubmit = useCallback(
-    (formData: IScheduledQuery) => {
-      // change this to IScheduledQuery
-      dispatch(
-        // TODO: make sure I'm passing the right formData arguments
-        globalScheduledQueryActions.create({ ...formData })
-      )
+    (formData: any) => {
+      console.log(
+        "onAddScheduledQuerySubmit globalScheduledQueryActions.create(formData....... is...",
+        formData
+      );
+      dispatch(globalScheduledQueryActions.create({ ...formData }))
         .then(() => {
           dispatch(
             renderFlash(
@@ -169,7 +164,6 @@ const ManageSchedulePage = (): JSX.Element => {
               `Successfully added ${formData.name} to the schedule.`
             )
           );
-          // Updates page
           dispatch(globalScheduledQueryActions.loadAll());
         })
         .catch(() => {
@@ -226,7 +220,6 @@ const ManageSchedulePage = (): JSX.Element => {
             onCancel={toggleScheduleEditorModal}
             onScheduleSubmit={onAddScheduledQuerySubmit}
             allQueries={allQueriesList}
-            defaultLoggingType={"snapshot"}
           />
         )}
         {showRemoveScheduledQueryModal && (

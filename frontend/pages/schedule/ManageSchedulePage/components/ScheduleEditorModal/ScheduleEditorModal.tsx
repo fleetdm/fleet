@@ -11,7 +11,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // import Form from "components/forms/Form";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import { IScheduledQuery } from "interfaces/scheduled_query";
+import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_OPTIONS,
@@ -26,10 +26,9 @@ import {
 
 const baseClass = "schedule-editor-modal";
 interface IScheduleEditorModalProps {
-  allQueries: IScheduledQuery[];
+  allQueries: IGlobalScheduledQuery[];
   onCancel: () => void;
   onScheduleSubmit: (formData: any) => void;
-  defaultLoggingType: string | null;
   validationErrors?: any[]; // TODO: proper interface for validationErrors
 }
 interface IFrequencyOption {
@@ -37,22 +36,21 @@ interface IFrequencyOption {
   label: string;
 }
 
+interface INoQueryOption {
+  id: number;
+  name: string;
+}
+
 const ScheduleEditorModal = ({
   onCancel,
   onScheduleSubmit,
   allQueries,
-  defaultLoggingType,
 }: IScheduleEditorModalProps): JSX.Element => {
-  interface INoQueryOption {
-    id: number;
-    name: string;
-  }
-
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
   );
   const [selectedQuery, setSelectedQuery] = useState<
-    IScheduledQuery | INoQueryOption
+    IGlobalScheduledQuery | INoQueryOption
   >();
   const [selectedFrequency, setSelectedFrequency] = useState<number>(86400);
   const [
@@ -68,6 +66,7 @@ const ScheduleEditorModal = ({
   ] = useState(null);
   const [selectedShard, setSelectedShard] = useState(null);
 
+  console.log("selectedLoggingType scheduleEditorModal", selectedLoggingType);
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q: any) => {
       return {
@@ -84,8 +83,8 @@ const ScheduleEditorModal = ({
 
   const onChangeSelectQuery = useCallback(
     (queryId: number | string) => {
-      const queryWithId: IScheduledQuery | undefined = allQueries.find(
-        (query: IScheduledQuery) => query.id == queryId
+      const queryWithId: IGlobalScheduledQuery | undefined = allQueries.find(
+        (query: IGlobalScheduledQuery) => query.id == queryId
       );
       setSelectedQuery(queryWithId);
     },
@@ -126,6 +125,26 @@ const ScheduleEditorModal = ({
     },
     [setSelectedShard]
   );
+
+  // TODO: Validators
+  // TODO: figure out differential/removal bug
+
+  const onFormSubmit = () => {
+    console.log(
+      "\nTODO: Fix selectedLoggingType onFormSubmit,",
+      selectedLoggingType
+    );
+    debugger;
+    onScheduleSubmit({
+      shard: selectedShard,
+      interval: selectedFrequency,
+      query_id: selectedQuery?.id,
+      snapshot: selectedLoggingType === "snapshot",
+      removed: selectedLoggingType === "differential",
+      platform: selectedPlatformOptions,
+      version: selectedMinOsqueryVersionOptions,
+    });
+  };
 
   return (
     <Modal title={"Schedule editor"} onExit={onCancel} className={baseClass}>
@@ -237,7 +256,7 @@ const ScheduleEditorModal = ({
             className={`${baseClass}__btn`}
             type="button"
             variant="brand"
-            onClick={onScheduleSubmit}
+            onClick={onFormSubmit}
           >
             Schedule
           </Button>
