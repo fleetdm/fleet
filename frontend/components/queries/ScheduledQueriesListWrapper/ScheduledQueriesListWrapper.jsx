@@ -62,7 +62,14 @@ class ScheduledQueriesListWrapper extends Component {
       return;
     }
 
-    this.setState({ querySearchText: queryData });
+    this.setState({ querySearchText: searchQuery });
+  };
+
+  getQueries = () => {
+    const { scheduledQueries } = this.props;
+    const { querySearchText } = this.state;
+
+    return simpleSearch(querySearchText, scheduledQueries);
   };
 
   render() {
@@ -71,21 +78,13 @@ class ScheduledQueriesListWrapper extends Component {
       onRemoveScheduledQueries,
       isLoadingScheduledQueries,
       scheduledQueries,
+      getQueries,
     } = this;
     const { querySearchText } = this.state;
 
-    // apply the filter to the props and render the filtered list
-
-    // use querySearchText in state to apply the filter for the this.props.scheduledQueries;
-
-    console.log(
-      "scheduledlistwrapper this.props.scheduledqueries",
-      scheduledQueries
-    );
-
-    const filtered = simpleSearch(querySearchText, scheduledQueries);
-
     const tableHeaders = generateTableHeaders();
+
+    const tableData = generateDataSet(getQueries());
 
     return (
       <div className={`${baseClass} body-wrap`}>
@@ -94,7 +93,7 @@ class ScheduledQueriesListWrapper extends Component {
         </div>
         <TableContainer
           columns={tableHeaders}
-          data={generateDataSet(filtered)}
+          data={tableData}
           isLoading={isLoadingScheduledQueries}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
