@@ -66,7 +66,7 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
   - [ ] [Invite](https://fleetdevicemanagement.1password.com/people)
   - [ ] [Confirm](https://fleetdevicemanagement.1password.com/people) (after the invite is accepted)
   - [ ] [Add to appropriate vaults](https://fleetdevicemanagement.1password.com/vaults)
-- [ ] _If using a company-issued laptop or other equipment >$500 USD (per item):_ Add new equipment to [fixed asset tracking doc](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0)
+- [ ] _If using a [company-issued laptop or other equipment](https://about.gitlab.com/handbook/finance/expenses/#-hardware) >$1500 USD (per item):_ Add new equipment to [fixed asset tracking doc](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0)
 - [ ] [Invite to Orbit CXP](https://app.orbit.love/fleet/edit)
 - [ ] [Invite to Fleet Slack](https://fleetdm.slack.com/admin)
 - [ ] GCal for Slack  (TODO: replace w/ Reclaim's Slack app when new release is ready)
