@@ -16,6 +16,7 @@ export default (client) => {
       const removed = loggingType === "differential";
       const snapshot = loggingType === "snapshot";
 
+      // TODO: these arguments match  my call
       const params = {
         interval: Number(interval),
         platform,

@@ -2,12 +2,12 @@ import React, { useState, useCallback } from "react";
 
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
-import { IQuery } from "interfaces/query";
+import { IScheduledQuery } from "interfaces/scheduled_query";
 
 const baseClass = "remove-scheduled-query-modal";
 
 interface IRemoveScheduledQueryModalProps {
-  queries: IQuery[];
+  queries: IScheduledQuery[];
   onCancel: () => void;
   onSubmit: () => void;
 }

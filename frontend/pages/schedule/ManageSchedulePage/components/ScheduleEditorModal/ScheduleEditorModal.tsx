@@ -11,7 +11,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // import Form from "components/forms/Form";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import { IQuery } from "interfaces/query";
+import { IScheduledQuery } from "interfaces/scheduled_query";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_OPTIONS,
@@ -26,7 +26,7 @@ import {
 
 const baseClass = "schedule-editor-modal";
 interface IScheduleEditorModalProps {
-  allQueries: IQuery[];
+  allQueries: IScheduledQuery[];
   onCancel: () => void;
   onScheduleSubmit: (formData: any) => void;
   defaultLoggingType: string | null;
@@ -51,7 +51,9 @@ const ScheduleEditorModal = ({
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
   );
-  const [selectedQuery, setSelectedQuery] = useState<IQuery | INoQueryOption>();
+  const [selectedQuery, setSelectedQuery] = useState<
+    IScheduledQuery | INoQueryOption
+  >();
   const [selectedFrequency, setSelectedFrequency] = useState<number>(86400);
   const [
     selectedPlatformOptions,
@@ -82,8 +84,8 @@ const ScheduleEditorModal = ({
 
   const onChangeSelectQuery = useCallback(
     (queryId: number | string) => {
-      const queryWithId: IQuery | undefined = allQueries.find(
-        (query: IQuery) => query.id == queryId
+      const queryWithId: IScheduledQuery | undefined = allQueries.find(
+        (query: IScheduledQuery) => query.id == queryId
       );
       setSelectedQuery(queryWithId);
     },

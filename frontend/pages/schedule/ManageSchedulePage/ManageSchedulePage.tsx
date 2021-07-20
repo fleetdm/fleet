@@ -4,9 +4,9 @@ import { useDispatch, useSelector } from "react-redux";
 import memoize from "memoize-one";
 
 import { push } from "react-router-redux";
-import { IQuery } from "interfaces/query";
+import { IScheduledQuery } from "interfaces/scheduled_query";
 // @ts-ignore
-import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
+import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 // Will I need any of this?
 // import globalScheduledQueryInterface from "interfaces/global_scheduled_query";
@@ -80,7 +80,7 @@ const renderTable = (toggleRemoveScheduledQueryModal: any): JSX.Element => {
 interface IRootState {
   entities: {
     queries: {
-      data: IQuery[];
+      data: IScheduledQuery[];
     };
   };
 }
@@ -90,7 +90,7 @@ interface IFetchParams {
   searchQuery?: string;
 }
 
-const getQueries = (data: { [id: string]: IQuery }) => {
+const getQueries = (data: { [id: string]: IScheduledQuery }) => {
   return Object.keys(data).map((queryId) => {
     return data[queryId];
   });
@@ -156,10 +156,11 @@ const ManageSchedulePage = (): JSX.Element => {
   // TODO: FUNCTIONALITY OF ONSUBMIT FORM 6/30, 7/2 WORK ON THIS
   // THIS SHOULD WORK ONCE THE BACKEND IS ROUTED IN
   const onAddScheduledQuerySubmit = useCallback(
-    (formData: IQuery) => {
+    (formData: IScheduledQuery) => {
+      // change this to IScheduledQuery
       dispatch(
-        // TODO: This is how to send formData to a new pack, is it the same for schedule? 7/2
-        scheduledQueryActions({ ...formData, pack_id: 2 })
+        // TODO: make sure I'm passing the right formData arguments
+        globalScheduledQueryActions.create({ ...formData })
       )
         .then(() => {
           dispatch(
@@ -169,7 +170,7 @@ const ManageSchedulePage = (): JSX.Element => {
             )
           );
           // Updates page
-          dispatch(scheduledQueryActions.loadAll({}));
+          dispatch(globalScheduledQueryActions.loadAll());
         })
         .catch(() => {
           dispatch(
