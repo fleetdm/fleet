@@ -5,6 +5,7 @@ import useDeepEffect from "utilities/hooks/useDeepEffect";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "../../buttons/Button";
+import ActionButton from "./ActionButton";
 
 const baseClass = "data-table-container";
 
@@ -22,6 +23,7 @@ interface IDataTableProps {
   resultsTitle: string;
   defaultPageSize: number;
   selectActionButtonText?: string;
+  secondarySelectActions?: any[]; // TODO create interface
 }
 
 // This data table uses react-table for implementation. The relevant documentation of the library
@@ -40,6 +42,7 @@ const DataTable = ({
   resultsTitle,
   defaultPageSize,
   selectActionButtonText,
+  secondarySelectActions,
 }: IDataTableProps) => {
   const columns = useMemo(() => {
     return tableColumns;
@@ -136,6 +139,23 @@ const DataTable = ({
     );
   };
 
+  const renderSecondarySelectActions = (): JSX.Element[] | null => {
+    if (secondarySelectActions) {
+      const buttons = secondarySelectActions.map((action) => {
+        const { callback, name } = action;
+        return (
+          <ActionButton
+            name={name}
+            callback={callback}
+            selectedRows={selectedFlatRows}
+          />
+        );
+      });
+      return buttons;
+    }
+    return null;
+  };
+
   const generateButtonText = (text = "Transfer to team") => {
     return text;
   };
@@ -182,6 +202,7 @@ const DataTable = ({
                       >
                         Clear selection
                       </Button>
+                      {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
                     <div className={"active-selection__inner-right"}>
                       <Button onClick={onSelectActionButtonClick}>
@@ -232,6 +253,7 @@ DataTable.propTypes = {
   sortDirection: PropTypes.string,
   onSort: PropTypes.func,
   onSelectActionClick: PropTypes.func,
+  secondarySelectActions: PropTypes.arrayOf(PropTypes.object),
 };
 
 export default DataTable;

@@ -47,6 +47,7 @@ interface ITableContainerProps {
   searchable?: boolean;
   wideSearch?: boolean;
   disablePagination?: boolean;
+  secondarySelectActions?: any[]; // TODO create table actions interface
 }
 
 const baseClass = "table-container";
@@ -80,6 +81,7 @@ const TableContainer = ({
   searchable,
   wideSearch,
   disablePagination,
+  secondarySelectActions,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -250,6 +252,7 @@ const TableContainer = ({
               resultsTitle={resultsTitle}
               defaultPageSize={DEFAULT_PAGE_SIZE}
               selectActionButtonText={selectActionButtonText}
+              secondarySelectActions={secondarySelectActions}
             />
             {!disablePagination && (
               <Pagination

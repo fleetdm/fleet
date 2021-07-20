@@ -55,6 +55,17 @@ export class ManageQueriesPage extends Component {
     this.tableHeaders = generateTableHeaders(
       permissionUtils.isOnlyObserver(props.currentUser)
     );
+
+    this.secondarySelectActions = [
+      {
+        callback: (selectedRows) => console.log("clicked delete: ", selectedRows),
+        name: "delete",
+      },
+      {
+        callback: (selectedRows) => console.log("clicked edit: ", selectedRows),
+        name: "edit",
+      },
+    ];
   }
 
   componentWillMount() {
@@ -359,6 +370,7 @@ export class ManageQueriesPage extends Component {
       renderModal,
       renderSidePanel,
       tableHeaders,
+      secondarySelectActions,
     } = this;
     const {
       loadingQueries,
@@ -390,6 +402,7 @@ export class ManageQueriesPage extends Component {
             resultsTitle={"queries"}
             emptyComponent={null}
             searchable
+            secondarySelectActions={secondarySelectActions}
           />
         </div>
         {renderSidePanel()}
