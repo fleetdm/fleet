@@ -2,6 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
+import { find } from "lodash";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -94,14 +95,14 @@ const generateTableHeaders = (): IDataColumn[] => {
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      accessor: "platform",
+      accessor: "platformTypeString",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
       title: "Osquery Ver.",
       Header: "Osquery Ver.",
       disableSortBy: false,
-      accessor: "version",
+      accessor: "versionString",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
@@ -137,25 +138,49 @@ const generateLoggingTypeString = (
   return "bold-plus";
 };
 
-const generatePlatformTypeString = (platform: any): string => {
-  if (platform === "windows") {
-    return "Windows";
-  }
-  if (platform === "linux") {
-    return "Linux";
-  }
-  if (platform === "darwin") {
-    return "Darwin";
+const generatePlatformTypeString = (platforms: string | undefined): string => {
+  const ALL_PLATFORMS = [
+    { text: "All", value: "all" },
+    { text: "Windows", value: "windows" },
+    { text: "Linux", value: "linux" },
+    { text: "macOS", value: "darwin" },
+  ];
+
+  if (platforms) {
+    const platformsArray = platforms.split(",");
+
+    const textArray = platformsArray.map((platform) => {
+      // Trim spaces from the platform
+      const trimmedPlatform = platform.trim();
+      const platformObject = find(ALL_PLATFORMS, { value: trimmedPlatform });
+      // Convert trimmed value to the corresponding text if the value exists
+      // in the ALL_PLATFORMS array.
+      // Otherwise, just use the trimmed value.
+      const text = platformObject ? platformObject.text : trimmedPlatform;
+
+      return text;
+    });
+
+    const displayText = textArray.join(", ");
+
+    return displayText;
   }
 
   return "All";
+};
+
+const generateVersionString = (version: string | undefined): string => {
+  if (version) {
+    return version;
+  }
+  return "Any";
 };
 
 const enhancePackQueriesData = (
   packQueries: IScheduledQuery[]
 ): IPackQueriesTableData[] => {
   return packQueries.map((query) => {
-    console.log(query.platform);
+    console.log(query.version);
     return {
       id: query.id,
       name: query.name,
@@ -172,6 +197,8 @@ const enhancePackQueriesData = (
       ),
       platformTypeString: generatePlatformTypeString(query.platform),
       shard: query.shard,
+      version: query.version,
+      versionString: generateVersionString(query.version),
     };
   });
 };
