@@ -18,7 +18,7 @@ describe("Fleet - API client (global scheduled queries)", () => {
     it.only("calls the appropriate endpoint with the correct parameters", () => {
       const formData = {
         interval: 60,
-        // logging_type: "differential",
+        logging_type: "differential",
         platform: "darwin",
         query_id: 2,
         shard: 12,
