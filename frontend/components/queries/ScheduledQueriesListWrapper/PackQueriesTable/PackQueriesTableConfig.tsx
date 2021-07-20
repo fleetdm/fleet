@@ -137,11 +137,25 @@ const generateLoggingTypeString = (
   return "bold-plus";
 };
 
+const generatePlatformTypeString = (platform: any): string => {
+  if (platform === "windows") {
+    return "Windows";
+  }
+  if (platform === "linux") {
+    return "Linux";
+  }
+  if (platform === "darwin") {
+    return "Darwin";
+  }
+
+  return "All";
+};
+
 const enhancePackQueriesData = (
   packQueries: IScheduledQuery[]
 ): IPackQueriesTableData[] => {
-  // use Object.values if it is a object of objects
   return packQueries.map((query) => {
+    console.log(query.platform);
     return {
       id: query.id,
       name: query.name,
@@ -156,11 +170,11 @@ const enhancePackQueriesData = (
         query.snapshot,
         query.removed
       ),
+      platformTypeString: generatePlatformTypeString(query.platform),
+      shard: query.shard,
     };
   });
 };
-
-// OLD STUFF HAVENT GOT TO
 
 const generateDataSet = (
   queries: IScheduledQuery[]

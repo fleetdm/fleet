@@ -85,8 +85,6 @@ class ScheduledQueriesListWrapper extends Component {
     const tableHeaders = generateTableHeaders();
     const tableData = generateDataSet(getQueries());
 
-    console.log("scheduledQueries", scheduledQueries);
-
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
