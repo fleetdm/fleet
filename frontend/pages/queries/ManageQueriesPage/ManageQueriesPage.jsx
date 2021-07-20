@@ -77,10 +77,6 @@ export class ManageQueriesPage extends Component {
     return false;
   }
 
-  // componentWillReceiveProps(nextProps) {
-  //   this.setState({ queryState: nextProps.queries });
-  // }
-
   onDeleteQueries = (selectedQueryIds) => {
     const { dispatch } = this.props;
     const { destroy } = queryActions;
@@ -106,41 +102,6 @@ export class ManageQueriesPage extends Component {
       });
   };
 
-  // onCheckAllQueries = (shouldCheck) => {
-  //   if (shouldCheck) {
-  //     const queries = this.getQueries();
-  //     const checkedQueryIDs = queries.map((query) => query.id);
-
-  //     this.setState({ allQueriesChecked: true, checkedQueryIDs });
-
-  //     return false;
-  //   }
-
-  //   this.setState({ allQueriesChecked: false, checkedQueryIDs: [] });
-
-  //   return false;
-  // };
-
-  // onCheckQuery = (checked, id) => {
-  //   const { checkedQueryIDs } = this.state;
-  //   const newCheckedQueryIDs = checked
-  //     ? checkedQueryIDs.concat(id)
-  //     : pull(checkedQueryIDs, id);
-
-  //   this.setState({
-  //     allQueriesChecked: false,
-  //     checkedQueryIDs: newCheckedQueryIDs,
-  //   });
-
-  //   return false;
-  // };
-
-  // onFilterQueries = (queriesFilter) => {
-  //   this.setState({ queriesFilter });
-
-  //   return false;
-  // };
-
   // onSelectQuery = (selectedQuery) => {
   //   const { dispatch } = this.props;
   //   const locationObject = {
@@ -162,7 +123,6 @@ export class ManageQueriesPage extends Component {
   // };
 
   onTableQueryChange = (queryData) => {
-    const { queries } = this.props;
     const {
       // pageIndex,
       // pageSize,
@@ -355,7 +315,6 @@ export class ManageQueriesPage extends Component {
   };
 
   render() {
-    const { checkedQueryIDs, queriesFilter, queryState } = this.state;
     const {
       onActionButtonClick,
       onSelectActionButtonClick,
@@ -363,11 +322,8 @@ export class ManageQueriesPage extends Component {
       getQueries,
       generateActionButtonText,
       generateSelectActionButtonText,
-      // onCheckAllQueries,
-      // onCheckQuery,
       // onSelectQuery,
       // onDblClickQuery,
-      // onFilterQueries,
       renderModal,
       renderSidePanel,
       tableHeaders,
@@ -378,9 +334,9 @@ export class ManageQueriesPage extends Component {
       // selectedQuery,
     } = this.props;
 
-    // if (loadingQueries) {
-    //   return false;
-    // }
+    if (loadingQueries) {
+      return false;
+    }
 
     return (
       <div className={`${baseClass} has-sidebar`}>
