@@ -9,6 +9,7 @@
 - [Users](#users)
 - [Sessions](#sessions)
 - [Queries](#queries)
+- [Schedule](#schedule)
 - [Packs](#packs)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -788,76 +789,6 @@ Flags the host details to be refetched the next time the host checks in for live
 #### Example
 
 `POST /api/v1/fleet/hosts/121/refetch`
-
-##### Default response
-
-`Status: 200`
-
-```
-{}
-```
-
-### Transfer hosts to a team
-
-_Available in Fleet Basic_
-
-`POST /api/v1/fleet/hosts/transfer`
-
-#### Parameters
-
-| Name    | Type    | In   | Description                                                             |
-| ------- | ------- | ---- | ----------------------------------------------------------------------- |
-| team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to. |
-| hosts   | array   | body | **Required**. A list of host IDs.                                       |
-
-#### Example
-
-`POST /api/v1/fleet/hosts/transfer`
-
-##### Request body
-
-```
-{
-  "team_id": 1,
-  "hosts": [3, 2, 4, 6, 1, 5, 7]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```
-{}
-```
-
-### Transfer hosts to a team by filter
-
-_Available in Fleet Basic_
-
-`POST /api/v1/fleet/hosts/transfer/filter`
-
-#### Parameters
-
-| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
-| ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`. `label_id` to indicate the selected label. |
-
-#### Example
-
-`POST /api/v1/fleet/hosts/transfer/filter`
-
-##### Request body
-
-```
-{
-  "team_id": 1,
-  "filters": {
-    "status": "online"
-  }
-}
-```
 
 ##### Default response
 
@@ -3126,6 +3057,199 @@ o
 
   }
 ]
+```
+
+---
+
+## Schedule
+
+- [Get schedule](#get-schedule)
+- [Add query to schedule](#add-query-to-schedule)
+- [Edit query in schedule](#edit-query-in-schedule)
+- [Remove query from schedule](#remove-query-from-schedule)
+
+`In Fleet 4.1.0, the Schedule feature was introduced.`
+
+Fleet’s query schedule lets you add queries which are executed on your devices at regular intervals.
+
+For those familiar with osquery query packs, Fleet's query schedule can be thought of as a query pack built into Fleet. Instead of creating a query pack and then adding queries, just add queries to Fleet's query schedule to start running them against all your devices.
+
+### Get schedule
+
+`GET /api/v1/fleet/global/schedule`
+
+#### Parameters
+
+None.
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "global_schedule": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 4,
+      "pack_id": 1,
+      "name": "arp_cache",
+      "query_id": 2,
+      "query_name": "arp_cache",
+      "query": "select * from arp_cache;",
+      "interval": 120,
+      "snapshot": true,
+      "removed": null,
+      "shard": null,
+      "denylist": null
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 5,
+      "pack_id": 1,
+      "name": "disk_encryption",
+      "query_id": 7,
+      "query_name": "disk_encryption",
+      "query": "select * from disk_encryption;",
+      "interval": 86400,
+      "snapshot": true,
+      "removed": null,
+      "shard": null,
+      "denylist": null
+    }
+  ]
+}
+```
+
+### Add query to schedule
+
+`POST /api/v1/fleet/global/schedule`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                      |
+| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------- |
+| query_id | integer | body | **Required.** The query's ID.                                                                                                    |
+| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                                    |
+| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                                     |
+| removed  | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts. Default is `null`.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
+
+#### Example
+
+`POST /api/v1/fleet/global/schedule`
+
+##### Request body
+
+```
+{
+  "interval": 86400,
+  "query_id": 2,
+  "snapshot": true,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 1,
+    "pack_id": 5,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 86400,
+    "snapshot": true,
+    "removed": null,
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses osquery query packs under the hood.
+
+### Edit query in schedule
+
+`PATCH /api/v1/fleet/global/schedule/{id}`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                   |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| id       | integer | path | **Required.** The scheduled query's ID.                                                                       |
+| interval | integer | body | The amount of time, in seconds, the query waits before running.                                               |
+| snapshot | boolean | body | Whether the queries logs show everything in its current state.                                                |
+| removed  | boolean | body | Whether "removed" actions should be logged.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
+
+#### Example
+
+`PATCH /api/v1/fleet/global/schedule/5`
+
+##### Request body
+
+```
+{
+  "interval": 604800,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": {
+    "created_at": "2021-07-16T14:40:15Z",
+    "updated_at": "2021-07-16T14:40:15Z",
+    "id": 5,
+    "pack_id": 1,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 604800,
+    "snapshot": true,
+    "removed": null,
+    "platform": "",
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+### Remove query from schedule
+
+`DELETE /api/v1/fleet/global/schedule/{id}`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/global/schedule/5`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
 ```
 
 ---

@@ -1,109 +1,73 @@
 <div id="query-detail" v-cloak>
 
-  <div class="d-none d-md-flex p-md-4 justify-content-center">
-    <div class="d-flex container justify-content-center">
-      <div class="d-flex container-fluid">
-        <div class="col-8 pl-md-4 my-5">
-          <h2 class="mb-3">{{query.name}}</h2>
-          <h6 class="pb-3">{{query.description ? query.description : '--'}}</h6>
-          <div v-if="!!query.tip">
-            <div class="container query-tip d-flex align-items-center border-left border-primary p-4 my-5">
-              <img alt="lightbulb" class="lightbulb" src="/images/lightbulb-blue-24x24@2x.png"/><p class="d-flex m-0">{{query.tip}}</p>
-            </div>
+  <div style="max-width: 1000px;" class="container-fluid justify-content-center p-0 px-4 pb-5 mb-lg-5 mx-auto">
+    <div class="d-flex flex-column p-0">
+      <a href="/queries" style="font-family: 'Nunito Sans'; font-size: 14px; font-weight: 700; text-decoration: none;" class="pt-4 pt-lg-5">
+        <img style="display: inline-block; width: 6px; height: 9px; transform: rotate(180deg); margin-bottom: 2px;" alt="back arrow" src="/images/chevron-right-6x9@2x.png"/>
+        <span class="ml-1"> Back to queries</span>
+      </a>
+      <div purpose="title-mobile" class="d-flex d-md-none flex-column pb-4 mb-3">
+        <h2 class="pt-4 pb-3 m-0">{{query.name}}</h2>
+        <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>  
+      </div>
+    </div>
+    <div class="d-flex flex-column flex-md-row justify-content-md-between">
+      <div class="container-fluid col-md-8 d-flex flex-column p-0 pr-md-3">
+        <div purpose="title-widescreen" class="d-none d-md-flex flex-column">
+          <h2 class="pt-4 pb-3 m-0">{{query.name}}</h2>
+          <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>  
+        </div>  
+        <div purpose="body" class="pt-4 pt-md-3 mt-3 mt-md-0">
+          <div purpose="query">
+            <h3 class="pb-4 mb-3 m-0">Query</h3>
+            <code class="pb-3">{{query.query ? query.query : '--'}}</code>  
           </div>
-          <h3 class="py-3">Query</h3>
-          <code class="pb-3">{{query.query ? query.query : '--'}}</code>
-          <div class="remediation" v-if="query.purpose === 'Detection' && query.remediation">
+          <div purpose="remediation" v-if="query.purpose === 'Detection' && query.remediation">
             <h3 class="pt-5 pb-3">Remediation</h3>
-              <p>{{query.remediation ? query.remediation : 'N/A'}}</p>
+            <p>{{query.remediation ? query.remediation : 'N/A'}}</p>
+          </div>  
+        </div>
+      </div>
+      <div purpose="summary-sidebar" class="col-md-4 order-first order-md-last p-0 pl-md-3 pt-md-4">
+        <div class="pb-2">
+          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start pb-1 pb-md-3">
+            <h5 class="pb-md-2 m-0">Platforms</h5>
+            <p class="pb-1" v-if="!query.platforms || !query.platforms.length">--</p>
+            <div purpose="platforms" class="d-flex align-items-center align-items-md-start pb-1" v-else>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-macos-black-24x24@2x.png" alt="macOS" v-if="query.platforms.includes('macOS')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-windows-black-24x24@2x.png" alt="Windows" v-if="query.platforms.includes('Windows')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-linux-black-24x24@2x.png" alt="Linux" v-if="query.platforms.includes('Linux')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-freebsd-black-24x24@2x.png" alt="FreeBSD" v-if="query.platforms.includes('FreeBSD')"/>
+            </div>
           </div>
         </div>
-
-        <div class="col-4 pr-md-4 ml-5 my-5">
-          <div class="query-sidebar border-bottom mb-3">
-            <h5>Platforms</h5>
-            <p v-if="!query.platforms || !query.platforms.length">--</p>
-            <div class="d-flex mb-3" v-else>
-              <img class="d-inline-flex mr-3 logo" src="/images/os-macos-black-24x24@2x.png" alt="macOS" v-if="query.platforms.includes('macOS')"/>
-              <img class="d-inline-flex mr-3 logo" src="/images/os-windows-black-24x24@2x.png" alt="Windows" v-if="query.platforms.includes('Windows')"/>
-              <img class="d-inline-flex mr-3 logo" src="/images/os-linux-black-24x24@2x.png" alt="Linux" v-if="query.platforms.includes('Linux')"/>
-              <img class="d-inline-flex mr-3 logo" src="/images/os-freebsd-black-24x24@2x.png" alt="FreeBSD" v-if="query.platforms.includes('FreeBSD')"/>
-            </div>
+        <div class="border-top py-2">
+          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 py-md-3">
+            <h5 class="pb-md-2 m-0">Purpose</h5>
+            <p class="m-0">{{query.purpose ? query.purpose : '--'}}</p>
           </div>
-
-          <div class="query-sidebar border-bottom mb-3">
-            <h5>Purpose</h5>
-            <p>{{query.purpose ? query.purpose : '--'}}</p>
-          </div>
-
-          <div class="query-sidebar">
-            <h5>Contributors</h5>
-            <div class="d-flex mb-3">
+        </div>
+        <div class="border-top py-2 pb-md-4">
+          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 pt-md-3">
+            <h5 class="pb-md-2 m-0">Contributors</h5>
+            <div class="d-flex align-items-center">
               <span class="mb-1" v-if="!query.contributors || !query.contributors.length">--</span>
-              <div v-for="contributor in query.contributors">
-                <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
+              <div class="d-flex pl-2 pl-md-0 pr-md-2" v-for="contributor in query.contributors">
+                <div purpose="avatar-frame" class="d-flex avatar-frame" @click="clickAvatar(contributor)">
                   <img alt="a GitHub user avatar" :alt="contributor.name ? contributor.name : contributor.handle" :src="contributor.avatarUrl"/>
                 </div>
               </div>
             </div>
           </div>
-          <h5>Contribute to this page</h5>
-          <a target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">View source</a>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="d-block d-md-none px-3 py-5 justify-content-center">
-    <h2 class="mb-3">{{query.name}}</h2>
-    <h6 class="pb-0 mb-0">{{query.description ? query.description : '--'}}</h6>
-  </div>
-  <div class="d-block d-md-none">
-    <div class="col d-md-flex px-3">
-      <div class="col p-0 pr-md-4 platforms-purpose">
-        <div class="d-flex align-items-center justify-content-between platforms">        
-          <h5 class="m-0">Platforms</h5>
-          <p class="text-right mb-1" v-if="!query.platforms || !query.platforms.length">--</p>
-          <div class="d-flex m-0" v-else>
-            <img class="d-inline-flex ml-3 logo" src="/images/os-macos-black-24x24@2x.png" alt="macOS" v-if="query.platforms.includes('macOS')"/>
-            <img class="d-inline-flex ml-3 logo" src="/images/os-windows-black-24x24@2x.png" alt="Windows" v-if="query.platforms.includes('Windows')"/>
-            <img class="d-inline-flex ml-3 logo" src="/images/os-linux-black-24x24@2x.png" alt="Linux" v-if="query.platforms.includes('Linux')"/>
-            <img class="d-inline-flex ml-3 logo" src="/images/os-freebsd-black-24x24@2x.png" alt="FreeBSD" v-if="query.platforms.includes('FreeBSD')"/>
+        <div class="d-md-none border-top"></div>
+        <div class="py-2 pt-md-0">
+          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1">
+            <h5 class="d-flex pb-md-2 m-0 mr-3">Contribute to this page</h5>
+            <p class="d-flex m-0"><a class="d-flex text-right m-0" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">View source</a></p>
           </div>
         </div>
-        <div class="my-3 divider"></div>  
-        <div class="d-flex align-items-center justify-content-between purpose">        
-          <h5 class="m-0">Purpose</h5>
-          <p class="m-0">{{query.purpose ? query.purpose : '--'}}</p>
-        </div>
       </div>
-      <div class="d-md-none m-3 divider"></div>
-      <div class="col p-0 pl-md-4 contributors-contribute">
-        <div class="d-flex align-items-center justify-content-between contributors">        
-          <h5 class="m-0">Contributors</h5>
-          <div class="d-flex align-items-center">
-            <span class="mb-1" v-if="!query.contributors || !query.contributors.length">--</span>
-            <div class="d-flex" v-for="contributor in query.contributors">
-              <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
-                <img alt="a GitHub user avatar" :alt="contributor.name ? contributor.name : contributor.handle" :src="contributor.avatarUrl"/>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="my-3 divider"></div>  
-        <div class="d-flex align-items-center justify-content-between contribute">
-          <h5 class="d-flex align-items-center m-0 mr-3 contribute">Contribute to this page</h5>
-          <p class="d-flex align-items-center m-0 contribute"><a class="d-flex align-items-center text-right m-0 contribute" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">View source</a></p>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="d-block d-md-none px-3 pt-5 pb-4 justify-content-center" style="padding-left: 30px; padding-right: 30px;">
-    <h3 class="pb-3 m-0">Query</h3>
-    <code class="pb-3">{{query.query ? query.query : '--'}}</code>
-    <div class="remediation" v-if="query.purpose === 'Detection'">
-      <h3 class="pt-5 pb-3">Remediation</h3>
-      <p>{{query.remediation ? query.remediation : 'N/A'}}</p>
     </div>
   </div>
 </div>

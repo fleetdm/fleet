@@ -31,6 +31,7 @@ export default (state = initialState, { type, payload }) => {
         loading: false,
         data: {
           ...state.data,
+          [payload.user.id]: payload.user,
         },
       };
     case CREATE_USER_WITHOUT_INVITE_FAILURE:

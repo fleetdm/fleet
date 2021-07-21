@@ -6,11 +6,10 @@ import classnames from "classnames";
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { isEmpty, noop, pick, reduce, filter, includes } from "lodash";
-
+import simpleSearch from "utilities/simple_search";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
-import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities";
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 import TableContainer from "components/TableContainer";
@@ -49,6 +48,10 @@ import {
   generateTableHeaders,
   generateDataSet,
 } from "./SoftwareTable/SoftwareTableConfig";
+import {
+  generatePackTableHeaders,
+  generatePackDataSet,
+} from "./PackTable/PackTableConfig";
 import EmptySoftware from "./EmptySoftware";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
@@ -83,7 +86,7 @@ export class HostDetailsPage extends Component {
       showQueryHostModal: false,
       showTransferHostModal: false,
       showRefetchLoadingSpinner: false,
-      softwareState: props.host.software,
+      softwareState: [],
     };
   }
 
@@ -208,19 +211,7 @@ export class HostDetailsPage extends Component {
       return;
     }
 
-    const lowerSearchQuery = searchQuery.toLowerCase();
-
-    const filteredSoftware = filter(host.software, (softwareItem) => {
-      if (!softwareItem.name) {
-        return false;
-      }
-
-      const lowerSoftwareName = softwareItem.name.toLowerCase();
-
-      return includes(lowerSoftwareName, lowerSearchQuery);
-    });
-
-    this.setState({ softwareState: filteredSoftware });
+    this.setState({ softwareState: simpleSearch(searchQuery, host.software) });
   };
 
   clearHostUpdates() {
@@ -390,9 +381,11 @@ export class HostDetailsPage extends Component {
   };
 
   renderPacks = () => {
-    const { host } = this.props;
+    const { host, isLoadingHost } = this.props;
     const { pack_stats } = host;
     const wrapperClassName = `${baseClass}__table`;
+
+    const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
     if (pack_stats) {
@@ -406,29 +399,22 @@ export class HostDetailsPage extends Component {
               {pack.query_stats.length === 0 ? (
                 <div>There are no schedule queries for this pack.</div>
               ) : (
-                <div className={`${baseClass}__wrapper`}>
-                  <table className={wrapperClassName}>
-                    <thead>
-                      <tr>
-                        <th>Query name</th>
-                        <th>Description</th>
-                        <th>Frequency</th>
-                        <th>Last run</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {!!pack.query_stats.length &&
-                        pack.query_stats.map((query) => {
-                          return (
-                            <PackQueriesListRow
-                              key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
-                              query={query}
-                            />
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {!!pack.query_stats.length && (
+                    <TableContainer
+                      columns={tableHeaders}
+                      data={generatePackDataSet(pack.query_stats)}
+                      isLoading={isLoadingHost}
+                      onQueryChange={() => null}
+                      resultsTitle={"queries"}
+                      defaultSortHeader={"scheduled_query_name"}
+                      defaultSortDirection={"asc"}
+                      showMarkAllPages={false}
+                      disablePagination
+                      disableCount
+                    />
+                  )}
+                </>
               )}
             </AccordionItemPanel>
           </AccordionItem>
@@ -495,13 +481,9 @@ export class HostDetailsPage extends Component {
     // const { EmptySoftware } = this;
     const { onQueryChange } = this;
     const { softwareState } = this.state;
-    const { host } = this.props;
-    const wrapperClassName = `${baseClass}__table`;
+    const { host, isLoadingHost } = this.props;
 
     const tableHeaders = generateTableHeaders();
-
-    // Hardcoded in false for loading table data
-    const loadingTableData = false;
 
     return (
       <div className="section section--software">
@@ -524,7 +506,7 @@ export class HostDetailsPage extends Component {
               <TableContainer
                 columns={tableHeaders}
                 data={generateDataSet(softwareState)}
-                isLoading={loadingTableData}
+                isLoading={isLoadingHost}
                 defaultSortHeader={"name"}
                 defaultSortDirection={"asc"}
                 inputPlaceHolder={"Filter software"}

@@ -24,11 +24,16 @@ type specMetadata struct {
 
 type specGroup struct {
 	Queries      []*fleet.QuerySpec
+	Teams        []*fleet.TeamSpec
 	Packs        []*fleet.PackSpec
 	Labels       []*fleet.LabelSpec
 	AppConfig    *fleet.AppConfigPayload
 	EnrollSecret *fleet.EnrollSecretSpec
 	UsersRoles   *fleet.UsersRoleSpec
+}
+
+type TeamSpec struct {
+	Team *fleet.TeamSpec `json:"team"`
 }
 
 func specGroupFromBytes(b []byte) (*specGroup, error) {
@@ -100,6 +105,13 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
 			specs.UsersRoles = userRoleSpec
+
+		case fleet.TeamKind:
+			var teamSpec TeamSpec
+			if err := yaml.Unmarshal(s.Spec, &teamSpec); err != nil {
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+			}
+			specs.Teams = append(specs.Teams, teamSpec.Team)
 
 		default:
 			return nil, errors.Errorf("unknown kind %q", s.Kind)
@@ -183,6 +195,13 @@ func applyCommand() *cli.Command {
 					return errors.Wrap(err, "applying enroll secrets")
 				}
 				log(c, "[+] applied enroll secrets\n")
+			}
+
+			if len(specs.Teams) > 0 {
+				if err := fleetClient.ApplyTeams(specs.Teams); err != nil {
+					return errors.Wrap(err, "applying queries")
+				}
+				logf(c, "[+] applied %d teams\n", len(specs.Teams))
 			}
 
 			if specs.UsersRoles != nil {
