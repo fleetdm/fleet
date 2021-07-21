@@ -318,7 +318,7 @@ spec:
             interval:
               3600: "SELECT total_seconds AS uptime FROM uptime"
   host_expiry_settings:
-    ...
+    # ...
 ```
 
 #### Auto table construction
@@ -334,7 +334,7 @@ spec:
   agent_options:
     config:
       options:
-        ...
+        # ...
     overrides:
       platforms:
         darwin:
@@ -363,7 +363,7 @@ kind: config
 spec:
   agent_options:
     config:
-      ...
+      # ...
       yara:
         file_paths:
           system_binaries:
