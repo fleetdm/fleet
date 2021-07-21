@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
@@ -6,8 +6,8 @@ import Button from "components/buttons/Button";
 const baseClass = "remove-scheduled-query-modal";
 
 interface IRemoveScheduledQueryModalProps {
-  onCancel: any;
-  onSubmit: any;
+  onCancel: () => void;
+  onSubmit: () => void;
 }
 
 const RemoveScheduledQueryModal = (

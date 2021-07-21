@@ -21,7 +21,7 @@ import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 const baseClass = "manage-schedule-page";
 
 const renderTable = (
-  onRemoveScheduledQueryClick: any,
+  onRemoveScheduledQueryClick: () => void,
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[],
   allGlobalScheduledQueriesError: any
 ): JSX.Element => {
@@ -46,7 +46,6 @@ interface IRootState {
     queries: {
       isLoading: boolean;
       data: IQuery[];
-      errors: any;
     };
   };
 }

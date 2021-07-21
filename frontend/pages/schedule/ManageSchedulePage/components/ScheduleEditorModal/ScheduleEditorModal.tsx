@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
@@ -17,14 +17,12 @@ import {
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
-import errors from "interfaces/errors";
 
 const baseClass = "schedule-editor-modal";
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
   onScheduleSubmit: (formData: any) => void;
-  validationErrors?: any[]; // TODO: proper interface for validationErrors
 }
 interface IFrequencyOption {
   value: number;
