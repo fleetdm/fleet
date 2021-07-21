@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -479,6 +481,7 @@ type errorHandler struct {
 
 func (h *errorHandler) Handle(ctx context.Context, err error) {
 	// get the request path
+	fmt.Println("BBBBB")
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(kitlog.With(h.logger, "path", path))
 
@@ -500,18 +503,53 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	}
 }
 
+const (
+	CtxStartTimeKey = "start_time"
+)
+
+func markRequestStart(ctx context.Context, r *http.Request) context.Context {
+	return context.WithValue(ctx, CtxStartTimeKey, time.Now())
+}
+
+func loggerDebug(logger kitlog.Logger, err error) kitlog.Logger {
+	if e, ok := err.(fleet.ErrWithInternal); ok {
+		logger = kitlog.With(logger, "internal", e.Internal())
+	}
+	if err != nil {
+		return level.Info(logger)
+	}
+	return level.Debug(logger)
+}
+
+func logRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWriter) context.Context {
+	return func(ctx context.Context, w http.ResponseWriter) context.Context {
+		begin, ok := ctx.Value(CtxStartTimeKey).(time.Time)
+		if !ok {
+			return ctx
+		}
+		_ = loggerDebug(logger, nil).Log(
+			"method", ctx.Value(kithttp.ContextKeyRequestMethod).(string),
+			"uri", ctx.Value(kithttp.ContextKeyRequestURI).(string),
+			"took", time.Since(begin),
+		)
+
+		return ctx
+	}
+}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
 func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			setRequestsContexts(svc),
+			markRequestStart,
 		),
-		//kithttp.ServerErrorLogger(logger),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
 		kithttp.ServerErrorEncoder(encodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
+			logRequestEnd(logger),
 		),
 	}
 
