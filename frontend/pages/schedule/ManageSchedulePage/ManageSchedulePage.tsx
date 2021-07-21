@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react"; //, { useEffect }
+import React, { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // @ts-ignore
 import memoize from "memoize-one";
@@ -8,6 +8,8 @@ import { IQuery } from "interfaces/query";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
+// @ts-ignore
+import queryActions from "redux/nodes/entities/queries/actions";
 
 import paths from "router/paths";
 import Button from "components/buttons/Button";
@@ -105,7 +107,10 @@ const ManageSchedulePage = (): JSX.Element => {
   const { MANAGE_PACKS } = paths;
   const handleAdvanced = (event: any) => dispatch(push(MANAGE_PACKS));
 
-  dispatch(globalScheduledQueryActions.loadAll());
+  useEffect(() => {
+    dispatch(globalScheduledQueryActions.loadAll());
+    dispatch(queryActions.loadAll());
+  }, [dispatch]);
 
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
   const [
