@@ -76,9 +76,9 @@ const ScheduleEditorModal = ({
   };
 
   const onChangeSelectQuery = useCallback(
-    (queryId: number | string) => {
+    (queryId: string) => {
       const queryWithId: IQuery | undefined = allQueries.find(
-        (query: IQuery) => query.id == queryId
+        (query: IQuery) => query.id === parseInt(queryId, 10)
       );
       setSelectedQuery(queryWithId);
     },
@@ -129,11 +129,12 @@ const ScheduleEditorModal = ({
       "\nTODO: Fix selectedLoggingType onFormSubmit,",
       selectedLoggingType
     );
-    debugger;
+
     onScheduleSubmit({
       shard: selectedShard,
       interval: selectedFrequency,
       query_id: selectedQuery?.id,
+      name: selectedQuery?.name,
       snapshot: selectedLoggingType === "snapshot",
       removed: selectedLoggingType === "differential",
       platform: selectedPlatformOptions,
@@ -145,7 +146,7 @@ const ScheduleEditorModal = ({
     <Modal title={"Schedule editor"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <Dropdown
-          searchable={true}
+          searchable
           options={createQueryDropdownOptions()}
           onChange={onChangeSelectQuery}
           placeholder={"Select query"}
@@ -184,10 +185,8 @@ const ScheduleEditorModal = ({
         <div>
           <Button
             variant="unstyled"
-            className={
-              (showAdvancedOptions ? "upcarat" : "downcarat") +
-              ` ${baseClass}__advanced-options-button`
-            }
+            className={`${showAdvancedOptions ? "upcarat" : "downcarat"} 
+               ${baseClass}__advanced-options-button`}
             onClick={toggleAdvancedOptions}
           >
             {showAdvancedOptions

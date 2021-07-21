@@ -120,8 +120,11 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
 
-  const generateButtonText = (selectActionButtonText = "Transfer to team") => {
-    return selectActionButtonText;
+  const generateButtonText = () => {
+    if (selectActionButtonText) {
+      return selectActionButtonText;
+    }
+    return "Transfer to team";
   };
 
   const renderSelectedText = (): JSX.Element => {

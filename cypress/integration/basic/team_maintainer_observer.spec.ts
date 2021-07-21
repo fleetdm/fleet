@@ -27,15 +27,15 @@ describe("Basic tier - Team observer/maintainer user", () => {
     // See the “Teams” column in the Hosts table
     // cy.get("thead").contains(/team/i).should("exist");
 
-      // Nav restrictions
-      cy.findByText(/settings/i).should("not.exist");
-      cy.findByText(/schedule/i).should("not.exist");
-      cy.visit("/settings/organization");
-      cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/packs/manage");
-      cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/schedule/manage");
-      cy.findByText(/you do not have permissions/i).should("exist");
+    // Nav restrictions
+    cy.findByText(/settings/i).should("not.exist");
+    cy.findByText(/schedule/i).should("not.exist");
+    cy.visit("/settings/organization");
+    cy.findByText(/you do not have permissions/i).should("exist");
+    cy.visit("/packs/manage");
+    cy.findByText(/you do not have permissions/i).should("exist");
+    cy.visit("/schedule/manage");
+    cy.findByText(/you do not have permissions/i).should("exist");
 
     // NOT see and select "add new label"
     cy.findByRole("button", { name: /new label/i }).should("not.exist");
@@ -105,24 +105,18 @@ describe("Basic tier - Team observer/maintainer user", () => {
     // ^^ TODO confirm if this restriction applies to a dual-role user like Marco
   });
 
-<<<<<<< HEAD
-    it("Can perform the appropriate maintainer actions", () => {
-      cy.login("marco@organization.com", "user123#");
-      cy.visit("/");
-
-      // Ensure page is loaded and appropriate nav links are displayed
-      cy.contains("All hosts");
-      cy.get("nav").within(() => {
-        cy.findByText(/hosts/i).should("exist");
-        cy.findByText(/queries/i).should("exist");
-        cy.findByText(/schedule/i).should("not.exist");
-        cy.findByText(/settings/i).should("not.exist");
-      });
-=======
   it("Can perform the appropriate maintainer actions", () => {
     cy.login("marco@organization.com", "user123#");
     cy.visit("/");
->>>>>>> main
+
+    // Ensure page is loaded and appropriate nav links are displayed
+    cy.contains("All hosts");
+    cy.get("nav").within(() => {
+      cy.findByText(/hosts/i).should("exist");
+      cy.findByText(/queries/i).should("exist");
+      cy.findByText(/schedule/i).should("not.exist");
+      cy.findByText(/settings/i).should("not.exist");
+    });
 
     // Ensure page is loaded and appropriate nav links are displayed
     cy.contains("All hosts");

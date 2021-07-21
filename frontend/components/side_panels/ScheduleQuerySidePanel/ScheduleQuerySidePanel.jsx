@@ -6,6 +6,7 @@ import queryInterface from "interfaces/query";
 import scheduledQueryInterface from "interfaces/scheduled_query";
 import SearchPackQuery from "./SearchPackQuery";
 import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
+
 const baseClass = "schedule-query-side-panel";
 
 const ScheduleQuerySidePanel = ({

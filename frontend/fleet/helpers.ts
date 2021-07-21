@@ -437,15 +437,15 @@ export const secondsToDhms = (d: number): string => {
   if (d === 604800) {
     return "1 week";
   }
-  var day = Math.floor(d / (3600 * 24));
-  var h = Math.floor((d % (3600 * 24)) / 3600);
-  var m = Math.floor((d % 3600) / 60);
-  var s = Math.floor(d % 60);
+  const day = Math.floor(d / (3600 * 24));
+  const h = Math.floor((d % (3600 * 24)) / 3600);
+  const m = Math.floor((d % 3600) / 60);
+  const s = Math.floor(d % 60);
 
-  var dDisplay = day > 0 ? day + (day == 1 ? " day " : " days ") : "";
-  var hDisplay = h > 0 ? h + (h == 1 ? " hour " : " hours ") : "";
-  var mDisplay = m > 0 ? m + (m == 1 ? " minute " : " minutes ") : "";
-  var sDisplay = s > 0 ? s + (s == 1 ? " second" : " seconds") : "";
+  const dDisplay = day > 0 ? day + (day === 1 ? " day " : " days ") : "";
+  const hDisplay = h > 0 ? h + (h === 1 ? " hour " : " hours ") : "";
+  const mDisplay = m > 0 ? m + (m === 1 ? " minute " : " minutes ") : "";
+  const sDisplay = s > 0 ? s + (s === 1 ? " second" : " seconds") : "";
   return dDisplay + hDisplay + mDisplay + sDisplay;
 };
 

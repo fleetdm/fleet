@@ -8,6 +8,8 @@ import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 // @ts-ignore
 import queryActions from "redux/nodes/entities/queries/actions";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 
 import paths from "router/paths";
 import Button from "components/buttons/Button";
@@ -15,20 +17,15 @@ import ScheduleError from "./components/ScheduleError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 
 const baseClass = "manage-schedule-page";
 
 const renderTable = (
   onRemoveScheduledQueryClick: any,
-  allGlobalScheduledQueriesList: IGlobalScheduledQuery[]
+  allGlobalScheduledQueriesList: IGlobalScheduledQuery[],
+  allGlobalScheduledQueriesError: any
 ): JSX.Element => {
-  const globalScheduledQueriesError = useSelector(
-    (state: IRootState) => state.entities.global_scheduled_queries.errors
-  );
-
-  if (Object.keys(globalScheduledQueriesError).length !== 0) {
+  if (Object.keys(allGlobalScheduledQueriesError).length !== 0) {
     return <ScheduleError />;
   }
 
@@ -90,9 +87,9 @@ const ManageSchedulePage = (): JSX.Element => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
-  const onRemoveScheduledQueryClick = (selectedQueryIds: any) => {
+  const onRemoveScheduledQueryClick = (selectedTableQueryIds: any) => {
     toggleRemoveScheduledQueryModal();
-    setSelectedQueryIds(selectedQueryIds);
+    setSelectedQueryIds(selectedTableQueryIds);
   };
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
@@ -191,7 +188,8 @@ const ManageSchedulePage = (): JSX.Element => {
         <div>
           {renderTable(
             onRemoveScheduledQueryClick,
-            allGlobalScheduledQueriesList
+            allGlobalScheduledQueriesList,
+            allGlobalScheduledQueriesError
           )}
         </div>
         {showScheduleEditorModal && (

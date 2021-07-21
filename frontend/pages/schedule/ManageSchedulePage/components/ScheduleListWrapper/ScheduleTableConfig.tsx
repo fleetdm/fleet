@@ -5,6 +5,7 @@ import { secondsToDhms } from "fleet/helpers";
 import Checkbox from "components/forms/fields/Checkbox";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+
 interface IHeaderProps {
   column: {
     title: string;
