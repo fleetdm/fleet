@@ -6,7 +6,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 // Changed to IQuery
-import { IQuery } from "interfaces/query";
+import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import PATHS from "router/paths";
 
 interface IHeaderProps {
@@ -23,7 +23,7 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: IQuery;
+    original: IGlobalScheduledQuery;
     getToggleRowSelectedProps: () => any; // TODO: do better with types
     toggleRowSelected: () => void;
   };
@@ -42,7 +42,7 @@ interface IDataColumn {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, query: IQuery) => void
+  actionSelectHandler: (value: string, query: IGlobalScheduledQuery) => void
 ): IDataColumn[] => {
   return [
     {
@@ -88,7 +88,9 @@ const generateTableHeaders = (
 };
 
 // TODO: fix type
-const generateDataSet = (queries: { [id: number]: IQuery }): any => {
+const generateDataSet = (queries: {
+  [id: number]: IGlobalScheduledQuery;
+}): any => {
   return queries;
 };
 

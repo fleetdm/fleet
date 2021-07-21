@@ -4,8 +4,9 @@
 import React, { useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
+import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 // @ts-ignore
-import queriesActions from "redux/nodes/entities/queries/actions";
+import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
@@ -16,6 +17,14 @@ const baseClass = "schedule-list-wrapper";
 interface IScheduleListWrapperProps {
   fakeData: any;
   toggleRemoveScheduledQueryModal: any;
+}
+interface IRootState {
+  entities: {
+    global_scheduled_queries: {
+      isLoading: boolean;
+      data: IGlobalScheduledQuery[];
+    };
+  };
 }
 
 const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
@@ -32,6 +41,13 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
 
   const tableHeaders = generateTableHeaders(onActionSelection);
 
+  const loadingTableData = useSelector(
+    (state: IRootState) => state.entities.global_scheduled_queries.isLoading
+  );
+  const teams = useSelector((state: IRootState) =>
+    generateDataSet(state.entities.global_scheduled_queries.data)
+  );
+
   // The state of the selectedQueryIds changes when you click Remove query button
   const [selectedQueryIds, setSelectedQueryIds] = useState([]);
 
@@ -47,7 +63,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     (queryData) => {
       const { pageIndex, pageSize, searchQuery } = queryData;
       dispatch(
-        queriesActions.loadAll({
+        globalScheduledQueryActions.loadAll({
           page: pageIndex,
           perPage: pageSize,
           globalFilter: searchQuery,

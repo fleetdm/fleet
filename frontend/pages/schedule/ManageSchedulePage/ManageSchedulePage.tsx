@@ -8,9 +8,6 @@ import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
-// Will I need any of this?
-// import globalScheduledQueryInterface from "interfaces/global_scheduled_query";
-
 import paths from "router/paths";
 import Button from "components/buttons/Button";
 import ScheduleError from "./components/ScheduleError";
@@ -76,18 +73,18 @@ const renderTable = (toggleRemoveScheduledQueryModal: any): JSX.Element => {
     />
   );
 };
-
-interface IRootState {
-  entities: {
-    queries: {
-      data: IGlobalScheduledQuery[];
-    };
-  };
-}
 interface IFetchParams {
   pageIndex?: number;
   pageSize?: number;
   searchQuery?: string;
+}
+interface IRootState {
+  entities: {
+    global_scheduled_queries: {
+      isLoading: boolean;
+      data: IGlobalScheduledQuery[];
+    };
+  };
 }
 
 const getQueries = (data: { [id: string]: IGlobalScheduledQuery }) => {
@@ -97,6 +94,8 @@ const getQueries = (data: { [id: string]: IGlobalScheduledQuery }) => {
 };
 
 const memoizedGetQueries = memoize(getQueries);
+
+console.log("memoizedGetQueries", memoizedGetQueries);
 
 const ManageSchedulePage = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -145,7 +144,7 @@ const ManageSchedulePage = (): JSX.Element => {
   ]);
 
   const allQueries = useSelector(
-    (state: IRootState) => state.entities.queries.data
+    (state: IRootState) => state.entities.global_scheduled_queries.data
   );
   // Turn object of objects into array of objects
   const allQueriesList = Object.values(allQueries);
