@@ -5349,7 +5349,6 @@ _Available in Fleet Basic_
 
 ### Translate IDs
 
-_Available in Fleet Basic_
 
 `POST /api/v1/fleet/translate`
 
