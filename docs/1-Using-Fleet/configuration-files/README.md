@@ -5,7 +5,6 @@
 - [Labels](#labels)
 - [Enroll secrets](#enroll-secrets)
 - [Organization settings](#organization-settings)
-- [Auto table construction](#auto-table-construction)
 
 Entities in Fleet, such as queries, packs, labels, agent options, and enroll secrets, can be managed with configuration files in yaml syntax.
 
@@ -319,12 +318,12 @@ spec:
             interval:
               3600: "SELECT total_seconds AS uptime FROM uptime"
   host_expiry_settings:
-    ...
+    # ...
 ```
 
 #### Auto table construction
 
-You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, see the [Osquery Automatic Table Construction documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction)
+You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
 
 If you already know what your ATC configuration needs to look like, you can add it to an options config file:
 
@@ -335,7 +334,7 @@ spec:
   agent_options:
     config:
       options:
-        ...
+        # ...
     overrides:
       platforms:
         darwin:
@@ -349,6 +348,36 @@ spec:
                 - "allowed"
                 - "prompt_count"
                 - "last_modified"
+```
+
+#### YARA configuration
+
+You can use Fleet to configure the `yara` and `yara_events` osquery tables. Fore more information on YARA configuration and continuous monitoring using the `yara_events` table, check out the [YARA-based scanning with osquery section](https://osquery.readthedocs.io/en/stable/deployment/yara/) of the osquery documentation.
+
+The following is an example Fleet configuration file with YARA configuration. The values are taken from an example config supplied in the above link to the osquery documentation.
+
+```yaml
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      # ...
+      yara:
+        file_paths:
+          system_binaries:
+          - sig_group_1
+          tmp:
+          - sig_group_1
+          - sig_group_2
+        signatures:
+          sig_group_1:
+          - /Users/wxs/sigs/foo.sig
+          - /Users/wxs/sigs/bar.sig
+          sig_group_2:
+          - /Users/wxs/sigs/baz.sig
+    overrides: {}
 ```
 
 #### SMTP authentication
