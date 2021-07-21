@@ -9,14 +9,14 @@ import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
-import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
+import { generateTableHeaders } from "./ScheduleTableConfig";
 import NoSchedule from "../NoSchedule";
 
 const baseClass = "schedule-list-wrapper";
 
 interface IScheduleListWrapperProps {
-  fakeData: any;
-  toggleRemoveScheduledQueryModal: any;
+  onRemoveScheduledQueryClick: any;
+  allGlobalScheduledQueriesList: IGlobalScheduledQuery[];
 }
 interface IRootState {
   entities: {
@@ -28,41 +28,18 @@ interface IRootState {
 }
 
 const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
-  const { fakeData, toggleRemoveScheduledQueryModal } = props;
+  const { onRemoveScheduledQueryClick, allGlobalScheduledQueriesList } = props;
   const dispatch = useDispatch();
-
-  const scheduledCount = fakeData.scheduled.length;
-  const scheduledQueriesTotalDisplay =
-    scheduledCount === 1 ? "1 query" : `${scheduledCount} queries`;
 
   // Hardcode in needed props
   const onActionSelection = () => null;
 
   const tableHeaders = generateTableHeaders(onActionSelection);
-
-  // change to state.entities.global_scheduled_queries somehow
-  const loadingTableData = false;
-  // useSelector(
-  //   (state: IRootState) => state.entities.global_scheduled_queries.isLoading
-  // );
-
-  // change to state.entities.global_scheduled_queries somehow
-  const globalScheduledQueries = fakeData.scheduled;
-  // useSelector((state: IRootState) =>
-  //   generateDataSet(state.entities.global_scheduled_queries.data)
-  // );
-
-  // The state of the selectedQueryIds changes when you click Remove query button
-  const [selectedQueryIds, setSelectedQueryIds] = useState([]);
-
-  // Table CTA: Remove query button
-  const onRemoveScheduledQueryClick = (selectedQueryIds: any) => {
-    toggleRemoveScheduledQueryModal();
-    setSelectedQueryIds(selectedQueryIds);
-  };
+  const loadingTableData = useSelector(
+    (state: IRootState) => state.entities.global_scheduled_queries.isLoading
+  );
 
   // Search functionality disabled, needed if enabled
-  // NOTE: called once on the initial render of this component.
   const onQueryChange = useCallback(
     (queryData) => {
       const { pageIndex, pageSize, searchQuery } = queryData;
@@ -79,23 +56,13 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
-      {/* Not using this because the search functionality returns a count
-      <p className={`${baseClass}__scheduled-query-count`}>
-        {scheduledQueriesTotalDisplay}
-      </p> */}
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={globalScheduledQueries}
-        // TODO: connect loading state to this table
+        data={allGlobalScheduledQueriesList}
         isLoading={loadingTableData}
-        // Removed action button next to search
-        // actionButtonText={"Remove query"}
-        // actionButtonVariant={"primary"}
-        // onActionButtonClick={toggleRemoveScheduledQueryModal}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}
-        // Removed search functionality
         showMarkAllPages
         isAllPagesSelected
         onQueryChange={onQueryChange}

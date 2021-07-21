@@ -1,7 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-// @ts-ignore
-import memoize from "memoize-one";
 
 import { push } from "react-router-redux";
 import { IQuery } from "interfaces/query";
@@ -22,85 +20,39 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 const baseClass = "manage-schedule-page";
 
-// FAKE DATA ALERT
+const renderTable = (
+  onRemoveScheduledQueryClick: any,
+  allGlobalScheduledQueriesList: IGlobalScheduledQuery[]
+): JSX.Element => {
+  const globalScheduledQueriesError = useSelector(
+    (state: IRootState) => state.entities.global_scheduled_queries.errors
+  );
 
-const fakeData = {
-  scheduled: [
-    {
-      id: 1,
-      query_id: 4,
-      query_name: "Get crashes",
-      interval: 172800,
-      last_executed: "2021-06-23T20:26:51Z",
-    },
-    {
-      id: 2,
-      query_id: 7,
-      query_name: "Detect machines with Gatekeeper disabled",
-      interval: 14400,
-      last_executed: "2021-06-24T20:26:51Z",
-    },
-    {
-      id: 3,
-      query_id: 8,
-      query_name: "Detect fake data",
-      interval: 86400,
-      last_executed: "2021-06-23T20:26:51Z",
-    },
-    {
-      id: 4,
-      query_id: 20,
-      query_name: "Detect a shit ton of work",
-      interval: 604800,
-      last_executed: "2021-06-21T20:26:51Z",
-    },
-  ],
-};
-
-// 1. SET TO TRUE IF YOU WANT TO SEE THE ERROR STATE RENDER;
-const fakeDataError = false;
-
-// END FAKE DATA ALERT
-
-const renderTable = (toggleRemoveScheduledQueryModal: any): JSX.Element => {
-  // Schedule has an error retrieving data.
-  if (fakeDataError) {
+  if (Object.keys(globalScheduledQueriesError).length !== 0) {
     return <ScheduleError />;
   }
 
-  // Schedule table
   return (
     <ScheduleListWrapper
-      fakeData={fakeData}
-      toggleRemoveScheduledQueryModal={toggleRemoveScheduledQueryModal}
+      onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
+      allGlobalScheduledQueriesList={allGlobalScheduledQueriesList}
     />
   );
 };
-interface IFetchParams {
-  pageIndex?: number;
-  pageSize?: number;
-  searchQuery?: string;
-}
 interface IRootState {
   entities: {
     global_scheduled_queries: {
       isLoading: boolean;
       data: IGlobalScheduledQuery[];
+      errors: any;
     };
     queries: {
       isLoading: boolean;
       data: IQuery[];
+      errors: any;
     };
   };
 }
-
-// const getQueries = (data: { [id: string]: IGlobalScheduledQuery }) => {
-//   return Object.keys(data).map((queryId) => {
-//     return data[queryId];
-//   });
-// };
-// const memoizedGetQueries = memoize(getQueries);
-// console.log("memoizedGetQueries", memoizedGetQueries);
 
 const ManageSchedulePage = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -111,6 +63,17 @@ const ManageSchedulePage = (): JSX.Element => {
     dispatch(globalScheduledQueryActions.loadAll());
     dispatch(queryActions.loadAll());
   }, [dispatch]);
+
+  const allQueries = useSelector((state: IRootState) => state.entities.queries);
+  const allQueriesList = Object.values(allQueries.data);
+
+  const allGlobalScheduledQueries = useSelector(
+    (state: IRootState) => state.entities.global_scheduled_queries
+  );
+  const allGlobalScheduledQueriesList = Object.values(
+    allGlobalScheduledQueries.data
+  );
+  const allGlobalScheduledQueriesError = allGlobalScheduledQueries.errors;
 
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
   const [
@@ -123,22 +86,16 @@ const ManageSchedulePage = (): JSX.Element => {
     setShowScheduleEditorModal(!showScheduleEditorModal);
   }, [showScheduleEditorModal, setShowScheduleEditorModal]);
 
-  const toggleRemoveScheduledQueryModal = useCallback(
-    (queryIds?) => {
-      setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
-      setSelectedQueryIds(queryIds); // haven't tested this
-    },
-    [
-      showRemoveScheduledQueryModal,
-      setShowRemoveScheduledQueryModal,
-      setSelectedQueryIds,
-    ]
-  );
+  const toggleRemoveScheduledQueryModal = useCallback(() => {
+    setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
+  }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
-  // TODO: Figure out correct removal once queries are populated in
+  const onRemoveScheduledQueryClick = (selectedQueryIds: any) => {
+    toggleRemoveScheduledQueryModal();
+    setSelectedQueryIds(selectedQueryIds);
+  };
+
   const onRemoveScheduledQuerySubmit = useCallback(() => {
-    console.log("onRemoveScheduleQuerySubmit fires after click!");
-    // Get selectedQueryIds from state
     const promises = selectedQueryIds.map((id: number) => {
       return dispatch(globalScheduledQueryActions.destroy({ id }));
     });
@@ -164,18 +121,6 @@ const ManageSchedulePage = (): JSX.Element => {
         toggleRemoveScheduledQueryModal();
       });
   }, [dispatch, selectedQueryIds, toggleRemoveScheduledQueryModal]);
-
-  // TODO: Fix all queries to load always
-  // This is all queries for the ScheduleEditorModal
-  const loadingAllQueriesData = useSelector(
-    (state: IRootState) => state.entities.queries.isLoading
-  );
-  const allQueries = useSelector(
-    (state: IRootState) => state.entities.queries.data
-  );
-  // Turn object of objects into array of objects
-  const allQueriesList = Object.values(allQueries);
-  console.log("allQueriesList", allQueriesList);
 
   // TODO: Fix formData remove not passing correctly
   const onAddScheduledQuerySubmit = useCallback(
@@ -223,26 +168,32 @@ const ManageSchedulePage = (): JSX.Element => {
             </div>
           </div>
           {/* Hide CTA Buttons if no schedule or schedule error */}
-          {fakeData.scheduled.length !== 0 && !fakeDataError && (
-            <div className={`${baseClass}__action-button-container`}>
-              <Button
-                variant="inverse"
-                onClick={handleAdvanced}
-                className={`${baseClass}__advanced-button`}
-              >
-                Advanced
-              </Button>
-              <Button
-                variant="brand"
-                className={`${baseClass}__schedule-button`}
-                onClick={toggleScheduleEditorModal}
-              >
-                Schedule a query
-              </Button>
-            </div>
+          {allGlobalScheduledQueriesList.length !== 0 &&
+            allGlobalScheduledQueriesError.length !== 0 && (
+              <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  variant="inverse"
+                  onClick={handleAdvanced}
+                  className={`${baseClass}__advanced-button`}
+                >
+                  Advanced
+                </Button>
+                <Button
+                  variant="brand"
+                  className={`${baseClass}__schedule-button`}
+                  onClick={toggleScheduleEditorModal}
+                >
+                  Schedule a query
+                </Button>
+              </div>
+            )}
+        </div>
+        <div>
+          {renderTable(
+            onRemoveScheduledQueryClick,
+            allGlobalScheduledQueriesList
           )}
         </div>
-        <div>{renderTable(toggleRemoveScheduledQueryModal)}</div>
         {showScheduleEditorModal && (
           <ScheduleEditorModal
             onCancel={toggleScheduleEditorModal}
@@ -254,7 +205,6 @@ const ManageSchedulePage = (): JSX.Element => {
           <RemoveScheduledQueryModal
             onCancel={toggleRemoveScheduledQueryModal}
             onSubmit={onRemoveScheduledQuerySubmit}
-            selectedQueryIds={selectedQueryIds}
           />
         )}
       </div>

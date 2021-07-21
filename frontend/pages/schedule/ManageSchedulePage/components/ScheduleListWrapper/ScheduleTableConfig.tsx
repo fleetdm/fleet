@@ -3,12 +3,8 @@ import { secondsToDhms } from "fleet/helpers";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-// Changed to IQuery
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import PATHS from "router/paths";
-
 interface IHeaderProps {
   column: {
     title: string;
@@ -72,7 +68,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <LinkCell value={cellProps.cell.value} path={PATHS.MANAGE_QUERIES} />
+        <TextCell value={cellProps.cell.value} />
       ),
     },
     {
@@ -87,11 +83,4 @@ const generateTableHeaders = (
   ];
 };
 
-// TODO: fix type
-const generateDataSet = (queries: {
-  [id: number]: IGlobalScheduledQuery;
-}): any => {
-  return queries;
-};
-
-export { generateTableHeaders, generateDataSet };
+export { generateTableHeaders };
