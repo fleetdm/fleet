@@ -77,8 +77,8 @@ const ScheduleEditorModal = ({
 
   const onChangeSelectQuery = useCallback(
     (queryId: number | string) => {
-      const queryWithId: IGlobalScheduledQuery | undefined = allQueries.find(
-        (query: IGlobalScheduledQuery) => query.id == queryId
+      const queryWithId: IQuery | undefined = allQueries.find(
+        (query: IQuery) => query.id == queryId
       );
       setSelectedQuery(queryWithId);
     },

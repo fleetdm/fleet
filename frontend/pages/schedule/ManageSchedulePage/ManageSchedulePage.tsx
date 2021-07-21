@@ -56,7 +56,7 @@ const fakeData = {
 };
 
 // 1. SET TO TRUE IF YOU WANT TO SEE THE ERROR STATE RENDER;
-const fakeDataError = true;
+const fakeDataError = false;
 
 // END FAKE DATA ALERT
 
@@ -92,81 +92,87 @@ interface IRootState {
   };
 }
 
-const getQueries = (data: { [id: string]: IGlobalScheduledQuery }) => {
-  return Object.keys(data).map((queryId) => {
-    return data[queryId];
-  });
-};
-
-const memoizedGetQueries = memoize(getQueries);
-
-console.log("memoizedGetQueries", memoizedGetQueries);
+// const getQueries = (data: { [id: string]: IGlobalScheduledQuery }) => {
+//   return Object.keys(data).map((queryId) => {
+//     return data[queryId];
+//   });
+// };
+// const memoizedGetQueries = memoize(getQueries);
+// console.log("memoizedGetQueries", memoizedGetQueries);
 
 const ManageSchedulePage = (): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
   const handleAdvanced = (event: any) => dispatch(push(MANAGE_PACKS));
 
+  dispatch(globalScheduledQueryActions.loadAll());
+
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
   const [
     showRemoveScheduledQueryModal,
     setShowRemoveScheduledQueryModal,
   ] = useState(false);
+  const [selectedQueryIds, setSelectedQueryIds] = useState([]);
 
   const toggleScheduleEditorModal = useCallback(() => {
     setShowScheduleEditorModal(!showScheduleEditorModal);
   }, [showScheduleEditorModal, setShowScheduleEditorModal]);
 
-  const toggleRemoveScheduledQueryModal = useCallback(() => {
-    setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
-  }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
-
-  // TODO: Figure out correct removal once queries are populated in
-  const onRemoveScheduledQuerySubmit = useCallback(
-    (scheduledQueryIDs) => {
-      const promises = scheduledQueryIDs.map((id: number) => {
-        return dispatch(globalScheduledQueryActions.destroy({ id }));
-      });
-
-      const queryOrQueries =
-        scheduledQueryIDs.length === 1 ? "query" : "queries";
-
-      return Promise.all(promises)
-        .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              `Successfully removed scheduled ${queryOrQueries}.`
-            )
-          );
-          console.log("onRemoveScheduleQuerySubmit fires after click!");
-          toggleRemoveScheduledQueryModal();
-        })
-        .catch(() =>
-          dispatch(
-            renderFlash(
-              "error",
-              `Unable to remove scheduled ${queryOrQueries}. Please try again.`
-            )
-          )
-        );
+  const toggleRemoveScheduledQueryModal = useCallback(
+    (queryIds?) => {
+      setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
+      setSelectedQueryIds(queryIds); // haven't tested this
     },
     [
-      // dispatch,
-      // queryId,
-      // queryEditing?.id,
-      // queryEditing?.name,
-      toggleRemoveScheduledQueryModal,
+      showRemoveScheduledQueryModal,
+      setShowRemoveScheduledQueryModal,
+      setSelectedQueryIds,
     ]
   );
 
-  // This is to choose queries for the ScheduleEditorModal
+  // TODO: Figure out correct removal once queries are populated in
+  const onRemoveScheduledQuerySubmit = useCallback(() => {
+    console.log("onRemoveScheduleQuerySubmit fires after click!");
+    // Get selectedQueryIds from state
+    const promises = selectedQueryIds.map((id: number) => {
+      return dispatch(globalScheduledQueryActions.destroy({ id }));
+    });
+    const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
+    return Promise.all(promises)
+      .then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            `Successfully removed scheduled ${queryOrQueries}.`
+          )
+        );
+        toggleRemoveScheduledQueryModal();
+        dispatch(globalScheduledQueryActions.loadAll());
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            `Unable to remove scheduled ${queryOrQueries}. Please try again.`
+          )
+        );
+        toggleRemoveScheduledQueryModal();
+      });
+  }, [dispatch, selectedQueryIds, toggleRemoveScheduledQueryModal]);
+
+  // TODO: Fix all queries to load always
+  // This is all queries for the ScheduleEditorModal
+  const loadingAllQueriesData = useSelector(
+    (state: IRootState) => state.entities.queries.isLoading
+  );
   const allQueries = useSelector(
     (state: IRootState) => state.entities.queries.data
   );
   // Turn object of objects into array of objects
   const allQueriesList = Object.values(allQueries);
+  console.log("allQueriesList", allQueriesList);
 
+  // TODO: Fix formData remove not passing correctly
   const onAddScheduledQuerySubmit = useCallback(
     (formData: any) => {
       console.log(
@@ -243,7 +249,7 @@ const ManageSchedulePage = (): JSX.Element => {
           <RemoveScheduledQueryModal
             onCancel={toggleRemoveScheduledQueryModal}
             onSubmit={onRemoveScheduledQuerySubmit}
-            queries={allQueriesList}
+            selectedQueryIds={selectedQueryIds}
           />
         )}
       </div>

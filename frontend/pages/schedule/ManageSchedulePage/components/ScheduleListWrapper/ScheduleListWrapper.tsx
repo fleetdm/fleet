@@ -36,17 +36,21 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     scheduledCount === 1 ? "1 query" : `${scheduledCount} queries`;
 
   // Hardcode in needed props
-  const loadingQueries = false;
   const onActionSelection = () => null;
 
   const tableHeaders = generateTableHeaders(onActionSelection);
 
-  const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.global_scheduled_queries.isLoading
-  );
-  const teams = useSelector((state: IRootState) =>
-    generateDataSet(state.entities.global_scheduled_queries.data)
-  );
+  // change to state.entities.global_scheduled_queries somehow
+  const loadingTableData = false;
+  // useSelector(
+  //   (state: IRootState) => state.entities.global_scheduled_queries.isLoading
+  // );
+
+  // change to state.entities.global_scheduled_queries somehow
+  const globalScheduledQueries = fakeData.scheduled;
+  // useSelector((state: IRootState) =>
+  //   generateDataSet(state.entities.global_scheduled_queries.data)
+  // );
 
   // The state of the selectedQueryIds changes when you click Remove query button
   const [selectedQueryIds, setSelectedQueryIds] = useState([]);
@@ -82,9 +86,9 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={fakeData.scheduled}
+        data={globalScheduledQueries}
         // TODO: connect loading state to this table
-        isLoading={loadingQueries}
+        isLoading={loadingTableData}
         // Removed action button next to search
         // actionButtonText={"Remove query"}
         // actionButtonVariant={"primary"}
