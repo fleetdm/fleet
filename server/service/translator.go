@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -38,66 +37,89 @@ func translatorEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return translatorResponse{List: resp}, nil
 }
 
-func (svc Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
+type translateFunc func(ds fleet.Datastore, identifier string) (uint, error)
 
+func translateEmailToUserID(ds fleet.Datastore, identifier string) (uint, error) {
+	user, err := ds.UserByEmail(identifier)
+	if err != nil {
+		return 0, err
+	}
+	return user.ID, nil
+}
+
+func translateLabelToID(ds fleet.Datastore, identifier string) (uint, error) {
+	labelIDs, err := ds.LabelIDsByName([]string{identifier})
+	if err != nil {
+		return 0, err
+	}
+	return labelIDs[0], nil
+}
+
+func translateTeamToID(ds fleet.Datastore, identifier string) (uint, error) {
+	team, err := ds.TeamByName(identifier)
+	if err != nil {
+		return 0, err
+	}
+	return team.ID, nil
+}
+
+func translateHostToID(ds fleet.Datastore, identifier string) (uint, error) {
+	host, err := ds.HostByIdentifier(identifier)
+	if err != nil {
+		return 0, err
+	}
+	return host.ID, nil
+}
+
+func (svc Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
 	var finalPayload []fleet.TranslatePayload
 
 	for _, payload := range payloads {
-		var idgetter fleet.IDGetter
-
-		toId := fleet.StringIdentifierToIDPayload{}
-		err := json.Unmarshal(payload.Payload, &toId)
-		if err != nil {
-			return nil, err
-		}
+		var translateFunc translateFunc
 
 		switch payload.Type {
 		case fleet.TranslatorTypeUserEmail:
-			idgetter = fleet.NewEmailToUserIDTranslator(svc.ds, toId.Identifier)
+			if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+			translateFunc = translateEmailToUserID
 		case fleet.TranslatorTypeLabel:
-			idgetter = fleet.NewLabelNameToIDTranslator(svc.ds, toId.Identifier)
+			if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+			translateFunc = translateLabelToID
 		case fleet.TranslatorTypeTeam:
-			idgetter = fleet.NewTeamNameToIDTranslator(svc.ds, toId.Identifier)
+			if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+			translateFunc = translateTeamToID
 		case fleet.TranslatorTypeHost:
-			idgetter = fleet.NewHostIdentifierToIDTranslator(svc.ds, toId.Identifier)
+			if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+			translateFunc = translateHostToID
 		default:
 			return nil, fleet.NewErrorf(fleet.ErrNoUnknownTranslate, "Type %s is unknown.", payload.Type)
 		}
 
-		id, err := idgetter.GetID()
+		id, err := translateFunc(svc.ds, payload.Payload.Identifier)
 		if err != nil {
 			return nil, err
 		}
-		toId.ID = id
-		newPayload, err := repackageNewPayload(toId, payload)
-		if err != nil {
-			return nil, err
-		}
-		finalPayload = append(finalPayload, newPayload)
+		payload.Payload.ID = id
+		finalPayload = append(finalPayload, fleet.TranslatePayload{
+			Type:    payload.Type,
+			Payload: payload.Payload,
+		})
 	}
 
 	return finalPayload, nil
 }
 
-func repackageNewPayload(translatedPayload interface{}, payload fleet.TranslatePayload) (fleet.TranslatePayload, error) {
-	translatedPayloadBytes, err := json.Marshal(translatedPayload)
-	if err != nil {
-		return fleet.TranslatePayload{}, err
-	}
-	newPayload := fleet.TranslatePayload{
-		Type:    payload.Type,
-		Payload: translatedPayloadBytes,
-	}
-	return newPayload, nil
-}
-
 func (mw loggingMiddleware) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
 	var err error
 	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log("method", "ApplyUserRolesSpecs", "err", err, "took", time.Since(begin))
+		_ = mw.loggerDebug(err).Log("method", "Translate", "err", err, "took", time.Since(begin))
 	}(time.Now())
 	return mw.Service.Translate(ctx, payloads)
 }

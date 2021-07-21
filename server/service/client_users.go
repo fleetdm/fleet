@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -40,32 +39,21 @@ func (c *Client) userIdFromEmail(email string) (uint, error) {
 	verb, path := "POST", "/api/v1/fleet/translate"
 	var responseBody translatorResponse
 
-	toTranslate := fleet.StringIdentifierToIDPayload{Identifier: email}
-	payload, err := json.Marshal(toTranslate)
-	if err != nil {
-		return 0, err
-	}
 	params := translatorRequest{List: []fleet.TranslatePayload{
 		{
 			Type:    fleet.TranslatorTypeUserEmail,
-			Payload: payload,
+			Payload: fleet.StringIdentifierToIDPayload{Identifier: email},
 		},
 	}}
 
-	err = c.authenticatedRequest(&params, verb, path, &responseBody)
+	err := c.authenticatedRequest(&params, verb, path, &responseBody)
 	if err != nil {
 		return 0, err
 	}
 	if len(responseBody.List) != 1 {
 		return 0, errors.New("Expected 1 item translated, got none")
 	}
-
-	translated := fleet.StringIdentifierToIDPayload{}
-	err = json.Unmarshal(responseBody.List[0].Payload, &translated)
-	if err != nil {
-		return 0, err
-	}
-	return translated.ID, nil
+	return responseBody.List[0].Payload.ID, nil
 }
 
 // DeleteUser deletes the user specified by the email

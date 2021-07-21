@@ -427,7 +427,7 @@ func TestTranslator(t *testing.T) {
 	params := translatorRequest{List: []fleet.TranslatePayload{
 		{
 			Type:    fleet.TranslatorTypeUserEmail,
-			Payload: []byte(`{"identifier": "admin1@example.com"}`),
+			Payload: fleet.StringIdentifierToIDPayload{Identifier: "admin1@example.com"},
 		},
 	}}
 	doJSONReq(t, &params, "POST", server, "/api/v1/fleet/translate", token, http.StatusOK, &payload)
@@ -435,9 +435,5 @@ func TestTranslator(t *testing.T) {
 	require.Nil(t, payload.Err)
 	assert.Len(t, payload.List, 1)
 
-	translated := fleet.StringIdentifierToIDPayload{}
-	err := json.Unmarshal(payload.List[0].Payload, &translated)
-	require.NoError(t, err)
-
-	assert.Equal(t, users[translated.Identifier].ID, translated.ID)
+	assert.Equal(t, users[payload.List[0].Payload.Identifier].ID, payload.List[0].Payload.ID)
 }

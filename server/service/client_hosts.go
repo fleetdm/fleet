@@ -139,30 +139,23 @@ func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team 
 	var teamID uint
 
 	for _, payload := range responseBody.List {
-		translated := fleet.StringIdentifierToIDPayload{}
-		err = json.Unmarshal(payload.Payload, &translated)
-		if err != nil {
-			return nil, 0, 0, err
-		}
 		switch payload.Type {
 		case fleet.TranslatorTypeLabel:
-			labelID = translated.ID
+			labelID = payload.Payload.ID
 		case fleet.TranslatorTypeTeam:
-			teamID = translated.ID
+			teamID = payload.Payload.ID
 		case fleet.TranslatorTypeHost:
-			hostIDs = append(hostIDs, translated.ID)
+			hostIDs = append(hostIDs, payload.Payload.ID)
 		}
 	}
 	return hostIDs, labelID, teamID, nil
 }
 
-func encodeTranslatedPayload(translatorType string, host string) (fleet.TranslatePayload, error) {
-	payloadStruct := fleet.StringIdentifierToIDPayload{Identifier: host}
-	payload, err := json.Marshal(payloadStruct)
-	if err != nil {
-		return fleet.TranslatePayload{}, err
+func encodeTranslatedPayload(translatorType string, identifier string) (fleet.TranslatePayload, error) {
+	translatedPayload := fleet.TranslatePayload{
+		Type:    translatorType,
+		Payload: fleet.StringIdentifierToIDPayload{Identifier: identifier},
 	}
-	translatedPayload := fleet.TranslatePayload{Type: translatorType, Payload: payload}
 	return translatedPayload, nil
 }
 
