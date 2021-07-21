@@ -7,10 +7,9 @@ import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore No longer using Form component 7/7
-// import Form from "components/forms/Form";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import { IQuery } from "interfaces/query";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -19,14 +18,9 @@ import {
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
 
-// Are these needed? 7/8
-// import endpoints from "fleet/endpoints";
-// import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPagePage/components/AutocompleteDropdown";
-// import { IDropdownOption } from "interfaces/dropdownOption";
-
 const baseClass = "schedule-editor-modal";
 interface IScheduleEditorModalProps {
-  allQueries: IGlobalScheduledQuery[];
+  allQueries: IQuery[];
   onCancel: () => void;
   onScheduleSubmit: (formData: any) => void;
   validationErrors?: any[]; // TODO: proper interface for validationErrors
@@ -126,8 +120,9 @@ const ScheduleEditorModal = ({
     [setSelectedShard]
   );
 
-  // TODO: Validators
-  // TODO: figure out differential/removal bug
+  // TODO: 1. Validators
+  // TODO: 2. figure out differential/removal bug
+  // TODO: 3. Remove console logs
 
   const onFormSubmit = () => {
     console.log(
@@ -150,7 +145,6 @@ const ScheduleEditorModal = ({
     <Modal title={"Schedule editor"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <Dropdown
-          // {...fields.query_id}
           searchable={true}
           options={createQueryDropdownOptions()}
           onChange={onChangeSelectQuery}
@@ -159,7 +153,6 @@ const ScheduleEditorModal = ({
           wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
         />
         <Dropdown
-          // {...fields.frequency}
           searchable={false}
           options={FREQUENCY_DROPDOWN_OPTIONS}
           onChange={onChangeSelectFrequency}
@@ -204,7 +197,6 @@ const ScheduleEditorModal = ({
           {showAdvancedOptions && (
             <div>
               <Dropdown
-                // {...fields.logging_type}
                 options={LOGGING_TYPE_OPTIONS}
                 onChange={onChangeSelectLoggingType}
                 placeholder="Select"
@@ -213,7 +205,6 @@ const ScheduleEditorModal = ({
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
               />
               <Dropdown
-                // {...fields.platform}
                 options={PLATFORM_OPTIONS}
                 placeholder="Select"
                 label="Platform"
@@ -223,7 +214,6 @@ const ScheduleEditorModal = ({
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
               />
               <Dropdown
-                // {...fields.version}
                 options={MIN_OSQUERY_VERSION_OPTIONS}
                 onChange={onChangeMinOsqueryVersionOptions}
                 placeholder="Select"
@@ -232,7 +222,6 @@ const ScheduleEditorModal = ({
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
               />
               <InputField
-                // {...fields.shard}
                 onChange={onChangeShard}
                 inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--shard`}
                 value={selectedShard}

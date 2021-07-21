@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import memoize from "memoize-one";
 
 import { push } from "react-router-redux";
+import { IQuery } from "interfaces/query";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
@@ -55,7 +56,7 @@ const fakeData = {
 };
 
 // 1. SET TO TRUE IF YOU WANT TO SEE THE ERROR STATE RENDER;
-const fakeDataError = false;
+const fakeDataError = true;
 
 // END FAKE DATA ALERT
 
@@ -83,6 +84,10 @@ interface IRootState {
     global_scheduled_queries: {
       isLoading: boolean;
       data: IGlobalScheduledQuery[];
+    };
+    queries: {
+      isLoading: boolean;
+      data: IQuery[];
     };
   };
 }
@@ -116,35 +121,48 @@ const ManageSchedulePage = (): JSX.Element => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
-  // TODO: Figure out how to write removal once queries are populated in
-  const onRemoveScheduledQuerySubmit = useCallback(() => {
-    // const removedQueries = { queries: [{ id: queryEditing?.id }] };
-    // dispatch(scheduleQueryActions.removeQueries(queryId, removedQueries))
-    //   .then(() => {
-    //     dispatch(
-    //       renderFlash("success", `Successfully removed scheduled queries.`)
-    //     );
-    //   })
-    //   .catch(() =>
-    //     dispatch(
-    //       renderFlash(
-    //         "error",
-    //         "Unable to remove scheduled queries. Please try again."
-    //       )
-    //     )
-    //   );
-    console.log("onRemoveScheduleQuerySubmit fires after click!");
-    toggleRemoveScheduledQueryModal();
-  }, [
-    // dispatch,
-    // queryId,
-    // queryEditing?.id,
-    // queryEditing?.name,
-    toggleRemoveScheduledQueryModal,
-  ]);
+  // TODO: Figure out correct removal once queries are populated in
+  const onRemoveScheduledQuerySubmit = useCallback(
+    (scheduledQueryIDs) => {
+      const promises = scheduledQueryIDs.map((id: number) => {
+        return dispatch(globalScheduledQueryActions.destroy({ id }));
+      });
 
+      const queryOrQueries =
+        scheduledQueryIDs.length === 1 ? "query" : "queries";
+
+      return Promise.all(promises)
+        .then(() => {
+          dispatch(
+            renderFlash(
+              "success",
+              `Successfully removed scheduled ${queryOrQueries}.`
+            )
+          );
+          console.log("onRemoveScheduleQuerySubmit fires after click!");
+          toggleRemoveScheduledQueryModal();
+        })
+        .catch(() =>
+          dispatch(
+            renderFlash(
+              "error",
+              `Unable to remove scheduled ${queryOrQueries}. Please try again.`
+            )
+          )
+        );
+    },
+    [
+      // dispatch,
+      // queryId,
+      // queryEditing?.id,
+      // queryEditing?.name,
+      toggleRemoveScheduledQueryModal,
+    ]
+  );
+
+  // This is to choose queries for the ScheduleEditorModal
   const allQueries = useSelector(
-    (state: IRootState) => state.entities.global_scheduled_queries.data
+    (state: IRootState) => state.entities.queries.data
   );
   // Turn object of objects into array of objects
   const allQueriesList = Object.values(allQueries);

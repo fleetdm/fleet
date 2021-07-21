@@ -7,15 +7,15 @@ import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 const baseClass = "remove-scheduled-query-modal";
 
 interface IRemoveScheduledQueryModalProps {
-  queries: IGlobalScheduledQuery[];
+  selectedQueries: IGlobalScheduledQuery[];
   onCancel: () => void;
-  onSubmit: () => void;
+  onSubmit: (selectedQueryIds: any) => void;
 }
 
 const RemoveScheduledQueryModal = (
   props: IRemoveScheduledQueryModalProps
 ): JSX.Element => {
-  const { onCancel, onSubmit, queries } = props;
+  const { onCancel, onSubmit, selectedQueries } = props;
 
   return (
     <Modal
