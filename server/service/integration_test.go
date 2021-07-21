@@ -415,3 +415,25 @@ func TestTeamSpecs(t *testing.T) {
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
 }
+
+func TestTranslator(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	users, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	payload := translatorResponse{}
+	params := translatorRequest{List: []fleet.TranslatePayload{
+		{
+			Type:    fleet.TranslatorTypeUserEmail,
+			Payload: fleet.StringIdentifierToIDPayload{Identifier: "admin1@example.com"},
+		},
+	}}
+	doJSONReq(t, &params, "POST", server, "/api/v1/fleet/translate", token, http.StatusOK, &payload)
+
+	require.Nil(t, payload.Err)
+	assert.Len(t, payload.List, 1)
+
+	assert.Equal(t, users[payload.List[0].Payload.Identifier].ID, payload.List[0].Payload.ID)
+}
