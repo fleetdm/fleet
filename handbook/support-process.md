@@ -36,7 +36,7 @@ This way, the Fleet team can constantly improve the effectiveness and experience
 
 - If an appropriate response is outside your scope, please post to `#oncall-chatter`, a confidential Slack channel in the Fleet Slack workspace.
 
-- If the comment appears to be a feature request in a customer channel, please post a link to the customer's comment in the `#oncall-chatter`. This way, an individual on the Product team can collect relevant information and file a GitHub issue.
+- If the comment appears to be a feature request in a customer channel, please post a link to the customer's comment in `#oncall-chatter`. This way, an individual on the Product team can collect relevant information and file a GitHub issue.
 
 - If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/).  If you aren't sure how best to respond in a positive way, or if you see behavior that violates the Fleet code of conduct, get help.
 
