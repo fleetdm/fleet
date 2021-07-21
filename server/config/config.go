@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -335,9 +336,9 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("pubsub.add_attributes", false, "Add PubSub attributes in addition to the message body")
 
 	// Filesystem
-	man.addConfigString("filesystem.status_log_file", fmt.Sprintf("%s%c%s", os.TempDir(), os.PathSeparator, "osquery_status"),
+	man.addConfigString("filesystem.status_log_file", filepath.Join(os.TempDir(), "osquery_status"),
 		"Log file path to use for status logs")
-	man.addConfigString("filesystem.result_log_file", fmt.Sprintf("%s%c%s", os.TempDir(), os.PathSeparator, "osquery_result"),
+	man.addConfigString("filesystem.result_log_file", filepath.Join(os.TempDir(), "osquery_result"),
 		"Log file path to use for result logs")
 	man.addConfigBool("filesystem.enable_log_rotation", false,
 		"Enable automatic rotation for osquery log files")
