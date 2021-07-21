@@ -123,7 +123,7 @@ const ManageSchedulePage = (): JSX.Element => {
   const onAddScheduledQuerySubmit = useCallback(
     (formData: any) => {
       console.log(
-        "onAddScheduledQuerySubmit globalScheduledQueryActions.create(formData....... is...",
+        "---onAddScheduledQuerySubmit globalScheduledQueryActions.create(formData....... is...",
         formData
       );
       dispatch(globalScheduledQueryActions.create({ ...formData }))

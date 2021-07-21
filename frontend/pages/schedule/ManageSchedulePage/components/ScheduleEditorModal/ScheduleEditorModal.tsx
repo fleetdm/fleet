@@ -17,6 +17,7 @@ import {
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
+import errors from "interfaces/errors";
 
 const baseClass = "schedule-editor-modal";
 interface IScheduleEditorModalProps {
@@ -235,18 +236,19 @@ const ScheduleEditorModal = ({
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__btn`}
+            type="button"
+            variant="brand"
+            onClick={onFormSubmit}
+            disabled={!selectedQuery}
+          >
+            Schedule
+          </Button>
+          <Button
+            className={`${baseClass}__btn`}
             onClick={onCancel}
             variant="inverse"
           >
             Cancel
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="brand"
-            onClick={onFormSubmit}
-          >
-            Schedule
           </Button>
         </div>
       </form>

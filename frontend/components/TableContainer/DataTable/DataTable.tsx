@@ -188,7 +188,7 @@ const DataTable = ({
                     </div>
                     <div className={"active-selection__inner-right"}>
                       <Button onClick={onSelectActionButtonClick}>
-                        {generateButtonText(selectActionButtonText)}
+                        {generateButtonText()}
                       </Button>
                     </div>
                   </div>

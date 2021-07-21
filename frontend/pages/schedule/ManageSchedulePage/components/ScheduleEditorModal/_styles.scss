@@ -26,16 +26,15 @@
   &__btn-wrap {
     display: flex;
     flex-direction: row-reverse;
-    margin-top: $pad-xxlarge;
   }
 
   &__btn {
     margin-left: 12px;
+    padding: 0 $pad-xlarge;
   }
 
   &__advanced-options-button {
     margin: $pad-medium 0;
-    padding: $pad-small 0;
     color: $core-vibrant-blue;
     font-weight: $bold;
     font-size: $x-small;
@@ -64,5 +63,9 @@
       margin-bottom: 4px;
       margin-left: 14px;
     }
+  }
+
+  .Select-value-label {
+    font-size: $small;
   }
 }
