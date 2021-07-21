@@ -120,7 +120,7 @@ func printSecret(c *cli.Context, secret *fleet.EnrollSecretSpec) error {
 	return printSpec(c, spec)
 }
 
-func printHost(c *cli.Context, host *fleet.Host) error {
+func printHost(c *cli.Context, host interface{}) error {
 	spec := specGeneric{
 		Kind:    fleet.HostKind,
 		Version: fleet.ApiVersion,
@@ -586,7 +586,7 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
 					for _, host := range hosts {
-						err = printHost(c, host.Host)
+						err = printHost(c, host)
 						if err != nil {
 							return err
 						}
