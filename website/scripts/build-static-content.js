@@ -189,26 +189,28 @@ module.exports = {
                 )
               );
               htmlString = htmlString.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');// « Replace ((bubble))s with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
-              // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-              // TODO: adjust and complete the following
-              // // Modify links
-              // modifiedHtml = modifiedHtml.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{
-              //   // Check if this is an external link (like https://google.com) but that is ALSO not a link
-              //   // to some page on the destination site where this will be hosted, like `(*.)?sailsjs.com`.
-              //   // If external, add target="_blank" so the link will open in a new tab.
-              //   let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.]+\.)*fleetdm\.com/g);
-              //   if (isExternal) {
-              //     return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
-              //   } else {
-              //     // Otherwise, change the link to be web root relative.
-              //     // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
-              //     // Note: See the Git version history of this file for examples of ways this can work across versioned subdomains.
-              //     return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
-              //   }
-              // });//∞
-              // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+              // htmlString = htmlString.replace(/(href="(\.\/[^"]+|\.\.\/[^"]+)")/g, (hrefString)=>{// « Modify path-relative links like `./…` and `../…` to make them absolute.  (See https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for more background)
+              //   // TODO: finish this
+              //   // console.log('HREFSTRING: '+hrefString);
+              //   return hrefString;
+              // });
+              htmlString = htmlString.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{// « Modify links that are potentially external
+                // Check if this is an external link (like https://google.com) but that is ALSO not a link
+                // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
+                // If external, add target="_blank" so the link will open in a new tab.
+                let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+                if (isExternal) {
+                  return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
+                } else {
+                  // Otherwise, change the link to be web root relative.
+                  // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
+                  // > Note: See the Git version history of "compile-markdown-content.js" in the sailsjs.com website repo for examples of ways this can work across versioned subdomains.
+                  return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
+                }
 
-              // Extract metadata.
+              });//∞
+
+              // Extract metadata from markdown.
               // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
               // >   See also https://github.com/mikermcneil/machinepack-markdown/blob/5d8cee127e8ce45c702ec9bbb2b4f9bc4b7fafac/machines/parse-docmeta-tags.js#L42-L47
               // >
