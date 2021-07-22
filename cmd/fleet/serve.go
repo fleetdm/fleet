@@ -395,7 +395,8 @@ type Locker interface {
 }
 
 const (
-	LockKeyLeader = "leader"
+	LockKeyLeader          = "leader"
+	LockKeyVulnerabilities = "vulnerabilities"
 )
 
 func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) error {
@@ -441,42 +442,120 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger) context.CancelFunc {
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
 
-	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
-		for {
-			level.Debug(logger).Log("waiting", "on ticker")
-			select {
-			case <-ticker.C:
-				level.Debug(logger).Log("waiting", "done")
-			case <-ctx.Done():
-				level.Debug(logger).Log("exit", "done with crons.")
-				break
-			}
-			if locked, err := locker.Lock(LockKeyLeader, ourIdentifier, time.Hour); err != nil || !locked {
-				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
-				continue
-			}
-			_, err := ds.CleanupDistributedQueryCampaigns(time.Now())
-			if err != nil {
-				level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
-			}
-			err = ds.CleanupIncomingHosts(time.Now())
-			if err != nil {
-				level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
-			}
-			_, err = ds.CleanupCarves(time.Now())
-			if err != nil {
-				level.Error(logger).Log("err", "cleaning carves", "details", err)
-			}
+	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), locker, ourIdentifier)
+	go cronVulnerabilities(ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), locker, ourIdentifier)
 
-			err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
-			if err != nil {
-				level.Error(logger).Log("err", "sending statistics", "details", err)
-			}
-			level.Debug(logger).Log("loop", "done")
-		}
-	}()
 	return cancelBackground
+}
+
+func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
+	ticker := time.NewTicker(1 * time.Hour)
+	for {
+		level.Debug(logger).Log("waiting", "on ticker")
+		select {
+		case <-ticker.C:
+			level.Debug(logger).Log("waiting", "done")
+		case <-ctx.Done():
+			level.Debug(logger).Log("exit", "done with cron.")
+			break
+		}
+		if locked, err := locker.Lock(LockKeyLeader, identifier, time.Hour); err != nil || !locked {
+			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+			continue
+		}
+		_, err := ds.CleanupDistributedQueryCampaigns(time.Now())
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
+		}
+		err = ds.CleanupIncomingHosts(time.Now())
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
+		}
+		_, err = ds.CleanupCarves(time.Now())
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning carves", "details", err)
+		}
+
+		err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
+		if err != nil {
+			level.Error(logger).Log("err", "sending statistics", "details", err)
+		}
+		level.Debug(logger).Log("loop", "done")
+	}
+}
+
+func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
+	ticker := time.NewTicker(1 * time.Hour)
+	for {
+		level.Debug(logger).Log("waiting", "on ticker")
+		select {
+		case <-ticker.C:
+			level.Debug(logger).Log("waiting", "done")
+		case <-ctx.Done():
+			level.Debug(logger).Log("exit", "done with cron.")
+			break
+		}
+		if locked, err := locker.Lock(LockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
+			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+			continue
+		}
+
+		err := translateSoftwareToCPE(ds)
+		if err != nil {
+			level.Error(logger).Log("err", "analyzing vulnerable software", "details", err)
+		}
+		level.Debug(logger).Log("loop", "done")
+	}
+}
+
+func cpeFromSoftware(software *fleet.Software) (string, error) {
+	switch software.Source {
+	case "apps":
+
+		//wfn.Attributes{
+		//	Part:    "a",
+		//	Product: software.Name,
+		//	Version: software.Version,
+		//}
+	case "python_packages":
+	case "chrome_extensions":
+	case "firefox_addons":
+	case "safari_extensions":
+	case "deb_packages":
+	case "portage_packages":
+	case "rpm_packages":
+	case "npm_packages":
+	case "atom_packages":
+	case "programs":
+	case "ie_extensions":
+	case "chocolatey_packages":
+	default:
+	}
+	return "", nil
+}
+
+func translateSoftwareToCPE(ds fleet.Datastore) error {
+	iterator, err := ds.AllSoftwareWithoutCPEIterator()
+	if err != nil {
+		return err
+	}
+
+	for iterator.Next() {
+		software, err := iterator.Value()
+		if err != nil {
+			return err
+		}
+		cpe, err := cpeFromSoftware(software)
+		if err != nil {
+			return err
+		}
+		_ = cpe
+	}
+	// for all software that doesn't have a CPE
+	//   calculate CPE
+	//   store in the db
+
+	return nil
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on

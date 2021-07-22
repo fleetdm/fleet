@@ -231,3 +231,41 @@ func (d *Datastore) LoadHostSoftware(host *fleet.Host) error {
 	host.Software = software
 	return nil
 }
+
+type softwareIterator struct {
+	rows *sqlx.Rows
+}
+
+func (si *softwareIterator) Value() (*fleet.Software, error) {
+	dest := fleet.Software{}
+	err := si.rows.StructScan(&dest)
+	if err != nil {
+		return nil, err
+	}
+	return &dest, nil
+}
+
+func (si *softwareIterator) Err() error {
+	return si.rows.Err()
+}
+
+func (si *softwareIterator) Next() bool {
+	return si.rows.Next()
+}
+
+func (d *Datastore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
+	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
+	rows, err := d.db.Queryx(sql)
+	if err != nil {
+		return nil, errors.Wrap(err, "load host software")
+	}
+	return &softwareIterator{rows: rows}, nil
+}
+
+func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error {
+	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
+	if _, err := d.db.Exec(sql, software.ID, cpe); err != nil {
+		return errors.Wrap(err, "insert software cpe")
+	}
+	return nil
+}

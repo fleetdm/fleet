@@ -10,12 +10,27 @@ type SaveHostSoftwareFunc func(host *fleet.Host) error
 
 type LoadHostSoftwareFunc func(host *fleet.Host) error
 
+type AllSoftwareIteratorFunc func() (fleet.SoftwareIterator, error)
+
+type AddCPEForSoftwareFunc func(software fleet.Software, cpe string) error
+
 type SoftwareStore struct {
 	SaveHostSoftwareFunc        SaveHostSoftwareFunc
 	SaveHostSoftwareFuncInvoked bool
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
+
+	AllSoftwareIteratorFunc        AllSoftwareIteratorFunc
+	AllSoftwareIteratorFuncInvoked bool
+
+	AddCPEForSoftwareFunc        AddCPEForSoftwareFunc
+	AddCPEForSoftwareFuncInvoked bool
+}
+
+func (s *SoftwareStore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
+	s.AllSoftwareIteratorFuncInvoked = true
+	return s.AllSoftwareIteratorFunc()
 }
 
 func (s *SoftwareStore) SaveHostSoftware(host *fleet.Host) error {
@@ -26,4 +41,9 @@ func (s *SoftwareStore) SaveHostSoftware(host *fleet.Host) error {
 func (s *SoftwareStore) LoadHostSoftware(host *fleet.Host) error {
 	s.LoadHostSoftwareFuncInvoked = true
 	return s.LoadHostSoftwareFunc(host)
+}
+
+func (s *SoftwareStore) AddCPEForSoftware(software fleet.Software, cpe string) error {
+	s.AddCPEForSoftwareFuncInvoked = true
+	return s.AddCPEForSoftwareFunc(software, cpe)
 }
