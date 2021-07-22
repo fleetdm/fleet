@@ -49,7 +49,6 @@ module.exports = {
   fn: async function ({repoPath, repoBranch, repoUrl}) {
 
     let path = require('path');
-    let cheerio = require('cheerio');
     let DocTemplater = {};// require('doc-templater');
     if (true) {
       throw new Error('This helper has been retired.  TODO: delete it.');
@@ -102,21 +101,6 @@ module.exports = {
           // // Replace ((bubble))s with HTML
           // modifiedHtml = modifiedHtml.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');
           // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-          // Flag <h2>, <h3>, <h4>, and <h5> tags with the `permalinkable` directive, so they can be clicked
-          // e.g. ?q=transport-compatibility
-          let $ = cheerio.load(modifiedHtml);
-          $('h2, h3, h4, h5').each(function() {
-            let content = $(this).text() || '';
-
-            // build the URL slug suffix
-            let slug = content
-              .replace(/[\?\!\.\-\_\:\;\'\"]/g, '') // punctuation => gone
-              .replace(/\s/g, '-') // spaces => dashes
-              .toLowerCase();
-
-          });
-          modifiedHtml = $.html();
 
           // Modify links
           modifiedHtml = modifiedHtml.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{
