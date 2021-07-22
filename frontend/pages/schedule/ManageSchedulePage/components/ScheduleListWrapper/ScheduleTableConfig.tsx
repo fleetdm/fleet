@@ -84,4 +84,4 @@ const generateTableHeaders = (
   ];
 };
 
-export default { generateTableHeaders };
+export { generateTableHeaders };

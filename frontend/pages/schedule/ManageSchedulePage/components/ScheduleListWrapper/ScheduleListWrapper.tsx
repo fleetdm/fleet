@@ -17,6 +17,11 @@ const baseClass = "schedule-list-wrapper";
 interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[];
+  toggleScheduleEditorModal: any;
+}
+
+interface INoScheduledQueriesProps {
+  toggleScheduleEditorModal: any;
 }
 interface IRootState {
   entities: {
@@ -28,11 +33,23 @@ interface IRootState {
 }
 
 const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
-  const { onRemoveScheduledQueryClick, allGlobalScheduledQueriesList } = props;
+  const {
+    onRemoveScheduledQueryClick,
+    allGlobalScheduledQueriesList,
+    toggleScheduleEditorModal,
+  } = props;
   const dispatch = useDispatch();
+
+  console.log("schedulelistwrapper", typeof toggleScheduleEditorModal);
 
   // Hardcode in needed props
   const onActionSelection = () => null;
+
+  const NoScheduledQueries = (): JSX.Element => {
+    console.log("noscheduledqueries", typeof toggleScheduleEditorModal);
+
+    return <NoSchedule toggleScheduleEditorModal={toggleScheduleEditorModal} />;
+  };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
   const loadingTableData = useSelector(
@@ -70,7 +87,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         searchable={false}
         onSelectActionClick={onRemoveScheduledQueryClick}
         selectActionButtonText={"Remove query"}
-        emptyComponent={NoSchedule}
+        emptyComponent={NoScheduledQueries} // this empty component needed a togglefunction passed in, my fix is super janky
       />
     </div>
   );

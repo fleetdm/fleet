@@ -21,18 +21,22 @@ import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 const baseClass = "manage-schedule-page";
 
 const renderTable = (
-  onRemoveScheduledQueryClick: () => void,
+  onRemoveScheduledQueryClick: any,
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[],
-  allGlobalScheduledQueriesError: any
+  allGlobalScheduledQueriesError: any,
+  toggleScheduleEditorModal: any
 ): JSX.Element => {
   if (Object.keys(allGlobalScheduledQueriesError).length !== 0) {
     return <ScheduleError />;
   }
 
+  console.log("rendertable", typeof toggleScheduleEditorModal);
+
   return (
     <ScheduleListWrapper
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       allGlobalScheduledQueriesList={allGlobalScheduledQueriesList}
+      toggleScheduleEditorModal={toggleScheduleEditorModal}
     />
   );
 };
@@ -188,7 +192,8 @@ const ManageSchedulePage = (): JSX.Element => {
           {renderTable(
             onRemoveScheduledQueryClick,
             allGlobalScheduledQueriesList,
-            allGlobalScheduledQueriesError
+            allGlobalScheduledQueriesError,
+            toggleScheduleEditorModal
           )}
         </div>
         {showScheduleEditorModal && (

@@ -25,16 +25,6 @@ import stateEntityGetter from "redux/utilities/entityGetter";
 import PATHS from "router/paths";
 
 const baseClass = "edit-pack-page";
-
-// LEFT OFF ON 7/7 2 PM with MARTAVIS (line 30-37)
-const defaultScheduledQuery = {
-  query_id: null,
-  interval: null,
-  logging_type: "snapshot",
-  platform: null,
-  shard: null,
-  version: null,
-};
 export class EditPackPage extends Component {
   static propTypes = {
     allQueries: PropTypes.arrayOf(queryInterface),

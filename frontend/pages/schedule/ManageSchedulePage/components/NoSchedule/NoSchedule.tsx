@@ -313,11 +313,14 @@ const renderSvg = (): JSX.Element => {
   );
 };
 
-const NoSchedule = (): JSX.Element => {
+const NoSchedule = (toggleScheduleEditorModal: any): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
 
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
+
+  console.log("noschedule", typeof toggleScheduleEditorModal);
+  console.log(toggleScheduleEditorModal);
 
   return (
     <div className={`${baseClass}`}>
@@ -332,7 +335,11 @@ const NoSchedule = (): JSX.Element => {
           </p>
           <div className={`${baseClass}__no-schedule-cta-buttons`}>
             {/* TODO: SCHEDULE A QUERY MODAL */}
-            <Button variant="brand" className={`${baseClass}__schedule-button`}>
+            <Button
+              variant="brand"
+              className={`${baseClass}__schedule-button`}
+              onClick={toggleScheduleEditorModal.toggleScheduleEditorModal}
+            >
               Schedule a query
             </Button>
             <Button
