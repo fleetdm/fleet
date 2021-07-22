@@ -36,6 +36,12 @@ module.exports.routes = {
   'GET /apply': 'https://fleet-device-management.breezy.hr',
 
 
+  //  ╔═╗╔═╗╦═╗╔╦╗╔═╗╦  ╦╔╗╔╦╔═╔═╗  ┌─  ┌┐ ┌─┐┌─┐┬┌─┬ ┬┌─┐┬─┐┌┬┐┌─┐  ┌─┐┌─┐┌┬┐┌─┐┌─┐┌┬┐  ─┐
+  //  ╠═╝║╣ ╠╦╝║║║╠═╣║  ║║║║╠╩╗╚═╗  │   ├┴┐├─┤│  ├┴┐│││├─┤├┬┘ ││└─┐  │  │ ││││├─┘├─┤ │    │
+  //  ╩  ╚═╝╩╚═╩ ╩╩ ╩╩═╝╩╝╚╝╩ ╩╚═╝  └─  └─┘┴ ┴└─┘┴ ┴└┴┘┴ ┴┴└──┴┘└─┘  └─┘└─┘┴ ┴┴  ┴ ┴ ┴o  ─┘
+  // Note that these redirects take precedence over less specific wildcard routes like '/docs/*' and '/handbook/*'
+  // TODO: stub this out as a section for handling redirects for backwards compatibility so it's super obvious where they go, and so there's only one place in the code base where they live (include at least one example)
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
