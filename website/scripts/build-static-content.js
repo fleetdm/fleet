@@ -133,14 +133,14 @@ module.exports = {
             );
 
             // Determine URL for this page
-            // > Get URL-friendly by encoding characters and stripping off ordering prefixes (like the "1-" in "1-Using-Fleet")
-            // > for all folder and file names in the path.
             let rootRelativeUrlPath = (
-              SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
-              '/' + (
-                pageNormalizedLowercaseRelPath
-                .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')
-              )
+              (
+                SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
+                '/' + (
+                  pageNormalizedLowercaseRelPath
+                  .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')// « Get URL-friendly by encoding characters and stripping off ordering prefixes (like the "1-" in "1-Using-Fleet") for all folder and file names in the path.
+                )
+              ).replace(/\/?readme\.?m?d?$/i, '')// « Interpret files named `readme` or `readme.md` (case-insensitive) as a special filename that gets mapped to the URL representing its containing folder.
             );
 
             // Assert uniqueness of URL paths.
