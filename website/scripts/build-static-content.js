@@ -104,6 +104,9 @@ module.exports = {
         // builtStaticContent.markdownPages = await sails.helpers.compileMarkdownContent('docs/');  // TODO remove this and helper once everything works again
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+        // Delete existing HTML output from previous runs, if any.
+        await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, APP_PATH_TO_COMPILED_PAGE_PARTIALS));
+
         builtStaticContent.markdownPages = [];// « dir tree representation that will be injected into Sails app's configuration
 
         let SECTION_INFOS_BY_SECTION_REPO_PATHS = {
