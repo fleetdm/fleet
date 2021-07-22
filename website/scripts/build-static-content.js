@@ -99,10 +99,6 @@ module.exports = {
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and prepare to bake directory trees into the Sails app's configuration.
         let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // // Original way that still works:  (versus new stuff below)
-        // builtStaticContent.markdownPages = await sails.helpers.compileMarkdownContent('docs/');  // TODO remove this and helper once everything works again
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         // Delete existing HTML output from previous runs, if any.
         await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, APP_PATH_TO_COMPILED_PAGE_PARTIALS));
@@ -159,8 +155,6 @@ module.exports = {
               sails.log.verbose(`Building page ${rootRelativeUrlPath} (from ${pageSourcePath})`);
 
               // Compile markdown to HTML.
-              // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
-              // >
               // > This includes build-time enablement of:
               // >  • syntax highlighting
               // >  • data type bubbles
@@ -168,8 +162,57 @@ module.exports = {
               // >
               // > For more info about how these additional features work, see: https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               let mdString = await sails.helpers.fs.read(pageSourcePath);
+              mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+
               let htmlString = await sails.helpers.strings.toHtml(mdString);
-              // TODO: bring in the custom conversion logic (stuff from the old "beforeConvert" / "afterConvert" functions -- see also the bullets above)
+              htmlString = (// « Add the appropriate class to the `<code>` based on the temporary "LANG" markers that were just added above
+                htmlString
+                .replace(// Interpret `js` as `javascript`
+                  // $1     $2     $3   $4
+                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
+                  '$1 class="javascript"$2$3'
+                )
+                .replace(// Interpret `sh` and `bash` as `bash`
+                  // $1     $2     $3   $4
+                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
+                  '$1 class="bash"$2$3'
+                )
+                .replace(// When unspecified, default to `text`
+                  // $1     $2     $3   $4
+                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
+                  '$1 class="nohighlight"$2$3'
+                )
+                .replace(// Finally, nab the rest, leaving the code language as-is.
+                  // $1     $2     $3   $4               $5    $6
+                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
+                  '$1 class="$5"$2$3'
+                )
+              );
+              htmlString = htmlString.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');// « Replace ((bubble))s with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
+              // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+              // TODO: adjust and complete the following
+              // // Modify links
+              // modifiedHtml = modifiedHtml.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{
+              //   // Check if this is an external link (like https://google.com) but that is ALSO not a link
+              //   // to some page on the destination site where this will be hosted, like `(*.)?sailsjs.com`.
+              //   // If external, add target="_blank" so the link will open in a new tab.
+              //   let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.]+\.)*fleetdm\.com/g);
+              //   if (isExternal) {
+              //     return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
+              //   } else {
+              //     // Otherwise, change the link to be web root relative.
+              //     // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
+              //     // Note: See the Git version history of this file for examples of ways this can work across versioned subdomains.
+              //     return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
+              //   }
+              // });//∞
+              // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+              // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+              // FUTURE: Replace github emoji syntax with unicode emojis (i.e. `.replace(/\:white_check_mark\:/g, '…unicode char here…'`)
+              // > Being able to use emojis in the docs is nice.  But, I think we can just paste in true unicode emojis in markdown, and that should work without needing this extra step.
+              // > TODO: verify that. If not, turn this back into a TODO since it'll make sense to do shorter-term.  (note: there's probably an open source lib out there to do it - it's really it's just a big mapping, so it ought to be something we could simply paste in as a one-liner-- but it'll change as new emojis are added.  So a lib could make sense.)
+              // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
               // Extract metadata.
               // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
