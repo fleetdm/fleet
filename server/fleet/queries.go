@@ -109,13 +109,13 @@ const (
 
 type QueryObject struct {
 	ObjectMetadata
-	Spec QuerySpec `json:"spec"`
+	Spec QuerySpec `json:"spec" yaml:"spec"`
 }
 
 type QuerySpec struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Query       string `json:"query"`
+	Name        string `json:"name" yaml:"name"`
+	Description string `json:"description,omitempty" yaml:"description"`
+	Query       string `json:"query" yaml:"query"`
 }
 
 func LoadQueriesFromYaml(yml string) ([]*Query, error) {
