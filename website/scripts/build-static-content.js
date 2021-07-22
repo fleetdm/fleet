@@ -193,8 +193,18 @@ module.exports = {
                 pageTitle = fallbackPageTitle;
               }
 
+              // Determine unique HTML id
+              // > • This will become the filename of the resulting HTML.
+              // > • And it will be attached to menu data for use in sorting pages within their bottom-level sections.
+              let htmlId = (
+                sectionRepoPath.slice(0,10)+
+                '--'+
+                _.last(pageNormalizedRelPath.split(/\//)).slice(0,20)+
+                '--'+
+                sails.helpers.strings.random.with({len:4})
+              ).replace(/[^a-z0-9\-]/ig,'');
+
               // Generate HTML file
-              let htmlId = `${sectionRepoPath.slice(0,20)}--${sails.helpers.strings.random.with({len:8})}--${pageNormalizedRelPath.slice(-20)}`.replace(/[^a-z0-9\-]/ig,'');
               let htmlOutputPath = path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs');
               if (dry) {
                 sails.log('Dry run: Would have generated file:', htmlOutputPath);
@@ -238,11 +248,6 @@ module.exports = {
         // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/build-jsmenu.js
         // TODO
 
-        // Sort siblings in the markdownPages tree so it's ready to use in menus.
-        // > Note: consider doing this on the frontend-- though there's a reason it was here. See:
-        // > • https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/compare-doc-page-metadatas.js
-        // > • https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/marshal-doc-page-metadata.js#L191-L208
-        // TODO
       },
     ]);
 
