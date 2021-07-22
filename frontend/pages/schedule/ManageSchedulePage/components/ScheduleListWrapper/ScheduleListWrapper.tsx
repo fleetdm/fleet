@@ -1,26 +1,27 @@
 /**
  * Component when there is an error retrieving schedule set up in fleet
  */
-import React, { useState, useCallback } from "react";
+import React, { useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { push } from "react-router-redux";
+import paths from "router/paths";
 
+import Button from "components/buttons/Button";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./ScheduleTableConfig";
-import NoSchedule from "../NoSchedule";
+// @ts-ignore
+import scheduleSvg from "../../../../../../assets/images/schedule.svg";
 
 const baseClass = "schedule-list-wrapper";
+const noScheduleClass = "no-schedule";
 
 interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[];
-  toggleScheduleEditorModal: any;
-}
-
-interface INoScheduledQueriesProps {
   toggleScheduleEditorModal: any;
 }
 interface IRootState {
@@ -32,8 +33,6 @@ interface IRootState {
   };
 }
 
-// TODO: Refactor NoSchedule component into this file
-
 const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
   const {
     onRemoveScheduledQueryClick,
@@ -41,17 +40,45 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     toggleScheduleEditorModal,
   } = props;
   const dispatch = useDispatch();
+  const { MANAGE_PACKS } = paths;
 
-  console.log("schedulelistwrapper", typeof toggleScheduleEditorModal);
+  const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
+
+  const NoScheduledQueries = () => {
+    return (
+      <div className={`${noScheduleClass}`}>
+        <div className={`${noScheduleClass}__inner`}>
+          <img src={scheduleSvg} alt="No Schedule" />
+          <div className={`${noScheduleClass}__inner-text`}>
+            <h2>You don&apos;t have any queries scheduled.</h2>
+            <p>
+              Schedule a query, or go to your osquery packs via the
+              &lsquo;Advanced&rsquo; button.
+            </p>
+            <div className={`${noScheduleClass}__-cta-buttons`}>
+              <Button
+                variant="brand"
+                className={`${noScheduleClass}__schedule-button`}
+                onClick={toggleScheduleEditorModal}
+              >
+                Schedule a query
+              </Button>
+              <Button
+                variant="inverse"
+                onClick={handleAdvanced}
+                className={`${baseClass}__advanced-button`}
+              >
+                Advanced
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Hardcode in needed props
   const onActionSelection = () => null;
-
-  const NoScheduledQueries = (): JSX.Element => {
-    console.log("noscheduledqueries", typeof toggleScheduleEditorModal);
-
-    return <NoSchedule toggleScheduleEditorModal={toggleScheduleEditorModal} />;
-  };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
   const loadingTableData = useSelector(
@@ -89,7 +116,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         searchable={false}
         onSelectActionClick={onRemoveScheduledQueryClick}
         selectActionButtonText={"Remove query"}
-        emptyComponent={NoScheduledQueries} // this empty component needed a togglefunction passed in, my fix is super janky
+        emptyComponent={NoScheduledQueries}
       />
     </div>
   );

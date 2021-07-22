@@ -30,8 +30,6 @@ const renderTable = (
     return <ScheduleError />;
   }
 
-  console.log("rendertable", typeof toggleScheduleEditorModal);
-
   return (
     <ScheduleListWrapper
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
