@@ -1,0 +1,1 @@
+* change fleetctl get hosts to respond with host "status", "display_text", and "labels"

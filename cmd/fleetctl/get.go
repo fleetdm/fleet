@@ -10,6 +10,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -120,7 +121,7 @@ func printSecret(c *cli.Context, secret *fleet.EnrollSecretSpec) error {
 	return printSpec(c, spec)
 }
 
-func printHost(c *cli.Context, host interface{}) error {
+func printHost(c *cli.Context, host *service.HostResponse) error {
 	spec := specGeneric{
 		Kind:    fleet.HostKind,
 		Version: fleet.ApiVersion,
@@ -586,7 +587,7 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
 					for _, host := range hosts {
-						err = printHost(c, host)
+						err = printHost(c, &host)
 						if err != nil {
 							return err
 						}
