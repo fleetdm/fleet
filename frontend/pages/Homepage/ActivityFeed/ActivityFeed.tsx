@@ -57,7 +57,6 @@ const ActivityFeed = (): JSX.Element => {
     return lowerCase(type);
   };
 
-  // TODO update Avatar component to handle null case; render dotted line for timeline
   const renderActivityBlock = (activity: IActivity, i: number) => {
     const gravatarURL =
       activity.actor_gravatar ||
