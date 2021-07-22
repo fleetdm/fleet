@@ -57,27 +57,31 @@ const ActivityFeed = (): JSX.Element => {
     return lowerCase(type);
   };
 
-  // TODO gravatar; dotted line
-  const renderActivityBlock = (activity: IActivity, i: number) => (
-    <div className={`${baseClass}__block`} key={i}>
-      <Avatar
-        className={`${baseClass}__avatar-image`}
-        user={{
-          gravatarURL:
-            "https://www.gravatar.com/avatar/6a8b7225be7bd98b310d756efb312b69?d=blank&size=200",
-        }}
-        size="small"
-      />
-      <div className={`${baseClass}__details`}>
-        <p className={`${baseClass}__details-topline`}>
-          <b>{activity.actor_full_name}</b> {getDetail(activity)}.
-        </p>
-        <span className={`${baseClass}__details-bottomline`}>
-          {moment(activity.created_at).fromNow()}
-        </span>
+  // TODO update Avatar component to handle null case; render dotted line for timeline
+  const renderActivityBlock = (activity: IActivity, i: number) => {
+    const gravatarURL =
+      activity.actor_gravatar ||
+      "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
+    return (
+      <div className={`${baseClass}__block`} key={i}>
+        <Avatar
+          className={`${baseClass}__avatar-image`}
+          user={{
+            gravatarURL,
+          }}
+          size="small"
+        />
+        <div className={`${baseClass}__details`}>
+          <p className={`${baseClass}__details-topline`}>
+            <b>{activity.actor_full_name}</b> {getDetail(activity)}.
+          </p>
+          <span className={`${baseClass}__details-bottomline`}>
+            {moment(activity.created_at).fromNow()}
+          </span>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className={baseClass}>

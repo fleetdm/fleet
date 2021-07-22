@@ -9,6 +9,7 @@ export interface IActivity {
   created_at: string;
   actor_full_name: string;
   actor_id: number;
+  actor_gravatar: string;
   type: string;
   details?: IActivityDetails;
 }
