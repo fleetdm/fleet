@@ -1,3 +1,35 @@
 .activity-feed {
   display: flex;
+  flex-direction: column;
+
+  &__block {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding-bottom: $pad-large;
+  }
+
+  &__avatar-frame {
+    display: flex;
+  }
+
+    &__details {
+      padding-left: $pad-large;
+
+      p {
+        margin: 0;
+      }
+    }
+
+    &__details-topline {
+      font-size: $x-small;
+    }
+    
+    &__details-bottomline {
+      font-size: $xx-small;
+      color: $ui-fleet-black-25;
+    }
+    
+
 }
+
