@@ -163,7 +163,7 @@ module.exports = {
               // > For more info about how these additional features work, see: https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               let mdString = await sails.helpers.fs.read(pageSourcePath);
               mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
-
+              // FUTURE: Replace github emoji syntax with unicode emojis (i.e. `.replace(/\:white_check_mark\:/g, '…unicode char here…'`).  Being able to use emojis in the docs is nice.  But, I think we can just paste in true unicode emojis in markdown, and that should work without needing this extra step.  TODO: verify that. If not, turn this back into a TODO since it'll make sense to do shorter-term.  (note: there's probably an open source lib out there to do it - it's really it's just a big mapping, so it ought to be something we could simply paste in as a one-liner-- but it'll change as new emojis are added.  So a lib could make sense.)
               let htmlString = await sails.helpers.strings.toHtml(mdString);
               htmlString = (// « Add the appropriate class to the `<code>` based on the temporary "LANG" markers that were just added above
                 htmlString
@@ -206,12 +206,6 @@ module.exports = {
               //     return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
               //   }
               // });//∞
-              // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-              // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-              // FUTURE: Replace github emoji syntax with unicode emojis (i.e. `.replace(/\:white_check_mark\:/g, '…unicode char here…'`)
-              // > Being able to use emojis in the docs is nice.  But, I think we can just paste in true unicode emojis in markdown, and that should work without needing this extra step.
-              // > TODO: verify that. If not, turn this back into a TODO since it'll make sense to do shorter-term.  (note: there's probably an open source lib out there to do it - it's really it's just a big mapping, so it ought to be something we could simply paste in as a one-liner-- but it'll change as new emojis are added.  So a lib could make sense.)
               // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
               // Extract metadata.
