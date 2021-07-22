@@ -27,10 +27,10 @@ interface ICellProps {
 }
 
 interface IDataColumn {
-  title?: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   Cell: (props: ICellProps) => JSX.Element;
   id?: string;
+  title?: string;
   accessor?: string;
   disableHidden?: boolean;
   disableSortBy?: boolean;

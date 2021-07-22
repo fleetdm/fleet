@@ -12,14 +12,20 @@ import scheduleSvg from "../../../../../../assets/images/schedule.svg";
 
 const baseClass = "no-schedule";
 
-const NoSchedule = (toggleScheduleEditorModal: any): JSX.Element => {
+interface INoScheduleProps {
+  toggleScheduleEditorModal: () => void;
+}
+
+const NoSchedule = ({
+  toggleScheduleEditorModal,
+}: INoScheduleProps): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
 
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
   console.log("noschedule", typeof toggleScheduleEditorModal);
-  console.log(toggleScheduleEditorModal);
+  console.log("toggleScheduleEditorModal", toggleScheduleEditorModal);
 
   return (
     <div className={`${baseClass}`}>
@@ -35,7 +41,7 @@ const NoSchedule = (toggleScheduleEditorModal: any): JSX.Element => {
             <Button
               variant="brand"
               className={`${baseClass}__schedule-button`}
-              onClick={toggleScheduleEditorModal.toggleScheduleEditorModal}
+              onClick={toggleScheduleEditorModal}
             >
               Schedule a query
             </Button>

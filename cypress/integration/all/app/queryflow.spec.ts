@@ -46,8 +46,10 @@ describe("Query flow", () => {
 
     cy.findByText(/query updated/i).should("be.visible");
 
-    // Test: Schedule a query
+    // Test Schedules
     cy.visit("/schedule/manage");
+
+    cy.wait(1000);
 
     cy.findByRole("button", { name: /schedule a query/i }).click();
 
@@ -84,8 +86,7 @@ describe("Query flow", () => {
       .click();
 
     cy.findByText(/query all window crashes/i).should("not.exist");
-
-    // End
+    // End Test Schedules
 
     cy.visit("/queries/manage");
 

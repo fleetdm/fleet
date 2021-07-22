@@ -32,6 +32,8 @@ interface IRootState {
   };
 }
 
+// TODO: Refactor NoSchedule component into this file
+
 const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
   const {
     onRemoveScheduledQueryClick,

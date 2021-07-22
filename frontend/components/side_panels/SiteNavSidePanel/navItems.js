@@ -51,7 +51,7 @@ export default (currentUser) => {
       name: "Schedule",
       iconName: "packs",
       location: {
-        regex: new RegExp(`^${URL_PREFIX}/schedule/`), // can I regex two things here?
+        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
         pathname: PATHS.MANAGE_SCHEDULE,
       },
     },

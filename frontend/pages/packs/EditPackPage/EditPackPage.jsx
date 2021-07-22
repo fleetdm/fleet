@@ -18,6 +18,7 @@ import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePane
 import packInterface from "interfaces/pack";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
+import scheduledQueryInterface from "interfaces/scheduled_query";
 import ScheduledQueriesListWrapper from "components/queries/ScheduledQueriesListWrapper";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
