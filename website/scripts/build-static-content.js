@@ -152,9 +152,16 @@ module.exports = {
 
               // Compile markdown to HTML.
               // > • Compiling: https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+              // >
+              // > This includes build-time enablement of:
+              // >  • syntax highlighting
+              // >  • data type bubbles
+              // >  • transforming relative markdown links to their fleetdm.com equivalents
+              // >
+              // > For more info about how these additional features work, see: https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               let mdString = await sails.helpers.fs.read(pageSourcePath);
               let htmlString = await sails.helpers.strings.toHtml(mdString);
-              // TODO: bring in the custom conversion logic (stuff from the old "beforeConvert" / "afterConvert" functions)
+              // TODO: bring in the custom conversion logic (stuff from the old "beforeConvert" / "afterConvert" functions -- see also the bullets above)
 
               // Extract metadata.
               // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
