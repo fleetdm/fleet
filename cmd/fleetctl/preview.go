@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/service"
