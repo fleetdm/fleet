@@ -93,13 +93,9 @@ module.exports = {
 
           let modifiedHtml = html;
 
-          // Replace github emoji with unicode emojis
-          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-          // TODO: actually sub unicode, instead of the following  (there's probably an open source lib out there to do it)
-          // modifiedHtml = html.replace(/\:white_check_mark\:/g, '<i class="sails-icon icon-plus"></i>');
-          // modifiedHtml = modifiedHtml.replace(/\:white_large_square\:/g, '<i class="sails-icon icon-minus"></i>');
-          // modifiedHtml = modifiedHtml.replace(/\:heavy_multiplication_x\:/g, '<i class="sails-icon icon-times"></i>');
-          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          // FUTURE: Replace github emoji syntax with unicode emojis (i.e. `.replace(/\:white_check_mark\:/g, '…unicode char here…'`)
+          // > Being able to use emojis in the docs is nice.  But, I think we can just paste in true unicode emojis in markdown, and that should work without needing this extra step.
+          // > TODO: verify that. If not, turn this back into a TODO since it'll make sense to do shorter-term.  (note: there's probably an open source lib out there to do it - it's really it's just a big mapping, so it ought to be something we could simply paste in as a one-liner-- but it'll change as new emojis are added.  So a lib could make sense.)
 
           // TODO: As equivalent concepts are identified in the Fleet docs (e.g. in the API reference), maybe bring this back:
           // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
