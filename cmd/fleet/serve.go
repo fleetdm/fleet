@@ -1,12 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"net/url"
+
+	"github.com/e-dard/netbug"
+	"github.com/fleetdm/fleet/v4/server"
+
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -15,7 +21,6 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -199,15 +204,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			go func() {
-				ticker := time.NewTicker(1 * time.Hour)
-				for {
-					ds.CleanupDistributedQueryCampaigns(time.Now())
-					ds.CleanupIncomingHosts(time.Now())
-					ds.CleanupCarves(time.Now())
-					<-ticker.C
-				}
-			}()
+			cancelBackground := runCrons(ds, kitlog.With(logger, "component", "crons"))
 
 			// Flush seen hosts every second
 			go func() {
@@ -319,7 +316,7 @@ the way that the Fleet server works.
 			if debug {
 				// Add debug endpoints with a random
 				// authorization token
-				debugToken, err := fleet.RandomText(24)
+				debugToken, err := server.GenerateRandomText(24)
 				if err != nil {
 					initFatal(err, "generating debug token")
 				}
@@ -364,6 +361,7 @@ the way that the Fleet server works.
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
+					cancelBackground()
 					launcher.GracefulStop()
 					return srv.Shutdown(ctx)
 				}()
@@ -378,6 +376,107 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 
 	return serveCmd
+}
+
+// Locker represents an object that can obtain an atomic lock on a resource
+// in a non blocking manner for an owner, with an expiration time.
+type Locker interface {
+	// Lock tries to get an atomic lock on an instance named with `name`
+	// and an `owner` identified by a random string per instance.
+	// Subsequently locking the same resource name for the same owner
+	// renews the lock expiration.
+	// It returns true, nil if it managed to obtain a lock on the instance.
+	// false and potentially an error otherwise.
+	// This must not be blocking.
+	Lock(name string, owner string, expiration time.Duration) (bool, error)
+	// Unlock tries to unlock the lock by that `name` for the specified
+	// `owner`. Unlocking when not holding the lock shouldn't error
+	Unlock(name string, owner string) error
+}
+
+const (
+	LockKeyLeader = "leader"
+)
+
+func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) error {
+	ac, err := ds.AppConfig()
+	if err != nil {
+		return err
+	}
+	if !ac.EnableAnalytics {
+		return nil
+	}
+
+	stats, shouldSend, err := ds.ShouldSendStatistics(frequency)
+	if err != nil {
+		return err
+	}
+	if !shouldSend {
+		return nil
+	}
+
+	statsBytes, err := json.Marshal(stats)
+	if err != nil {
+		return err
+	}
+	req, err := http.Post(url, "application/json", bytes.NewBuffer(statsBytes))
+	if err != nil {
+		return err
+	}
+	if req.StatusCode != http.StatusOK {
+		return errors.Errorf("Error posting to %s: %d", url, req.StatusCode)
+	}
+	return ds.RecordStatisticsSent()
+}
+
+func runCrons(ds fleet.Datastore, logger kitlog.Logger) context.CancelFunc {
+	locker, ok := ds.(Locker)
+	if !ok {
+		initFatal(errors.New("No global locker available"), "")
+	}
+	ctx, cancelBackground := context.WithCancel(context.Background())
+
+	ourIdentifier, err := server.GenerateRandomText(64)
+	if err != nil {
+		initFatal(errors.New("Error generating random instance identifier"), "")
+	}
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		for {
+			level.Debug(logger).Log("waiting", "on ticker")
+			select {
+			case <-ticker.C:
+				level.Debug(logger).Log("waiting", "done")
+			case <-ctx.Done():
+				level.Debug(logger).Log("exit", "done with crons.")
+				break
+			}
+			if locked, err := locker.Lock(LockKeyLeader, ourIdentifier, time.Hour); err != nil || !locked {
+				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+				continue
+			}
+			_, err := ds.CleanupDistributedQueryCampaigns(time.Now())
+			if err != nil {
+				level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
+			}
+			err = ds.CleanupIncomingHosts(time.Now())
+			if err != nil {
+				level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
+			}
+			_, err = ds.CleanupCarves(time.Now())
+			if err != nil {
+				level.Error(logger).Log("err", "cleaning carves", "details", err)
+			}
+
+			err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
+			if err != nil {
+				level.Error(logger).Log("err", "sending statistics", "details", err)
+			}
+			level.Debug(logger).Log("loop", "done")
+		}
+	}()
+	return cancelBackground
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on

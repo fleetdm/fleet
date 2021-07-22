@@ -5,19 +5,17 @@ import classnames from "classnames";
 
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
-import { isEmpty, noop, pick, reduce } from "lodash";
-
+import { isEmpty, noop, pick, reduce, filter, includes } from "lodash";
+import simpleSearch from "utilities/simple_search";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
-import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
-import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities";
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
+import TableContainer from "components/TableContainer";
 
 import permissionUtils from "utilities/permissions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
-import { getHosts } from "redux/nodes/components/ManageHostsPage/actions";
 import queryActions from "redux/nodes/entities/queries/actions";
 import teamInterface from "interfaces/team";
 import queryInterface from "interfaces/query";
@@ -46,6 +44,15 @@ import {
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
+import {
+  generateTableHeaders,
+  generateDataSet,
+} from "./SoftwareTable/SoftwareTableConfig";
+import {
+  generatePackTableHeaders,
+  generatePackDataSet,
+} from "./PackTable/PackTableConfig";
+import EmptySoftware from "./EmptySoftware";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
@@ -79,6 +86,7 @@ export class HostDetailsPage extends Component {
       showQueryHostModal: false,
       showTransferHostModal: false,
       showRefetchLoadingSpinner: false,
+      softwareState: [],
     };
   }
 
@@ -181,6 +189,29 @@ export class HostDetailsPage extends Component {
       });
     // Must call the function and the return to avoid infinite loop
     toggleTransferHostModal()();
+  };
+
+  // Search functionality
+  onQueryChange = (queryData) => {
+    const { host } = this.props;
+    const {
+      pageIndex,
+      pageSize,
+      searchQuery,
+      sortHeader,
+      sortDirection,
+    } = queryData;
+    let sortBy = [];
+    if (sortHeader !== "") {
+      sortBy = [{ id: sortHeader, direction: sortDirection }];
+    }
+
+    if (!searchQuery) {
+      this.setState({ softwareState: host.software });
+      return;
+    }
+
+    this.setState({ softwareState: simpleSearch(searchQuery, host.software) });
   };
 
   clearHostUpdates() {
@@ -350,9 +381,11 @@ export class HostDetailsPage extends Component {
   };
 
   renderPacks = () => {
-    const { host } = this.props;
+    const { host, isLoadingHost } = this.props;
     const { pack_stats } = host;
     const wrapperClassName = `${baseClass}__table`;
+
+    const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
     if (pack_stats) {
@@ -366,29 +399,22 @@ export class HostDetailsPage extends Component {
               {pack.query_stats.length === 0 ? (
                 <div>There are no schedule queries for this pack.</div>
               ) : (
-                <div className={`${baseClass}__wrapper`}>
-                  <table className={wrapperClassName}>
-                    <thead>
-                      <tr>
-                        <th>Query name</th>
-                        <th>Description</th>
-                        <th>Frequency</th>
-                        <th>Last run</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {!!pack.query_stats.length &&
-                        pack.query_stats.map((query) => {
-                          return (
-                            <PackQueriesListRow
-                              key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
-                              query={query}
-                            />
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {!!pack.query_stats.length && (
+                    <TableContainer
+                      columns={tableHeaders}
+                      data={generatePackDataSet(pack.query_stats)}
+                      isLoading={isLoadingHost}
+                      onQueryChange={() => null}
+                      resultsTitle={"queries"}
+                      defaultSortHeader={"scheduled_query_name"}
+                      defaultSortDirection={"asc"}
+                      showMarkAllPages={false}
+                      disablePagination
+                      disableCount
+                    />
+                  )}
+                </>
               )}
             </AccordionItemPanel>
           </AccordionItem>
@@ -452,8 +478,12 @@ export class HostDetailsPage extends Component {
   };
 
   renderSoftware = () => {
-    const { host } = this.props;
-    const wrapperClassName = `${baseClass}__table`;
+    // const { EmptySoftware } = this;
+    const { onQueryChange } = this;
+    const { softwareState } = this.state;
+    const { host, isLoadingHost } = this.props;
+
+    const tableHeaders = generateTableHeaders();
 
     return (
       <div className="section section--software">
@@ -472,28 +502,23 @@ export class HostDetailsPage extends Component {
         ) : (
           <>
             <SoftwareVulnerabilities softwareList={host.software} />
-            <div className={`${baseClass}__wrapper`}>
-              <table className={wrapperClassName}>
-                <thead>
-                  <tr>
-                    <th />
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Installed Version</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {host.software.map((software) => {
-                    return (
-                      <SoftwareListRow
-                        key={`software-row-${software.id}`}
-                        software={software}
-                      />
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {host.software && (
+              <TableContainer
+                columns={tableHeaders}
+                data={generateDataSet(softwareState)}
+                isLoading={isLoadingHost}
+                defaultSortHeader={"name"}
+                defaultSortDirection={"asc"}
+                inputPlaceHolder={"Filter software"}
+                onQueryChange={onQueryChange}
+                resultsTitle={"software"}
+                emptyComponent={EmptySoftware}
+                showMarkAllPages={false}
+                searchable
+                wideSearch
+                disablePagination
+              />
+            )}
           </>
         )}
       </div>

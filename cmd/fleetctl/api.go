@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"os"
 	"runtime"
 
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -10,6 +12,10 @@ import (
 )
 
 func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
+	if flag.Lookup("test.v") != nil {
+		return service.NewClient(os.Getenv("FLEET_SERVER_ADDRESS"), true, "", "")
+	}
+
 	if err := makeConfigIfNotExists(c.String("config")); err != nil {
 		return nil, errors.Wrapf(err, "error verifying that config exists at %s", c.String("config"))
 	}
@@ -58,6 +64,11 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	}
 
 	configPath, context := c.String("config"), c.String("context")
+
+	if flag.Lookup("test.v") != nil {
+		fleet.SetToken("AAAA")
+		return fleet, nil
+	}
 
 	// Add authentication token
 	t, err := getConfigValue(configPath, context, "token")

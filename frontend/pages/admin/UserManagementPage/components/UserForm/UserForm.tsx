@@ -461,6 +461,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             data-tip
             data-for="sso-disabled-tooltip"
             data-tip-disable={canUseSso}
+            data-offset="{'top': 25, 'left': 100}"
           >
             <Checkbox
               name="sso_enabled"
@@ -506,7 +507,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                 onChange={onRadioChange("newUserType")}
               />
               <div
-                className="invite-diabled"
+                className="invite-disabled"
                 data-tip
                 data-for="invite-disabled-tooltip"
                 data-tip-disable={smtpConfigured}
@@ -563,9 +564,8 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                   <IconToolTip
                     isHtml
                     text={`\
-                      <div class="tooltip-text">\
-                        <p>This password is temporary.</p>\
-                        <p> This user will be asked to set a new password after logging in to the Fleet UI.</p>\
+                      <div class="password-tooltip-text">\
+                        <p>This password is temporary. This user will be asked to set a new password after logging in to the Fleet UI.</p>\
                         <p>This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.</p>\
                       </div>\
                     `}

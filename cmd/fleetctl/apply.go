@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"regexp"
 	"strings"
@@ -25,10 +24,16 @@ type specMetadata struct {
 
 type specGroup struct {
 	Queries      []*fleet.QuerySpec
+	Teams        []*fleet.TeamSpec
 	Packs        []*fleet.PackSpec
 	Labels       []*fleet.LabelSpec
 	AppConfig    *fleet.AppConfigPayload
 	EnrollSecret *fleet.EnrollSecretSpec
+	UsersRoles   *fleet.UsersRoleSpec
+}
+
+type TeamSpec struct {
+	Team *fleet.TeamSpec `json:"team"`
 }
 
 func specGroupFromBytes(b []byte) (*specGroup, error) {
@@ -94,6 +99,20 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 			}
 			specs.EnrollSecret = enrollSecretSpec
 
+		case fleet.UserRolesKind:
+			var userRoleSpec *fleet.UsersRoleSpec
+			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+			}
+			specs.UsersRoles = userRoleSpec
+
+		case fleet.TeamKind:
+			var teamSpec TeamSpec
+			if err := yaml.Unmarshal(s.Spec, &teamSpec); err != nil {
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+			}
+			specs.Teams = append(specs.Teams, teamSpec.Team)
+
 		default:
 			return nil, errors.Errorf("unknown kind %q", s.Kind)
 		}
@@ -132,7 +151,7 @@ func applyCommand() *cli.Command {
 				return err
 			}
 
-			fleet, err := clientFromCLI(c)
+			fleetClient, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -143,40 +162,53 @@ func applyCommand() *cli.Command {
 			}
 
 			if len(specs.Queries) > 0 {
-				if err := fleet.ApplyQueries(specs.Queries); err != nil {
+				if err := fleetClient.ApplyQueries(specs.Queries); err != nil {
 					return errors.Wrap(err, "applying queries")
 				}
-				fmt.Printf("[+] applied %d queries\n", len(specs.Queries))
+				logf(c, "[+] applied %d queries\n", len(specs.Queries))
 			}
 
 			if len(specs.Labels) > 0 {
-				if err := fleet.ApplyLabels(specs.Labels); err != nil {
+				if err := fleetClient.ApplyLabels(specs.Labels); err != nil {
 					return errors.Wrap(err, "applying labels")
 				}
-				fmt.Printf("[+] applied %d labels\n", len(specs.Labels))
+				logf(c, "[+] applied %d labels\n", len(specs.Labels))
 			}
 
 			if len(specs.Packs) > 0 {
-				if err := fleet.ApplyPacks(specs.Packs); err != nil {
+				if err := fleetClient.ApplyPacks(specs.Packs); err != nil {
 					return errors.Wrap(err, "applying packs")
 				}
-				fmt.Printf("[+] applied %d packs\n", len(specs.Packs))
+				logf(c, "[+] applied %d packs\n", len(specs.Packs))
 			}
 
 			if specs.AppConfig != nil {
-				if err := fleet.ApplyAppConfig(specs.AppConfig); err != nil {
+				if err := fleetClient.ApplyAppConfig(specs.AppConfig); err != nil {
 					return errors.Wrap(err, "applying fleet config")
 				}
-				fmt.Printf("[+] applied fleet config\n")
+				log(c, "[+] applied fleet config\n")
 
 			}
 
 			if specs.EnrollSecret != nil {
-				if err := fleet.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
+				if err := fleetClient.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
 					return errors.Wrap(err, "applying enroll secrets")
 				}
-				fmt.Printf("[+] applied enroll secrets\n")
+				log(c, "[+] applied enroll secrets\n")
+			}
 
+			if len(specs.Teams) > 0 {
+				if err := fleetClient.ApplyTeams(specs.Teams); err != nil {
+					return errors.Wrap(err, "applying queries")
+				}
+				logf(c, "[+] applied %d teams\n", len(specs.Teams))
+			}
+
+			if specs.UsersRoles != nil {
+				if err := fleetClient.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
+					return errors.Wrap(err, "applying user roles")
+				}
+				log(c, "[+] applied user roles\n")
 			}
 
 			return nil

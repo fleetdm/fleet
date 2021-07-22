@@ -19,4 +19,7 @@ type Service interface {
 	CarveService
 	TeamService
 	ActivitiesService
+	UserRolesService
+	GlobalScheduleService
+	TranslatorService
 }

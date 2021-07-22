@@ -53,6 +53,8 @@ type TeamService interface {
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
+	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
+	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
 }
 
 type TeamPayload struct {
@@ -158,6 +160,10 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 		return nil
 	}
 
+	if len(teamUsers) > 0 {
+		return NewError(ErrNoRoleNeeded, "Cannot specify both Global Role and Team Roles")
+	}
+
 	if !ValidGlobalRole(*globalRole) {
 		return NewError(ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
 	}
@@ -172,4 +178,14 @@ type TeamFilter struct {
 	User *User
 	// IncludeObserver determines whether to include teams the user is an observer on.
 	IncludeObserver bool
+}
+
+const (
+	TeamKind = "team"
+)
+
+type TeamSpec struct {
+	Name         string           `json:"name"`
+	AgentOptions *json.RawMessage `json:"agent_options"`
+	Secrets      []EnrollSecret   `json:"secrets"`
 }

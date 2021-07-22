@@ -11,7 +11,11 @@
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="https://fleetdm.com" />
+    <meta name="twitter:title" content="Open source device management" />
+    <meta name="twitter:description" content="Open source software, built on osquery. With Fleet you can ask important questions about your servers, containers, and laptops. Whatever operating system they are running. Wherever they live; on your own hardware, or in the cloud." />
+    <meta name="twitter:image" content="https://github.com/fleetdm/fleet/blob/a6cff7ea89b9632eaf53127fbc7f3ba29d9a0918/website/assets/images/fleet-logo-square@2x.png" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
@@ -189,7 +193,6 @@
     <% /* Chat (Papercups) */ %>
     <script>window.Papercups = { config: { accountId: '5b59eeac-1578-4fdb-b946-e17c1dca0c51', requireEmailUpfront: true } };</script>
     <script type="text/javascript" async defer src="https://app.papercups.io/widget.js"></script>
-    <script type="text/javascript" async defer src="https://app.papercups.io/storytime.js"></script>
 
     <%/* Stripe.js */%>
     <script src="https://js.stripe.com/v3/"></script>
@@ -242,6 +245,7 @@
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
+    <script src="/js/pages/transparency.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

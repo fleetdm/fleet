@@ -11,7 +11,7 @@ type metricsMiddleware struct {
 	requestLatency metrics.Histogram
 }
 
-// NewMetrics service takes an existing service and wraps it
+// NewMetricsService service takes an existing service and wraps it
 // with instrumentation middleware.
 func NewMetricsService(
 	svc fleet.Service,
