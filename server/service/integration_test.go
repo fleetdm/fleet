@@ -180,8 +180,13 @@ func TestQueryCreationLogsActivity(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	_, server := RunServerForTestsWithDS(t, ds)
+	users, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
+
+	admin1 := users["admin1@example.com"]
+	admin1.GravatarURL = "http://iii.com"
+	err := ds.SaveUser(&admin1)
+	require.NoError(t, err)
 
 	params := fleet.QueryPayload{
 		Name:  ptr.String("user1"),
@@ -196,6 +201,7 @@ func TestQueryCreationLogsActivity(t *testing.T) {
 
 	assert.Len(t, activities.Activities, 1)
 	assert.Equal(t, "Test Name admin1@example.com", activities.Activities[0]["actor_full_name"])
+	assert.Equal(t, "http://iii.com", activities.Activities[0]["actor_gravatar"])
 	assert.Equal(t, "created_saved_query", activities.Activities[0]["type"])
 }
 
