@@ -18,13 +18,14 @@ module.exports.routes = {
   'GET /get-started':        { action:   'view-pricing' },
 
   'GET /install':            'https://github.com/fleetdm/fleet/blob/main/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
-  '/docs':                   'https://github.com/fleetdm/fleet/tree/main/docs',
   '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   '/company/about':          '/handbook', // FUTURE: brief "about" page explaining the origins of the company
-  '/handbook':               'https://github.com/fleetdm/fleet/tree/main/handbook',
 
   'GET /queries':            { action: 'view-query-library' },
   'GET /queries/:slug':      { action: 'view-query-detail' },
+
+  'GET /docs/?*':            { skipAssets: false, action: 'docs/view-basic-documentation' },// handles /docs and /docs/foo/bar
+  'GET /handbook/?*':        { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
 
   '/contribute':             'https://github.com/fleetdm/fleet/tree/main/docs/3-Contributing',
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
@@ -36,11 +37,16 @@ module.exports.routes = {
   'GET /apply': 'https://fleet-device-management.breezy.hr',
 
 
-  //  ╔═╗╔═╗╦═╗╔╦╗╔═╗╦  ╦╔╗╔╦╔═╔═╗  ┌─  ┌┐ ┌─┐┌─┐┬┌─┬ ┬┌─┐┬─┐┌┬┐┌─┐  ┌─┐┌─┐┌┬┐┌─┐┌─┐┌┬┐  ─┐
-  //  ╠═╝║╣ ╠╦╝║║║╠═╣║  ║║║║╠╩╗╚═╗  │   ├┴┐├─┤│  ├┴┐│││├─┤├┬┘ ││└─┐  │  │ ││││├─┘├─┤ │    │
-  //  ╩  ╚═╝╩╚═╩ ╩╩ ╩╩═╝╩╝╚╝╩ ╩╚═╝  └─  └─┘┴ ┴└─┘┴ ┴└┴┘┴ ┴┴└──┴┘└─┘  └─┘└─┘┴ ┴┴  ┴ ┴ ┴o  ─┘
-  // Note that these redirects take precedence over less specific wildcard routes like '/docs/*' and '/handbook/*'
-  // TODO: stub this out as a section for handling redirects for backwards compatibility so it's super obvious where they go, and so there's only one place in the code base where they live (include at least one example)
+  //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
+  //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
+  //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
+  //  ┌─  ┌─┐┌─┐┬─┐  ┌┐ ┌─┐┌─┐┬┌─┬ ┬┌─┐┬─┐┌┬┐┌─┐  ┌─┐┌─┐┌┬┐┌─┐┌─┐┌┬┐  ─┐
+  //  │   ├┤ │ │├┬┘  ├┴┐├─┤│  ├┴┐│││├─┤├┬┘ ││└─┐  │  │ ││││├─┘├─┤ │    │
+  //  └─  └  └─┘┴└─  └─┘┴ ┴└─┘┴ ┴└┴┘┴ ┴┴└──┴┘└─┘  └─┘└─┘┴ ┴┴  ┴ ┴ ┴o  ─┘
+  // Use these redirects for deprecated/legacy links, so that they go to an appropriate new place instead of just being broken when docs/etc move or get renamed.
+  // > Note that these redirects take precedence over less specific wildcard routes like '/docs/*' and '/handbook/*'
+
+  'GET /docs/using-fleet/some-deprecated-link-like-this': '/docs/using-fleet/supported-browsers',// « this is just an example to show how
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
