@@ -51,25 +51,39 @@ describe("Query flow", () => {
 
     cy.findByRole("button", { name: /schedule a query/i }).click();
 
-    // TODO: Schedule flow
+    cy.findByText(/select query/i).click();
 
-    // specify div with class attribute since more than one schedule button
-    cy.findByRole("button", { name: /schedule/i }).click();
+    cy.findByText(/query all window crashes/i).click();
+
+    cy.findByLabelText(/frequency/i).click();
+
+    cy.findByText(/every week/i).click();
+
+    cy.findByText(/show advanced options/i).click();
+
+    cy.findByLabelText(/logging/i).click();
+
+    cy.findByText(/differential (ignore removals)/i).click();
+
+    cy.findByLabelText(/shard/i).click().type("50");
+
+    cy.get(".schedule-editor-modal__btn-wrap")
+      .contains("button", /schedule/i)
+      .click();
 
     cy.visit("/schedule/manage");
 
-    // TODO: Remove schedule
-    // cy.get("#select-schedule-1").check({ force: true });
+    cy.findByText(/query all window crashes/i).should("exist");
 
-    // cy.findByRole("button", { name: /remove/i }).click();
+    cy.get("tbody > #form-field--checkbox").check({ force: true });
 
-    // cy.get(".all-packs-page__modal-btn-wrap > .button--alert")
-    //   .contains("button", /remove/i)
-    //   .click();
+    cy.findByRole("button", { name: /remove query/i }).click();
 
-    // cy.findByText(/successfully removed/i).should("be.visible");
+    cy.get(".remove-scheduled-query-modal__btn-wrap")
+      .contains("button", /remove/i)
+      .click();
 
-    // cy.findByText(/insert query name/i).should("not.exist");
+    cy.findByText(/query all window crashes/i).should("not.exist");
 
     // End
 
