@@ -59,7 +59,6 @@ const ScheduleEditorModal = ({
   ] = useState(null);
   const [selectedShard, setSelectedShard] = useState(null);
 
-  console.log("selectedLoggingType scheduleEditorModal", selectedLoggingType);
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q: any) => {
       return {

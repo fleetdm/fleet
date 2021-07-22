@@ -13,8 +13,9 @@ export default (client) => {
         shard,
         version,
       } = formData;
-      const removed = logging_type === "differential";
-      const snapshot = logging_type === "snapshot";
+
+      const removed = loggingType === "differential";
+      const snapshot = loggingType === "snapshot";
 
       const params = {
         interval: Number(interval),
