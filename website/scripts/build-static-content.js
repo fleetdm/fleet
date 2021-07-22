@@ -213,7 +213,7 @@ module.exports = {
                 '--'+
                 _.last(pageNormalizedLowercaseRelPath.split(/\//)).slice(0,20)+
                 '--'+
-                sails.helpers.strings.random.with({len:4})
+                sails.helpers.strings.random.with({len:10})// if two files in different folders happen to have the same filename, there is a 1/16^10 chance of a collision (this is small enough- worst case, the build fails at the uniqueness check and we rerun it.)
               ).replace(/[^a-z0-9\-]/ig,'');
 
               // Generate HTML file
