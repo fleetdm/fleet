@@ -119,23 +119,13 @@ const ScheduleEditorModal = ({
     [setSelectedShard]
   );
 
-  // TODO: 1. Validators
-  // TODO: 2. figure out differential/removal bug
-  // TODO: 3. Remove console logs
-
   const onFormSubmit = () => {
-    console.log(
-      "\nTODO: Fix selectedLoggingType onFormSubmit,",
-      selectedLoggingType
-    );
-
     onScheduleSubmit({
       shard: selectedShard,
       interval: selectedFrequency,
       query_id: selectedQuery?.id,
       name: selectedQuery?.name,
-      snapshot: selectedLoggingType === "snapshot",
-      removed: selectedLoggingType === "differential",
+      logging_type: selectedLoggingType,
       platform: selectedPlatformOptions,
       version: selectedMinOsqueryVersionOptions,
     });

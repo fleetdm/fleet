@@ -125,10 +125,6 @@ const ManageSchedulePage = (): JSX.Element => {
   // TODO: Fix formData remove not passing correctly
   const onAddScheduledQuerySubmit = useCallback(
     (formData: any) => {
-      console.log(
-        "---onAddScheduledQuerySubmit globalScheduledQueryActions.create(formData....... is...",
-        formData
-      );
       dispatch(globalScheduledQueryActions.create({ ...formData }))
         .then(() => {
           dispatch(
