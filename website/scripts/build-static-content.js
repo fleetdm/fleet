@@ -224,19 +224,9 @@ module.exports = {
                 await sails.helpers.fs.write(htmlOutputPath, htmlString);
               }
 
-              // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-              // ~~TODO: Figure out what to do about embedded images (they'll get cached by CDN so probably ok to point at github, but markdown img srcs will break if relative...  Also GitHub could just change image URLs whenever.)~~
-              //
-              // Actually...
-              // (A good long term solution to this that wouldn't be that hard and would only be slightly annoying going forward would be to have the docs refer to images like https://fleetdm.com/images/foobar.png)
-              // …maybe we should just do that from the get-go.
-              //
-              // Yeah.  Let's do that.
-              // In that case, we just:
-              // - change the markdown images in the Fleet repo to point to https://fleetdm.com/images/… instead of relative path
-              // - add the new images in website/assets/images/ to deploy them
-              // - and then we're good!
-              // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+              // What about images referenced in markdown files?
+              // They need to be referenced using an absolute URL src-- e.g. ![](https://fleetdm.com/images/foo.png)
+              // > See https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
 
               // Append to what will become configuration for the Sails app.
               builtStaticContent.markdownPages.push({
