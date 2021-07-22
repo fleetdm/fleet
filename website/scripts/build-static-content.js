@@ -217,7 +217,7 @@ module.exports = {
               ).replace(/[^a-z0-9\-]/ig,'');
 
               // Generate HTML file
-              let htmlOutputPath = path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs');
+              let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
               if (dry) {
                 sails.log('Dry run: Would have generated file:', htmlOutputPath);
               } else {
