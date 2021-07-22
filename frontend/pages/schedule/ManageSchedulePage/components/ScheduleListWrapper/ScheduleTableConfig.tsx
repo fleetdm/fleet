@@ -50,6 +50,7 @@ const generateTableHeaders = (
           value: props.checked,
           indeterminate: props.indeterminate,
           onChange: () => cellProps.toggleAllRowsSelected(),
+          className: "header-checkbox",
         };
         return <Checkbox {...checkboxProps} />;
       },
@@ -58,6 +59,7 @@ const generateTableHeaders = (
         const checkboxProps = {
           value: props.checked,
           onChange: () => cellProps.row.toggleRowSelected(),
+          className: "table-checkbox",
         };
         return <Checkbox {...checkboxProps} />;
       },
