@@ -21,11 +21,22 @@ module.exports = {
 
 
   fn: function ({ text }) {
-    // TODO: make this smarter about: "Fleet REST API" => "Fleet rEST aPI")
+
+    let KNOWN_ACRONYMS = ['JSON', 'REST', 'CLI', 'API', 'FAQ', 'QA', 'UI', 'README'];  // « helps make this smarter about things like: "Fleet rEST aPI" => "Fleet REST API")
+    let KNOWN_PROPER_NOUNS = ['Fleet'];// « helps make this smarter about things like: "Deploying fleet" => "Deploying Fleet"
+
     return text
       .split(/[\s-_]+/)
-      .filter((word, idx) => !(idx === 0 && word.match(/[0-9]+/))) // « strip off any leading numbers so first word is actually capitalized
-      .map((word, idx) => (idx === 0? word[0].toUpperCase() : word[0].toLowerCase())+word.slice(1))
+      .filter((word, idx) => !(idx === 0 && word.match(/^[0-9]+$/))) // « disregard first word if it contains only numbers (this helps capitalization work as expected)
+      .map((word, idx)=>{
+        if (KNOWN_ACRONYMS.includes(word.toUpperCase())) {
+          return word.toUpperCase();
+        } else if (idx === 0 || KNOWN_PROPER_NOUNS.includes(word[0].toUpperCase() + word.slice(1).toLowerCase())) {
+          return word[0].toUpperCase() + word.slice(1).toLowerCase();
+        } else {
+          return word.toLowerCase();
+        }
+      })
       .join(' ');
   }
 
