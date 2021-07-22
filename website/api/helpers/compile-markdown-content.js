@@ -115,13 +115,6 @@ module.exports = {
               .replace(/\s/g, '-') // spaces => dashes
               .toLowerCase();
 
-            // set the "permalink" HTML attr to the slug
-            $(this).attr('permalink', slug);
-
-            if ($(this) && typeof $(this).wrap === 'function') {// this was throwing ".wrap is undefined"
-              $(this).wrap('<div class="permalink-header"></div>');
-            }
-
           });
           modifiedHtml = $.html();
 
