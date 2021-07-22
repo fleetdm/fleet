@@ -118,8 +118,8 @@ type QuerySpec struct {
 	Query       string `json:"query"`
 }
 
-func LoadQueriesFromYaml(yml string) ([]*Query, error) {
-	queries := []*Query{}
+func LoadQueryObjectsFromYaml(yml string) ([]*QueryObject, error) {
+	var queryObjects []*QueryObject
 	for _, s := range strings.Split(yml, "---") {
 		s = strings.TrimSpace(s)
 		if len(s) == 0 {
@@ -131,9 +131,19 @@ func LoadQueriesFromYaml(yml string) ([]*Query, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "unmarshal yaml")
 		}
-		queries = append(queries,
-			&Query{Name: q.Spec.Name, Description: q.Spec.Description, Query: q.Spec.Query},
-		)
+		queryObjects = append(queryObjects, &q)
+	}
+	return queryObjects, nil
+}
+
+func LoadQueriesFromYaml(yml string) ([]*Query, error) {
+	objects, err := LoadQueryObjectsFromYaml(yml)
+	if err != nil {
+		return nil, err
+	}
+	queries := make([]*Query, len(objects))
+	for i, q := range objects {
+		queries[i] = &Query{Name: q.Spec.Name, Description: q.Spec.Description, Query: q.Spec.Query}
 	}
 
 	return queries, nil
