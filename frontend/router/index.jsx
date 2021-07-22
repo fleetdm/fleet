@@ -68,7 +68,7 @@ const routes = (
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
             <IndexRedirect to={PATHS.MANAGE_HOSTS} />
-            <Route path="homepage" component={Homepage} />
+            <Route path="home/dashboard" component={Homepage} />
             <Route path="settings" component={AuthenticatedAdminRoutes}>
               <Route component={SettingsWrapper}>
                 <Route path="organization" component={AdminAppSettingsPage} />
