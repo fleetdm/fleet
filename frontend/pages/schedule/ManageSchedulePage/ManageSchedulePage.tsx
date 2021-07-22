@@ -122,7 +122,6 @@ const ManageSchedulePage = (): JSX.Element => {
       });
   }, [dispatch, selectedQueryIds, toggleRemoveScheduledQueryModal]);
 
-  // TODO: Fix formData remove not passing correctly
   const onAddScheduledQuerySubmit = useCallback(
     (formData: any) => {
       dispatch(globalScheduledQueryActions.create({ ...formData }))
