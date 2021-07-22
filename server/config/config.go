@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -334,9 +336,9 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("pubsub.add_attributes", false, "Add PubSub attributes in addition to the message body")
 
 	// Filesystem
-	man.addConfigString("filesystem.status_log_file", "/tmp/osquery_status",
+	man.addConfigString("filesystem.status_log_file", filepath.Join(os.TempDir(), "osquery_status"),
 		"Log file path to use for status logs")
-	man.addConfigString("filesystem.result_log_file", "/tmp/osquery_result",
+	man.addConfigString("filesystem.result_log_file", filepath.Join(os.TempDir(), "osquery_result"),
 		"Log file path to use for result logs")
 	man.addConfigBool("filesystem.enable_log_rotation", false,
 		"Enable automatic rotation for osquery log files")
@@ -659,6 +661,10 @@ func (man Manager) loadConfigFile() {
 // TestConfig returns a barebones configuration suitable for use in tests.
 // Individual tests may want to override some of the values provided.
 func TestConfig() FleetConfig {
+	var testLogFile = "/dev/null"
+	if runtime.GOOS == "windows" {
+		testLogFile = "NUL"
+	}
 	return FleetConfig{
 		App: AppConfig{
 			TokenKeySize:              24,
@@ -686,8 +692,8 @@ func TestConfig() FleetConfig {
 			DisableBanner: true,
 		},
 		Filesystem: FilesystemConfig{
-			StatusLogFile: "/dev/null",
-			ResultLogFile: "/dev/null",
+			StatusLogFile: testLogFile,
+			ResultLogFile: testLogFile,
 		},
 	}
 }
