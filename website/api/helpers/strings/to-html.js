@@ -35,40 +35,12 @@ module.exports = {
     },
 
     addIdsToHeadings: {
-      friendlyName: 'Add IDs to headers?',
+      friendlyName: 'Add IDs to headings?',
       description: 'Whether or not to add an ID attribute to rendered heading tags like <h1>',
       extendedDescription: 'This is not part of the Markdown specification (see http://daringfireball.net/projects/markdown/dingus), but it is the default behavior for the `marked` module.  Defaults to `true`.',
       example: true,
       defaultsTo: true
-    },
-
-    compileCodeBlock: {
-      description: 'An optional lifecycle callback useful for adding syntax highlighting to code blocks, or to perform custom HTML-escaping on them.',
-      extendedDescription: 'This callback is called once for each code block in the source Markdown, and expected to return compiled HTML.',
-      type: 'ref',
-      contract: {
-        sideEffects: 'cacheable',
-        inputs: {
-          codeBlockContents: {
-            description: 'The raw (unescaped) contents of the code block.',
-            example: '\nconsole.log("hello");\n'
-          },
-          programmingLanguage: {
-            description: 'The programming language of the code block.',
-            extendedDescription:
-              'Be warned that this is not normalized. In other words, if one code block in the source Markdown indicates `js`, and another indicates `javascript`, then this function will be called with `js` for the first one, and with `javascript` for the second.',
-            example: 'javascript'
-          }
-        },
-        exits: {
-          success: {
-            outputDescription: 'The compiled, _escaped_ HTML representing the contents of the code block.',
-            extendedDescription: 'The compiled HTML output returned here will be wrapped in `<pre>` and `<code>` tags automatically.',
-            outputExample: 'console.<span class="function call">log</span>(<span class="string">\'hello\'</span>);'
-          }
-        }
-      }//</inputs.compileCodeBlock.contract>
-    }//</inputs.compileCodeBlock>
+    }
 
   },
 
@@ -108,26 +80,6 @@ module.exports = {
         return '<h'+level+'>'+text+'</h'+level+'>';
       };
       markedOpts.renderer = renderer;
-    }
-
-    // If `compileCodeBlock` lifecycle callback was provided, attach the `highlight` option.
-    if (inputs.compileCodeBlock) {
-      /**
-       * A lifecycle callback provided by `marked` to perform syntax highlighting on code blocks.
-       *
-       * Here's where marked actually makes the call:
-       *  • https://github.com/chjj/marked/blob/v0.3.5/lib/marked.js#L766
-       *
-       * @param  {String}   code [the section of code to pass to the highlighter]
-       * @param  {String}   lang [the programming language specified in the code block; e.g. 'javascript']
-       * @param  {Function} next
-       */
-      markedOpts.highlight = function (code, lang, next) {
-        inputs.compileCodeBlock({
-          codeBlockContents: code,
-          programmingLanguage: lang
-        }).exec(next);
-      };
     }
 
     // Now actually compile the markdown to HTML.
