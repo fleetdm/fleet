@@ -37,7 +37,7 @@ export class EditPackPage extends Component {
     packID: PropTypes.string,
     packLabels: PropTypes.arrayOf(labelInterface),
     packTeams: PropTypes.arrayOf(teamInterface),
-    scheduledQueries: PropTypes.arrayOf(queryInterface), // should this be scheduledQueryInterface ?? 7/7/21
+    scheduledQueries: PropTypes.arrayOf(scheduledQueryInterface),
     isBasicTier: PropTypes.bool,
   };
 
@@ -50,7 +50,7 @@ export class EditPackPage extends Component {
 
     this.state = {
       selectedQuery: null,
-      selectedScheduledQuery: null, // LEFT OFF ON 7/7 2 PM with MARTAVIS
+      selectedScheduledQuery: null,
       targetsCount: 0,
     };
   }

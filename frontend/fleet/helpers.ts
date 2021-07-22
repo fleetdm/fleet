@@ -429,7 +429,7 @@ export const secondsToHms = (d: number): string => {
 
   const hDisplay = h > 0 ? h + (h === 1 ? " hr " : " hrs ") : "";
   const mDisplay = m > 0 ? m + (m === 1 ? " min " : " mins ") : "";
-  const sDisplay = s > 0 ? s + (s === 1 ? " sec " : " secs ") : "";
+  const sDisplay = s > 0 ? s + (s === 1 ? " sec" : " secs") : "";
   return hDisplay + mDisplay + sDisplay;
 };
 
@@ -494,6 +494,7 @@ export default {
   hostTeamName,
   humanQueryLastRun,
   secondsToHms,
+  secondsToDhms,
   labelSlug,
   setupData,
   frontendFormattedConfig,
