@@ -83,9 +83,9 @@ const ActivityFeed = (): JSX.Element => {
 
   const renderActivityBlock = (activity: IActivity, i: number) => {
     const { actor_email } = activity;
-    const gravatarURL = actor_email
+    const { gravatarURL } = actor_email
       ? addGravatarUrlToResource({ email: actor_email })
-      : DEFAULT_GRAVATAR_URL;
+      : { gravatarURL: DEFAULT_GRAVATAR_URL };
 
     return (
       <div className={`${baseClass}__block`} key={i}>
