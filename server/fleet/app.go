@@ -180,7 +180,7 @@ type AppConfig struct {
 	AgentOptions *json.RawMessage `db:"agent_options"`
 
 	// VulnerabilityDatabases path
-	VulnerabilityDatabasesPath string `db:"vulnerability_databases_path"`
+	VulnerabilityDatabasesPath *string `db:"vulnerability_databases_path"`
 }
 
 func (c AppConfig) AuthzType() string {

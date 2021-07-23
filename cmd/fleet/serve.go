@@ -21,6 +21,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 
+	//"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -491,7 +493,7 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
-	if config.VulnerabilityDatabasesPath == "" {
+	if config.VulnerabilityDatabasesPath == nil {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return
 	}

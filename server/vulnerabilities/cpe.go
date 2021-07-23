@@ -62,7 +62,7 @@ func CPEFromSoftware(ds fleet.Datastore, software *fleet.Software) (string, erro
 	case "chocolatey_packages":
 	}
 
-	db, err := CPEDB(config.VulnerabilityDatabasesPath)
+	db, err := CPEDB(*config.VulnerabilityDatabasesPath)
 	if err != nil {
 		return "", errors.Wrap(err, "opening the cpe db")
 	}
@@ -99,8 +99,8 @@ func CPEFromSoftware(ds fleet.Datastore, software *fleet.Software) (string, erro
 			err = db.Get(
 				&deprecation,
 				`SELECT rowid, * FROM cpe c WHERE cpe23 in (
-    					SELECT cpe23 from deprecated_by d where d.cpe_id=?
-    				)`,
+						SELECT cpe23 from deprecated_by d where d.cpe_id=?
+					)`,
 				deprecatedItem.ID,
 			)
 			if err != nil {

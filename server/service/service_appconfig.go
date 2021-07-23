@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -266,9 +267,9 @@ func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppCon
 	}
 
 	if p.VulnerabilitySettings != nil {
-		config.VulnerabilityDatabasesPath = p.VulnerabilitySettings.DatabasesPath
+		config.VulnerabilityDatabasesPath = ptr.String(p.VulnerabilitySettings.DatabasesPath)
 	} else {
-		config.VulnerabilityDatabasesPath = ""
+		config.VulnerabilityDatabasesPath = nil
 	}
 
 	return &config

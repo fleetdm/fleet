@@ -52,11 +52,10 @@ const xmlCPEDict = `
 
 func TestCpeFromSoftware(t *testing.T) {
 	tempDir := os.TempDir()
-	defer os.RemoveAll(tempDir)
 
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{VulnerabilityDatabasesPath: tempDir}, nil
+		return &fleet.AppConfig{VulnerabilityDatabasesPath: &tempDir}, nil
 	}
 
 	require.NoError(t, GenerateCPEDatabaseSkeleton(tempDir))
