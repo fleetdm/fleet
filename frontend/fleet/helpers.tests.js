@@ -118,7 +118,7 @@ describe("Fleet API - helpers", () => {
         })
       ).toEqual({
         ...scheduledQueryStub,
-        logging_type: "snapshot",
+        logging_type: "differential",
         removed: true,
         snapshot: false,
       });
