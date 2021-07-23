@@ -109,8 +109,8 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         isLoading={loadingTableData}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}
-        showMarkAllPages
-        isAllPagesSelected
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search"
         searchable={false}
