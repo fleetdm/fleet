@@ -4,13 +4,11 @@
 - Updates e2e test queryflow.spec.ts to include Schedules
 - Updates all RBAC e2e test to test access to Schedules
 - Refactors `TableContainer` ActionButton CTA to allow custom text 
-- Adds OPTIONS to `utilities/constants` and utilize across packs and Schedules
+- Adds OPTIONS to `utilities/constants` and utilize across Packs and Schedules
 - Defaults logging type to snapshot for packs
 - Builds out routing to endpoint for GlobalScheduledQueries
 - Builds out global_scheduled_queries methods
-- Tests global_scheduled_queries Redux entities
+- Adds global_scheduled_queries to test stubs and test mocks
 - Adds conversion helpers and tests helper functions
 - Adds global_scheduled_queries to `frontend/interfaces`
-
-
-Implements #369
+- Tests global_scheduled_queries Redux entities
