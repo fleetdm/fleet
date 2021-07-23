@@ -21,7 +21,7 @@ import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 const baseClass = "manage-schedule-page";
 
 const renderTable = (
-  onRemoveScheduledQueryClick: any,
+  onRemoveScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[],
   allGlobalScheduledQueriesError: any,
   toggleScheduleEditorModal: any

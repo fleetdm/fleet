@@ -49,7 +49,7 @@ describe("Query flow", () => {
     // Test Schedules
     cy.visit("/schedule/manage");
 
-    cy.wait(1000);
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.findByRole("button", { name: /schedule a query/i }).click();
 

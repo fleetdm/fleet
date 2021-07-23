@@ -12,7 +12,7 @@ import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
-import { generateTableHeaders } from "./ScheduleTableConfig";
+import generateTableHeaders from "./ScheduleTableConfig";
 // @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/schedule.svg";
 
