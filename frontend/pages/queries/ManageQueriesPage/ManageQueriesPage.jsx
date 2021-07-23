@@ -59,7 +59,8 @@ export class ManageQueriesPage extends Component {
     // TODO replace stub actions; consider whether or not this ought to be in constructor; consider moving to table config
     this.secondarySelectActions = [
       {
-        callback: (selectedRows) => console.log("clicked action 1: ", selectedRows),
+        callback: (selectedRows) =>
+          console.log("clicked action 1: ", selectedRows),
         name: "action 1",
         hideButton: (arr) => Array.isArray(arr) && arr.length === 1,
         variant: "text-link",
@@ -234,16 +235,18 @@ export class ManageQueriesPage extends Component {
 
   generateSelectActionButtonText = (selectedQueryIds) => {
     const { currentUser } = this.props;
-    if (selectedQueryIds && selectedQueryIds.length === 1) {
-      if (!permissionUtils.isOnlyObserver(currentUser)) {
-        return "Edit or run query";
-      }
-      return "View query";
-    } else if (selectedQueryIds && selectedQueryIds.length > 1) {
-      if (!permissionUtils.isOnlyObserver(currentUser)) {
-        return "Delete";
-      }
-      return "Default select action";
+    if (!selectedQueryIds) {
+      return "No action";
+    }
+    if (selectedQueryIds.length === 1) {
+      return !permissionUtils.isOnlyObserver(currentUser)
+        ? "Edit or run query"
+        : "View query";
+    }
+    if (selectedQueryIds.length > 1) {
+      return !permissionUtils.isOnlyObserver(currentUser)
+        ? "Delete"
+        : "Default delete action";
     }
     return "Default Select Action";
   };

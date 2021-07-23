@@ -43,7 +43,7 @@ const DataTable = ({
   defaultPageSize,
   selectActionButtonText,
   secondarySelectActions,
-}: IDataTableProps) => {
+}: IDataTableProps): JSX.Element => {
   const columns = useMemo(() => {
     return tableColumns;
   }, [tableColumns]);
@@ -155,7 +155,7 @@ const DataTable = ({
         ? selectActionButtonText(targetIds)
         : selectActionButtonText;
     const actionProps = {
-      name: name || "Transfer to team", // TODO refactor this in teams page
+      name: name || "Transfer to team", // TODO refactor this in teams page so we don't need to hard code it here
       callback: onSelectActionClick,
       targetIds,
     };
@@ -178,6 +178,7 @@ const DataTable = ({
     Object.keys(selectedRowIds).length >= defaultPageSize &&
     showMarkAllPages &&
     !isAllPagesSelected;
+
   return (
     <div className={baseClass}>
       <div className={"data-table data-table__wrapper"}>
