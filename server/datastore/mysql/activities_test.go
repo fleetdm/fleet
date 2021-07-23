@@ -39,6 +39,7 @@ func TestActivityUsernameChange(t *testing.T) {
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "newname", activities[0].ActorFullName)
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
+	assert.Equal(t, "email@asd.com", *activities[0].ActorEmail)
 
 	err = ds.DeleteUser(u.ID)
 	require.NoError(t, err)

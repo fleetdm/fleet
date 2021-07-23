@@ -47,6 +47,7 @@ type Activity struct {
 	ActorFullName string           `json:"actor_full_name" db:"name"`
 	ActorID       *uint            `json:"actor_id" db:"user_id"`
 	ActorGravatar *string          `json:"actor_gravatar" db:"gravatar_url"`
+	ActorEmail    *string          `json:"actor_email" db:"email"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
 }
