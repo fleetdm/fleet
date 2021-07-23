@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react";
 
+import { pull } from "lodash";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Modal from "components/modals/Modal";
@@ -92,7 +93,17 @@ const ScheduleEditorModal = ({
 
   const onChangeSelectPlatformOptions = useCallback(
     (values) => {
-      setSelectedPlatformOptions(values);
+      const valArray = values.split(",");
+
+      // Remove All if another OS is chosen
+      // else if Remove OS if All is chosen
+      if (valArray.indexOf("") === 0 && valArray.length > 1) {
+        setSelectedPlatformOptions(pull(valArray, "").join(","));
+      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
+        setSelectedPlatformOptions("");
+      } else {
+        setSelectedPlatformOptions(values);
+      }
     },
     [setSelectedPlatformOptions]
   );
