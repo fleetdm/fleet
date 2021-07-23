@@ -101,11 +101,6 @@ describe("Core tier - Admin user", () => {
     // On the Packs pages (manage, new, and edit), they should…
     // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts
 
-    // On the Settings pages, they should…
-    // See everything except for the “Teams” pages
-    cy.visit("/settings/organization");
-    cy.findByText(/teams/i).should("not.exist");
-
     // See and select the “Edit or run query” button in the right side panel. This button appears after the user selects a query in the Queries table
     cy.contains("a", /back to queries/i).click({ force: true });
     cy.findByText(/get the time/i).click();
