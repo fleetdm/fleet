@@ -66,7 +66,7 @@ Some folks like to enforce users with SAML SSO enabled to login only via the SSO
 There is no option in the Fleet UI for disabling password-based authentication.
 However, users that have SSO enabled in Fleet will not be able to log in via password-based authentication.
 
-If a user has SSO enabled, the Login page in the Fleet UI does displays the “Email” and “Password” fields but on attempted password-based login, this user will receive an “Authentication failed” message.
+If a user has SSO enabled, the Login page in the Fleet UI displays the “Email” and “Password” fields but on attempted password-based login, this user will receive an “Authentication failed” message.
 
 ## Where are my query results?
 
