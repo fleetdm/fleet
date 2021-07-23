@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { find, lowerCase } from "lodash";
 import moment from "moment";
 
 // @ts-ignore
 import Fleet from "fleet";
-import { find, lowerCase } from "lodash";
+import { addGravatarUrlToResource } from "fleet/helpers";
 
 import { IActivity, ActivityType } from "interfaces/activity";
 
@@ -40,18 +41,29 @@ const TAGGED_TEMPLATES = {
 const ActivityFeed = (): JSX.Element => {
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingError, setIsLoadingError] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [showMore, setShowMore] = useState(true);
 
   useEffect((): void => {
     const getActivities = async (): Promise<void> => {
-      const newItems = await Fleet.activities.loadNext(pageIndex);
-      if (newItems.length) {
-        setActivities((prevItems) => prevItems.concat(newItems));
+      const responseActivities = await Fleet.activities.loadNext(pageIndex);
+      console.log("getActivities response: ", responseActivities);
+      if (responseActivities instanceof Error) {
+        console.log("instanceof Error: ", responseActivities instanceof Error);
+        console.log("responseActivities: ", responseActivities);
+        setIsLoadingError(true);
+        setIsLoading(false);
       } else {
-        setShowMore(false);
+        if (responseActivities.length) {
+          setActivities((prevActivities) =>
+            prevActivities.concat(responseActivities)
+          );
+        } else {
+          setShowMore(false);
+        }
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     getActivities();
@@ -70,7 +82,11 @@ const ActivityFeed = (): JSX.Element => {
   };
 
   const renderActivityBlock = (activity: IActivity, i: number) => {
-    const gravatarURL = activity.actor_gravatar || DEFAULT_GRAVATAR_URL;
+    const { actor_email } = activity;
+    const gravatarURL = actor_email
+      ? addGravatarUrlToResource({ email: actor_email })
+      : DEFAULT_GRAVATAR_URL;
+
     return (
       <div className={`${baseClass}__block`} key={i}>
         <Avatar
@@ -92,14 +108,32 @@ const ActivityFeed = (): JSX.Element => {
     );
   };
 
+  const renderError = () => {
+    return (
+      <div className={`${baseClass}__error`}>
+        <p>Something went wrong.</p>
+      </div>
+    );
+  };
+
+  const renderNoActivities = () => {
+    return (
+      <div className={`${baseClass}__no-activities`}>
+        <p>Fleet has not recorded any activities.</p>
+      </div>
+    );
+  };
+
   return (
     <div className={baseClass}>
-      {activities &&
-        activities.map((activity: IActivity, i: number) =>
-          renderActivityBlock(activity, i)
-        )}
+      {isLoadingError && renderError()}
+      {!isLoadingError && !isLoading && !activities
+        ? renderNoActivities()
+        : activities.map((activity: IActivity, i: number) =>
+            renderActivityBlock(activity, i)
+          )}
       {isLoading && <Spinner />}
-      {showMore && (
+      {!isLoadingError && showMore && (
         <Button
           disabled={isLoading}
           onClick={onLoadMore}
@@ -108,6 +142,11 @@ const ActivityFeed = (): JSX.Element => {
         >
           Load more
         </Button>
+      )}
+      {!isLoadingError && !isLoading && !showMore && (
+        <div className={`${baseClass}__no-more-activities`}>
+          <p>You have no more recorded activity.</p>
+        </div>
       )}
     </div>
   );

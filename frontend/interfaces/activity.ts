@@ -16,9 +16,9 @@ export enum ActivityType {
 export interface IActivity {
   id: number;
   created_at: string;
+  actor_email?: string;
   actor_full_name: string;
   actor_id: number;
-  actor_gravatar: string;
   type: ActivityType;
   details?: IActivityDetails;
 }
@@ -35,9 +35,9 @@ export interface IActivityDetails {
 export default PropTypes.shape({
   id: PropTypes.number,
   created_at: PropTypes.string,
+  actor_email: PropTypes.string,
   actor_full_name: PropTypes.string,
   actor_id: PropTypes.number,
-  actor_gravatar: PropTypes.string,
   type: PropTypes.string,
   details: PropTypes.shape({
     pack_id: PropTypes.number,

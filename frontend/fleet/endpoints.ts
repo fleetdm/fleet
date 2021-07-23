@@ -13,6 +13,7 @@ export default {
   },
   FORGOT_PASSWORD: "/v1/fleet/forgot_password",
   ACTIVITIES: "/v1/fleet/activities",
+  // ACTIVITIES: "/foo",
   HOSTS: "/v1/fleet/hosts",
   HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
   HOSTS_TRANSFER_BY_FILTER: "/v1/fleet/hosts/transfer/filter",

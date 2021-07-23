@@ -15,7 +15,14 @@ export default (client: any): any => {
 
       return client
         .authenticatedGet(client._endpoint(endpoint))
-        .then((response: any) => response.activities);
+        .then((response: any) => {
+          console.log("activities response: ", response);
+          return response.activities;
+        })
+        .catch((err: any) => {
+          console.log("activities err: ", err);
+          return new Error(err);
+        });
     },
   };
 };
