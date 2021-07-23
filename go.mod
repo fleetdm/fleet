@@ -20,7 +20,6 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
-	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c // indirect
 	github.com/facebookincubator/nvdtools v0.1.4 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb
@@ -44,6 +43,7 @@ require (
 	github.com/kolide/osquery-go v0.0.0-20190904034940-a74aa860032d
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
+	github.com/mattn/go-sqlite3 v1.14.8 // indirect
 	github.com/mna/redisc v1.2.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0

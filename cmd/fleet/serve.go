@@ -8,9 +8,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/v4/server"
-
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -19,6 +16,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/e-dard/netbug"
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
@@ -485,6 +486,16 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 }
 
 func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
+	config, err := ds.AppConfig()
+	if err != nil {
+		level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		return
+	}
+	if config.VulnerabilityDatabasesPath == "" {
+		level.Info(logger).Log("vulnerability scanning", "not configured")
+		return
+	}
+
 	ticker := time.NewTicker(1 * time.Hour)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
@@ -508,33 +519,11 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 	}
 }
 
-func cpeFromSoftware(software *fleet.Software) (string, error) {
-	switch software.Source {
-	case "apps":
-
-		//wfn.Attributes{
-		//	Part:    "a",
-		//	Product: software.Name,
-		//	Version: software.Version,
-		//}
-	case "python_packages":
-	case "chrome_extensions":
-	case "firefox_addons":
-	case "safari_extensions":
-	case "deb_packages":
-	case "portage_packages":
-	case "rpm_packages":
-	case "npm_packages":
-	case "atom_packages":
-	case "programs":
-	case "ie_extensions":
-	case "chocolatey_packages":
-	default:
-	}
-	return "", nil
-}
-
 func translateSoftwareToCPE(ds fleet.Datastore) error {
+	if err := vulnerabilities.SyncCPEDatabase(ds); err != nil {
+		return err
+	}
+
 	iterator, err := ds.AllSoftwareWithoutCPEIterator()
 	if err != nil {
 		return err
@@ -545,7 +534,7 @@ func translateSoftwareToCPE(ds fleet.Datastore) error {
 		if err != nil {
 			return err
 		}
-		cpe, err := cpeFromSoftware(software)
+		cpe, err := vulnerabilities.CPEFromSoftware(ds, software)
 		if err != nil {
 			return err
 		}

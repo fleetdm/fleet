@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server"
 	"html/template"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/server"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -263,6 +264,13 @@ func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppCon
 	if p.SMTPSettings != nil {
 		populateSMTP(p.SMTPSettings)
 	}
+
+	if p.VulnerabilitySettings != nil {
+		config.VulnerabilityDatabasesPath = p.VulnerabilitySettings.DatabasesPath
+	} else {
+		config.VulnerabilityDatabasesPath = ""
+	}
+
 	return &config
 }
 
