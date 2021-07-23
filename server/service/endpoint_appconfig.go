@@ -24,6 +24,9 @@ type appConfigResponse struct {
 	HostSettings       *fleet.HostSettings        `json:"host_settings,omitempty"`
 	AgentOptions       *json.RawMessage           `json:"agent_options,omitempty"`
 	License            *fleet.LicenseInfo         `json:"license,omitempty"`
+
+	// differs from fleet.AppConfig
+	Logging            *fleet.Logging             `json:"logging,omitempty"`
 	Err                error                      `json:"error,omitempty"`
 }
 
@@ -92,6 +95,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			HostSettings:       hostSettings,
 			License:            license,
 			AgentOptions:       agentOptions,
+			Logging:            fleet.LoggingFromConfig(svc.FleetConfig(ctx)),
 		}
 		return response, nil
 	}
@@ -135,6 +139,7 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			},
 			License:      license,
 			AgentOptions: config.AgentOptions,
+			Logging:      fleet.LoggingFromConfig(svc.FleetConfig(ctx)),
 		}
 		if response.SMTPSettings.SMTPPassword != nil {
 			*response.SMTPSettings.SMTPPassword = "********"

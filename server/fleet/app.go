@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"time"
 
 	"github.com/kolide/kit/version"
@@ -38,7 +39,7 @@ type AppConfigService interface {
 	// GetEnrollSecretSpec gets the spec for the current enroll secrets.
 	GetEnrollSecretSpec(ctx context.Context) (*EnrollSecretSpec, error)
 
-	// Certificate returns the PEM encoded certificate chain for osqueryd TLS termination.
+	// CertificateChain returns the PEM encoded certificate chain for osqueryd TLS termination.
 	// For cases where the connection is self-signed, the server will attempt to
 	// connect using the InsecureSkipVerify option in tls.Config.
 	CertificateChain(ctx context.Context) (cert []byte, err error)
@@ -52,6 +53,9 @@ type AppConfigService interface {
 
 	// License returns the licensing information.
 	License(ctx context.Context) (*LicenseInfo, error)
+
+    // FleetConfig return the config.FleetConfig instance.
+	FleetConfig(ctx context.Context) config.FleetConfig
 }
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -370,4 +374,121 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+}
+
+type Logging struct {
+	Debug           bool              `json:"debug"`
+	Json            bool              `json:"json"`
+	ResultLogPlugin string            `json:"osquery_result_log_plugin"`
+	StatusLogPlugin string            `json:"osquery_status_log_plugin"`
+	FileSystem      *FileSystemConfig `json:"filesystem,omitempty"`
+	Firehose        *FirehoseConfig   `json:"firehose,omitempty"`
+	Kinesis         *KinesisConfig    `json:"kinesis,omitempty"`
+	Lambda          *LambdaConfig     `json:"lambda,omitempty"`
+	PubSub          *PubSubConfig     `json:"pubsub,omitempty"`
+}
+
+type FileSystemConfig struct {
+	config.FilesystemConfig
+}
+
+type PubSubConfig struct {
+	config.PubSubConfig
+}
+
+// FirehoseConfig shadows config.FirehoseConfig only exposing a subset of fields
+type FirehoseConfig struct {
+	Region       string `json:"region"`
+	StatusStream string `json:"status_stream"`
+	ResultStream string `json:"result_stream"`
+}
+
+// KinesisConfig shadows config.KinesisConfig only exposing a subset of fields
+type KinesisConfig struct {
+	Region       string `json:"region"`
+	StatusStream string `json:"status_stream"`
+	ResultStream string `json:"result_stream"`
+}
+
+// LambdaConfig shadows config.LambdaConfig only exposing a subset of fields
+type LambdaConfig struct {
+	Region         string `json:"region"`
+	StatusFunction string `json:"status_function"`
+	ResultFunction string `json:"result_function"`
+}
+
+// LoggingFromConfig takes a config.FleetConfig and converts it into a Logging response
+func LoggingFromConfig(conf config.FleetConfig) *Logging {
+	logging := &Logging{
+		Debug: conf.Logging.Debug,
+		Json:  conf.Logging.JSON,
+	}
+	switch conf.Osquery.StatusLogPlugin {
+	case "":
+		fallthrough
+	case "filesystem":
+		logging.StatusLogPlugin = "filesystem"
+		logging.FileSystem = &FileSystemConfig{conf.Filesystem}
+	case "kinesis":
+		logging.StatusLogPlugin = "kinesis"
+		logging.Kinesis = &KinesisConfig{
+			Region:       conf.Kinesis.Region,
+			StatusStream: conf.Kinesis.StatusStream,
+			ResultStream: conf.Kinesis.ResultStream,
+		}
+	case "firehose":
+		logging.StatusLogPlugin = "firehose"
+		logging.Firehose = &FirehoseConfig{
+			Region:       conf.Firehose.Region,
+			StatusStream: conf.Firehose.StatusStream,
+			ResultStream: conf.Firehose.ResultStream,
+		}
+	case "lambda":
+		logging.StatusLogPlugin = "lambda"
+		logging.Lambda = &LambdaConfig{
+			Region:         conf.Lambda.Region,
+			StatusFunction: conf.Lambda.StatusFunction,
+			ResultFunction: conf.Lambda.ResultFunction,
+		}
+	case "pubsub":
+		logging.StatusLogPlugin = "pubsub"
+		logging.PubSub = &PubSubConfig{conf.PubSub}
+	case "stdout":
+		logging.StatusLogPlugin = "stdout"
+	}
+
+	switch conf.Osquery.ResultLogPlugin {
+	case "":
+		fallthrough
+	case "filesystem":
+		logging.ResultLogPlugin = "filesystem"
+		logging.FileSystem = &FileSystemConfig{conf.Filesystem}
+	case "kinesis":
+		logging.ResultLogPlugin = "kinesis"
+		logging.Kinesis = &KinesisConfig{
+			Region:       conf.Kinesis.Region,
+			StatusStream: conf.Kinesis.StatusStream,
+			ResultStream: conf.Kinesis.ResultStream,
+		}
+	case "firehose":
+		logging.ResultLogPlugin = "firehose"
+		logging.Firehose = &FirehoseConfig{
+			Region:       conf.Firehose.Region,
+			StatusStream: conf.Firehose.StatusStream,
+			ResultStream: conf.Firehose.ResultStream,
+		}
+	case "lambda":
+		logging.ResultLogPlugin = "lambda"
+		logging.Lambda = &LambdaConfig{
+			Region:         conf.Lambda.Region,
+			StatusFunction: conf.Lambda.StatusFunction,
+			ResultFunction: conf.Lambda.ResultFunction,
+		}
+	case "pubsub":
+		logging.ResultLogPlugin = "pubsub"
+		logging.PubSub = &PubSubConfig{conf.PubSub}
+	case "stdout":
+		logging.ResultLogPlugin = "stdout"
+	}
+	return logging
 }

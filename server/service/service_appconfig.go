@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"html/template"
 	"strings"
 
@@ -318,4 +319,8 @@ func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func (svc *Service) FleetConfig(ctx context.Context) config.FleetConfig {
+	return svc.config
 }

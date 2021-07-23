@@ -103,6 +103,7 @@ type LoggingConfig struct {
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
 type FirehoseConfig struct {
 	Region           string
+	EndpointURL      string `yaml:"endpoint_url"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
@@ -113,6 +114,7 @@ type FirehoseConfig struct {
 // KinesisConfig defines configs for the AWS Kinesis logging plugin
 type KinesisConfig struct {
 	Region           string
+	EndpointURL      string `yaml:"endpoint_url"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
@@ -291,6 +293,8 @@ func (man Manager) addConfigs() {
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
+	man.addConfigString("firehose.endpoint_url", "",
+		"AWS Service Endpoint to use (leave empty for default service endpoints)")
 	man.addConfigString("firehose.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("firehose.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("firehose.sts_assume_role_arn", "",
@@ -302,6 +306,8 @@ func (man Manager) addConfigs() {
 
 	// Kinesis
 	man.addConfigString("kinesis.region", "", "AWS Region to use")
+	man.addConfigString("kinesis.endpoint_url", "",
+		"AWS Service Endpoint to use (leave empty for default service endpoints)")
 	man.addConfigString("kinesis.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("kinesis.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("kinesis.sts_assume_role_arn", "",
@@ -418,6 +424,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),
+			EndpointURL:      man.getConfigString("firehose.endpoint_url"),
 			AccessKeyID:      man.getConfigString("firehose.access_key_id"),
 			SecretAccessKey:  man.getConfigString("firehose.secret_access_key"),
 			StsAssumeRoleArn: man.getConfigString("firehose.sts_assume_role_arn"),
@@ -426,6 +433,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Kinesis: KinesisConfig{
 			Region:           man.getConfigString("kinesis.region"),
+			EndpointURL:      man.getConfigString("kinesis.endpoint_url"),
 			AccessKeyID:      man.getConfigString("kinesis.access_key_id"),
 			SecretAccessKey:  man.getConfigString("kinesis.secret_access_key"),
 			StatusStream:     man.getConfigString("kinesis.status_stream"),
@@ -696,4 +704,62 @@ func TestConfig() FleetConfig {
 			ResultLogFile: testLogFile,
 		},
 	}
+}
+
+func TestKinesisPluginConfig() FleetConfig {
+	config := TestConfig()
+	config.Osquery.ResultLogPlugin = "kinesis"
+	config.Osquery.StatusLogPlugin = "kinesis"
+	config.Kinesis = KinesisConfig{
+		Region:           "us-east-1",
+		AccessKeyID:      "foo",
+		SecretAccessKey:  "bar",
+		StsAssumeRoleArn: "baz",
+		StatusStream:     "test-status-stream",
+		ResultStream:     "test-result-stream",
+	}
+	return config
+}
+
+func TestFirehosePluginConfig() FleetConfig {
+	config := TestConfig()
+	config.Osquery.ResultLogPlugin = "firehose"
+	config.Osquery.StatusLogPlugin = "firehose"
+	config.Firehose = FirehoseConfig{
+		Region:           "us-east-1",
+		AccessKeyID:      "foo",
+		SecretAccessKey:  "bar",
+		StsAssumeRoleArn: "baz",
+		StatusStream:     "test-status-firehose",
+		ResultStream:     "test-result-firehose",
+	}
+	return config
+}
+
+func TestLambdaPluginConfig() FleetConfig {
+	config := TestConfig()
+	config.Osquery.ResultLogPlugin = "lambda"
+	config.Osquery.StatusLogPlugin = "lambda"
+	config.Lambda = LambdaConfig{
+		Region:           "us-east-1",
+		AccessKeyID:      "foo",
+		SecretAccessKey:  "bar",
+		StsAssumeRoleArn: "baz",
+		ResultFunction: "result-func",
+		StatusFunction: "status-func",
+	}
+	return config
+}
+
+func TestPubSubPluginConfig() FleetConfig {
+	config := TestConfig()
+	config.Osquery.ResultLogPlugin = "pubsub"
+	config.Osquery.StatusLogPlugin = "pubsub"
+	config.PubSub = PubSubConfig{
+		Project:       "test",
+		StatusTopic:   "status-topic",
+		ResultTopic:   "result-topic",
+		AddAttributes: false,
+	}
+	return config
 }
