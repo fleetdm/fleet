@@ -19,6 +19,10 @@ const validate = (formData) => {
 
   // Removed logging_type validation, default validation is "snapshot" if !formData.logging_type
 
+  if (!formData.shard) {
+    errors.shard = "Shard must be between 0 and 100";
+  }
+
   if (formData.shard) {
     if (formData.shard < 0 || formData.shard > 100) {
       errors.shard = "Shard must be between 0 and 100";

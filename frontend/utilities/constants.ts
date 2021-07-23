@@ -14,12 +14,12 @@ export const PLATFORM_OPTIONS = [
 ];
 
 export const LOGGING_TYPE_OPTIONS = [
+  { label: "Snapshot", value: "snapshot" },
   { label: "Differential", value: "differential" },
   {
     label: "Differential (Ignore Removals)",
     value: "differential_ignore_removals",
   },
-  { label: "Snapshot", value: "snapshot" },
 ];
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
