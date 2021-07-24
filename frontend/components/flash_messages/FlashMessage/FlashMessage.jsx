@@ -30,9 +30,7 @@ const FlashMessage = ({
 
   // Success alerts will not be visible after 4 seconds
   if (alertType === "success") {
-    setTimeout(function () {
-      document.getElementById(`${klass}`).style.display = "none";
-    }, 4000);
+    setTimeout(onRemoveFlash, 4000);
   }
 
   return (

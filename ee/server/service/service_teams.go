@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 
@@ -203,6 +204,12 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 
+	team, err := svc.ds.Team(teamID)
+	if err != nil {
+		return err
+	}
+	name := team.Name
+
 	if err := svc.ds.DeleteTeam(teamID); err != nil {
 		return err
 	}
@@ -210,7 +217,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	return svc.ds.NewActivity(
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedTeam,
-		&map[string]interface{}{"team_id": teamID},
+		&map[string]interface{}{"team_id": teamID, "team_name": name},
 	)
 }
 
