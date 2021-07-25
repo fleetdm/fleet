@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { find, lowerCase } from "lodash";
+import { find, isEmpty, lowerCase } from "lodash";
 import moment from "moment";
 
 // @ts-ignore
@@ -11,6 +11,9 @@ import { IActivity, ActivityType } from "interfaces/activity";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Spinner from "components/loaders/Spinner";
+
+import ErrorIcon from "../../../../assets/images/icon-error-16x16@2x.png";
+
 
 const baseClass = "activity-feed";
 
@@ -111,7 +114,7 @@ const ActivityFeed = (): JSX.Element => {
   const renderError = () => {
     return (
       <div className={`${baseClass}__error`}>
-        <p>Something went wrong.</p>
+        <p><img className="error-icon" alt="error icon" src={ErrorIcon} /><b>Something went wrong.</b></p>
       </div>
     );
   };
@@ -119,7 +122,13 @@ const ActivityFeed = (): JSX.Element => {
   const renderNoActivities = () => {
     return (
       <div className={`${baseClass}__no-activities`}>
-        <p>Fleet has not recorded any activities.</p>
+        <p>
+          <b>Fleet has not recorded any activities.</b>
+        </p>
+        <p>
+          Did you recently edit your queries, update your packs, or run a live
+          query? Try again in a few seconds as the system catches up.
+        </p>
       </div>
     );
   };
@@ -127,13 +136,13 @@ const ActivityFeed = (): JSX.Element => {
   return (
     <div className={baseClass}>
       {isLoadingError && renderError()}
-      {!isLoadingError && !isLoading && !activities
+      {!isLoadingError && !isLoading && isEmpty(activities)
         ? renderNoActivities()
         : activities.map((activity: IActivity, i: number) =>
             renderActivityBlock(activity, i)
           )}
       {isLoading && <Spinner />}
-      {!isLoadingError && showMore && (
+      {!isLoadingError && !isEmpty(activities) && showMore && (
         <Button
           disabled={isLoading}
           onClick={onLoadMore}

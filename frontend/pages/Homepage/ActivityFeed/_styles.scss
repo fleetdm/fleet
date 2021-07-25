@@ -36,11 +36,21 @@
     color: $core-vibrant-blue;
   }
 
-  &__no-activity {
-
-  }
-
   &__no-more-activities {
     text-align: center;
   }
+
+  &__error {
+    p {
+      display: flex;
+    align-items: center;
+    }
+
+    .error-icon {
+      height: 16px;
+      width: 16px;
+    }
+  }
+
+
 }
