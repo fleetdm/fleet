@@ -1,6 +1,5 @@
 import React from "react";
 
-import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
@@ -13,8 +12,6 @@ interface IHeaderProps {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
-  toggleAllRowsSelected: () => void;
 }
 
 interface ICellProps {
@@ -23,16 +20,13 @@ interface ICellProps {
   };
   row: {
     original: ITeam;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
-    toggleRowSelected: () => void;
   };
 }
 
 interface IDataColumn {
-  id?: string;
-  title?: string;
+  title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor?: string;
+  accessor: string;
   Cell: (props: ICellProps) => JSX.Element;
   disableHidden?: boolean;
   disableSortBy?: boolean;
@@ -48,27 +42,6 @@ const generateTableHeaders = (
   actionSelectHandler: (value: string, team: ITeam) => void
 ): IDataColumn[] => {
   return [
-    {
-      id: "selection",
-      Header: (cellProps: IHeaderProps): JSX.Element => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const props = cellProps.row.getToggleRowSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          onChange: () => cellProps.row.toggleRowSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      disableHidden: true,
-    },
     {
       title: "Name",
       Header: "Name",
