@@ -148,6 +148,14 @@ const TeamManagementPage = (): JSX.Element => {
     [dispatch, teamEditing, toggleEditTeamModal]
   );
 
+  const onSelectActionOneClick = useCallback((selectedTeamIds) => {
+    console.log("Clicked Action One Button", selectedTeamIds);
+  }, []);
+
+  const onSelectActionTwoClick = useCallback((selectedTeamIds) => {
+    console.log("Clicked Action Two Button", selectedTeamIds);
+  }, []);
+
   const onActionSelection = (action: string, team: ITeam): void => {
     switch (action) {
       case "edit":
@@ -167,6 +175,22 @@ const TeamManagementPage = (): JSX.Element => {
   const teams = useSelector((state: RootState) =>
     generateDataSet(state.entities.teams.data)
   );
+
+  // TODO replace stub actions; consider whether or not this ought to be in separate config
+  const secondarySelectActions = [
+    {
+      buttonText: "Action One",
+      onActionButtonClick: onSelectActionOneClick,
+      hideButton: (targetIds: number[] = []) => targetIds.length === 1,
+      variant: "text-link",
+    },
+    {
+      buttonText: "Action Two",
+      onActionButtonClick: onSelectActionTwoClick,
+      hideButton: false,
+      // variant: "text-link",
+    },
+  ];
 
   return (
     <div className={`${baseClass} body-wrap`}>
@@ -189,6 +213,7 @@ const TeamManagementPage = (): JSX.Element => {
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable
+        secondarySelectActions={secondarySelectActions}
       />
       {showCreateTeamModal ? (
         <CreateTeamModal

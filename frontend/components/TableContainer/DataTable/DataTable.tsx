@@ -1,10 +1,13 @@
 import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
+import { noop } from "lodash";
+
 import useDeepEffect from "utilities/hooks/useDeepEffect";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "../../buttons/Button";
+import ActionButton, { IActionButtonProps } from "./ActionButton";
 
 const baseClass = "data-table-container";
 
@@ -15,13 +18,14 @@ interface IDataTableProps {
   sortHeader: any;
   sortDirection: any;
   onSort: any; // TODO: an event type
-  onSelectActionClick: any; // TODO: an event type
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
-  selectActionButtonText?: string;
+  primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
+  onPrimarySelectActionClick: any; // TODO: an event type
+  secondarySelectActions?: IActionButtonProps[];
 }
 
 // This data table uses react-table for implementation. The relevant documentation of the library
@@ -33,14 +37,15 @@ const DataTable = ({
   sortHeader,
   sortDirection,
   onSort,
-  onSelectActionClick,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
   resultsTitle,
   defaultPageSize,
-  selectActionButtonText,
-}: IDataTableProps) => {
+  onPrimarySelectActionClick,
+  primarySelectActionButtonText,
+  secondarySelectActions,
+}: IDataTableProps): JSX.Element => {
   const columns = useMemo(() => {
     return tableColumns;
   }, [tableColumns]);
@@ -106,11 +111,6 @@ const DataTable = ({
     }
   }, [tableState.selectedRowIds, toggleAllPagesSelected]);
 
-  const onSelectActionButtonClick = useCallback(() => {
-    const entityIds = selectedFlatRows.map((row: any) => row.original.id);
-    onSelectActionClick(entityIds);
-  }, [onSelectActionClick, selectedFlatRows]);
-
   const onToggleAllPagesClick = useCallback(() => {
     toggleAllPagesSelected();
   }, [toggleAllPagesSelected]);
@@ -136,14 +136,58 @@ const DataTable = ({
     );
   };
 
-  const generateButtonText = (text = "Transfer to team") => {
-    return text;
+  const renderActionButton = (actionProps: IActionButtonProps): JSX.Element => {
+    const {
+      onActionButtonClick,
+      buttonText,
+      targetIds,
+      variant,
+      hideButton,
+    } = actionProps;
+    return (
+      <ActionButton
+        key={buttonText}
+        buttonText={buttonText}
+        onActionButtonClick={onActionButtonClick || noop}
+        targetIds={targetIds}
+        variant={variant}
+        hideButton={hideButton}
+      />
+    );
+  };
+
+  const renderPrimarySelectAction = (): JSX.Element | null => {
+    const targetIds = selectedFlatRows.map((row: any) => row.original.id);
+    const buttonText =
+      typeof primarySelectActionButtonText === "function"
+        ? primarySelectActionButtonText(targetIds)
+        : primarySelectActionButtonText;
+    const actionProps = {
+      buttonText: buttonText || "",
+      onActionButtonClick: onPrimarySelectActionClick,
+      targetIds,
+    };
+
+    return !buttonText ? null : renderActionButton(actionProps);
+  };
+
+  const renderSecondarySelectActions = (): JSX.Element[] | null => {
+    if (secondarySelectActions) {
+      const targetIds = selectedFlatRows.map((row: any) => row.original.id);
+      const buttons = secondarySelectActions.map((actionProps) => {
+        actionProps = { ...actionProps, targetIds };
+        return renderActionButton(actionProps);
+      });
+      return buttons;
+    }
+    return null;
   };
 
   const shouldRenderToggleAllPages =
     Object.keys(selectedRowIds).length >= defaultPageSize &&
     showMarkAllPages &&
     !isAllPagesSelected;
+
   return (
     <div className={baseClass}>
       <div className={"data-table data-table__wrapper"}>
@@ -182,11 +226,11 @@ const DataTable = ({
                       >
                         Clear selection
                       </Button>
+                      {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
                     <div className={"active-selection__inner-right"}>
-                      <Button onClick={onSelectActionButtonClick}>
-                        {generateButtonText(selectActionButtonText)}
-                      </Button>
+                      {primarySelectActionButtonText &&
+                        renderPrimarySelectAction()}
                     </div>
                   </div>
                 </th>
@@ -231,7 +275,8 @@ DataTable.propTypes = {
   sortHeader: PropTypes.string,
   sortDirection: PropTypes.string,
   onSort: PropTypes.func,
-  onSelectActionClick: PropTypes.func,
+  onPrimarySelectActionClick: PropTypes.func,
+  secondarySelectActions: PropTypes.arrayOf(PropTypes.object),
 };
 
 export default DataTable;
