@@ -57,9 +57,6 @@
       position: absolute;
       top: 0px;
       width: 100%;
-      max-width: calc(
-        100vw - 2rem - 2rem - 0.125rem - 300px
-      ); // same as wrapper page for flex layout
       border: 0;
 
       &__container {
