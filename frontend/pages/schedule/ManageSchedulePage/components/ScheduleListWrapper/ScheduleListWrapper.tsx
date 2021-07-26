@@ -111,8 +111,8 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search"
         searchable={false}
-        onSelectActionClick={onRemoveScheduledQueryClick}
-        selectActionButtonText={"Remove query"}
+        onPrimarySelectActionClick={onRemoveScheduledQueryClick}
+        primarySelectActionButtonText={"Remove query"}
         emptyComponent={NoScheduledQueries}
       />
     </div>
