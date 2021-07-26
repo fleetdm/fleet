@@ -19,10 +19,6 @@ const validate = (formData) => {
 
   // logging_type does not need to be validated because it is defaulted "snapshot" if unspecified.
 
-  if (!formData.shard) {
-    errors.shard = "Shard must be between 0 and 100";
-  }
-
   if (formData.shard) {
     if (formData.shard < 0 || formData.shard > 100) {
       errors.shard = "Shard must be between 0 and 100";
