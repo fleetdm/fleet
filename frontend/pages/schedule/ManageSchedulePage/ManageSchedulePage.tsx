@@ -51,6 +51,16 @@ interface IRootState {
     };
   };
 }
+interface IFormData {
+  interval: number;
+  name?: string;
+  shard: number;
+  query?: string;
+  query_id?: number;
+  logging_type: string;
+  platform: string;
+  version: string;
+}
 
 const ManageSchedulePage = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -121,7 +131,7 @@ const ManageSchedulePage = (): JSX.Element => {
   }, [dispatch, selectedQueryIds, toggleRemoveScheduledQueryModal]);
 
   const onAddScheduledQuerySubmit = useCallback(
-    (formData: IGlobalScheduledQuery) => {
+    (formData: IFormData) => {
       dispatch(globalScheduledQueryActions.create({ ...formData }))
         .then(() => {
           dispatch(

@@ -20,16 +20,23 @@ import {
 } from "utilities/constants";
 
 const baseClass = "schedule-editor-modal";
+
+interface IFormData {
+  interval: number;
+  name?: string;
+  shard: number;
+  query?: string;
+  query_id?: number;
+  logging_type: string;
+  platform: string;
+  version: string;
+}
+
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
-  onScheduleSubmit: (formData: IGlobalScheduledQuery) => void;
+  onScheduleSubmit: (formData: IFormData) => void;
 }
-interface IFrequencyOption {
-  value: number;
-  label: string;
-}
-
 interface INoQueryOption {
   id: number;
   name: string;
@@ -131,7 +138,7 @@ const ScheduleEditorModal = ({
 
   const onFormSubmit = () => {
     onScheduleSubmit({
-      shard: selectedShard,
+      shard: parseInt(selectedShard, 10),
       interval: selectedFrequency,
       query_id: selectedQuery?.id,
       name: selectedQuery?.name,
