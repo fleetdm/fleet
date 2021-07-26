@@ -3,8 +3,9 @@ package fleet
 import (
 	"context"
 	"encoding/json"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/config"
 
 	"github.com/kolide/kit/version"
 )
@@ -54,8 +55,8 @@ type AppConfigService interface {
 	// License returns the licensing information.
 	License(ctx context.Context) (*LicenseInfo, error)
 
-    // FleetConfig return the config.FleetConfig instance.
-	FleetConfig(ctx context.Context) config.FleetConfig
+	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
+	LoggingConfig(ctx context.Context) (*Logging, error)
 }
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -377,18 +378,18 @@ type LicenseInfo struct {
 }
 
 type Logging struct {
-	Debug           bool              `json:"debug"`
-	Json            bool              `json:"json"`
-	ResultLogPlugin string            `json:"osquery_result_log_plugin"`
-	StatusLogPlugin string            `json:"osquery_status_log_plugin"`
-	FileSystem      *FileSystemConfig `json:"filesystem,omitempty"`
-	Firehose        *FirehoseConfig   `json:"firehose,omitempty"`
-	Kinesis         *KinesisConfig    `json:"kinesis,omitempty"`
-	Lambda          *LambdaConfig     `json:"lambda,omitempty"`
-	PubSub          *PubSubConfig     `json:"pubsub,omitempty"`
+	Debug  bool   `json:"debug"`
+	Json   bool   `json:"json"`
+	Result Plugin `json:"result"`
+	Status Plugin `json:"status"`
 }
 
-type FileSystemConfig struct {
+type Plugin struct {
+	Plugin string `json:"plugin"`
+	Config json.RawMessage `json:"config"`
+}
+
+type FilesystemConfig struct {
 	config.FilesystemConfig
 }
 
@@ -417,78 +418,4 @@ type LambdaConfig struct {
 	ResultFunction string `json:"result_function"`
 }
 
-// LoggingFromConfig takes a config.FleetConfig and converts it into a Logging response
-func LoggingFromConfig(conf config.FleetConfig) *Logging {
-	logging := &Logging{
-		Debug: conf.Logging.Debug,
-		Json:  conf.Logging.JSON,
-	}
-	switch conf.Osquery.StatusLogPlugin {
-	case "":
-		fallthrough
-	case "filesystem":
-		logging.StatusLogPlugin = "filesystem"
-		logging.FileSystem = &FileSystemConfig{conf.Filesystem}
-	case "kinesis":
-		logging.StatusLogPlugin = "kinesis"
-		logging.Kinesis = &KinesisConfig{
-			Region:       conf.Kinesis.Region,
-			StatusStream: conf.Kinesis.StatusStream,
-			ResultStream: conf.Kinesis.ResultStream,
-		}
-	case "firehose":
-		logging.StatusLogPlugin = "firehose"
-		logging.Firehose = &FirehoseConfig{
-			Region:       conf.Firehose.Region,
-			StatusStream: conf.Firehose.StatusStream,
-			ResultStream: conf.Firehose.ResultStream,
-		}
-	case "lambda":
-		logging.StatusLogPlugin = "lambda"
-		logging.Lambda = &LambdaConfig{
-			Region:         conf.Lambda.Region,
-			StatusFunction: conf.Lambda.StatusFunction,
-			ResultFunction: conf.Lambda.ResultFunction,
-		}
-	case "pubsub":
-		logging.StatusLogPlugin = "pubsub"
-		logging.PubSub = &PubSubConfig{conf.PubSub}
-	case "stdout":
-		logging.StatusLogPlugin = "stdout"
-	}
 
-	switch conf.Osquery.ResultLogPlugin {
-	case "":
-		fallthrough
-	case "filesystem":
-		logging.ResultLogPlugin = "filesystem"
-		logging.FileSystem = &FileSystemConfig{conf.Filesystem}
-	case "kinesis":
-		logging.ResultLogPlugin = "kinesis"
-		logging.Kinesis = &KinesisConfig{
-			Region:       conf.Kinesis.Region,
-			StatusStream: conf.Kinesis.StatusStream,
-			ResultStream: conf.Kinesis.ResultStream,
-		}
-	case "firehose":
-		logging.ResultLogPlugin = "firehose"
-		logging.Firehose = &FirehoseConfig{
-			Region:       conf.Firehose.Region,
-			StatusStream: conf.Firehose.StatusStream,
-			ResultStream: conf.Firehose.ResultStream,
-		}
-	case "lambda":
-		logging.ResultLogPlugin = "lambda"
-		logging.Lambda = &LambdaConfig{
-			Region:         conf.Lambda.Region,
-			StatusFunction: conf.Lambda.StatusFunction,
-			ResultFunction: conf.Lambda.ResultFunction,
-		}
-	case "pubsub":
-		logging.ResultLogPlugin = "pubsub"
-		logging.PubSub = &PubSubConfig{conf.PubSub}
-	case "stdout":
-		logging.ResultLogPlugin = "stdout"
-	}
-	return logging
-}

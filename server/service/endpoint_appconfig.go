@@ -25,7 +25,7 @@ type appConfigResponse struct {
 	AgentOptions       *json.RawMessage           `json:"agent_options,omitempty"`
 	License            *fleet.LicenseInfo         `json:"license,omitempty"`
 
-	// differs from fleet.AppConfig
+	// Logging is loaded on the fly rather than from the database.
 	Logging            *fleet.Logging             `json:"logging,omitempty"`
 	Err                error                      `json:"error,omitempty"`
 }
@@ -43,6 +43,10 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return nil, err
 		}
 		license, err := svc.License(ctx)
+		if err != nil {
+			return nil, err
+		}
+		loggingConfig, err := svc.LoggingConfig(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +99,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			HostSettings:       hostSettings,
 			License:            license,
 			AgentOptions:       agentOptions,
-			Logging:            fleet.LoggingFromConfig(svc.FleetConfig(ctx)),
+			Logging:            loggingConfig,
 		}
 		return response, nil
 	}
@@ -109,6 +113,10 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return appConfigResponse{Err: err}, nil
 		}
 		license, err := svc.License(ctx)
+		if err != nil {
+			return nil, err
+		}
+		loggingConfig, err := svc.LoggingConfig(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +147,7 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			},
 			License:      license,
 			AgentOptions: config.AgentOptions,
-			Logging:      fleet.LoggingFromConfig(svc.FleetConfig(ctx)),
+			Logging:      loggingConfig,
 		}
 		if response.SMTPSettings.SMTPPassword != nil {
 			*response.SMTPSettings.SMTPPassword = "********"
