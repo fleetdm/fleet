@@ -233,11 +233,6 @@ export class EditPackPage extends Component {
     const { create } = scheduledQueryActions;
     const { dispatch, packID } = this.props;
 
-    // Janky way of adding in logging_type if none selected for uncontrolled form
-    if (!formData.logging_type) {
-      formData.logging_type = "snapshot";
-    }
-
     const scheduledQueryData = {
       ...formData,
       pack_id: packID,
