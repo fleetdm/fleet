@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
@@ -29,7 +30,7 @@ func main() {
 	panicif(err)
 	defer resp.Body.Close()
 
-	remoteEtag := resp.Header.Get("Etag")
+	remoteEtag := strings.TrimPrefix(strings.TrimSuffix(resp.Header.Get("Etag"), `"`), `"`)
 	fmt.Println("Got ETag:", remoteEtag)
 
 	ghclient := github.NewClient(nil)

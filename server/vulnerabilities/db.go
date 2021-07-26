@@ -21,10 +21,10 @@ func GenerateCPEDatabaseSkeleton(dbPath string) error {
 		return err
 	}
 	_, err = db.Exec(`
-	PRAGMA journal_mode = OFF;
-	PRAGMA synchronous = 0;
-	PRAGMA cache_size = 1000000;
-	PRAGMA temp_store = MEMORY;
+# 	PRAGMA journal_mode = OFF;
+# 	PRAGMA synchronous = 0;
+# 	PRAGMA cache_size = 1000000;
+# 	PRAGMA temp_store = MEMORY;
 	CREATE TABLE IF NOT EXISTS cpe (
 		cpe23 TEXT NOT NULL,
 		title TEXT NOT NULL,
