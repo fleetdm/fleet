@@ -21,18 +21,18 @@ const FlashMessage = ({
     [`${baseClass}--full-width`]: fullWidth,
   });
 
+  useEffect(() => {
+    setTimeout(function () {
+      document.getElementById(`${klass}`).style.visibility = "visible";
+    }, 0); // Ensures successive, success alerts are visible
+  });
+
   if (!isVisible) {
     return false;
   }
 
   const alertIcon =
     alertType === "success" ? "success-check" : "warning-filled";
-
-  useEffect(() => {
-    setTimeout(function () {
-      document.getElementById(`${klass}`).style.visibility = "visible";
-    }, 0); // Ensures successive, success alerts are visible
-  });
 
   if (alertType === "success") {
     setTimeout(function () {
