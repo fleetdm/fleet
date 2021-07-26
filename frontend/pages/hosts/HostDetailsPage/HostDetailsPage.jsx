@@ -511,7 +511,7 @@ export class HostDetailsPage extends Component {
                 defaultSortDirection={"asc"}
                 inputPlaceHolder={"Filter software"}
                 onQueryChange={onQueryChange}
-                resultsTitle={"software"}
+                resultsTitle={"software items"}
                 emptyComponent={EmptySoftware}
                 showMarkAllPages={false}
                 searchable
