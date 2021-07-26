@@ -34,7 +34,7 @@ func main() {
 
 	ghclient := github.NewClient(nil)
 	ctx := context.Background()
-	releases, _, err := ghclient.Repositories.ListReleases(ctx, "chiiph", "nvd", &github.ListOptions{Page: 0, PerPage: 1})
+	releases, _, err := ghclient.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{Page: 0, PerPage: 1})
 	panicif(err)
 
 	if len(releases) == 1 && releases[0].Name != nil && *releases[0].Name == remoteEtag {
