@@ -168,7 +168,7 @@ const ScheduleEditorModal = ({
           label={"Choose a frequency and then run this query on a schedule"}
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
         />
-        <InfoBanner className={`${baseClass}__sandbox-info`}>
+        {/* <InfoBanner className={`${baseClass}__sandbox-info`}>
           <p>
             Your configured log destination is <b>filesystem</b>.
           </p>
@@ -187,7 +187,7 @@ const ScheduleEditorModal = ({
               <FleetIcon name="external-link" />
             </a>
           </p>
-        </InfoBanner>
+        </InfoBanner> */}
         <div>
           <Button
             variant="unstyled"
