@@ -83,3 +83,17 @@ func InsertCPEItem(db *sqlx.DB, item cpedict.CPEItem) error {
 	}
 	return nil
 }
+
+func GenerateCPEDB(path string, items *cpedict.CPEList) error {
+	db, err := CPEDB(path)
+	if err != nil {
+		return err
+	}
+	for _, item := range items.Items {
+		err = InsertCPEItem(db, item)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

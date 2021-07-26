@@ -16,6 +16,15 @@ func SyncCPEDatabase(ds fleet.Datastore) error {
 
 	_ = config
 
+	//curl \
+	//  -H "Accept: application/vnd.github.v3+json" \
+	//  https://api.github.com/repos/fleetdm/fleet/releases/latest
+
+	// see https://www.sqlite.org/sqldiff.html#vtab for differentials
+
+	// if db is not there, then download
+	// if release.published_at > file stat, then download
+
 	return nil
 }
 

@@ -59,15 +59,12 @@ func TestCpeFromSoftware(t *testing.T) {
 	}
 
 	require.NoError(t, GenerateCPEDatabaseSkeleton(tempDir))
-	db, err := CPEDB(tempDir)
-	require.NoError(t, err)
 
 	items, err := cpedict.Decode(strings.NewReader(xmlCPEDict))
 	require.NoError(t, err)
-	for _, item := range items.Items {
-		err = InsertCPEItem(db, item)
-		require.NoError(t, err)
-	}
+
+	err = GenerateCPEDB(tempDir, items)
+	require.NoError(t, err)
 
 	// checking an non existent version returns empty
 	cpe, err := CPEFromSoftware(ds, &fleet.Software{Name: "Vendor Product.app", Version: "2.3.4", Source: "apps"})
