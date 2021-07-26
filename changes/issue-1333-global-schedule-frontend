@@ -1,14 +1,1 @@
-- Schedule page functionality: Create (modal), delete (modal), view schedule, advanced options
-- Includes empty state and error state
-- Replaces Packs tab with Schedules tab
-- Updates e2e test queryflow.spec.ts to include Schedules
-- Updates all RBAC e2e test to test access to Schedules
-- Refactors `TableContainer` ActionButton CTA to allow custom text 
-- Adds OPTIONS to `utilities/constants` and utilize across Packs and Schedules
-- Defaults logging type to snapshot for packs
-- Builds out routing to endpoint for GlobalScheduledQueries
-- Builds out global_scheduled_queries methods
-- Adds global_scheduled_queries to test stubs and test mocks
-- Adds conversion helpers and tests helper functions
-- Adds global_scheduled_queries to `frontend/interfaces`
-- Tests global_scheduled_queries Redux entities
+* New Schedule page feature allows users to create and remove queries from a global schedule applying to all hosts

@@ -183,7 +183,6 @@ export class UserManagementPage extends Component {
       delete requestData.newUserType; // this field is not needed for the request
       dispatch(userActions.createUserWithoutInvitation(requestData))
         .then(() => {
-          dispatch(userActions.loadAll({}));
           dispatch(
             renderFlash("success", `Successfully created ${requestData.name}.`)
           );

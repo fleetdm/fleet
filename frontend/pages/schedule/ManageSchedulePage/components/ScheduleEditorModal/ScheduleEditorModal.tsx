@@ -57,8 +57,8 @@ const ScheduleEditorModal = ({
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
-  ] = useState(null);
-  const [selectedShard, setSelectedShard] = useState(null);
+  ] = useState<null | string>(null);
+  const [selectedShard, setSelectedShard] = useState<null | string>(null);
 
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q: any) => {
@@ -92,7 +92,7 @@ const ScheduleEditorModal = ({
   );
 
   const onChangeSelectPlatformOptions = useCallback(
-    (values) => {
+    (values: string) => {
       const valArray = values.split(",");
 
       // Remove All if another OS is chosen
@@ -116,14 +116,14 @@ const ScheduleEditorModal = ({
   );
 
   const onChangeMinOsqueryVersionOptions = useCallback(
-    (value: any) => {
+    (value: string) => {
       setSelectedMinOsqueryVersionOptions(value);
     },
     [setSelectedMinOsqueryVersionOptions]
   );
 
   const onChangeShard = useCallback(
-    (value: any) => {
+    (value: string) => {
       setSelectedShard(value);
     },
     [setSelectedShard]

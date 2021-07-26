@@ -17,7 +17,7 @@ const validate = (formData) => {
     errors.interval = "Frequency must be a number";
   }
 
-  // Removed logging_type validation, default validation is "snapshot" if !formData.logging_type
+  // logging_type does not need to be validated because it is defaulted "snapshot" if unspecified.
 
   if (!formData.shard) {
     errors.shard = "Shard must be between 0 and 100";

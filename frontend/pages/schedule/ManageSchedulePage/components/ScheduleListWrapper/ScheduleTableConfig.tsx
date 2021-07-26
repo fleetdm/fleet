@@ -41,9 +41,7 @@ interface IDataColumn {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (
-  actionSelectHandler: (value: string, query: IGlobalScheduledQuery) => void
-): IDataColumn[] => {
+const generateTableHeaders = (): IDataColumn[] => {
   return [
     {
       id: "selection",
