@@ -1,29 +1,83 @@
 package vulnerabilities
 
 import (
+	"compress/gzip"
+	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/go-github/v37/github"
 	"github.com/pkg/errors"
 )
 
-func SyncCPEDatabase(ds fleet.Datastore) error {
-	config, err := ds.AppConfig()
+const (
+	owner = "chiiph"
+	repo  = "nvd"
+)
+
+func GetLatestNVDRelease() (string, time.Time, error) {
+	ghclient := github.NewClient(nil)
+	ctx := context.Background()
+	releases, _, err := ghclient.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{Page: 0, PerPage: 1})
+	if err != nil {
+		return "", time.Time{}, err
+	}
+
+	if len(releases) == 1 && releases[0].Name != nil {
+		return *releases[0].Name, releases[0].GetCreatedAt().Time, err
+	}
+
+	return "", time.Time{}, nil
+}
+
+func SyncCPEDatabase(client *http.Client, dbPath string) error {
+	etag, timestamp, err := GetLatestNVDRelease()
 	if err != nil {
 		return err
 	}
 
-	_ = config
+	stat, err := os.Stat(dbPath)
+	if err != nil {
+		if err != os.ErrNotExist {
+			return err
+		}
+	} else {
+		if !timestamp.After(stat.ModTime()) {
+			return nil
+		}
+	}
 
-	//curl \
-	//  -H "Accept: application/vnd.github.v3+json" \
-	//  https://api.github.com/repos/fleetdm/fleet/releases/latest
+	url := fmt.Sprintf("%s.sqlite.gz", etag)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
 
-	// see https://www.sqlite.org/sqldiff.html#vtab for differentials
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-	// if db is not there, then download
-	// if release.published_at > file stat, then download
+	gr, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	dbFile, err := os.Open(dbPath)
+	if err != nil {
+		return err
+	}
+	defer dbFile.Close()
+	_, err = io.Copy(dbFile, gr)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

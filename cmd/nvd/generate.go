@@ -2,15 +2,14 @@ package main
 
 import (
 	"compress/gzip"
-	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
-	"github.com/google/go-github/v37/github"
 )
 
 const (
@@ -27,6 +26,11 @@ func panicif(err error) {
 func main() {
 	fmt.Println("Starting CPE sqlite generation")
 
+	cwd, err := os.Getwd()
+	panicif(err)
+
+	fmt.Println("CWD:", cwd)
+
 	resp, err := http.Get("https://nvd.nist.gov/feeds/xml/cpe/dictionary/official-cpe-dictionary_v2.3.xml.gz")
 	panicif(err)
 	defer resp.Body.Close()
@@ -34,12 +38,10 @@ func main() {
 	remoteEtag := getSanitizedEtag(resp)
 	fmt.Println("Got ETag:", remoteEtag)
 
-	ghclient := github.NewClient(nil)
-	ctx := context.Background()
-	releases, _, err := ghclient.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{Page: 0, PerPage: 1})
+	releasedEtag, _, err := vulnerabilities.GetLatestNVDRelease()
 	panicif(err)
 
-	if len(releases) == 1 && releases[0].Name != nil && *releases[0].Name == remoteEtag {
+	if releasedEtag == remoteEtag {
 		fmt.Println("No updates. Exiting...")
 		return
 	}
@@ -54,10 +56,10 @@ func main() {
 	panicif(err)
 
 	fmt.Println("Generating DB...")
-	err = vulnerabilities.GenerateCPEDB(fmt.Sprintf("./%s.sqlite", remoteEtag), cpeDict)
+	err = vulnerabilities.GenerateCPEDB(path.Join(cwd, fmt.Sprintf("%s.sqlite", remoteEtag)), cpeDict)
 	panicif(err)
 
-	file, err := os.Open("./etagenv")
+	file, err := os.Create(path.Join(cwd, "etagenv"))
 	panicif(err)
 	file.WriteString(fmt.Sprintf(`ETAG="%s"`, remoteEtag))
 	file.Close()

@@ -523,7 +523,18 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 }
 
 func translateSoftwareToCPE(ds fleet.Datastore) error {
-	if err := vulnerabilities.SyncCPEDatabase(ds); err != nil {
+	config, err := ds.AppConfig()
+	if err != nil {
+		return err
+	}
+	if config.VulnerabilityDatabasesPath == nil {
+		return errors.New("Can't translate CPE without a database.")
+	}
+
+	dbPath := path.Join(*config.VulnerabilityDatabasesPath, "cpe.sqlite")
+
+	client := &http.Client{}
+	if err := vulnerabilities.SyncCPEDatabase(client, dbPath); err != nil {
 		return err
 	}
 
@@ -532,12 +543,6 @@ func translateSoftwareToCPE(ds fleet.Datastore) error {
 		return err
 	}
 
-	config, err := ds.AppConfig()
-	if err != nil {
-		return err
-	}
-
-	dbPath := path.Join(*config.VulnerabilityDatabasesPath, "cpe.sqlite")
 	for iterator.Next() {
 		software, err := iterator.Value()
 		if err != nil {
