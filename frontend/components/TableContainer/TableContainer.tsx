@@ -178,7 +178,7 @@ const TableContainer = ({
 
   return (
     <div className={wrapperClasses}>
-      {!isLoading && wideSearch && searchable && (
+      {wideSearch && searchable && (
         <div className={`${baseClass}__search-input wide-search`}>
           <InputField
             placeholder={inputPlaceHolder}
@@ -222,7 +222,7 @@ const TableContainer = ({
             </Button>
           )}
           {/* Render search bar only if not empty component */}
-          {!isLoading && searchable && !wideSearch && (
+          {searchable && !wideSearch && (
             <div className={`${baseClass}__search-input`}>
               <InputField
                 placeholder={inputPlaceHolder}
