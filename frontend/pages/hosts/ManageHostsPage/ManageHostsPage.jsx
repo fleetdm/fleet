@@ -659,7 +659,7 @@ export class ManageHostsPage extends PureComponent {
         data={hosts}
         isLoading={loadingHosts}
         defaultSortHeader={"hostname"}
-        defaultSortDirection={"desc"}
+        defaultSortDirection={"asc"}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
