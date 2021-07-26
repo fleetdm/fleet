@@ -15,7 +15,6 @@ import EmptyTeams from "./components/EmptyTeams";
 import { ICreateTeamFormData } from "./components/CreateTeamModal/CreateTeamModal";
 import { IEditTeamFormData } from "./components/EditTeamModal/EditTeamModal";
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
-import RemoveIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 
 const baseClass = "team-management";
 
@@ -149,14 +148,6 @@ const TeamManagementPage = (): JSX.Element => {
     [dispatch, teamEditing, toggleEditTeamModal]
   );
 
-  const onSelectActionOneClick = useCallback((selectedTeamIds) => {
-    console.log("Clicked Action One Button", selectedTeamIds);
-  }, []);
-
-  const onSelectActionTwoClick = useCallback((selectedTeamIds) => {
-    console.log("Clicked Action Two Button", selectedTeamIds);
-  }, []);
-  
   const onActionSelection = (action: string, team: ITeam): void => {
     switch (action) {
       case "edit":
@@ -176,25 +167,6 @@ const TeamManagementPage = (): JSX.Element => {
   const teams = useSelector((state: RootState) =>
     generateDataSet(state.entities.teams.data)
   );
-
-    // TODO replace stub actions; consider whether or not this ought to be in separate config
-    const secondarySelectActions = [
-      {
-        name: "action-one",
-        buttonText: "Action One",
-        onActionButtonClick: onSelectActionOneClick,
-        hideButton: (targetIds: number[] = []) => targetIds.length === 1,
-        variant: "text-link",
-      },
-      {
-        name: "action-two",
-        buttonText: "Action Two",
-        onActionButtonClick: onSelectActionTwoClick,
-        hideButton: false,
-        variant: "text-link",
-        iconLink: RemoveIcon,
-      },
-    ];
 
   return (
     <div className={`${baseClass} body-wrap`}>
@@ -217,8 +189,6 @@ const TeamManagementPage = (): JSX.Element => {
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable
-        secondarySelectActions={secondarySelectActions}
-
       />
       {showCreateTeamModal ? (
         <CreateTeamModal
