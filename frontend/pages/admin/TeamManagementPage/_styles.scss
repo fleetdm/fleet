@@ -31,4 +31,22 @@
     margin-top: $pad-xxsmall;
     padding-left: 0;
   }
+
+  .data-table-container__action-two {
+    display: flex;
+    align-items: center;
+
+    img {
+      height: 16px;
+      width: 16px;
+      padding-right: 6px;
+      margin-bottom: 2px;
+    }
+
+    .button--text-link {
+      color: $core-fleet-black;
+      font-weight: 400;
+    }
+  }
+  
 }

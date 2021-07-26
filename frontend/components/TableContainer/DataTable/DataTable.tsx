@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
-import { noop } from "lodash";
+import { kebabCase, noop } from "lodash";
 
 import useDeepEffect from "utilities/hooks/useDeepEffect";
 
@@ -136,23 +136,31 @@ const DataTable = ({
     );
   };
 
-  const renderActionButton = (actionProps: IActionButtonProps): JSX.Element => {
+  const renderActionButton = (
+    actionButtonProps: IActionButtonProps
+  ): JSX.Element => {
     const {
+      name,
       onActionButtonClick,
       buttonText,
       targetIds,
       variant,
       hideButton,
-    } = actionProps;
+      iconLink,
+    } = actionButtonProps;
     return (
-      <ActionButton
-        key={buttonText}
-        buttonText={buttonText}
-        onActionButtonClick={onActionButtonClick || noop}
-        targetIds={targetIds}
-        variant={variant}
-        hideButton={hideButton}
-      />
+      <div className={`${baseClass}__${kebabCase(name)}`}>
+        <ActionButton
+          key={kebabCase(name)}
+          name={name}
+          buttonText={buttonText}
+          onActionButtonClick={onActionButtonClick || noop}
+          targetIds={targetIds}
+          variant={variant}
+          hideButton={hideButton}
+          iconLink={iconLink}
+        />
+      </div>
     );
   };
 
@@ -162,7 +170,9 @@ const DataTable = ({
       typeof primarySelectActionButtonText === "function"
         ? primarySelectActionButtonText(targetIds)
         : primarySelectActionButtonText;
+    const name = buttonText ? kebabCase(buttonText) : "primary-select-action";
     const actionProps = {
+      name,
       buttonText: buttonText || "",
       onActionButtonClick: onPrimarySelectActionClick,
       targetIds,

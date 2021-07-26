@@ -6,11 +6,13 @@ import PropTypes from "prop-types";
 import Button from "../../../buttons/Button";
 
 export interface IActionButtonProps {
+  name: string;
   buttonText: string;
   onActionButtonClick: (targetIds: number[]) => void | undefined;
   targetIds?: number[]; // TODO figure out undefined case
   variant?: string;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
+  iconLink?: string;
 }
 
 function useActionCallback(
@@ -26,11 +28,13 @@ function useActionCallback(
 
 const ActionButton = (props: IActionButtonProps): JSX.Element | null => {
   const {
+    name,
     buttonText,
     onActionButtonClick,
     targetIds = [],
     variant,
     hideButton,
+    iconLink,
   } = props;
   const onButtonClick = useActionCallback(onActionButtonClick);
 
@@ -48,17 +52,22 @@ const ActionButton = (props: IActionButtonProps): JSX.Element | null => {
 
   return !isHidden ? (
     <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
-      {buttonText}
+      <>
+        {iconLink ? <img alt={`${name} icon`} src={iconLink} /> : null}
+        {buttonText}
+      </>
     </Button>
   ) : null;
 };
 
 ActionButton.propTypes = {
+  name: PropTypes.string,
   buttonText: PropTypes.string,
   onActionButtonClick: PropTypes.func,
   targetIds: PropTypes.arrayOf(PropTypes.number),
   variant: PropTypes.string,
   hideButton: PropTypes.oneOfType([PropTypes.bool, PropTypes.func]),
+  iconLink: PropTypes.string,
 };
 
 export default ActionButton;
