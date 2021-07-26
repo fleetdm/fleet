@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
@@ -28,10 +28,13 @@ const FlashMessage = ({
   const alertIcon =
     alertType === "success" ? "success-check" : "warning-filled";
 
-  if (alertType === "success") {
+  useEffect(() => {
     setTimeout(function () {
       document.getElementById(`${klass}`).style.visibility = "visible";
-    }, 0); // Ensures successive flash messages are visible
+    }, 0); // Ensures successive, success alerts are visible
+  });
+
+  if (alertType === "success") {
     setTimeout(function () {
       document.getElementById(`${klass}`).style.visibility = "hidden";
     }, 4000); // Hides success alerts after 4 seconds
