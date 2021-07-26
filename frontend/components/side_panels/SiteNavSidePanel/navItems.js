@@ -48,11 +48,11 @@ export default (currentUser) => {
   const globalMaintainerNavItems = [
     {
       icon: "packs",
-      name: "Packs",
+      name: "Schedule",
       iconName: "packs",
       location: {
-        regex: new RegExp(`^${URL_PREFIX}/packs/`),
-        pathname: PATHS.MANAGE_PACKS,
+        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
+        pathname: PATHS.MANAGE_SCHEDULE,
       },
     },
   ];

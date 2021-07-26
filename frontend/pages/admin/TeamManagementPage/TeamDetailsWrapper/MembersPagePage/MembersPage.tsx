@@ -136,7 +136,11 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           renderFlash("success", `Successfully removed ${userEditing?.name}`)
         );
       })
-      .catch(() => dispatch(renderFlash("error", "Remove failed")));
+      .catch(() =>
+        dispatch(
+          renderFlash("error", "Unable to remove members. Please try again.")
+        )
+      );
     toggleRemoveMemberModal();
   }, [
     dispatch,
