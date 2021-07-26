@@ -577,7 +577,7 @@ export class UserManagementPage extends Component {
           data={tableData}
           isLoading={loadingTableData}
           defaultSortHeader={"name"}
-          defaultSortDirection={"desc"}
+          defaultSortDirection={"asc"}
           inputPlaceHolder={"Search"}
           actionButtonText={"Create user"}
           onActionButtonClick={toggleCreateUserModal}
