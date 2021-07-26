@@ -11,6 +11,7 @@ import labelMethods from "fleet/entities/labels";
 import packMethods from "fleet/entities/packs";
 import queryMethods from "fleet/entities/queries";
 import scheduledQueryMethods from "fleet/entities/scheduled_queries";
+import globalScheduledQueryMethods from "fleet/entities/global_scheduled_queries";
 import sessionMethods from "fleet/entities/sessions";
 import statusLabelMethods from "fleet/entities/status_labels";
 import targetMethods from "fleet/entities/targets";
@@ -36,6 +37,7 @@ class Fleet extends Base {
     this.packs = packMethods(this);
     this.queries = queryMethods(this);
     this.scheduledQueries = scheduledQueryMethods(this);
+    this.globalScheduledQueries = globalScheduledQueryMethods(this);
     this.sessions = sessionMethods(this);
     this.statusLabels = statusLabelMethods(this);
     this.targets = targetMethods(this);

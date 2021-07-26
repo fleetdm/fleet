@@ -46,6 +46,55 @@ describe("Query flow", () => {
 
     cy.findByText(/query updated/i).should("be.visible");
 
+    // Test Schedules
+    cy.visit("/schedule/manage");
+
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
+    cy.findByRole("button", { name: /schedule a query/i }).click();
+
+    cy.findByText(/select query/i).click();
+
+    cy.findByText(/query all window crashes/i).click();
+
+    cy.get(
+      ".schedule-editor-modal__form-field--frequency > .dropdown__select"
+    ).click();
+
+    cy.findByText(/every week/i).click();
+
+    cy.findByText(/show advanced options/i).click();
+
+    cy.get(
+      ".schedule-editor-modal__form-field--logging > .dropdown__select"
+    ).click();
+
+    cy.findByText(/ignore removals/i).click();
+
+    cy.get(".schedule-editor-modal__form-field--shard > .input-field")
+      .click()
+      .type("50");
+
+    cy.get(".schedule-editor-modal__btn-wrap")
+      .contains("button", /schedule/i)
+      .click();
+
+    cy.visit("/schedule/manage");
+
+    cy.findByText(/query all window crashes/i).should("exist");
+
+    // Checkbox won't check so can't test remove schedule
+    // cy.get("tbody").get(".table-checkbox__input").click();
+
+    // cy.findByRole("button", { name: /remove query/i }).click();
+
+    // cy.get(".remove-scheduled-query-modal__btn-wrap")
+    //   .contains("button", /remove/i)
+    //   .click();
+
+    // cy.findByText(/query all window crashes/i).should("not.exist");
+    // End Test Schedules
+
     cy.visit("/queries/manage");
 
     // This element has no label, text, or role

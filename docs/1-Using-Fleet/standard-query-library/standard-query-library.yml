@@ -426,3 +426,13 @@ spec:
   query: SELECT CASE cnt WHEN 2 THEN "TRUE" ELSE "FALSE" END "Vulnerable" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;
   purpose: Detection
   contributors: maravedi
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get local users and their privileges
+  platforms: macOS, Linux, Windows
+  description: Collects the local user accounts and their respective user group.
+  query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
+  purpose: Informational
+  contributors: noahtalerman

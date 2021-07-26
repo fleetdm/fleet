@@ -13,6 +13,7 @@ import scrollToTop from "utilities/scroll_to_top";
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
+import { IActionButtonProps } from "./DataTable/ActionButton";
 
 interface ITableQueryData {
   searchQuery: string;
@@ -33,10 +34,8 @@ interface ITableContainerProps {
   actionButtonIcon?: string;
   actionButtonVariant?: string;
   onQueryChange: (queryData: ITableQueryData) => void;
-  onSelectActionClick?: (selectedItemIds: number[]) => void;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
-  selectActionButtonText?: string;
   resultsTitle: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
@@ -48,6 +47,9 @@ interface ITableContainerProps {
   wideSearch?: boolean;
   disablePagination?: boolean;
   disableCount?: boolean;
+  primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
+  onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
+  secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
 }
 
 const baseClass = "table-container";
@@ -73,15 +75,16 @@ const TableContainer = ({
   actionButtonText,
   actionButtonIcon,
   actionButtonVariant,
-  onSelectActionClick,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
-  selectActionButtonText,
   searchable,
   wideSearch,
   disablePagination,
   disableCount,
+  primarySelectActionButtonText,
+  onPrimarySelectActionClick,
+  secondarySelectActions,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -187,7 +190,7 @@ const TableContainer = ({
         </div>
       )}
       <div className={`${baseClass}__header`}>
-        {data && data.length && !disableCount && (
+        {data && data.length && !disableCount ? (
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
@@ -196,6 +199,8 @@ const TableContainer = ({
               data.length
             )}
           </p>
+        ) : (
+          <p />
         )}
         <div className={`${baseClass}__table-controls`}>
           {actionButtonText && (
@@ -243,13 +248,14 @@ const TableContainer = ({
               sortHeader={sortHeader}
               sortDirection={sortDirection}
               onSort={onSortChange}
-              onSelectActionClick={onSelectActionClick}
               showMarkAllPages={showMarkAllPages}
               isAllPagesSelected={isAllPagesSelected}
               toggleAllPagesSelected={toggleAllPagesSelected}
               resultsTitle={resultsTitle}
               defaultPageSize={DEFAULT_PAGE_SIZE}
-              selectActionButtonText={selectActionButtonText}
+              primarySelectActionButtonText={primarySelectActionButtonText}
+              onPrimarySelectActionClick={onPrimarySelectActionClick}
+              secondarySelectActions={secondarySelectActions}
             />
             {!disablePagination && (
               <Pagination

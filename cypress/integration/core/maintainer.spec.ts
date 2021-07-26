@@ -123,5 +123,8 @@ describe("Core tier - Maintainer user", () => {
     cy.findByText(/successfully deleted/i).should("be.visible");
 
     cy.findByText(/server errors/i).should("not.exist");
+
+    // Schedule page: Can create, edit, remove a schedule
+    // TODO: Copy flow from queryflow.spec.ts here to ensure maintainers have access
   });
 });

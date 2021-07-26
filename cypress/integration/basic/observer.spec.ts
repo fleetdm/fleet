@@ -57,8 +57,15 @@ describe("Basic tier - Observer user", () => {
 
     cy.findByText("All hosts which have enrolled in Fleet").should("exist");
 
-    cy.findByText("Packs").should("not.exist");
-    cy.findByText("Settings").should("not.exist");
+    // Nav restrictions
+    cy.findByText(/settings/i).should("not.exist");
+    cy.findByText(/schedule/i).should("not.exist");
+    cy.visit("/settings/organization");
+    cy.findByText(/you do not have permissions/i).should("exist");
+    cy.visit("/packs/manage");
+    cy.findByText(/you do not have permissions/i).should("exist");
+    cy.visit("/schedule/manage");
+    cy.findByText(/you do not have permissions/i).should("exist");
 
     cy.contains(".table-container .data-table__table th", "Team").should(
       "be.visible"

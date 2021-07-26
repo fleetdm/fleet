@@ -1,4 +1,6 @@
 import { IPack } from "interfaces/pack";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 
 export default {
   CHANGE_PASSWORD: "/v1/fleet/change_password",
@@ -13,6 +15,7 @@ export default {
   },
   FORGOT_PASSWORD: "/v1/fleet/forgot_password",
   ACTIVITIES: "/v1/fleet/activities",
+  GLOBAL_SCHEDULE: "/v1/fleet/global/schedule",
   HOSTS: "/v1/fleet/hosts",
   HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
   HOSTS_TRANSFER_BY_FILTER: "/v1/fleet/hosts/transfer/filter",
