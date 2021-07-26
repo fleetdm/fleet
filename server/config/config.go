@@ -143,18 +143,18 @@ type S3Config struct {
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
-	Project       string
-	StatusTopic   string `yaml:"status_topic"`
-	ResultTopic   string `yaml:"result_topic"`
-	AddAttributes bool   `yaml:"add_attributes"`
+	Project       string `json:"project"`
+	StatusTopic   string `json:"status_topic" yaml:"status_topic"`
+	ResultTopic   string `json:"result_topic" yaml:"result_topic"`
+	AddAttributes bool   `json:"add_attributes" yaml:"add_attributes"`
 }
 
 // FilesystemConfig defines configs for the Filesystem logging plugin
 type FilesystemConfig struct {
-	StatusLogFile        string `yaml:"status_log_file"`
-	ResultLogFile        string `yaml:"result_log_file"`
-	EnableLogRotation    bool   `yaml:"enable_log_rotation"`
-	EnableLogCompression bool   `yaml:"enable_log_compression"`
+	StatusLogFile        string `json:"status_log_file" yaml:"status_log_file"`
+	ResultLogFile        string `json:"result_log_file" yaml:"result_log_file"`
+	EnableLogRotation    bool   `json:"enable_log_rotation" yaml:"enable_log_rotation"`
+	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
 }
 
 // LicenseConfig defines configs related to licensing Fleet.
