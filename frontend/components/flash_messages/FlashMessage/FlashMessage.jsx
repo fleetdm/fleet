@@ -22,11 +22,7 @@ const FlashMessage = ({
   });
 
   useEffect(() => {
-    if (
-      alertType === "success" &&
-      isVisible &&
-      document.getElementById(`${klass}`)
-    ) {
+    if (alertType === "success" && isVisible) {
       setTimeout(function () {
         document.getElementById(`${klass}`).style.visibility = "visible";
       }, 0); // Ensures successive, success alerts are visible
