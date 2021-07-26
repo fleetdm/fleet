@@ -57,8 +57,8 @@ const ScheduleEditorModal = ({
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
-  ] = useState<null | string>(null);
-  const [selectedShard, setSelectedShard] = useState<null | string>(null);
+  ] = useState<string>("");
+  const [selectedShard, setSelectedShard] = useState<string>("");
 
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q: any) => {
