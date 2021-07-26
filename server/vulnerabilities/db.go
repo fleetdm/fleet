@@ -1,20 +1,14 @@
 package vulnerabilities
 
 import (
-	"path"
-
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const (
-	CPEDBName = "cpe.sqlite"
-)
-
 func CPEDB(dbPath string) (*sqlx.DB, error) {
-	db, err := sqlx.Open("sqlite3", path.Join(dbPath, CPEDBName))
+	db, err := sqlx.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +80,10 @@ func InsertCPEItem(db *sqlx.DB, item cpedict.CPEItem) error {
 
 func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	db, err := CPEDB(path)
+	if err != nil {
+		return err
+	}
+	err = GenerateCPEDatabaseSkeleton(path)
 	if err != nil {
 		return err
 	}

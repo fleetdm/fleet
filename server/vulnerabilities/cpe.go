@@ -2,6 +2,7 @@ package vulnerabilities
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -41,7 +42,7 @@ func cleanAppName(appName string) string {
 	return strings.TrimSuffix(appName, ".app")
 }
 
-func CPEFromSoftware(ds fleet.Datastore, software *fleet.Software) (string, error) {
+func CPEFromSoftware(dbPath string, ds fleet.Datastore, software *fleet.Software) (string, error) {
 	config, err := ds.AppConfig()
 	if err != nil {
 		return "", err
@@ -71,7 +72,7 @@ func CPEFromSoftware(ds fleet.Datastore, software *fleet.Software) (string, erro
 	case "chocolatey_packages":
 	}
 
-	db, err := CPEDB(*config.VulnerabilityDatabasesPath)
+	db, err := CPEDB(dbPath)
 	if err != nil {
 		return "", errors.Wrap(err, "opening the cpe db")
 	}
