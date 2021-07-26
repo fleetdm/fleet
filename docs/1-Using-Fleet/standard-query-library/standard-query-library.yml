@@ -443,6 +443,6 @@ spec:
   name: Find Deleted Files From Disk 
   platforms: Linux, macOS, Windows
   description: Lists all processes of which the binary which launched them no longer exists on disk.    Attackers often delete files from disk after launching process to mask presence.
-query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
+  query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
   purpose: Incident Response
   contributors: alphabrevity
