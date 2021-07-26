@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
-
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/pkg/errors"
@@ -202,13 +200,13 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "failed to download standard query library")
 			}
 
-			querySpecs, err := parseQuerySpecs(buf)
+			specGroup, err := specGroupFromBytes(buf)
 			if err != nil {
 				return errors.Wrap(err, "failed to parse standard query library")
 			}
 
 			fmt.Println("Applying standard query library")
-			err = client.ApplyQueries(querySpecs)
+			err = client.ApplyQueries(specGroup.Queries)
 			if err != nil {
 				return errors.Wrap(err, "failed to apply standard query library")
 			}
@@ -218,18 +216,6 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			return nil
 		},
 	}
-}
-
-func parseQuerySpecs(buf []byte) ([]*fleet.QuerySpec, error) {
-	queries, err := fleet.LoadQueryObjectsFromYaml(string(buf))
-	if err != nil {
-		return nil, err
-	}
-	querySpecs := make([]*fleet.QuerySpec, len(queries))
-	for i, q := range queries {
-		querySpecs[i] = &q.Spec
-	}
-	return querySpecs, nil
 }
 
 func previewDirectory() string {
