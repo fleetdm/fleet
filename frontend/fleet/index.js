@@ -5,6 +5,7 @@ import configMethods from "fleet/entities/config";
 import versionMethods from "fleet/entities/version";
 import osqueryOptionsMethods from "fleet/entities/osquery_options";
 import hostMethods from "fleet/entities/hosts";
+import activitiesMethods from "fleet/entities/activities";
 import inviteMethods from "fleet/entities/invites";
 import labelMethods from "fleet/entities/labels";
 import packMethods from "fleet/entities/packs";
@@ -30,6 +31,7 @@ class Fleet extends Base {
     this.version = versionMethods(this);
     this.osqueryOptions = osqueryOptionsMethods(this);
     this.hosts = hostMethods(this);
+    this.activities = activitiesMethods(this);
     this.invites = inviteMethods(this);
     this.labels = labelMethods(this);
     this.packs = packMethods(this);
