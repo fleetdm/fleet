@@ -41,16 +41,25 @@
   }
 
   &__error {
-    p {
-      display: flex;
-    align-items: center;
+    display: inline-block;
+
+    b {
+      font-size: 16px;
+    }
+
+    a {
+      img {
+        height: 12px;
+        width: 12px;
+        padding-left: $pad-small;
+      }
     }
 
     .error-icon {
+      transform: translateY(2px);
       height: 16px;
       width: 16px;
+      padding-right: $pad-small;
     }
   }
-
-
 }

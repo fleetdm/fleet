@@ -13,7 +13,7 @@ import Button from "components/buttons/Button";
 import Spinner from "components/loaders/Spinner";
 
 import ErrorIcon from "../../../../assets/images/icon-error-16x16@2x.png";
-
+import OpenNewTabIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const baseClass = "activity-feed";
 
@@ -50,14 +50,8 @@ const ActivityFeed = (): JSX.Element => {
 
   useEffect((): void => {
     const getActivities = async (): Promise<void> => {
-      const responseActivities = await Fleet.activities.loadNext(pageIndex);
-      console.log("getActivities response: ", responseActivities);
-      if (responseActivities instanceof Error) {
-        console.log("instanceof Error: ", responseActivities instanceof Error);
-        console.log("responseActivities: ", responseActivities);
-        setIsLoadingError(true);
-        setIsLoading(false);
-      } else {
+      try {
+        const responseActivities = await Fleet.activities.loadNext(pageIndex);
         if (responseActivities.length) {
           setActivities((prevActivities) =>
             prevActivities.concat(responseActivities)
@@ -65,6 +59,9 @@ const ActivityFeed = (): JSX.Element => {
         } else {
           setShowMore(false);
         }
+        setIsLoading(false);
+      } catch (err) {
+        setIsLoadingError(true);
         setIsLoading(false);
       }
     };
@@ -114,7 +111,20 @@ const ActivityFeed = (): JSX.Element => {
   const renderError = () => {
     return (
       <div className={`${baseClass}__error`}>
-        <p><img className="error-icon" alt="error icon" src={ErrorIcon} /><b>Something went wrong.</b></p>
+        <img className="error-icon" alt="error icon" src={ErrorIcon} />
+        <b>Something&rsquo;s gone wrong.</b>
+        <p>Refresh the page or log in again.</p>
+        <p>
+          If this keeps happening, please{" "}
+          <a
+            href="https://github.com/fleetdm/fleet/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            file an issue
+            <img src={OpenNewTabIcon} alt="open new tab" />
+          </a>
+        </p>
       </div>
     );
   };
