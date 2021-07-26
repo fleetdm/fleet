@@ -159,7 +159,6 @@ export class UserManagementPage extends Component {
       delete requestData.password; // this field is not needed for the request
       dispatch(inviteActions.create(requestData))
         .then(() => {
-          dispatch(userActions.loadAll({}));
           dispatch(
             renderFlash(
               "success",
