@@ -77,10 +77,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     );
   };
 
-  // Hardcode in needed props
-  const onActionSelection = () => null;
-
-  const tableHeaders = generateTableHeaders(onActionSelection);
+  const tableHeaders = generateTableHeaders();
   const loadingTableData = useSelector(
     (state: IRootState) => state.entities.global_scheduled_queries.isLoading
   );
