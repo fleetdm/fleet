@@ -23,7 +23,7 @@ const DEFAULT_GRAVATAR_URL =
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
     const count = activity.details?.targets_count;
-    return typeof count === undefined
+    return typeof count === "undefined" || typeof count !== "number"
       ? "ran a live query"
       : `ran a live query on ${count} ${count === 1 ? "host" : "hosts"}`;
   },
