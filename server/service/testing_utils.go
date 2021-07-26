@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/WatchBeam/clock"
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -24,6 +25,20 @@ func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.Live
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := fleet.LicenseInfo{Tier: "core"}
 	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
+	if err != nil {
+		panic(err)
+	}
+	return svc
+}
+
+func newTestBasicService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore) fleet.Service {
+	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+	license := fleet.LicenseInfo{Tier: fleet.TierBasic}
+	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
+	if err != nil {
+		panic(err)
+	}
+	svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, &license)
 	if err != nil {
 		panic(err)
 	}
@@ -114,12 +129,23 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	return svc.SendEmailFn(e)
 }
 
-func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore) (map[string]fleet.User, *httptest.Server) {
-	svc := newTestService(ds, nil, nil)
+type TestServerOpts struct {
+	Tier string
+}
+
+func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+	newServiceFunc := newTestService
+	if opts != nil && len(opts) > 0 {
+		switch opts[0].Tier {
+		case fleet.TierBasic:
+			newServiceFunc = newTestBasicService
+		}
+	}
+	svc := newServiceFunc(ds, nil, nil)
 	users := createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
-	opts := []kithttp.ServerOption{
+	serverOpts := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			setRequestsContexts(svc),
 		),
@@ -131,9 +157,9 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore) (map[string]fleet
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)
 	ke := MakeFleetServerEndpoints(svc, "", limitStore)
-	kh := makeKitHandlers(ke, opts)
+	kh := makeKitHandlers(ke, serverOpts)
 	attachFleetAPIRoutes(r, kh)
-	attachNewStyleFleetAPIRoutes(r, svc, opts)
+	attachNewStyleFleetAPIRoutes(r, svc, serverOpts)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "index")
 	}))

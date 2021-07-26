@@ -6,3 +6,8 @@
 website/ linguist-vendored
 website/* linguist-vendored
 website/** linguist-vendored
+
+# windows is funny about line endings see https://docs.github.com/en/get-started/getting-started-with-git/configuring-git-to-handle-line-endings for more details
+# test TestCertificateChain in server/service/service_certificate_test.go was having issues on Windows
+server/service/testdata/server.key text eol=lf
+server/service/testdata/server.pem text eol=lf

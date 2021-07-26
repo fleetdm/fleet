@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -50,11 +51,11 @@ func (d *Datastore) Team(tid uint) (*fleet.Team, error) {
 		return nil, errors.Wrap(err, "select team")
 	}
 
-	if err := d.loadUsersForTeam(team); err != nil {
-		return nil, err
+	if err := d.loadSecretsForTeams([]*fleet.Team{team}); err != nil {
+		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 
-	if err := d.saveTeamSecrets(team); err != nil {
+	if err := d.loadUsersForTeam(team); err != nil {
 		return nil, err
 	}
 
@@ -85,6 +86,10 @@ func (d *Datastore) TeamByName(name string) (*fleet.Team, error) {
 
 	if err := d.db.Get(team, sql, name); err != nil {
 		return nil, errors.Wrap(err, "select team")
+	}
+
+	if err := d.loadSecretsForTeams([]*fleet.Team{team}); err != nil {
+		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 
 	if err := d.loadUsersForTeam(team); err != nil {
@@ -182,8 +187,21 @@ func (d *Datastore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([
 	if err := d.db.Select(&teams, query, params...); err != nil {
 		return nil, errors.Wrap(err, "list teams")
 	}
+	if err := d.loadSecretsForTeams(teams); err != nil {
+		return nil, errors.Wrap(err, "getting secrets for teams")
+	}
 	return teams, nil
+}
 
+func (d *Datastore) loadSecretsForTeams(teams []*fleet.Team) error {
+	for _, team := range teams {
+		secrets, err := d.GetEnrollSecrets(ptr.Uint(team.ID))
+		if err != nil {
+			return err
+		}
+		team.Secrets = secrets
+	}
+	return nil
 }
 
 func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
@@ -202,6 +220,9 @@ func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit
 	teams := []*fleet.Team{}
 	if err := d.db.Select(&teams, sql, params...); err != nil {
 		return nil, errors.Wrap(err, "search teams")
+	}
+	if err := d.loadSecretsForTeams(teams); err != nil {
+		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 	return teams, nil
 }

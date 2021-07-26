@@ -10,6 +10,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -120,7 +121,7 @@ func printSecret(c *cli.Context, secret *fleet.EnrollSecretSpec) error {
 	return printSpec(c, spec)
 }
 
-func printHost(c *cli.Context, host *fleet.Host) error {
+func printHost(c *cli.Context, host *service.HostResponse) error {
 	spec := specGeneric{
 		Kind:    fleet.HostKind,
 		Version: fleet.ApiVersion,
@@ -182,6 +183,23 @@ func printUserRoles(c *cli.Context, users []fleet.User) error {
 	return printSpec(c, spec)
 }
 
+func printTeams(c *cli.Context, teams []fleet.Team) error {
+	for _, team := range teams {
+		spec := specGeneric{
+			Kind:    fleet.TeamKind,
+			Version: fleet.ApiVersion,
+			Spec: map[string]interface{}{
+				"team": team,
+			},
+		}
+
+		if err := printSpec(c, spec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func printSpec(c *cli.Context, spec specGeneric) error {
 	var err error
 
@@ -207,6 +225,7 @@ func getCommand() *cli.Command {
 			getCarveCommand(),
 			getCarvesCommand(),
 			getUserRolesCommand(),
+			getTeamsCommand(),
 		},
 	}
 }
@@ -568,7 +587,7 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
 					for _, host := range hosts {
-						err = printHost(c, host.Host)
+						err = printHost(c, &host)
 						if err != nil {
 							return err
 						}
@@ -807,4 +826,58 @@ func printTable(c *cli.Context, columns []string, data [][]string) {
 	table.SetHeader(columns)
 	table.AppendBulk(data)
 	table.Render()
+}
+
+func getTeamsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "teams",
+		Aliases: []string{"t"},
+		Usage:   "List teams",
+		Flags: []cli.Flag{
+			jsonFlag(),
+			yamlFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			teams, err := client.ListTeams()
+			if err != nil {
+				return errors.Wrap(err, "could not list teams")
+			}
+
+			if len(teams) == 0 {
+				log(c, "No teams found")
+				return nil
+			}
+
+			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+				err = printTeams(c, teams)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+
+			// Default to printing as table
+			data := [][]string{}
+
+			for _, team := range teams {
+				data = append(data, []string{
+					team.Name,
+					team.Description,
+					fmt.Sprintf("%d", team.UserCount),
+				})
+			}
+			columns := []string{"Team Name", "Description", "User count"}
+			printTable(c, columns, data)
+
+			return nil
+		},
+	}
 }

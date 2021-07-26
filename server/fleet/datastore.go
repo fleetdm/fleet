@@ -18,6 +18,7 @@ type Datastore interface {
 	TeamStore
 	SoftwareStore
 	ActivitiesStore
+	StatisticsStore
 
 	Name() string
 	Drop() error

@@ -15,6 +15,7 @@
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
 - [Teams](#teams)
+- [Translator](#translator)
 
 ## Overview
 
@@ -789,76 +790,6 @@ Flags the host details to be refetched the next time the host checks in for live
 #### Example
 
 `POST /api/v1/fleet/hosts/121/refetch`
-
-##### Default response
-
-`Status: 200`
-
-```
-{}
-```
-
-### Transfer hosts to a team
-
-_Available in Fleet Basic_
-
-`POST /api/v1/fleet/hosts/transfer`
-
-#### Parameters
-
-| Name    | Type    | In   | Description                                                             |
-| ------- | ------- | ---- | ----------------------------------------------------------------------- |
-| team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to. |
-| hosts   | array   | body | **Required**. A list of host IDs.                                       |
-
-#### Example
-
-`POST /api/v1/fleet/hosts/transfer`
-
-##### Request body
-
-```
-{
-  "team_id": 1,
-  "hosts": [3, 2, 4, 6, 1, 5, 7]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```
-{}
-```
-
-### Transfer hosts to a team by filter
-
-_Available in Fleet Basic_
-
-`POST /api/v1/fleet/hosts/transfer/filter`
-
-#### Parameters
-
-| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
-| ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`. `label_id` to indicate the selected label. |
-
-#### Example
-
-`POST /api/v1/fleet/hosts/transfer/filter`
-
-##### Request body
-
-```
-{
-  "team_id": 1,
-  "filters": {
-    "status": "online"
-  }
-}
-```
 
 ##### Default response
 
@@ -5343,3 +5274,91 @@ _Available in Fleet Basic_
 ```
 
 ---
+
+## Translator
+
+### Translate IDs
+
+
+`POST /api/v1/fleet/translate`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                              |
+| --------------- | ------- | ----- | ---------------------------------------- |
+| list            | array   | body  | **Required** list of items to translate. |
+
+#### Example
+
+`POST /api/v1/fleet/translate`
+
+##### Request body
+
+```
+{
+  "list": [
+    {
+      "type": "user",
+      "payload": {
+        "identifier": "some@email.com"
+      }
+    },
+    {
+      "type": "label",
+      "payload": {
+        "identifier": "labelA"
+      }
+    },
+    {
+      "type": "team",
+      "payload": {
+        "identifier": "team1"
+      }
+    },
+    {
+      "type": "host",
+      "payload": {
+        "identifier": "host-ABC"
+      }
+    },
+  ]
+}
+```
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "list": [
+    {
+      "type": "user",
+      "payload": {
+        "identifier": "some@email.com",
+        "id": 32
+      }
+    },
+    {
+      "type": "label",
+      "payload": {
+        "identifier": "labelA",
+        "id": 1
+      }
+    },
+    {
+      "type": "team",
+      "payload": {
+        "identifier": "team1",
+        "id": 22
+      }
+    },
+    {
+      "type": "host",
+      "payload": {
+        "identifier": "host-ABC",
+        "id": 45
+      }
+    },
+  ]
+}
+```
