@@ -24,7 +24,7 @@ const renderTable = (
   onRemoveScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[],
   allGlobalScheduledQueriesError: any,
-  toggleScheduleEditorModal: any
+  toggleScheduleEditorModal: () => void
 ): JSX.Element => {
   if (Object.keys(allGlobalScheduledQueriesError).length !== 0) {
     return <ScheduleError />;
@@ -55,7 +55,7 @@ interface IRootState {
 const ManageSchedulePage = (): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
-  const handleAdvanced = (event: any) => dispatch(push(MANAGE_PACKS));
+  const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
   useEffect(() => {
     dispatch(globalScheduledQueryActions.loadAll());
@@ -121,7 +121,7 @@ const ManageSchedulePage = (): JSX.Element => {
   }, [dispatch, selectedQueryIds, toggleRemoveScheduledQueryModal]);
 
   const onAddScheduledQuerySubmit = useCallback(
-    (formData: any) => {
+    (formData: IGlobalScheduledQuery) => {
       dispatch(globalScheduledQueryActions.create({ ...formData }))
         .then(() => {
           dispatch(

@@ -23,7 +23,7 @@ const baseClass = "schedule-editor-modal";
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
-  onScheduleSubmit: (formData: any) => void;
+  onScheduleSubmit: (formData: IGlobalScheduledQuery) => void;
 }
 interface IFrequencyOption {
   value: number;
@@ -61,13 +61,13 @@ const ScheduleEditorModal = ({
   const [selectedShard, setSelectedShard] = useState<string>("");
 
   const createQueryDropdownOptions = () => {
-    const queryOptions = allQueries.map((q: any) => {
+    const queryOptions = allQueries.map((q) => {
       return {
         value: String(q.id),
         label: q.name,
       };
     });
-    return [...queryOptions];
+    return queryOptions;
   };
 
   const toggleAdvancedOptions = () => {
