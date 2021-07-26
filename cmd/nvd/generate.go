@@ -52,7 +52,7 @@ func main() {
 	panicif(err)
 
 	fmt.Println("Generating DB...")
-	err = vulnerabilities.GenerateCPEDB("./cpe.sqlite", cpeDict)
+	err = vulnerabilities.GenerateCPEDB("./", cpeDict)
 	panicif(err)
 
 	fmt.Println("Done.")
