@@ -666,7 +666,8 @@ export class ManageHostsPage extends PureComponent {
         additionalQueries={JSON.stringify([selectedFilter])}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
-        onSelectActionClick={onTransferToTeamClick}
+        onPrimarySelectActionClick={onTransferToTeamClick}
+        primarySelectActionButtonText={"Transfer to team"}
         onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
         emptyComponent={EmptyHosts}
