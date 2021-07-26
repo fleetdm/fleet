@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/facebookincubator/nvdtools/cpedict"
@@ -30,7 +31,7 @@ func main() {
 	panicif(err)
 	defer resp.Body.Close()
 
-	remoteEtag := strings.TrimPrefix(strings.TrimSuffix(resp.Header.Get("Etag"), `"`), `"`)
+	remoteEtag := getSanitizedEtag(resp)
 	fmt.Println("Got ETag:", remoteEtag)
 
 	ghclient := github.NewClient(nil)
@@ -56,5 +57,17 @@ func main() {
 	err = vulnerabilities.GenerateCPEDB(fmt.Sprintf("./%s.sqlite", remoteEtag), cpeDict)
 	panicif(err)
 
+	file, err := os.Open("./etagenv")
+	panicif(err)
+	file.WriteString(fmt.Sprintf(`ETAG="%s"`, remoteEtag))
+	file.Close()
+
 	fmt.Println("Done.")
+}
+
+func getSanitizedEtag(resp *http.Response) string {
+	etag := resp.Header.Get("Etag")
+	etag = strings.TrimPrefix(strings.TrimSuffix(etag, `"`), `"`)
+	etag = strings.Replace(etag, ":", "", -1)
+	return etag
 }
