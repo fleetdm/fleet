@@ -28,14 +28,13 @@ const FlashMessage = ({
   const alertIcon =
     alertType === "success" ? "success-check" : "warning-filled";
 
-  // Success alerts will not be visible after 4 seconds
   if (alertType === "success") {
     setTimeout(function () {
       document.getElementById(`${klass}`).style.visibility = "visible";
-    }, 0);
+    }, 0); // Ensures successive flash messages are visible
     setTimeout(function () {
       document.getElementById(`${klass}`).style.visibility = "hidden";
-    }, 4000);
+    }, 4000); // Hides success alerts after 4 seconds
   }
 
   return (
