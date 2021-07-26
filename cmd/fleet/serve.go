@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"path"
 
 	"io/ioutil"
 	"net/http"
@@ -531,12 +532,18 @@ func translateSoftwareToCPE(ds fleet.Datastore) error {
 		return err
 	}
 
+	config, err := ds.AppConfig()
+	if err != nil {
+		return err
+	}
+
+	dbPath := path.Join(*config.VulnerabilityDatabasesPath, "cpe.sqlite")
 	for iterator.Next() {
 		software, err := iterator.Value()
 		if err != nil {
 			return err
 		}
-		cpe, err := vulnerabilities.CPEFromSoftware(ds, software)
+		cpe, err := vulnerabilities.CPEFromSoftware(dbPath, software)
 		if err != nil {
 			return err
 		}

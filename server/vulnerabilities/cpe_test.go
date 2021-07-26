@@ -63,21 +63,21 @@ func TestCpeFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := path.Join(tempDir, "cpe.sqlite")
-	err = GenerateCPEDB(tempDir, items)
+	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
 	// checking an non existent version returns empty
-	cpe, err := CPEFromSoftware(dbPath, ds, &fleet.Software{Name: "Vendor Product.app", Version: "2.3.4", Source: "apps"})
+	cpe, err := CPEFromSoftware(dbPath, &fleet.Software{Name: "Vendor Product.app", Version: "2.3.4", Source: "apps"})
 	require.NoError(t, err)
 	require.Equal(t, "", cpe)
 
 	// checking a version that exists works
-	cpe, err = CPEFromSoftware(dbPath, ds, &fleet.Software{Name: "Vendor Product.app", Version: "1.2.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(dbPath, &fleet.Software{Name: "Vendor Product.app", Version: "1.2.3", Source: "apps"})
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
-	cpe, err = CPEFromSoftware(dbPath, ds, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(dbPath, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"})
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*", cpe)
 }

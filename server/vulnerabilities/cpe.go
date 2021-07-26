@@ -2,7 +2,6 @@ package vulnerabilities
 
 import (
 	"fmt"
-	"path"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -42,12 +41,7 @@ func cleanAppName(appName string) string {
 	return strings.TrimSuffix(appName, ".app")
 }
 
-func CPEFromSoftware(dbPath string, ds fleet.Datastore, software *fleet.Software) (string, error) {
-	config, err := ds.AppConfig()
-	if err != nil {
-		return "", err
-	}
-
+func CPEFromSoftware(dbPath string, software *fleet.Software) (string, error) {
 	targetSW := ""
 	switch software.Source {
 	case "apps":
