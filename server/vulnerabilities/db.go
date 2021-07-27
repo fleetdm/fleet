@@ -1,6 +1,10 @@
 package vulnerabilities
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/jmoiron/sqlx"
@@ -45,41 +49,50 @@ func GenerateCPEDatabaseSkeleton(dbPath string) error {
 	return nil
 }
 
-func InsertCPEItem(db *sqlx.DB, item cpedict.CPEItem) error {
+func InsertCPEItem(db *sqlx.DB, item cpedict.CPEItem) ([]interface{}, map[string]string, error) {
+	var cpes []interface{}
+	deprecations := make(map[string]string)
+
 	targetSW := wfn.StripSlashes(item.CPE23.Name.TargetSW)
 	version := wfn.StripSlashes(item.CPE23.Name.Version)
 	title := item.Title["en-US"]
 	cpe23 := wfn.Attributes(item.CPE23.Name).BindToFmtString()
-	res, err := db.Exec(
-		`INSERT INTO cpe(cpe23, title, version, target_sw, deprecated) VALUES (?, ?, ?, ?, ?)`,
-		cpe23, title, version, targetSW, item.Deprecated,
-	)
-	if err != nil {
-		return err
-	}
-	rowid, err := res.LastInsertId()
-	if err != nil {
-		return err
-	}
+	cpes = append(cpes, cpe23, title, version, targetSW, item.Deprecated)
+	//res, err := db.Exec(
+	//	`INSERT INTO cpe(cpe23, title, version, target_sw, deprecated) VALUES (?, ?, ?, ?, ?)`,
+	//	cpe23, title, version, targetSW, item.Deprecated,
+	//)
+	//if err != nil {
+	//	return nil, nil, err
+	//}
+	//rowid, err := res.LastInsertId()
+	//if err != nil {
+	//	return nil, nil, err
+	//}
 
 	if item.CPE23.Deprecation != nil {
 		for _, deprecatedBy := range item.CPE23.Deprecation.DeprecatedBy {
 			deprecatedByCPE23 := wfn.Attributes(deprecatedBy.Name).BindToFmtString()
-			_, err := db.Exec(`INSERT INTO deprecated_by(cpe_id, cpe23) VALUES (?, ?)`, rowid, deprecatedByCPE23)
-			if err != nil {
-				return err
-			}
+			deprecations[cpe23] = deprecatedByCPE23
+			//_, err := db.Exec(`INSERT INTO deprecated_by(cpe_id, cpe23) VALUES (?, ?)`, rowid, deprecatedByCPE23)
+			//if err != nil {
+			//	return nil, nil, err
+			//}
 		}
 	}
 
-	_, err = db.Exec(`INSERT INTO cpe_search(rowid, title, target_sw) VALUES (?, ?, ?)`, rowid, title, targetSW)
-	if err != nil {
-		return err
-	}
-	return nil
+	//_, err = db.Exec(`INSERT INTO cpe_search(rowid, title, target_sw) VALUES (?, ?, ?)`, rowid, title, targetSW)
+	//if err != nil {
+	//	return err
+	//}
+	return cpes, deprecations, nil
 }
 
 func GenerateCPEDB(path string, items *cpedict.CPEList) error {
+	err := os.Truncate(path, 0)
+	if err != nil {
+		return err
+	}
 	db, err := CPEDB(path)
 	if err != nil {
 		return err
@@ -88,11 +101,79 @@ func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	if err != nil {
 		return err
 	}
-	for _, item := range items.Items[:10] {
-		err = InsertCPEItem(db, item)
+
+	cpesCount := 0
+	var allCPEs []interface{}
+	deprecationsCount := 0
+	var allDeprecations []interface{}
+
+	for _, item := range items.Items {
+		cpes, deprecations, err := InsertCPEItem(db, item)
 		if err != nil {
 			return err
 		}
+		allCPEs = append(allCPEs, cpes...)
+		cpesCount++
+		if len(deprecations) > 0 {
+			deprecationsCount++
+		}
+		for key, val := range deprecations {
+			allDeprecations = append(allDeprecations, key, val)
+		}
+		if cpesCount > 800 {
+			err = bulkInsertCPEs(cpesCount, db, allCPEs)
+			if err != nil {
+				return err
+			}
+			allCPEs = []interface{}{}
+			cpesCount = 0
+		}
+		if deprecationsCount > 800 {
+			err := bulkInsertDeprecations(deprecationsCount, db, allDeprecations)
+			if err != nil {
+				return err
+			}
+			allDeprecations = []interface{}{}
+			deprecationsCount = 0
+		}
+	}
+	if cpesCount > 0 {
+		err = bulkInsertCPEs(cpesCount, db, allCPEs)
+		if err != nil {
+			return err
+		}
+		allCPEs = []interface{}{}
+		cpesCount = 0
+	}
+	if deprecationsCount > 0 {
+		err := bulkInsertDeprecations(deprecationsCount, db, allDeprecations)
+		if err != nil {
+			return err
+		}
+		allDeprecations = []interface{}{}
+		deprecationsCount = 0
+	}
+	_, err = db.Exec(`INSERT INTO cpe_search(rowid, title, target_sw) select rowid, title, target_sw from cpe`)
+	if err != nil {
+		return err
 	}
 	return nil
+}
+
+func bulkInsertDeprecations(deprecationsCount int, db *sqlx.DB, allDeprecations []interface{}) error {
+	values := strings.TrimSuffix(strings.Repeat("((SELECT rowid FROM CPE where cpe23=?), ?),", deprecationsCount), ",")
+	_, err := db.Exec(
+		fmt.Sprintf(`INSERT INTO deprecated_by(cpe_id, cpe23) VALUES %s`, values),
+		allDeprecations...,
+	)
+	return err
+}
+
+func bulkInsertCPEs(cpesCount int, db *sqlx.DB, allCPEs []interface{}) error {
+	values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", cpesCount), ",")
+	_, err := db.Exec(
+		fmt.Sprintf(`INSERT INTO cpe(cpe23, title, version, target_sw, deprecated) VALUES %s`, values),
+		allCPEs...,
+	)
+	return err
 }
