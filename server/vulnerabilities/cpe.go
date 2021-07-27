@@ -52,8 +52,7 @@ func SyncCPEDatabase(client *http.Client, dbPath string) error {
 		}
 	}
 
-	url := fmt.Sprintf("%s.sqlite.gz", etag)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("cpe-%s.sqlite.gz", etag), nil)
 	if err != nil {
 		return err
 	}
@@ -74,6 +73,7 @@ func SyncCPEDatabase(client *http.Client, dbPath string) error {
 		return err
 	}
 	defer dbFile.Close()
+
 	_, err = io.Copy(dbFile, gr)
 	if err != nil {
 		return err

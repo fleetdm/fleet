@@ -57,7 +57,7 @@ func main() {
 	panicif(err)
 
 	fmt.Println("Generating DB...")
-	dbPath := path.Join(cwd, fmt.Sprintf("%s.sqlite", remoteEtag))
+	dbPath := path.Join(cwd, fmt.Sprintf("cpe-%s.sqlite", remoteEtag))
 	err = vulnerabilities.GenerateCPEDB(dbPath, cpeDict)
 	panicif(err)
 
