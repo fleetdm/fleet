@@ -7,6 +7,8 @@ import { secondsToDhms } from "fleet/helpers";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 
 interface IHeaderProps {
@@ -80,6 +82,21 @@ const generateTableHeaders = (): IDataColumn[] => {
       accessor: "interval",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={secondsToDhms(cellProps.cell.value)} />
+      ),
+    },
+    {
+      title: "Actions",
+      Header: "",
+      disableSortBy: true,
+      accessor: "actions",
+      Cell: (cellProps) => (
+        <DropdownCell
+          options={cellProps.cell.value}
+          onChange={(value: string) =>
+            actionSelectHandler(value, cellProps.row.original)
+          }
+          placeholder={"Actions"}
+        />
       ),
     },
   ];
