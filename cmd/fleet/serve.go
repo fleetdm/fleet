@@ -550,11 +550,14 @@ func translateSoftwareToCPE(ds fleet.Datastore) error {
 		if err != nil {
 			return err
 		}
-		_ = cpe
+		if cpe == "" {
+			continue
+		}
+		err = ds.AddCPEForSoftware(*software, cpe)
+		if err != nil {
+			return err
+		}
 	}
-	// for all software that doesn't have a CPE
-	//   calculate CPE
-	//   store in the db
 
 	return nil
 }
