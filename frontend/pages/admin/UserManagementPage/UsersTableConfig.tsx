@@ -92,7 +92,7 @@ const generateTableHeaders = (
     },
     {
       title: "Actions",
-      Header: "Actions",
+      Header: "",
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps) => (

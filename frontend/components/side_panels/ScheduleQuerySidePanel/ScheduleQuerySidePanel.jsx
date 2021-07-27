@@ -23,7 +23,7 @@ const ScheduleQuerySidePanel = ({
       return false;
     }
 
-    const formData = selectedScheduledQuery || {};
+    const formData = selectedScheduledQuery || { logging_type: "snapshot" };
 
     formData.query_id = selectedQuery.id;
 

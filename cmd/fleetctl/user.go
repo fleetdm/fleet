@@ -31,6 +31,7 @@ func userCommand() *cli.Command {
 		Usage: "Manage Fleet users",
 		Subcommands: []*cli.Command{
 			createUserCommand(),
+			deleteUserCommand(),
 		},
 	}
 }
@@ -168,6 +169,34 @@ func createUserCommand() *cli.Command {
 			}
 
 			return nil
+		},
+	}
+}
+
+func deleteUserCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "delete",
+		Usage:     "Delete a user",
+		UsageText: `This command will delete a user specified by their email in Fleet.`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     emailFlagName,
+				Usage:    "Email for user (required)",
+				Required: true,
+			},
+			configFlag(),
+			contextFlag(),
+			yamlFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			email := c.String(emailFlagName)
+			return client.DeleteUser(email)
 		},
 	}
 }

@@ -28,7 +28,7 @@ describe("Core tier - Admin user", () => {
     cy.get("nav").within(() => {
       cy.findByText(/hosts/i).should("exist");
       cy.findByText(/queries/i).should("exist");
-      cy.findByText(/packs/i).should("exist");
+      cy.findByText(/schedule/i).should("exist");
       cy.findByText(/settings/i).should("exist");
     });
 

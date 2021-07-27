@@ -50,6 +50,19 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 }
 
 func runAppForTest(t *testing.T, args []string) string {
+	w, exitErr, err := runAppNoChecks(args)
+	require.Nil(t, err)
+	require.Nil(t, exitErr)
+	return w.String()
+}
+
+func runAppCheckErr(t *testing.T, args []string, errorMsg string) string {
+	w, _, err := runAppNoChecks(args)
+	require.Equal(t, errorMsg, err.Error())
+	return w.String()
+}
+
+func runAppNoChecks(args []string) (*bytes.Buffer, error, error) {
 	w := new(bytes.Buffer)
 	r, _, _ := os.Pipe()
 	var exitErr error
@@ -57,7 +70,5 @@ func runAppForTest(t *testing.T, args []string) string {
 		exitErr = err
 	})
 	err := app.Run(append([]string{""}, args...))
-	require.Nil(t, err)
-	require.Nil(t, exitErr)
-	return w.String()
+	return w, exitErr, err
 }

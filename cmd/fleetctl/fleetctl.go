@@ -60,6 +60,7 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		debugCommand(),
 		previewCommand(),
 		eefleetctl.UpdatesCommand(),
+		hostsCommand(),
 	}
 	return app
 }

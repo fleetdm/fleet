@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-class Homepage extends React.Component {
+class SchedulePageWrapper extends React.Component {
   static propTypes = {
     children: PropTypes.node,
   };
@@ -13,4 +13,4 @@ class Homepage extends React.Component {
   }
 }
 
-export default Homepage;
+export default SchedulePageWrapper;

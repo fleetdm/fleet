@@ -1,0 +1,1 @@
+* Change fleetctl get hosts to respond with host "status", "display_text", and "labels". Fixes issue 1373

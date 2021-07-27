@@ -70,8 +70,8 @@ const generateTableHeaders = (): IDataColumn[] => {
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Installed Version",
-      Header: "Installed Version",
+      title: "Installed version",
+      Header: "Installed version",
       disableSortBy: true,
       accessor: "version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,

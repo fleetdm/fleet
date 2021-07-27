@@ -14,10 +14,11 @@ func TestActivityUsernameChange(t *testing.T) {
 	defer ds.Close()
 
 	u := &fleet.User{
-		Password:   []byte("asd"),
-		Name:       "fullname",
-		Email:      "email@asd.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Password:    []byte("asd"),
+		Name:        "fullname",
+		Email:       "email@asd.com",
+		GravatarURL: "http://asd.com",
+		GlobalRole:  ptr.String(fleet.RoleObserver),
 	}
 	_, err := ds.NewUser(u)
 	require.Nil(t, err)
@@ -37,6 +38,8 @@ func TestActivityUsernameChange(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "newname", activities[0].ActorFullName)
+	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
+	assert.Equal(t, "email@asd.com", *activities[0].ActorEmail)
 
 	err = ds.DeleteUser(u.ID)
 	require.NoError(t, err)
@@ -45,6 +48,7 @@ func TestActivityUsernameChange(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", activities[0].ActorFullName)
+	assert.Nil(t, activities[0].ActorGravatar)
 }
 
 func TestNewActivity(t *testing.T) {

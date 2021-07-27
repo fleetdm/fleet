@@ -1,0 +1,7 @@
+# Go engineers are automatically added as reviewers when changes are made to go
+files or related backend files.
+*.go @fleetdm/go
+go.sum @fleetdm/go
+go.mod @fleetdm/go
+/server/ @fleetdm/go
+/cmd/ @fleetdm/go

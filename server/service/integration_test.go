@@ -180,8 +180,13 @@ func TestQueryCreationLogsActivity(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	_, server := RunServerForTestsWithDS(t, ds)
+	users, server := RunServerForTestsWithDS(t, ds)
 	token := getTestAdminToken(t, server)
+
+	admin1 := users["admin1@example.com"]
+	admin1.GravatarURL = "http://iii.com"
+	err := ds.SaveUser(&admin1)
+	require.NoError(t, err)
 
 	params := fleet.QueryPayload{
 		Name:  ptr.String("user1"),
@@ -196,6 +201,7 @@ func TestQueryCreationLogsActivity(t *testing.T) {
 
 	assert.Len(t, activities.Activities, 1)
 	assert.Equal(t, "Test Name admin1@example.com", activities.Activities[0]["actor_full_name"])
+	assert.Equal(t, "http://iii.com", activities.Activities[0]["actor_gravatar"])
 	assert.Equal(t, "created_saved_query", activities.Activities[0]["type"])
 }
 
@@ -414,4 +420,26 @@ func TestTeamSpecs(t *testing.T) {
 
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
+}
+
+func TestTranslator(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	users, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	payload := translatorResponse{}
+	params := translatorRequest{List: []fleet.TranslatePayload{
+		{
+			Type:    fleet.TranslatorTypeUserEmail,
+			Payload: fleet.StringIdentifierToIDPayload{Identifier: "admin1@example.com"},
+		},
+	}}
+	doJSONReq(t, &params, "POST", server, "/api/v1/fleet/translate", token, http.StatusOK, &payload)
+
+	require.Nil(t, payload.Err)
+	assert.Len(t, payload.List, 1)
+
+	assert.Equal(t, users[payload.List[0].Payload.Identifier].ID, payload.List[0].Payload.ID)
 }
