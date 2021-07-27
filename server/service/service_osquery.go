@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	kithttp "github.com/go-kit/kit/transport/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
@@ -48,6 +51,12 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	logging.WithDebugExtrasNoUser(
+		ctx,
+		"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+		"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
+	)
+
 	if nodeKey == "" {
 		return nil, osqueryError{
 			message:     "authentication error: missing node key",
@@ -85,6 +94,13 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithExtrasNoUser(
+		ctx,
+		"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+		"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
+		"host_identifier", hostIdentifier,
+	)
 
 	secret, err := svc.ds.VerifyEnrollSecret(enrollSecret)
 	if err != nil {
@@ -203,6 +219,12 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	logging.WithDebugExtrasNoUser(
+		ctx,
+		"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+		"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
+	)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
@@ -315,6 +337,12 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	logging.WithDebugExtrasNoUser(
+		ctx,
+		"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+		"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
+	)
+
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing status logs: " + err.Error()}
 	}
@@ -324,6 +352,12 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithDebugExtrasNoUser(
+		ctx,
+		"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+		"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
+	)
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing result logs: " + err.Error()}
@@ -933,6 +967,12 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	logging.WithDebugExtrasNoUser(
+		ctx,
+		"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+		"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
+	)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
@@ -1079,6 +1119,12 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithDebugExtrasNoUser(
+		ctx,
+		"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+		"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
+	)
 
 	host, ok := hostctx.FromContext(ctx)
 
