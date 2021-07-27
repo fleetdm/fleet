@@ -42,7 +42,7 @@ func main() {
 	nvdRelease, err := vulnerabilities.GetLatestNVDRelease(nil)
 	panicif(err)
 
-	if nvdRelease.Etag == remoteEtag {
+	if nvdRelease != nil && nvdRelease.Etag == remoteEtag {
 		fmt.Println("No updates. Exiting...")
 		return
 	}
