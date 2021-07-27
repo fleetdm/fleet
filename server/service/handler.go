@@ -501,10 +501,6 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	}
 }
 
-const (
-	CtxStartTimeKey = "start_time"
-)
-
 func logRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWriter) context.Context {
 	return func(ctx context.Context, w http.ResponseWriter) context.Context {
 		logCtx, ok := logging.FromContext(ctx)
