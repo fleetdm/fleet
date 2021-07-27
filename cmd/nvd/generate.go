@@ -3,6 +3,7 @@ package main
 import (
 	"compress/gzip"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -56,8 +57,21 @@ func main() {
 	panicif(err)
 
 	fmt.Println("Generating DB...")
-	err = vulnerabilities.GenerateCPEDB(path.Join(cwd, fmt.Sprintf("%s.sqlite", remoteEtag)), cpeDict)
+	dbPath := path.Join(cwd, fmt.Sprintf("%s.sqlite", remoteEtag))
+	err = vulnerabilities.GenerateCPEDB(dbPath, cpeDict)
 	panicif(err)
+
+	fmt.Println("Compressing db...")
+	compressedDB, err := os.Create(fmt.Sprintf("%s.gz", dbPath))
+	panicif(err)
+
+	db, err := os.Open(dbPath)
+	w := gzip.NewWriter(compressedDB)
+
+	_, err = io.Copy(w, db)
+	panicif(err)
+	w.Close()
+	compressedDB.Close()
 
 	file, err := os.Create(path.Join(cwd, "etagenv"))
 	panicif(err)

@@ -88,7 +88,7 @@ func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	if err != nil {
 		return err
 	}
-	for _, item := range items.Items {
+	for _, item := range items.Items[:10] {
 		err = InsertCPEItem(db, item)
 		if err != nil {
 			return err
