@@ -1,1 +1,0 @@
-* Fix bug where it was not possible to clear host settings by applying config. Fixes issue 872.
