@@ -1,11 +1,13 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { isEmpty, reduce } from "lodash";
+import { ILabel } from "interfaces/label";
 // @ts-ignore
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
 import WindowsIcon from "../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../assets/images/icon-linux-48x48@2x.png";
 import MacIcon from "../../../../assets/images/icon-mac-48x48@2x.png";
+import { PLATFORM_OPTIONS } from "utilities/constants";
 
 const baseClass = "hosts-summary";
 
@@ -14,23 +16,17 @@ interface IRootState {
     labels: {
       isLoading: boolean;
       data: {
-        [id: number]: {
-          count: number;
-          name: string;
-          label_type: string;
-        };
+        [id: number]: ILabel;
       };
     };
   };
 }
 
-const PLATFORM_STRINGS = [
-  "macOS",
-  "MS Windows",
-  "Red Hat Linux",
-  "CentOS Linux",
-  "Ubuntu Linux",
-];
+const PLATFORM_STRINGS = {
+  macOS: ["macOS"],
+  windows: ["MS Windows"],
+  linux: ["Red Hat Linux", "CentOS Linux", "Ubuntu Linux"],
+};
 
 const HostsSummary = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -42,38 +38,25 @@ const HostsSummary = (): JSX.Element => {
   const labels = useSelector((state: IRootState) => state.entities.labels.data);
 
   // Builtin labels from state populate os counts
-  const labelsWithIds: any = Object.keys(labels).map((id) => {
-    const index = Number(id);
-    return isNaN(index) ? null : labels[index];
-  });
-
-  const platformLabelsArray = labelsWithIds.filter((label: any) => {
-    return (
-      label &&
-      label.label_type === "builtin" &&
-      PLATFORM_STRINGS.includes(label.name)
-    );
-  });
-
   const getCount = (platformTitles: string[]) => {
     return reduce(
-      platformLabelsArray,
-      (acc: number, label: any) => {
-        return platformTitles.includes(label.name) && !isEmpty(label.count)
-          ? acc + label.count
-          : acc;
+      Object.values(labels),
+      (total, label) => {
+        return label.label_type === "builtin" &&
+          platformTitles.includes(label.name) &&
+          label.count
+          ? total + label.count
+          : total;
       },
       0
     );
   };
 
-  const macCount = getCount(["macOS"]);
-  const windowsCount = getCount(["MS Windows"]);
-  const linuxCount = getCount([
-    "Red Hat Linux",
-    "Ubuntu Linux",
-    "CentOS Linux",
-  ]);
+  const macCount = getCount(PLATFORM_STRINGS.macOS).toLocaleString("en-US");
+  const windowsCount = getCount(PLATFORM_STRINGS.windows).toLocaleString(
+    "en-US"
+  );
+  const linuxCount = getCount(PLATFORM_STRINGS.linux).toLocaleString("en-US");
 
   return (
     <div className={baseClass}>
