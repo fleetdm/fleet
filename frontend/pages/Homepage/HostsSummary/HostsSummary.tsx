@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { filter, isEmpty, reduce } from "lodash";
+import { isEmpty, reduce } from "lodash";
 // @ts-ignore
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
 import WindowsIcon from "../../../../assets/images/icon-windows-48x48@2x.png";
@@ -46,6 +46,7 @@ const HostsSummary = (): JSX.Element => {
     const index = Number(id);
     return isNaN(index) ? null : labels[index];
   });
+
   const platformLabelsArray = labelsWithIds.filter((label: any) => {
     return (
       label &&
@@ -53,6 +54,7 @@ const HostsSummary = (): JSX.Element => {
       PLATFORM_STRINGS.includes(label.name)
     );
   });
+
   const getCount = (platformTitles: string[]) => {
     return reduce(
       platformLabelsArray,
