@@ -18,9 +18,10 @@ require (
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/dnaeon/go-vcr/v2 v2.0.1
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
-	github.com/facebookincubator/nvdtools v0.1.4 // indirect
+	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb
 	github.com/ghodss/yaml v1.0.0
@@ -29,12 +30,11 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gomodule/redigo v1.8.4
 	github.com/google/go-cmp v0.5.6
-	github.com/google/go-github/v37 v37.0.0 // indirect
+	github.com/google/go-github/v37 v37.0.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
-	github.com/groob/mockimpl v0.0.0-20170306012045-dfa944a2a940 // indirect
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/jonboulle/clockwork v0.2.2 // indirect
@@ -44,7 +44,7 @@ require (
 	github.com/kolide/osquery-go v0.0.0-20190904034940-a74aa860032d
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
-	github.com/mattn/go-sqlite3 v1.14.8 // indirect
+	github.com/mattn/go-sqlite3 v1.14.8
 	github.com/mna/redisc v1.2.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0

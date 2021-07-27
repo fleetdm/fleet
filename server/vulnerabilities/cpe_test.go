@@ -1,11 +1,14 @@
 package vulnerabilities
 
 import (
+	"net/http"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/dnaeon/go-vcr/v2/recorder"
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -83,4 +86,48 @@ func TestCpeFromSoftware(t *testing.T) {
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
+	r, err := recorder.NewAsMode("fixtures/nvd-cpe-release", recorder.ModeReplaying, http.DefaultTransport)
+	require.NoError(t, err)
+	defer r.Stop()
+
+	client := &http.Client{
+		Transport: r,
+	}
+
+	tempDir := os.TempDir()
+	dbPath := path.Join(tempDir, "cpe.sqlite")
+
+	err = os.Remove(dbPath)
+	if !os.IsNotExist(err) {
+		require.NoError(t, err)
+	}
+
+	// first time, db doesn't exist, so it downloads
+	err = SyncCPEDatabase(client, dbPath)
+	require.NoError(t, err)
+
+	// and this works afterwards
+	software := &fleet.Software{Name: "1Password.app", Version: "7.2.3", Source: "apps"}
+	cpe, err := CPEFromSoftware(dbPath, software)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
+
+	// but now we truncate to make sure searching for cpe fails
+	err = os.Truncate(dbPath, 0)
+	require.NoError(t, err)
+	_, err = CPEFromSoftware(dbPath, software)
+	require.Error(t, err)
+
+	// and we make the db older than the release
+	newTime := time.Date(2000, 01, 01, 01, 01, 01, 01, time.UTC)
+	err = os.Chtimes(dbPath, newTime, newTime)
+	require.NoError(t, err)
+
+	// then it will download
+	err = SyncCPEDatabase(client, dbPath)
+	require.NoError(t, err)
+
+	cpe, err = CPEFromSoftware(dbPath, software)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
 }

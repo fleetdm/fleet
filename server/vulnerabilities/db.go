@@ -72,7 +72,7 @@ func InsertCPEItem(db *sqlx.DB, item cpedict.CPEItem) ([]interface{}, map[string
 const batchSize = 800
 
 func GenerateCPEDB(path string, items *cpedict.CPEList) error {
-	err := os.Truncate(path, 0)
+	err := os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}

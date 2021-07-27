@@ -39,10 +39,10 @@ func main() {
 	remoteEtag := getSanitizedEtag(resp)
 	fmt.Println("Got ETag:", remoteEtag)
 
-	releasedEtag, _, err := vulnerabilities.GetLatestNVDRelease()
+	nvdRelease, err := vulnerabilities.GetLatestNVDRelease(nil)
 	panicif(err)
 
-	if releasedEtag == remoteEtag {
+	if nvdRelease.Etag == remoteEtag {
 		fmt.Println("No updates. Exiting...")
 		return
 	}

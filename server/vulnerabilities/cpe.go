@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,39 +21,59 @@ const (
 	repo  = "nvd"
 )
 
-func GetLatestNVDRelease() (string, time.Time, error) {
-	ghclient := github.NewClient(nil)
+type NVDRelease struct {
+	Etag      string
+	CreatedAt time.Time
+	CPEURL    string
+}
+
+func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
+	ghclient := github.NewClient(client)
 	ctx := context.Background()
 	releases, _, err := ghclient.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{Page: 0, PerPage: 1})
 	if err != nil {
-		return "", time.Time{}, err
+		return nil, err
 	}
 
-	if len(releases) == 1 && releases[0].Name != nil {
-		return *releases[0].Name, releases[0].GetCreatedAt().Time, err
+	if len(releases) == 0 {
+		return nil, nil
 	}
 
-	return "", time.Time{}, nil
+	cpeURL := ""
+
+	for _, asset := range releases[0].Assets {
+		if asset != nil {
+			matched, err := regexp.Match(`^cpe-.*\.sqlite\.gz$`, []byte(asset.GetName()))
+			if !matched || err != nil {
+				continue
+			}
+			cpeURL = asset.GetBrowserDownloadURL()
+		}
+	}
+
+	return &NVDRelease{
+		Etag:      releases[0].GetName(),
+		CreatedAt: releases[0].GetCreatedAt().Time,
+		CPEURL:    cpeURL,
+	}, nil
 }
 
 func SyncCPEDatabase(client *http.Client, dbPath string) error {
-	etag, timestamp, err := GetLatestNVDRelease()
+	nvdRelease, err := GetLatestNVDRelease(client)
 	if err != nil {
 		return err
 	}
 
 	stat, err := os.Stat(dbPath)
 	if err != nil {
-		if err != os.ErrNotExist {
+		if !os.IsNotExist(err) {
 			return err
 		}
-	} else {
-		if !timestamp.After(stat.ModTime()) {
-			return nil
-		}
+	} else if !nvdRelease.CreatedAt.After(stat.ModTime()) {
+		return nil
 	}
 
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("cpe-%s.sqlite.gz", etag), nil)
+	req, err := http.NewRequest(http.MethodGet, nvdRelease.CPEURL, nil)
 	if err != nil {
 		return err
 	}
@@ -67,8 +88,9 @@ func SyncCPEDatabase(client *http.Client, dbPath string) error {
 	if err != nil {
 		return err
 	}
+	defer gr.Close()
 
-	dbFile, err := os.Open(dbPath)
+	dbFile, err := os.Create(dbPath)
 	if err != nil {
 		return err
 	}
