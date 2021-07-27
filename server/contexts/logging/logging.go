@@ -42,6 +42,14 @@ func WithErr(ctx context.Context, err error) context.Context {
 	return ctx
 }
 
+// WithNoUser returns a context with logging.SkipUser set to true so user won't be logged
+func WithNoUser(ctx context.Context) context.Context {
+	if logCtx, ok := FromContext(ctx); ok {
+		logCtx.SkipUser = true
+	}
+	return ctx
+}
+
 // WithExtras returns a context with logging.Extras set as the values provided
 func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {

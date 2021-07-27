@@ -1,8 +1,6 @@
 package service
 
 import (
-	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -14,24 +12,25 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/transport"
-	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
-func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore) fleet.Service {
+func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := fleet.LicenseInfo{Tier: "core"}
-	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
+	logger := kitlog.NewNopLogger()
+	if len(opts) > 0 && opts[0].Logger != nil {
+		logger = opts[0].Logger
+	}
+	svc, err := NewService(ds, rs, logger, config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
 	if err != nil {
 		panic(err)
 	}
 	return svc
 }
 
-func newTestBasicService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore) fleet.Service {
+func newTestBasicService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := fleet.LicenseInfo{Tier: fleet.TierBasic}
 	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
@@ -130,7 +129,8 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 }
 
 type TestServerOpts struct {
-	Tier string
+	Tier   string
+	Logger kitlog.Logger
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -141,29 +141,15 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 			newServiceFunc = newTestBasicService
 		}
 	}
-	svc := newServiceFunc(ds, nil, nil)
+	svc := newServiceFunc(ds, nil, nil, opts...)
 	users := createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-
-	serverOpts := []kithttp.ServerOption{
-		kithttp.ServerBefore(
-			setRequestsContexts(svc),
-		),
-		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
-		kithttp.ServerAfter(
-			kithttp.SetContentType("application/json; charset=utf-8"),
-		),
+	if len(opts) > 0 && opts[0].Logger != nil {
+		logger = opts[0].Logger
 	}
-	r := mux.NewRouter()
-	limitStore, _ := memstore.New(0)
-	ke := MakeFleetServerEndpoints(svc, "", limitStore)
-	kh := makeKitHandlers(ke, serverOpts)
-	attachFleetAPIRoutes(r, kh)
-	attachNewStyleFleetAPIRoutes(r, svc, serverOpts)
-	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "index")
-	}))
 
+	limitStore, _ := memstore.New(0)
+	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore)
 	server := httptest.NewServer(r)
 	return users, server
 }

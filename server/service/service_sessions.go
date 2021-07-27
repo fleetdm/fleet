@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -169,6 +170,8 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.User, string, error) {
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithNoUser(ctx)
 
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
