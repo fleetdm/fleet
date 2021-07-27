@@ -1,9 +1,8 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
+import { filter, isEmpty, reduce } from "lodash";
 // @ts-ignore
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
-
 import WindowsIcon from "../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../assets/images/icon-linux-48x48@2x.png";
 import MacIcon from "../../../../assets/images/icon-mac-48x48@2x.png";
@@ -17,11 +16,21 @@ interface IRootState {
       data: {
         [id: number]: {
           count: number;
+          name: string;
+          label_type: string;
         };
       };
     };
   };
 }
+
+const PLATFORM_STRINGS = [
+  "macOS",
+  "MS Windows",
+  "Red Hat Linux",
+  "CentOS Linux",
+  "Ubuntu Linux",
+];
 
 const HostsSummary = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -32,16 +41,37 @@ const HostsSummary = (): JSX.Element => {
 
   const labels = useSelector((state: IRootState) => state.entities.labels.data);
 
-  const macCount = labels[7] ? labels[7].count.toLocaleString("en-US") : "";
-  const windowsCount = labels[10]
-    ? labels[10].count.toLocaleString("en-US")
-    : "";
-  const linuxCount =
-    labels[8] && labels[9]
-      ? (labels[8].count + labels[9].count + labels[11].count).toLocaleString(
-          "en-US"
-        )
-      : "";
+  // Builtin labels from state populate os counts
+  const labelsWithIds: any = Object.keys(labels).map((id) => {
+    const index = Number(id);
+    return isNaN(index) ? null : labels[index];
+  });
+  const platformLabelsArray = labelsWithIds.filter((label: any) => {
+    return (
+      label &&
+      label.label_type === "builtin" &&
+      PLATFORM_STRINGS.includes(label.name)
+    );
+  });
+  const getCount = (platformTitles: string[]) => {
+    return reduce(
+      platformLabelsArray,
+      (acc: number, label: any) => {
+        return platformTitles.includes(label.name) && !isEmpty(label.count)
+          ? acc + label.count
+          : acc;
+      },
+      0
+    );
+  };
+
+  const macCount = getCount(["macOS"]);
+  const windowsCount = getCount(["MS Windows"]);
+  const linuxCount = getCount([
+    "Red Hat Linux",
+    "Ubuntu Linux",
+    "CentOS Linux",
+  ]);
 
   return (
     <div className={baseClass}>
