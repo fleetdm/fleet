@@ -75,7 +75,7 @@ func main() {
 
 	file, err := os.Create(path.Join(cwd, "etagenv"))
 	panicif(err)
-	file.WriteString(fmt.Sprintf(`ETAG="%s"`, remoteEtag))
+	file.WriteString(fmt.Sprintf(`ETAG=%s`, remoteEtag))
 	file.Close()
 
 	fmt.Println("Done.")
