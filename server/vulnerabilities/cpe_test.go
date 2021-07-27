@@ -86,7 +86,8 @@ func TestCpeFromSoftware(t *testing.T) {
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
-	r, err := recorder.NewAsMode("fixtures/nvd-cpe-release", recorder.ModeReplaying, http.DefaultTransport)
+	// Disabling vcr because the resulting file exceeds the 100mb limit for github
+	r, err := recorder.NewAsMode("fixtures/nvd-cpe-release", recorder.ModeDisabled, http.DefaultTransport)
 	require.NoError(t, err)
 	defer r.Stop()
 
@@ -127,7 +128,23 @@ func TestSyncCPEDatabase(t *testing.T) {
 	err = SyncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
+	// let's register the mtime for the db
+	stat, err := os.Stat(dbPath)
+	require.NoError(t, err)
+	mtime := stat.ModTime()
+
 	cpe, err = CPEFromSoftware(dbPath, software)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
+
+	// let some time pass
+	time.Sleep(2 * time.Second)
+
+	// let's check it doesn't download because it's new enough
+	err = SyncCPEDatabase(client, dbPath)
+	require.NoError(t, err)
+
+	stat, err = os.Stat(dbPath)
+	require.NoError(t, err)
+	require.Equal(t, mtime, stat.ModTime())
 }
