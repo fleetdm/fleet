@@ -35,7 +35,7 @@ No, currently, there’s no way to retrieve the name of the enroll secret with a
 
 Typically folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](./2-fleetctl-CLI.md#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries or query packs.
 
-In the coming months, Fleet will introduce the [Teams feature](https://github.com/fleetdm/fleet/issues/288) to Fleet Basic customers. Teams will allow users to group hosts into teams using their enroll secret. These teams can then be targeted with specific queries, query packs, and configuration.
+There is, however, a way to accomplish this even though the answer to the question remains "no": Teams. As of Fleet v4.0.0, you can group hosts in Teams either by enrolling them with a team specific secret, or by transferring hosts to a team. One the hosts you want to target are part of a team, you can create a query and target the team in question.
 
 ## How often do labels refresh? Is the refresh frequency configurable?
 

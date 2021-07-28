@@ -11,6 +11,7 @@
 - [I upgraded my database, but Fleet is still running slowly. What could be going on?](#i-upgraded-my-database-but-fleet-is-still-running-slowly-what-could-be-going-on)
 - [Why am I receiving a database connection error when attempting to "prepare" the database?](#why-am-i-receiving-a-database-connection-error-when-attempting-to-prepare-the-database)
 - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
+- [Is Fleet compatible with X flavor of MySQL?](#is-fleet-compatible-with-x-flavor-of-mysql)
 
 ## How do I get support for working with Fleet?
 
@@ -74,6 +75,8 @@ This error usually indicates that the Fleet server has run out of file descripto
 
 Some deployments may benefit by setting the [`--server_keepalive`](./2-Configuration.md#server_keepalive) flag to false.
 
+This was also seen as a symptom of a different issue: if you're deploying on AWS on T type instances, there are different scenarios where the activity can increase and the instances will burst. If they run out of credits, then they'll stop processing leaving the file descriptors open.
+
 ## I upgraded my database, but Fleet is still running slowly. What could be going on?
 
 This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./2-Configuration.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./2-Configuration.md#mysql_max_idle_conns) flags appropriately.
@@ -97,3 +100,7 @@ fleet prepare db \
 ## Is Fleet available as a SaaS product?
 
 No. Currently, Fleet is only available for self-hosting on premises or in the cloud.
+
+## Is Fleet compatible with X flavor of MySQL?
+
+Fleet is built to run on MySQL 5.7 or above. However, particularly with AWS Aurora, we recommend 2.10.0 and above, as we've seen issues with anything bellow that.
