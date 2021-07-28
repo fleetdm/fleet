@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -27,6 +28,8 @@ type NVDRelease struct {
 	CPEURL    string
 }
 
+var cpeSqliteRegex = regexp.MustCompile(`^cpe-.*\.sqlite\.gz$`)
+
 func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 	ghclient := github.NewClient(client)
 	ctx := context.Background()
@@ -43,8 +46,8 @@ func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 
 	for _, asset := range releases[0].Assets {
 		if asset != nil {
-			matched, err := regexp.Match(`^cpe-.*\.sqlite\.gz$`, []byte(asset.GetName()))
-			if !matched || err != nil {
+			matched := cpeSqliteRegex.MatchString(asset.GetName())
+			if !matched {
 				continue
 			}
 			cpeURL = asset.GetBrowserDownloadURL()
@@ -196,4 +199,46 @@ func CPEFromSoftware(dbPath string, software *fleet.Software) (string, error) {
 	}
 
 	return "", nil
+}
+
+func TranslateSoftwareToCPE(ds fleet.Datastore) error {
+	config, err := ds.AppConfig()
+	if err != nil {
+		return err
+	}
+	if config.VulnerabilityDatabasesPath == nil {
+		return errors.New("Can't translate CPE without a database.")
+	}
+
+	dbPath := path.Join(*config.VulnerabilityDatabasesPath, "cpe.sqlite")
+
+	client := &http.Client{}
+	if err := SyncCPEDatabase(client, dbPath); err != nil {
+		return err
+	}
+
+	iterator, err := ds.AllSoftwareWithoutCPEIterator()
+	if err != nil {
+		return err
+	}
+
+	for iterator.Next() {
+		software, err := iterator.Value()
+		if err != nil {
+			return err
+		}
+		cpe, err := CPEFromSoftware(dbPath, software)
+		if err != nil {
+			return err
+		}
+		if cpe == "" {
+			continue
+		}
+		err = ds.AddCPEForSoftware(*software, cpe)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -19,7 +19,7 @@ func CPEDB(dbPath string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func GenerateCPEDatabaseSkeleton(dbPath string) error {
+func applyCPEDatabaseSchema(dbPath string) error {
 	db, err := CPEDB(dbPath)
 	if err != nil {
 		return err
@@ -80,7 +80,7 @@ func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	if err != nil {
 		return err
 	}
-	err = GenerateCPEDatabaseSkeleton(path)
+	err = applyCPEDatabaseSchema(path)
 	if err != nil {
 		return err
 	}

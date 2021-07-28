@@ -12,6 +12,7 @@ import (
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -108,4 +109,70 @@ func TestSyncCPEDatabase(t *testing.T) {
 	stat, err = os.Stat(dbPath)
 	require.NoError(t, err)
 	require.Equal(t, mtime, stat.ModTime())
+}
+
+type fakeSoftwareIterator struct {
+	index     int
+	softwares []*fleet.Software
+}
+
+func (f *fakeSoftwareIterator) Next() bool {
+	return f.index < len(f.softwares)
+}
+
+func (f *fakeSoftwareIterator) Value() (*fleet.Software, error) {
+	s := f.softwares[f.index]
+	f.index++
+	return s, nil
+}
+
+func (f *fakeSoftwareIterator) Err() error { return nil }
+
+func TestTranslateSoftwareToCPE(t *testing.T) {
+	tempDir := os.TempDir()
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{VulnerabilityDatabasesPath: &tempDir}, nil
+	}
+
+	var cpes []string
+
+	ds.AddCPEForSoftwareFunc = func(software fleet.Software, cpe string) error {
+		cpes = append(cpes, cpe)
+		return nil
+	}
+
+	ds.AllSoftwareIteratorFunc = func() (fleet.SoftwareIterator, error) {
+		return &fakeSoftwareIterator{
+			softwares: []*fleet.Software{
+				{
+					ID:      1,
+					Name:    "Product",
+					Version: "1.2.3",
+					Source:  "apps",
+				},
+				{
+					ID:      2,
+					Name:    "Product2",
+					Version: "0.3",
+					Source:  "apps",
+				},
+			},
+		}, nil
+	}
+
+	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
+	require.NoError(t, err)
+
+	dbPath := path.Join(tempDir, "cpe.sqlite")
+	err = GenerateCPEDB(dbPath, items)
+	require.NoError(t, err)
+
+	err = TranslateSoftwareToCPE(ds)
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*",
+		"cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*",
+	}, cpes)
 }

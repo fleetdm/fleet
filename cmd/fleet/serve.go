@@ -6,11 +6,9 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"net/url"
-	"path"
-
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -512,54 +510,12 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			continue
 		}
 
-		err := translateSoftwareToCPE(ds)
+		err := vulnerabilities.TranslateSoftwareToCPE(ds)
 		if err != nil {
 			level.Error(logger).Log("err", "analyzing vulnerable software", "details", err)
 		}
 		level.Debug(logger).Log("loop", "done")
 	}
-}
-
-func translateSoftwareToCPE(ds fleet.Datastore) error {
-	config, err := ds.AppConfig()
-	if err != nil {
-		return err
-	}
-	if config.VulnerabilityDatabasesPath == nil {
-		return errors.New("Can't translate CPE without a database.")
-	}
-
-	dbPath := path.Join(*config.VulnerabilityDatabasesPath, "cpe.sqlite")
-
-	client := &http.Client{}
-	if err := vulnerabilities.SyncCPEDatabase(client, dbPath); err != nil {
-		return err
-	}
-
-	iterator, err := ds.AllSoftwareWithoutCPEIterator()
-	if err != nil {
-		return err
-	}
-
-	for iterator.Next() {
-		software, err := iterator.Value()
-		if err != nil {
-			return err
-		}
-		cpe, err := vulnerabilities.CPEFromSoftware(dbPath, software)
-		if err != nil {
-			return err
-		}
-		if cpe == "" {
-			continue
-		}
-		err = ds.AddCPEForSoftware(*software, cpe)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on
