@@ -103,4 +103,4 @@ No. Currently, Fleet is only available for self-hosting on premises or in the cl
 
 ## Is Fleet compatible with X flavor of MySQL?
 
-Fleet is built to run on MySQL 5.7 or above. However, particularly with AWS Aurora, we recommend 2.10.0 and above, as we've seen issues with anything bellow that.
+Fleet is built to run on MySQL 5.7 or above. However, particularly with AWS Aurora, we recommend 2.10.0 and above, as we've seen issues with anything below that.
