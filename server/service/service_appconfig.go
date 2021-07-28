@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server"
 	"html/template"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/server"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -333,128 +333,93 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 
 	switch conf.Osquery.StatusLogPlugin {
 	case "", "filesystem":
-		buf, err := json.Marshal(fleet.FilesystemConfig{FilesystemConfig: conf.Filesystem})
-		if err != nil {
-			return nil, err
-		}
-		logging.Status = fleet.Plugin{
+		logging.Status = fleet.LoggingPlugin{
 			Plugin: "filesystem",
-			Config: buf,
+			Config: fleet.FilesystemConfig{FilesystemConfig: conf.Filesystem},
 		}
 	case "kinesis":
-		buf, err := json.Marshal(fleet.KinesisConfig{
-			Region:       conf.Kinesis.Region,
-			StatusStream: conf.Kinesis.StatusStream,
-			ResultStream: conf.Kinesis.ResultStream,
-		})
-		if err != nil {
-			return nil, err
-		}
-		logging.Status = fleet.Plugin{
+		logging.Status = fleet.LoggingPlugin{
 			Plugin: "kinesis",
-			Config: buf,
+			Config: fleet.KinesisConfig{
+				Region:       conf.Kinesis.Region,
+				StatusStream: conf.Kinesis.StatusStream,
+				ResultStream: conf.Kinesis.ResultStream,
+			},
 		}
 	case "firehose":
-		buf, err := json.Marshal(fleet.FirehoseConfig{
-			Region:       conf.Firehose.Region,
-			StatusStream: conf.Firehose.StatusStream,
-			ResultStream: conf.Firehose.ResultStream,
-		})
-		if err != nil {
-			return nil, err
-		}
-		logging.Status = fleet.Plugin{
+		logging.Status = fleet.LoggingPlugin{
 			Plugin: "firehose",
-			Config: buf,
+			Config: fleet.FirehoseConfig{
+				Region:       conf.Firehose.Region,
+				StatusStream: conf.Firehose.StatusStream,
+				ResultStream: conf.Firehose.ResultStream,
+			},
 		}
 	case "lambda":
-		buf, err := json.Marshal(fleet.LambdaConfig{
-			Region:         conf.Lambda.Region,
-			StatusFunction: conf.Lambda.StatusFunction,
-			ResultFunction: conf.Lambda.ResultFunction,
-		})
-		if err != nil {
-			return nil, err
-		}
-		logging.Status = fleet.Plugin{
+		logging.Status = fleet.LoggingPlugin{
 			Plugin: "lambda",
-			Config: buf,
+			Config: fleet.LambdaConfig{
+				Region:         conf.Lambda.Region,
+				StatusFunction: conf.Lambda.StatusFunction,
+				ResultFunction: conf.Lambda.ResultFunction,
+			},
 		}
 	case "pubsub":
-		buf, err := json.Marshal(fleet.PubSubConfig{PubSubConfig: conf.PubSub})
-		if err != nil {
-			return nil, err
-		}
-		logging.Status = fleet.Plugin{
+		logging.Status = fleet.LoggingPlugin{
 			Plugin: "pubsub",
-			Config: buf,
+			Config: fleet.PubSubConfig{PubSubConfig: conf.PubSub},
 		}
 	case "stdout":
-		logging.Status = fleet.Plugin{Plugin: "stdout"}
+		logging.Status = fleet.LoggingPlugin{Plugin: "stdout"}
+	default:
+		return nil, errors.Errorf("unrecognized logging plugin: %+x", logging.Status)
 	}
 
 	switch conf.Osquery.ResultLogPlugin {
 	case "", "filesystem":
-		buf, err := json.Marshal(fleet.FilesystemConfig{FilesystemConfig: conf.Filesystem})
-		if err != nil {
-			return nil, err
-		}
-		logging.Result = fleet.Plugin{
+		logging.Result = fleet.LoggingPlugin{
 			Plugin: "filesystem",
-			Config: buf,
+			Config: fleet.FilesystemConfig{FilesystemConfig: conf.Filesystem},
 		}
 	case "kinesis":
-		buf, err := json.Marshal(fleet.KinesisConfig{
-			Region:       conf.Kinesis.Region,
-			StatusStream: conf.Kinesis.StatusStream,
-			ResultStream: conf.Kinesis.ResultStream,
-		})
-		if err != nil {
-			return nil, err
-		}
-		logging.Result = fleet.Plugin{
+		logging.Result = fleet.LoggingPlugin{
 			Plugin: "kinesis",
-			Config: buf,
+			Config: fleet.KinesisConfig{
+				Region:       conf.Kinesis.Region,
+				StatusStream: conf.Kinesis.StatusStream,
+				ResultStream: conf.Kinesis.ResultStream,
+			},
 		}
 	case "firehose":
-		buf, err := json.Marshal(fleet.FirehoseConfig{
-			Region:       conf.Firehose.Region,
-			StatusStream: conf.Firehose.StatusStream,
-			ResultStream: conf.Firehose.ResultStream,
-		})
-		if err != nil {
-			return nil, err
-		}
-		logging.Result = fleet.Plugin{
+		logging.Result = fleet.LoggingPlugin{
 			Plugin: "firehose",
-			Config: buf,
+			Config: fleet.FirehoseConfig{
+				Region:       conf.Firehose.Region,
+				StatusStream: conf.Firehose.StatusStream,
+				ResultStream: conf.Firehose.ResultStream,
+			},
 		}
 	case "lambda":
-		buf, err := json.Marshal(fleet.LambdaConfig{
-			Region:         conf.Lambda.Region,
-			StatusFunction: conf.Lambda.StatusFunction,
-			ResultFunction: conf.Lambda.ResultFunction,
-		})
-		if err != nil {
-			return nil, err
-		}
-		logging.Result = fleet.Plugin{
+		logging.Result = fleet.LoggingPlugin{
 			Plugin: "lambda",
-			Config: buf,
+			Config: fleet.LambdaConfig{
+				Region:         conf.Lambda.Region,
+				StatusFunction: conf.Lambda.StatusFunction,
+				ResultFunction: conf.Lambda.ResultFunction,
+			},
 		}
 	case "pubsub":
-		buf, err := json.Marshal(fleet.PubSubConfig{PubSubConfig: conf.PubSub})
-		if err != nil {
-			return nil, err
-		}
-		logging.Result = fleet.Plugin{
+		logging.Result = fleet.LoggingPlugin{
 			Plugin: "pubsub",
-			Config: buf,
+			Config: fleet.PubSubConfig{PubSubConfig: conf.PubSub},
 		}
 	case "stdout":
-		logging.Result = fleet.Plugin{
+		logging.Result = fleet.LoggingPlugin{
 			Plugin: "stdout",
 		}
+	default:
+		return nil, errors.Errorf("unrecognized logging plugin: %+x", logging.Result)
+
 	}
 	return logging, nil
 }

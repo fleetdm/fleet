@@ -378,15 +378,15 @@ type LicenseInfo struct {
 }
 
 type Logging struct {
-	Debug  bool   `json:"debug"`
-	Json   bool   `json:"json"`
-	Result Plugin `json:"result"`
-	Status Plugin `json:"status"`
+	Debug  bool          `json:"debug"`
+	Json   bool          `json:"json"`
+	Result LoggingPlugin `json:"result"`
+	Status LoggingPlugin `json:"status"`
 }
 
-type Plugin struct {
+type LoggingPlugin struct {
 	Plugin string `json:"plugin"`
-	Config json.RawMessage `json:"config"`
+	Config interface{} `json:"config"`
 }
 
 type FilesystemConfig struct {

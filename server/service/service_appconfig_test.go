@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"runtime"
 	"testing"
@@ -130,39 +129,39 @@ func TestService_LoggingConfig(t *testing.T) {
 		logFile = "NUL"
 	}
 
-	fileSystemConfig, _ := json.Marshal(fleet.FilesystemConfig{FilesystemConfig: config.FilesystemConfig{
+	fileSystemConfig := fleet.FilesystemConfig{FilesystemConfig: config.FilesystemConfig{
 		StatusLogFile:        logFile,
 		ResultLogFile:        logFile,
 		EnableLogRotation:    false,
 		EnableLogCompression: false,
-	}})
+	}}
 
-	firehoseConfig, _ := json.Marshal(fleet.FirehoseConfig{
+	firehoseConfig := fleet.FirehoseConfig{
 		Region:       testFirehosePluginConfig().Firehose.Region,
 		StatusStream: testFirehosePluginConfig().Firehose.StatusStream,
 		ResultStream: testFirehosePluginConfig().Firehose.ResultStream,
-	})
+	}
 
-	kinesisConfig, _ := json.Marshal(fleet.KinesisConfig{
+	kinesisConfig := fleet.KinesisConfig{
 		Region:       testKinesisPluginConfig().Kinesis.Region,
 		StatusStream: testKinesisPluginConfig().Kinesis.StatusStream,
 		ResultStream: testKinesisPluginConfig().Kinesis.ResultStream,
-	})
+	}
 
-	lambdaConfig, _ := json.Marshal(fleet.LambdaConfig{
+	lambdaConfig := fleet.LambdaConfig{
 		Region:         testLambdaPluginConfig().Lambda.Region,
 		StatusFunction: testLambdaPluginConfig().Lambda.StatusFunction,
 		ResultFunction: testLambdaPluginConfig().Lambda.ResultFunction,
-	})
+	}
 
-	pubsubConfig, _ := json.Marshal(fleet.PubSubConfig{
+	pubsubConfig := fleet.PubSubConfig{
 		PubSubConfig: config.PubSubConfig{
 			Project:       testPubSubPluginConfig().PubSub.Project,
 			StatusTopic:   testPubSubPluginConfig().PubSub.StatusTopic,
 			ResultTopic:   testPubSubPluginConfig().PubSub.ResultTopic,
 			AddAttributes: false,
 		},
-	})
+	}
 
 	type fields struct {
 		config config.FleetConfig
@@ -184,11 +183,11 @@ func TestService_LoggingConfig(t *testing.T) {
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
-				Result: fleet.Plugin{
+				Result: fleet.LoggingPlugin{
 					Plugin: "filesystem",
 					Config: fileSystemConfig,
 				},
-				Status: fleet.Plugin{
+				Status: fleet.LoggingPlugin{
 					Plugin: "filesystem",
 					Config: fileSystemConfig,
 				},
@@ -201,11 +200,11 @@ func TestService_LoggingConfig(t *testing.T) {
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
-				Result: fleet.Plugin{
+				Result: fleet.LoggingPlugin{
 					Plugin: "firehose",
 					Config: firehoseConfig,
 				},
-				Status: fleet.Plugin{
+				Status: fleet.LoggingPlugin{
 					Plugin: "firehose",
 					Config: firehoseConfig,
 				},
@@ -218,11 +217,11 @@ func TestService_LoggingConfig(t *testing.T) {
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
-				Result: fleet.Plugin{
+				Result: fleet.LoggingPlugin{
 					Plugin: "kinesis",
 					Config: kinesisConfig,
 				},
-				Status: fleet.Plugin{
+				Status: fleet.LoggingPlugin{
 					Plugin: "kinesis",
 					Config: kinesisConfig,
 				},
@@ -235,11 +234,11 @@ func TestService_LoggingConfig(t *testing.T) {
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
-				Result: fleet.Plugin{
+				Result: fleet.LoggingPlugin{
 					Plugin: "lambda",
 					Config: lambdaConfig,
 				},
-				Status: fleet.Plugin{
+				Status: fleet.LoggingPlugin{
 					Plugin: "lambda",
 					Config: lambdaConfig,
 				},
@@ -252,11 +251,11 @@ func TestService_LoggingConfig(t *testing.T) {
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
-				Result: fleet.Plugin{
+				Result: fleet.LoggingPlugin{
 					Plugin: "pubsub",
 					Config: pubsubConfig,
 				},
-				Status: fleet.Plugin{
+				Status: fleet.LoggingPlugin{
 					Plugin: "pubsub",
 					Config: pubsubConfig,
 				},
@@ -269,17 +268,25 @@ func TestService_LoggingConfig(t *testing.T) {
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
-				Result: fleet.Plugin{
+				Result: fleet.LoggingPlugin{
 					Plugin: "stdout",
 					Config: nil,
 				},
-				Status: fleet.Plugin{
+				Status: fleet.LoggingPlugin{
 					Plugin: "stdout",
 					Config: nil,
 				},
 			},
 		},
-
+		{
+			name:   "test unrecognized config",
+			fields: fields{config: config.FleetConfig{
+				Osquery: config.OsqueryConfig{ResultLogPlugin: "bar", StatusLogPlugin: "bar"},
+			}},
+			args:   args{ctx: test.UserContext(test.UserAdmin)},
+			wantErr: true,
+			want: nil,
+		},
 	}
 	t.Parallel()
 	for _, tt := range tests {
