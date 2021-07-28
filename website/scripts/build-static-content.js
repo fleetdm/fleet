@@ -131,11 +131,12 @@ module.exports = {
             );
             let RX_README_FILENAME = /\/?readme\.?m?d?$/i;// « for matching `readme` or `readme.md` (case-insensitive) at the end of a file path
 
-            // Determine this page's default (fallback) display title
+            // Determine this page's default (fallback) display title.
+            // (README pages use their folder name as their fallback title.)
             let fallbackPageTitle;
             if (pageSourcePath.match(RX_README_FILENAME)) {
-              // TODO: use different fallback title
-              fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
+              // console.log(pageRelSourcePath.split(/\//).slice(-2)[0], path.basename(pageRelSourcePath), pageRelSourcePath);
+              fallbackPageTitle = sails.helpers.strings.toSentenceCase(pageRelSourcePath.split(/\//).slice(-2)[0]);
             } else {
               fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
             }
