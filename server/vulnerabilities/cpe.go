@@ -44,6 +44,8 @@ func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 
 	cpeURL := ""
 
+	// TODO: get not draft release
+
 	for _, asset := range releases[0].Assets {
 		if asset != nil {
 			matched := cpeSqliteRegex.MatchString(asset.GetName())
@@ -145,7 +147,7 @@ func CPEFromSoftware(dbPath string, software *fleet.Software) (string, error) {
 	case "chocolatey_packages":
 	}
 
-	db, err := CPEDB(dbPath)
+	db, err := sqliteDB(dbPath)
 	if err != nil {
 		return "", errors.Wrap(err, "opening the cpe db")
 	}
@@ -221,6 +223,9 @@ func TranslateSoftwareToCPE(ds fleet.Datastore) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO: move the db open here so that we don't open with every software
+	// TODO: consider doing this in parallel
 
 	for iterator.Next() {
 		software, err := iterator.Value()

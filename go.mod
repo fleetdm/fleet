@@ -21,6 +21,7 @@ require (
 	github.com/dnaeon/go-vcr/v2 v2.0.1
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
+	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c // indirect
 	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb

@@ -1,17 +1,25 @@
 package vulnerabilities
 
 import (
+	"bufio"
+	"compress/bzip2"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/facebookincubator/nvdtools/cpedict"
+	"github.com/facebookincubator/nvdtools/cvefeed/nvd"
+	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func CPEDB(dbPath string) (*sqlx.DB, error) {
+func sqliteDB(dbPath string) (*sqlx.DB, error) {
 	db, err := sqlx.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
@@ -20,7 +28,7 @@ func CPEDB(dbPath string) (*sqlx.DB, error) {
 }
 
 func applyCPEDatabaseSchema(dbPath string) error {
-	db, err := CPEDB(dbPath)
+	db, err := sqliteDB(dbPath)
 	if err != nil {
 		return err
 	}
@@ -42,6 +50,24 @@ func applyCPEDatabaseSchema(dbPath string) error {
 	CREATE INDEX IF NOT EXISTS idx_cpe23 ON cpe (cpe23);
 	CREATE INDEX IF NOT EXISTS idx_target_sw ON cpe (target_sw);
 	CREATE INDEX IF NOT EXISTS idx_deprecated_by ON deprecated_by (cpe23);
+	`)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func applyCVEDatabaseSchema(dbPath string) error {
+	db, err := sqliteDB(dbPath)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+	CREATE TABLE IF NOT EXISTS cve (
+		product TEXT NOT NULL,
+		cve_data TEXT NOT NULL
+	);
+	CREATE INDEX IF NOT EXISTS idx_product ON cve (product);
 	`)
 	if err != nil {
 		return err
@@ -76,7 +102,7 @@ func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	db, err := CPEDB(path)
+	db, err := sqliteDB(path)
 	if err != nil {
 		return err
 	}
@@ -154,6 +180,124 @@ func bulkInsertCPEs(cpesCount int, db *sqlx.DB, allCPEs []interface{}) error {
 	_, err := db.Exec(
 		fmt.Sprintf(`INSERT INTO cpe(cpe23, title, version, target_sw, deprecated) VALUES %s`, values),
 		allCPEs...,
+	)
+	return err
+}
+
+// Based on nvdtools code
+// TODO: check whether we need to post
+func parseCVEJSON(in io.Reader) ([]*schema.NVDCVEFeedJSON10DefCVEItem, error) {
+	feed, err := getFeed(in)
+	if err != nil {
+		return nil, fmt.Errorf("cvefeed.ParseJSON: %v", err)
+	}
+	return feed.CVEItems, nil
+}
+
+func getFeed(in io.Reader) (*schema.NVDCVEFeedJSON10, error) {
+	reader, err := setupReader(in)
+	if err != nil {
+		return nil, fmt.Errorf("can't setup reader: %v", err)
+	}
+	defer reader.Close()
+
+	var feed schema.NVDCVEFeedJSON10
+	if err := json.NewDecoder(reader).Decode(&feed); err != nil {
+		return nil, err
+	}
+	return &feed, nil
+}
+
+func setupReader(in io.Reader) (src io.ReadCloser, err error) {
+	r := bufio.NewReader(in)
+	header, err := r.Peek(2)
+	if err != nil {
+		return nil, err
+	}
+	// assume plain text first
+	src = ioutil.NopCloser(r)
+	// replace with gzip.Reader if gzip'ed
+	if header[0] == 0x1f && header[1] == 0x8b { // file is gzip'ed
+		zr, err := gzip.NewReader(r)
+		if err != nil {
+			return nil, err
+		}
+		src = zr
+	} else if header[0] == 'B' && header[1] == 'Z' {
+		// or with bzip2.Reader if bzip2'ed
+		src = ioutil.NopCloser(bzip2.NewReader(r))
+	}
+	return src, nil
+}
+
+func GenerateCVEDB(dbPath string, cveFeedReaders ...io.Reader) error {
+	err := os.Remove(dbPath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	db, err := sqliteDB(dbPath)
+	if err != nil {
+		return err
+	}
+	err = applyCVEDatabaseSchema(dbPath)
+	if err != nil {
+		return err
+	}
+
+	cveCount := 0
+	var cveArgs []interface{}
+	for _, reader := range cveFeedReaders {
+		cves, err := parseCVEJSON(reader)
+		if err != nil {
+			return err
+		}
+		for _, cve := range cves {
+			vuln := nvd.ToVuln(cve)
+			for _, cpe := range vuln.Config() {
+				if cpe == nil {
+					continue
+				}
+				product := cpe.Product
+				if wfn.HasWildcard(product) {
+					// we ignore wildcards for now because we don't want
+					// to check the whole db for now
+					// product = wfn.Any
+					continue
+				}
+				cveBytes, err := json.Marshal(cve)
+				if err != nil {
+					return err
+				}
+				cveArgs = append(cveArgs, product, string(cveBytes))
+				cveCount++
+			}
+			if cveCount > batchSize {
+				err = bulkInsertCVEs(cveCount, db, cveArgs)
+				if err != nil {
+					return err
+				}
+				cveCount = 0
+				cveArgs = []interface{}{}
+			}
+		}
+		if cveCount > 0 {
+			err = bulkInsertCVEs(cveCount, db, cveArgs)
+			if err != nil {
+				return err
+			}
+			cveCount = 0
+			cveArgs = []interface{}{}
+		}
+	}
+
+	return nil
+}
+
+func bulkInsertCVEs(cveCount int, db *sqlx.DB, cveArgs []interface{}) error {
+	values := strings.TrimSuffix(strings.Repeat("(?, ?),", cveCount), ",")
+	_, err := db.Exec(
+		fmt.Sprintf(`INSERT INTO cve(product, cve_data) VALUES %s`, values),
+		cveArgs...,
 	)
 	return err
 }

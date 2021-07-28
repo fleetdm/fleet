@@ -176,3 +176,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 		"cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*",
 	}, cpes)
 }
+
+func TestCVEDBGeneration(t *testing.T) {
+
+}
