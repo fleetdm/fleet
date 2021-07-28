@@ -18,6 +18,7 @@ import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePane
 import packInterface from "interfaces/pack";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
+import scheduledQueryInterface from "interfaces/scheduled_query";
 import ScheduledQueriesListWrapper from "components/queries/ScheduledQueriesListWrapper";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
@@ -25,7 +26,6 @@ import stateEntityGetter from "redux/utilities/entityGetter";
 import PATHS from "router/paths";
 
 const baseClass = "edit-pack-page";
-
 export class EditPackPage extends Component {
   static propTypes = {
     allQueries: PropTypes.arrayOf(queryInterface),
@@ -38,7 +38,7 @@ export class EditPackPage extends Component {
     packID: PropTypes.string,
     packLabels: PropTypes.arrayOf(labelInterface),
     packTeams: PropTypes.arrayOf(teamInterface),
-    scheduledQueries: PropTypes.arrayOf(queryInterface),
+    scheduledQueries: PropTypes.arrayOf(scheduledQueryInterface),
     isBasicTier: PropTypes.bool,
   };
 
@@ -232,6 +232,7 @@ export class EditPackPage extends Component {
   handleConfigurePackQuerySubmit = (formData) => {
     const { create } = scheduledQueryActions;
     const { dispatch, packID } = this.props;
+
     const scheduledQueryData = {
       ...formData,
       pack_id: packID,

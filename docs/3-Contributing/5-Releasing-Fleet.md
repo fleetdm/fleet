@@ -2,7 +2,7 @@
 
 Note: Please prefix versions with `v` (eg. `v4.0.0`) in git tags, Helm charts, and NPM configs.
 
-1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last Fleet release. Update the NPM [package.json](../../tools/fleetctl-npm/package.json) with the new version number (do not yet `npm publish`). Update the [Helm chart](../../charts/fleet/Chart.yaml) and [values file](../../charts/fleet/values.yaml) with the new version number.
+1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last Fleet release. Update the NPM [package.json](../../tools/fleetctl-npm/package.json) with the new version number (do not yet `npm publish`). Update the [Helm chart](../../charts/fleet/Chart.yaml) and [values file](../../charts/fleet/values.yaml) with the new version number. Remove all files from the `/changes` top-level directory except for the `.keep` file.
 
 Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that `HEAD` of the `main` branch points to the commit with these changes.
 

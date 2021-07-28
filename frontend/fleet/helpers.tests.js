@@ -8,7 +8,7 @@ const label2 = { id: 2, target_type: "labels" };
 const host1 = { id: 6, target_type: "hosts" };
 const host2 = { id: 5, target_type: "hosts" };
 
-describe("Kolide API - helpers", () => {
+describe("Fleet API - helpers", () => {
   describe("#labelSlug", () => {
     it("creates a slug for the label", () => {
       expect(helpers.labelSlug({ name: "All Hosts" })).toEqual("all-hosts");
@@ -218,6 +218,22 @@ describe("redux app node - helpers", () => {
         ...smtpSettings,
         ...hostExpirySettings,
       });
+    });
+  });
+});
+
+describe("conversion - helpers", () => {
+  describe("#secondsConversions", () => {
+    const { secondsToHms, secondsToDhms } = helpers;
+
+    it("creates correct conversion to hour-minute-second", () => {
+      expect(secondsToHms(10861)).toEqual("3 hrs 1 min 1 sec");
+      expect(secondsToHms(3723)).toEqual("1 hr 2 mins 3 secs");
+    });
+
+    it("creates correct conversion to day-hour-minute-second", () => {
+      expect(secondsToDhms(270061)).toEqual("3 days 3 hours 1 minute 1 second");
+      expect(secondsToDhms(90123)).toEqual("1 day 1 hour 2 minutes 3 seconds");
     });
   });
 });

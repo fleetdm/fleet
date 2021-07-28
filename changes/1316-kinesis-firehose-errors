@@ -1,1 +1,0 @@
-* Fix printing of failed record count in AWS Kinesis/Firehose logging plugins.

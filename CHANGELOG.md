@@ -1,3 +1,47 @@
+## Fleet 4.1.0 (Jul 26, 2021)
+
+The primary additions in Fleet 4.1.0 are the new Schedule and Activity feed features.
+
+Schedule lets you add queries which are executed on your devices at regular intervals without having to understand or configure osquery query packs. For experienced Fleet and osquery users, the ability to create new, and modify existing, query packs is still available in the Fleet UI and fleetctl command-line tool. To reach the **Packs** page in the Fleet UI, head to **Schedule > Advanced**.
+
+Activity feed adds the ability to observe when, and by whom, queries are changes, packs are created, live queries are run, and more. The Activity feed feature is located on the new Home page in the Fleet UI. Select the logo in the top right corner of the Fleet UI to navigate to the new **Home** page.
+
+### New features breakdown
+
+* Add ability to create teams and update their respective agent options and enroll secrets using the new `teams` yaml document and fleetctl. Available in Fleet Basic.
+
+* Adds a new **Home** page to the Fleet UI. The **Home** page presents a breakdown of the enrolled hosts by operating system.
+
+* Add a "Users" table on the **Host details** page. The `username` information displayed in the "Users" table, as well as the `uid`, `type`, and `groupname` are available in the Fleet REST API via the `/api/v1/fleet/hosts/{id}` API route.
+
+* Add ability to create a user without an invitation. You can now create a new user by heading to **Settings > Users**, selecting "Create user," and then choosing the "Create user" option.
+
+* Add ability to search and sort installed software items in the "Software" table on the **Host details** page. 
+
+* Add ability to delete a user from Fleet using a new `fleetctl user delete` command.
+
+* Add ability to retrieve hosts' `status`, `display_text`, and `labels` using the `fleetctl get hosts` command.
+
+* Add a new `user_roles` yaml document that allows users to manage user roles via fleetctl. Available in Fleet Basic.
+
+* Change default ordering of the "Hosts" table in the Fleet UI to ascending order (A-Z).
+
+* Improve performance of the Software inventory feature by reducing the amount of inserts and deletes are done in the database when updating each host's
+software inventory.
+
+* Remove YUM and APT sources from Software inventory.
+
+* Fix an issue in which disabling SSO at the organization level would not disable SSO for all users.
+
+* Fix an issue with data migrations in which enroll secrets are duplicated after the `name` column was removed from the `enroll_secrets` table.
+
+* Fix an issue in which it was not possible to clear host settings by applying the `config` yaml document. This allows users to successfully remove the `additional_queries` property after adding it.
+
+* Fix printing of failed record count in AWS Kinesis/Firehose logging plugins.
+
+* Fix compatibility with GCP Memorystore Redis due to missing CLUSTER command.
+
+
 ## Fleet 4.0.1 (Jul 01, 2021)
 
 * Fix an issue in which migrations failed on MariaDB MySQL.

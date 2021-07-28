@@ -38,6 +38,7 @@ export default {
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
+  MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
