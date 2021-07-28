@@ -120,26 +120,35 @@ module.exports = {
 
           for (let pageSourcePath of thinTree) {// FUTURE: run this in parallel
 
-            // Do some path maths, used below (especially for determining the page URL)
+            // Crunch some paths (used for determining the URL, etc below.)
             // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
             // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
-            let fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
             let pageRelSourcePath = path.relative(path.join(topLvlRepoPath, sectionRepoPath), path.resolve(pageSourcePath));
-            let pageNormalizedLowercaseRelPath = (
+            let pageUnextensionedLowercasedRelPath = (
               pageRelSourcePath
               .replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2')
               .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/')
             );
+            let RX_README_FILENAME = /\/?readme\.?m?d?$/i;// « for matching `readme` or `readme.md` (case-insensitive) at the end of a file path
+
+            // Determine this page's default (fallback) display title
+            let fallbackPageTitle;
+            if (pageSourcePath.match(RX_README_FILENAME)) {
+              // TODO: use different fallback title
+              fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
+            } else {
+              fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
+            }
 
             // Determine URL for this page
             let rootRelativeUrlPath = (
               (
                 SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
                 '/' + (
-                  pageNormalizedLowercaseRelPath
+                  pageUnextensionedLowercasedRelPath
                   .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')// « Get URL-friendly by encoding characters and stripping off ordering prefixes (like the "1-" in "1-Using-Fleet") for all folder and file names in the path.
                 )
-              ).replace(/\/?readme\.?m?d?$/i, '')// « Interpret files named `readme` or `readme.md` (case-insensitive) as a special filename that gets mapped to the URL representing its containing folder.
+              ).replace(RX_README_FILENAME, '')// « Interpret README files as special and map it to the URL representing its containing folder.
             );
 
             // Assert uniqueness of URL paths.
@@ -255,7 +264,7 @@ module.exports = {
               let htmlId = (
                 sectionRepoPath.slice(0,10)+
                 '--'+
-                _.last(pageNormalizedLowercaseRelPath.split(/\//)).slice(0,20)+
+                _.last(pageUnextensionedLowercasedRelPath.split(/\//)).slice(0,20)+
                 '--'+
                 sails.helpers.strings.random.with({len:10})// if two files in different folders happen to have the same filename, there is a 1/16^10 chance of a collision (this is small enough- worst case, the build fails at the uniqueness check and we rerun it.)
               ).replace(/[^a-z0-9\-]/ig,'');
