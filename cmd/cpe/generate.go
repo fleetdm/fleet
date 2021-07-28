@@ -13,11 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 )
 
-const (
-	owner = "chiiph"
-	repo  = "nvd"
-)
-
 func panicif(err error) {
 	if err != nil {
 		panic(err)
