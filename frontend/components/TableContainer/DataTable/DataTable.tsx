@@ -177,9 +177,7 @@ const DataTable = ({
         : primarySelectActionButtonText;
     const name = buttonText ? kebabCase(buttonText) : "primary-select-action";
 
-    const generateIconLink = (
-      primarySelectActionButtonIcon: string | undefined
-    ) => {
+    const generateIconLink = () => {
       if (primarySelectActionButtonIcon === "close") {
         return closeIcon;
       }
@@ -191,7 +189,7 @@ const DataTable = ({
       onActionButtonClick: onPrimarySelectActionClick,
       targetIds,
       variant: primarySelectActionButtonVariant,
-      iconLink: generateIconLink(primarySelectActionButtonIcon),
+      iconLink: generateIconLink(),
     };
 
     return !buttonText ? null : renderActionButton(actionProps);
