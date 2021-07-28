@@ -8,6 +8,7 @@ import useDeepEffect from "utilities/hooks/useDeepEffect";
 import Spinner from "components/loaders/Spinner";
 import Button from "../../buttons/Button";
 import ActionButton, { IActionButtonProps } from "./ActionButton";
+import closeIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 
 const baseClass = "data-table-container";
 
@@ -23,6 +24,8 @@ interface IDataTableProps {
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
+  primarySelectActionButtonVariant?: string;
+  primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick: any; // TODO: an event type
   secondarySelectActions?: IActionButtonProps[];
@@ -42,6 +45,8 @@ const DataTable = ({
   toggleAllPagesSelected,
   resultsTitle,
   defaultPageSize,
+  primarySelectActionButtonIcon,
+  primarySelectActionButtonVariant,
   onPrimarySelectActionClick,
   primarySelectActionButtonText,
   secondarySelectActions,
@@ -171,11 +176,22 @@ const DataTable = ({
         ? primarySelectActionButtonText(targetIds)
         : primarySelectActionButtonText;
     const name = buttonText ? kebabCase(buttonText) : "primary-select-action";
+
+    const generateIconLink = (
+      primarySelectActionButtonIcon: string | undefined
+    ) => {
+      if (primarySelectActionButtonIcon === "close") {
+        return closeIcon;
+      }
+    };
+
     const actionProps = {
       name,
       buttonText: buttonText || "",
       onActionButtonClick: onPrimarySelectActionClick,
       targetIds,
+      variant: primarySelectActionButtonVariant,
+      iconLink: generateIconLink(primarySelectActionButtonIcon),
     };
 
     return !buttonText ? null : renderActionButton(actionProps);

@@ -143,4 +143,14 @@
       z-index: 1;
     }
   }
+
+  &__remove {
+    .button--text-link {
+      font-weight: $regular;
+      img {
+        position: relative;
+        left: -4px;
+      }
+    }
+  }
 }

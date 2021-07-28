@@ -112,7 +112,9 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         inputPlaceHolder="Search"
         searchable={false}
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
-        primarySelectActionButtonText={"Remove query"}
+        primarySelectActionButtonVariant="text-link"
+        primarySelectActionButtonIcon="close"
+        primarySelectActionButtonText={"Remove"}
         emptyComponent={NoScheduledQueries}
       />
     </div>
