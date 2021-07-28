@@ -309,7 +309,9 @@ export class ManageHostsPage extends PureComponent {
             ? `Hosts successfully removed from teams.`
             : `Hosts successfully transferred to  ${team.name}.`;
         dispatch(renderFlash("success", successMessage));
-        dispatch(getHosts());
+
+        // TODO: make getHosts call better to accept optional params
+        dispatch(getHosts(undefined, undefined, selectedFilter, searchQuery));
       })
       .catch(() => {
         dispatch(
