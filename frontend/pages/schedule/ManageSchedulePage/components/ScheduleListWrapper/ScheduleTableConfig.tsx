@@ -41,7 +41,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 interface IGlobalScheduledQueryTableData {
-  query_name: string;
+  name: string;
   interval: number;
   actions: IDropdownOption[];
   id: number;
@@ -82,7 +82,7 @@ const generateTableHeaders = (
       title: "Query name",
       Header: "Query name",
       disableSortBy: true,
-      accessor: "query_name",
+      accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -135,7 +135,7 @@ const enhanceGlobalScheduledQueryData = (
 ): IGlobalScheduledQueryTableData[] => {
   return global_scheduled_queries.map((global_scheduled_query) => {
     return {
-      query_name: global_scheduled_query.name,
+      name: global_scheduled_query.name,
       interval: global_scheduled_query.interval,
       actions: generateActionDropdownOptions(),
       id: global_scheduled_query.id,

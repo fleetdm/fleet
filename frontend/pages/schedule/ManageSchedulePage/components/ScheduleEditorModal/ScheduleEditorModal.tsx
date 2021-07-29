@@ -35,7 +35,7 @@ interface IFormData {
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
-  onScheduleSubmit: (formData: IFormData) => void;
+  onScheduleSubmit: (formData: IFormData, update: boolean) => void;
   selectedScheduledQuery?: IGlobalScheduledQuery;
 }
 interface INoQueryOption {
@@ -49,7 +49,7 @@ const ScheduleEditorModal = ({
   allQueries,
   selectedScheduledQuery,
 }: IScheduleEditorModalProps): JSX.Element => {
-  console.log("What did I select?", selectedScheduledQuery);
+  console.log("\n\nLet's do this:", selectedScheduledQuery, "\n\n");
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
   );
@@ -140,28 +140,41 @@ const ScheduleEditorModal = ({
   );
 
   const onFormSubmit = () => {
-    onScheduleSubmit({
-      shard: parseInt(selectedShard, 10),
-      interval: selectedFrequency,
-      query_id: selectedQuery?.id,
-      name: selectedQuery?.name,
-      logging_type: selectedLoggingType,
-      platform: selectedPlatformOptions,
-      version: selectedMinOsqueryVersionOptions,
-    });
+    const update = selectedScheduledQuery !== undefined;
+
+    onScheduleSubmit(
+      {
+        shard: parseInt(selectedShard, 10),
+        interval: selectedFrequency,
+        query_id: selectedQuery?.id,
+        name: selectedQuery?.name,
+        logging_type: selectedLoggingType,
+        platform: selectedPlatformOptions,
+        version: selectedMinOsqueryVersionOptions,
+      },
+      update
+    );
   };
 
   return (
-    <Modal title={"Schedule editor"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={
+        selectedScheduledQuery ? selectedScheduledQuery.name : "Schedule editor"
+      }
+      onExit={onCancel}
+      className={baseClass}
+    >
       <form className={`${baseClass}__form`}>
-        <Dropdown
-          searchable
-          options={createQueryDropdownOptions()}
-          onChange={onChangeSelectQuery}
-          placeholder={"Select query"}
-          value={selectedQuery?.id}
-          wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
-        />
+        {!selectedScheduledQuery && (
+          <Dropdown
+            searchable
+            options={createQueryDropdownOptions()}
+            onChange={onChangeSelectQuery}
+            placeholder={"Select query"}
+            value={selectedQuery?.id}
+            wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
+          />
+        )}
         <Dropdown
           searchable={false}
           options={FREQUENCY_DROPDOWN_OPTIONS}
@@ -247,7 +260,7 @@ const ScheduleEditorModal = ({
             type="button"
             variant="brand"
             onClick={onFormSubmit}
-            disabled={!selectedQuery}
+            disabled={!selectedQuery && !selectedScheduledQuery}
           >
             Schedule
           </Button>
