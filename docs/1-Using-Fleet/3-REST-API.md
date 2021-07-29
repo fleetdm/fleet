@@ -481,6 +481,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
+| team_id                 | integer  | query | _Available in Fleet Basic_ Filters the users to only include users in the specified team.     |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1140,7 +1141,9 @@ Returns a list of the hosts that belong to the specified label.
 | id              | integer | path  | **Required**. The label's id.                                                                                                 |
 | order_key       | string  | query | What to order results by. Can be any column in the hosts table.                                                               |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                              |
 | query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
+| team_id         | integer | query | _Available in Fleet Basic_ Filters the users to only include users in the specified team.                                     |
 
 #### Example
 
@@ -3068,6 +3071,10 @@ o
 - [Add query to schedule](#add-query-to-schedule)
 - [Edit query in schedule](#edit-query-in-schedule)
 - [Remove query from schedule](#remove-query-from-schedule)
+- [Get a team schedule](#get-a-team-schedule)
+- [Add query to a team schedule](#add-quer-to-a-team-schedule)
+- [Edit query in a team schedule](#edit-query-in-a-team-schedule)
+- [Remove query from a team schedule](#remove-query-from-a-team-schedule)
 
 `In Fleet 4.1.0, the Schedule feature was introduced.`
 
@@ -3082,6 +3089,10 @@ For those familiar with osquery query packs, Fleet's query schedule can be thoug
 #### Parameters
 
 None.
+
+#### Example
+
+`GET /api/v1/fleet/global/schedule`
 
 ##### Default response
 
@@ -3244,6 +3255,193 @@ None.
 #### Example
 
 `DELETE /api/v1/fleet/global/schedule/5`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Get a team schedule
+
+`GET /api/v1/fleet/team/{id}/schedule`
+
+#### Parameters
+
+| Name        | Type   | In   | Description                                                           |
+| ----------- | ------ | ---- | --------------------------------------------------------------------- |
+| id          | integer| path | **Required**. The team's ID.                                          |
+
+#### Example
+
+`GET /api/v1/fleet/team/2/schedule`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "schedule": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 4,
+      "pack_id": 2,
+      "name": "arp_cache",
+      "query_id": 2,
+      "query_name": "arp_cache",
+      "query": "select * from arp_cache;",
+      "interval": 120,
+      "snapshot": true,
+      "removed": null,
+      "shard": null,
+      "denylist": null
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 5,
+      "pack_id": 3,
+      "name": "disk_encryption",
+      "query_id": 7,
+      "query_name": "disk_encryption",
+      "query": "select * from disk_encryption;",
+      "interval": 86400,
+      "snapshot": true,
+      "removed": null,
+      "shard": null,
+      "denylist": null
+    }
+  ]
+}
+```
+
+### Add query to a team schedule
+
+`POST /api/v1/fleet/team/{id}/schedule`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                      |
+| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------- |
+| id       | integer | path | **Required.** The teams's ID.                                                                                                    |
+| query_id | integer | body | **Required.** The query's ID.                                                                                                    |
+| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                                    |
+| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                                     |
+| removed  | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts. Default is `null`.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
+
+#### Example
+
+`POST /api/v1/fleet/team/2/schedule`
+
+##### Request body
+
+```
+{
+  "interval": 86400,
+  "query_id": 2,
+  "snapshot": true,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 1,
+    "pack_id": 5,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 86400,
+    "snapshot": true,
+    "removed": null,
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+### Edit query in a team schedule
+
+`PATCH /api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id            | integer | path | **Required.** The team's ID.                                                                                  |
+| scheduled_query_id | integer | path | **Required.** The scheduled query's ID.                                                                       |
+| interval           | integer | body | The amount of time, in seconds, the query waits before running.                                               |
+| snapshot           | boolean | body | Whether the queries logs show everything in its current state.                                                |
+| removed            | boolean | body | Whether "removed" actions should be logged.                                                                   |
+| platform           | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
+| shard              | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
+| version            | string  | body | The minimum required osqueryd version installed on a host.                                                    |
+
+#### Example
+
+`PATCH /api/v1/fleet/team/2/schedule/5`
+
+##### Request body
+
+```
+{
+  "interval": 604800,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": {
+    "created_at": "2021-07-16T14:40:15Z",
+    "updated_at": "2021-07-16T14:40:15Z",
+    "id": 5,
+    "pack_id": 1,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 604800,
+    "snapshot": true,
+    "removed": null,
+    "platform": "",
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+### Remove query from a team schedule
+
+`DELETE /api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id            | integer | path | **Required.** The team's ID.                                                                                  |
+| scheduled_query_id | integer | path | **Required.** The scheduled query's ID.                                                                       |
+
+#### Example
+
+`DELETE /api/v1/fleet/team/2/schedule/5`
 
 ##### Default response
 
