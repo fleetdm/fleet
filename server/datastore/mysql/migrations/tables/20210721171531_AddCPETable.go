@@ -19,7 +19,7 @@ func Up_20210721171531(tx *sql.Tx) error {
 			updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			cpe varchar(255) NOT NULL,
 			PRIMARY KEY (id),
-			FOREIGN KEY (software_id) REFERENCES software(id) ON DELETE CASCADE
+			FOREIGN KEY fk_software_cpe_software_id (software_id) REFERENCES software(id) ON DELETE CASCADE
 		)
 	`
 	if _, err := tx.Exec(sql); err != nil {

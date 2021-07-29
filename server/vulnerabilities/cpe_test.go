@@ -66,7 +66,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	}
 
 	// first time, db doesn't exist, so it downloads
-	err = SyncCPEDatabase(client, dbPath)
+	err = syncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
 	// and this works afterwards
@@ -87,7 +87,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = SyncCPEDatabase(client, dbPath)
+	err = syncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -103,7 +103,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = SyncCPEDatabase(client, dbPath)
+	err = syncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
 	stat, err = os.Stat(dbPath)
@@ -114,6 +114,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 type fakeSoftwareIterator struct {
 	index     int
 	softwares []*fleet.Software
+	closed    bool
 }
 
 func (f *fakeSoftwareIterator) Next() bool {
@@ -126,7 +127,8 @@ func (f *fakeSoftwareIterator) Value() (*fleet.Software, error) {
 	return s, nil
 }
 
-func (f *fakeSoftwareIterator) Err() error { return nil }
+func (f *fakeSoftwareIterator) Err() error   { return nil }
+func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 
 func TestTranslateSoftwareToCPE(t *testing.T) {
 	tempDir := os.TempDir()
@@ -143,23 +145,25 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 		return nil
 	}
 
-	ds.AllSoftwareIteratorFunc = func() (fleet.SoftwareIterator, error) {
-		return &fakeSoftwareIterator{
-			softwares: []*fleet.Software{
-				{
-					ID:      1,
-					Name:    "Product",
-					Version: "1.2.3",
-					Source:  "apps",
-				},
-				{
-					ID:      2,
-					Name:    "Product2",
-					Version: "0.3",
-					Source:  "apps",
-				},
+	iterator := &fakeSoftwareIterator{
+		softwares: []*fleet.Software{
+			{
+				ID:      1,
+				Name:    "Product",
+				Version: "1.2.3",
+				Source:  "apps",
 			},
-		}, nil
+			{
+				ID:      2,
+				Name:    "Product2",
+				Version: "0.3",
+				Source:  "apps",
+			},
+		},
+	}
+
+	ds.AllSoftwareIteratorFunc = func() (fleet.SoftwareIterator, error) {
+		return iterator, nil
 	}
 
 	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
@@ -175,8 +179,5 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 		"cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*",
 		"cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*",
 	}, cpes)
-}
-
-func TestCVEDBGeneration(t *testing.T) {
-
+	assert.True(t, iterator.closed)
 }

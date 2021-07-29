@@ -37,10 +37,12 @@ type SoftwareIterator interface {
 	Next() bool
 	Value() (*Software, error)
 	Err() error
+	Close() error
 }
 
 type CPEIterator interface {
 	Next() bool
 	Value() (*CPE, error)
 	Err() error
+	Close() error
 }

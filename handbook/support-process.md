@@ -6,7 +6,7 @@ The support process is accomplished via an on-call rotation and the weekly on-ca
 
 The individual on-call is responsible for responding to Slack comments, Slack threads, and GitHub issues raised by customers and the community.
 
-The on-call retro meeting at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
+The daily standup meeting at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
 1. What went well?
 
@@ -35,6 +35,8 @@ This way, the Fleet team can constantly improve the effectiveness and experience
 - If you do not understand the question or comment raised, [request more details](#requesting-more-details) to best understand the next steps.
 
 - If an appropriate response is outside your scope, please post to `#oncall-chatter`, a confidential Slack channel in the Fleet Slack workspace.
+
+- If the comment appears to be a feature request in a customer channel, please post a link to the customer's comment in `#oncall-chatter`. This way, an individual on the Product team can collect relevant information and file a GitHub issue.
 
 - If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/).  If you aren't sure how best to respond in a positive way, or if you see behavior that violates the Fleet code of conduct, get help.
 

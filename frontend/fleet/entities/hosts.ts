@@ -6,6 +6,14 @@ interface ISortOption {
   direction: string;
 }
 
+interface IHostLoadOptions {
+  page: number;
+  perPage: number;
+  selectedLabel: string;
+  globalFilter: string;
+  sortBy: ISortOption[];
+}
+
 export default (client: any) => {
   return {
     destroy: (host: IHost) => {
@@ -30,14 +38,13 @@ export default (client: any) => {
         .authenticatedGet(endpoint)
         .then((response: any) => response.host);
     },
-    loadAll: (
-      page = 0,
-      perPage = 100,
-      selected = "",
-      globalFilter = "",
-      sortBy: ISortOption[] = []
-    ) => {
+    loadAll: (options: IHostLoadOptions | undefined) => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
+      const page = options?.page || 0;
+      const perPage = options?.perPage || 100;
+      const selectedLabel = options?.selectedLabel || "";
+      const globalFilter = options?.globalFilter || "";
+      const sortBy = options?.sortBy || [];
 
       // TODO: add this query param logic to client class
       const pagination = `page=${page}&per_page=${perPage}`;
@@ -57,20 +64,20 @@ export default (client: any) => {
 
       let endpoint = "";
       const labelPrefix = "labels/";
-      if (selected.startsWith(labelPrefix)) {
-        const lid = selected.substr(labelPrefix.length);
+      if (selectedLabel.startsWith(labelPrefix)) {
+        const lid = selectedLabel.substr(labelPrefix.length);
         endpoint = `${LABEL_HOSTS(
           parseInt(lid, 10)
         )}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
       } else {
         let selectedFilter = "";
         if (
-          selected === "new" ||
-          selected === "online" ||
-          selected === "offline" ||
-          selected === "mia"
+          selectedLabel === "new" ||
+          selectedLabel === "online" ||
+          selectedLabel === "offline" ||
+          selectedLabel === "mia"
         ) {
-          selectedFilter = `&status=${selected}`;
+          selectedFilter = `&status=${selectedLabel}`;
         }
         endpoint = `${HOSTS}?${pagination}${selectedFilter}${searchQuery}${orderKeyParam}${orderDirection}`;
       }

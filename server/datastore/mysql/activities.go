@@ -29,7 +29,7 @@ func (d *Datastore) NewActivity(user *fleet.User, activityType string, details *
 // ListActivities returns a slice of activities performed across the organization
 func (d *Datastore) ListActivities(opt fleet.ListOptions) ([]*fleet.Activity, error) {
 	activities := []*fleet.Activity{}
-	query := `SELECT a.id, a.user_id, a.created_at, a.activity_type, a.details, coalesce(u.name, a.user_name) as name 
+	query := `SELECT a.id, a.user_id, a.created_at, a.activity_type, a.details, coalesce(u.name, a.user_name) as name, u.gravatar_url, u.email 
 	          FROM activities a LEFT JOIN users u ON (a.user_id=u.id)
 			  WHERE true`
 	query = appendListOptionsToSQL(query, opt)

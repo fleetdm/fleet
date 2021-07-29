@@ -198,7 +198,13 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ searchQuery });
 
     dispatch(
-      getHosts(pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
+      getHosts({
+        page: pageIndex,
+        perPage: pageSize,
+        selectedLabel: selectedFilter,
+        globalFilter: searchQuery,
+        sortBy,
+      })
     );
   };
 
@@ -309,7 +315,7 @@ export class ManageHostsPage extends PureComponent {
             ? `Hosts successfully removed from teams.`
             : `Hosts successfully transferred to  ${team.name}.`;
         dispatch(renderFlash("success", successMessage));
-        dispatch(getHosts());
+        dispatch(getHosts({ selectedLabel: selectedFilter, searchQuery }));
       })
       .catch(() => {
         dispatch(
@@ -659,14 +665,15 @@ export class ManageHostsPage extends PureComponent {
         data={hosts}
         isLoading={loadingHosts}
         defaultSortHeader={"hostname"}
-        defaultSortDirection={"desc"}
+        defaultSortDirection={"asc"}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify([selectedFilter])}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
-        onSelectActionClick={onTransferToTeamClick}
+        onPrimarySelectActionClick={onTransferToTeamClick}
+        primarySelectActionButtonText={"Transfer to team"}
         onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
         emptyComponent={EmptyHosts}

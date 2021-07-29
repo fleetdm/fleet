@@ -248,9 +248,10 @@ export class UserManagementPage extends Component {
     const { toggleResetSessionsUserModal } = this;
     dispatch(userActions.deleteSessions(userEditing))
       .then(() => {
-        dispatch(renderFlash("success", "Sessions reset"));
         if (currentUser.id === userEditing.id) {
           dispatch(push(LOGIN));
+        } else {
+          dispatch(renderFlash("success", "Sessions reset"));
         }
       })
       .catch(() => {
@@ -577,7 +578,7 @@ export class UserManagementPage extends Component {
           data={tableData}
           isLoading={loadingTableData}
           defaultSortHeader={"name"}
-          defaultSortDirection={"desc"}
+          defaultSortDirection={"asc"}
           inputPlaceHolder={"Search"}
           actionButtonText={"Create user"}
           onActionButtonClick={toggleCreateUserModal}

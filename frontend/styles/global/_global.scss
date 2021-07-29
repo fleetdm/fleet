@@ -112,20 +112,20 @@ pre {
   background-color: $core-fleet-black;
   color: $core-white;
   border-radius: 4px;
-  
-  .string { 
-    color: $rainbow-green; 
+
+  .string {
+    color: $rainbow-green;
   }
-  .number { 
-    color: $rainbow-orange; 
+  .number {
+    color: $rainbow-orange;
   }
-  .boolean { 
-    color: blue; 
+  .boolean {
+    color: blue;
   }
-  .null { 
-    color: magenta; 
+  .null {
+    color: magenta;
   }
-  .key { 
-    color: $core-white; 
+  .key {
+    color: $core-white;
   }
 }

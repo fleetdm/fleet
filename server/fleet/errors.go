@@ -213,6 +213,8 @@ const (
 	ErrNoRoleNeeded = 1
 	// ErrNoOneAdminNeeded is the error number when all admins are about to be removed
 	ErrNoOneAdminNeeded = 2
+	//ErrNoUnknownTranslate is returned when an item type in the translate payload is unknown
+	ErrNoUnknownTranslate = 3
 )
 
 // NewError returns a fleet error with the code and message specified

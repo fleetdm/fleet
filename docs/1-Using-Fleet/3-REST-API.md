@@ -15,6 +15,7 @@
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
 - [Teams](#teams)
+- [Translator](#translator)
 
 ## Overview
 
@@ -2534,7 +2535,7 @@ None.
 
 ### Run live query
 
-Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+Run a live query.
 
 `POST /api/v1/fleet/queries/run`
 
@@ -5273,3 +5274,91 @@ _Available in Fleet Basic_
 ```
 
 ---
+
+## Translator
+
+### Translate IDs
+
+
+`POST /api/v1/fleet/translate`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                              |
+| --------------- | ------- | ----- | ---------------------------------------- |
+| list            | array   | body  | **Required** list of items to translate. |
+
+#### Example
+
+`POST /api/v1/fleet/translate`
+
+##### Request body
+
+```
+{
+  "list": [
+    {
+      "type": "user",
+      "payload": {
+        "identifier": "some@email.com"
+      }
+    },
+    {
+      "type": "label",
+      "payload": {
+        "identifier": "labelA"
+      }
+    },
+    {
+      "type": "team",
+      "payload": {
+        "identifier": "team1"
+      }
+    },
+    {
+      "type": "host",
+      "payload": {
+        "identifier": "host-ABC"
+      }
+    },
+  ]
+}
+```
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "list": [
+    {
+      "type": "user",
+      "payload": {
+        "identifier": "some@email.com",
+        "id": 32
+      }
+    },
+    {
+      "type": "label",
+      "payload": {
+        "identifier": "labelA",
+        "id": 1
+      }
+    },
+    {
+      "type": "team",
+      "payload": {
+        "identifier": "team1",
+        "id": 22
+      }
+    },
+    {
+      "type": "host",
+      "payload": {
+        "identifier": "host-ABC",
+        "id": 45
+      }
+    },
+  ]
+}
+```
