@@ -103,8 +103,7 @@
     padding: 0;
     padding-top: 12px;
     padding-bottom: 12px;
-    border-bottom: 1px solid @core-vibrant-blue-15;
-    border-radius: 0px;
+
     &:focus {
         box-shadow: none;
     }
@@ -117,15 +116,36 @@
     }
   }
 
-  [purpose='content'] {    
-    h1 + ul {
-      display: none; // TODO uncomment to hide links
+  [purpose='content'] {
+    h1 {
+      padding-bottom: 16px;
     }
-    
+
+    h2 {
+      font-size: 28px;
+      line-height: 36px;
+      padding-top: 24px;
+      padding-bottom: 24px;
+    }
+
+    h3 {
+      font-size: 24px;
+      line-height: 28px;
+      padding-top: 24px;
+      padding-bottom: 24px;
+      margin-bottom: 0px;
+    }
+
     img {
       display: flex;
       width: 100%;
       height: auto;
+      padding-top: 24px;
+      padding-bottom: 24px;
+    }
+
+    h1 + ul {
+      display: none; // Hides links at top of some markdown files
     }
 
   }
@@ -136,25 +156,127 @@
         padding-left: 8px;
       }
     }
+
     .subtopic {
       color: @core-fleet-black;
       padding-top: 4px;
       padding-bottom: 4px;
       border-left: 1px solid @core-vibrant-blue-25;
-      .active {
-        position: absolute;
-        height: 32px;
-        transform: translate(-2px, -4px);
-        border-left: 3px solid @core-vibrant-blue;
-        border-radius: 2px;
+
+      a {
+        color: @core-fleet-black;
       }
+      // .active {
+      //   color: @core-vibrant-blue;
+      //   position: absolute;
+      //   height: 32px;
+      //   transform: translate(-2px, -4px);
+      //   border-left: 3px solid @core-vibrant-blue;
+      //   border-radius: 2px;
+      //   a {
+      //     color: @core-vibrant-blue;
+      //   }
+      // }
     }
     .input-group {
       min-width: 400px;
     }
   }
+
+  // Placeholder style for code blocks
+  pre {
+    color: @core-fleet-black-50;
+    background: @ui-off-white;
+    padding: 12px;
+    border: 1px solid @core-fleet-black-25;
+    border-radius: 4px;
+  }
+
+  // TODO get Mike T input/style guide for code blocks; below is example of styles from sailsjs.com
+
+  /*
+
+    Monokai Sublime style. Derived from Monokai by noformnocontent http://nn.mit-license.org/
+
+  */
+
+  // .hljs {
+  //   background: #23241f;
+  // }
+
+  // .hljs,
+  // .hljs-tag,
+  // .hljs-built_in,
+  // .hljs-subst {
+  //   color: #f8f8f2;
+  // }
+
+  // .hljs-strong,
+  // .hljs-emphasis {
+  //   color: #a8a8a2;
+  // }
+
+  // .hljs-bullet,
+  // .hljs-quote,
+  // .hljs-number,
+  // .hljs-regexp,
+  // .hljs-literal,
+  // .hljs-link {
+  //   color: #ae81ff;
+  // }
+
+  // .hljs-code,
+  // .hljs-title,
+  // .hljs-section,
+  // .hljs-selector-class {
+  //   color: #a6e22e;
+  // }
+
+  // .hljs-strong {
+  //   font-weight: bold;
+  // }
+
+  // .hljs-emphasis {
+  //   font-style: italic;
+  // }
+
+  // .hljs-keyword,
+  // .hljs-selector-tag,
+  // .hljs-name {
+  //   color: #f92672;
+  // }
+
+  // .hljs-symbol,
+  // .hljs-attribute,
+  // .hljs-function-keyword {
+  //   color: #66d9ef;
+  // }
+
+  // .hljs-attr,
+  // .hljs-class .hljs-title {
+  //   color: #f8f8f2;
+  // }
+
+  // .hljs-params {
+  //   color: #fd9720;
+  // }
+
+  // .hljs-string,
+  // .hljs-type,
+  // .hljs-builtin-name,
+  // .hljs-selector-id,
+  // .hljs-selector-attr,
+  // .hljs-selector-pseudo,
+  // .hljs-addition,
+  // .hljs-variable,
+  // .hljs-template-variable {
+  //   color: #e6db74;
+  // }
+
+  // .hljs-comment,
+  // .hljs-deletion,
+  // .hljs-meta {
+  //   color: #75715e;
+  // }
+
 }
-
-
-
-

@@ -48,14 +48,15 @@
               <img style="width: 9px; height: 6px;" class="ml-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
             </button>  
           </div>
-          <div class="d-flex px-0 mobile-docs-nav" v-if="showDocsNav">
-            <div class="container-fluid px-0 py-4">
-              <ul class="px-0">
+          <div class="border-bottom" v-if="!showDocsNav"></div>
+          <div class="d-flex px-0 border-bottom mobile-docs-nav" v-if="showDocsNav">
+            <div class="container-fluid px-0 pt-4">
+              <ul class="px-0 mb-0">
                 <li class="px-0 mb-2" v-for="page in getPagesBySectionSlug()" :key="getTitle(page)">
                   <a :href="page.url" class="font-weight-bold">
                     {{getTitle(page)}}
                   </a>
-                  <ul class="px-0 pt-3" v-if="getPagesBySectionSlug(_.last(page.url.split('/'))).length">
+                  <ul class="px-0 pt-3 mb-0" v-if="getPagesBySectionSlug(_.last(page.url.split('/'))).length">
                     <li class="px-0 mb-2" v-for="subpage in getPagesBySectionSlug(_.last(page.url.split('/')))">
                       <a :href="subpage.url" :class="getTitle(subpage) === getTitle(thisPage) ? 'topic active' : 'topic'">
                         {{getTitle(subpage)}}
@@ -94,21 +95,27 @@
   
         <div purpose="right-sidebar" style="min-width: 170px; max-width: 210px;" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar">
           
-          <h6 class="font-weight-bold pb-2 m-0 mb-2">On this page:</h6>
+          <h6 class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</h6>
           <div class="subtopics">
             <ul class="p-0">
-              <li class="subtopic" v-for="(subtopic, index) in subtopics" :key="index" v-html="subtopic">
-                <!-- <div class="d-none d-lg-block active" v-if="index === 0"></div>
-                <p class="pl-lg-2 m-0">{{subtopic}}</p> -->
+              <!-- <li v-for="(subtopic, index) in subtopics" :class="pl-lg-2 pb-3 pb-1g-2 subtopic" :key="index">
+                <a :class="getActiveSubtopicClass(currentLocation, subtopic.url)" :href="subtopic.url">{{subtopic.title}}</a>
+              </li> -->
+              <li v-for="(subtopic, index) in subtopics" class="pl-lg-2 pb-3 pb-lg-2 subtopic" :key="index">
+                <a :href="subtopic.url">{{subtopic.title}}</a>
               </li>
-              <li class="d-lg-none subtopic">Help and feedback</li>
+              <li class="d-lg-none pl-lg-2 subtopic">
+                <a href="/support">Help and feedback</a>
+              </li>
             </ul>
           </div>
           
-          <h6 class="d-none d-lg-block font-weight-bold py-2">Related topics</h6>
-          <ul class="d-none d-lg-block p-0">
-            <li v-for="(relatedTopic, index) in relatedTopics" :key="index">{{relatedTopic}}</li>
-          </ul>
+          <!-- <div v-if="!_.isEmpty(relatedTopics)">
+            <h6 class="d-none d-lg-block font-weight-bold py-2">Related topics</h6>
+            <ul class="d-none d-lg-block p-0">
+              <li v-for="(relatedTopic, index) in relatedTopics" :key="index">{{relatedTopic}}</li>
+            </ul>
+          </div> -->
   
         </div>
 
