@@ -372,7 +372,7 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 	case "stdout":
 		logging.Status = fleet.LoggingPlugin{Plugin: "stdout"}
 	default:
-		return nil, errors.Errorf("unrecognized logging plugin: %+x", logging.Status)
+		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.StatusLogPlugin)
 	}
 
 	switch conf.Osquery.ResultLogPlugin {
@@ -418,7 +418,7 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 			Plugin: "stdout",
 		}
 	default:
-		return nil, errors.Errorf("unrecognized logging plugin: %+x", logging.Result)
+		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.ResultLogPlugin)
 
 	}
 	return logging, nil
