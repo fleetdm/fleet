@@ -1,10 +1,5 @@
 import endpoints from "fleet/endpoints";
-import { IHost } from "interfaces/host";
-
-interface ISortOption {
-  id: number;
-  direction: string;
-}
+import { IHost, IHostLoadOptions } from "interfaces/host";
 
 export default (client: any) => {
   return {
@@ -30,13 +25,13 @@ export default (client: any) => {
         .authenticatedGet(endpoint)
         .then((response: any) => response.host);
     },
-    loadAll: (
+    loadAll: ({
       page = 0,
       perPage = 100,
-      selected = "",
+      selectedLabel = "",
       globalFilter = "",
-      sortBy: ISortOption[] = []
-    ) => {
+      sortBy = [],
+    }: IHostLoadOptions) => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
 
       // TODO: add this query param logic to client class
@@ -57,20 +52,20 @@ export default (client: any) => {
 
       let endpoint = "";
       const labelPrefix = "labels/";
-      if (selected.startsWith(labelPrefix)) {
-        const lid = selected.substr(labelPrefix.length);
+      if (selectedLabel.startsWith(labelPrefix)) {
+        const lid = selectedLabel.substr(labelPrefix.length);
         endpoint = `${LABEL_HOSTS(
           parseInt(lid, 10)
         )}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
       } else {
         let selectedFilter = "";
         if (
-          selected === "new" ||
-          selected === "online" ||
-          selected === "offline" ||
-          selected === "mia"
+          selectedLabel === "new" ||
+          selectedLabel === "online" ||
+          selectedLabel === "offline" ||
+          selectedLabel === "mia"
         ) {
-          selectedFilter = `&status=${selected}`;
+          selectedFilter = `&status=${selectedLabel}`;
         }
         endpoint = `${HOSTS}?${pagination}${selectedFilter}${searchQuery}${orderKeyParam}${orderDirection}`;
       }
