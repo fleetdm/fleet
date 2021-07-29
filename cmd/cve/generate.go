@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 
@@ -13,7 +12,6 @@ import (
 
 	"github.com/facebookincubator/flog"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -88,9 +86,9 @@ func main() {
 	}
 
 	fmt.Println("Generating DB...")
-	dbPath := path.Join(cwd, "cve.sqlite")
-	err = vulnerabilities.GenerateCVEDB(dbPath, readers...)
-	panicif(err)
+	//dbPath := path.Join(cwd, "cve.sqlite")
+	//err = vulnerabilities.GenerateCVEDB(dbPath, readers...)
+	//panicif(err)
 
 	// build an Index which is cpe.Product->CVEs, then match with that dict
 	// so maybe we can build a sql db that reflects this index for all years

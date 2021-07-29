@@ -295,6 +295,10 @@ func (si *cpeIterator) Next() bool {
 	return si.rows.Next()
 }
 
+func (si *cpeIterator) Close() error {
+	return si.rows.Close()
+}
+
 func (d *Datastore) CPEIterator() (fleet.CPEIterator, error) {
 	sql := `SELECT cpe FROM software_cpe`
 	rows, err := d.db.Queryx(sql)

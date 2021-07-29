@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/facebookincubator/nvdtools/cpedict"
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd"
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -160,4 +158,3 @@ func bulkInsertCPEs(cpesCount int, db *sqlx.DB, allCPEs []interface{}) error {
 	)
 	return err
 }
-
