@@ -33,7 +33,7 @@ parasails.registerPage('basic-documentation', {
       this.isDocsLandingPage = true;
     }
 
-    this.breadcrumbs = _.trim(this.thisPage.url, '/').split('/');
+    this.breadcrumbs = _.trim(this.thisPage.url, /\//).split(/\//);
 
     this.pages = _.sortBy(this.markdownPages, 'htmlId');
 
@@ -55,7 +55,7 @@ parasails.registerPage('basic-documentation', {
             // does not appropriately handle double-digit strings
             try {
               // attempt to split htmlId and parse out its ordinal value (e.g., `docs--10-teams--xxxxxxxxxx`)
-              let sortValue = page.htmlId.split('--')[1].split('-')[0];
+              let sortValue = page.htmlId.split(/--/)[1].split(/-/)[0];
               return parseInt(sortValue) || sortValue;
             } catch (error) {
               // something unexpected happened so just return the htmlId and continue sort
@@ -157,7 +157,7 @@ parasails.registerPage('basic-documentation', {
   methods: {
 
     isCurrentSection: function (section) {
-      if (_.trim(this.thisPage.url, ('/')).split('/').includes(_.last(_.trimRight(section.url, ('/')).split('/')))) {
+      if (_.trim(this.thisPage.url, (/\//)).split(/\//).includes(_.last(_.trimRight(section.url, (/\//)).split(/\//)))) {
         return true;
       }
       return false;
@@ -167,23 +167,23 @@ parasails.registerPage('basic-documentation', {
       let slug;
       // if no url is passed, use the base url as the slug (e.g., 'docs' or 'handbook')
       if (!url) {
-        slug = _.trim(this.thisPage.url, '/').split('/')[0];
+        slug = _.trim(this.thisPage.url, /\//).split(/\//)[0];
       } else {
-        slug = _.last(url.split('/'));
+        slug = _.last(url.split(/\//));
       }
 
       return this.pagesBySectionSlug[slug];
     },
 
     getActiveSubtopicClass: function (currentLocation, url) {
-      return _.last(currentLocation.split('#')) === _.last(url.split('#')) ? 'active' : '';
+      return _.last(currentLocation.split(/#/)) === _.last(url.split(/#/)) ? 'active' : '';
     },
 
     getTitleFromUrl: function (url) {
       return _
-        .chain(url.split('/'))
+        .chain(url.split(/\//))
         .last()
-        .split('-')
+        .split(/-/)
         .map((str) => str === 'fleet' ? 'Fleet' : str)
         .join(' ')
         .capitalize()
