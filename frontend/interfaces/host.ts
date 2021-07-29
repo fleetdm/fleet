@@ -35,17 +35,4 @@ export interface IHost {
   uuid: string;
   seen_time: string;
   users: IHostUser[];
-};
-
-interface ISortOption {
-  id: number;
-  direction: string;
 }
-
-export interface IHostLoadOptions {
-  page: number,
-  perPage: number,
-  selectedLabel: string,
-  globalFilter: string,
-  sortBy: ISortOption[],
-};

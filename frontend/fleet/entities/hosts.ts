@@ -1,5 +1,18 @@
 import endpoints from "fleet/endpoints";
-import { IHost, IHostLoadOptions } from "interfaces/host";
+import { IHost } from "interfaces/host";
+
+interface ISortOption {
+  id: number;
+  direction: string;
+}
+
+interface IHostLoadOptions {
+  page: number;
+  perPage: number;
+  selectedLabel: string;
+  globalFilter: string;
+  sortBy: ISortOption[];
+}
 
 export default (client: any) => {
   return {
@@ -25,14 +38,13 @@ export default (client: any) => {
         .authenticatedGet(endpoint)
         .then((response: any) => response.host);
     },
-    loadAll: ({
-      page = 0,
-      perPage = 100,
-      selectedLabel = "",
-      globalFilter = "",
-      sortBy = [],
-    }: IHostLoadOptions) => {
+    loadAll: (options: IHostLoadOptions | undefined) => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
+      const page = options?.page || 0;
+      const perPage = options?.perPage || 100;
+      const selectedLabel = options?.selectedLabel || "";
+      const globalFilter = options?.globalFilter || "";
+      const sortBy = options?.sortBy || [];
 
       // TODO: add this query param logic to client class
       const pagination = `page=${page}&per_page=${perPage}`;
