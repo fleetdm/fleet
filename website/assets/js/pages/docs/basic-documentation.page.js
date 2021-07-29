@@ -4,7 +4,7 @@ parasails.registerPage('basic-documentation', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
 
-    isLandingPage: false,
+    isDocsLandingPage: false,
 
     inputTextValue: '',
     inputTimers: {},
@@ -15,6 +15,8 @@ parasails.registerPage('basic-documentation', {
     pages: [],
     pagesBySectionSlug: {},
 
+
+    docsTree: [],
     subtopics: [],
     relatedTopics: [],
 
@@ -30,52 +32,82 @@ parasails.registerPage('basic-documentation', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
-  },
+    if (this.thisPage.url === '/docs') {
+      this.isDocsLandingPage = true;
+    }
 
-  mounted: async function() {
     this.breadcrumbs = _.trim(this.thisPage.url, '/').split('/');
 
     this.pages = _.sortBy(this.markdownPages, 'htmlId');
+    
+    this.pagesBySectionSlug = (() => {
+      const DOCS_SLUGS = ['using-fleet', 'deploying', 'contributing'];
 
-    let sections = _.uniq(_.pluck(this.pages, 'url').map((url) => url.split(/\//).slice(-2)[0]));
+      let sectionSlugs = _.uniq(_.pluck(this.pages, 'url').map((url) => url.split(/\//).slice(-2)[0]));
 
-    for (let sectionSlug of sections) {
-      this.pagesBySectionSlug[sectionSlug] = _
-        .chain(this.pages)
-        .filter((page) => {
-          return sectionSlug === page.url.split(/\//).slice(-2)[0];
-        })
-        .sortBy((page) => {
-          // custom sort function is needed because simple sort of alphanumeric htmlIds strings
-          // does not appropriately handle double-digit strings
-          try {
-            // attempt to split htmlId and parse out its ordinal value (e.g., `docs--10-teams--xxxxxxxxxx`)
-            let sortValue = page.htmlId.split('--')[1].split('-')[0];
-            return parseInt(sortValue) || sortValue;
-          } catch (error) {
-            // something unexpected happened so just return the htmlId and continue sort
-            console.log(error);
-            return page.htmlId;
-          }
-        })
-        .value();
-    }
-    console.log('pagesBySectionSlug: ', this.pagesBySectionSlug);
+      let pagesBySectionSlug = {};
+
+      for (let sectionSlug of sectionSlugs) {
+        pagesBySectionSlug[sectionSlug] = _
+          .chain(this.pages)
+          .filter((page) => {
+            return sectionSlug === page.url.split(/\//).slice(-2)[0];
+          })
+          .sortBy((page) => {
+            // custom sort function is needed because simple sort of alphanumeric htmlIds strings
+            // does not appropriately handle double-digit strings
+            try {
+              // attempt to split htmlId and parse out its ordinal value (e.g., `docs--10-teams--xxxxxxxxxx`)
+              let sortValue = page.htmlId.split('--')[1].split('-')[0];
+              return parseInt(sortValue) || sortValue;
+            } catch (error) {
+              // something unexpected happened so just return the htmlId and continue sort
+              console.log(error);
+              return page.htmlId;
+            }
+          })
+          .value();
+
+      }
+
+      // We need to re-sort the top-level sections because their htmlIds do not reflect the correct order
+      pagesBySectionSlug['docs'] = DOCS_SLUGS.map((slug) => {
+        return pagesBySectionSlug['docs'].find((page) => slug === _.kebabCase(page.title));
+      });
+
+      // We need to move any FAQs to the end of its array
+      for (let slug of DOCS_SLUGS) {
+        let pages = pagesBySectionSlug[slug];
+        let index = pages.findIndex((page) => page.title === 'FAQ');
+        if (index === -1 || index === pages.length - 1) {
+          break;
+        } else {
+          let removedPage = _.pullAt(pages, index);
+          pages.push(...removedPage);
+          pagesBySectionSlug[slug] = pages;
+        }
+      }
+
+      return pagesBySectionSlug;
+    })();
+  },
+
+  mounted: async function() {
+    
+
+
+    
+    // this.docsTree = DOCS_SLUGS.map((slug) => {
+    //   return { 
+    //     section: slug, 
+    //     subsections: this.pagesBySectionSlug[slug],
+    //   };
+    // });
 
     // // Alternative jQuery approach to grab `on this page` links from top of markdown files
     // let subtopics = $('#body-content').find('h1 + ul').children().map((_, el) => el.innerHTML);
     // subtopics = $.makeArray(subtopics);
     // console.log(subtopics);
-
-    let subtopicsList = $('#body-content').find('h2').map((_, el) => el.innerHTML);
-    this.subtopics = $.makeArray(subtopicsList).map((title) => {
-      return {
-        title,
-        url: '#' + _.kebabCase(title),
-      };
-    });
-
 
     // https://github.com/sailshq/sailsjs.com/blob/7a74d4901dcc1e63080b502492b03fc971d3d3b2/assets/js/functions/sails-website-actions.js#L177-L239
     (function highlightThatSyntax(){
@@ -129,10 +161,20 @@ parasails.registerPage('basic-documentation', {
 
     isCurrentSection: function (section) {
       if (_.trim(this.thisPage.url, ('/')).split('/').includes(_.last(_.trimRight(section.url, ('/')).split('/')))) {
-        console.log('isCurrentSection: ', section);
         return true;
       }
       return false;
+    },
+
+    getSubtopics: function () {
+      let subtopics = $('#body-content').find('h2').map((_, el) => el.innerHTML);
+      subtopics = $.makeArray(subtopics).map((title) => {
+        return {
+          title,
+          url: '#' + _.kebabCase(title),
+        };
+      });
+      return subtopics;
     },
 
     getActiveSubtopicClass: function (currentLocation, url) {
@@ -143,25 +185,27 @@ parasails.registerPage('basic-documentation', {
       return this.pages.find((page) => page.url === url);
     },
 
-    getPagesBySectionSlug: function (slug='') {
-      if (!slug) {
+    findPagesByUrl: function (url='') {
+      let slug;
+      // if no url is passed, use the base url as the slug (e.g., 'docs' or 'handbook')
+      if (!url) {
         slug = _.trim(this.thisPage.url, '/').split('/')[0];
+      } else {
+        slug = _.last(url.split('/'));
       }
+
       return this.pagesBySectionSlug[slug];
     },
 
-    // TODO remove this after MM fixes titles for readmes in build script
-    getTitle: function (page) {
-      if (page.title && page.title === 'README') {
-        return _.chain(page.url.split('/'))
-          .last()
-          .split('-')
-          .map((str) => str === 'fleet' ? 'Fleet' : str)
-          .join(' ')
-          .capitalize()
-          .value();
-      }
-      return page.title;
+    getTitleFromUrl: function (url) {
+      return _
+        .chain(url.split('/'))
+        .last()
+        .split('-')
+        .map((str) => str === 'fleet' ? 'Fleet' : str)
+        .join(' ')
+        .capitalize()
+        .value();
     },
 
     toggleDocsNav: function () {
