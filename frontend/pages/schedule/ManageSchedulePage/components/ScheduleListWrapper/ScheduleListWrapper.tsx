@@ -23,6 +23,7 @@ interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[];
   toggleScheduleEditorModal: any;
+  toggleRemoveScheduledQueryModal: any;
 }
 interface IRootState {
   entities: {
@@ -38,6 +39,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     onRemoveScheduledQueryClick,
     allGlobalScheduledQueriesList,
     toggleScheduleEditorModal,
+    toggleRemoveScheduledQueryModal,
   } = props;
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -77,7 +79,22 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     );
   };
 
-  const tableHeaders = generateTableHeaders();
+  const onActionSelection = (
+    action: string,
+    global_scheduled_query: IGlobalScheduledQuery
+  ): void => {
+    switch (action) {
+      case "edit":
+        toggleScheduleEditorModal();
+        break;
+      case "remove":
+        toggleRemoveScheduledQueryModal();
+        break;
+      default:
+    }
+  };
+
+  const tableHeaders = generateTableHeaders(onActionSelection);
   const loadingTableData = useSelector(
     (state: IRootState) => state.entities.global_scheduled_queries.isLoading
   );

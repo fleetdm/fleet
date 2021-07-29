@@ -24,7 +24,8 @@ const renderTable = (
   onRemoveScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[],
   allGlobalScheduledQueriesError: any,
-  toggleScheduleEditorModal: () => void
+  toggleScheduleEditorModal: () => void,
+  toggleRemoveScheduledQueryModal: () => void
 ): JSX.Element => {
   if (Object.keys(allGlobalScheduledQueriesError).length !== 0) {
     return <ScheduleError />;
@@ -35,6 +36,7 @@ const renderTable = (
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       allGlobalScheduledQueriesList={allGlobalScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
+      toggleRemoveScheduledQueryModal={toggleRemoveScheduledQueryModal}
     />
   );
 };
@@ -196,7 +198,8 @@ const ManageSchedulePage = (): JSX.Element => {
             onRemoveScheduledQueryClick,
             allGlobalScheduledQueriesList,
             allGlobalScheduledQueriesError,
-            toggleScheduleEditorModal
+            toggleScheduleEditorModal,
+            toggleRemoveScheduledQueryModal
           )}
         </div>
         {showScheduleEditorModal && (

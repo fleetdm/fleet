@@ -43,7 +43,12 @@ interface IDataColumn {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
+const generateTableHeaders = (
+  actionSelectHandler: (
+    value: string,
+    global_scheduled_query: IGlobalScheduledQuery
+  ) => void
+): IDataColumn[] => {
   return [
     {
       id: "selection",
@@ -100,6 +105,22 @@ const generateTableHeaders = (): IDataColumn[] => {
       ),
     },
   ];
+};
+
+const generateActionDropdownOptions = (): IDropdownOption[] => {
+  const dropdownOptions = [
+    {
+      label: "Edit",
+      disabled: false,
+      value: "edit",
+    },
+    {
+      label: "Remove",
+      disabled: false,
+      value: "remove",
+    },
+  ];
+  return dropdownOptions;
 };
 
 export default generateTableHeaders;
