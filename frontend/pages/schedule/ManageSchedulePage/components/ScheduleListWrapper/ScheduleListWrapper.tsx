@@ -21,6 +21,7 @@ const noScheduleClass = "no-schedule";
 
 interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
+  onEditScheduledQueryClick: (tableQuery: any) => any;
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[];
   toggleScheduleEditorModal: any;
 }
@@ -38,6 +39,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     onRemoveScheduledQueryClick,
     allGlobalScheduledQueriesList,
     toggleScheduleEditorModal,
+    onEditScheduledQueryClick,
   } = props;
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -84,7 +86,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     console.log(global_scheduled_query);
     switch (action) {
       case "edit":
-        toggleScheduleEditorModal();
+        onEditScheduledQueryClick(global_scheduled_query);
         break;
       case "remove":
         onRemoveScheduledQueryClick([global_scheduled_query.id]);

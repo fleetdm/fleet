@@ -24,7 +24,8 @@ const renderTable = (
   onRemoveScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[],
   allGlobalScheduledQueriesError: any,
-  toggleScheduleEditorModal: () => void
+  toggleScheduleEditorModal: () => void,
+  onEditScheduledQueryClick: (tableQuery: any) => any
 ): JSX.Element => {
   if (Object.keys(allGlobalScheduledQueriesError).length !== 0) {
     return <ScheduleError />;
@@ -35,6 +36,7 @@ const renderTable = (
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       allGlobalScheduledQueriesList={allGlobalScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
+      onEditScheduledQueryClick={onEditScheduledQueryClick}
     />
   );
 };
@@ -89,6 +91,10 @@ const ManageSchedulePage = (): JSX.Element => {
     setShowRemoveScheduledQueryModal,
   ] = useState(false);
   const [selectedQueryIds, setSelectedQueryIds] = useState([]);
+  const [
+    selectedScheduledQuery,
+    setSelectedScheduledQuery,
+  ] = useState<IGlobalScheduledQuery>();
 
   const toggleScheduleEditorModal = useCallback(() => {
     setShowScheduleEditorModal(!showScheduleEditorModal);
@@ -97,6 +103,11 @@ const ManageSchedulePage = (): JSX.Element => {
   const toggleRemoveScheduledQueryModal = useCallback(() => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
+
+  const onEditScheduledQueryClick = (tableQuery: any): any => {
+    toggleScheduleEditorModal();
+    setSelectedScheduledQuery(tableQuery);
+  };
 
   const onRemoveScheduledQueryClick = (selectedTableQueryIds: any) => {
     toggleRemoveScheduledQueryModal();
@@ -196,6 +207,7 @@ const ManageSchedulePage = (): JSX.Element => {
             onRemoveScheduledQueryClick,
             allGlobalScheduledQueriesList,
             allGlobalScheduledQueriesError,
+            onEditScheduledQueryClick,
             toggleScheduleEditorModal
           )}
         </div>
@@ -204,6 +216,7 @@ const ManageSchedulePage = (): JSX.Element => {
             onCancel={toggleScheduleEditorModal}
             onScheduleSubmit={onAddScheduledQuerySubmit}
             allQueries={allQueriesList}
+            selectedScheduledQuery={selectedScheduledQuery}
           />
         )}
         {showRemoveScheduledQueryModal && (
