@@ -12,7 +12,7 @@ import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
-import generateTableHeaders from "./ScheduleTableConfig";
+import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
 // @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/schedule.svg";
 
@@ -23,7 +23,6 @@ interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[];
   toggleScheduleEditorModal: any;
-  toggleRemoveScheduledQueryModal: any;
 }
 interface IRootState {
   entities: {
@@ -39,7 +38,6 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     onRemoveScheduledQueryClick,
     allGlobalScheduledQueriesList,
     toggleScheduleEditorModal,
-    toggleRemoveScheduledQueryModal,
   } = props;
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -83,12 +81,13 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     action: string,
     global_scheduled_query: IGlobalScheduledQuery
   ): void => {
+    console.log(global_scheduled_query);
     switch (action) {
       case "edit":
         toggleScheduleEditorModal();
         break;
       case "remove":
-        toggleRemoveScheduledQueryModal();
+        onRemoveScheduledQueryClick([global_scheduled_query.id]);
         break;
       default:
     }
@@ -119,7 +118,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={allGlobalScheduledQueriesList}
+        data={generateDataSet(allGlobalScheduledQueriesList)}
         isLoading={loadingTableData}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}

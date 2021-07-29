@@ -36,6 +36,7 @@ interface IScheduleEditorModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
   onScheduleSubmit: (formData: IFormData) => void;
+  defaultGlobalScheduledQuery?: IGlobalScheduledQuery;
 }
 interface INoQueryOption {
   id: number;
@@ -46,6 +47,7 @@ const ScheduleEditorModal = ({
   onCancel,
   onScheduleSubmit,
   allQueries,
+  defaultGlobalScheduledQuery,
 }: IScheduleEditorModalProps): JSX.Element => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false

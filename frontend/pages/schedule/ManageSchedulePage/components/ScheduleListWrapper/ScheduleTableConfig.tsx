@@ -40,6 +40,13 @@ interface IDataColumn {
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
+interface IGlobalScheduledQueryTableData {
+  query_name: string;
+  interval: number;
+  actions: IDropdownOption[];
+  id: number;
+  type: string;
+}
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -123,4 +130,24 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   return dropdownOptions;
 };
 
-export default generateTableHeaders;
+const enhanceGlobalScheduledQueryData = (
+  global_scheduled_queries: IGlobalScheduledQuery[]
+): IGlobalScheduledQueryTableData[] => {
+  return global_scheduled_queries.map((global_scheduled_query) => {
+    return {
+      query_name: global_scheduled_query.name,
+      interval: global_scheduled_query.interval,
+      actions: generateActionDropdownOptions(),
+      id: global_scheduled_query.id,
+      type: "global_scheduled_query",
+    };
+  });
+};
+
+const generateDataSet = (
+  global_scheduled_queries: IGlobalScheduledQuery[]
+): IGlobalScheduledQueryTableData[] => {
+  return [...enhanceGlobalScheduledQueryData(global_scheduled_queries)];
+};
+
+export { generateTableHeaders, generateDataSet };
