@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/go-github/v37/github"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -122,7 +123,7 @@ func cleanAppName(appName string) string {
 	return strings.TrimSuffix(appName, ".app")
 }
 
-func CPEFromSoftware(dbPath string, software *fleet.Software) (string, error) {
+func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	targetSW := ""
 	switch software.Source {
 	case "apps":
@@ -147,11 +148,6 @@ func CPEFromSoftware(dbPath string, software *fleet.Software) (string, error) {
 	case "chocolatey_packages":
 	}
 
-	db, err := sqliteDB(dbPath)
-	if err != nil {
-		return "", errors.Wrap(err, "opening the cpe db")
-	}
-
 	checkTargetSW := ""
 	args := []interface{}{cleanAppName(software.Name)}
 	if targetSW != "" {
@@ -167,7 +163,7 @@ func CPEFromSoftware(dbPath string, software *fleet.Software) (string, error) {
 		checkTargetSW,
 	)
 	var indexedCPEs []IndexedCPEItem
-	err = db.Select(&indexedCPEs, query, args...)
+	err := db.Select(&indexedCPEs, query, args...)
 	if err != nil {
 		return "", errors.Wrap(err, "getting cpes")
 	}
@@ -224,15 +220,18 @@ func TranslateSoftwareToCPE(ds fleet.Datastore) error {
 		return err
 	}
 
-	// TODO: move the db open here so that we don't open with every software
-	// TODO: consider doing this in parallel
+	db, err := sqliteDB(dbPath)
+	if err != nil {
+		return errors.Wrap(err, "opening the cpe db")
+	}
+	defer db.Close()
 
 	for iterator.Next() {
 		software, err := iterator.Value()
 		if err != nil {
 			return err
 		}
-		cpe, err := CPEFromSoftware(dbPath, software)
+		cpe, err := CPEFromSoftware(db, software)
 		if err != nil {
 			return err
 		}

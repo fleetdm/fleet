@@ -8,11 +8,13 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+
 	"time"
 
 	"github.com/facebookincubator/flog"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func panicif(err error) {
@@ -43,8 +45,7 @@ func main() {
 
 	fmt.Println("Downloading feeds...")
 
-	var cvefeed nvd.CVE
-	cvefeed = nvd.SupportedCVE["cve-1.1.json.gz"]
+	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
 
 	source := nvd.NewSourceConfig()
 	localdir, err := os.Getwd()
@@ -56,7 +57,7 @@ func main() {
 	flog.Infof("Using http User-Agent: %s", nvd.UserAgent())
 
 	dfs := nvd.Sync{
-		Feeds:    []nvd.Syncer{cvefeed},
+		Feeds:    []nvd.Syncer{cve},
 		Source:   source,
 		LocalDir: localdir,
 	}
@@ -68,7 +69,6 @@ func main() {
 		flog.Fatal(err)
 	}
 
-	var readers []io.Reader
 	var files []string
 	err = filepath.Walk(cwd, func(path string, info os.FileInfo, err error) error {
 		if match, err := regexp.MatchString("nvdcve-1.1-.*.gz$", path); !match || err != nil {
@@ -79,6 +79,7 @@ func main() {
 	})
 	panicif(err)
 
+	var readers []io.Reader
 	for _, path := range files {
 		reader, err := os.Open(path)
 		panicif(err)
@@ -117,5 +118,130 @@ func main() {
 	//file.WriteString(fmt.Sprintf(`ETAG=%s`, remoteEtag))
 	//file.Close()
 
-	fmt.Println("Done.")
+	////////////////////////////////////////////////////////////
+
+	//db, err := sqlx.Open("sqlite3", "./cpe.sqlite")
+	//panicif(err)
+	//var cpeList []string
+	//err = db.Select(&cpeList, `SELECT cpe23 FROM cpe limit 500000`)
+	//panicif(err)
+	//
+	//start := time.Now()
+	//
+	//f, err := os.Create("trace.out")
+	//panicif(err)
+	//defer f.Close()
+	//err = trace.Start(f)
+	//panicif(err)
+	//defer trace.Stop()
+	////f, err := os.Create("cpu.profile")
+	////panicif(err)
+	////defer f.Close()
+	////err = pprof.StartCPUProfile(f)
+	////panicif(err)
+	////defer pprof.StopCPUProfile()
+	//
+	//cpes := make([]*wfn.Attributes, 0, len(cpeList))
+	//for _, uri := range cpeList {
+	//	attr, err := wfn.Parse(uri)
+	//	panicif(err)
+	//	cpes = append(cpes, attr)
+	//}
+	//
+	//dict, err := cvefeed.LoadJSONDictionary(files...)
+	//panicif(err)
+	//cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(0)
+	//cache.Idx = cvefeed.NewIndex(dict)
+	//
+	//cveMatches := make(map[string][]string)
+	//type cveMatch struct {
+	//	cve     string
+	//	matches []string
+	//}
+	//
+	//cancelCtx, cancelFunc := context.WithCancel(context.Background())
+	//cpeCh := make(chan *wfn.Attributes)
+	//matchesCh := make(chan cveMatch)
+	//
+	//cpeCount := 0
+	//mu := sync.Mutex{}
+	//total := 500000
+	//
+	//for i := 0; i < 4; i++ {
+	//	go func() {
+	//		for {
+	//			select {
+	//			case cpe := <-cpeCh:
+	//
+	//				for _, matches := range cache.Get([]*wfn.Attributes{cpe}) {
+	//					ml := len(matches.CPEs)
+	//					matchingCPEs := make([]string, ml)
+	//					for i, attr := range matches.CPEs {
+	//						if attr == nil {
+	//							flog.Errorf("%s matches nil CPE", matches.CVE.ID())
+	//							continue
+	//						}
+	//						matchingCPEs[i] = (*wfn.Attributes)(attr).BindToURI()
+	//					}
+	//					matchesCh <- cveMatch{cve: matches.CVE.ID(), matches: matchingCPEs}
+	//				}
+	//				mu.Lock()
+	//				cpeCount++
+	//				if cpeCount >= total {
+	//					cancelFunc()
+	//				}
+	//				mu.Unlock()
+	//			case <-cancelCtx.Done():
+	//				fmt.Println("Done wfn processing, returning...")
+	//				return
+	//			}
+	//		}
+	//	}()
+	//}
+	//go func() {
+	//	for {
+	//		select {
+	//		case match := <-matchesCh:
+	//			cveMatches[match.cve] = match.matches
+	//		case <-cancelCtx.Done():
+	//			fmt.Println("Done collecting matches, returning...")
+	//			return
+	//		}
+	//	}
+	//}()
+	//
+	//fmt.Println("Starting pushing cpes")
+	//
+	//for _, cpe := range cpes {
+	//	cpeCh <- cpe
+	//}
+	//
+	//fmt.Println("Done pushing cpes")
+	//
+	//<-cancelCtx.Done()
+	//
+	////for _, matches := range cache.Get(cpes) {
+	////	ml := len(matches.CPEs)
+	////	matchingCPEs := make([]string, ml)
+	////	for i, attr := range matches.CPEs {
+	////		if attr == nil {
+	////			flog.Errorf("%s matches nil CPE", matches.CVE.ID())
+	////			continue
+	////		}
+	////		matchingCPEs[i] = (*wfn.Attributes)(attr).BindToURI()
+	////	}
+	////	cveMatches[matches.CVE.ID()] = matchingCPEs
+	////}
+	//took := time.Since(start)
+	//
+	////fmt.Println(cveMatches)
+	//
+	////mf, err := os.Create("mem.profile")
+	////panicif(err)
+	////defer mf.Close()
+	////runtime.GC()
+	////err = pprof.WriteHeapProfile(mf)
+	////panicif(err)
+	//
+	//fmt.Println("Done. Took", took, len(cveMatches))
 }

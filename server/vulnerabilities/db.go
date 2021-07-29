@@ -264,10 +264,22 @@ func GenerateCVEDB(dbPath string, cveFeedReaders ...io.Reader) error {
 					// product = wfn.Any
 					continue
 				}
-				cveBytes, err := json.Marshal(cve)
+				//cve.Impact = nil
+				//if cve.CVE != nil {
+				//	cve.CVE.Affects = nil
+				//	cve.CVE.Description = nil
+				//	cve.CVE.Problemtype = nil
+				//	cve.CVE.References = nil
+				//}
+				cveBytes, err := json.Marshal(cve.Configurations.Nodes)
+				//cveBytes, err := json.Marshal(cve)
 				if err != nil {
 					return err
 				}
+				//var compressedBytes bytes.Buffer
+				//w := gzip.NewWriter(&compressedBytes)
+				//w.Write(cveBytes)
+				//w.Close()
 				cveArgs = append(cveArgs, product, string(cveBytes))
 				cveCount++
 			}

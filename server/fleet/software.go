@@ -18,6 +18,10 @@ type Software struct {
 	Source string `json:"source" db:"source"`
 }
 
+type CPE struct {
+	Cpe23 string `json:"cpe_23" db:"cpe"`
+}
+
 // HostSoftware is the set of software installed on a specific host
 type HostSoftware struct {
 	// Software is the software information.
@@ -32,5 +36,11 @@ type HostSoftware struct {
 type SoftwareIterator interface {
 	Next() bool
 	Value() (*Software, error)
+	Err() error
+}
+
+type CPEIterator interface {
+	Next() bool
+	Value() (*CPE, error)
 	Err() error
 }

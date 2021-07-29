@@ -269,3 +269,33 @@ func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error
 	}
 	return nil
 }
+
+type cpeIterator struct {
+	rows *sqlx.Rows
+}
+
+func (si *cpeIterator) Value() (*fleet.CPE, error) {
+	dest := fleet.CPE{}
+	err := si.rows.StructScan(&dest)
+	if err != nil {
+		return nil, err
+	}
+	return &dest, nil
+}
+
+func (si *cpeIterator) Err() error {
+	return si.rows.Err()
+}
+
+func (si *cpeIterator) Next() bool {
+	return si.rows.Next()
+}
+
+func (d *Datastore) CPEIterator() (fleet.CPEIterator, error) {
+	sql := `SELECT cpe FROM software_cpe`
+	rows, err := d.db.Queryx(sql)
+	if err != nil {
+		return nil, errors.Wrap(err, "load host software")
+	}
+	return &cpeIterator{rows: rows}, nil
+}

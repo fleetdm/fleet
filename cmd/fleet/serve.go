@@ -514,6 +514,12 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 		if err != nil {
 			level.Error(logger).Log("err", "analyzing vulnerable software", "details", err)
 		}
+
+		err = vulnerabilities.TranslateCPEToCVE(ds)
+		if err != nil {
+			level.Error(logger).Log("err", "analyzing vulnerable software", "details", err)
+		}
+
 		level.Debug(logger).Log("loop", "done")
 	}
 }
