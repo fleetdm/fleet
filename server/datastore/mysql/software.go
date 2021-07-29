@@ -3,6 +3,7 @@ package mysql
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -274,36 +275,16 @@ func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error
 	return nil
 }
 
-type cpeIterator struct {
-	rows *sqlx.Rows
-}
-
-func (si *cpeIterator) Value() (*fleet.CPE, error) {
-	dest := fleet.CPE{}
-	err := si.rows.StructScan(&dest)
-	if err != nil {
-		return nil, err
-	}
-	return &dest, nil
-}
-
-func (si *cpeIterator) Err() error {
-	return si.rows.Err()
-}
-
-func (si *cpeIterator) Next() bool {
-	return si.rows.Next()
-}
-
-func (si *cpeIterator) Close() error {
-	return si.rows.Close()
-}
-
-func (d *Datastore) CPEIterator() (fleet.CPEIterator, error) {
+func (d *Datastore) AllCPEs() ([]string, error) {
 	sql := `SELECT cpe FROM software_cpe`
-	rows, err := d.db.Queryx(sql)
+	var cpes []string
+	err := d.db.Select(cpes, sql)
 	if err != nil {
-		return nil, errors.Wrap(err, "load host software")
+		return nil, errors.Wrap(err, "loads cpes")
 	}
-	return &cpeIterator{rows: rows}, nil
+	return cpes, nil
+}
+
+func (d *Datastore) BulkInsertCVEs(cves *sync.Map) error {
+	panic("not implemented")
 }

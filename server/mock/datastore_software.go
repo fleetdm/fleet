@@ -2,7 +2,11 @@
 
 package mock
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"sync"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
 
 var _ fleet.SoftwareStore = (*SoftwareStore)(nil)
 
@@ -13,6 +17,10 @@ type LoadHostSoftwareFunc func(host *fleet.Host) error
 type AllSoftwareIteratorFunc func() (fleet.SoftwareIterator, error)
 
 type AddCPEForSoftwareFunc func(software fleet.Software, cpe string) error
+
+type AllCPEsFunc func() ([]string, error)
+
+type BulkInsertCVEsFunc func(cves *sync.Map) error
 
 type SoftwareStore struct {
 	SaveHostSoftwareFunc        SaveHostSoftwareFunc
@@ -26,6 +34,12 @@ type SoftwareStore struct {
 
 	AddCPEForSoftwareFunc        AddCPEForSoftwareFunc
 	AddCPEForSoftwareFuncInvoked bool
+
+	AllCPEsFunc        AllCPEsFunc
+	AllCPEsFuncInvoked bool
+
+	BulkInsertCVEsFunc        BulkInsertCVEsFunc
+	BulkInsertCVEsFuncInvoked bool
 }
 
 func (s *SoftwareStore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
@@ -46,4 +60,14 @@ func (s *SoftwareStore) LoadHostSoftware(host *fleet.Host) error {
 func (s *SoftwareStore) AddCPEForSoftware(software fleet.Software, cpe string) error {
 	s.AddCPEForSoftwareFuncInvoked = true
 	return s.AddCPEForSoftwareFunc(software, cpe)
+}
+
+func (s *SoftwareStore) AllCPEs() ([]string, error) {
+	s.AllCPEsFuncInvoked = true
+	return s.AllCPEsFunc()
+}
+
+func (s *SoftwareStore) BulkInsertCVEs(cves *sync.Map) error {
+	s.BulkInsertCVEsFuncInvoked = true
+	return s.BulkInsertCVEsFunc(cves)
 }

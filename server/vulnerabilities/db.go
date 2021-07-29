@@ -20,12 +20,8 @@ func sqliteDB(dbPath string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func applyCPEDatabaseSchema(dbPath string) error {
-	db, err := sqliteDB(dbPath)
-	if err != nil {
-		return err
-	}
-	_, err = db.Exec(`
+func applyCPEDatabaseSchema(db *sqlx.DB) error {
+	_, err := db.Exec(`
 	CREATE TABLE IF NOT EXISTS cpe (
 		cpe23 TEXT NOT NULL,
 		title TEXT NOT NULL,
@@ -44,10 +40,7 @@ func applyCPEDatabaseSchema(dbPath string) error {
 	CREATE INDEX IF NOT EXISTS idx_target_sw ON cpe (target_sw);
 	CREATE INDEX IF NOT EXISTS idx_deprecated_by ON deprecated_by (cpe23);
 	`)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func generateCPEItem(item cpedict.CPEItem) ([]interface{}, map[string]string, error) {
@@ -81,7 +74,9 @@ func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	if err != nil {
 		return err
 	}
-	err = applyCPEDatabaseSchema(path)
+	defer db.Close()
+
+	err = applyCPEDatabaseSchema(db)
 	if err != nil {
 		return err
 	}

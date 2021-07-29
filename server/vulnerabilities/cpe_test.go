@@ -19,11 +19,6 @@ import (
 func TestCpeFromSoftware(t *testing.T) {
 	tempDir := os.TempDir()
 
-	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{VulnerabilityDatabasesPath: &tempDir}, nil
-	}
-
 	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
 	require.NoError(t, err)
 
@@ -142,12 +137,11 @@ func (f *fakeSoftwareIterator) Err() error   { return nil }
 func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 
 func TestTranslateSoftwareToCPE(t *testing.T) {
-	tempDir := os.TempDir()
+	tempDir, err := os.MkdirTemp(os.TempDir(), "TestTranslateSoftwareToCPE-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
 
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{VulnerabilityDatabasesPath: &tempDir}, nil
-	}
 
 	var cpes []string
 
@@ -184,7 +178,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
-	err = TranslateSoftwareToCPE(ds)
+	err = TranslateSoftwareToCPE(ds, tempDir)
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*",

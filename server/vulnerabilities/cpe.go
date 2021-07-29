@@ -199,17 +199,8 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	return "", nil
 }
 
-func TranslateSoftwareToCPE(ds fleet.Datastore) error {
-	config, err := ds.AppConfig()
-	if err != nil {
-		return err
-	}
-	if config.VulnerabilityDatabasesPath == nil {
-		return errors.New(
-			"Can't translate CPE without a database. vulnerability_databases_path is not configured.")
-	}
-
-	dbPath := path.Join(*config.VulnerabilityDatabasesPath, "cpe.sqlite")
+func TranslateSoftwareToCPE(ds fleet.Datastore, vulnPath string) error {
+	dbPath := path.Join(vulnPath, "cpe.sqlite")
 
 	client := &http.Client{}
 	if err := syncCPEDatabase(client, dbPath); err != nil {

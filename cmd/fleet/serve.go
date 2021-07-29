@@ -485,15 +485,17 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 }
 
 func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
-	config, err := ds.AppConfig()
+	appConfig, err := ds.AppConfig()
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
-	if config.VulnerabilityDatabasesPath == nil {
+	if appConfig.VulnerabilityDatabasesPath == nil {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return
 	}
+
+	vulnPath := *appConfig.VulnerabilityDatabasesPath
 
 	ticker := time.NewTicker(1 * time.Hour)
 	for {
@@ -510,14 +512,14 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			continue
 		}
 
-		err := vulnerabilities.TranslateSoftwareToCPE(ds)
+		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath)
 		if err != nil {
-			level.Error(logger).Log("err", "analyzing vulnerable software", "details", err)
+			level.Error(logger).Log("err", "analyzing vulnerable software: Software->CPE", "details", err)
 		}
 
-		err = vulnerabilities.TranslateCPEToCVE(ds)
+		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger)
 		if err != nil {
-			level.Error(logger).Log("err", "analyzing vulnerable software", "details", err)
+			level.Error(logger).Log("err", "analyzing vulnerable software: CPE->CVE", "details", err)
 		}
 
 		level.Debug(logger).Log("loop", "done")
