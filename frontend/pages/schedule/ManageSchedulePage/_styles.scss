@@ -61,6 +61,10 @@
 
   .button {
     font-size: $x-small;
+
+    img {
+      transform: scale(0.5);
+    }
   }
 
   &__advanced-button {

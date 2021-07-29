@@ -53,8 +53,8 @@ const ActionButton = (props: IActionButtonProps): JSX.Element | null => {
   return !isHidden ? (
     <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
       <>
-        {iconLink ? <img alt={`${name} icon`} src={iconLink} /> : null}
         {buttonText}
+        {iconLink && <img alt={`${name} icon`} src={iconLink} />}
       </>
     </Button>
   ) : null;
