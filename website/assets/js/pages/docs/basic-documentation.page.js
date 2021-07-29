@@ -14,9 +14,6 @@ parasails.registerPage('basic-documentation', {
     breadcrumbs: [],
     pages: [],
     pagesBySectionSlug: {},
-
-
-    docsTree: [],
     subtopics: [],
     relatedTopics: [],
 
@@ -39,7 +36,7 @@ parasails.registerPage('basic-documentation', {
     this.breadcrumbs = _.trim(this.thisPage.url, '/').split('/');
 
     this.pages = _.sortBy(this.markdownPages, 'htmlId');
-    
+
     this.pagesBySectionSlug = (() => {
       const DOCS_SLUGS = ['using-fleet', 'deploying', 'contributing'];
 
@@ -67,7 +64,6 @@ parasails.registerPage('basic-documentation', {
             }
           })
           .value();
-
       }
 
       // We need to re-sort the top-level sections because their htmlIds do not reflect the correct order
@@ -93,21 +89,22 @@ parasails.registerPage('basic-documentation', {
   },
 
   mounted: async function() {
-    
-
-
-    
-    // this.docsTree = DOCS_SLUGS.map((slug) => {
-    //   return { 
-    //     section: slug, 
-    //     subsections: this.pagesBySectionSlug[slug],
-    //   };
-    // });
 
     // // Alternative jQuery approach to grab `on this page` links from top of markdown files
     // let subtopics = $('#body-content').find('h1 + ul').children().map((_, el) => el.innerHTML);
     // subtopics = $.makeArray(subtopics);
     // console.log(subtopics);
+
+    this.subtopics = (() => {
+      let subtopics = $('#body-content').find('h2').map((_, el) => el.innerHTML);
+      subtopics = $.makeArray(subtopics).map((title) => {
+        return {
+          title,
+          url: '#' + _.kebabCase(title),
+        };
+      });
+      return subtopics;
+    })();
 
     // https://github.com/sailshq/sailsjs.com/blob/7a74d4901dcc1e63080b502492b03fc971d3d3b2/assets/js/functions/sails-website-actions.js#L177-L239
     (function highlightThatSyntax(){
@@ -166,25 +163,6 @@ parasails.registerPage('basic-documentation', {
       return false;
     },
 
-    getSubtopics: function () {
-      let subtopics = $('#body-content').find('h2').map((_, el) => el.innerHTML);
-      subtopics = $.makeArray(subtopics).map((title) => {
-        return {
-          title,
-          url: '#' + _.kebabCase(title),
-        };
-      });
-      return subtopics;
-    },
-
-    getActiveSubtopicClass: function (currentLocation, url) {
-      return _.last(currentLocation.split('#')) === _.last(url.split('#')) ? 'active' : '';
-    },
-
-    findPageByUrl: function (url) {
-      return this.pages.find((page) => page.url === url);
-    },
-
     findPagesByUrl: function (url='') {
       let slug;
       // if no url is passed, use the base url as the slug (e.g., 'docs' or 'handbook')
@@ -195,6 +173,10 @@ parasails.registerPage('basic-documentation', {
       }
 
       return this.pagesBySectionSlug[slug];
+    },
+
+    getActiveSubtopicClass: function (currentLocation, url) {
+      return _.last(currentLocation.split('#')) === _.last(url.split('#')) ? 'active' : '';
     },
 
     getTitleFromUrl: function (url) {

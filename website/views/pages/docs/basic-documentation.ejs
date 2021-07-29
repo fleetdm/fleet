@@ -162,7 +162,7 @@
               <!-- <li v-for="(subtopic, index) in subtopics" :class="pl-lg-2 pb-3 pb-1g-2 subtopic" :key="index">
                 <a :class="getActiveSubtopicClass(currentLocation, subtopic.url)" :href="subtopic.url">{{subtopic.title}}</a>
               </li> -->
-              <li v-for="(subtopic, index) in getSubtopics()" class="pl-lg-2 pb-3 pb-lg-2 subtopic" :key="index">
+              <li v-for="(subtopic, index) in subtopics" class="pl-lg-2 pb-3 pb-lg-2 subtopic" :key="index">
                 <a :href="subtopic.url">{{subtopic.title}}</a>
               </li>
               <li class="d-lg-none pl-lg-2 subtopic">
@@ -181,19 +181,19 @@
         </div>
 
         <div purpose="content" id="body-content" style="max-width: 800px;" class="d-flex flex-column p-0 pl-lg-5 pr-lg-4 content">
-            <%- partial(
-              path.relative(
-                <!-- Question for Mike: where is __filename coming from? -->
-                path.dirname(__filename), 
-                path.resolve(
-                  sails.config.appPath, 
-                  path.join(
-                    sails.config.builtStaticContent.compiledPagePartialsAppPath, 
-                    thisPage.htmlId
-                  )
+          <%- partial(
+            path.relative(
+              <!-- Question for Mike: where is __filename coming from? -->
+              path.dirname(__filename), 
+              path.resolve(
+                sails.config.appPath, 
+                path.join(
+                  sails.config.builtStaticContent.compiledPagePartialsAppPath, 
+                  thisPage.htmlId
                 )
               )
-            ) %>
+            )
+          ) %>
 
           <div class="d-none d-lg-block">
             <h3 class="pb-4 m-0">Is there something missing?</h3>
