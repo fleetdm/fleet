@@ -3,6 +3,8 @@ package fleet
 type SoftwareStore interface {
 	SaveHostSoftware(host *Host) error
 	LoadHostSoftware(host *Host) error
+	AllSoftwareWithoutCPEIterator() (SoftwareIterator, error)
+	AddCPEForSoftware(software Software, cpe string) error
 }
 
 // Software is a named and versioned piece of software installed on a device.
@@ -25,4 +27,11 @@ type HostSoftware struct {
 	// data. We track this here because saving the software set is likely to be
 	// an expensive operation.
 	Modified bool `json:"-"`
+}
+
+type SoftwareIterator interface {
+	Next() bool
+	Value() (*Software, error)
+	Err() error
+	Close() error
 }
