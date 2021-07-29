@@ -82,10 +82,12 @@ func TranslateCPEToCVE(ctx context.Context, ds fleet.Datastore, vulnPath string,
 
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 
+	// TODO: make this not a static 4
 	for i := 0; i < 4; i++ {
 		go func() {
 			level.Debug(logger).Log("cpe processing", "start")
 
+			// TODO: figure out insertions, maybe inserting right as we get it is enough?
 			accumulated := 0
 			var args []interface{}
 
