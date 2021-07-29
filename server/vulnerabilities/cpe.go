@@ -61,7 +61,7 @@ func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 	}, nil
 }
 
-func SyncCPEDatabase(client *http.Client, dbPath string) error {
+func syncCPEDatabase(client *http.Client, dbPath string) error {
 	nvdRelease, err := GetLatestNVDRelease(client)
 	if err != nil {
 		return err
@@ -207,13 +207,14 @@ func TranslateSoftwareToCPE(ds fleet.Datastore) error {
 		return err
 	}
 	if config.VulnerabilityDatabasesPath == nil {
-		return errors.New("Can't translate CPE without a database.")
+		return errors.New(
+			"Can't translate CPE without a database. vulnerability_databases_path is not configured.")
 	}
 
 	dbPath := path.Join(*config.VulnerabilityDatabasesPath, "cpe.sqlite")
 
 	client := &http.Client{}
-	if err := SyncCPEDatabase(client, dbPath); err != nil {
+	if err := syncCPEDatabase(client, dbPath); err != nil {
 		return err
 	}
 
@@ -221,6 +222,7 @@ func TranslateSoftwareToCPE(ds fleet.Datastore) error {
 	if err != nil {
 		return err
 	}
+	defer iterator.Close()
 
 	for iterator.Next() {
 		software, err := iterator.Value()

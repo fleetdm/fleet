@@ -49,7 +49,7 @@ func applyCPEDatabaseSchema(dbPath string) error {
 	return nil
 }
 
-func InsertCPEItem(db *sqlx.DB, item cpedict.CPEItem) ([]interface{}, map[string]string, error) {
+func generateCPEItem(item cpedict.CPEItem) ([]interface{}, map[string]string, error) {
 	var cpes []interface{}
 	deprecations := make(map[string]string)
 
@@ -91,7 +91,7 @@ func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	var allDeprecations []interface{}
 
 	for _, item := range items.Items {
-		cpes, deprecations, err := InsertCPEItem(db, item)
+		cpes, deprecations, err := generateCPEItem(item)
 		if err != nil {
 			return err
 		}

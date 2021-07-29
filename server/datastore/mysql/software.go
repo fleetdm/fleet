@@ -249,6 +249,10 @@ func (si *softwareIterator) Err() error {
 	return si.rows.Err()
 }
 
+func (si *softwareIterator) Close() error {
+	return si.rows.Close()
+}
+
 func (si *softwareIterator) Next() bool {
 	return si.rows.Next()
 }

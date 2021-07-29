@@ -395,8 +395,8 @@ type Locker interface {
 }
 
 const (
-	LockKeyLeader          = "leader"
-	LockKeyVulnerabilities = "vulnerabilities"
+	lockKeyLeader          = "leader"
+	lockKeyVulnerabilities = "vulnerabilities"
 )
 
 func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) error {
@@ -459,7 +459,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			break
 		}
-		if locked, err := locker.Lock(LockKeyLeader, identifier, time.Hour); err != nil || !locked {
+		if locked, err := locker.Lock(lockKeyLeader, identifier, time.Hour); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
@@ -505,7 +505,7 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			level.Debug(logger).Log("exit", "done with cron.")
 			break
 		}
-		if locked, err := locker.Lock(LockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
+		if locked, err := locker.Lock(lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}

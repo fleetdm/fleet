@@ -33,4 +33,5 @@ type SoftwareIterator interface {
 	Next() bool
 	Value() (*Software, error)
 	Err() error
+	Close() error
 }
