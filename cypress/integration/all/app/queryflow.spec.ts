@@ -83,16 +83,34 @@ describe("Query flow", () => {
 
     cy.findByText(/query all window crashes/i).should("exist");
 
-    // Checkbox won't check so can't test remove schedule
-    // cy.get("tbody").get(".table-checkbox__input").click();
+    cy.findByText(/actions/i).click();
+    cy.findByText(/edit/i).click();
 
-    // cy.findByRole("button", { name: /remove query/i }).click();
+    cy.get(
+      ".schedule-editor-modal__form-field--frequency > .dropdown__select"
+    ).click();
 
-    // cy.get(".remove-scheduled-query-modal__btn-wrap")
-    //   .contains("button", /remove/i)
-    //   .click();
+    cy.findByText(/every 6 hours/i).click();
 
-    // cy.findByText(/query all window crashes/i).should("not.exist");
+    cy.findByText(/show advanced options/i).click();
+
+    cy.findByText(/ignore removals/i).click();
+    cy.findByText(/snapshot/i).click();
+
+    cy.findByText(/50/i).click().type("{selectall}{backspace}10");
+
+    cy.get(".schedule-editor-modal__btn-wrap")
+      .contains("button", /schedule/i)
+      .click();
+
+    cy.findByText(/actions/i).click();
+    cy.findByText(/remove/i).click();
+
+    cy.get(".remove-scheduled-query-modal__btn-wrap")
+      .contains("button", /remove/i)
+      .click();
+
+    cy.findByText(/query all window crashes/i).should("not.exist");
     // End Test Schedules
 
     cy.visit("/queries/manage");
