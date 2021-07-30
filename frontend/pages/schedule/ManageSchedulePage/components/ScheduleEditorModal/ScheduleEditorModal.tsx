@@ -161,17 +161,15 @@ const ScheduleEditorModal = ({
     const query_id = () => {
       if (editQuery) {
         return editQuery.id;
-      } else {
-        return selectedQuery?.id;
       }
+      return selectedQuery?.id;
     };
 
     const name = () => {
       if (editQuery) {
         return editQuery.name;
-      } else {
-        return selectedQuery?.name;
       }
+      return selectedQuery?.name;
     };
 
     onScheduleSubmit(
