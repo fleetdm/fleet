@@ -6,18 +6,15 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-<<<<<<< HEAD
-	"github.com/fleetdm/fleet/v4/server/logging"
 	"net/url"
+
+	"github.com/fleetdm/fleet/v4/server/logging"
 
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
 
-=======
->>>>>>> main
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -25,8 +22,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 
 	"github.com/WatchBeam/clock"
