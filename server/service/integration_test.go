@@ -475,18 +475,20 @@ func TestLogger(t *testing.T) {
 		err := json.Unmarshal([]byte(part), &kv)
 		require.NoError(t, err)
 
-		assert.Equal(t, "info", kv["level"])
 		assert.NotEqual(t, "", kv["took"])
 
 		switch i {
 		case 0:
+			assert.Equal(t, "debug", kv["level"])
 			assert.Equal(t, "POST", kv["method"])
 			assert.Equal(t, "/api/v1/fleet/login", kv["uri"])
 		case 1:
+			assert.Equal(t, "debug", kv["level"])
 			assert.Equal(t, "GET", kv["method"])
 			assert.Equal(t, "/api/v1/fleet/config", kv["uri"])
 			assert.Equal(t, "admin1@example.com", kv["user"])
 		case 2:
+			assert.Equal(t, "info", kv["level"])
 			assert.Equal(t, "POST", kv["method"])
 			assert.Equal(t, "/api/v1/fleet/queries", kv["uri"])
 			assert.Equal(t, "admin1@example.com", kv["user"])
