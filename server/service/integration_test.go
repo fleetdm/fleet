@@ -475,7 +475,7 @@ func TestLogger(t *testing.T) {
 		err := json.Unmarshal([]byte(part), &kv)
 		require.NoError(t, err)
 
-		assert.Equal(t, "debug", kv["level"])
+		assert.Equal(t, "info", kv["level"])
 		assert.NotEqual(t, "", kv["took"])
 
 		switch i {
