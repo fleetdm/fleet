@@ -4050,7 +4050,7 @@ Returns the spec for the specified pack by pack name.
 
 ### List activities
 
-`GET /api/v1/fleet/activites`
+`GET /api/v1/fleet/activities`
 
 #### Parameters
 
