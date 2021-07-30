@@ -4050,6 +4050,19 @@ Returns the spec for the specified pack by pack name.
 
 ### List activities
 
+Returns a list of the following activities that have occurred in Fleet:
+- Created pack
+- Edited pack
+- Deleted pack
+- Applied pack spec
+- Created saved query
+- Edited saved query
+- Deleted saved query
+- Applied query spec
+- Ran live query
+- Created team - *Available in Fleet Basic*
+- Deleted team - *Available in Fleet Basic*
+
 `GET /api/v1/fleet/activities`
 
 #### Parameters
