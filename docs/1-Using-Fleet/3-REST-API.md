@@ -4050,7 +4050,7 @@ Returns the spec for the specified pack by pack name.
 
 ### List activities
 
-Returns a list of the following activities that have occurred in Fleet:
+Returns a list of the activities that have occurred in Fleet. Included are the following types of activity:
 - Created pack
 - Edited pack
 - Deleted pack
