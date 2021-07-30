@@ -4,7 +4,7 @@ describe("Query flow", () => {
     cy.login();
   });
 
-  it("Create, check, edit, and delete a query successfully", () => {
+  it("Create, check, edit, and delete a query successfully and create, edit, and delete a global scheduled query successfully", () => {
     cy.visit("/queries/manage");
 
     cy.findByRole("button", { name: /create new query/i }).click();
@@ -83,6 +83,7 @@ describe("Query flow", () => {
 
     cy.findByText(/query all window crashes/i).should("exist");
 
+    cy.wait(1000); // attach back to dom
     cy.findByText(/actions/i).click();
     cy.findByText(/edit/i).click();
 
@@ -97,12 +98,15 @@ describe("Query flow", () => {
     cy.findByText(/ignore removals/i).click();
     cy.findByText(/snapshot/i).click();
 
-    cy.findByText(/50/i).click().type("{selectall}{backspace}10");
+    cy.get(".schedule-editor-modal__form-field--shard > .input-field")
+      .click()
+      .type("{selectall}{backspace}10");
 
     cy.get(".schedule-editor-modal__btn-wrap")
       .contains("button", /schedule/i)
       .click();
 
+    cy.wait(1000); // attach back to dom
     cy.findByText(/actions/i).click();
     cy.findByText(/remove/i).click();
 
