@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/logging"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,9 +23,20 @@ import (
 )
 
 func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore) fleet.Service {
+	return newTestServiceWithConfig(ds, config.TestConfig(), rs, lq)
+}
+
+func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := fleet.LicenseInfo{Tier: "core"}
-	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
+	writer, err := logging.NewFilesystemLogWriter(
+		fleetConfig.Filesystem.StatusLogFile,
+		kitlog.NewNopLogger(),
+		fleetConfig.Filesystem.EnableLogRotation,
+		fleetConfig.Filesystem.EnableLogCompression,
+	)
+	osqlogger:= &logging.OsqueryLogger{Status: writer, Result: writer}
+	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, fleetConfig, mailer, clock.C, nil, lq, ds, license)
 	if err != nil {
 		panic(err)
 	}
@@ -34,11 +46,19 @@ func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.Live
 func newTestBasicService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := fleet.LicenseInfo{Tier: fleet.TierBasic}
-	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq, ds, license)
+	testConfig := config.TestConfig()
+	writer, err := logging.NewFilesystemLogWriter(
+		testConfig.Filesystem.StatusLogFile,
+		kitlog.NewNopLogger(),
+		testConfig.Filesystem.EnableLogRotation,
+		testConfig.Filesystem.EnableLogCompression,
+	)
+	osqlogger:= &logging.OsqueryLogger{Status: writer, Result: writer}
+	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, clock.C, nil, lq, ds, license)
 	if err != nil {
 		panic(err)
 	}
-	svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, &license)
+	svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), testConfig, mailer, clock.C, &license)
 	if err != nil {
 		panic(err)
 	}
@@ -48,7 +68,15 @@ func newTestBasicService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet
 func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := fleet.LicenseInfo{Tier: "core"}
-	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c, nil, lq, ds, license)
+	testConfig := config.TestConfig()
+	writer, err := logging.NewFilesystemLogWriter(
+		testConfig.Filesystem.StatusLogFile,
+		kitlog.NewNopLogger(),
+		testConfig.Filesystem.EnableLogRotation,
+		testConfig.Filesystem.EnableLogCompression,
+	)
+	osqlogger:= &logging.OsqueryLogger{Status: writer, Result: writer}
+	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license)
 	if err != nil {
 		panic(err)
 	}
@@ -166,4 +194,74 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 
 	server := httptest.NewServer(r)
 	return users, server
+}
+
+func testKinesisPluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Filesystem = config.FilesystemConfig{}
+	c.Osquery.ResultLogPlugin = "kinesis"
+	c.Osquery.StatusLogPlugin = "kinesis"
+	c.Kinesis = config.KinesisConfig{
+		Region:           "us-east-1",
+		AccessKeyID:      "foo",
+		SecretAccessKey:  "bar",
+		StsAssumeRoleArn: "baz",
+		StatusStream:     "test-status-stream",
+		ResultStream:     "test-result-stream",
+	}
+	return c
+}
+
+func testFirehosePluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Filesystem = config.FilesystemConfig{}
+	c.Osquery.ResultLogPlugin = "firehose"
+	c.Osquery.StatusLogPlugin = "firehose"
+	c.Firehose = config.FirehoseConfig{
+		Region:           "us-east-1",
+		AccessKeyID:      "foo",
+		SecretAccessKey:  "bar",
+		StsAssumeRoleArn: "baz",
+		StatusStream:     "test-status-firehose",
+		ResultStream:     "test-result-firehose",
+	}
+	return c
+}
+
+func testLambdaPluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Filesystem = config.FilesystemConfig{}
+	c.Osquery.ResultLogPlugin = "lambda"
+	c.Osquery.StatusLogPlugin = "lambda"
+	c.Lambda = config.LambdaConfig{
+		Region:           "us-east-1",
+		AccessKeyID:      "foo",
+		SecretAccessKey:  "bar",
+		StsAssumeRoleArn: "baz",
+		ResultFunction: "result-func",
+		StatusFunction: "status-func",
+	}
+	return c
+}
+
+func testPubSubPluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Filesystem = config.FilesystemConfig{}
+	c.Osquery.ResultLogPlugin = "pubsub"
+	c.Osquery.StatusLogPlugin = "pubsub"
+	c.PubSub = config.PubSubConfig{
+		Project:       "test",
+		StatusTopic:   "status-topic",
+		ResultTopic:   "result-topic",
+		AddAttributes: false,
+	}
+	return c
+}
+
+func testStdoutPluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Filesystem = config.FilesystemConfig{}
+	c.Osquery.ResultLogPlugin = "stdout"
+	c.Osquery.StatusLogPlugin = "stdout"
+	return c
 }
