@@ -79,8 +79,8 @@ const generateTableHeaders = (
       disableHidden: true,
     },
     {
-      title: "Query name",
-      Header: "Query name",
+      title: "Query",
+      Header: "Query",
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
