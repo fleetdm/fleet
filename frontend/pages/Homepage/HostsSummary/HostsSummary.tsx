@@ -1,9 +1,9 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
+import { isEmpty, reduce } from "lodash";
+import { ILabel } from "interfaces/label";
 // @ts-ignore
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
-
 import WindowsIcon from "../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../assets/images/icon-linux-48x48@2x.png";
 import MacIcon from "../../../../assets/images/icon-mac-48x48@2x.png";
@@ -15,13 +15,17 @@ interface IRootState {
     labels: {
       isLoading: boolean;
       data: {
-        [id: number]: {
-          count: number;
-        };
+        [id: number]: ILabel;
       };
     };
   };
 }
+
+const PLATFORM_STRINGS = {
+  macOS: ["macOS"],
+  windows: ["MS Windows"],
+  linux: ["Red Hat Linux", "CentOS Linux", "Ubuntu Linux"],
+};
 
 const HostsSummary = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -32,16 +36,26 @@ const HostsSummary = (): JSX.Element => {
 
   const labels = useSelector((state: IRootState) => state.entities.labels.data);
 
-  const macCount = labels[7] ? labels[7].count.toLocaleString("en-US") : "";
-  const windowsCount = labels[10]
-    ? labels[10].count.toLocaleString("en-US")
-    : "";
-  const linuxCount =
-    labels[8] && labels[9]
-      ? (labels[8].count + labels[9].count + labels[11].count).toLocaleString(
-          "en-US"
-        )
-      : "";
+  // Builtin labels from state populate os counts
+  const getCount = (platformTitles: string[]) => {
+    return reduce(
+      Object.values(labels),
+      (total, label) => {
+        return label.label_type === "builtin" &&
+          platformTitles.includes(label.name) &&
+          label.count
+          ? total + label.count
+          : total;
+      },
+      0
+    );
+  };
+
+  const macCount = getCount(PLATFORM_STRINGS.macOS).toLocaleString("en-US");
+  const windowsCount = getCount(PLATFORM_STRINGS.windows).toLocaleString(
+    "en-US"
+  );
+  const linuxCount = getCount(PLATFORM_STRINGS.linux).toLocaleString("en-US");
 
   return (
     <div className={baseClass}>

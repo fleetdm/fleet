@@ -248,9 +248,10 @@ export class UserManagementPage extends Component {
     const { toggleResetSessionsUserModal } = this;
     dispatch(userActions.deleteSessions(userEditing))
       .then(() => {
-        dispatch(renderFlash("success", "Sessions reset"));
         if (currentUser.id === userEditing.id) {
           dispatch(push(LOGIN));
+        } else {
+          dispatch(renderFlash("success", "Sessions reset"));
         }
       })
       .catch(() => {

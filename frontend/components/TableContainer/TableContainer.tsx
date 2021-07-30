@@ -47,6 +47,8 @@ interface ITableContainerProps {
   wideSearch?: boolean;
   disablePagination?: boolean;
   disableCount?: boolean;
+  primarySelectActionButtonVariant?: string;
+  primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
@@ -82,6 +84,8 @@ const TableContainer = ({
   wideSearch,
   disablePagination,
   disableCount,
+  primarySelectActionButtonVariant,
+  primarySelectActionButtonIcon,
   primarySelectActionButtonText,
   onPrimarySelectActionClick,
   secondarySelectActions,
@@ -178,7 +182,7 @@ const TableContainer = ({
 
   return (
     <div className={wrapperClasses}>
-      {!isLoading && wideSearch && searchable && (
+      {wideSearch && searchable && (
         <div className={`${baseClass}__search-input wide-search`}>
           <InputField
             placeholder={inputPlaceHolder}
@@ -222,7 +226,7 @@ const TableContainer = ({
             </Button>
           )}
           {/* Render search bar only if not empty component */}
-          {!isLoading && searchable && !wideSearch && (
+          {searchable && !wideSearch && (
             <div className={`${baseClass}__search-input`}>
               <InputField
                 placeholder={inputPlaceHolder}
@@ -253,6 +257,10 @@ const TableContainer = ({
               toggleAllPagesSelected={toggleAllPagesSelected}
               resultsTitle={resultsTitle}
               defaultPageSize={DEFAULT_PAGE_SIZE}
+              primarySelectActionButtonVariant={
+                primarySelectActionButtonVariant
+              }
+              primarySelectActionButtonIcon={primarySelectActionButtonIcon}
               primarySelectActionButtonText={primarySelectActionButtonText}
               onPrimarySelectActionClick={onPrimarySelectActionClick}
               secondarySelectActions={secondarySelectActions}

@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	downloadUrl        = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
-	licenseKeyFlagName = "license-key"
+	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
+	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/1-Using-Fleet/standard-query-library/standard-query-library.yml"
+	licenseKeyFlagName      = "license-key"
 )
 
 func previewCommand() *cli.Command {
@@ -110,12 +111,12 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				password = "admin123#"
 			)
 
-			fleet, err := service.NewClient(address, true, "", "")
+			fleetClient, err := service.NewClient(address, true, "", "")
 			if err != nil {
 				return errors.Wrap(err, "Error creating Fleet API client handler")
 			}
 
-			token, err := fleet.Setup(email, "Admin", password, "Fleet Preview")
+			token, err := fleetClient.Setup(email, "Admin", password, "Fleet Preview")
 			if err != nil {
 				switch errors.Cause(err).(type) {
 				case service.SetupAlreadyErr:
@@ -193,6 +194,23 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Errorf("Failed to run docker-compose")
 			}
 
+			fmt.Println("Downloading standard query library")
+			buf, err := downloadStandardQueryLibrary()
+			if err != nil {
+				return errors.Wrap(err, "failed to download standard query library")
+			}
+
+			specGroup, err := specGroupFromBytes(buf)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse standard query library")
+			}
+
+			fmt.Println("Applying standard query library")
+			err = client.ApplyQueries(specGroup.Queries)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply standard query library")
+			}
+
 			fmt.Println("Preview environment complete. Enjoy using Fleet!")
 
 			return nil
@@ -235,6 +253,21 @@ func downloadFiles() error {
 	}
 
 	return nil
+}
+
+func downloadStandardQueryLibrary() ([]byte, error) {
+	resp, err := http.Get(standardQueryLibraryUrl)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("status: %d", resp.StatusCode)
+	}
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "read response body")
+	}
+	return buf, nil
 }
 
 // Adapted from https://stackoverflow.com/a/24792688/491710

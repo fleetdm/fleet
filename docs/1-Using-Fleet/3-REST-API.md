@@ -2535,7 +2535,7 @@ None.
 
 ### Run live query
 
-Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+Run a live query.
 
 `POST /api/v1/fleet/queries/run`
 

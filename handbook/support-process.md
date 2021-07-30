@@ -6,7 +6,7 @@ The support process is accomplished via an on-call rotation and the weekly on-ca
 
 The individual on-call is responsible for responding to Slack comments, Slack threads, and GitHub issues raised by customers and the community.
 
-The on-call retro meeting at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
+The daily standup meeting at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
 1. What went well?
 
