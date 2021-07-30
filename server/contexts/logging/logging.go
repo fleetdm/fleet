@@ -94,6 +94,12 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		logger = kitlog.With(logger, "internal", e.Internal())
 	}
 
+	if (l.Err != nil || len(l.Extras) > 0) && !l.ForceDebug {
+		logger = level.Info(logger)
+	} else {
+		logger = level.Debug(logger)
+	}
+
 	var keyvals []interface{}
 
 	if !l.SkipUser {
@@ -111,11 +117,8 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		"took", time.Since(l.StartTime),
 	)
 
-	if l.Err != nil && !l.ForceDebug {
-		logger = level.Info(logger)
+	if l.Err != nil {
 		keyvals = append(keyvals, "err", l.Err)
-	} else {
-		logger = level.Debug(logger)
 	}
 
 	if len(l.Extras) > 0 {
