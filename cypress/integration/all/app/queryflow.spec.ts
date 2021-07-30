@@ -83,7 +83,7 @@ describe("Query flow", () => {
 
     cy.findByText(/query all window crashes/i).should("exist");
 
-    cy.wait(1000); // attach back to dom
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByText(/actions/i).click();
     cy.findByText(/edit/i).click();
 
@@ -106,7 +106,7 @@ describe("Query flow", () => {
       .contains("button", /schedule/i)
       .click();
 
-    cy.wait(1000); // attach back to dom
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByText(/actions/i).click();
     cy.findByText(/remove/i).click();
 
