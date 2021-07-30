@@ -41,15 +41,10 @@ type Service struct {
 
 // NewService creates a new service from the config struct
 func NewService(ds fleet.Datastore, resultStore fleet.QueryResultStore,
-	logger kitlog.Logger, config config.FleetConfig, mailService fleet.MailService,
+	logger kitlog.Logger, osqueryLogger *logging.OsqueryLogger, config config.FleetConfig, mailService fleet.MailService,
 	c clock.Clock, sso sso.SessionStore, lq fleet.LiveQueryStore, carveStore fleet.CarveStore,
 	license fleet.LicenseInfo) (fleet.Service, error) {
 	var svc fleet.Service
-
-	osqueryLogger, err := logging.New(config, logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "initializing osquery logging")
-	}
 
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {

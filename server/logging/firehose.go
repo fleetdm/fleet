@@ -35,9 +35,10 @@ type firehoseLogWriter struct {
 	logger log.Logger
 }
 
-func NewFirehoseLogWriter(region, id, secret, stsAssumeRoleArn, stream string, logger log.Logger) (*firehoseLogWriter, error) {
+func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stream string, logger log.Logger) (*firehoseLogWriter, error) {
 	conf := &aws.Config{
 		Region: &region,
+		Endpoint: &endpointURL, // empty string or nil will use default values
 	}
 
 	// Only provide static credentials if we have them

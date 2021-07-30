@@ -245,6 +245,17 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	assert.Nil(t, config.HostSettings)
 }
 
+func TestAppConfigHasLogging(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	config := getConfig(t, server, token)
+	require.NotNil(t, config.Logging)
+}
+
 func applyConfig(t *testing.T, spec []byte, server *httptest.Server, token string) {
 	var appConfigSpec fleet.AppConfigPayload
 	err := yaml.Unmarshal(spec, &appConfigSpec)
@@ -253,8 +264,8 @@ func applyConfig(t *testing.T, spec []byte, server *httptest.Server, token strin
 	doReq(t, appConfigSpec, "PATCH", server, "/api/v1/fleet/config", token, http.StatusOK)
 }
 
-func getConfig(t *testing.T, server *httptest.Server, token string) *fleet.AppConfigPayload {
-	var responseBody *fleet.AppConfigPayload
+func getConfig(t *testing.T, server *httptest.Server, token string) *appConfigResponse {
+	var responseBody *appConfigResponse
 	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/config", token, http.StatusOK, &responseBody)
 	return responseBody
 }
