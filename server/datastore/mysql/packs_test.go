@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/WatchBeam/clock"
@@ -443,4 +444,52 @@ func TestEnsureGlobalPack(t *testing.T) {
 	assert.Len(t, packs, 1)
 	assert.Equal(t, gp.ID, packs[0].ID)
 	assert.Equal(t, "global", *gp.Type)
+}
+
+func TestEnsureTeamPack(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	packs, err := ds.ListPacks(fleet.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, packs, 0)
+
+	_, err = ds.EnsureTeamPack(12)
+	require.Error(t, err)
+
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	tp, err := ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+
+	packs, err = ds.ListPacks(fleet.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, packs, 1)
+	assert.Equal(t, tp.ID, packs[0].ID)
+	assert.Equal(t, fmt.Sprintf("team-%d", team1.ID), *tp.Type)
+	assert.Equal(t, []uint{team1.ID}, tp.TeamIDs)
+
+	_, err = ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+
+	packs, err = ds.ListPacks(fleet.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, packs, 1)
+	assert.Equal(t, tp.ID, packs[0].ID)
+
+	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	tp2, err := ds.EnsureTeamPack(team2.ID)
+	require.NoError(t, err)
+
+	packs, err = ds.ListPacks(fleet.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, packs, 2)
+	assert.Equal(t, tp.ID, packs[0].ID)
+	assert.Equal(t, tp2.ID, packs[1].ID)
+
+	assert.Equal(t, fmt.Sprintf("team-%d", team2.ID), *tp2.Type)
+	assert.Equal(t, []uint{team2.ID}, tp2.TeamIDs)
 }
