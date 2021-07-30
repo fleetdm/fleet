@@ -536,7 +536,7 @@ func isChildForeignKeyError(err error) bool {
 //
 // The input columns must be sanitized if they are provided by the user.
 func searchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
-	if len(columns) == 0 {
+	if len(columns) == 0 || len(match) == 0 {
 		return sql, params
 	}
 

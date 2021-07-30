@@ -6,9 +6,15 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/url"
+
+	"github.com/fleetdm/fleet/v4/server/logging"
+
+	"github.com/e-dard/netbug"
+	"github.com/fleetdm/fleet/v4/server"
+
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -16,8 +22,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 
 	"github.com/WatchBeam/clock"
@@ -192,7 +196,12 @@ the way that the Fleet server works.
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
+			osqueryLogger, err := logging.New(config, logger)
+			if err != nil {
+				initFatal(err, "initializing osquery logging")
+			}
+
+			svc, err := service.NewService(ds, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

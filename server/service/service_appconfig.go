@@ -328,3 +328,106 @@ func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
 	}
 	return false, nil
 }
+
+func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	conf := svc.config
+	logging := &fleet.Logging{
+		Debug: conf.Logging.Debug,
+		Json:  conf.Logging.JSON,
+	}
+
+	switch conf.Osquery.StatusLogPlugin {
+	case "", "filesystem":
+		logging.Status = fleet.LoggingPlugin{
+			Plugin: "filesystem",
+			Config: fleet.FilesystemConfig{FilesystemConfig: conf.Filesystem},
+		}
+	case "kinesis":
+		logging.Status = fleet.LoggingPlugin{
+			Plugin: "kinesis",
+			Config: fleet.KinesisConfig{
+				Region:       conf.Kinesis.Region,
+				StatusStream: conf.Kinesis.StatusStream,
+				ResultStream: conf.Kinesis.ResultStream,
+			},
+		}
+	case "firehose":
+		logging.Status = fleet.LoggingPlugin{
+			Plugin: "firehose",
+			Config: fleet.FirehoseConfig{
+				Region:       conf.Firehose.Region,
+				StatusStream: conf.Firehose.StatusStream,
+				ResultStream: conf.Firehose.ResultStream,
+			},
+		}
+	case "lambda":
+		logging.Status = fleet.LoggingPlugin{
+			Plugin: "lambda",
+			Config: fleet.LambdaConfig{
+				Region:         conf.Lambda.Region,
+				StatusFunction: conf.Lambda.StatusFunction,
+				ResultFunction: conf.Lambda.ResultFunction,
+			},
+		}
+	case "pubsub":
+		logging.Status = fleet.LoggingPlugin{
+			Plugin: "pubsub",
+			Config: fleet.PubSubConfig{PubSubConfig: conf.PubSub},
+		}
+	case "stdout":
+		logging.Status = fleet.LoggingPlugin{Plugin: "stdout"}
+	default:
+		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.StatusLogPlugin)
+	}
+
+	switch conf.Osquery.ResultLogPlugin {
+	case "", "filesystem":
+		logging.Result = fleet.LoggingPlugin{
+			Plugin: "filesystem",
+			Config: fleet.FilesystemConfig{FilesystemConfig: conf.Filesystem},
+		}
+	case "kinesis":
+		logging.Result = fleet.LoggingPlugin{
+			Plugin: "kinesis",
+			Config: fleet.KinesisConfig{
+				Region:       conf.Kinesis.Region,
+				StatusStream: conf.Kinesis.StatusStream,
+				ResultStream: conf.Kinesis.ResultStream,
+			},
+		}
+	case "firehose":
+		logging.Result = fleet.LoggingPlugin{
+			Plugin: "firehose",
+			Config: fleet.FirehoseConfig{
+				Region:       conf.Firehose.Region,
+				StatusStream: conf.Firehose.StatusStream,
+				ResultStream: conf.Firehose.ResultStream,
+			},
+		}
+	case "lambda":
+		logging.Result = fleet.LoggingPlugin{
+			Plugin: "lambda",
+			Config: fleet.LambdaConfig{
+				Region:         conf.Lambda.Region,
+				StatusFunction: conf.Lambda.StatusFunction,
+				ResultFunction: conf.Lambda.ResultFunction,
+			},
+		}
+	case "pubsub":
+		logging.Result = fleet.LoggingPlugin{
+			Plugin: "pubsub",
+			Config: fleet.PubSubConfig{PubSubConfig: conf.PubSub},
+		}
+	case "stdout":
+		logging.Result = fleet.LoggingPlugin{
+			Plugin: "stdout",
+		}
+	default:
+		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.ResultLogPlugin)
+
+	}
+	return logging, nil
+}
