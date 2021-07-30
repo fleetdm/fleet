@@ -22,13 +22,13 @@ Fleet uses queries to determine the information to return from your devices. Put
 
 > Fleet facilitates providing the answer to these questions by communicating to the osquery agent that runs on any device. To learn more about osquery, check out [the osquery documentation](https://osquery.readthedocs.io/en/stable/).
 
-In the Fleet, select the "Queries" tab from the top navigation bar. You should see an empty "Queries" table. This is because you don't have any queries yet in your Fleet.
+In Fleet, select the "Queries" tab from the top navigation bar. You should see an empty "Queries" table. This is because you don't have any queries yet in your Fleet.
 
 We'll now populate your Fleet with Fleet's standard query library.
 
 First, head to the following file in the fleetdm/fleet GitHub repository: https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/standard-query-library/standard-query-library.yml
 
-Copy the contents of this file into a new file on you local computer called `standard-query-library.yml`. Please take note on where this new file is located in your local filesystem.
+Copy the contents of this file into a new file on you local computer called `standard-query-library.yml`. Please note where this file is located in your local filesystem.
 
 > You can manage your Fleet with configuration files in yaml syntax. This concept might be familiar to those that have used Kubernetes or another tool that offers yaml configuration files. Checkout [the configuration file documentation](../configuration-files/README.md) for more information on managing Fleet with configuration files.
 
@@ -48,9 +48,9 @@ Import the queries into fleet by running the following command:
 fleetctl apply -f standard-query-library.yml
 ```
 
-If you received a message that looks like `open standard-query-library.yml: no such file or directory` you may need to confirm the absolute path to your `standard-query-library.yml` file and change this in the command above.
+> If you received a message that looks like `open standard-query-library.yml: no such file or directory` you may need to confirm the absolute path to your `standard-query-library.yml` file and change this in the command above.
 
-Success! Now if you refresh the **Queries** page in the Fleet UI you should see the "Queries" table populated with Fleet's Standard query library.
+Success! Now, refresh the **Queries** page in the Fleet. You should see the "Queries" table populated with Fleet's Standard query library.
 
 ### Asking questions by running queries
 
@@ -62,11 +62,11 @@ Now, you're going to ask the following questions about the simulated, Linux host
 
 To answer these questions with Fleet, you're going to run the following query: "Detect Linux hosts with high severity vulnerable versions of OpenSSL." 
 
-On the **Queries** page, find this query by entering the query's name in the search bar. In the "Queries" table, select this query's row and then select "Edit or run query" in the right side bar to navigate to the **Edit or run query** page.
+On the **Queries** page, find this query by entering the query's name in the search bar. In the "Queries" table, select this query to navigate to the **Edit or run query** page.
 
-Next, select the "Select targets" dropdown and then select the purple "+" icon to the right of "All hosts." This means we will be attempting to run this query against all hosts connected to your Fleet.
+Next, select the "Select targets" dropdown and then select the purple "+" icon to the right of "All hosts." This means we'll be attempting to run this query against all hosts connected to your Fleet.
 
-Next, select the "Run" button to start the query. The query may take several seconds to complete because Fleet is waiting for the osquery agents to respond with results.
+Next, select the "Run" button to run the query. The query may take several seconds to complete because Fleet must wait for the osquery agents to respond with results.
 
 > Fleet's query response time is inherently variable because of osquery's heartbeat response time. This helps prevent performance issues on hosts.
 
