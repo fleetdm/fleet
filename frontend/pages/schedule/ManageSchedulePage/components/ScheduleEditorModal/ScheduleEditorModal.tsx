@@ -1,4 +1,6 @@
-import React, { useState, useCallback } from "react";
+/* This component is used for both creating and editing global scheduled queries */
+
+import React, { useState, useCallback, useEffect } from "react";
 
 import { pull } from "lodash";
 // @ts-ignore
@@ -35,40 +37,56 @@ interface IFormData {
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
-  onScheduleSubmit: (formData: IFormData, update: boolean) => void;
-  selectedScheduledQuery?: IGlobalScheduledQuery;
+  onScheduleSubmit: (
+    formData: IFormData,
+    editQuery: IGlobalScheduledQuery | undefined
+  ) => void;
+  editQuery?: IGlobalScheduledQuery;
 }
 interface INoQueryOption {
   id: number;
   name: string;
 }
 
+const generateLoggingType = (query: IGlobalScheduledQuery) => {
+  if (query.snapshot) {
+    return "snapshot";
+  }
+  if (query.removed) {
+    return "differential";
+  }
+  return "differential_ignore_removals";
+};
+
 const ScheduleEditorModal = ({
   onCancel,
   onScheduleSubmit,
   allQueries,
-  selectedScheduledQuery,
+  editQuery,
 }: IScheduleEditorModalProps): JSX.Element => {
-  console.log("\n\nLet's do this:", selectedScheduledQuery, "\n\n");
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
   );
   const [selectedQuery, setSelectedQuery] = useState<
     IGlobalScheduledQuery | INoQueryOption
   >();
-  const [selectedFrequency, setSelectedFrequency] = useState<number>(86400);
+  const [selectedFrequency, setSelectedFrequency] = useState<number>(
+    editQuery ? editQuery.interval : 86400
+  );
   const [
     selectedPlatformOptions,
     setSelectedPlatformOptions,
-  ] = useState<string>("");
+  ] = useState<string>(editQuery?.platform ? editQuery?.platform : "");
   const [selectedLoggingType, setSelectedLoggingType] = useState<string>(
-    "snapshot"
+    editQuery ? generateLoggingType(editQuery) : "snapshot"
   );
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
-  ] = useState<string>("");
-  const [selectedShard, setSelectedShard] = useState<string>("");
+  ] = useState<string>(editQuery?.version ? editQuery?.version : "");
+  const [selectedShard, setSelectedShard] = useState<string>(
+    editQuery?.shard ? editQuery?.shard.toString() : ""
+  );
 
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q) => {
@@ -140,32 +158,44 @@ const ScheduleEditorModal = ({
   );
 
   const onFormSubmit = () => {
-    const update = selectedScheduledQuery !== undefined;
+    const query_id = () => {
+      if (editQuery) {
+        return editQuery.id;
+      } else {
+        return selectedQuery?.id;
+      }
+    };
+
+    const name = () => {
+      if (editQuery) {
+        return editQuery.name;
+      } else {
+        return selectedQuery?.name;
+      }
+    };
 
     onScheduleSubmit(
       {
         shard: parseInt(selectedShard, 10),
         interval: selectedFrequency,
-        query_id: selectedQuery?.id,
-        name: selectedQuery?.name,
+        query_id: query_id(),
+        name: name(),
         logging_type: selectedLoggingType,
         platform: selectedPlatformOptions,
         version: selectedMinOsqueryVersionOptions,
       },
-      update
+      editQuery
     );
   };
 
   return (
     <Modal
-      title={
-        selectedScheduledQuery ? selectedScheduledQuery.name : "Schedule editor"
-      }
+      title={editQuery ? editQuery.name : "Schedule editor"}
       onExit={onCancel}
       className={baseClass}
     >
       <form className={`${baseClass}__form`}>
-        {!selectedScheduledQuery && (
+        {!editQuery && (
           <Dropdown
             searchable
             options={createQueryDropdownOptions()}
@@ -260,7 +290,7 @@ const ScheduleEditorModal = ({
             type="button"
             variant="brand"
             onClick={onFormSubmit}
-            disabled={!selectedQuery && !selectedScheduledQuery}
+            disabled={!selectedQuery && !editQuery}
           >
             Schedule
           </Button>

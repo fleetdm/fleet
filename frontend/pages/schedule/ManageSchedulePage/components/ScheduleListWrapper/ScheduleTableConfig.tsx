@@ -139,6 +139,12 @@ const enhanceGlobalScheduledQueryData = (
       interval: global_scheduled_query.interval,
       actions: generateActionDropdownOptions(),
       id: global_scheduled_query.id,
+      query_id: global_scheduled_query.query_id,
+      snapshot: global_scheduled_query.snapshot,
+      removed: global_scheduled_query.removed,
+      platform: global_scheduled_query.platform,
+      version: global_scheduled_query.version,
+      shard: global_scheduled_query.shard,
       type: "global_scheduled_query",
     };
   });

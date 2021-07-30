@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { push } from "react-router-redux";
+// @ts-ignore
+import deepDifference from "utilities/deep_difference";
 import { IQuery } from "interfaces/query";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 // @ts-ignore
@@ -143,24 +145,30 @@ const ManageSchedulePage = (): JSX.Element => {
   }, [dispatch, selectedQueryIds, toggleRemoveScheduledQueryModal]);
 
   const onAddScheduledQuerySubmit = useCallback(
-    (formData: IFormData, update: boolean) => {
-      if (update) {
-        console.log("Sweet you made it to update!");
-        // dispatch(globalScheduledQueryActions.update({ ...formData }))
-        // .then(() => {
-        //   dispatch(
-        //     renderFlash(
-        //       "success",
-        //       `Successfully added ${formData.name} to the schedule.`
-        //     )
-        //   );
-        //   dispatch(globalScheduledQueryActions.loadAll());
-        // })
-        // .catch(() => {
-        //   dispatch(
-        //     renderFlash("error", "Could not schedule query. Please try again.")
-        //   );
-        // });
+    (formData: IFormData, editQuery: IGlobalScheduledQuery | undefined) => {
+      if (editQuery) {
+        const updatedAttributes = deepDifference(formData, editQuery);
+
+        dispatch(
+          globalScheduledQueryActions.update(editQuery, updatedAttributes)
+        )
+          .then(() => {
+            dispatch(
+              renderFlash(
+                "success",
+                `Successfully updated ${formData.name} in the schedule.`
+              )
+            );
+            dispatch(globalScheduledQueryActions.loadAll());
+          })
+          .catch(() => {
+            dispatch(
+              renderFlash(
+                "error",
+                "Could not update scheduled query. Please try again."
+              )
+            );
+          });
       } else {
         dispatch(globalScheduledQueryActions.create({ ...formData }))
           .then(() => {
@@ -239,7 +247,7 @@ const ManageSchedulePage = (): JSX.Element => {
             onCancel={toggleScheduleEditorModal}
             onScheduleSubmit={onAddScheduledQuerySubmit}
             allQueries={allQueriesList}
-            selectedScheduledQuery={selectedScheduledQuery}
+            editQuery={selectedScheduledQuery}
           />
         )}
         {showRemoveScheduledQueryModal && (
