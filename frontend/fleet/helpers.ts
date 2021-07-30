@@ -42,8 +42,7 @@ const labelStubs = [
   {
     id: "online",
     count: 0,
-    description:
-      "Hosts that have recently checked-in to Fleet.",
+    description: "Hosts that have recently checked-in to Fleet.",
     display_text: "Online",
     slug: "online",
     statusLabelKey: "online_count",
