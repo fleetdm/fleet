@@ -9,8 +9,6 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 )
@@ -105,28 +103,6 @@ func initializeDatabase(t *testing.T, testName string) *Datastore {
 		t.FailNow()
 	}
 	return connectMySQL(t, testName)
-}
-
-func runTest(t *testing.T, testFunc func(*testing.T, fleet.Datastore)) {
-	t.Run(test.FunctionName(testFunc), func(t *testing.T) {
-		//t.Parallel()
-
-		// Create a new database and load the schema for each test
-		ds := initializeDatabase(t, test.FunctionName(testFunc))
-		defer ds.Close()
-
-		testFunc(t, ds)
-	})
-}
-
-func RunTestsAgainstMySQL(t *testing.T, tests []func(*testing.T, fleet.Datastore)) {
-	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
-		t.Skip("MySQL tests are disabled")
-	}
-
-	for _, f := range tests {
-		runTest(t, f)
-	}
 }
 
 func CreateMySQLDS(t *testing.T) *Datastore {

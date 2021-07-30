@@ -27,16 +27,17 @@ import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
 import HostDetailsPage from "pages/hosts/HostDetailsPage";
 import Homepage from "pages/Homepage";
-import Dashboard from "pages/Homepage/Dashboard";
 import LoginRoutes from "components/LoginRoutes";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
+import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackPageWrapper from "components/packs/PackPageWrapper";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import QueryPage from "pages/queries/QueryPage";
 import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
+import SchedulePageWrapper from "components/schedule/SchedulePageWrapper";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/Fleet403";
 import Fleet404 from "pages/Fleet404";
@@ -69,9 +70,7 @@ const routes = (
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
             <IndexRedirect to={PATHS.MANAGE_HOSTS} />
-            <Route path="home" component={Homepage}>
-              <Route path="dashboard" component={Dashboard} />
-            </Route>
+            <Route path="home/dashboard" component={Homepage} />
             <Route path="settings" component={AuthenticatedAdminRoutes}>
               <Route component={SettingsWrapper}>
                 <Route path="organization" component={AdminAppSettingsPage} />
@@ -102,6 +101,9 @@ const routes = (
                   <IndexRoute component={EditPackPage} />
                   <Route path="edit" component={EditPackPage} />
                 </Route>
+              </Route>
+              <Route path="schedule" component={SchedulePageWrapper}>
+                <Route path="manage" component={ManageSchedulePage} />
               </Route>
             </Route>
             <Route path="queries" component={QueryPageWrapper}>

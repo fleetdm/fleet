@@ -46,7 +46,13 @@ describe("Kolide - API client (hosts)", () => {
 
       Fleet.setBearerToken(bearerToken);
       return Fleet.hosts
-        .loadAll(page, perPage, selectedFilter, query, sortBy)
+        .loadAll({
+          page,
+          perPage,
+          selectedLabel: selectedFilter,
+          globalFilter: query,
+          sortBy,
+        })
         .then(() => {
           expect(request.isDone()).toEqual(true);
         });
@@ -61,9 +67,15 @@ describe("Kolide - API client (hosts)", () => {
       });
 
       Fleet.setBearerToken(bearerToken);
-      return Fleet.hosts.loadAll(2, 50, "labels/6").then(() => {
-        expect(request.isDone()).toEqual(true);
-      });
+      return Fleet.hosts
+        .loadAll({
+          page: 2,
+          perPage: 50,
+          selectedLabel: "labels/6",
+        })
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+        });
     });
   });
 });

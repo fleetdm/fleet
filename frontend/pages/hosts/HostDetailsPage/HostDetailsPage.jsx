@@ -5,7 +5,7 @@ import classnames from "classnames";
 
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
-import { isEmpty, noop, pick, reduce, filter, includes } from "lodash";
+import { isEmpty, noop, pick, reduce } from "lodash";
 import simpleSearch from "utilities/simple_search";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
@@ -511,7 +511,7 @@ export class HostDetailsPage extends Component {
                 defaultSortDirection={"asc"}
                 inputPlaceHolder={"Filter software"}
                 onQueryChange={onQueryChange}
-                resultsTitle={"software"}
+                resultsTitle={"software items"}
                 emptyComponent={EmptySoftware}
                 showMarkAllPages={false}
                 searchable

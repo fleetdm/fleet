@@ -16,14 +16,15 @@ type appConfigRequest struct {
 }
 
 type appConfigResponse struct {
-	OrgInfo            *fleet.OrgInfo             `json:"org_info,omitempty"`
-	ServerSettings     *fleet.ServerSettings      `json:"server_settings,omitempty"`
-	SMTPSettings       *fleet.SMTPSettingsPayload `json:"smtp_settings,omitempty"`
-	SSOSettings        *fleet.SSOSettingsPayload  `json:"sso_settings,omitempty"`
-	HostExpirySettings *fleet.HostExpirySettings  `json:"host_expiry_settings,omitempty"`
-	HostSettings       *fleet.HostSettings        `json:"host_settings,omitempty"`
-	AgentOptions       *json.RawMessage           `json:"agent_options,omitempty"`
-	License            *fleet.LicenseInfo         `json:"license,omitempty"`
+	OrgInfo               *fleet.OrgInfo                      `json:"org_info,omitempty"`
+	ServerSettings        *fleet.ServerSettings               `json:"server_settings,omitempty"`
+	SMTPSettings          *fleet.SMTPSettingsPayload          `json:"smtp_settings,omitempty"`
+	SSOSettings           *fleet.SSOSettingsPayload           `json:"sso_settings,omitempty"`
+	HostExpirySettings    *fleet.HostExpirySettings           `json:"host_expiry_settings,omitempty"`
+	HostSettings          *fleet.HostSettings                 `json:"host_settings,omitempty"`
+	AgentOptions          *json.RawMessage                    `json:"agent_options,omitempty"`
+	License               *fleet.LicenseInfo                  `json:"license,omitempty"`
+	VulnerabilitySettings *fleet.VulnerabilitySettingsPayload `json:"vulnerability_settings"`
 
 	// Logging is loaded on the fly rather than from the database.
 	Logging            *fleet.Logging             `json:"logging,omitempty"`
@@ -54,6 +55,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 		var smtpSettings *fleet.SMTPSettingsPayload
 		var ssoSettings *fleet.SSOSettingsPayload
 		var hostExpirySettings *fleet.HostExpirySettings
+		var vulnerabilitySettings *fleet.VulnerabilitySettingsPayload
 		var agentOptions *json.RawMessage
 		// only admin can see smtp, sso, and host expiry settings
 		if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
@@ -76,6 +78,11 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				HostExpiryWindow:  &config.HostExpiryWindow,
 			}
 			agentOptions = config.AgentOptions
+		}
+		if config.VulnerabilityDatabasesPath != nil {
+			vulnerabilitySettings = &fleet.VulnerabilitySettingsPayload{
+				DatabasesPath: *config.VulnerabilityDatabasesPath,
+			}
 		}
 		hostSettings := &fleet.HostSettings{
 			AdditionalQueries: config.AdditionalQueries,
@@ -100,6 +107,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			License:            license,
 			AgentOptions:       agentOptions,
 			Logging:            loggingConfig,
+			VulnerabilitySettings: vulnerabilitySettings,
 		}
 		return response, nil
 	}

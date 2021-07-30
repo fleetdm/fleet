@@ -1,1 +1,0 @@
-* Add mechanism so that only one instance of the horizontally deployed fleet servers runs the cleanups and other jobs alike. Fixes issue 1278

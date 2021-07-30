@@ -14,7 +14,7 @@ interface IButtonProps {
   tabIndex?: number;
   type?: "button" | "submit" | "reset";
   title?: string;
-  variant?: string; // default, brand, inverse, alert, disabled
+  variant?: string; // default, brand, inverse, alert, disabled...
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface

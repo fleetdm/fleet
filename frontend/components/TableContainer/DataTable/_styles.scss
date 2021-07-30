@@ -55,12 +55,10 @@
 
     .active-selection {
       position: absolute;
-      top: -1px;
+      top: 0px;
       width: 100%;
-      max-width: calc(
-        100vw - 2rem - 2rem - 0.125rem - 300px
-      ); // same as wrapper page for flex layout
       border: 0;
+      border-radius: 6px;
 
       &__container {
         padding: 0 27px;
@@ -144,6 +142,16 @@
       right: 0;
       background-color: rgba(255, 255, 255, 0.8);
       z-index: 1;
+    }
+  }
+
+  &__remove {
+    .button--text-link {
+      font-weight: $regular;
+      img {
+        position: relative;
+        left: -4px;
+      }
     }
   }
 }

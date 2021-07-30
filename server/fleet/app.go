@@ -183,6 +183,9 @@ type AppConfig struct {
 
 	// AgentOptions is the global agent options, including overrides.
 	AgentOptions *json.RawMessage `db:"agent_options"`
+
+	// VulnerabilityDatabases path
+	VulnerabilityDatabasesPath *string `db:"vulnerability_databases_path"`
 }
 
 func (c AppConfig) AuthzType() string {
@@ -261,6 +264,13 @@ type SMTPSettingsPayload struct {
 	SMTPEnableStartTLS *bool `json:"enable_start_tls"`
 }
 
+// VulnerabilitySettingsPayload is part of the AppConfigPayload which defines how fleet will behave
+// while scanning for vulnerabilities in the host software
+type VulnerabilitySettingsPayload struct {
+	// DatabasesPath is the directory where fleet will store the different databases
+	DatabasesPath string `json:"databases_path"`
+}
+
 // AppConfigPayload contains request/response format of
 // the AppConfig endpoints.
 type AppConfigPayload struct {
@@ -274,6 +284,9 @@ type AppConfigPayload struct {
 	SMTPTest *bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
 	SSOSettings *SSOSettingsPayload `json:"sso_settings"`
+
+	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
+	VulnerabilitySettings *VulnerabilitySettingsPayload `json:"vulnerability_settings"`
 }
 
 // OrgInfo contains general info about the organization using Fleet.

@@ -7,14 +7,12 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import { ITeam } from "interfaces/team";
-import { IHost } from "interfaces/host";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;
   teams: ITeam[];
   onSubmit: (team: ITeam) => void;
   onCancel: () => void;
-  host: IHost;
 }
 
 interface INoTeamOption {
@@ -33,7 +31,6 @@ const TransferHostModal = ({
   onSubmit,
   teams,
   isGlobalAdmin,
-  host,
 }: ITransferHostModal): JSX.Element => {
   const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 

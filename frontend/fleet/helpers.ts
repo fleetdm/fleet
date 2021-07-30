@@ -42,8 +42,7 @@ const labelStubs = [
   {
     id: "online",
     count: 0,
-    description:
-      "Hosts that have recently checked-in to Fleet and are ready to run queries.",
+    description: "Hosts that have recently checked-in to Fleet.",
     display_text: "Online",
     slug: "online",
     statusLabelKey: "online_count",
@@ -274,6 +273,66 @@ export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
   return scheduledQuery;
 };
 
+export const formatGlobalScheduledQueryForServer = (scheduledQuery: any) => {
+  const {
+    interval,
+    logging_type: loggingType,
+    platform,
+    query_id: queryID,
+    shard,
+  } = scheduledQuery;
+  const result = omit(scheduledQuery, ["logging_type"]);
+
+  if (platform === "all") {
+    result.platform = "";
+  }
+
+  if (interval) {
+    result.interval = Number(interval);
+  }
+
+  if (loggingType) {
+    result.removed = loggingType === "differential";
+    result.snapshot = loggingType === "snapshot";
+  }
+
+  if (queryID) {
+    result.query_id = Number(queryID);
+  }
+
+  if (shard) {
+    result.shard = Number(shard);
+  }
+
+  return result;
+};
+
+export const formatGlobalScheduledQueryForClient = (
+  scheduledQuery: any
+): any => {
+  if (scheduledQuery.platform === "") {
+    scheduledQuery.platform = "all";
+  }
+
+  if (scheduledQuery.snapshot) {
+    scheduledQuery.logging_type = "snapshot";
+  } else {
+    scheduledQuery.snapshot = false;
+    if (scheduledQuery.removed === false) {
+      scheduledQuery.logging_type = "differential_ignore_removals";
+    } else {
+      // If both are unset, we should default to differential (like osquery does)
+      scheduledQuery.logging_type = "differential";
+    }
+  }
+
+  if (scheduledQuery.shard === null) {
+    scheduledQuery.shard = undefined;
+  }
+
+  return scheduledQuery;
+};
+
 export const formatTeamForClient = (team: any): any => {
   if (team.display_text === undefined) {
     team.display_text = team.name;
@@ -369,8 +428,24 @@ export const secondsToHms = (d: number): string => {
 
   const hDisplay = h > 0 ? h + (h === 1 ? " hr " : " hrs ") : "";
   const mDisplay = m > 0 ? m + (m === 1 ? " min " : " mins ") : "";
-  const sDisplay = s > 0 ? s + (s === 1 ? " sec " : " secs ") : "";
+  const sDisplay = s > 0 ? s + (s === 1 ? " sec" : " secs") : "";
   return hDisplay + mDisplay + sDisplay;
+};
+
+export const secondsToDhms = (d: number): string => {
+  if (d === 604800) {
+    return "1 week";
+  }
+  const day = Math.floor(d / (3600 * 24));
+  const h = Math.floor((d % (3600 * 24)) / 3600);
+  const m = Math.floor((d % 3600) / 60);
+  const s = Math.floor(d % 60);
+
+  const dDisplay = day > 0 ? day + (day === 1 ? " day " : " days ") : "";
+  const hDisplay = h > 0 ? h + (h === 1 ? " hour " : " hours ") : "";
+  const mDisplay = m > 0 ? m + (m === 1 ? " minute " : " minutes ") : "";
+  const sDisplay = s > 0 ? s + (s === 1 ? " second" : " seconds") : "";
+  return dDisplay + hDisplay + mDisplay + sDisplay;
 };
 
 export const syntaxHighlight = (json: JSON): string => {
@@ -407,6 +482,8 @@ export default {
   formatLabelResponse,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
+  formatGlobalScheduledQueryForClient,
+  formatGlobalScheduledQueryForServer,
   formatSelectedTargetsForApi,
   humanHostUptime,
   humanHostLastSeen,
@@ -416,6 +493,7 @@ export default {
   hostTeamName,
   humanQueryLastRun,
   secondsToHms,
+  secondsToDhms,
   labelSlug,
   setupData,
   frontendFormattedConfig,

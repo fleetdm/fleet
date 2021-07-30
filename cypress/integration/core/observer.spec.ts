@@ -21,10 +21,12 @@ describe("Core tier - Observer user", () => {
 
     // Nav restrictions
     cy.findByText(/settings/i).should("not.exist");
-    cy.findByText(/packs/i).should("not.exist");
+    cy.findByText(/schedule/i).should("not.exist");
     cy.visit("/settings/organization");
     cy.findByText(/you do not have permissions/i).should("exist");
     cy.visit("/packs/manage");
+    cy.findByText(/you do not have permissions/i).should("exist");
+    cy.visit("/schedule/manage");
     cy.findByText(/you do not have permissions/i).should("exist");
 
     // Host manage page: No team UI, cannot add host or label
