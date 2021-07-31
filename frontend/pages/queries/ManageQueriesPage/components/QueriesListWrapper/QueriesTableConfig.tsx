@@ -47,29 +47,8 @@ interface IDataColumn {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
-  return [
-    {
-      id: "selection",
-      Header: (cellProps: IHeaderProps): JSX.Element => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const props = cellProps.row.getToggleRowSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          onChange: () => cellProps.row.toggleRowSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      disableHidden: true,
-    },
+const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
+  const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
       Header: (cellProps) => (
@@ -84,15 +63,6 @@ const generateTableHeaders = (): IDataColumn[] => {
           value={cellProps.cell.value}
           path={PATHS.EDIT_QUERY(cellProps.row.original)}
         />
-      ),
-    },
-    {
-      title: "Observer can run",
-      Header: "Observer can run",
-      disableSortBy: true,
-      accessor: "observer_can_run",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
       ),
     },
     {
@@ -122,6 +92,43 @@ const generateTableHeaders = (): IDataColumn[] => {
       ),
     },
   ];
+  if (!isOnlyObserver) {
+    tableHeaders.splice(0, 0, {
+      id: "selection",
+      Header: (cellProps: IHeaderProps): JSX.Element => {
+        const props = cellProps.getToggleAllRowsSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          indeterminate: props.indeterminate,
+          onChange: () => cellProps.toggleAllRowsSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const props = cellProps.row.getToggleRowSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          onChange: () => cellProps.row.toggleRowSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      disableHidden: true,
+    });
+    tableHeaders.splice(3, 0, {
+      title: "Observer can run",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      accessor: "observer_can_run",
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    });
+  }
+  return tableHeaders;
 };
 
 export default generateTableHeaders;

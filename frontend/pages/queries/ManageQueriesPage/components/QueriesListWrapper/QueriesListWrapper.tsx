@@ -1,15 +1,9 @@
-/**
- * Component when there is an error retrieving schedule set up in fleet
- */
-import React, { useCallback } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { push } from "react-router-redux";
-import paths from "router/paths";
+import React, { useCallback, useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 
 import { IQuery } from "interfaces/query";
-// @ts-ignore
-import queryActions from "redux/nodes/entities/queries/actions";
-
+import { IUser } from "interfaces/user";
+import permissionUtils from "utilities/permissions";
 import TableContainer from "components/TableContainer";
 import generateTableHeaders from "./QueriesTableConfig";
 
@@ -19,9 +13,12 @@ const noQueriesClass = "no-queries";
 interface IQueriesListWrapperProps {
   onRemoveQueryClick: any;
   queriesList: IQuery[];
-  // toggleScheduleEditorModal: any;
 }
+
 interface IRootState {
+  auth: {
+    user: IUser;
+  };
   entities: {
     queries: {
       isLoading: boolean;
@@ -31,20 +28,49 @@ interface IRootState {
 }
 
 const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
-  const {
-    onRemoveQueryClick,
-    queriesList,
-    // toggleScheduleEditorModal,
-  } = props;
-  const dispatch = useDispatch();
+  const { onRemoveQueryClick, queriesList } = props;
 
-  const NoScheduledQueries = () => {
+  const loadingTableData = useSelector(
+    (state: IRootState) => state.entities.queries.isLoading
+  );
+
+  const currentUser = useSelector((state: IRootState) => state.auth.user);
+  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
+
+  const [filteredQueries, setFilteredQueries] = useState(queriesList);
+  const [searchString, setSearchString] = useState("");
+
+  useEffect(() => {
+    setFilteredQueries(queriesList);
+  }, [queriesList]);
+
+  useEffect(() => {
+    setFilteredQueries(() => {
+      return queriesList.filter((query) => {
+        return query.name.toLowerCase().includes(searchString.toLowerCase());
+      });
+    });
+  }, [queriesList, searchString, setFilteredQueries]);
+
+  const onQueryChange = useCallback(
+    (queryData) => {
+      const { searchQuery } = queryData;
+      setSearchString(searchQuery);
+    },
+    [setSearchString]
+  );
+
+  const NoQueriesComponent = useCallback(() => {
     return (
       <div className={`${noQueriesClass}`}>
         <div className={`${noQueriesClass}__inner`}>
           {/* <img src={scheduleSvg} alt="No Schedule" /> */}
           <div className={`${noQueriesClass}__inner-text`}>
-            <h2>You don&apos;t have any queries.</h2>
+            {!searchString ? (
+              <h2>You don&apos;t have any queries.</h2>
+            ) : (
+              <h2>No queries match your search.</h2>
+            )}
             <p>
               Create a new query, or{" "}
               <a href="https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/standard-query-library">
@@ -56,34 +82,16 @@ const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
         </div>
       </div>
     );
-  };
+  }, [searchString]);
 
-  const tableHeaders = generateTableHeaders();
-  const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.queries.isLoading
-  );
-
-  // Search functionality disabled, needed if enabled
-  const onQueryChange = useCallback(
-    (queryData) => {
-      const { pageIndex, pageSize, searchQuery } = queryData;
-      dispatch(
-        queryActions.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-        })
-      );
-    },
-    [dispatch]
-  );
+  const tableHeaders = generateTableHeaders(isOnlyObserver);
 
   return (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={queriesList}
+        data={filteredQueries}
         isLoading={loadingTableData}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}
@@ -97,7 +105,7 @@ const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
         primarySelectActionButtonVariant="text-link"
         primarySelectActionButtonIcon="close"
         primarySelectActionButtonText={"Remove"}
-        emptyComponent={NoScheduledQueries}
+        emptyComponent={NoQueriesComponent}
       />
     </div>
   );

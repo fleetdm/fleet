@@ -11,7 +11,6 @@ export default PropTypes.shape({
   author_name: PropTypes.string,
   updated_at: PropTypes.string,
 });
-
 export interface IQuery {
   description: string;
   name: string;

@@ -10,28 +10,11 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 import paths from "router/paths";
 import Button from "components/buttons/Button";
-// import QueriesListError from "./components/QueriesListError";
+import QueriesListError from "./components/QueriesListError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
 
 const baseClass = "manage-queries-page";
-
-const renderTable = (
-  onRemoveQueryClick: React.MouseEventHandler<HTMLButtonElement>,
-  queriesList: IQuery[],
-  queriesErrors: any
-): JSX.Element => {
-  // if (Object.keys(queriesErrors).length !== 0) {
-  //   return <Error />;
-  // }
-
-  return (
-    <QueriesListWrapper
-      onRemoveQueryClick={onRemoveQueryClick}
-      queriesList={queriesList}
-    />
-  );
-};
 interface IRootState {
   entities: {
     queries: {
@@ -41,6 +24,23 @@ interface IRootState {
     };
   };
 }
+
+const renderTable = (
+  onRemoveQueryClick: React.MouseEventHandler<HTMLButtonElement>,
+  queriesList: IQuery[],
+  queriesErrors: any
+): JSX.Element => {
+  if (Object.keys(queriesErrors).length !== 0) {
+    return <QueriesListError />;
+  }
+
+  return (
+    <QueriesListWrapper
+      onRemoveQueryClick={onRemoveQueryClick}
+      queriesList={queriesList}
+    />
+  );
+};
 
 const ManageQueriesPage = (): JSX.Element => {
   const isOnlyObserver = false; // TODO
