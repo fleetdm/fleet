@@ -58,23 +58,9 @@ func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
 	return ctx
 }
 
-// WithExtrasNoUser returns a context with logging.Extras set as the values
-// provided and skips the user logging
-func WithExtrasNoUser(ctx context.Context, extras ...interface{}) context.Context {
+func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.Extras = append(logCtx.Extras, extras...)
-		logCtx.SkipUser = true
-	}
-	return ctx
-}
-
-// WithDebugExtrasNoUser returns a context with logging.Extras set as the values
-// provided, skips the user logging, and forces the log to be a debug
-func WithDebugExtrasNoUser(ctx context.Context, extras ...interface{}) context.Context {
-	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.Extras = append(logCtx.Extras, extras...)
-		logCtx.ForceDebug = true
-		logCtx.SkipUser = true
+		logCtx.ForceLevel = level
 	}
 	return ctx
 }
@@ -84,8 +70,8 @@ type LoggingContext struct {
 	StartTime  time.Time
 	Err        error
 	Extras     []interface{}
-	ForceDebug bool
 	SkipUser   bool
+	ForceLevel func(kitlog.Logger) kitlog.Logger
 }
 
 // Log logs the data within the context
@@ -94,7 +80,9 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		logger = kitlog.With(logger, "internal", e.Internal())
 	}
 
-	if (l.Err != nil || len(l.Extras) > 0) && !l.ForceDebug {
+	if l.ForceLevel != nil {
+		logger = l.ForceLevel(logger)
+	} else if l.Err != nil || len(l.Extras) > 0 {
 		logger = level.Info(logger)
 	} else {
 		logger = level.Debug(logger)

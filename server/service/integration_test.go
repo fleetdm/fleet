@@ -490,7 +490,7 @@ func TestLogger(t *testing.T) {
 
 		switch i {
 		case 0:
-			assert.Equal(t, "debug", kv["level"])
+			assert.Equal(t, "info", kv["level"])
 			assert.Equal(t, "POST", kv["method"])
 			assert.Equal(t, "/api/v1/fleet/login", kv["uri"])
 		case 1:

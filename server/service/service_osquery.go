@@ -335,7 +335,12 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 func logIPs(ctx context.Context, extras ...interface{}) {
 	remoteAddr, _ := ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string)
 	xForwardedFor, _ := ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string)
-	logging.WithDebugExtrasNoUser(ctx, append(extras, "ip_addr", remoteAddr, "x_for_ip_addr", xForwardedFor)...)
+	logging.WithLevel(
+		logging.WithExtras(
+			logging.WithNoUser(ctx),
+			append(extras, "ip_addr", remoteAddr, "x_for_ip_addr", xForwardedFor)...),
+		level.Debug,
+	)
 }
 
 func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {

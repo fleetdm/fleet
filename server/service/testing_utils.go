@@ -1,13 +1,12 @@
 package service
 
 import (
-	"fmt"
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/logging"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -20,7 +19,7 @@ import (
 )
 
 func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
-	return newTestServiceWithConfig(ds, config.TestConfig(), rs, lq, opts)
+	return newTestServiceWithConfig(ds, config.TestConfig(), rs, lq, opts...)
 }
 
 func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
@@ -32,11 +31,12 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 		fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
-	osqlogger:= &logging.OsqueryLogger{Status: writer, Result: writer}
+	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
+	logger := kitlog.NewNopLogger()
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
-	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, fleetConfig, mailer, clock.C, nil, lq, ds, license)
+	svc, err := NewService(ds, rs, logger, osqlogger, fleetConfig, mailer, clock.C, nil, lq, ds, license)
 	if err != nil {
 		panic(err)
 	}
@@ -53,7 +53,7 @@ func newTestBasicService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet
 		testConfig.Filesystem.EnableLogRotation,
 		testConfig.Filesystem.EnableLogCompression,
 	)
-	osqlogger:= &logging.OsqueryLogger{Status: writer, Result: writer}
+	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, clock.C, nil, lq, ds, license)
 	if err != nil {
 		panic(err)
@@ -75,7 +75,7 @@ func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq f
 		testConfig.Filesystem.EnableLogRotation,
 		testConfig.Filesystem.EnableLogCompression,
 	)
-	osqlogger:= &logging.OsqueryLogger{Status: writer, Result: writer}
+	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license)
 	if err != nil {
 		panic(err)
@@ -225,8 +225,8 @@ func testLambdaPluginConfig() config.FleetConfig {
 		AccessKeyID:      "foo",
 		SecretAccessKey:  "bar",
 		StsAssumeRoleArn: "baz",
-		ResultFunction: "result-func",
-		StatusFunction: "status-func",
+		ResultFunction:   "result-func",
+		StatusFunction:   "status-func",
 	}
 	return c
 }
