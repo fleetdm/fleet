@@ -200,25 +200,21 @@ export class ManageHostsPage extends PureComponent {
     // keep track as a local state to be used later
     this.setState({ searchQuery });
 
-    // dispatch(
-    //   getHosts({
-    //     page: pageIndex,
-    //     perPage: pageSize,
-    //     selectedLabel: selectedFilter,
-    //     globalFilter: searchQuery,
-    //     sortBy,
-    //   })
-    // );
+    try {
+      const { hosts } = await hostActions2.loadAll({
+        page: pageIndex,
+        perPage: pageSize,
+        selectedLabel: selectedFilter,
+        globalFilter: searchQuery,
+        sortBy,
+      });
 
-    const { hosts } = await hostActions2.loadAll({
-      page: pageIndex,
-      perPage: pageSize,
-      selectedLabel: selectedFilter,
-      globalFilter: searchQuery,
-      sortBy,
-    });
-
-    this.setState({ hosts });
+      this.setState({ hosts });
+    } catch (error) {
+      dispatch(
+        renderFlash("error", "Sorry, we could not retrieve your hosts.")
+      );
+    }
   };
 
   onEditLabel = (formData) => {
