@@ -36,6 +36,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
+	github.com/groob/mockimpl v0.0.0-20170306012045-dfa944a2a940 // indirect
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/jonboulle/clockwork v0.2.2 // indirect
@@ -67,7 +68,7 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
-	golang.org/x/tools v0.1.4 // indirect
+	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/grpc v1.38.0
 	gopkg.in/guregu/null.v3 v3.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3

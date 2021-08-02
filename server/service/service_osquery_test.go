@@ -313,9 +313,6 @@ func TestLabelQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.DistributedQueriesForHostFunc = func(host *fleet.Host) (map[uint]string, error) {
-		return map[uint]string{}, nil
-	}
 	ds.HostFunc = func(id uint) (*fleet.Host, error) {
 		return host, nil
 	}
@@ -1151,9 +1148,6 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.DistributedQueriesForHostFunc = func(host *fleet.Host) (map[uint]string, error) {
-		return map[uint]string{}, nil
-	}
 	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return nil
 	}
@@ -1224,9 +1218,6 @@ func TestDistributedQueryResults(t *testing.T) {
 	}
 	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return nil
-	}
-	ds.DistributedQueriesForHostFunc = func(host *fleet.Host) (map[uint]string, error) {
-		return map[uint]string{campaign.ID: "select * from time"}, nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil

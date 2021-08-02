@@ -1,14 +1,12 @@
 package fleet
 
-import "sync"
-
 type SoftwareStore interface {
 	SaveHostSoftware(host *Host) error
 	LoadHostSoftware(host *Host) error
 	AllSoftwareWithoutCPEIterator() (SoftwareIterator, error)
 	AddCPEForSoftware(software Software, cpe string) error
 	AllCPEs() ([]string, error)
-	BulkInsertCVEs(cves *sync.Map) error
+	InsertCVEForCPE(cve string, cpes []string) error
 }
 
 // Software is a named and versioned piece of software installed on a device.

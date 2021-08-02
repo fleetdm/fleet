@@ -2,11 +2,7 @@
 
 package mock
 
-import (
-	"sync"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
-)
+import "github.com/fleetdm/fleet/v4/server/fleet"
 
 var _ fleet.SoftwareStore = (*SoftwareStore)(nil)
 
@@ -14,13 +10,13 @@ type SaveHostSoftwareFunc func(host *fleet.Host) error
 
 type LoadHostSoftwareFunc func(host *fleet.Host) error
 
-type AllSoftwareIteratorFunc func() (fleet.SoftwareIterator, error)
+type AllSoftwareWithoutCPEIteratorFunc func() (fleet.SoftwareIterator, error)
 
 type AddCPEForSoftwareFunc func(software fleet.Software, cpe string) error
 
 type AllCPEsFunc func() ([]string, error)
 
-type BulkInsertCVEsFunc func(cves *sync.Map) error
+type InsertCVEForCPEFunc func(cve string, cpes []string) error
 
 type SoftwareStore struct {
 	SaveHostSoftwareFunc        SaveHostSoftwareFunc
@@ -29,8 +25,8 @@ type SoftwareStore struct {
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
 
-	AllSoftwareIteratorFunc        AllSoftwareIteratorFunc
-	AllSoftwareIteratorFuncInvoked bool
+	AllSoftwareWithoutCPEIteratorFunc        AllSoftwareWithoutCPEIteratorFunc
+	AllSoftwareWithoutCPEIteratorFuncInvoked bool
 
 	AddCPEForSoftwareFunc        AddCPEForSoftwareFunc
 	AddCPEForSoftwareFuncInvoked bool
@@ -38,13 +34,8 @@ type SoftwareStore struct {
 	AllCPEsFunc        AllCPEsFunc
 	AllCPEsFuncInvoked bool
 
-	BulkInsertCVEsFunc        BulkInsertCVEsFunc
-	BulkInsertCVEsFuncInvoked bool
-}
-
-func (s *SoftwareStore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
-	s.AllSoftwareIteratorFuncInvoked = true
-	return s.AllSoftwareIteratorFunc()
+	InsertCVEForCPEFunc        InsertCVEForCPEFunc
+	InsertCVEForCPEFuncInvoked bool
 }
 
 func (s *SoftwareStore) SaveHostSoftware(host *fleet.Host) error {
@@ -57,6 +48,11 @@ func (s *SoftwareStore) LoadHostSoftware(host *fleet.Host) error {
 	return s.LoadHostSoftwareFunc(host)
 }
 
+func (s *SoftwareStore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
+	s.AllSoftwareWithoutCPEIteratorFuncInvoked = true
+	return s.AllSoftwareWithoutCPEIteratorFunc()
+}
+
 func (s *SoftwareStore) AddCPEForSoftware(software fleet.Software, cpe string) error {
 	s.AddCPEForSoftwareFuncInvoked = true
 	return s.AddCPEForSoftwareFunc(software, cpe)
@@ -67,7 +63,7 @@ func (s *SoftwareStore) AllCPEs() ([]string, error) {
 	return s.AllCPEsFunc()
 }
 
-func (s *SoftwareStore) BulkInsertCVEs(cves *sync.Map) error {
-	s.BulkInsertCVEsFuncInvoked = true
-	return s.BulkInsertCVEsFunc(cves)
+func (s *SoftwareStore) InsertCVEForCPE(cve string, cpes []string) error {
+	s.InsertCVEForCPEFuncInvoked = true
+	return s.InsertCVEForCPEFunc(cve, cpes)
 }

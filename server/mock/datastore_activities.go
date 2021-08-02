@@ -7,6 +7,7 @@ import "github.com/fleetdm/fleet/v4/server/fleet"
 var _ fleet.ActivitiesStore = (*ActivitiesStore)(nil)
 
 type NewActivityFunc func(user *fleet.User, activityType string, details *map[string]interface{}) error
+
 type ListActivitiesFunc func(opt fleet.ListOptions) ([]*fleet.Activity, error)
 
 type ActivitiesStore struct {

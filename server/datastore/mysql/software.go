@@ -3,7 +3,6 @@ package mysql
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -285,6 +284,16 @@ func (d *Datastore) AllCPEs() ([]string, error) {
 	return cpes, nil
 }
 
-func (d *Datastore) BulkInsertCVEs(cves *sync.Map) error {
-	panic("not implemented")
+func (d *Datastore) InsertCVEForCPE(cve string, cpes []string) error {
+	values := strings.TrimSuffix(strings.Repeat("((SELECT id FROM software_cpe WHERE cpe=?),?),", len(cpes)), ",")
+	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
+	var args []interface{}
+	for _, cpe := range cpes {
+		args = append(args, cpe, cve)
+	}
+	_, err := d.db.Exec(sql, args...)
+	if err != nil {
+		return errors.Wrap(err, "insert software cve")
+	}
+	return nil
 }

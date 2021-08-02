@@ -167,7 +167,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 		},
 	}
 
-	ds.AllSoftwareIteratorFunc = func() (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareWithoutCPEIteratorFunc = func() (fleet.SoftwareIterator, error) {
 		return iterator, nil
 	}
 

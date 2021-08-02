@@ -2,10 +2,12 @@ package vulnerabilities
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sync/atomic"
+	"runtime"
+	"sync"
 	"time"
 
 	"github.com/facebookincubator/nvdtools/cvefeed"
@@ -16,19 +18,15 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-func syncCVEData() error {
+func syncCVEData(vulnPath string) error {
 	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
 
 	source := nvd.NewSourceConfig()
-	localdir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
 
 	dfs := nvd.Sync{
 		Feeds:    []nvd.Syncer{cve},
 		Source:   source,
-		LocalDir: localdir,
+		LocalDir: vulnPath,
 	}
 
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -37,7 +35,7 @@ func syncCVEData() error {
 }
 
 func TranslateCPEToCVE(ctx context.Context, ds fleet.Datastore, vulnPath string, logger kitlog.Logger) error {
-	err := syncCVEData()
+	err := syncCVEData(vulnPath)
 	if err != nil {
 		return err
 	}
@@ -56,9 +54,13 @@ func TranslateCPEToCVE(ctx context.Context, ds fleet.Datastore, vulnPath string,
 		cpes = append(cpes, attr)
 	}
 
+	if len(cpes) == 0 {
+		return nil
+	}
+
 	var files []string
 	err = filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
-		if match, err := regexp.MatchString("^nvdcve-1.1-.*.gz$", path); !match || err != nil {
+		if match, err := regexp.MatchString("nvdcve.*\\.gz$", path); !match || err != nil {
 			return nil
 		}
 		files = append(files, path)
@@ -77,48 +79,63 @@ func TranslateCPEToCVE(ctx context.Context, ds fleet.Datastore, vulnPath string,
 
 	cpeCh := make(chan *wfn.Attributes)
 
-	counter := new(uint64)
-	total := uint64(len(cpeList))
+	counter := 0
+	counterLock := &sync.Mutex{}
+	total := len(cpeList)
 
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 
-	// TODO: make this not a static 4
-	for i := 0; i < 4; i++ {
+	for i := 0; i < runtime.NumCPU(); i++ {
+		goRoutineKey := i
 		go func() {
-			level.Debug(logger).Log("cpe processing", "start")
-
-			// TODO: figure out insertions, maybe inserting right as we get it is enough?
-			accumulated := 0
-			var args []interface{}
+			logKey := fmt.Sprintf("cpe-processing-%d", goRoutineKey)
+			level.Debug(logger).Log(logKey, "start")
 
 			for {
 				select {
 				case cpe := <-cpeCh:
-					for _, matches := range cache.Get([]*wfn.Attributes{cpe}) {
+					cacheHits := cache.Get([]*wfn.Attributes{cpe})
+					for _, matches := range cacheHits {
 						ml := len(matches.CPEs)
 						if ml == 0 {
 							continue
 						}
-						matchingCPEs := make([]string, ml)
+						matchingCPEs := make([]string, 0, ml)
 						for _, attr := range matches.CPEs {
 							if attr == nil {
 								level.Error(logger).Log("matches nil CPE", matches.CVE.ID())
 								continue
 							}
-							matchingCPEs = append(matchingCPEs, attr.BindToFmtString())
+							cpe := attr.BindToFmtString()
+							if len(cpe) == 0 {
+								continue
+							}
+							matchingCPEs = append(matchingCPEs, cpe)
 						}
-						//cveMatches.Store(matches.CVE.ID(), matchingCPEs)
+						err = ds.InsertCVEForCPE(matches.CVE.ID(), matchingCPEs)
+						if err != nil {
+							level.Error(logger).Log("cpe processing", "error", "err", err)
+						}
 					}
 
-					if atomic.CompareAndSwapUint64(counter, total, total) {
+					doneProcessingCPEs := false
+					counterLock.Lock()
+					counter++
+					if counter >= total {
+						doneProcessingCPEs = true
+					}
+					counterLock.Unlock()
+
+					if doneProcessingCPEs {
 						cancelFunc()
-						level.Debug(logger).Log("cpe processing", "done")
+						level.Debug(logger).Log(logKey, "done")
 						return
 					}
-
-					atomic.AddUint64(counter, uint64(1))
 				case <-ctx.Done():
-					level.Debug(logger).Log("cpe processing", "quitting")
+					level.Debug(logger).Log(logKey, "quitting")
+					return
+				case <-cancelCtx.Done():
+					level.Debug(logger).Log(logKey, "quitting")
 					return
 				}
 			}

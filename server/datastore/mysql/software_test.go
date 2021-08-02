@@ -166,3 +166,24 @@ func TestSoftwareCPE(t *testing.T) {
 	}
 	assert.Equal(t, len(host1.Software)-1, loops)
 }
+
+func TestInsertCVEs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		},
+	}
+	host.HostSoftware = soft
+	require.NoError(t, ds.SaveHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
+	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
+}
