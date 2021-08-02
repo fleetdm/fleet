@@ -31,4 +31,5 @@ export interface ILabel {
   title: string; // confirm on rest api doc
   type: string; // confirm on rest api doc
   count: number;
+  slug?: string;
 }

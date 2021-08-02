@@ -15,6 +15,7 @@ interface IDataTableProps {
   columns: any;
   data: any;
   isLoading: boolean;
+  sortByAPI?: boolean;
   sortHeader: any;
   sortDirection: any;
   onSort: any; // TODO: an event type
@@ -34,6 +35,7 @@ const DataTable = ({
   columns: tableColumns,
   data: tableData,
   isLoading,
+  sortByAPI = false,
   sortHeader,
   sortDirection,
   onSort,
@@ -73,6 +75,7 @@ const DataTable = ({
         }, [sortHeader, sortDirection]),
       },
       disableMultiSort: true,
+      manualSortBy: sortByAPI,
     },
     useSortBy,
     useRowSelect
