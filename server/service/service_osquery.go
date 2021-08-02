@@ -1121,6 +1121,8 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		if strings.HasPrefix(query, hostLabelQueryPrefix) {
 			fullHost, err := svc.ds.Host(host.ID)
 			if err != nil {
+				// leave this error return here, we don't want to drop host additionals
+				// if we can't get a host, everything is lost
 				return osqueryError{message: "internal error: load host additional: " + err.Error()}
 			}
 			host = *fullHost
@@ -1147,14 +1149,14 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 			// osquery docs say any nonzero (string) value for
 			// status indicates a query error
 			status, ok := statuses[query]
-			failed := (ok && status != fleet.StatusOK)
+			failed := ok && status != fleet.StatusOK
 			err = svc.ingestDistributedQuery(host, query, rows, failed, messages[query])
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}
 
 		if err != nil {
-			return osqueryError{message: "failed to ingest result: " + err.Error()}
+			logging.WithExtras(ctx, "ingestion-err", err)
 		}
 	}
 
@@ -1163,7 +1165,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		host.LabelUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordLabelQueryExecutions(&host, labelResults, svc.clock.Now())
 		if err != nil {
-			return osqueryError{message: "failed to save labels: " + err.Error()}
+			logging.WithExtras(ctx, "save-labels-err", err)
 		}
 	}
 
@@ -1172,7 +1174,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		host.DetailUpdatedAt = svc.clock.Now()
 		additionalJSON, err := json.Marshal(additionalResults)
 		if err != nil {
-			return osqueryError{message: "failed to marshal additional: " + err.Error()}
+			logging.WithExtras(ctx, "marshal-additional-err", err)
 		}
 		additional := json.RawMessage(additionalJSON)
 		host.Additional = &additional
@@ -1181,7 +1183,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 	if host.Modified {
 		err = svc.ds.SaveHost(&host)
 		if err != nil {
-			return osqueryError{message: "failed to update host details: " + err.Error()}
+			logging.WithExtras(ctx, "update-host-details-err", err)
 		}
 	}
 
