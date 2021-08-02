@@ -673,7 +673,7 @@ export class ManageHostsPage extends PureComponent {
         )}
         data={hosts}
         isLoading={loadingHosts}
-        sortByAPI={true}
+        sortByAPI
         defaultSortHeader={"hostname"}
         defaultSortDirection={"asc"}
         actionButtonText={"Edit columns"}

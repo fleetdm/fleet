@@ -1,4 +1,4 @@
-import { sendRequest } from "services";
+import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import { IHost } from "interfaces/host";
 
