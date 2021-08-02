@@ -24,6 +24,7 @@ import ScheduleError from "./components/ScheduleError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
+import { isOnGlobalTeam } from "utilities/permissions/permissions";
 
 const baseClass = "manage-schedule-page";
 
@@ -47,6 +48,12 @@ const renderTable = (
     />
   );
 };
+
+interface ITeamSchedulesPageProps {
+  params: {
+    team_id: string;
+  };
+}
 interface IRootState {
   app: {
     config: IConfig;
@@ -86,7 +93,11 @@ let teamOptions: any = [
   },
 ];
 
-const ManageSchedulePage = (): JSX.Element => {
+const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
+  const {
+    params: { team_id },
+  } = props;
+  const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
@@ -115,19 +126,29 @@ const ManageSchedulePage = (): JSX.Element => {
   const allTeams = useSelector((state: IRootState) => state.entities.teams);
   const allTeamsList = Object.values(allTeams.data);
 
-  const selectedTeam = teamOptions[0].value;
+  const selectedTeam = isNaN(teamId) ? teamOptions[0].value : teamId;
 
+  console.log("teamId, do you exist?", teamId);
   const generateTeamOptionsDropdownItems = (): any => {
+    let teamOptions: any = [
+      {
+        disabled: isNaN(teamId),
+        label: "Global",
+        value: "global",
+      },
+    ];
+
     allTeamsList.map((team) => {
-      teamOptions.push({ disabled: false, label: team.name, value: team.id });
+      teamOptions.push({
+        disabled: teamId === team.id,
+        label: team.name,
+        value: team.id,
+      });
     });
+    return teamOptions;
   };
 
   console.log("allTeamsList", allTeamsList);
-
-  if (allTeamsList.length > 0) {
-    generateTeamOptionsDropdownItems();
-  }
 
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
   const [
@@ -238,7 +259,11 @@ const ManageSchedulePage = (): JSX.Element => {
 
   const onChangeSelectedTeam = (selectedTeamId: number) => {
     console.log("Changed Team!", selectedTeamId, typeof selectedTeamId);
-    dispatch(push(`${paths.MANAGE_TEAM_SCHEDULE(selectedTeamId)}`));
+    if (isNaN(selectedTeamId)) {
+      dispatch(push(`${paths.MANAGE_SCHEDULE}`));
+    } else {
+      dispatch(push(`${paths.MANAGE_TEAM_SCHEDULE(selectedTeamId)}`));
+    }
   };
 
   return (
@@ -264,17 +289,24 @@ const ManageSchedulePage = (): JSX.Element => {
                 <Dropdown
                   value={selectedTeam}
                   className={`${baseClass}__team-dropdown`}
-                  options={teamOptions}
+                  options={generateTeamOptionsDropdownItems()}
                   searchable={false}
                   onChange={(newSelectedValue: number) =>
                     onChangeSelectedTeam(newSelectedValue)
                   }
                 />
                 <div className={`${baseClass}__description`}>
-                  <p>
-                    Schedule queries to run at regular intervals across all of
-                    your hosts.
-                  </p>
+                  {isNaN(teamId) ? (
+                    <p>
+                      Schedule queries to run at regular intervals across{" "}
+                      <b>all of your hosts</b>.
+                    </p>
+                  ) : (
+                    <p>
+                      Schedule additional queries for all hosts assigned to this
+                      team.
+                    </p>
+                  )}
                 </div>
               </div>
             )}

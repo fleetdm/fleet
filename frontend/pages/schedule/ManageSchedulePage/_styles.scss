@@ -9,6 +9,10 @@
   &__header {
     display: flex;
     align-items: center;
+
+    .form-field {
+      margin-bottom: 0;
+    }
   }
 
   &__text {
@@ -83,26 +87,47 @@
 
   &__team-dropdown {
     border: 0 !important;
+    margin-top: $pad-small;
 
-    .Select {
-      border: 0 !important;
+    .Select-arrow {
+      top: -6px !important;
+      margin-top: 0 !important;
     }
-    .Select.is-focused {
-      .Select-control {
-        border: 0 !important;
-      }
-    }
-
+  }
+  .Select.is-focused {
     .Select-control {
       border: 0 !important;
-      border-radius: none;
-      height: 40px;
+    }
+  }
+
+  .Select-control {
+    background-color: #fff;
+    border: 0 !important;
+    border-radius: none;
+    position: none;
+    width: max-content; // move select arrow
+
+    &:hover {
+      box-shadow: none;
+    }
+
+    .Select-multi-value-wrapper {
+      width: max-content; // move select arrow
+
+      .Select-input {
+        height: 0;
+      }
 
       .Select-value {
-        line-height: 40px;
+        position: relative; // moves select arrow
+        display: inline-block; // moves select arrow
         padding: 0;
         border: 0 !important;
         background-color: #fff !important;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        top: 0;
 
         &.is-focused {
           border: 0 !important;
