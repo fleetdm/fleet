@@ -80,4 +80,43 @@
       margin-right: $pad-medium;
     }
   }
+
+  &__team-dropdown {
+    border: 0 !important;
+
+    .Select {
+      border: 0 !important;
+    }
+    .Select.is-focused {
+      .Select-control {
+        border: 0 !important;
+      }
+    }
+
+    .Select-control {
+      border: 0 !important;
+      border-radius: none;
+      height: 40px;
+
+      .Select-value {
+        line-height: 40px;
+        padding: 0;
+        border: 0 !important;
+        background-color: #fff !important;
+
+        &.is-focused {
+          border: 0 !important;
+          // box-shadow: none !important; find hover shadow
+        }
+        :hover {
+          border: 0 !important;
+          box-shadow: none !important;
+        }
+
+        .Select-value-label {
+          font-size: $large !important;
+        }
+      }
+    }
+  }
 }

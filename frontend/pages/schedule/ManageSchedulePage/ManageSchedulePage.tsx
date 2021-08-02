@@ -4,17 +4,22 @@ import { useDispatch, useSelector } from "react-redux";
 import { push } from "react-router-redux";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
+import { IConfig } from "interfaces/config";
 import { IQuery } from "interfaces/query";
+import { ITeam } from "interfaces/team";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 // @ts-ignore
 import queryActions from "redux/nodes/entities/queries/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
 import paths from "router/paths";
 import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import ScheduleError from "./components/ScheduleError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
@@ -43,6 +48,9 @@ const renderTable = (
   );
 };
 interface IRootState {
+  app: {
+    config: IConfig;
+  };
   entities: {
     global_scheduled_queries: {
       isLoading: boolean;
@@ -52,6 +60,10 @@ interface IRootState {
     queries: {
       isLoading: boolean;
       data: IQuery[];
+    };
+    teams: {
+      isLoading: boolean;
+      data: ITeam[];
     };
   };
 }
@@ -66,6 +78,14 @@ interface IFormData {
   version: string;
 }
 
+let teamOptions: any = [
+  {
+    disabled: true,
+    label: "Global",
+    value: "global",
+  },
+];
+
 const ManageSchedulePage = (): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -74,7 +94,12 @@ const ManageSchedulePage = (): JSX.Element => {
   useEffect(() => {
     dispatch(globalScheduledQueryActions.loadAll());
     dispatch(queryActions.loadAll());
+    dispatch(teamActions.loadAll());
   }, [dispatch]);
+
+  const isBasicTier = useSelector((state: IRootState) => {
+    return state.app.config.tier === "basic";
+  });
 
   const allQueries = useSelector((state: IRootState) => state.entities.queries);
   const allQueriesList = Object.values(allQueries.data);
@@ -86,6 +111,23 @@ const ManageSchedulePage = (): JSX.Element => {
     allGlobalScheduledQueries.data
   );
   const allGlobalScheduledQueriesError = allGlobalScheduledQueries.errors;
+
+  const allTeams = useSelector((state: IRootState) => state.entities.teams);
+  const allTeamsList = Object.values(allTeams.data);
+
+  const selectedTeam = teamOptions[0].value;
+
+  const generateTeamOptionsDropdownItems = (): any => {
+    allTeamsList.map((team) => {
+      teamOptions.push({ disabled: false, label: team.name, value: team.id });
+    });
+  };
+
+  console.log("allTeamsList", allTeamsList);
+
+  if (allTeamsList.length > 0) {
+    generateTeamOptionsDropdownItems();
+  }
 
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
   const [
@@ -194,23 +236,48 @@ const ManageSchedulePage = (): JSX.Element => {
     [dispatch, toggleScheduleEditorModal]
   );
 
+  const onChangeSelectedTeam = (selectedTeamId: number) => {
+    console.log("Changed Team!", selectedTeamId, typeof selectedTeamId);
+    dispatch(push(`${paths.MANAGE_TEAM_SCHEDULE(selectedTeamId)}`));
+  };
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
-            <div className={`${baseClass}__text`}>
-              <h1 className={`${baseClass}__title`}>
-                <span>Schedule</span>
-              </h1>
-              <div className={`${baseClass}__description`}>
-                <p>
-                  Schedule recurring queries for your hosts. Fleet’s query
-                  schedule lets you add queries which are executed at regular
-                  intervals.
-                </p>
+            {!isBasicTier ? (
+              <div className={`${baseClass}__text`}>
+                <h1 className={`${baseClass}__title`}>
+                  <span>Schedule</span>
+                </h1>
+                <div className={`${baseClass}__description`}>
+                  <p>
+                    Schedule recurring queries for your hosts. Fleet’s query
+                    schedule lets you add queries which are executed at regular
+                    intervals.
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <Dropdown
+                  value={selectedTeam}
+                  className={`${baseClass}__team-dropdown`}
+                  options={teamOptions}
+                  searchable={false}
+                  onChange={(newSelectedValue: number) =>
+                    onChangeSelectedTeam(newSelectedValue)
+                  }
+                />
+                <div className={`${baseClass}__description`}>
+                  <p>
+                    Schedule queries to run at regular intervals across all of
+                    your hosts.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
           {/* Hide CTA Buttons if no schedule or schedule error */}
           {allGlobalScheduledQueriesList.length !== 0 &&
