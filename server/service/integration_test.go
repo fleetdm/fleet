@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -14,6 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -453,4 +456,57 @@ func TestTranslator(t *testing.T) {
 	assert.Len(t, payload.List, 1)
 
 	assert.Equal(t, users[payload.List[0].Payload.Identifier].ID, payload.List[0].Payload.ID)
+}
+
+func TestLogger(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	token := getTestAdminToken(t, server)
+
+	getConfig(t, server, token)
+	params := fleet.QueryPayload{
+		Name:        ptr.String("somequery"),
+		Description: ptr.String("desc"),
+		Query:       ptr.String("select 1 from osquery;"),
+	}
+	payload := createQueryRequest{}
+	doJSONReq(t, params, "POST", server, "/api/v1/fleet/queries", token, http.StatusOK, &payload)
+
+	logs := buf.String()
+	parts := strings.Split(strings.TrimSpace(logs), "\n")
+	assert.Len(t, parts, 3)
+	for i, part := range parts {
+		kv := make(map[string]string)
+		err := json.Unmarshal([]byte(part), &kv)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, "", kv["took"])
+
+		switch i {
+		case 0:
+			assert.Equal(t, "info", kv["level"])
+			assert.Equal(t, "POST", kv["method"])
+			assert.Equal(t, "/api/v1/fleet/login", kv["uri"])
+		case 1:
+			assert.Equal(t, "debug", kv["level"])
+			assert.Equal(t, "GET", kv["method"])
+			assert.Equal(t, "/api/v1/fleet/config", kv["uri"])
+			assert.Equal(t, "admin1@example.com", kv["user"])
+		case 2:
+			assert.Equal(t, "info", kv["level"])
+			assert.Equal(t, "POST", kv["method"])
+			assert.Equal(t, "/api/v1/fleet/queries", kv["uri"])
+			assert.Equal(t, "admin1@example.com", kv["user"])
+			assert.Equal(t, "somequery", kv["name"])
+			assert.Equal(t, "select 1 from osquery;", kv["sql"])
+		default:
+			t.Fail()
+		}
+	}
 }

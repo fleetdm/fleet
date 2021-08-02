@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
@@ -500,6 +501,17 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	}
 }
 
+func logRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWriter) context.Context {
+	return func(ctx context.Context, w http.ResponseWriter) context.Context {
+		logCtx, ok := logging.FromContext(ctx)
+		if !ok {
+			return ctx
+		}
+		logCtx.Log(ctx, logger)
+		return ctx
+	}
+}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
 func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
 	fleetAPIOptions := []kithttp.ServerOption{
@@ -507,11 +519,11 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			setRequestsContexts(svc),
 		),
-		//kithttp.ServerErrorLogger(logger),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
 		kithttp.ServerErrorEncoder(encodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
+			logRequestEnd(logger),
 		),
 	}
 

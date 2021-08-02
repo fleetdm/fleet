@@ -6,7 +6,7 @@ import "context"
 
 type key int
 
-const authzKey = 0
+const authzKey key = 0
 
 // NewContext creates a new context.Context with  an AuthorizationContext.
 func NewContext(ctx context.Context, authz *AuthorizationContext) context.Context {
