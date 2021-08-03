@@ -25,7 +25,7 @@ func (r getTeamScheduleResponse) error() error { return r.Err }
 func makeGetTeamScheduleEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
 	return newServer(
 		makeAuthenticatedServiceEndpoint(svc, getTeamScheduleEndpoint),
-		makeDecoderForOptionsAndIDs(getTeamScheduleRequest{}, "team_id"),
+		makeDecoder(getTeamScheduleRequest{}),
 		opts,
 	)
 }
@@ -77,7 +77,7 @@ func (r teamScheduleQueryResponse) error() error { return r.Err }
 func makeTeamScheduleQueryEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
 	return newServer(
 		makeAuthenticatedServiceEndpoint(svc, teamScheduleQueryEndpoint),
-		makeDecoderForTypeAndIDs(teamScheduleQueryRequest{}, "team_id"),
+		makeDecoder(teamScheduleQueryRequest{}),
 		opts,
 	)
 }
@@ -148,7 +148,7 @@ func (r modifyTeamScheduleResponse) error() error { return r.Err }
 func makeModifyTeamScheduleEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
 	return newServer(
 		makeAuthenticatedServiceEndpoint(svc, modifyTeamScheduleEndpoint),
-		makeDecoderForTypeAndIDs(modifyTeamScheduleRequest{}, "team_id", "scheduled_query_id"),
+		makeDecoder(modifyTeamScheduleRequest{}),
 		opts,
 	)
 }
@@ -197,7 +197,7 @@ func (r deleteTeamScheduleResponse) error() error { return r.Err }
 func makeDeleteTeamScheduleEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
 	return newServer(
 		makeAuthenticatedServiceEndpoint(svc, deleteTeamScheduleEndpoint),
-		makeDecoderForIDs(deleteTeamScheduleRequest{}, "team_id", "scheduled_query_id"),
+		makeDecoder(deleteTeamScheduleRequest{}),
 		opts,
 	)
 }
