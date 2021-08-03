@@ -196,7 +196,7 @@ func (d *Datastore) insertNewInstalledHostSoftware(
 	}
 	if len(insertsHostSoftware) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(insertsHostSoftware)/2), ",")
-		sql := fmt.Sprintf(`INSERT INTO host_software (host_id, software_id) VALUES %s`, values)
+		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id) VALUES %s`, values)
 		if _, err := tx.Exec(sql, insertsHostSoftware...); err != nil {
 			return errors.Wrap(err, "insert host software")
 		}
