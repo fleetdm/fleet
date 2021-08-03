@@ -237,7 +237,7 @@ const DataTable = ({
                       {primarySelectActionButtonText &&
                         renderPrimarySelectAction()}
                     </div>
-                    {renderAreAllSelected()}
+                    {toggleAllPagesSelected && renderAreAllSelected()}
                     {shouldRenderToggleAllPages && (
                       <Button
                         onClick={onToggleAllPagesClick}
