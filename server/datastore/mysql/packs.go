@@ -458,7 +458,8 @@ func (d *Datastore) insertNewTeamPack(teamID uint) (*fleet.Pack, error) {
 	teamType := fmt.Sprintf("team-%d", teamID)
 	err := d.withTx(func(tx *sqlx.Tx) error {
 		res, err := tx.Exec(
-			`INSERT INTO packs (name, description, platform, pack_type) VALUES (?, 'Team pack', '',?)`,
+			`INSERT INTO packs (name, description, platform, pack_type) 
+                   VALUES (?, 'Schedule additional queries for all hosts assigned to this team.', '',?)`,
 			teamType, teamType,
 		)
 		if err != nil {
