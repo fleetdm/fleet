@@ -79,21 +79,24 @@ func TranslateCPEToCVE(ctx context.Context, ds fleet.Datastore, vulnPath string,
 
 	cpeCh := make(chan *wfn.Attributes)
 
-	counter := 0
-	counterLock := &sync.Mutex{}
-	total := len(cpeList)
-
-	cancelCtx, cancelFunc := context.WithCancel(ctx)
+	var wg sync.WaitGroup
 
 	for i := 0; i < runtime.NumCPU(); i++ {
+		wg.Add(1)
 		goRoutineKey := i
 		go func() {
+			defer wg.Done()
+
 			logKey := fmt.Sprintf("cpe-processing-%d", goRoutineKey)
 			level.Debug(logger).Log(logKey, "start")
 
 			for {
 				select {
-				case cpe := <-cpeCh:
+				case cpe, more := <-cpeCh:
+					if !more {
+						level.Debug(logger).Log(logKey, "done")
+						return
+					}
 					cacheHits := cache.Get([]*wfn.Attributes{cpe})
 					for _, matches := range cacheHits {
 						ml := len(matches.CPEs)
@@ -117,24 +120,7 @@ func TranslateCPEToCVE(ctx context.Context, ds fleet.Datastore, vulnPath string,
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 						}
 					}
-
-					doneProcessingCPEs := false
-					counterLock.Lock()
-					counter++
-					if counter >= total {
-						doneProcessingCPEs = true
-					}
-					counterLock.Unlock()
-
-					if doneProcessingCPEs {
-						cancelFunc()
-						level.Debug(logger).Log(logKey, "done")
-						return
-					}
 				case <-ctx.Done():
-					level.Debug(logger).Log(logKey, "quitting")
-					return
-				case <-cancelCtx.Done():
 					level.Debug(logger).Log(logKey, "quitting")
 					return
 				}
@@ -146,9 +132,11 @@ func TranslateCPEToCVE(ctx context.Context, ds fleet.Datastore, vulnPath string,
 	for _, cpe := range cpes {
 		cpeCh <- cpe
 	}
+	close(cpeCh)
+
 	level.Debug(logger).Log("pushing cpes", "done")
 
-	<-cancelCtx.Done()
+	wg.Wait()
 
 	return nil
 }

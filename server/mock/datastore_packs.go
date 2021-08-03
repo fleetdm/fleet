@@ -127,8 +127,3 @@ func (s *PackStore) ListPacksForHost(hid uint) (packs []*fleet.Pack, err error) 
 	s.ListPacksForHostFuncInvoked = true
 	return s.ListPacksForHostFunc(hid)
 }
-
-func (s *PackStore) EnsureGlobalPack() (*fleet.Pack, error) {
-	s.EnsureGlobalPackFuncInvoked = true
-	return s.EnsureGlobalPackFunc()
-}
