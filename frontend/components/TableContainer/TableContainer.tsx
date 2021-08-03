@@ -27,7 +27,7 @@ interface ITableContainerProps {
   columns: any; // TODO: Figure out type
   data: any; // TODO: Figure out type
   isLoading: boolean;
-  sortByAPI?: boolean;
+  manualSortBy?: boolean;
   defaultSortHeader: string;
   defaultSortDirection: string;
   onActionButtonClick?: () => void;
@@ -63,7 +63,7 @@ const TableContainer = ({
   columns,
   data,
   isLoading,
-  sortByAPI = false,
+  manualSortBy = false,
   defaultSortHeader,
   defaultSortDirection,
   onActionButtonClick,
@@ -247,7 +247,7 @@ const TableContainer = ({
               isLoading={isLoading}
               columns={columns}
               data={data}
-              sortByAPI={sortByAPI}
+              manualSortBy={manualSortBy}
               sortHeader={sortHeader}
               sortDirection={sortDirection}
               onSort={onSortChange}

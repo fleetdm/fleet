@@ -31,7 +31,7 @@ import {
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
 
-import hostActions2 from "services/entities/hosts";
+import hostsClient from "services/entities/hosts";
 
 import permissionUtils from "utilities/permissions";
 import {
@@ -66,7 +66,6 @@ export class ManageHostsPage extends PureComponent {
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
-    // hosts: PropTypes.arrayOf(hostInterface),
     loadingHosts: PropTypes.bool,
     canAddNewHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
@@ -78,7 +77,6 @@ export class ManageHostsPage extends PureComponent {
 
   static defaultProps = {
     loadingLabels: false,
-    // hosts: [],
   };
 
   constructor(props) {
@@ -201,7 +199,7 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ searchQuery });
 
     try {
-      const { hosts } = await hostActions2.loadAll({
+      const { hosts } = await hostsClient.loadAll({
         page: pageIndex,
         perPage: pageSize,
         selectedLabel: selectedFilter,
@@ -644,7 +642,6 @@ export class ManageHostsPage extends PureComponent {
       currentUser,
       selectedFilter,
       selectedLabel,
-      // hosts,
       loadingHosts,
     } = this.props;
     const { hiddenColumns, isAllMatchingHostsSelected, hosts } = this.state;
@@ -673,7 +670,7 @@ export class ManageHostsPage extends PureComponent {
         )}
         data={hosts}
         isLoading={loadingHosts}
-        sortByAPI
+        manualSortBy
         defaultSortHeader={"hostname"}
         defaultSortDirection={"asc"}
         actionButtonText={"Edit columns"}
@@ -765,10 +762,6 @@ const mapStateToProps = (state, { location, params }) => {
   const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
 
-  // NOTE: good opportunity for performance optimisation here later. This currently
-  // always generates a new array of hosts, when it could memoized version of the list.
-  // const { entities: hosts } = entityGetter(state).get("hosts");
-
   const { loading: loadingHosts } = state.entities.hosts;
 
   const currentUser = state.auth.user;
@@ -796,7 +789,6 @@ const mapStateToProps = (state, { location, params }) => {
     statusLabels,
     config,
     currentUser,
-    // hosts,
     loadingHosts,
     canAddNewHosts,
     canAddNewLabels,
