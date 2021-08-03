@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -57,14 +56,6 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 	}
 
 	return svc.ds.ListScheduledQueriesInPack(gp.ID, opts)
-}
-
-func (mw loggingMiddleware) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	var err error
-	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log("method", "GetTeamScheduledQueries", "err", err, "took", time.Since(begin))
-	}(time.Now())
-	return mw.Service.GetTeamScheduledQueries(ctx, teamID, opts)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -137,14 +128,6 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.
 	return svc.ScheduleQuery(ctx, q)
 }
 
-func (mw loggingMiddleware) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	var err error
-	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log("method", "TeamScheduleQuery", "err", err, "took", time.Since(begin))
-	}(time.Now())
-	return mw.Service.TeamScheduleQuery(ctx, teamID, q)
-}
-
 /////////////////////////////////////////////////////////////////////////////////
 // Modify
 /////////////////////////////////////////////////////////////////////////////////
@@ -195,14 +178,6 @@ func (svc Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, 
 	return svc.ModifyScheduledQuery(ctx, scheduledQueryID, query)
 }
 
-func (mw loggingMiddleware) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	var err error
-	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log("method", "ModifyTeamScheduledQueries", "err", err, "took", time.Since(begin))
-	}(time.Now())
-	return mw.Service.ModifyTeamScheduledQueries(ctx, teamID, scheduledQueryID, q)
-}
-
 /////////////////////////////////////////////////////////////////////////////////
 // Delete
 /////////////////////////////////////////////////////////////////////////////////
@@ -242,12 +217,4 @@ func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, 
 	}
 	_ = teamID
 	return svc.DeleteScheduledQuery(ctx, scheduledQueryID)
-}
-
-func (mw loggingMiddleware) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint) error {
-	var err error
-	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log("method", "DeleteTeamScheduledQueries", "err", err, "took", time.Since(begin))
-	}(time.Now())
-	return mw.Service.DeleteTeamScheduledQueries(ctx, teamID, scheduledQueryID)
 }
