@@ -832,6 +832,10 @@ func TestDetailQueries(t *testing.T) {
 		return nil
 	}
 
+	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+		return &host, nil
+	}
+
 	// Verify that results are ingested properly
 	svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
 
