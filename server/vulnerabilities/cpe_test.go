@@ -1,6 +1,7 @@
 package vulnerabilities
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"path"
@@ -61,7 +62,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	dbPath := path.Join(tempDir, "cpe.sqlite")
 
 	err = os.Remove(dbPath)
-	if !os.IsNotExist(err) {
+	if !errors.Is(err, os.ErrNotExist) {
 		require.NoError(t, err)
 	}
 
