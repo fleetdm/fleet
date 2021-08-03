@@ -22,7 +22,7 @@ The Fleet UI is now available at http://localhost:1337.
 
 #### Now what?
 
-Check out the [Ask questions about your devices tutorial](./docs/1-Using-Fleet/tutorials/Ask-questions-about-your-devices.md) to learn where to see your devices in Fleet, how to add Fleet's standard query library, and how to asking questions about your devices by running queries.
+Check out the [Ask questions about your devices tutorial](./docs/1-Using-Fleet/tutorials/Ask-questions-about-your-devices.md) to learn where to see your devices in Fleet, how to add Fleet's standard query library, and how to ask questions about your devices by running queries.
 
 ## Team
 Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).

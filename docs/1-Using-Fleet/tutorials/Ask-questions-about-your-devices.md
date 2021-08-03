@@ -50,7 +50,7 @@ fleetctl apply -f standard-query-library.yml
 
 > If you received a message that looks like `open standard-query-library.yml: no such file or directory` you may need to confirm the absolute path to your `standard-query-library.yml` file and change this in the command above.
 
-Success! Now, refresh the **Queries** page in the Fleet. You should see the "Queries" table populated with Fleet's Standard query library.
+Success! Now, refresh the **Queries** page in the Fleet. You should see the "Queries" table populated with Fleet's standard query library.
 
 ### Asking questions by running queries
 
@@ -71,13 +71,13 @@ Next, select the "Run" button to run the query. The query may take several secon
 > Fleet's query response time is inherently variable because of osquery's heartbeat response time. This helps prevent performance issues on hosts.
 
 When the query has finished, you should see 4 columns and several rows in the "Results" table:
-- The "hostname" column answers...which device responded for a given row of results? 
+- The "hostname" column answers: which device responded for a given row of results? 
 
-- The "name" column answers...what is the name of the installed software item? The query you just ran asked for all software items that contain "openssl" in their name, so each row in this column should contain "openssl."
+- The "name" column answers: what is the name of the installed software item? The query you just ran asked for all software items that contain "openssl" in their name, so each row in this column should contain "openssl."
 
-- The "source" column answers...what osquery table is the result coming from? For more information on the table's available in osquery, check out the [osquery schema documentation](https://osquery.io/schema).
+- The "source" column answers: what osquery table is the result coming from? For more information on the table's available in osquery, check out the [osquery schema documentation](https://osquery.io/schema).
 
-- The "version" column answers...which version of the software item was detected on this device?
+- The "version" column answers: which version of the software item was detected on this device?
 
 The "Results" table presented in Fleet answers our first question of interest which was "What version of OpenSSL is installed on each device if any?"
 
@@ -105,5 +105,5 @@ Next, you can compare the results in the "version" column to table below which i
 | 1.0.1-1.0.1h                                              | [CVE-2014-3511](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-3511) |
 | 1.0.1-1.0.1h                                              | [CVE-2014-3511](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-3511) |
 
-Do any of the simulated, Linux hosts have a high severity vulnerable version of OpenSSL installed? If the answers is yes, don't worry. The devices are running in a simulated Docker environment and do not provide any additional vectors for performing malicious actions against your device.
+Do any of the simulated, Linux hosts have a high severity vulnerable version of OpenSSL installed? If the answer is yes, don't worry. The devices are running in a simulated Docker environment and do not provide any additional vectors for performing malicious actions against your device.
 
