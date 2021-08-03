@@ -56,6 +56,7 @@ module.exports = {
 
     // Respond with view.
     return {
+      path: require('path'),
       thisPage: thisPage,
       markdownPages: sails.config.builtStaticContent.markdownPages,
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath
