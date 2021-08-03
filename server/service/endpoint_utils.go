@@ -18,6 +18,7 @@ import (
 
 type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error)
 
+// parseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
 func parseTag(tag string) (string, bool, error) {
 	parts := strings.Split(tag, ",")
 	switch len(parts) {
@@ -32,7 +33,8 @@ func parseTag(tag string) (string, bool, error) {
 	}
 }
 
-func Fields(ifv reflect.Value) []reflect.StructField {
+// allFields returns all the fields for a struct, including the ones from embedded structs
+func allFields(ifv reflect.Value) []reflect.StructField {
 	if ifv.Kind() == reflect.Ptr {
 		ifv = ifv.Elem()
 	}
@@ -52,7 +54,7 @@ func Fields(ifv reflect.Value) []reflect.StructField {
 		v := ifv.Field(i)
 
 		if v.Kind() == reflect.Struct && t.Field(i).Anonymous {
-			fields = append(fields, Fields(v)...)
+			fields = append(fields, allFields(v)...)
 			continue
 		}
 		fields = append(fields, ifv.Type().Field(i))
@@ -88,7 +90,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			v = reflect.ValueOf(req)
 		}
 
-		for _, f := range Fields(v) {
+		for _, f := range allFields(v) {
 			field := v.Elem().FieldByName(f.Name)
 
 			urlTagValue, ok := f.Tag.Lookup("url")
