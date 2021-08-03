@@ -66,7 +66,9 @@ const ManageQueriesPage = (): JSX.Element => {
   const queriesErrors = queries.errors;
 
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
-  const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(false);
+  const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
+    false
+  );
 
   const toggleRemoveQueryModal = useCallback(() => {
     setShowRemoveQueryModal(!showRemoveQueryModal);
