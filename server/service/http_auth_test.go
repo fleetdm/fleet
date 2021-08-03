@@ -148,7 +148,16 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	require.Nil(t, err)
-	assert.Equal(t, "Authorization header required", string(bodyBytes))
+	assert.Equal(t, `{
+  "message": "Authorization header required",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Authorization header required"
+    }
+  ]
+}
+`, string(bodyBytes))
 
 	req, _ = http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
 	req.Header.Add("Authorization", "Bearer AAAA")
@@ -157,7 +166,16 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	bodyBytes, err = ioutil.ReadAll(resp.Body)
 	require.Nil(t, err)
-	assert.Equal(t, "Authentication required", string(bodyBytes))
+	assert.Equal(t, `{
+  "message": "Authentication required",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Authentication required"
+    }
+  ]
+}
+`, string(bodyBytes))
 }
 
 // an io.ReadCloser for new request body

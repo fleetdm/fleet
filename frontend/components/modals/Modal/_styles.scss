@@ -19,6 +19,7 @@
 
   &__ex {
     text-decoration: none;
+    padding-left: $pad-xsmall;
 
     .button::after {
       content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
@@ -37,10 +38,16 @@
     font-size: $large;
     font-weight: $regular;
     text-align: left;
-    padding-bottom: 15px;
+    padding-bottom: $pad-xsmall;
     border-bottom: 1px solid $ui-fleet-blue-15;
     display: flex;
     justify-content: space-between;
+
+    span {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
   }
 
   &__modal_container {

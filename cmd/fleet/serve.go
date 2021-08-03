@@ -243,9 +243,6 @@ the way that the Fleet server works.
 				Help:      "Total duration of requests in microseconds.",
 			}, fieldKeys)
 
-			svcLogger := kitlog.With(logger, "component", "service")
-
-			svc = service.NewLoggingService(svc, svcLogger)
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
 			httpLogger := kitlog.With(logger, "component", "http")

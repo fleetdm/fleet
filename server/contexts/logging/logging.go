@@ -1,0 +1,117 @@
+package logging
+
+import (
+	"context"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	kithttp "github.com/go-kit/kit/transport/http"
+)
+
+type key int
+
+const loggingKey key = 0
+
+// NewContext creates a new context.Context with a LoggingContext.
+func NewContext(ctx context.Context, logging *LoggingContext) context.Context {
+	return context.WithValue(ctx, loggingKey, logging)
+}
+
+// FromContext returns a pointer to the LoggingContext.
+func FromContext(ctx context.Context) (*LoggingContext, bool) {
+	v, ok := ctx.Value(loggingKey).(*LoggingContext)
+	return v, ok
+}
+
+// WithStartTime returns a context with logging.StartTime marked as the current time
+func WithStartTime(ctx context.Context) context.Context {
+	if logCtx, ok := FromContext(ctx); ok {
+		logCtx.StartTime = time.Now()
+	}
+	return ctx
+}
+
+// WithErr returns a context with logging.Err set as the error provided
+func WithErr(ctx context.Context, err error) context.Context {
+	if logCtx, ok := FromContext(ctx); ok {
+		logCtx.Err = err
+	}
+	return ctx
+}
+
+// WithNoUser returns a context with logging.SkipUser set to true so user won't be logged
+func WithNoUser(ctx context.Context) context.Context {
+	if logCtx, ok := FromContext(ctx); ok {
+		logCtx.SkipUser = true
+	}
+	return ctx
+}
+
+// WithExtras returns a context with logging.Extras set as the values provided
+func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
+	if logCtx, ok := FromContext(ctx); ok {
+		logCtx.Extras = append(logCtx.Extras, extras...)
+	}
+	return ctx
+}
+
+func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) context.Context {
+	if logCtx, ok := FromContext(ctx); ok {
+		logCtx.ForceLevel = level
+	}
+	return ctx
+}
+
+// LoggingContext contains the context information for logging the current request
+type LoggingContext struct {
+	StartTime  time.Time
+	Err        error
+	Extras     []interface{}
+	SkipUser   bool
+	ForceLevel func(kitlog.Logger) kitlog.Logger
+}
+
+// Log logs the data within the context
+func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
+	if e, ok := l.Err.(fleet.ErrWithInternal); ok {
+		logger = kitlog.With(logger, "internal", e.Internal())
+	}
+
+	if l.ForceLevel != nil {
+		logger = l.ForceLevel(logger)
+	} else if l.Err != nil || len(l.Extras) > 0 {
+		logger = level.Info(logger)
+	} else {
+		logger = level.Debug(logger)
+	}
+
+	var keyvals []interface{}
+
+	if !l.SkipUser {
+		loggedInUser := "unauthenticated"
+		vc, ok := viewer.FromContext(ctx)
+		if ok {
+			loggedInUser = vc.Email()
+		}
+		keyvals = append(keyvals, "user", loggedInUser)
+	}
+
+	keyvals = append(keyvals,
+		"method", ctx.Value(kithttp.ContextKeyRequestMethod).(string),
+		"uri", ctx.Value(kithttp.ContextKeyRequestURI).(string),
+		"took", time.Since(l.StartTime),
+	)
+
+	if l.Err != nil {
+		keyvals = append(keyvals, "err", l.Err)
+	}
+
+	if len(l.Extras) > 0 {
+		keyvals = append(keyvals, l.Extras...)
+	}
+
+	_ = logger.Log(keyvals...)
+}

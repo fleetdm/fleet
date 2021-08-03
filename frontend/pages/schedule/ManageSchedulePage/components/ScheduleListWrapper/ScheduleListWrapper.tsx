@@ -12,7 +12,7 @@ import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
-import generateTableHeaders from "./ScheduleTableConfig";
+import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
 // @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/schedule.svg";
 
@@ -21,6 +21,7 @@ const noScheduleClass = "no-schedule";
 
 interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
+  onEditScheduledQueryClick: any;
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[];
   toggleScheduleEditorModal: any;
 }
@@ -38,6 +39,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     onRemoveScheduledQueryClick,
     allGlobalScheduledQueriesList,
     toggleScheduleEditorModal,
+    onEditScheduledQueryClick,
   } = props;
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -77,7 +79,21 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     );
   };
 
-  const tableHeaders = generateTableHeaders();
+  const onActionSelection = (
+    action: string,
+    global_scheduled_query: IGlobalScheduledQuery
+  ): void => {
+    switch (action) {
+      case "edit":
+        onEditScheduledQueryClick(global_scheduled_query);
+        break;
+      default:
+        onRemoveScheduledQueryClick([global_scheduled_query.id]);
+        break;
+    }
+  };
+
+  const tableHeaders = generateTableHeaders(onActionSelection);
   const loadingTableData = useSelector(
     (state: IRootState) => state.entities.global_scheduled_queries.isLoading
   );
@@ -102,7 +118,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={allGlobalScheduledQueriesList}
+        data={generateDataSet(allGlobalScheduledQueriesList)}
         isLoading={loadingTableData}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}

@@ -28,6 +28,8 @@ type ListPacksForHostFunc func(hid uint) (packs []*fleet.Pack, err error)
 
 type EnsureGlobalPackFunc func() (*fleet.Pack, error)
 
+type EnsureTeamPackFunc func(teamID uint) (*fleet.Pack, error)
+
 type PackStore struct {
 	ApplyPackSpecsFunc        ApplyPackSpecsFunc
 	ApplyPackSpecsFuncInvoked bool
@@ -61,6 +63,19 @@ type PackStore struct {
 
 	EnsureGlobalPackFunc        EnsureGlobalPackFunc
 	EnsureGlobalPackFuncInvoked bool
+
+	EnsureTeamPackFunc        EnsureTeamPackFunc
+	EnsureTeamPackFuncInvoked bool
+}
+
+func (s *PackStore) EnsureGlobalPack() (*fleet.Pack, error) {
+	s.EnsureGlobalPackFuncInvoked = true
+	return s.EnsureGlobalPackFunc()
+}
+
+func (s *PackStore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
+	s.EnsureTeamPackFuncInvoked = true
+	return s.EnsureTeamPackFunc(teamID)
 }
 
 func (s *PackStore) ApplyPackSpecs(specs []*fleet.PackSpec) error {
