@@ -41,11 +41,6 @@
     }
   }
 
-  &__th-pack-name {
-    padding-left: 0;
-    text-align: left;
-  }
-
   &__select-all {
     margin-bottom: 0;
   }
@@ -54,14 +49,6 @@
     text-align: center;
     font-size: $x-small;
     color: $core-fleet-black;
-  }
-
-  &__scheduled-query-count {
-    color: $core-fleet-black;
-    font-size: $x-small;
-    font-weight: $bold;
-    margin: 0 12px 0 0;
-    display: inline-block;
   }
 }
 
@@ -137,30 +124,4 @@
     width: 290px;
   }
 
-  &__schedule-button {
-    margin-right: $pad-small;
-  }
-
-  .query-pagination__pager-wrap {
-    margin-top: $pad-medium;
-  }
-
-  &__no-hosts-contact {
-    text-align: left;
-    margin-top: $pad-large;
-
-    p {
-      color: $core-fleet-black;
-      font-weight: $bold;
-      font-size: $x-small;
-      margin: 0;
-    }
-
-    a {
-      color: $core-vibrant-blue;
-      font-weight: $regular;
-      font-size: $x-small;
-      text-decoration: none;
-    }
-  }
 }

@@ -4,6 +4,7 @@
 import React from "react";
 
 import moment from "moment";
+import { capitalize } from "lodash";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -124,7 +125,7 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       ),
       accessor: "observer_can_run",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell value={capitalize(cellProps.cell.value.toString())} />
       ),
     });
   }

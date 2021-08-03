@@ -46,8 +46,17 @@
         white-space: nowrap;
         border-right: 1px solid $ui-fleet-blue-15;
 
+        &:first-child {
+          border-top-left-radius: 6px;
+        }
+
+        &:first-child:not([title="Toggle SortBy"]) {
+         width: 20px;
+        }
+        
         &:last-child {
           border-right: none;
+          border-top-right-radius: 6px;
           width: 180px;
         }
       }
@@ -145,13 +154,4 @@
     }
   }
 
-  &__remove {
-    .button--text-link {
-      font-weight: $regular;
-      img {
-        position: relative;
-        left: -4px;
-      }
-    }
-  }
 }

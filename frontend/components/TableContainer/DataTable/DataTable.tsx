@@ -8,7 +8,6 @@ import useDeepEffect from "utilities/hooks/useDeepEffect";
 import Spinner from "components/loaders/Spinner";
 import Button from "../../buttons/Button";
 import ActionButton, { IActionButtonProps } from "./ActionButton";
-import closeIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 
 const baseClass = "data-table-container";
 
@@ -125,7 +124,15 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
 
-  const renderSelectedText = (): JSX.Element => {
+  const renderSelectedCount = (): JSX.Element => {
+    return (
+      <p>
+        <span>{selectedFlatRows.length}</span> selected
+      </p>
+    );
+  };
+
+  const renderAreAllSelected = (): JSX.Element | null => {
     if (isAllPagesSelected) {
       return <p>All matching {resultsTitle} are selected</p>;
     }
@@ -133,12 +140,7 @@ const DataTable = ({
     if (isAllRowsSelected) {
       return <p>All {resultsTitle} on this page are selected</p>;
     }
-
-    return (
-      <p>
-        <span>{selectedFlatRows.length}</span> selected
-      </p>
-    );
+    return null;
   };
 
   const renderActionButton = (
@@ -151,7 +153,7 @@ const DataTable = ({
       targetIds,
       variant,
       hideButton,
-      iconLink,
+      icon,
     } = actionButtonProps;
     return (
       <div className={`${baseClass}__${kebabCase(name)}`}>
@@ -163,7 +165,7 @@ const DataTable = ({
           targetIds={targetIds}
           variant={variant}
           hideButton={hideButton}
-          iconLink={iconLink}
+          icon={icon}
         />
       </div>
     );
@@ -177,19 +179,13 @@ const DataTable = ({
         : primarySelectActionButtonText;
     const name = buttonText ? kebabCase(buttonText) : "primary-select-action";
 
-    const generateIconLink = () => {
-      if (primarySelectActionButtonIcon === "close") {
-        return closeIcon;
-      }
-    };
-
     const actionProps = {
       name,
       buttonText: buttonText || "",
       onActionButtonClick: onPrimarySelectActionClick,
       targetIds,
       variant: primarySelectActionButtonVariant,
-      iconLink: generateIconLink(),
+      icon: primarySelectActionButtonIcon,
     };
 
     return !buttonText ? null : renderActionButton(actionProps);
@@ -233,29 +229,30 @@ const DataTable = ({
                 </th>
                 <th className={"active-selection__container"}>
                   <div className={"active-selection__inner"}>
+                    {renderSelectedCount()}
                     <div className={"active-selection__inner-left"}>
-                      {renderSelectedText()}
-                      {shouldRenderToggleAllPages && (
-                        <Button
-                          onClick={onToggleAllPagesClick}
-                          variant={"text-link"}
-                          className={"light-text"}
-                        >
-                          <>Select all matching {resultsTitle}</>
-                        </Button>
-                      )}
-                      <Button
-                        onClick={onClearSelectionClick}
-                        variant={"text-link"}
-                      >
-                        Clear selection
-                      </Button>
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
                     <div className={"active-selection__inner-right"}>
                       {primarySelectActionButtonText &&
                         renderPrimarySelectAction()}
                     </div>
+                    {renderAreAllSelected()}
+                    {shouldRenderToggleAllPages && (
+                      <Button
+                        onClick={onToggleAllPagesClick}
+                        variant={"text-link"}
+                        className={"light-text"}
+                      >
+                        <>Select all matching {resultsTitle}</>
+                      </Button>
+                    )}
+                    <Button
+                      onClick={onClearSelectionClick}
+                      variant={"text-link"}
+                    >
+                      Clear selection
+                    </Button>
                   </div>
                 </th>
               </tr>

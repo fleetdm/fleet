@@ -64,7 +64,6 @@ const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
     return (
       <div className={`${noQueriesClass}`}>
         <div className={`${noQueriesClass}__inner`}>
-          {/* <img src={scheduleSvg} alt="No Schedule" /> */}
           <div className={`${noQueriesClass}__inner-text`}>
             {!searchString ? (
               <h2>You don&apos;t have any queries.</h2>
@@ -103,8 +102,8 @@ const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
         disablePagination
         onPrimarySelectActionClick={onRemoveQueryClick}
         primarySelectActionButtonVariant="text-link"
-        primarySelectActionButtonIcon="close"
-        primarySelectActionButtonText={"Remove"}
+        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonText={"Delete"}
         emptyComponent={NoQueriesComponent}
       />
     </div>
