@@ -1,5 +1,4 @@
 import React, { useCallback } from "react";
-import PropTypes from "prop-types";
 import { kebabCase } from "lodash";
 
 // ignore TS error for now until these are rewritten in ts.
@@ -31,7 +30,7 @@ function useActionCallback(
   );
 }
 
-const ActionButton = (props: IActionButtonProps): JSX.Element | null => {
+const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
   const {
     name,
     buttonText,
@@ -41,7 +40,7 @@ const ActionButton = (props: IActionButtonProps): JSX.Element | null => {
     hideButton,
     icon,
     iconPosition,
-  } = props;
+  } = buttonProps;
   const onButtonClick = useActionCallback(onActionButtonClick);
 
   const iconLink = ((iconProp) => {
@@ -59,17 +58,16 @@ const ActionButton = (props: IActionButtonProps): JSX.Element | null => {
   })(icon);
   // hideButton is intended to provide a flexible way to specify show/hide conditions via a boolean or a function that evaluates to a boolean
   // currently it is typed to accept an array of targetIds but this typing could easily be expanded to include other use cases
-  const testCondition = (
-    hideButtonProp: boolean | ((targetIds: number[]) => boolean) | undefined
+  const isHidden = (
+    hideButtonProp: boolean | ((ids: number[]) => boolean) | undefined
   ) => {
     if (typeof hideButtonProp === "function") {
-      return hideButtonProp;
+      return hideButtonProp(targetIds);
     }
-    return () => Boolean(hideButtonProp);
+    return Boolean(hideButtonProp);
   };
-  const isHidden = testCondition(hideButton)(targetIds);
 
-  return !isHidden ? (
+  return !isHidden(hideButton) ? (
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
       <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
         <>
@@ -84,17 +82,6 @@ const ActionButton = (props: IActionButtonProps): JSX.Element | null => {
       </Button>
     </div>
   ) : null;
-};
-
-ActionButton.propTypes = {
-  name: PropTypes.string,
-  buttonText: PropTypes.string,
-  onActionButtonClick: PropTypes.func,
-  targetIds: PropTypes.arrayOf(PropTypes.number),
-  variant: PropTypes.string,
-  hideButton: PropTypes.oneOfType([PropTypes.bool, PropTypes.func]),
-  icon: PropTypes.string,
-  iconPosition: PropTypes.string,
 };
 
 export default ActionButton;

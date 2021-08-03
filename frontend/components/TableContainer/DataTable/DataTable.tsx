@@ -154,6 +154,7 @@ const DataTable = ({
       variant,
       hideButton,
       icon,
+      iconPosition,
     } = actionButtonProps;
     return (
       <div className={`${baseClass}__${kebabCase(name)}`}>
@@ -166,6 +167,7 @@ const DataTable = ({
           variant={variant}
           hideButton={hideButton}
           icon={icon}
+          iconPosition={iconPosition}
         />
       </div>
     );

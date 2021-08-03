@@ -37,8 +37,8 @@ const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
   const currentUser = useSelector((state: IRootState) => state.auth.user);
   const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
-  const [filteredQueries, setFilteredQueries] = useState(queriesList);
-  const [searchString, setSearchString] = useState("");
+  const [filteredQueries, setFilteredQueries] = useState<IQuery[]>(queriesList);
+  const [searchString, setSearchString] = useState<string>("");
 
   useEffect(() => {
     setFilteredQueries(queriesList);

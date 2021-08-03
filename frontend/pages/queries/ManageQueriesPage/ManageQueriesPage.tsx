@@ -37,7 +37,7 @@ const renderTable = (
   queriesList: IQuery[],
   queriesErrors: any
 ): JSX.Element => {
-  if (Object.keys(queriesErrors).length !== 0) {
+  if (Object.keys(queriesErrors).length > 0) {
     return <QueriesListError />;
   }
 
@@ -65,8 +65,8 @@ const ManageQueriesPage = (): JSX.Element => {
   const queriesList = Object.values(queries.data);
   const queriesErrors = queries.errors;
 
-  const [selectedQueryIds, setSelectedQueryIds] = useState([]);
-  const [showRemoveQueryModal, setShowRemoveQueryModal] = useState(false);
+  const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
+  const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(false);
 
   const toggleRemoveQueryModal = useCallback(() => {
     setShowRemoveQueryModal(!showRemoveQueryModal);
