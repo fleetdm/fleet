@@ -22,7 +22,7 @@ func (r translatorResponse) error() error { return r.Err }
 func makeTranslatorEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
 	return newServer(
 		makeAuthenticatedServiceEndpoint(svc, translatorEndpoint),
-		makeDecoderForType(translatorRequest{}),
+		makeDecoder(translatorRequest{}),
 		opts,
 	)
 }

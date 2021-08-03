@@ -22,7 +22,7 @@ func (r applyUserRoleSpecsResponse) error() error { return r.Err }
 func makeApplyUserRoleSpecsEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
 	return newServer(
 		makeAuthenticatedServiceEndpoint(svc, applyUserRoleSpecsEndpoint),
-		makeDecoderForType(applyUserRoleSpecsRequest{}),
+		makeDecoder(applyUserRoleSpecsRequest{}),
 		opts,
 	)
 }

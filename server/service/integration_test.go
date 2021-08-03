@@ -503,7 +503,7 @@ func TestTeamSchedule(t *testing.T) {
 
 	ts = getTeamScheduleResponse{}
 	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
-	assert.Len(t, ts.Scheduled, 1)
+	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
 	assert.Equal(t, "TestQuery", ts.Scheduled[0].Name)
 	assert.Equal(t, qr.ID, ts.Scheduled[0].QueryID)
