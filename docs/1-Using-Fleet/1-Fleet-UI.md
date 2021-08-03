@@ -1,29 +1,10 @@
 # Fleet UI
-- [Running queries](#running-queries)
 - [Scheduling queries](#scheduling-queries)
 - [Configuring agent options](#configuring-agent-options)
 
-## Running queries
-
-The Fleet application allows you to query hosts that you have installed osquery on. To run a new query, navigate to "Queries" from the top nav, and then hit the "Create new query" button from the Queries page. From here, you can compose your query, view SQL table documentation via the sidebar, select arbitrary hosts (or groups of hosts), and execute your query. As results are returned, they will populate the interface in real time. You can use the integrated filtering tool to perform useful initial analytics and easily export the entire dataset for offline analysis.
-
-![Distributed new query with local filter](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/distributed-new-query-with-local-filter.png)
-
-After you've composed a query that returns the information you were looking for, you may choose to save the query. You can still continue to execute the query on whatever set of hosts you would like after you have saved the query.
-
-![Distributed saved query with local filter](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/distributed-saved-query-with-local-filter.png)
-
-Saved queries can be accessed from the "Query" section of the top nav. Here, you will find all of the queries you've ever saved. You can filter the queries by query name, so name your queries something memorable!
-
-![Manage Queries](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-queries.png)
-
-To learn more about scheduling queries so that they run on an on-going basis, see the scheduling queries guide below.
-
-
 ## Scheduling queries
 
-As discussed in the running queries documentation, you can use the Fleet application to create, execute, and save osquery queries. You can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Packs" from the top nav. Packs are usually organized by the general class of instrumentation that you're trying to perform.
-
+The Fleet application allows you to schedule queries. This way these queries will run on an ongoing basis against the hosts that you have installed osquery on. To schedule specific queries in Fleet, you can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Schedule" from the top nav.
 ![Manage Packs](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs.png)
 
 If you select a pack from the list, you can quickly enable and disable the entire pack, or you can configure it further.
@@ -34,7 +15,7 @@ When you edit a pack, you can decide which targets you would like to execute the
 
 ![Edit Pack Targets](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/edit-pack-targets.png)
 
-To add queries to a pack, use the right-hand sidebar. You can take an existing scheduled query and add it to the pack. You must also define a few key details such as:
+To add queries to a pack, use the right-hand sidebar. You can take an existing scheduled query and add it to the pack. You can also define a few key details such as:
 
 - interval: how often should the query be executed?
 - logging: which osquery logging format would you like to use?
