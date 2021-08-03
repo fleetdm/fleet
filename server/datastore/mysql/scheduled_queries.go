@@ -57,6 +57,7 @@ func (d *Datastore) insertScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) 
 	query := `
 		INSERT INTO scheduled_queries (
 			query_name,
+			query_id,
 			name,
 			pack_id,
 			snapshot,
@@ -67,11 +68,11 @@ func (d *Datastore) insertScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) 
 			shard,
 			denylist
 		)
-		SELECT name, ?, ?, ?, ?, ?, ?, ?, ?, ?
+		SELECT name, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 		FROM queries
 		WHERE id = ?
 		`
-	result, err := execFunc(query, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
+	result, err := execFunc(query, sq.QueryID, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "insert scheduled query")
 	}

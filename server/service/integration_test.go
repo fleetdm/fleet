@@ -157,6 +157,25 @@ func doReq(
 	return resp
 }
 
+func doRawReq(
+	t *testing.T,
+	body []byte,
+	method string,
+	server *httptest.Server,
+	path string,
+	token string,
+	expectedStatusCode int,
+) *http.Response {
+	requestBody := &nopCloser{bytes.NewBuffer(body)}
+	req, _ := http.NewRequest(method, server.URL+path, requestBody)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, expectedStatusCode, resp.StatusCode)
+	return resp
+}
+
 func doJSONReq(
 	t *testing.T,
 	params interface{},
@@ -338,11 +357,7 @@ func TestGlobalSchedule(t *testing.T) {
 	require.NoError(t, err)
 
 	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
-	type responseType struct {
-		Scheduled *fleet.ScheduledQuery `json:"scheduled,omitempty"`
-		Err       error                 `json:"error,omitempty"`
-	}
-	r := responseType{}
+	r := globalScheduleQueryResponse{}
 	doJSONReq(t, gsParams, "POST", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &r)
 	require.Nil(t, r.Err)
 
@@ -366,7 +381,7 @@ func TestGlobalSchedule(t *testing.T) {
 	require.Len(t, gs.GlobalSchedule, 1)
 	assert.Equal(t, uint(55), gs.GlobalSchedule[0].Interval)
 
-	r = responseType{}
+	r = globalScheduleQueryResponse{}
 	doJSONReq(
 		t, nil, "DELETE", server,
 		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id),
@@ -456,6 +471,73 @@ func TestTranslator(t *testing.T) {
 	assert.Len(t, payload.List, 1)
 
 	assert.Equal(t, users[payload.List[0].Payload.Identifier].ID, payload.List[0].Payload.ID)
+}
+
+func TestTeamSchedule(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	test.AddAllHostsLabel(t, ds)
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	team1, err := ds.NewTeam(&fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	ts := getTeamScheduleResponse{}
+	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
+	assert.Len(t, ts.Scheduled, 0)
+
+	qr, err := ds.NewQuery(&fleet.Query{Name: "TestQuery", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	require.NoError(t, err)
+
+	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: ptr.Uint(42)}}
+	r := teamScheduleQueryResponse{}
+	doJSONReq(t, gsParams, "POST", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &r)
+	require.Nil(t, r.Err)
+
+	ts = getTeamScheduleResponse{}
+	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
+	assert.Len(t, ts.Scheduled, 1)
+	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
+	assert.Equal(t, "TestQuery", ts.Scheduled[0].Name)
+	assert.Equal(t, qr.ID, ts.Scheduled[0].QueryID)
+	id := ts.Scheduled[0].ID
+
+	modifyResp := modifyTeamScheduleResponse{}
+	modifyParams := modifyTeamScheduleRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}}
+	doJSONReq(
+		t, modifyParams, "PATCH", server,
+		fmt.Sprintf("/api/v1/fleet/team/%d/schedule/%d", team1.ID, id),
+		token, http.StatusOK, &modifyResp,
+	)
+
+	// just to satisfy my paranoia, wanted to make sure the contents of the json would work
+	doRawReq(t, []byte(`{"interval": 77}`), "PATCH", server,
+		fmt.Sprintf("/api/v1/fleet/team/%d/schedule/%d", team1.ID, id),
+		token, http.StatusOK)
+
+	ts = getTeamScheduleResponse{}
+	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
+	assert.Len(t, ts.Scheduled, 1)
+	assert.Equal(t, uint(77), ts.Scheduled[0].Interval)
+
+	deleteResp := deleteTeamScheduleResponse{}
+	doJSONReq(
+		t, nil, "DELETE", server,
+		fmt.Sprintf("/api/v1/fleet/team/%d/schedule/%d", team1.ID, id),
+		token, http.StatusOK, &deleteResp,
+	)
+	require.Nil(t, r.Err)
+
+	ts = getTeamScheduleResponse{}
+	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
+	assert.Len(t, ts.Scheduled, 0)
 }
 
 func TestLogger(t *testing.T) {

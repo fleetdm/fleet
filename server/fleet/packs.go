@@ -38,6 +38,9 @@ type PackStore interface {
 
 	// EnsureGlobalPack gets or inserts a pack with type global
 	EnsureGlobalPack() (*Pack, error)
+
+	// EnsureTeamPack gets or inserts a pack with type global
+	EnsureTeamPack(teamID uint) (*Pack, error)
 }
 
 // PackService is the service interface for managing query packs.

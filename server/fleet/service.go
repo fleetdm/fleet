@@ -22,4 +22,5 @@ type Service interface {
 	UserRolesService
 	GlobalScheduleService
 	TranslatorService
+	TeamScheduleService
 }
