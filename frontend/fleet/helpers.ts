@@ -547,6 +547,8 @@ export default {
   formatScheduledQueryForServer,
   formatGlobalScheduledQueryForClient,
   formatGlobalScheduledQueryForServer,
+  formatTeamScheduledQueryForClient,
+  formatTeamScheduledQueryForServer,
   formatSelectedTargetsForApi,
   humanHostUptime,
   humanHostLastSeen,

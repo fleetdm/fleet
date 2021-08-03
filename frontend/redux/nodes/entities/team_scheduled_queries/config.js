@@ -1,4 +1,4 @@
-import { formatGlobalScheduledQueryForClient } from "fleet/helpers";
+import { formatTeamScheduledQueryForClient } from "fleet/helpers";
 import Fleet from "fleet";
 import Config from "redux/nodes/entities/base/config";
 import schemas from "redux/nodes/entities/base/schemas";
