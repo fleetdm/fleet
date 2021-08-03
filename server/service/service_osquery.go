@@ -1114,11 +1114,11 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		return osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	// Check for label queries and if so, load host additional. If we don't do
-	// this, we will end up unintentionally dropping any existing host
-	// additional info.
+	// Check for host details queries and if so, load host additional.
+	// If we don't do this, we will end up unintentionally dropping
+	// any existing host additional info.
 	for query := range results {
-		if strings.HasPrefix(query, hostLabelQueryPrefix) {
+		if strings.HasPrefix(query, hostDetailQueryPrefix) {
 			fullHost, err := svc.ds.Host(host.ID)
 			if err != nil {
 				// leave this error return here, we don't want to drop host additionals
