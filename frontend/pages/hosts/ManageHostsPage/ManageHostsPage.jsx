@@ -31,7 +31,7 @@ import {
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
 
-import hostsClient from "services/entities/hosts";
+import hostClient from "services/entities/hosts";
 
 import permissionUtils from "utilities/permissions";
 import {
@@ -103,6 +103,7 @@ export class ManageHostsPage extends PureComponent {
       isAllMatchingHostsSelected: false,
       searchQuery: "",
       hosts: [],
+      isHostsLoading: false,
     };
   }
 
@@ -197,9 +198,10 @@ export class ManageHostsPage extends PureComponent {
 
     // keep track as a local state to be used later
     this.setState({ searchQuery });
+    this.setState({ isHostsLoading: true });
 
     try {
-      const { hosts } = await hostsClient.loadAll({
+      const { hosts } = await hostClient.loadAll({
         page: pageIndex,
         perPage: pageSize,
         selectedLabel: selectedFilter,
@@ -209,9 +211,12 @@ export class ManageHostsPage extends PureComponent {
 
       this.setState({ hosts });
     } catch (error) {
+      console.log(error);
       dispatch(
         renderFlash("error", "Sorry, we could not retrieve your hosts.")
       );
+    } finally {
+      this.setState({ isHostsLoading: false });
     }
   };
 
@@ -644,7 +649,12 @@ export class ManageHostsPage extends PureComponent {
       selectedLabel,
       loadingHosts,
     } = this.props;
-    const { hiddenColumns, isAllMatchingHostsSelected, hosts } = this.state;
+    const {
+      hiddenColumns,
+      isAllMatchingHostsSelected,
+      hosts,
+      isHostsLoading,
+    } = this.state;
     const {
       onTableQueryChange,
       onEditColumnsClick,
@@ -669,7 +679,7 @@ export class ManageHostsPage extends PureComponent {
           currentUser
         )}
         data={hosts}
-        isLoading={loadingHosts}
+        isLoading={isHostsLoading}
         manualSortBy
         defaultSortHeader={"hostname"}
         defaultSortDirection={"asc"}
