@@ -1,3 +1,5 @@
+/* Conditionally renders global schedule and team schedules */
+
 import React, { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
