@@ -76,14 +76,14 @@ const ScheduleEditorModal = ({
   const [
     selectedPlatformOptions,
     setSelectedPlatformOptions,
-  ] = useState<string>(editQuery?.platform ? editQuery?.platform : "");
+  ] = useState<string>(editQuery?.platform || "");
   const [selectedLoggingType, setSelectedLoggingType] = useState<string>(
     editQuery ? generateLoggingType(editQuery) : "snapshot"
   );
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
-  ] = useState<string>(editQuery?.version ? editQuery?.version : "");
+  ] = useState<string>(editQuery?.version || "");
   const [selectedShard, setSelectedShard] = useState<string>(
     editQuery?.shard ? editQuery?.shard.toString() : ""
   );
@@ -188,7 +188,7 @@ const ScheduleEditorModal = ({
 
   return (
     <Modal
-      title={editQuery ? editQuery.name : "Schedule editor"}
+      title={editQuery?.name || "Schedule editor"}
       onExit={onCancel}
       className={baseClass}
     >

@@ -112,7 +112,7 @@ const ManageSchedulePage = (): JSX.Element => {
     setSelectedQueryIds(selectedTableQueryIds);
   };
 
-  const onEditScheduledQueryClick = (selectedQuery: any): any => {
+  const onEditScheduledQueryClick = (selectedQuery: any): void => {
     toggleScheduleEditorModal();
     setSelectedScheduledQuery(selectedQuery); // edit modal renders
   };

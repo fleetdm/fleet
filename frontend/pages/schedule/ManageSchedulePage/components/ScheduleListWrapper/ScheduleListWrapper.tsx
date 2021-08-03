@@ -87,10 +87,9 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
       case "edit":
         onEditScheduledQueryClick(global_scheduled_query);
         break;
-      case "remove":
+      default:
         onRemoveScheduledQueryClick([global_scheduled_query.id]);
         break;
-      default:
     }
   };
 
