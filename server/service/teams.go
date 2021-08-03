@@ -24,7 +24,7 @@ func (r applyTeamSpecsResponse) error() error { return r.Err }
 func makeApplyTeamSpecsEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
 	return newServer(
 		makeAuthenticatedServiceEndpoint(svc, applyTeamSpecsEndpoint),
-		makeDecoderForType(applyTeamSpecsRequest{}),
+		makeDecoder(applyTeamSpecsRequest{}),
 		opts,
 	)
 }

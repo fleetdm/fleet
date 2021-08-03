@@ -31,6 +31,8 @@ import {
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
 
+import hostClient from "services/entities/hosts";
+
 import permissionUtils from "utilities/permissions";
 import {
   defaultHiddenColumns,
@@ -64,7 +66,6 @@ export class ManageHostsPage extends PureComponent {
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
-    hosts: PropTypes.arrayOf(hostInterface),
     loadingHosts: PropTypes.bool,
     canAddNewHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
@@ -76,7 +77,6 @@ export class ManageHostsPage extends PureComponent {
 
   static defaultProps = {
     loadingLabels: false,
-    hosts: [],
   };
 
   constructor(props) {
@@ -102,6 +102,8 @@ export class ManageHostsPage extends PureComponent {
       selectedHostIds: [],
       isAllMatchingHostsSelected: false,
       searchQuery: "",
+      hosts: [],
+      isHostsLoading: false,
     };
   }
 
@@ -180,7 +182,7 @@ export class ManageHostsPage extends PureComponent {
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
-  onTableQueryChange = (queryData) => {
+  onTableQueryChange = async (queryData) => {
     const { selectedFilter, dispatch } = this.props;
     const {
       pageIndex,
@@ -195,17 +197,29 @@ export class ManageHostsPage extends PureComponent {
     }
 
     // keep track as a local state to be used later
-    this.setState({ searchQuery });
+    this.setState({
+      searchQuery,
+      isHostsLoading: true,
+    });
 
-    dispatch(
-      getHosts({
+    try {
+      const { hosts } = await hostClient.loadAll({
         page: pageIndex,
         perPage: pageSize,
         selectedLabel: selectedFilter,
         globalFilter: searchQuery,
         sortBy,
-      })
-    );
+      });
+
+      this.setState({ hosts });
+    } catch (error) {
+      console.log(error);
+      dispatch(
+        renderFlash("error", "Sorry, we could not retrieve your hosts.")
+      );
+    } finally {
+      this.setState({ isHostsLoading: false });
+    }
   };
 
   onEditLabel = (formData) => {
@@ -635,10 +649,14 @@ export class ManageHostsPage extends PureComponent {
       currentUser,
       selectedFilter,
       selectedLabel,
-      hosts,
       loadingHosts,
     } = this.props;
-    const { hiddenColumns, isAllMatchingHostsSelected } = this.state;
+    const {
+      hiddenColumns,
+      isAllMatchingHostsSelected,
+      hosts,
+      isHostsLoading,
+    } = this.state;
     const {
       onTableQueryChange,
       onEditColumnsClick,
@@ -663,7 +681,8 @@ export class ManageHostsPage extends PureComponent {
           currentUser
         )}
         data={hosts}
-        isLoading={loadingHosts}
+        isLoading={isHostsLoading}
+        manualSortBy
         defaultSortHeader={"hostname"}
         defaultSortDirection={"asc"}
         actionButtonText={"Edit columns"}
@@ -755,10 +774,6 @@ const mapStateToProps = (state, { location, params }) => {
   const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
 
-  // NOTE: good opportunity for performance optimisation here later. This currently
-  // always generates a new array of hosts, when it could memoized version of the list.
-  const { entities: hosts } = entityGetter(state).get("hosts");
-
   const { loading: loadingHosts } = state.entities.hosts;
 
   const currentUser = state.auth.user;
@@ -786,7 +801,6 @@ const mapStateToProps = (state, { location, params }) => {
     statusLabels,
     config,
     currentUser,
-    hosts,
     loadingHosts,
     canAddNewHosts,
     canAddNewLabels,
