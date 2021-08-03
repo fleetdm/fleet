@@ -197,8 +197,10 @@ export class ManageHostsPage extends PureComponent {
     }
 
     // keep track as a local state to be used later
-    this.setState({ searchQuery });
-    this.setState({ isHostsLoading: true });
+    this.setState({
+      searchQuery,
+      isHostsLoading: true,
+    });
 
     try {
       const { hosts } = await hostClient.loadAll({
