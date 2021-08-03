@@ -193,8 +193,8 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 	req, _ := http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	defer resp.Body.Close()
 	require.Nil(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	require.Nil(t, err)
