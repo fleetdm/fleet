@@ -3,12 +3,16 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { push } from "react-router-redux";
 import { IQuery } from "interfaces/query";
+import { IUser } from "interfaces/user";
+
 // @ts-ignore
 import queryActions from "redux/nodes/entities/queries/actions";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
 import paths from "router/paths";
+import permissionUtils from "utilities/permissions";
+
 import Button from "components/buttons/Button";
 import QueriesListError from "./components/QueriesListError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
@@ -16,6 +20,9 @@ import RemoveQueryModal from "./components/RemoveQueryModal";
 
 const baseClass = "manage-queries-page";
 interface IRootState {
+  auth: {
+    user: IUser;
+  };
   entities: {
     queries: {
       isLoading: boolean;
@@ -43,7 +50,8 @@ const renderTable = (
 };
 
 const ManageQueriesPage = (): JSX.Element => {
-  const isOnlyObserver = false; // TODO
+  const currentUser = useSelector((state: IRootState) => state.auth.user);
+  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
   const dispatch = useDispatch();
   const { NEW_QUERY } = paths;
@@ -118,7 +126,7 @@ const ManageQueriesPage = (): JSX.Element => {
                 className={`${baseClass}__create-button`}
                 onClick={onCreateQueryClick}
               >
-                Create a new query
+                Create new query
               </Button>
             </div>
           )}
