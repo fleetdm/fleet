@@ -74,10 +74,6 @@ type LoggingContext struct {
 	ForceLevel func(kitlog.Logger) kitlog.Logger
 }
 
-func (l *LoggingContext) hasErr() bool {
-	return l.Errs != nil && len(l.Errs) > 0
-}
-
 // Log logs the data within the context
 func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	if l.ForceLevel != nil {
@@ -99,27 +95,36 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		keyvals = append(keyvals, "user", loggedInUser)
 	}
 
-	keyvals = append(keyvals,
-		"method", ctx.Value(kithttp.ContextKeyRequestMethod).(string),
-		"uri", ctx.Value(kithttp.ContextKeyRequestURI).(string),
-		"took", time.Since(l.StartTime),
-	)
-
-	if l.hasErr() {
-		for _, err := range l.Errs {
-			errKey := "err"
-			errMsg := err.Error()
-			if e, ok := err.(fleet.ErrWithInternal); ok {
-				errKey = "internal"
-				errMsg = e.Internal()
-				logger = kitlog.With(logger, "internal", e.Internal())
-			}
-			keyvals = append(keyvals, errKey, errMsg)
-		}
+	requestMethod, ok := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
+	if !ok {
+		requestMethod = ""
 	}
+	requestURI, ok := ctx.Value(kithttp.ContextKeyRequestURI).(string)
+	if !ok {
+		requestURI = ""
+	}
+	keyvals = append(keyvals, "method", requestMethod, "uri", requestURI, "took", time.Since(l.StartTime))
 
 	if len(l.Extras) > 0 {
 		keyvals = append(keyvals, l.Extras...)
+	}
+
+	if len(l.Errs) > 0 {
+		var errs []string
+		var internalErrs []string
+		for _, err := range l.Errs {
+			if e, ok := err.(fleet.ErrWithInternal); ok {
+				internalErrs = append(internalErrs, e.Internal())
+			} else {
+				errs = append(errs, err.Error())
+			}
+		}
+		if len(errs) > 0 {
+			keyvals = append(keyvals, "err", errs)
+		}
+		if len(internalErrs) > 0 {
+			keyvals = append(keyvals, "internal", internalErrs)
+		}
 	}
 
 	_ = logger.Log(keyvals...)

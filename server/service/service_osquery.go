@@ -1165,7 +1165,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		host.LabelUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordLabelQueryExecutions(&host, labelResults, svc.clock.Now())
 		if err != nil {
-			logging.WithExtras(ctx, "save-labels-err", err)
+			logging.WithErr(ctx, err)
 		}
 	}
 
@@ -1174,16 +1174,17 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		host.DetailUpdatedAt = svc.clock.Now()
 		additionalJSON, err := json.Marshal(additionalResults)
 		if err != nil {
-			logging.WithExtras(ctx, "marshal-additional-err", err)
+			logging.WithErr(ctx, err)
+		} else {
+			additional := json.RawMessage(additionalJSON)
+			host.Additional = &additional
 		}
-		additional := json.RawMessage(additionalJSON)
-		host.Additional = &additional
 	}
 
 	if host.Modified {
 		err = svc.ds.SaveHost(&host)
 		if err != nil {
-			logging.WithExtras(ctx, "update-host-details-err", err)
+			logging.WithErr(ctx, err)
 		}
 	}
 
