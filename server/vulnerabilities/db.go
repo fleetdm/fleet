@@ -1,6 +1,7 @@
 package vulnerabilities
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -73,7 +74,7 @@ const batchSize = 800
 
 func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	err := os.Remove(path)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	db, err := CPEDB(path)
