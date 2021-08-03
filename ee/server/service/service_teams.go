@@ -7,7 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
-
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
@@ -141,6 +141,8 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		team.Users = append(team.Users, user)
 	}
 
+	logging.WithExtras(ctx, "users", team.Users)
+
 	return svc.ds.SaveTeam(team)
 }
 
@@ -168,6 +170,8 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 		}
 	}
 	team.Users = newUsers
+
+	logging.WithExtras(ctx, "users", team.Users)
 
 	return svc.ds.SaveTeam(team)
 }
@@ -213,6 +217,8 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	if err := svc.ds.DeleteTeam(teamID); err != nil {
 		return err
 	}
+
+	logging.WithExtras(ctx, "id", teamID)
 
 	return svc.ds.NewActivity(
 		authz.UserFromContext(ctx),

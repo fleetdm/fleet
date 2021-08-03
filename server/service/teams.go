@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -93,12 +92,4 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 	}
 
 	return nil
-}
-
-func (mw loggingMiddleware) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) (err error) {
-	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log("method", "ApplyTeamSpecs", "err", err, "took", time.Since(begin))
-	}(time.Now())
-	err = mw.Service.ApplyTeamSpecs(ctx, specs)
-	return err
 }
