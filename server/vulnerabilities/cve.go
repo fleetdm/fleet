@@ -29,7 +29,8 @@ func syncCVEData(vulnPath string) error {
 		LocalDir: vulnPath,
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancelFunc()
 
 	return dfs.Do(ctx)
 }
