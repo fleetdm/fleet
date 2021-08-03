@@ -35,9 +35,9 @@ func WithStartTime(ctx context.Context) context.Context {
 }
 
 // WithErr returns a context with logging.Err set as the error provided
-func WithErr(ctx context.Context, err error) context.Context {
+func WithErr(ctx context.Context, err ...error) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.Err = err
+		logCtx.Errs = append(logCtx.Errs, err...)
 	}
 	return ctx
 }
@@ -68,21 +68,21 @@ func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) con
 // LoggingContext contains the context information for logging the current request
 type LoggingContext struct {
 	StartTime  time.Time
-	Err        error
+	Errs       []error
 	Extras     []interface{}
 	SkipUser   bool
 	ForceLevel func(kitlog.Logger) kitlog.Logger
 }
 
+func (l *LoggingContext) hasErr() bool {
+	return l.Errs != nil && len(l.Errs) > 0
+}
+
 // Log logs the data within the context
 func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
-	if e, ok := l.Err.(fleet.ErrWithInternal); ok {
-		logger = kitlog.With(logger, "internal", e.Internal())
-	}
-
 	if l.ForceLevel != nil {
 		logger = l.ForceLevel(logger)
-	} else if l.Err != nil || len(l.Extras) > 0 {
+	} else if l.Errs != nil || len(l.Extras) > 0 {
 		logger = level.Info(logger)
 	} else {
 		logger = level.Debug(logger)
@@ -105,8 +105,17 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		"took", time.Since(l.StartTime),
 	)
 
-	if l.Err != nil {
-		keyvals = append(keyvals, "err", l.Err)
+	if l.hasErr() {
+		for _, err := range l.Errs {
+			errKey := "err"
+			errMsg := err.Error()
+			if e, ok := err.(fleet.ErrWithInternal); ok {
+				errKey = "internal"
+				errMsg = e.Internal()
+				logger = kitlog.With(logger, "internal", e.Internal())
+			}
+			keyvals = append(keyvals, errKey, errMsg)
+		}
 	}
 
 	if len(l.Extras) > 0 {
