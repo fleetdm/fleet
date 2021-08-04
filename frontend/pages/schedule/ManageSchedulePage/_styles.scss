@@ -120,8 +120,9 @@
         }
 
         .Select-value {
-          position: relative; // moves select arrow
-          display: inline-block; // moves select arrow
+          position: relative; // move select arrow
+          display: inline-block; // move select arrow
+          line-height: initial;
           padding: 0;
           border: 0 !important;
           background-color: #fff !important;
@@ -132,7 +133,6 @@
 
           &.is-focused {
             border: 0 !important;
-            // box-shadow: none !important; find hover shadow
           }
           :hover {
             border: 0 !important;
