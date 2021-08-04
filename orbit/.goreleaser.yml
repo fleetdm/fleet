@@ -2,7 +2,7 @@ project_name: orbit
 
 monorepo:
   tag_prefix: orbit-
-  folder: orbit
+  dir: orbit
 
 before:
   hooks:
@@ -10,7 +10,7 @@ before:
 
 builds:
   - id: orbit
-    dir: ./cmd/orbit/
+    dir: ./orbit/cmd/orbit/
     binary: orbit
     env:
       - CGO_ENABLED=0
@@ -23,10 +23,10 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
     hooks:
-      post: ./tools/build/sign-macos.sh {{ .Path }}
+      post: ./orbit/tools/build/sign-macos.sh {{ .Path }}
 
   - id: orbit-package
-    dir: ./cmd/package/
+    dir: ./orbit/cmd/package/
     binary: orbit-package
     env:
       - CGO_ENABLED=0
@@ -39,7 +39,7 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
     hooks:
-      post: ./tools/build/sign-macos.sh {{ .Path }}
+      post: ./orbit/tools/build/sign-macos.sh {{ .Path }}
 
 archives:
   - id: orbit
@@ -79,5 +79,5 @@ changelog:
 release:
   github:
     owner: fleetdm
-    name: orbit
+    name: fleet
   draft: true
