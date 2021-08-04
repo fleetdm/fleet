@@ -40,13 +40,10 @@ class HostSidePanel extends Component {
       onAddLabelClick,
       onLabelClick,
       selectedFilter,
-      statusLabels,
       canAddNewLabel,
     } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
-    const allHostLabels = filter(labels, { type: "all" });
-    const hostStatusLabels = filter(labels, { type: "status" });
     const hostPlatformLabels = filter(labels, (label) => {
       return label.type === "platform" && label.count > 0;
     });

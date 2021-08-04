@@ -54,7 +54,7 @@ const HOST_SELECT_STATUSES = [
   {
     disabled: false,
     label: "All hosts",
-    value: "all",
+    value: "all-hosts",
   },
   {
     disabled: false,
@@ -413,7 +413,7 @@ export class ManageHostsPage extends PureComponent {
     const { handleLabelChange } = this;
 
     // we want the full label object
-    const isAll = statusName === "all";
+    const isAll = statusName === "all-hosts";
     const selected = isAll
       ? find(labels, { type: "all" })
       : find(labels, { id: statusName });
@@ -683,7 +683,7 @@ export class ManageHostsPage extends PureComponent {
 
     return (
       <Dropdown
-        value={selectedFilter || "all"}
+        value={selectedFilter || "all-hosts"}
         className={`${baseClass}__status_dropdown`}
         options={HOST_SELECT_STATUSES}
         searchable={false}
