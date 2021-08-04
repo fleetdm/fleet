@@ -426,7 +426,7 @@ func (p *passphraseHandler) passphraseEnvName(role string) string {
 }
 
 func (p *passphraseHandler) getPassphraseFromEnv(role string) []byte {
-	if pass := os.Getenv(p.passphraseEnvName(role)); pass != "" {
+	if pass, ok := os.LookupEnv(p.passphraseEnvName(role)); ok {
 		return []byte(pass)
 	}
 
