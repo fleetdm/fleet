@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,8 +14,10 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	fleetLogging "github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query"
@@ -23,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -641,6 +645,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 		return nil
 	}
 
+	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+		return &host, nil
+	}
+
 	// Verify that results are ingested properly
 	svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
 
@@ -822,6 +830,10 @@ func TestDetailQueries(t *testing.T) {
 	ds.SaveHostAdditionalFunc = func(host *fleet.Host) error {
 		gotHost.Additional = host.Additional
 		return nil
+	}
+
+	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+		return &host, nil
 	}
 
 	// Verify that results are ingested properly
@@ -1820,4 +1832,75 @@ func TestGetHostIdentifier(t *testing.T) {
 			)
 		})
 	}
+}
+
+func TestDistributedQueriesLogsManyErrors(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	host := &fleet.Host{Platform: "darwin"}
+
+	ds.SaveHostFunc = func(host *fleet.Host) error {
+		return authz.CheckMissingWithResponse(nil)
+	}
+	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]bool, t time.Time) error {
+		return errors.New("something went wrong")
+	}
+
+	lCtx := &fleetLogging.LoggingContext{}
+	ctx := fleetLogging.NewContext(context.Background(), lCtx)
+	ctx = hostctx.NewContext(ctx, *host)
+
+	err := svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+	)
+	assert.Nil(t, err)
+
+	lCtx.Log(ctx, logger)
+
+	logs := buf.String()
+	parts := strings.Split(strings.TrimSpace(logs), "\n")
+	require.Len(t, parts, 1)
+	logData := make(map[string]json.RawMessage)
+	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
+	assert.Equal(t, json.RawMessage(`["something went wrong"]`), logData["err"])
+	assert.Equal(t, json.RawMessage(`["Missing authorization check"]`), logData["internal"])
+}
+
+func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	host := &fleet.Host{ID: 42, Platform: "darwin"}
+	ip := "1.1.1.1"
+
+	ds.SaveHostFunc = func(host *fleet.Host) error {
+		assert.Equal(t, ip, host.PrimaryIP)
+		return nil
+	}
+	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+		require.Equal(t, uint(42), id)
+		return &fleet.Host{ID: 42, Platform: "darwin", PrimaryIP: ip}, nil
+	}
+
+	ctx := hostctx.NewContext(context.Background(), *host)
+
+	err := svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostDetailQueryPrefix + "1": {{"col1": "val1"}},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+	)
+	assert.Nil(t, err)
+	assert.True(t, ds.HostFuncInvoked)
 }
