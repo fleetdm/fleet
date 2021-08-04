@@ -1,20 +1,21 @@
 package service
 
 import (
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
+	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
-func TestListPacks(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
+func TestServiceListPacks(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	svc := newTestService(ds, nil, nil)
 
 	queries, err := svc.ListPacks(test.UserContext(test.UserAdmin), fleet.ListOptions{})
@@ -32,14 +33,15 @@ func TestListPacks(t *testing.T) {
 }
 
 func TestGetPack(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	svc := newTestService(ds, nil, nil)
 
 	pack := &fleet.Pack{
 		Name: "foo",
 	}
-	_, err = ds.NewPack(pack)
+	_, err := ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 

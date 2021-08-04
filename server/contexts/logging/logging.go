@@ -35,9 +35,9 @@ func WithStartTime(ctx context.Context) context.Context {
 }
 
 // WithErr returns a context with logging.Err set as the error provided
-func WithErr(ctx context.Context, err error) context.Context {
+func WithErr(ctx context.Context, err ...error) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.Err = err
+		logCtx.Errs = append(logCtx.Errs, err...)
 	}
 	return ctx
 }
@@ -68,7 +68,7 @@ func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) con
 // LoggingContext contains the context information for logging the current request
 type LoggingContext struct {
 	StartTime  time.Time
-	Err        error
+	Errs       []error
 	Extras     []interface{}
 	SkipUser   bool
 	ForceLevel func(kitlog.Logger) kitlog.Logger
@@ -76,13 +76,9 @@ type LoggingContext struct {
 
 // Log logs the data within the context
 func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
-	if e, ok := l.Err.(fleet.ErrWithInternal); ok {
-		logger = kitlog.With(logger, "internal", e.Internal())
-	}
-
 	if l.ForceLevel != nil {
 		logger = l.ForceLevel(logger)
-	} else if l.Err != nil || len(l.Extras) > 0 {
+	} else if l.Errs != nil || len(l.Extras) > 0 {
 		logger = level.Info(logger)
 	} else {
 		logger = level.Debug(logger)
@@ -99,18 +95,36 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		keyvals = append(keyvals, "user", loggedInUser)
 	}
 
-	keyvals = append(keyvals,
-		"method", ctx.Value(kithttp.ContextKeyRequestMethod).(string),
-		"uri", ctx.Value(kithttp.ContextKeyRequestURI).(string),
-		"took", time.Since(l.StartTime),
-	)
-
-	if l.Err != nil {
-		keyvals = append(keyvals, "err", l.Err)
+	requestMethod, ok := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
+	if !ok {
+		requestMethod = ""
 	}
+	requestURI, ok := ctx.Value(kithttp.ContextKeyRequestURI).(string)
+	if !ok {
+		requestURI = ""
+	}
+	keyvals = append(keyvals, "method", requestMethod, "uri", requestURI, "took", time.Since(l.StartTime))
 
 	if len(l.Extras) > 0 {
 		keyvals = append(keyvals, l.Extras...)
+	}
+
+	if len(l.Errs) > 0 {
+		var errs []string
+		var internalErrs []string
+		for _, err := range l.Errs {
+			if e, ok := err.(fleet.ErrWithInternal); ok {
+				internalErrs = append(internalErrs, e.Internal())
+			} else {
+				errs = append(errs, err.Error())
+			}
+		}
+		if len(errs) > 0 {
+			keyvals = append(keyvals, "err", errs)
+		}
+		if len(internalErrs) > 0 {
+			keyvals = append(keyvals, "internal", internalErrs)
+		}
 	}
 
 	_ = logger.Log(keyvals...)

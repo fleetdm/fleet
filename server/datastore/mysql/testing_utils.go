@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/WatchBeam/clock"
@@ -112,5 +114,15 @@ func CreateMySQLDS(t *testing.T) *Datastore {
 
 	t.Parallel()
 
-	return initializeDatabase(t, t.Name())
+	pc, _, _, ok := runtime.Caller(1)
+	details := runtime.FuncForPC(pc)
+	if !ok || details == nil {
+		t.FailNow()
+	}
+
+	cleanName := strings.ReplaceAll(
+		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
+	)
+	cleanName = strings.ReplaceAll(cleanName, ".", "_")
+	return initializeDatabase(t, cleanName)
 }
