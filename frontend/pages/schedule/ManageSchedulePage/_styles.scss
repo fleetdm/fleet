@@ -51,7 +51,7 @@
     }
 
     p {
-      color: $core-fleet-blue;
+      color: $core-dark-blue-grey;
       margin: 0;
       font-size: $x-small;
       font-style: italic;
@@ -89,14 +89,19 @@
     border: 0 !important;
 
     .Select-arrow {
-      top: -6px !important;
+      top: 0 !important;
       margin-top: 0 !important;
+    }
+
+    .dropdown__option:hover {
+      font-weight: $bold !important;
     }
   }
 
   .Select.is-focused {
     .Select-control {
       border: 0 !important;
+      height: 32px;
     }
   }
 
@@ -107,22 +112,36 @@
       border-radius: none;
       position: none;
       width: max-content; // move select arrow
+      height: 20px;
 
       &:hover {
         box-shadow: none;
       }
 
+      &:hover .Select-value-label {
+        color: $core-vibrant-blue !important;
+      }
+
+      .Select-arrow-zone {
+        padding-left: $pad-small;
+
+        .Select-arrow {
+          margin-top: $pad-xsmall;
+        }
+      }
       .Select-multi-value-wrapper {
         width: max-content; // move select arrow
+        height: 20px;
+        margin-bottom: $pad-xsmall;
 
         .Select-input {
-          height: 0;
+          display: none !important;
         }
 
         .Select-value {
           position: relative; // move select arrow
           display: inline-block; // move select arrow
-          line-height: initial;
+          line-height: 24px;
           padding: 0;
           border: 0 !important;
           background-color: #fff !important;
@@ -136,7 +155,6 @@
           }
           :hover {
             border: 0 !important;
-            box-shadow: none !important;
           }
 
           .Select-value-label {

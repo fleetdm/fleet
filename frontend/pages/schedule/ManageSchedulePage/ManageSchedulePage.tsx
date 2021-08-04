@@ -147,7 +147,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   const generateTeamOptionsDropdownItems = (): ITeamOptions[] => {
     const teamOptions: ITeamOptions[] = [
       {
-        disabled: isNaN(teamId),
+        disabled: false,
         label: "Global",
         value: "global",
       },
@@ -155,7 +155,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
 
     allTeamsList.forEach((team) => {
       teamOptions.push({
-        disabled: teamId === team.id,
+        disabled: false,
         label: team.name,
         value: team.id,
       });
