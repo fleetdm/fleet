@@ -11,9 +11,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,10 +105,60 @@ func TestLogin(t *testing.T) {
 	}
 }
 
-func setupAuthTest(t *testing.T) (*inmem.Datastore, map[string]fleet.User, *httptest.Server) {
-	ds, _ := inmem.New(config.TestConfig())
-	users, server := RunServerForTestsWithDS(t, ds)
-	return ds, users, server
+func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httptest.Server) {
+	ds := new(mock.Store)
+	var users []*fleet.User
+	var admin *fleet.User
+	sessions := make(map[string]*fleet.Session)
+	ds.NewUserFunc = func(user *fleet.User) (*fleet.User, error) {
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			admin = user
+		}
+		users = append(users, user)
+		return user, nil
+	}
+	ds.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+		return sessions[key], nil
+	}
+	ds.MarkSessionAccessedFunc = func(session *fleet.Session) error {
+		return nil
+	}
+	ds.UserByIDFunc = func(id uint) (*fleet.User, error) {
+		return admin, nil
+	}
+	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return users, nil
+	}
+	ds.ListSessionsForUserFunc = func(id uint) ([]*fleet.Session, error) {
+		for _, session := range sessions {
+			if session.UserID == id {
+				return []*fleet.Session{session}, nil
+			}
+		}
+		return nil, nil
+	}
+	ds.SessionByIDFunc = func(id uint) (*fleet.Session, error) {
+		for _, session := range sessions {
+			if session.ID == id {
+				return session, nil
+			}
+		}
+		return nil, nil
+	}
+	ds.DestroySessionFunc = func(session *fleet.Session) error {
+		delete(sessions, session.Key)
+		return nil
+	}
+	usersMap, server := RunServerForTestsWithDS(t, ds)
+	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+		user := usersMap[email]
+		return &user, nil
+	}
+	ds.NewSessionFunc = func(session *fleet.Session) (*fleet.Session, error) {
+		sessions[session.Key] = session
+		return session, nil
+	}
+	return ds, usersMap, server
 }
 
 func getTestAdminToken(t *testing.T, server *httptest.Server) string {
@@ -145,6 +194,7 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	require.Nil(t, err)

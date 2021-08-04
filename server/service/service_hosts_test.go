@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
+	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -15,8 +15,8 @@ import (
 )
 
 func TestListHosts(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 
@@ -24,40 +24,40 @@ func TestListHosts(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
-	storedTime := time.Now()
+	storedTime := time.Now().UTC()
 
 	_, err = ds.NewHost(&fleet.Host{
-		Hostname: "foo",
-		LastEnrolledAt: storedTime,
+		Hostname:        "foo",
+		SeenTime:        storedTime,
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
 	})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	hosts, err = svc.ListHosts(test.UserContext(test.UserAdmin), fleet.HostListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, hosts, 1)
-	assert.Equal(t, storedTime, hosts[0].LastEnrolledAt)
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	format := "%Y-%m-%d %HH:%MM:%SS %Z"
+	assert.Equal(t, storedTime.Format(format), hosts[0].SeenTime.Format(format))
 }
 
 func TestDeleteHost(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 
-	host, err := ds.NewHost(&fleet.Host{
-		Hostname: "foo",
-	})
-	assert.Nil(t, err)
+	mockClock := clock.NewMockClock()
+	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
 	assert.NotZero(t, host.ID)
 
-	err = svc.DeleteHost(test.UserContext(test.UserAdmin), host.ID)
+	err := svc.DeleteHost(test.UserContext(test.UserAdmin), host.ID)
 	assert.Nil(t, err)
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
-
 }
 
 func TestHostDetails(t *testing.T) {

@@ -32,7 +32,7 @@ describe("Query flow", () => {
 
     cy.findByText(/query all/i).click();
 
-    cy.findByRole("button", { name: /edit or run query/i }).click();
+    cy.findByText(/edit & run query/i).should("exist");
 
     cy.get(".ace_scroller")
       .click({ force: true })
@@ -119,18 +119,22 @@ describe("Query flow", () => {
 
     cy.visit("/queries/manage");
 
-    // This element has no label, text, or role
-    cy.get("#query-checkbox-1").check({ force: true });
+    cy.findByText(/query all window crashes/i)
+      .parent()
+      .parent()
+      .within(() => {
+        cy.get(".kolide-checkbox__input").check({ force: true });
+      });
 
     cy.findByRole("button", { name: /delete/i }).click();
 
     // Can't figure out how attach findByRole onto modal button
     // Can't use findByText because delete button under modal
-    cy.get(".manage-queries-page__modal-btn-wrap > .button--alert")
+    cy.get(".remove-query-modal")
       .contains("button", /delete/i)
       .click();
 
-    cy.findByText(/successfully deleted/i).should("be.visible");
+    cy.findByText(/successfully removed query/i).should("be.visible");
 
     cy.findByText(/query all/i).should("not.exist");
   });
