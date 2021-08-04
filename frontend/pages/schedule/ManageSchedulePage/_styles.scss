@@ -91,12 +91,12 @@
     .Select-option:hover {
       font-weight: $bold !important;
     }
-  }
 
-  .Select.is-focused {
-    .Select-control {
-      border: 0 !important;
-      height: 32px;
+    &.is-focused {
+      .Select-control {
+        border: 0 !important;
+        height: 32px;
+      }
     }
   }
 
