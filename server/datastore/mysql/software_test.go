@@ -223,3 +223,35 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
 }
+
+func TestLoadSoftwareVulnerabilities(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "apps"},
+		},
+	}
+	host.HostSoftware = soft
+	require.NoError(t, ds.SaveHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
+	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
+
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	assert.Equal(t, "somecpe", host.Software[0].GenerateCPE)
+	require.Len(t, host.Software[0].Vulnerabilities, 1)
+	assert.Equal(t, "cve-123-123-132", host.Software[0].Vulnerabilities[0].CVE)
+	assert.Equal(t,
+		"https://nvd.nist.gov/vuln/detail/cve-123-123-132", host.Software[0].Vulnerabilities[0].DetailsLink)
+
+	assert.Equal(t, "", host.Software[1].GenerateCPE)
+	require.Len(t, host.Software[1].Vulnerabilities, 0)
+}

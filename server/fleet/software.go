@@ -9,6 +9,11 @@ type SoftwareStore interface {
 	InsertCVEForCPE(cve string, cpes []string) error
 }
 
+type SoftwareCVE struct {
+	CVE         string `json:"cve" db:"cve"`
+	DetailsLink string `json:"details_link" db:"details_link"`
+}
+
 // Software is a named and versioned piece of software installed on a device.
 type Software struct {
 	ID uint `json:"id" db:"id"`
@@ -18,6 +23,11 @@ type Software struct {
 	Version string `json:"version" db:"version"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
+
+	// GenerateCPE is the CPE23 string that corresponds to the current software
+	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
+	// Vulnerabilities lists all the found CVEs for the CPE
+	Vulnerabilities []SoftwareCVE `json:"vulnerabilities"`
 }
 
 // HostSoftware is the set of software installed on a specific host
