@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	owner = "chiiph"
+	owner = "fleetdm"
 	repo  = "nvd"
 )
 
