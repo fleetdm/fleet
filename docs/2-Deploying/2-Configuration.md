@@ -120,6 +120,8 @@ mysql:
 
 Basically, just capitalize the option and prepend `FLEET_` to it in order to get the environment variable. The conversion works the same the opposite way.
 
+All duration-based settings accept valid time units of `s`, `m`, `h`.
+
 ##### MySQL
 
 ###### `mysql_address`
