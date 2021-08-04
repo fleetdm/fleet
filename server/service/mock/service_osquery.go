@@ -13,7 +13,7 @@ var _ fleet.OsqueryService = (*TLSService)(nil)
 
 type EnrollAgentFunc func(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error)
 
-type AuthenticateHostFuncI func(ctx context.Context, nodeKey string) (host *fleet.Host, err error)
+type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (host *fleet.Host, err error)
 
 type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{}, err error)
 
@@ -29,7 +29,7 @@ type TLSService struct {
 	EnrollAgentFunc        EnrollAgentFunc
 	EnrollAgentFuncInvoked bool
 
-	AuthenticateHostFunc        AuthenticateHostFuncI
+	AuthenticateHostFunc        AuthenticateHostFunc
 	AuthenticateHostFuncInvoked bool
 
 	GetClientConfigFunc        GetClientConfigFunc
