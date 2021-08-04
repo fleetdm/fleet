@@ -58,22 +58,6 @@ class HostSidePanel extends Component {
 
     return (
       <SecondarySidePanelContainer className={`${baseClass}`}>
-        <h3>Status</h3>
-        <PanelGroup
-          groupItems={allHostLabels}
-          onLabelClick={onLabelClick}
-          selectedFilter={selectedFilter}
-          type="all-hosts"
-        />
-
-        <PanelGroup
-          groupItems={hostStatusLabels}
-          onLabelClick={onLabelClick}
-          statusLabels={statusLabels}
-          selectedFilter={selectedFilter}
-          type="status"
-        />
-
         <h3>Operating Systems</h3>
         <PanelGroup
           groupItems={hostPlatformLabels}

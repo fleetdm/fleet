@@ -30,6 +30,7 @@ import {
 } from "redux/nodes/components/ManageHostsPage/actions";
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
+import { find } from "lodash";
 
 import permissionUtils from "utilities/permissions";
 import {
@@ -42,11 +43,40 @@ import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
+import Dropdown from "components/forms/fields/Dropdown";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
 
 const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
 const baseClass = "manage-hosts";
+
+const HOST_SELECT_STATUSES = [
+  {
+    disabled: false,
+    label: "All hosts",
+    value: "all",
+  },
+  {
+    disabled: false,
+    label: "Online hosts",
+    value: "online",
+  },
+  {
+    disabled: false,
+    label: "Offline hosts",
+    value: "offline",
+  },
+  {
+    disabled: false,
+    label: "New hosts",
+    value: "new",
+  },
+  {
+    disabled: false,
+    label: "MIA hosts",
+    value: "mia",
+  },
+];
 
 export class ManageHostsPage extends PureComponent {
   static propTypes = {
@@ -229,12 +259,9 @@ export class ManageHostsPage extends PureComponent {
   onLabelClick = (selectedLabel) => {
     return (evt) => {
       evt.preventDefault();
-      const { dispatch } = this.props;
-      const { MANAGE_HOSTS } = PATHS;
-      const { slug, type } = selectedLabel;
-      const nextLocation =
-        type === "all" ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
-      dispatch(push(nextLocation));
+
+      const { handleLabelChange } = this;
+      handleLabelChange(selectedLabel);
     };
   };
 
@@ -370,6 +397,27 @@ export class ManageHostsPage extends PureComponent {
         isAllMatchingHostsSelected: !isAllMatchingHostsSelected,
       });
     }
+  };
+
+  handleLabelChange = (selectedLabel) => {
+    const { dispatch } = this.props;
+    const { MANAGE_HOSTS } = PATHS;
+    const { slug, type } = selectedLabel;
+    const nextLocation =
+      type === "all" ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
+    dispatch(push(nextLocation));
+  };
+
+  handleStatusDropdownChange = (statusName) => {
+    const { labels } = this.props;
+    const { handleLabelChange } = this;
+
+    // we want the full label object
+    const isAll = statusName === "all";
+    const selected = isAll
+      ? find(labels, { type: "all" })
+      : find(labels, { id: statusName });
+    handleLabelChange(selected);
   };
 
   renderEditColumnsModal = () => {
@@ -629,6 +677,21 @@ export class ManageHostsPage extends PureComponent {
     return SidePanel;
   };
 
+  renderStatusDropdown = () => {
+    const { selectedFilter } = this.props;
+    const { handleStatusDropdownChange } = this;
+
+    return (
+      <Dropdown
+        value={selectedFilter || "all"}
+        className={`${baseClass}__status_dropdown`}
+        options={HOST_SELECT_STATUSES}
+        searchable={false}
+        onChange={handleStatusDropdownChange}
+      />
+    );
+  };
+
   renderTable = () => {
     const {
       config,
@@ -644,6 +707,7 @@ export class ManageHostsPage extends PureComponent {
       onEditColumnsClick,
       onTransferToTeamClick,
       toggleAllMatchingHosts,
+      renderStatusDropdown,
     } = this;
 
     // The data has not been fetched yet.
@@ -681,6 +745,7 @@ export class ManageHostsPage extends PureComponent {
         isAllPagesSelected={isAllMatchingHostsSelected}
         toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
+        customControl={renderStatusDropdown}
       />
     );
   };

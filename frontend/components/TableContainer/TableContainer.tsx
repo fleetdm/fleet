@@ -50,6 +50,7 @@ interface ITableContainerProps {
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
+  customControl?: () => JSX.Element;
 }
 
 const baseClass = "table-container";
@@ -85,6 +86,7 @@ const TableContainer = ({
   primarySelectActionButtonText,
   onPrimarySelectActionClick,
   secondarySelectActions,
+  customControl,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -221,6 +223,7 @@ const TableContainer = ({
               </>
             </Button>
           )}
+          {customControl && customControl()}
           {/* Render search bar only if not empty component */}
           {searchable && !wideSearch && (
             <div className={`${baseClass}__search-input`}>

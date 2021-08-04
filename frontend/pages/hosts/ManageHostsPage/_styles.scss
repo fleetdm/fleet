@@ -98,4 +98,11 @@
       margin-right: $pad-medium;
     }
   }
+
+  .form-field--dropdown {
+    margin: 0;
+  }
+  &__status_dropdown {
+    width: 159px;
+  }
 }
