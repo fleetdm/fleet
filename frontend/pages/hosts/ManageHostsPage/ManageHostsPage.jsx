@@ -55,26 +55,31 @@ const HOST_SELECT_STATUSES = [
     disabled: false,
     label: "All hosts",
     value: "all-hosts",
+    helpText: "All hosts which have enrolled to Fleet.",
   },
   {
     disabled: false,
     label: "Online hosts",
     value: "online",
+    helpText: "Hosts that have recently checked-in to Fleet.",
   },
   {
     disabled: false,
     label: "Offline hosts",
     value: "offline",
+    helpText: "Hosts that have not checked-in to Fleet recently.",
   },
   {
     disabled: false,
     label: "New hosts",
     value: "new",
+    helpText: "Hosts that have been enrolled to Fleet in the last 24 hours.",
   },
   {
     disabled: false,
     label: "MIA hosts",
     value: "mia",
+    helpText: "Hosts that have not been seen by Fleet in more than 30 days.",
   },
 ];
 
@@ -688,6 +693,17 @@ export class ManageHostsPage extends PureComponent {
         options={HOST_SELECT_STATUSES}
         searchable={false}
         onChange={handleStatusDropdownChange}
+        // optionRenderer={({ label, description }) => {
+        //   return (
+        //     <div
+        //       ref={innerRef}
+        //       {...innerProps}
+        //       className={`${baseClass}__status-dropdown-option`}
+        //     >
+        //       <p>Hi</p>
+        //     </div>
+        //   );
+        // }}
       />
     );
   };

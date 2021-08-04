@@ -104,5 +104,10 @@
   }
   &__status_dropdown {
     width: 159px;
+
+    .Select-menu-outer {
+      width: 364px;
+      height: 299px;
+    }
   }
 }
