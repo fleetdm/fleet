@@ -88,11 +88,6 @@
   &__team-dropdown {
     border: 0 !important;
 
-    .Select-arrow {
-      top: 0 !important;
-      margin-top: 0 !important;
-    }
-
     .dropdown__option:hover {
       font-weight: $bold !important;
     }
@@ -126,7 +121,8 @@
         padding-left: $pad-small;
 
         .Select-arrow {
-          margin-top: $pad-xsmall;
+          top: 0 !important;
+          margin-top: 0 !important;
         }
       }
       .Select-multi-value-wrapper {
