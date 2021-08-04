@@ -28,7 +28,7 @@ export default (client) => {
         version,
         team_id: Number(teamID),
       };
-      console.log("formData in team_scheduled_queries", formData);
+
       return client
         .authenticatedPost(
           client._endpoint(TEAM_SCHEDULE(teamID)),
@@ -36,35 +36,25 @@ export default (client) => {
         )
         .then((response) => response.scheduled);
     },
-    destroy: ({ teamID, queryID }) => {
+    destroy: (teamID, queryID) => {
       const { TEAM_SCHEDULE } = endpoints;
       const endpoint = `${client._endpoint(TEAM_SCHEDULE(teamID))}/${queryID}`;
 
       return client.authenticatedDelete(endpoint);
     },
-    // I don't think I need load?
-    // load: (teamID) => {
-    //   const { TEAM_SCHEDULE } = endpoints;
-    //   const getTeamScheduleEndpoint = `${client._endpoint(
-    //     TEAM_SCHEDULE(teamID)
-    //   )}`;
-
-    //   return client
-    //     .authenticatedGet(getTeamScheduleEndpoint)
-    //     .then((response) => response.scheduled);
-    // },
     loadAll: (teamID) => {
       const { TEAM_SCHEDULE } = endpoints;
       const teamScheduledQueryPath = TEAM_SCHEDULE(teamID);
 
       return client
         .authenticatedGet(client._endpoint(teamScheduledQueryPath))
-        .then((response) => response.scheduled); // console.log("This is the network request")
+        .then((response) => response.scheduled);
     },
     update: (teamScheduledQuery, updatedAttributes) => {
+      const { team_id } = updatedAttributes;
       const { TEAM_SCHEDULE } = endpoints;
       const endpoint = client._endpoint(
-        `${TEAM_SCHEDULE(teamScheduledQuery.id)}/${teamScheduledQuery.query_id}`
+        `${TEAM_SCHEDULE(team_id)}/${teamScheduledQuery.id}`
       );
       const params = helpers.formatTeamScheduledQueryForServer(
         updatedAttributes

@@ -10,6 +10,8 @@ export default PropTypes.shape({
   removed: PropTypes.bool,
   snapshot: PropTypes.bool,
   team_id: PropTypes.number.isRequired,
+  version: PropTypes.string,
+  platform: PropTypes.string,
 });
 
 export interface ITeamScheduledQuery {
@@ -22,4 +24,6 @@ export interface ITeamScheduledQuery {
   removed: boolean;
   snapshot: boolean;
   team_id: number;
+  version?: string;
+  platform?: string;
 }

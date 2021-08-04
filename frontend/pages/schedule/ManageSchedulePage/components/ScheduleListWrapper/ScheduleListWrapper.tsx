@@ -23,7 +23,7 @@ const noScheduleClass = "no-schedule";
 interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
   onEditScheduledQueryClick: any;
-  allScheduledQueriesList: IGlobalScheduledQuery[];
+  allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
   toggleScheduleEditorModal: any;
   teamId: number;
 }
@@ -128,7 +128,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={generateDataSet(allScheduledQueriesList)}
+        data={generateDataSet(allScheduledQueriesList, teamId)}
         isLoading={loadingTableData}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}

@@ -29,7 +29,6 @@ import ScheduleError from "./components/ScheduleError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
-import { isOnGlobalTeam } from "utilities/permissions/permissions";
 
 const baseClass = "manage-schedule-page";
 
@@ -98,13 +97,11 @@ interface IFormData {
   team_id?: number;
 }
 
-let teamOptions: any = [
-  {
-    disabled: true,
-    label: "Global",
-    value: "global",
-  },
-];
+interface ITeamOptions {
+  disabled: boolean;
+  label: string;
+  value: string | number;
+}
 
 const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   const {
@@ -116,13 +113,13 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
   useEffect(() => {
-    dispatch(globalScheduledQueryActions.loadAll());
     dispatch(queryActions.loadAll());
     dispatch(teamActions.loadAll());
-    if (teamId) {
-      dispatch(teamScheduledQueryActions.loadAll(teamId));
-    }
-    console.log("Is there a team Id being dispatched?", teamId);
+    dispatch(
+      teamId
+        ? teamScheduledQueryActions.loadAll(teamId)
+        : globalScheduledQueryActions.loadAll()
+    );
   }, [dispatch, teamId]);
 
   const isBasicTier = useSelector((state: IRootState) => {
@@ -142,16 +139,13 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   const allScheduledQueriesList = Object.values(allScheduledQueries.data);
   const allScheduledQueriesError = allScheduledQueries.errors;
 
-  console.log("allScheduledQueries", allScheduledQueries);
-  console.log("allScheduledQueriesList", allScheduledQueriesList);
   const allTeams = useSelector((state: IRootState) => state.entities.teams);
   const allTeamsList = Object.values(allTeams.data);
 
-  const selectedTeam = isNaN(teamId) ? teamOptions[0].value : teamId;
+  const selectedTeam = isNaN(teamId) ? "global" : teamId;
 
-  console.log("teamId, do you exist?", teamId);
-  const generateTeamOptionsDropdownItems = (): any => {
-    let teamOptions: any = [
+  const generateTeamOptionsDropdownItems = (): ITeamOptions[] => {
+    const teamOptions: ITeamOptions[] = [
       {
         disabled: isNaN(teamId),
         label: "Global",
@@ -159,7 +153,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
       },
     ];
 
-    allTeamsList.map((team) => {
+    allTeamsList.forEach((team) => {
       teamOptions.push({
         disabled: teamId === team.id,
         label: team.name,
@@ -174,11 +168,12 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     showRemoveScheduledQueryModal,
     setShowRemoveScheduledQueryModal,
   ] = useState(false);
-  const [selectedQueryIds, setSelectedQueryIds] = useState([]);
-  const [
-    selectedScheduledQuery,
-    setSelectedScheduledQuery,
-  ] = useState<IGlobalScheduledQuery>();
+  const [selectedQueryIds, setSelectedQueryIds] = useState<number[] | never[]>(
+    []
+  );
+  const [selectedScheduledQuery, setSelectedScheduledQuery] = useState<
+    IGlobalScheduledQuery | ITeamScheduledQuery
+  >();
 
   const toggleScheduleEditorModal = useCallback(() => {
     setSelectedScheduledQuery(undefined); // create modal renders
@@ -189,7 +184,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
-  const onRemoveScheduledQueryClick = (selectedTableQueryIds: any): any => {
+  const onRemoveScheduledQueryClick = (selectedTableQueryIds: any): void => {
     toggleRemoveScheduledQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
   };
@@ -201,7 +196,11 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
     const promises = selectedQueryIds.map((id: number) => {
-      return dispatch(globalScheduledQueryActions.destroy({ id }));
+      return dispatch(
+        teamId
+          ? teamScheduledQueryActions.destroy(teamId, id)
+          : globalScheduledQueryActions.destroy({ id })
+      );
     });
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
     return Promise.all(promises)
@@ -213,7 +212,11 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
           )
         );
         toggleRemoveScheduledQueryModal();
-        dispatch(globalScheduledQueryActions.loadAll());
+        dispatch(
+          teamId
+            ? teamScheduledQueryActions.loadAll(teamId)
+            : globalScheduledQueryActions.loadAll()
+        );
       })
       .catch(() => {
         dispatch(
@@ -224,14 +227,15 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
         );
         toggleRemoveScheduledQueryModal();
       });
-  }, [dispatch, selectedQueryIds, toggleRemoveScheduledQueryModal]);
+  }, [dispatch, teamId, selectedQueryIds, toggleRemoveScheduledQueryModal]);
 
   const onAddScheduledQuerySubmit = useCallback(
-    (formData: IFormData, editQuery: IGlobalScheduledQuery | undefined) => {
-      console.log("THIS IS MY FORM DATA", formData);
+    (
+      formData: IFormData,
+      editQuery: IGlobalScheduledQuery | ITeamScheduledQuery | undefined
+    ) => {
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
-        console.log("Is there a team Id?", teamId);
         dispatch(
           teamId
             ? teamScheduledQueryActions.update(editQuery, updatedAttributes)
@@ -244,7 +248,11 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
                 `Successfully updated ${formData.name} in the schedule.`
               )
             );
-            dispatch(globalScheduledQueryActions.loadAll());
+            dispatch(
+              teamId
+                ? teamScheduledQueryActions.loadAll(teamId)
+                : globalScheduledQueryActions.loadAll()
+            );
           })
           .catch(() => {
             dispatch(
@@ -267,7 +275,11 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
                 `Successfully added ${formData.name} to the schedule.`
               )
             );
-            dispatch(globalScheduledQueryActions.loadAll());
+            dispatch(
+              teamId
+                ? teamScheduledQueryActions.loadAll(teamId)
+                : globalScheduledQueryActions.loadAll()
+            );
           })
           .catch(() => {
             dispatch(
@@ -280,7 +292,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
       }
       toggleScheduleEditorModal();
     },
-    [dispatch, toggleScheduleEditorModal]
+    [dispatch, teamId, toggleScheduleEditorModal]
   );
 
   const onChangeSelectedTeam = (selectedTeamId: number) => {

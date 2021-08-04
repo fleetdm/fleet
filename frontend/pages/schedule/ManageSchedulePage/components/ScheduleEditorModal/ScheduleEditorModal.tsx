@@ -1,4 +1,4 @@
-/* This component is used for both creating and editing global scheduled queries */
+/* This component is used for creating and editing both global and team scheduled queries */
 
 import React, { useState, useCallback, useEffect } from "react";
 
@@ -14,6 +14,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_OPTIONS,
@@ -40,9 +41,9 @@ interface IScheduleEditorModalProps {
   onCancel: () => void;
   onScheduleSubmit: (
     formData: IFormData,
-    editQuery: IGlobalScheduledQuery | undefined
+    editQuery: IGlobalScheduledQuery | ITeamScheduledQuery | undefined
   ) => void;
-  editQuery?: IGlobalScheduledQuery;
+  editQuery?: IGlobalScheduledQuery | ITeamScheduledQuery;
   teamId?: number;
 }
 interface INoQueryOption {
@@ -163,7 +164,7 @@ const ScheduleEditorModal = ({
   const onFormSubmit = () => {
     const query_id = () => {
       if (editQuery) {
-        return editQuery.id;
+        return editQuery.query_id;
       }
       return selectedQuery?.id;
     };

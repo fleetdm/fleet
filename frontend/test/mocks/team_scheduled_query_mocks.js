@@ -16,7 +16,7 @@ export default {
 
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/fleet/team/${team_id}/schedule`,
+        endpoint: `/api/v1/fleet/team/${params.team_id}/schedule`,
         method: "post",
         params,
         response: { scheduled: teamScheduledQueryStub },
