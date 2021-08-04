@@ -534,6 +534,8 @@ The size of the session key.
 
 The amount of time that a session should last for.
 
+Valid time units are `s`, `m`, `h`.
+
 - Default value: `4 hours`
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
@@ -612,6 +614,8 @@ Setting this to a higher value can reduce baseline load on the Fleet server in l
 The interval at which Fleet will ask osquery agents to update host details (such as uptime, hostname, network interfaces, etc.)
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
+
+Valid time units are `s`, `m`, `h`.
 
 - Default value: `1h`
 - Environment variable: `FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL`
