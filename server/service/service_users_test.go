@@ -607,11 +607,6 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 			ctx = refreshCtx(t, ctx, user, ds, nil)
 
-			// should error when not logged in
-			// FIXME: we don't check for session anymore... should we?
-			//_, err = svc.PerformRequiredPasswordReset(test.UserContext(reloadedUser), "new_pass")
-			//require.NotNil(t, err)
-
 			session, err := ds.NewSession(&fleet.Session{UserID: user.ID})
 			require.Nil(t, err)
 			ctx = refreshCtx(t, ctx, user, ds, session)
