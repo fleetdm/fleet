@@ -100,6 +100,12 @@
     }
   }
 
+  .Select.is-open {
+    .Select-value-label {
+      color: $core-vibrant-blue !important;
+    }
+  }
+
   &__header {
     .Select-control {
       background-color: #fff;
