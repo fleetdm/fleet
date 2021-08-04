@@ -235,7 +235,7 @@ func (u *Updater) Download(repoPath, localPath string) error {
 
 	if constant.PlatformName == "windows" {
 		// Remove old file first
-		if err := os.Rename(localPath, localPath+".old"); err != nil && !os.IsNotExist(err) {
+		if err := os.Rename(localPath, localPath+".old"); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return errors.Wrap(err, "rename old")
 		}
 	}

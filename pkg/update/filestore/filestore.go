@@ -54,9 +54,9 @@ func (s *fileStore) GetMeta() (map[string]json.RawMessage, error) {
 
 func (s *fileStore) readData() error {
 	stat, err := os.Stat(s.filename)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return errors.Wrap(err, "stat file store")
-	} else if os.IsNotExist(err) {
+	} else if errors.Is(err, os.ErrNotExist) {
 		// initialize empty
 		s.metadata = metadataMap{}
 		return nil
