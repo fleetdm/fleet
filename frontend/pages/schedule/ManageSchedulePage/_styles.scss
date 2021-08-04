@@ -42,6 +42,7 @@
 
   &__description {
     margin: 0 0 $pad-medium;
+    padding-top: $pad-xsmall;
 
     h2 {
       text-transform: uppercase;
@@ -87,9 +88,10 @@
 
   &__team-dropdown {
     border: 0 !important;
+    position: relative;
 
-    .Select-option:hover {
-      font-weight: $bold !important;
+    :hover {
+      cursor: pointer !important;
     }
 
     &.is-focused {
@@ -97,6 +99,12 @@
         border: 0 !important;
         height: 32px;
       }
+    }
+
+    .Select-menu-outer {
+      position: absolute;
+      left: -12px;
+      border-radius: 6px;
     }
   }
 
@@ -127,7 +135,7 @@
         padding-left: $pad-small;
 
         .Select-arrow {
-          top: 0 !important;
+          top: 1px !important;
           margin-top: 0 !important;
         }
       }
@@ -143,7 +151,7 @@
         .Select-value {
           position: relative; // move select arrow
           display: inline-block; // move select arrow
-          line-height: 24px;
+          line-height: 28px;
           padding: 0;
           border: 0 !important;
           background-color: #fff !important;
