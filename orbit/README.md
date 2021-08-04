@@ -192,7 +192,7 @@ Yes! Orbit is licensed under an MIT license and all uses are encouraged.
 
 ### How does orbit update osquery? And how do the stable and edge channels get triggered to update osquery on a self hosted Fleet instance?
 
-Orbit uses a configurable update server. We expect that many folks will just use the update server we manage (similar to what Kolide does with Launcher's update server). We are also offering [tooling for self-managing an update server](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/4-fleetctl-agent-updates.md) as part of Fleet Basic (the subscription offering).
+Orbit uses a configurable update server. We expect that many folks will just use the update server we manage (similar to what Kolide does with Launcher's update server). We are also offering [tooling for self-managing an update server](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/4-fleetctl-agent-updates.md) as part of Fleet Basic (the subscription offering).
 
 ## Community
 
