@@ -5,8 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
@@ -14,8 +13,9 @@ import (
 )
 
 func TestAuthenticate(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	svc := newTestService(ds, nil, nil)
 	createTestUsers(t, ds)
 

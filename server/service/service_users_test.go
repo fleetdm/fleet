@@ -2,12 +2,12 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/inmem"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -20,8 +20,9 @@ import (
 )
 
 func TestAuthenticatedUser(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	createTestUsers(t, ds)
 	svc := newTestService(ds, nil, nil)
 	admin1, err := ds.UserByEmail("admin1@example.com")
@@ -411,7 +412,9 @@ func setupInvites(t *testing.T, ds fleet.Datastore, emails []string) map[string]
 }
 
 func TestChangePassword(t *testing.T) {
-	ds, _ := inmem.New(config.TestConfig())
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
 	var passwordChangeTests = []struct {
@@ -475,7 +478,9 @@ func TestChangePassword(t *testing.T) {
 }
 
 func TestResetPassword(t *testing.T) {
-	ds, _ := inmem.New(config.TestConfig())
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	svc := newTestService(ds, nil, nil)
 	createTestUsers(t, ds)
 	var passwordResetTests = []struct {
@@ -495,7 +500,7 @@ func TestResetPassword(t *testing.T) {
 		{ // bad token
 			token:       "dcbaz",
 			newPassword: "123cat!",
-			wantErr:     errors.New("PasswordResetRequest was not found in the datastore"),
+			wantErr:     sql.ErrNoRows,
 		},
 		{ // missing token
 			newPassword: "123cat!",
@@ -532,8 +537,9 @@ func TestResetPassword(t *testing.T) {
 }
 
 func TestRequirePasswordReset(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	svc := newTestService(ds, nil, nil)
 	createTestUsers(t, ds)
 
@@ -574,9 +580,17 @@ func TestRequirePasswordReset(t *testing.T) {
 	}
 }
 
+func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Datastore, session *fleet.Session) context.Context {
+	reloadedUser, err := ds.UserByEmail(user.Email)
+	require.NoError(t, err)
+
+	return viewer.NewContext(ctx, viewer.Viewer{User: reloadedUser, Session: session})
+}
+
 func TestPerformRequiredPasswordReset(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
 	svc := newTestService(ds, nil, nil)
 
 	createTestUsers(t, ds)
@@ -591,28 +605,26 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 			_, err = svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, true)
 			require.Nil(t, err)
 
-			// should error when not logged in
-			_, err = svc.PerformRequiredPasswordReset(test.UserContext(test.UserAdmin), "new_pass")
-			require.NotNil(t, err)
+			ctx = refreshCtx(t, ctx, user, ds, nil)
 
-			session, err := ds.NewSession(&fleet.Session{
-				UserID: user.ID,
-			})
+			session, err := ds.NewSession(&fleet.Session{UserID: user.ID})
 			require.Nil(t, err)
-			ctx = viewer.NewContext(ctx, viewer.Viewer{User: user, Session: session})
+			ctx = refreshCtx(t, ctx, user, ds, session)
 
 			// should error when reset not required
 			_, err = svc.RequirePasswordReset(ctx, user.ID, false)
 			require.Nil(t, err)
+			ctx = refreshCtx(t, ctx, user, ds, session)
 			_, err = svc.PerformRequiredPasswordReset(ctx, "new_pass")
 			require.NotNil(t, err)
 
 			_, err = svc.RequirePasswordReset(ctx, user.ID, true)
 			require.Nil(t, err)
+			ctx = refreshCtx(t, ctx, user, ds, session)
 
 			// should error when using same password
 			_, err = svc.PerformRequiredPasswordReset(ctx, tt.PlaintextPassword)
-			require.NotNil(t, err)
+			require.Equal(t, "validation failed: new_password cannot reuse old password", err.Error())
 
 			// should succeed with good new password
 			u, err := svc.PerformRequiredPasswordReset(ctx, "new_pass")
