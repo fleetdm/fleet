@@ -12,7 +12,7 @@ export default (client) => {
         query_id: queryID,
         shard,
         version,
-        team_id,
+        team_id: teamID,
       } = formData;
 
       const removed = loggingType === "differential";
@@ -28,10 +28,10 @@ export default (client) => {
         version,
         team_id: Number(teamID),
       };
-
+      console.log("formData in team_scheduled_queries", formData);
       return client
         .authenticatedPost(
-          client._endpoint(TEAM_SCHEDULE(team_id)),
+          client._endpoint(TEAM_SCHEDULE(teamID)),
           JSON.stringify(params)
         )
         .then((response) => response.scheduled);
@@ -59,7 +59,7 @@ export default (client) => {
 
       return client
         .authenticatedGet(client._endpoint(teamScheduledQueryPath))
-        .then((response) => response.team_schedule);
+        .then((response) => response.scheduled); // console.log("This is the network request")
     },
     update: (teamScheduledQuery, updatedAttributes) => {
       const { TEAM_SCHEDULE } = endpoints;

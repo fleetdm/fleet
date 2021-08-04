@@ -100,46 +100,48 @@
     }
   }
 
-  .Select-control {
-    background-color: #fff;
-    border: 0 !important;
-    border-radius: none;
-    position: none;
-    width: max-content; // move select arrow
-
-    &:hover {
-      box-shadow: none;
-    }
-
-    .Select-multi-value-wrapper {
+  &__header {
+    .Select-control {
+      background-color: #fff;
+      border: 0 !important;
+      border-radius: none;
+      position: none;
       width: max-content; // move select arrow
 
-      .Select-input {
-        height: 0;
+      &:hover {
+        box-shadow: none;
       }
 
-      .Select-value {
-        position: relative; // moves select arrow
-        display: inline-block; // moves select arrow
-        padding: 0;
-        border: 0 !important;
-        background-color: #fff !important;
-        right: 0;
-        left: 0;
-        bottom: 0;
-        top: 0;
+      .Select-multi-value-wrapper {
+        width: max-content; // move select arrow
 
-        &.is-focused {
-          border: 0 !important;
-          // box-shadow: none !important; find hover shadow
-        }
-        :hover {
-          border: 0 !important;
-          box-shadow: none !important;
+        .Select-input {
+          height: 0;
         }
 
-        .Select-value-label {
-          font-size: $large !important;
+        .Select-value {
+          position: relative; // moves select arrow
+          display: inline-block; // moves select arrow
+          padding: 0;
+          border: 0 !important;
+          background-color: #fff !important;
+          right: 0;
+          left: 0;
+          bottom: 0;
+          top: 0;
+
+          &.is-focused {
+            border: 0 !important;
+            // box-shadow: none !important; find hover shadow
+          }
+          :hover {
+            border: 0 !important;
+            box-shadow: none !important;
+          }
+
+          .Select-value-label {
+            font-size: $large !important;
+          }
         }
       }
     }

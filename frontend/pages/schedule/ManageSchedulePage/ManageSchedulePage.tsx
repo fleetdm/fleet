@@ -95,6 +95,7 @@ interface IFormData {
   logging_type: string;
   platform: string;
   version: string;
+  team_id?: number;
 }
 
 let teamOptions: any = [
@@ -141,6 +142,8 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   const allScheduledQueriesList = Object.values(allScheduledQueries.data);
   const allScheduledQueriesError = allScheduledQueries.errors;
 
+  console.log("allScheduledQueries", allScheduledQueries);
+  console.log("allScheduledQueriesList", allScheduledQueriesList);
   const allTeams = useSelector((state: IRootState) => state.entities.teams);
   const allTeamsList = Object.values(allTeams.data);
 
@@ -165,8 +168,6 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     });
     return teamOptions;
   };
-
-  console.log("allTeamsList", allTeamsList);
 
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
   const [
@@ -227,11 +228,14 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
 
   const onAddScheduledQuerySubmit = useCallback(
     (formData: IFormData, editQuery: IGlobalScheduledQuery | undefined) => {
+      console.log("THIS IS MY FORM DATA", formData);
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
-
+        console.log("Is there a team Id?", teamId);
         dispatch(
-          globalScheduledQueryActions.update(editQuery, updatedAttributes)
+          teamId
+            ? teamScheduledQueryActions.update(editQuery, updatedAttributes)
+            : globalScheduledQueryActions.update(editQuery, updatedAttributes)
         )
           .then(() => {
             dispatch(
@@ -251,7 +255,11 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
             );
           });
       } else {
-        dispatch(globalScheduledQueryActions.create({ ...formData }))
+        dispatch(
+          teamId
+            ? teamScheduledQueryActions.create({ ...formData })
+            : globalScheduledQueryActions.create({ ...formData })
+        )
           .then(() => {
             dispatch(
               renderFlash(
@@ -276,7 +284,6 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   );
 
   const onChangeSelectedTeam = (selectedTeamId: number) => {
-    console.log("Changed Team!", selectedTeamId, typeof selectedTeamId);
     if (isNaN(selectedTeamId)) {
       dispatch(push(`${paths.MANAGE_SCHEDULE}`));
     } else {

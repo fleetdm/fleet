@@ -32,6 +32,7 @@ interface IFormData {
   logging_type: string;
   platform: string;
   version: string;
+  team_id?: number;
 }
 
 interface IScheduleEditorModalProps {
@@ -183,6 +184,7 @@ const ScheduleEditorModal = ({
         logging_type: selectedLoggingType,
         platform: selectedPlatformOptions,
         version: selectedMinOsqueryVersionOptions,
+        team_id: teamId,
       },
       editQuery
     );
