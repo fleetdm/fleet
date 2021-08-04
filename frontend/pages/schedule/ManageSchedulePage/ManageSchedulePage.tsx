@@ -10,8 +10,11 @@ import { IConfig } from "interfaces/config";
 import { IQuery } from "interfaces/query";
 import { ITeam } from "interfaces/team";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
+// @ts-ignore
+import teamScheduledQueryActions from "redux/nodes/entities/team_scheduled_queries/actions";
 // @ts-ignore
 import queryActions from "redux/nodes/entities/queries/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
@@ -33,11 +36,12 @@ const baseClass = "manage-schedule-page";
 const renderTable = (
   onRemoveScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
   onEditScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
-  allGlobalScheduledQueriesList: IGlobalScheduledQuery[],
-  allGlobalScheduledQueriesError: any,
-  toggleScheduleEditorModal: () => void
+  allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
+  allScheduledQueriesError: any,
+  toggleScheduleEditorModal: () => void,
+  teamId: number
 ): JSX.Element => {
-  if (Object.keys(allGlobalScheduledQueriesError).length !== 0) {
+  if (Object.keys(allScheduledQueriesError).length !== 0) {
     return <ScheduleError />;
   }
 
@@ -45,8 +49,9 @@ const renderTable = (
     <ScheduleListWrapper
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
-      allGlobalScheduledQueriesList={allGlobalScheduledQueriesList}
+      allScheduledQueriesList={allScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
+      teamId={teamId}
     />
   );
 };
@@ -64,6 +69,11 @@ interface IRootState {
     global_scheduled_queries: {
       isLoading: boolean;
       data: IGlobalScheduledQuery[];
+      errors: any;
+    };
+    team_scheduled_queries: {
+      isLoading: boolean;
+      data: ITeamScheduledQuery[];
       errors: any;
     };
     queries: {
@@ -108,7 +118,11 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     dispatch(globalScheduledQueryActions.loadAll());
     dispatch(queryActions.loadAll());
     dispatch(teamActions.loadAll());
-  }, [dispatch]);
+    if (teamId) {
+      dispatch(teamScheduledQueryActions.loadAll(teamId));
+    }
+    console.log("Is there a team Id being dispatched?", teamId);
+  }, [dispatch, teamId]);
 
   const isBasicTier = useSelector((state: IRootState) => {
     return state.app.config.tier === "basic";
@@ -117,13 +131,15 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   const allQueries = useSelector((state: IRootState) => state.entities.queries);
   const allQueriesList = Object.values(allQueries.data);
 
-  const allGlobalScheduledQueries = useSelector(
-    (state: IRootState) => state.entities.global_scheduled_queries
-  );
-  const allGlobalScheduledQueriesList = Object.values(
-    allGlobalScheduledQueries.data
-  );
-  const allGlobalScheduledQueriesError = allGlobalScheduledQueries.errors;
+  const allScheduledQueries = useSelector((state: IRootState) => {
+    if (teamId) {
+      return state.entities.team_scheduled_queries;
+    }
+    return state.entities.global_scheduled_queries;
+  });
+
+  const allScheduledQueriesList = Object.values(allScheduledQueries.data);
+  const allScheduledQueriesError = allScheduledQueries.errors;
 
   const allTeams = useSelector((state: IRootState) => state.entities.teams);
   const allTeamsList = Object.values(allTeams.data);
@@ -314,8 +330,8 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
             )}
           </div>
           {/* Hide CTA Buttons if no schedule or schedule error */}
-          {allGlobalScheduledQueriesList.length !== 0 &&
-            allGlobalScheduledQueriesError.length !== 0 && (
+          {allScheduledQueriesList.length !== 0 &&
+            allScheduledQueriesError.length !== 0 && (
               <div className={`${baseClass}__action-button-container`}>
                 <Button
                   variant="inverse"
@@ -338,9 +354,10 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
           {renderTable(
             onRemoveScheduledQueryClick,
             onEditScheduledQueryClick,
-            allGlobalScheduledQueriesList,
-            allGlobalScheduledQueriesError,
-            toggleScheduleEditorModal
+            allScheduledQueriesList,
+            allScheduledQueriesError,
+            toggleScheduleEditorModal,
+            teamId
           )}
         </div>
         {showScheduleEditorModal && (
@@ -349,6 +366,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
             onScheduleSubmit={onAddScheduledQuerySubmit}
             allQueries={allQueriesList}
             editQuery={selectedScheduledQuery}
+            teamId={teamId}
           />
         )}
         {showRemoveScheduledQueryModal && (

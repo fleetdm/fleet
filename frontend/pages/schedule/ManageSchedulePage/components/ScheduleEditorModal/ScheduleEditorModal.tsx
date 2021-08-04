@@ -42,6 +42,7 @@ interface IScheduleEditorModalProps {
     editQuery: IGlobalScheduledQuery | undefined
   ) => void;
   editQuery?: IGlobalScheduledQuery;
+  teamId?: number;
 }
 interface INoQueryOption {
   id: number;
@@ -63,6 +64,7 @@ const ScheduleEditorModal = ({
   onScheduleSubmit,
   allQueries,
   editQuery,
+  teamId,
 }: IScheduleEditorModalProps): JSX.Element => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
