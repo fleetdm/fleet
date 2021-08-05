@@ -10,7 +10,8 @@ interface ISortOption {
 interface IHostLoadOptions {
   page: number;
   perPage: number;
-  selectedLabel: string;
+  // selectedLabel: string;
+  selectedLabels: string[];
   globalFilter: string;
   sortBy: ISortOption[];
 }
@@ -38,7 +39,8 @@ export default {
     const { HOSTS, LABEL_HOSTS } = endpoints;
     const page = options?.page || 0;
     const perPage = options?.perPage || 100;
-    const selectedLabel = options?.selectedLabel || "";
+    // const selectedLabel = options?.selectedLabel || "";
+    const selectedLabels = options?.selectedLabels || [];
     const globalFilter = options?.globalFilter || "";
     const sortBy = options?.sortBy || [];
 
@@ -60,22 +62,47 @@ export default {
 
     let path = "";
     const labelPrefix = "labels/";
-    if (selectedLabel.startsWith(labelPrefix)) {
-      const lid = selectedLabel.substr(labelPrefix.length);
+    // if (selectedLabel.startsWith(labelPrefix)) {
+    //   const lid = selectedLabel.substr(labelPrefix.length);
+    //   path = `${LABEL_HOSTS(
+    //     parseInt(lid, 10)
+    //   )}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
+    // } else {
+    //   let selectedFilter = "";
+    //   if (
+    //     selectedLabel === "new" ||
+    //     selectedLabel === "online" ||
+    //     selectedLabel === "offline" ||
+    //     selectedLabel === "mia"
+    //   ) {
+    //     selectedFilter = `&status=${selectedLabel}`;
+    //   }
+    //   path = `${HOSTS}?${pagination}${selectedFilter}${searchQuery}${orderKeyParam}${orderDirection}`;
+    // }
+
+    // Handle multiple filters
+    const label = selectedLabels.find((f) => f.includes(labelPrefix));
+    const status = selectedLabels.find((f) => !f.includes(labelPrefix));
+    const isValidStatus =
+      status === "new" ||
+      status === "online" ||
+      status === "offline" ||
+      status === "mia";
+
+    if (label) {
+      const lid = label.substr(labelPrefix.length);
       path = `${LABEL_HOSTS(
         parseInt(lid, 10)
       )}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
-    } else {
-      let selectedFilter = "";
-      if (
-        selectedLabel === "new" ||
-        selectedLabel === "online" ||
-        selectedLabel === "offline" ||
-        selectedLabel === "mia"
-      ) {
-        selectedFilter = `&status=${selectedLabel}`;
+
+      // connect status if applicable
+      if (status && isValidStatus) {
+        path += `&status=${status}`;
       }
-      path = `${HOSTS}?${pagination}${selectedFilter}${searchQuery}${orderKeyParam}${orderDirection}`;
+    } else if (status && isValidStatus) {
+      path = `${HOSTS}?${pagination}&status=${status}${searchQuery}${orderKeyParam}${orderDirection}`;
+    } else {
+      path = `${HOSTS}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
     }
 
     return sendRequest("GET", path);
