@@ -12,7 +12,6 @@ import Modal from "components/modals/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import labelInterface from "interfaces/label";
-import hostInterface from "interfaces/host";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
 import osqueryTableInterface from "interfaces/osquery_table";
@@ -47,6 +46,8 @@ import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
+import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
+import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 
 const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
@@ -591,27 +592,42 @@ export class ManageHostsPage extends PureComponent {
     );
   };
 
+  renderHeaderLabelBlock = ({ description, display_text: displayText }) => (
+    <div className={`${baseClass}__label-block`}>
+      <div className="title">
+        <span>{displayText}</span>
+        <Button onClick={() => {}} variant={"text-icon"}>
+          <img src={PencilIcon} alt="Edit label" />
+        </Button>
+        <Button onClick={() => {}} variant={"text-icon"}>
+          <img src={TrashIcon} alt="Delete label" />
+        </Button>
+      </div>
+      <div className="description">
+        <span>{description}</span>
+      </div>
+    </div>
+  );
+
   renderHeader = () => {
-    const { renderDeleteButton } = this;
+    const { renderDeleteButton, renderHeaderLabelBlock } = this;
     const { isAddLabel, selectedLabel } = this.props;
 
     if (!selectedLabel || isAddLabel) {
       return false;
     }
 
-    const { description, display_text: displayText } = selectedLabel;
-
-    const defaultDescription = "No description available.";
+    const { type } = selectedLabel;
 
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
           <h1 className={`${baseClass}__title`}>
-            <span>{displayText}</span>
+            <span>Hosts</span>
           </h1>
-          <div className={`${baseClass}__description`}>
-            <p>{description || <em>{defaultDescription}</em>}</p>
-          </div>
+          {type !== "all" &&
+            type !== "status" &&
+            renderHeaderLabelBlock(selectedLabel)}
         </div>
         {renderDeleteButton()}
       </div>
