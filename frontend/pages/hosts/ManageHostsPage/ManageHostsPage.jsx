@@ -33,6 +33,7 @@ import deepDifference from "utilities/deep_difference";
 import { find } from "lodash";
 
 import permissionUtils from "utilities/permissions";
+import Dropdown from "components/forms/fields/Dropdown";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -43,7 +44,6 @@ import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
-import Dropdown from "components/forms/fields/Dropdown";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
 
 const NEW_LABEL_HASH = "#new_label";
