@@ -86,7 +86,7 @@ type rawLogWriter struct {
 }
 
 func newRawLogWriter(path string) (*rawLogWriter, error) {
-	file, err := secure.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
 	}

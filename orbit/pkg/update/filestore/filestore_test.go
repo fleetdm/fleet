@@ -29,9 +29,8 @@ func TestFileStorePathError(t *testing.T) {
 func TestFileStore(t *testing.T) {
 	t.Parallel()
 
-	tmpDir, err := ioutil.TempDir("", "filestore-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chmod(tmpDir, 0700))
 
 	store, err := New(filepath.Join(tmpDir, "metadata.json"))
 	require.NoError(t, err)

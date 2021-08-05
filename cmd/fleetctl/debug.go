@@ -11,6 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
+
+	"github.com/fleetdm/fleet/v4/secure"
 )
 
 func debugCommand() *cli.Command {
