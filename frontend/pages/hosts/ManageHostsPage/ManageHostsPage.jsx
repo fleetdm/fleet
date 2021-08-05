@@ -532,28 +532,6 @@ export class ManageHostsPage extends PureComponent {
     );
   };
 
-  renderDeleteButton = () => {
-    const { toggleDeleteLabelModal, onEditLabelClick } = this;
-    const {
-      selectedLabel: { type },
-    } = this.props;
-
-    if (type !== "custom") {
-      return false;
-    }
-
-    return (
-      <div className={`${baseClass}__label-actions`}>
-        <Button onClick={onEditLabelClick} variant="inverse">
-          Edit
-        </Button>
-        <Button onClick={toggleDeleteLabelModal} variant="inverse">
-          Delete
-        </Button>
-      </div>
-    );
-  };
-
   renderQuery = () => {
     const { selectedLabel } = this.props;
     const {
@@ -592,25 +570,29 @@ export class ManageHostsPage extends PureComponent {
     );
   };
 
-  renderHeaderLabelBlock = ({ description, display_text: displayText }) => (
-    <div className={`${baseClass}__label-block`}>
-      <div className="title">
-        <span>{displayText}</span>
-        <Button onClick={() => {}} variant={"text-icon"}>
-          <img src={PencilIcon} alt="Edit label" />
-        </Button>
-        <Button onClick={() => {}} variant={"text-icon"}>
-          <img src={TrashIcon} alt="Delete label" />
-        </Button>
+  renderHeaderLabelBlock = ({ description, display_text: displayText }) => {
+    const { onEditLabelClick, toggleDeleteLabelModal } = this;
+
+    return (
+      <div className={`${baseClass}__label-block`}>
+        <div className="title">
+          <span>{displayText}</span>
+          <Button onClick={onEditLabelClick} variant={"text-icon"}>
+            <img src={PencilIcon} alt="Edit label" />
+          </Button>
+          <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
+            <img src={TrashIcon} alt="Delete label" />
+          </Button>
+        </div>
+        <div className="description">
+          <span>{description}</span>
+        </div>
       </div>
-      <div className="description">
-        <span>{description}</span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   renderHeader = () => {
-    const { renderDeleteButton, renderHeaderLabelBlock } = this;
+    const { renderHeaderLabelBlock } = this;
     const { isAddLabel, selectedLabel } = this.props;
 
     if (!selectedLabel || isAddLabel) {
@@ -618,7 +600,6 @@ export class ManageHostsPage extends PureComponent {
     }
 
     const { type } = selectedLabel;
-
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
@@ -629,7 +610,6 @@ export class ManageHostsPage extends PureComponent {
             type !== "status" &&
             renderHeaderLabelBlock(selectedLabel)}
         </div>
-        {renderDeleteButton()}
       </div>
     );
   };
