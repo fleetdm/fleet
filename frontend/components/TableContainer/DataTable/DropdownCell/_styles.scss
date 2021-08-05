@@ -2,7 +2,7 @@
   width: 80px;
 
   .Select {
-    position: unset;
+    position: relative;
 
     .Select-control {
       height: auto;
@@ -33,11 +33,12 @@
       overflow: hidden;
       border: 0;
       width: 188px;
-      right: 28px;
       left: unset;
       top: unset;
       max-height: 220px;
       padding: $pad-small;
+      position: absolute;
+      left: -12px;
     }
 
     &:not(.is-open) {

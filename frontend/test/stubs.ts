@@ -167,6 +167,20 @@ export const globalScheduledQueryStub = {
   snapshot: true,
 };
 
+export const teamScheduledQueryStub = {
+  id: 1,
+  interval: 60,
+  name: "Get all users",
+  query_name: "users",
+  platform: "darwin",
+  query: "SELECT * FROM users",
+  query_id: 5,
+  removed: false,
+  shard: 12,
+  snapshot: true,
+  team_id: 2,
+};
+
 export const teamStub: ITeam = {
   description: "This is the test team",
   host_count: 10,
@@ -234,5 +248,6 @@ export default {
   queryStub,
   scheduledQueryStub,
   globalScheduledQueryStub,
+  teamScheduledQueryStub,
   userStub,
 };
