@@ -54,16 +54,15 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
   useEffect(() => {
     setFilteredPacks(() => {
       return packsList.filter((pack) => {
-        // return pack.name.toLowerCase().includes(searchString.toLowerCase());
-        return pack.name.toLowerCase();
+        return pack.name.toLowerCase().includes(searchString.toLowerCase());
       });
     });
   }, [packsList, searchString, setFilteredPacks]);
 
   const onQueryChange = useCallback(
-    (packData) => {
-      const { searchPack } = packData;
-      setSearchString(searchPack);
+    (queryData) => {
+      const { searchQuery } = queryData;
+      setSearchString(searchQuery);
     },
     [setSearchString]
   );
