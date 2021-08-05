@@ -1,5 +1,7 @@
 package fleet
 
+import "encoding/json"
+
 type SoftwareStore interface {
 	SaveHostSoftware(host *Host) error
 	LoadHostSoftware(host *Host) error
@@ -27,7 +29,23 @@ type Software struct {
 	// GenerateCPE is the CPE23 string that corresponds to the current software
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
 	// Vulnerabilities lists all the found CVEs for the CPE
-	Vulnerabilities []SoftwareCVE `json:"vulnerabilities"`
+	Vulnerabilities VulnerabilitiesSlice `json:"vulnerabilities"`
+}
+
+type VulnerabilitiesSlice []SoftwareCVE
+
+func (v *VulnerabilitiesSlice) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	switch typed := src.(type) {
+	case []byte:
+		err := json.Unmarshal(typed, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // HostSoftware is the set of software installed on a specific host

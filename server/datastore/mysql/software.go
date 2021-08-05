@@ -211,34 +211,29 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 		selectFunc = tx.Select
 	}
 	sql := `
-		SELECT s.*, coalesce(scp.cpe, "") as generated_cpe FROM software s
+		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe, 
+			IF(
+				JSON_ARRAYAGG(scv.cve) = JSON_ARRAYAGG(null), 
+				null, 
+				JSON_ARRAYAGG(
+					JSON_OBJECT(
+						"cve", scv.cve, 
+						"details_link", CONCAT('https://nvd.nist.gov/vuln/detail/', scv.cve)
+					)
+				)
+			) as vulnerabilities FROM software s
 		LEFT JOIN software_cpe scp ON (s.id=scp.software_id)
+		LEFT JOIN software_cve scv ON (scp.id=scv.cpe_id)
 		WHERE s.id IN
 			(SELECT software_id FROM host_software WHERE host_id = ?)
+		group by s.id, s.name, s.version, s.source, generated_cpe
 	`
 	var result []fleet.Software
 	if err := selectFunc(&result, sql, id); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 
-	var resultWithCVE []fleet.Software
-	for _, software := range result {
-		var vulnerabilities []fleet.SoftwareCVE
-		if software.GenerateCPE != "" {
-			vulnSql := `
-				SELECT scv.cve, CONCAT('https://nvd.nist.gov/vuln/detail/', scv.cve) as details_link 
-				FROM software_cve scv
-				JOIN software_cpe scp ON (scv.cpe_id=scp.id)
-				WHERE scp.cpe = ?
-			`
-			if err := selectFunc(&vulnerabilities, vulnSql, software.GenerateCPE); err != nil {
-				return nil, errors.Wrap(err, "load cves for software")
-			}
-		}
-		software.Vulnerabilities = vulnerabilities
-		resultWithCVE = append(resultWithCVE, software)
-	}
-	return resultWithCVE, nil
+	return result, nil
 }
 
 func (d *Datastore) LoadHostSoftware(host *fleet.Host) error {
