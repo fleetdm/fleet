@@ -36,7 +36,6 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
-	github.com/groob/mockimpl v0.0.0-20170306012045-dfa944a2a940 // indirect
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/jonboulle/clockwork v0.2.2 // indirect
@@ -50,7 +49,6 @@ require (
 	github.com/mna/redisc v1.2.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
-	github.com/patrickmn/sortutil v0.0.0-20120526081524-abeda66eb583
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v0.9.3
 	github.com/prometheus/client_model v0.2.0 // indirect

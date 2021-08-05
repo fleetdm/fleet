@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -43,7 +44,7 @@ func (svc *Service) ListPacks(ctx context.Context, opt fleet.ListOptions) ([]*fl
 		return nil, err
 	}
 
-	return svc.ds.ListPacks(opt)
+	return svc.ds.ListPacks(opt, false)
 }
 
 func (svc *Service) GetPack(ctx context.Context, id uint) (*fleet.Pack, error) {
@@ -115,11 +116,11 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 		return nil, err
 	}
 
-	if p.Name != nil {
+	if p.Name != nil && pack.EditablePackType(){
 		pack.Name = *p.Name
 	}
 
-	if p.Description != nil {
+	if p.Description != nil && pack.EditablePackType() {
 		pack.Description = *p.Description
 	}
 
@@ -131,15 +132,15 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 		pack.Disabled = *p.Disabled
 	}
 
-	if p.HostIDs != nil {
+	if p.HostIDs != nil && pack.EditablePackType() {
 		pack.HostIDs = *p.HostIDs
 	}
 
-	if p.LabelIDs != nil {
+	if p.LabelIDs != nil && pack.EditablePackType() {
 		pack.LabelIDs = *p.LabelIDs
 	}
 
-	if p.TeamIDs != nil {
+	if p.TeamIDs != nil && pack.EditablePackType() {
 		pack.TeamIDs = *p.TeamIDs
 	}
 
@@ -164,6 +165,17 @@ func (svc *Service) DeletePack(ctx context.Context, name string) error {
 		return err
 	}
 
+	pack, _, err := svc.ds.PackByName(name)
+	if err != nil {
+		return err
+	}
+	// if there is a pack by this name, ensure it is not type Global or Team
+	if pack != nil {
+		if pack.Type != nil || *pack.Type != "" {
+			return fmt.Errorf("cannot delete pack_type %s", *pack.Type)
+		}
+	}
+
 	if err := svc.ds.DeletePack(name); err != nil {
 		return err
 	}
@@ -183,6 +195,9 @@ func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 	pack, err := svc.ds.Pack(id)
 	if err != nil {
 		return err
+	}
+	if pack.Type != nil || *pack.Type != "" {
+		return fmt.Errorf("cannot delete pack_type %s", *pack.Type)
 	}
 	if err := svc.ds.DeletePack(pack.Name); err != nil {
 		return err

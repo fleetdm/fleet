@@ -486,8 +486,11 @@ func (d *Datastore) insertNewTeamPack(teamID uint) (*fleet.Pack, error) {
 }
 
 // ListPacks returns all fleet.Pack records limited and sorted by fleet.ListOptions
-func (d *Datastore) ListPacks(opt fleet.ListOptions) ([]*fleet.Pack, error) {
-	query := `SELECT * FROM packs`
+func (d *Datastore) ListPacks(opt fleet.ListOptions, includeSystemPacks bool) ([]*fleet.Pack, error) {
+	query := `SELECT * FROM packs WHERE pack_type IS NULL OR pack_type = ''`
+	if includeSystemPacks {
+		query = `SELECT * FROM packs`
+	}
 	packs := []*fleet.Pack{}
 	err := d.db.Select(&packs, appendListOptionsToSQL(query, opt))
 	if err != nil && err != sql.ErrNoRows {

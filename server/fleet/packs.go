@@ -27,7 +27,7 @@ type PackStore interface {
 	Pack(pid uint) (*Pack, error)
 
 	// ListPacks lists all packs in the datastore.
-	ListPacks(opt ListOptions) ([]*Pack, error)
+	ListPacks(opt ListOptions, includeSystemPacks bool) ([]*Pack, error)
 
 	// PackByName fetches pack if it exists, if the pack
 	// exists the bool return value is true
@@ -87,6 +87,12 @@ type Pack struct {
 	LabelIDs    []uint  `json:"label_ids"`
 	HostIDs     []uint  `json:"host_ids"`
 	TeamIDs     []uint  `json:"team_ids"`
+}
+
+// EditablePackType only returns true when the pack doesn't have a specific Type set, only nil & empty string Pack.Type
+// is editable https://github.com/fleetdm/fleet/issues/1485
+func (p *Pack) EditablePackType() bool {
+	return p.Type == nil || (p.Type != nil && *p.Type == "")
 }
 
 func (p Pack) AuthzType() string {
