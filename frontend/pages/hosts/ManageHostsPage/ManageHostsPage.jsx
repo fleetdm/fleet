@@ -693,17 +693,6 @@ export class ManageHostsPage extends PureComponent {
         options={HOST_SELECT_STATUSES}
         searchable={false}
         onChange={handleStatusDropdownChange}
-        // optionRenderer={({ label, description }) => {
-        //   return (
-        //     <div
-        //       ref={innerRef}
-        //       {...innerProps}
-        //       className={`${baseClass}__status-dropdown-option`}
-        //     >
-        //       <p>Hi</p>
-        //     </div>
-        //   );
-        // }}
       />
     );
   };
