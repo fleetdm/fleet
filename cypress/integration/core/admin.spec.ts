@@ -62,8 +62,8 @@ describe("Core tier - Admin user", () => {
 
     // On the queries manage page, they should…
     cy.contains("a", "Queries").click();
-    // See the "observers can run column"
-    cy.contains(/observers can run/i);
+    // See the "observer can run column"
+    cy.contains(/observer can run/i);
     // See and select the "create new query" button
     cy.findByRole("button", { name: /new query/i }).click();
 
@@ -71,15 +71,15 @@ describe("Core tier - Admin user", () => {
     // Edit the “Query name,” “SQL,” “Description,” “Observers can run,” and “Select targets” input fields.
     cy.findByLabelText(/query name/i)
       .click()
-      .type("time");
+      .type("Cypress test query");
     // ACE editor requires special handling to get typing to work sometimes
     cy.get(".ace_text-input")
       .first()
       .click({ force: true })
-      .type("{selectall}{backspace}SELECT * FROM time;", { force: true });
+      .type("{selectall}{backspace}SELECT * FROM cypress;", { force: true });
     cy.findByLabelText(/description/i)
       .click()
-      .type("Get the time.");
+      .type("Cypress test of create new query flow.");
     cy.findByLabelText(/observers can run/i).click({ force: true });
 
     // See and select the “Save changes,” “Save as new,” and “Run” buttons.
@@ -93,10 +93,9 @@ describe("Core tier - Admin user", () => {
       cy.findByText(/teams/i).should("not.exist");
     });
 
-    // See and select the “Edit or run query” button in the right side panel. This button appears after the user selects a query in the Queries table
     cy.contains("a", /back to queries/i).click({ force: true });
-    cy.findByText(/get the time/i).click();
-    cy.findByRole("button", { name: /edit or run query/i }).should("exist");
+    cy.findByText(/cypress test query/i).click();
+    cy.findByText(/edit & run query/i).should("exist");
 
     // On the Packs pages (manage, new, and edit), they should…
     // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts

@@ -18,11 +18,9 @@ type DeleteHostFunc func(hid uint) error
 
 type HostFunc func(id uint) (*fleet.Host, error)
 
-type HostByIdentifierFunc func(identifier string) (*fleet.Host, error)
+type EnrollHostFunc func(osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
 type ListHostsFunc func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
-
-type EnrollHostFunc func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
 type AuthenticateHostFunc func(nodeKey string) (*fleet.Host, error)
 
@@ -30,15 +28,15 @@ type MarkHostSeenFunc func(host *fleet.Host, t time.Time) error
 
 type MarkHostsSeenFunc func(hostIDs []uint, t time.Time) error
 
-type CleanupIncomingHostsFunc func(t time.Time) error
-
 type SearchHostsFunc func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
+
+type CleanupIncomingHostsFunc func(now time.Time) error
 
 type GenerateHostStatusStatisticsFunc func(filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error)
 
-type DistributedQueriesForHostFunc func(host *fleet.Host) (map[uint]string, error)
-
 type HostIDsByNameFunc func(filter fleet.TeamFilter, hostnames []string) ([]uint, error)
+
+type HostByIdentifierFunc func(identifier string) (*fleet.Host, error)
 
 type AddHostsToTeamFunc func(teamID *uint, hostIDs []uint) error
 
@@ -57,14 +55,11 @@ type HostStore struct {
 	HostFunc        HostFunc
 	HostFuncInvoked bool
 
-	HostByIdentifierFunc        HostByIdentifierFunc
-	HostByIdentifierFuncInvoked bool
+	EnrollHostFunc        EnrollHostFunc
+	EnrollHostFuncInvoked bool
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
-
-	EnrollHostFunc        EnrollHostFunc
-	EnrollHostFuncInvoked bool
 
 	AuthenticateHostFunc        AuthenticateHostFunc
 	AuthenticateHostFuncInvoked bool
@@ -75,20 +70,20 @@ type HostStore struct {
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
 
-	CleanupIncomingHostsFunc        CleanupIncomingHostsFunc
-	CleanupIncomingHostsFuncInvoked bool
-
 	SearchHostsFunc        SearchHostsFunc
 	SearchHostsFuncInvoked bool
+
+	CleanupIncomingHostsFunc        CleanupIncomingHostsFunc
+	CleanupIncomingHostsFuncInvoked bool
 
 	GenerateHostStatusStatisticsFunc        GenerateHostStatusStatisticsFunc
 	GenerateHostStatusStatisticsFuncInvoked bool
 
-	DistributedQueriesForHostFunc        DistributedQueriesForHostFunc
-	DistributedQueriesForHostFuncInvoked bool
-
 	HostIDsByNameFunc        HostIDsByNameFunc
 	HostIDsByNameFuncInvoked bool
+
+	HostByIdentifierFunc        HostByIdentifierFunc
+	HostByIdentifierFuncInvoked bool
 
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
@@ -117,19 +112,14 @@ func (s *HostStore) Host(id uint) (*fleet.Host, error) {
 	return s.HostFunc(id)
 }
 
-func (s *HostStore) HostByIdentifier(identifier string) (*fleet.Host, error) {
-	s.HostByIdentifierFuncInvoked = true
-	return s.HostByIdentifierFunc(identifier)
+func (s *HostStore) EnrollHost(osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+	s.EnrollHostFuncInvoked = true
+	return s.EnrollHostFunc(osqueryHostId, nodeKey, teamID, cooldown)
 }
 
 func (s *HostStore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	s.ListHostsFuncInvoked = true
 	return s.ListHostsFunc(filter, opt)
-}
-
-func (s *HostStore) EnrollHost(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
-	s.EnrollHostFuncInvoked = true
-	return s.EnrollHostFunc(osqueryHostId, nodeKey, teamID, cooldown)
 }
 
 func (s *HostStore) AuthenticateHost(nodeKey string) (*fleet.Host, error) {
@@ -147,14 +137,14 @@ func (s *HostStore) MarkHostsSeen(hostIDs []uint, t time.Time) error {
 	return s.MarkHostsSeenFunc(hostIDs, t)
 }
 
-func (s *HostStore) CleanupIncomingHosts(t time.Time) error {
-	s.CleanupIncomingHostsFuncInvoked = true
-	return s.CleanupIncomingHostsFunc(t)
-}
-
 func (s *HostStore) SearchHosts(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 	s.SearchHostsFuncInvoked = true
 	return s.SearchHostsFunc(filter, query, omit...)
+}
+
+func (s *HostStore) CleanupIncomingHosts(now time.Time) error {
+	s.CleanupIncomingHostsFuncInvoked = true
+	return s.CleanupIncomingHostsFunc(now)
 }
 
 func (s *HostStore) GenerateHostStatusStatistics(filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
@@ -162,14 +152,14 @@ func (s *HostStore) GenerateHostStatusStatistics(filter fleet.TeamFilter, now ti
 	return s.GenerateHostStatusStatisticsFunc(filter, now)
 }
 
-func (s *HostStore) DistributedQueriesForHost(host *fleet.Host) (map[uint]string, error) {
-	s.DistributedQueriesForHostFuncInvoked = true
-	return s.DistributedQueriesForHostFunc(host)
-}
-
 func (s *HostStore) HostIDsByName(filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 	s.HostIDsByNameFuncInvoked = true
 	return s.HostIDsByNameFunc(filter, hostnames)
+}
+
+func (s *HostStore) HostByIdentifier(identifier string) (*fleet.Host, error) {
+	s.HostByIdentifierFuncInvoked = true
+	return s.HostByIdentifierFunc(identifier)
 }
 
 func (s *HostStore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {

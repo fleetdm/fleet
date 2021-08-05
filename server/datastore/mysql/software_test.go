@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -165,4 +166,60 @@ func TestSoftwareCPE(t *testing.T) {
 		loops++
 	}
 	assert.Equal(t, len(host1.Software)-1, loops)
+}
+
+func TestInsertCVEs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		},
+	}
+	host.HostSoftware = soft
+	require.NoError(t, ds.SaveHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
+	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
+}
+
+func TestHostSoftwareDuplicates(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	longName := strings.Repeat("a", 260)
+
+	incoming := make(map[string]bool)
+	soft2Key := softwareToUniqueString(fleet.Software{
+		Name:    longName + "b",
+		Version: "0.0.1",
+		Source:  "chrome_extension",
+	})
+	incoming[soft2Key] = true
+
+	tx, err := ds.db.Beginx()
+	require.NoError(t, err)
+	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, tx.Commit())
+
+	incoming = make(map[string]bool)
+	soft3Key := softwareToUniqueString(fleet.Software{
+		Name:    longName + "c",
+		Version: "0.0.1",
+		Source:  "chrome_extension",
+	})
+	incoming[soft3Key] = true
+
+	tx, err = ds.db.Beginx()
+	require.NoError(t, err)
+	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, tx.Commit())
 }

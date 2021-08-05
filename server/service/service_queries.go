@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -122,6 +124,8 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		query.Query = *p.Query
 	}
 
+	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
+
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun
 	}
@@ -173,6 +177,8 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	if p.Query != nil {
 		query.Query = *p.Query
 	}
+
+	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun

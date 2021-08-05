@@ -64,7 +64,7 @@ describe("Basic tier - Maintainer user", () => {
 
     cy.findByText(/detect presence/i).click();
 
-    cy.findByRole("button", { name: /edit or run query/i }).click();
+    cy.findByText(/edit & run query/i).should("exist");
 
     cy.get(".target-select").within(() => {
       cy.findByText(/Label name, host name, IP address, etc./i).click();

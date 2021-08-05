@@ -1,0 +1,1 @@
+* Prevent failing to store software in the case where the insert falls within a small window of time where duplicate host software rows might be inserted.

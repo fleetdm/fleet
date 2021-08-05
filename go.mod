@@ -21,6 +21,7 @@ require (
 	github.com/dnaeon/go-vcr/v2 v2.0.1
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
+	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c // indirect
 	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb
@@ -35,6 +36,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
+	github.com/groob/mockimpl v0.0.0-20170306012045-dfa944a2a940 // indirect
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/jonboulle/clockwork v0.2.2 // indirect
@@ -66,7 +68,7 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
-	golang.org/x/tools v0.1.4 // indirect
+	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/grpc v1.38.0
 	gopkg.in/guregu/null.v3 v3.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3

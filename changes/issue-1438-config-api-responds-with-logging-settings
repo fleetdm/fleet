@@ -1,0 +1,1 @@
+* Add logging settings to `/config` API response. This includes both the results & status logging plugins. Implements issue 1438.

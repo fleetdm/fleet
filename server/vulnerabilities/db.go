@@ -1,7 +1,9 @@
 package vulnerabilities
 
 import (
+	"errors"
 	"fmt"
+
 	"os"
 	"strings"
 
@@ -11,7 +13,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func CPEDB(dbPath string) (*sqlx.DB, error) {
+func sqliteDB(dbPath string) (*sqlx.DB, error) {
 	db, err := sqlx.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
@@ -19,12 +21,8 @@ func CPEDB(dbPath string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func applyCPEDatabaseSchema(dbPath string) error {
-	db, err := CPEDB(dbPath)
-	if err != nil {
-		return err
-	}
-	_, err = db.Exec(`
+func applyCPEDatabaseSchema(db *sqlx.DB) error {
+	_, err := db.Exec(`
 	CREATE TABLE IF NOT EXISTS cpe (
 		cpe23 TEXT NOT NULL,
 		title TEXT NOT NULL,
@@ -43,10 +41,7 @@ func applyCPEDatabaseSchema(dbPath string) error {
 	CREATE INDEX IF NOT EXISTS idx_target_sw ON cpe (target_sw);
 	CREATE INDEX IF NOT EXISTS idx_deprecated_by ON deprecated_by (cpe23);
 	`)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func generateCPEItem(item cpedict.CPEItem) ([]interface{}, map[string]string, error) {
@@ -73,14 +68,16 @@ const batchSize = 800
 
 func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	err := os.Remove(path)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	db, err := CPEDB(path)
+	db, err := sqliteDB(path)
 	if err != nil {
 		return err
 	}
-	err = applyCPEDatabaseSchema(path)
+	defer db.Close()
+
+	err = applyCPEDatabaseSchema(db)
 	if err != nil {
 		return err
 	}

@@ -21,15 +21,15 @@
     margin-bottom: -4px;
   }
 
-  &__body-wrap {
-    align-items: center;
+  &__wrapper {
+    padding: $pad-xxlarge 0 0;
   }
 
   &__header-wrap {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: $pad-large;
+    margin-bottom: $pad-xxlarge;
   }
 
   &__header {

@@ -143,18 +143,6 @@ describe("ManageHostsPage - component", () => {
     });
   });
 
-  describe("host filtering", () => {
-    it("shows all hosts by default", () => {
-      const ownProps = { location: { hash: "" }, params: {} };
-      const component = connectedComponent(ConnectedManageHostsPage, {
-        props: ownProps,
-        mockStore,
-      });
-      const page = mount(component);
-      expect(page.find("TableContainer").find("tbody tr").length).toEqual(2);
-    });
-  });
-
   describe("Adding a new label", () => {
     beforeEach(() => createAceSpy());
 

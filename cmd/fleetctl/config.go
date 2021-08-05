@@ -53,7 +53,7 @@ func contextFlag() cli.Flag {
 }
 
 func makeConfigIfNotExists(fp string) error {
-	if _, err := os.Stat(filepath.Dir(fp)); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Dir(fp)); errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(filepath.Dir(fp), 0700); err != nil {
 			return err
 		}

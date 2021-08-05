@@ -1,0 +1,25 @@
+.action-button {
+  display: flex;
+  align-items: center;
+  
+  img {
+    position: relative;
+  }
+
+  .button--text-link {
+    font-weight: $regular;
+  }
+
+  &__remove {
+    img {
+      left: -4px;
+    }
+  }
+
+  &__delete {
+    img {
+      top: -1px;
+      left: 1px;
+    }
+  }
+}
