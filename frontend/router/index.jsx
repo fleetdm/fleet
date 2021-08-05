@@ -112,6 +112,10 @@ const routes = (
               </Route>
               <Route path="schedule" component={SchedulePageWrapper}>
                 <Route path="manage" component={ManageSchedulePage} />
+                <Route
+                  path="manage/teams/:team_id"
+                  component={ManageSchedulePage}
+                />
               </Route>
             </Route>
             <Route path="queries" component={QueryPageWrapper}>

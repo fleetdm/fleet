@@ -69,13 +69,16 @@
 
     .Select.is-open {
       .Select-arrow {
-        margin-top: 6px;
+        margin-top: 4px;
         margin-bottom: -2px;
+      }
+      .Select-placeholder {
+        margin-top: 1px;
       }
     }
 
     .Select-arrow {
-      margin-top: 4px;
+      margin-top: 3px;
     }
 
     .Select-control:hover {

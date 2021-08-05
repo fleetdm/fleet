@@ -1,5 +1,9 @@
 project_name: fleet
 
+monorepo:
+  tag_prefix: fleet-
+  dir: .
+
 before:
   hooks:
     - make deps
