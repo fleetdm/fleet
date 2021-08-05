@@ -5,6 +5,8 @@ type SoftwareStore interface {
 	LoadHostSoftware(host *Host) error
 	AllSoftwareWithoutCPEIterator() (SoftwareIterator, error)
 	AddCPEForSoftware(software Software, cpe string) error
+	AllCPEs() ([]string, error)
+	InsertCVEForCPE(cve string, cpes []string) error
 }
 
 // Software is a named and versioned piece of software installed on a device.

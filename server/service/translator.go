@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -23,7 +22,7 @@ func (r translatorResponse) error() error { return r.Err }
 func makeTranslatorEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
 	return newServer(
 		makeAuthenticatedServiceEndpoint(svc, translatorEndpoint),
-		makeDecoderForType(translatorRequest{}),
+		makeDecoder(translatorRequest{}),
 		opts,
 	)
 }
@@ -114,12 +113,4 @@ func (svc Service) Translate(ctx context.Context, payloads []fleet.TranslatePayl
 	}
 
 	return finalPayload, nil
-}
-
-func (mw loggingMiddleware) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
-	var err error
-	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log("method", "Translate", "err", err, "took", time.Since(begin))
-	}(time.Now())
-	return mw.Service.Translate(ctx, payloads)
 }

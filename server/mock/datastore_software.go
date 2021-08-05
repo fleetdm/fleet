@@ -10,9 +10,13 @@ type SaveHostSoftwareFunc func(host *fleet.Host) error
 
 type LoadHostSoftwareFunc func(host *fleet.Host) error
 
-type AllSoftwareIteratorFunc func() (fleet.SoftwareIterator, error)
+type AllSoftwareWithoutCPEIteratorFunc func() (fleet.SoftwareIterator, error)
 
 type AddCPEForSoftwareFunc func(software fleet.Software, cpe string) error
+
+type AllCPEsFunc func() ([]string, error)
+
+type InsertCVEForCPEFunc func(cve string, cpes []string) error
 
 type SoftwareStore struct {
 	SaveHostSoftwareFunc        SaveHostSoftwareFunc
@@ -21,16 +25,17 @@ type SoftwareStore struct {
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
 
-	AllSoftwareIteratorFunc        AllSoftwareIteratorFunc
-	AllSoftwareIteratorFuncInvoked bool
+	AllSoftwareWithoutCPEIteratorFunc        AllSoftwareWithoutCPEIteratorFunc
+	AllSoftwareWithoutCPEIteratorFuncInvoked bool
 
 	AddCPEForSoftwareFunc        AddCPEForSoftwareFunc
 	AddCPEForSoftwareFuncInvoked bool
-}
 
-func (s *SoftwareStore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
-	s.AllSoftwareIteratorFuncInvoked = true
-	return s.AllSoftwareIteratorFunc()
+	AllCPEsFunc        AllCPEsFunc
+	AllCPEsFuncInvoked bool
+
+	InsertCVEForCPEFunc        InsertCVEForCPEFunc
+	InsertCVEForCPEFuncInvoked bool
 }
 
 func (s *SoftwareStore) SaveHostSoftware(host *fleet.Host) error {
@@ -43,7 +48,22 @@ func (s *SoftwareStore) LoadHostSoftware(host *fleet.Host) error {
 	return s.LoadHostSoftwareFunc(host)
 }
 
+func (s *SoftwareStore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
+	s.AllSoftwareWithoutCPEIteratorFuncInvoked = true
+	return s.AllSoftwareWithoutCPEIteratorFunc()
+}
+
 func (s *SoftwareStore) AddCPEForSoftware(software fleet.Software, cpe string) error {
 	s.AddCPEForSoftwareFuncInvoked = true
 	return s.AddCPEForSoftwareFunc(software, cpe)
+}
+
+func (s *SoftwareStore) AllCPEs() ([]string, error) {
+	s.AllCPEsFuncInvoked = true
+	return s.AllCPEsFunc()
+}
+
+func (s *SoftwareStore) InsertCVEForCPE(cve string, cpes []string) error {
+	s.InsertCVEForCPEFuncInvoked = true
+	return s.InsertCVEForCPEFunc(cve, cpes)
 }

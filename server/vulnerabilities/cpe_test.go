@@ -1,6 +1,7 @@
 package vulnerabilities
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"path"
@@ -19,11 +20,6 @@ import (
 func TestCpeFromSoftware(t *testing.T) {
 	tempDir := os.TempDir()
 
-	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{VulnerabilityDatabasesPath: &tempDir}, nil
-	}
-
 	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
 	require.NoError(t, err)
 
@@ -31,18 +27,21 @@ func TestCpeFromSoftware(t *testing.T) {
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
+	db, err := sqliteDB(dbPath)
+	require.NoError(t, err)
+
 	// checking an non existent version returns empty
-	cpe, err := CPEFromSoftware(dbPath, &fleet.Software{Name: "Vendor Product.app", Version: "2.3.4", Source: "apps"})
+	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product.app", Version: "2.3.4", Source: "apps"})
 	require.NoError(t, err)
 	require.Equal(t, "", cpe)
 
 	// checking a version that exists works
-	cpe, err = CPEFromSoftware(dbPath, &fleet.Software{Name: "Vendor Product.app", Version: "1.2.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product.app", Version: "1.2.3", Source: "apps"})
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
-	cpe, err = CPEFromSoftware(dbPath, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"})
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*", cpe)
 }
@@ -61,7 +60,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	dbPath := path.Join(tempDir, "cpe.sqlite")
 
 	err = os.Remove(dbPath)
-	if !os.IsNotExist(err) {
+	if !errors.Is(err, os.ErrNotExist) {
 		require.NoError(t, err)
 	}
 
@@ -69,16 +68,19 @@ func TestSyncCPEDatabase(t *testing.T) {
 	err = syncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
+	db, err := sqliteDB(dbPath)
+	require.NoError(t, err)
+
 	// and this works afterwards
 	software := &fleet.Software{Name: "1Password.app", Version: "7.2.3", Source: "apps"}
-	cpe, err := CPEFromSoftware(dbPath, software)
+	cpe, err := CPEFromSoftware(db, software)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
 
 	// but now we truncate to make sure searching for cpe fails
 	err = os.Truncate(dbPath, 0)
 	require.NoError(t, err)
-	_, err = CPEFromSoftware(dbPath, software)
+	_, err = CPEFromSoftware(db, software)
 	require.Error(t, err)
 
 	// and we make the db older than the release
@@ -95,7 +97,12 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 	mtime := stat.ModTime()
 
-	cpe, err = CPEFromSoftware(dbPath, software)
+	db.Close()
+	db, err = sqliteDB(dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	cpe, err = CPEFromSoftware(db, software)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
 
@@ -131,12 +138,11 @@ func (f *fakeSoftwareIterator) Err() error   { return nil }
 func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 
 func TestTranslateSoftwareToCPE(t *testing.T) {
-	tempDir := os.TempDir()
+	tempDir, err := os.MkdirTemp(os.TempDir(), "TestTranslateSoftwareToCPE-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
 
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{VulnerabilityDatabasesPath: &tempDir}, nil
-	}
 
 	var cpes []string
 
@@ -162,7 +168,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 		},
 	}
 
-	ds.AllSoftwareIteratorFunc = func() (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareWithoutCPEIteratorFunc = func() (fleet.SoftwareIterator, error) {
 		return iterator, nil
 	}
 
@@ -173,7 +179,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
-	err = TranslateSoftwareToCPE(ds)
+	err = TranslateSoftwareToCPE(ds, tempDir)
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*",

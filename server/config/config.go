@@ -103,6 +103,7 @@ type LoggingConfig struct {
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
 type FirehoseConfig struct {
 	Region           string
+	EndpointURL      string `yaml:"endpoint_url"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
@@ -113,6 +114,7 @@ type FirehoseConfig struct {
 // KinesisConfig defines configs for the AWS Kinesis logging plugin
 type KinesisConfig struct {
 	Region           string
+	EndpointURL      string `yaml:"endpoint_url"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
@@ -141,18 +143,18 @@ type S3Config struct {
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
-	Project       string
-	StatusTopic   string `yaml:"status_topic"`
-	ResultTopic   string `yaml:"result_topic"`
-	AddAttributes bool   `yaml:"add_attributes"`
+	Project       string `json:"project"`
+	StatusTopic   string `json:"status_topic" yaml:"status_topic"`
+	ResultTopic   string `json:"result_topic" yaml:"result_topic"`
+	AddAttributes bool   `json:"add_attributes" yaml:"add_attributes"`
 }
 
 // FilesystemConfig defines configs for the Filesystem logging plugin
 type FilesystemConfig struct {
-	StatusLogFile        string `yaml:"status_log_file"`
-	ResultLogFile        string `yaml:"result_log_file"`
-	EnableLogRotation    bool   `yaml:"enable_log_rotation"`
-	EnableLogCompression bool   `yaml:"enable_log_compression"`
+	StatusLogFile        string `json:"status_log_file" yaml:"status_log_file"`
+	ResultLogFile        string `json:"result_log_file" yaml:"result_log_file"`
+	EnableLogRotation    bool   `json:"enable_log_rotation" yaml:"enable_log_rotation"`
+	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
 }
 
 // LicenseConfig defines configs related to licensing Fleet.
@@ -291,6 +293,8 @@ func (man Manager) addConfigs() {
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
+	man.addConfigString("firehose.endpoint_url", "",
+		"AWS Service Endpoint to use (leave empty for default service endpoints)")
 	man.addConfigString("firehose.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("firehose.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("firehose.sts_assume_role_arn", "",
@@ -302,6 +306,8 @@ func (man Manager) addConfigs() {
 
 	// Kinesis
 	man.addConfigString("kinesis.region", "", "AWS Region to use")
+	man.addConfigString("kinesis.endpoint_url", "",
+		"AWS Service Endpoint to use (leave empty for default service endpoints)")
 	man.addConfigString("kinesis.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("kinesis.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("kinesis.sts_assume_role_arn", "",
@@ -418,6 +424,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),
+			EndpointURL:      man.getConfigString("firehose.endpoint_url"),
 			AccessKeyID:      man.getConfigString("firehose.access_key_id"),
 			SecretAccessKey:  man.getConfigString("firehose.secret_access_key"),
 			StsAssumeRoleArn: man.getConfigString("firehose.sts_assume_role_arn"),
@@ -426,6 +433,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Kinesis: KinesisConfig{
 			Region:           man.getConfigString("kinesis.region"),
+			EndpointURL:      man.getConfigString("kinesis.endpoint_url"),
 			AccessKeyID:      man.getConfigString("kinesis.access_key_id"),
 			SecretAccessKey:  man.getConfigString("kinesis.secret_access_key"),
 			StatusStream:     man.getConfigString("kinesis.status_stream"),

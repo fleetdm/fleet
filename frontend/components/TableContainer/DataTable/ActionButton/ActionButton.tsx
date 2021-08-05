@@ -1,10 +1,13 @@
 import React, { useCallback } from "react";
-import PropTypes from "prop-types";
+import { kebabCase } from "lodash";
 
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Button from "../../../buttons/Button";
+import CloseIcon from "../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
+import DeleteIcon from "../../../../../assets/images/icon-delete-vibrant-blue-12x14@2x.png";
 
+const baseClass = "action-button";
 export interface IActionButtonProps {
   name: string;
   buttonText: string;
@@ -12,7 +15,8 @@ export interface IActionButtonProps {
   targetIds?: number[]; // TODO figure out undefined case
   variant?: string;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
-  iconLink?: string;
+  icon?: string;
+  iconPosition?: string;
 }
 
 function useActionCallback(
@@ -26,7 +30,7 @@ function useActionCallback(
   );
 }
 
-const ActionButton = (props: IActionButtonProps): JSX.Element | null => {
+const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
   const {
     name,
     buttonText,
@@ -34,40 +38,50 @@ const ActionButton = (props: IActionButtonProps): JSX.Element | null => {
     targetIds = [],
     variant,
     hideButton,
-    iconLink,
-  } = props;
+    icon,
+    iconPosition,
+  } = buttonProps;
   const onButtonClick = useActionCallback(onActionButtonClick);
 
+  const iconLink = ((iconProp) => {
+    // check if using pre-defined short-hand otherwise otherwise return the prop
+    switch (iconProp) {
+      case "close":
+        return CloseIcon;
+      case "remove":
+        return CloseIcon;
+      case "delete":
+        return DeleteIcon;
+      default:
+        return null;
+    }
+  })(icon);
   // hideButton is intended to provide a flexible way to specify show/hide conditions via a boolean or a function that evaluates to a boolean
   // currently it is typed to accept an array of targetIds but this typing could easily be expanded to include other use cases
-  const testCondition = (
-    hideButtonProp: boolean | ((targetIds: number[]) => boolean) | undefined
+  const isHidden = (
+    hideButtonProp: boolean | ((ids: number[]) => boolean) | undefined
   ) => {
     if (typeof hideButtonProp === "function") {
-      return hideButtonProp;
+      return hideButtonProp(targetIds);
     }
-    return () => Boolean(hideButtonProp);
+    return Boolean(hideButtonProp);
   };
-  const isHidden = testCondition(hideButton)(targetIds);
 
-  return !isHidden ? (
-    <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
-      <>
-        {iconLink ? <img alt={`${name} icon`} src={iconLink} /> : null}
-        {buttonText}
-      </>
-    </Button>
+  return !isHidden(hideButton) ? (
+    <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
+      <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
+        <>
+          {iconPosition === "left" && iconLink && (
+            <img alt={`${name} icon`} src={iconLink} />
+          )}
+          {buttonText}
+          {iconPosition !== "left" && iconLink && (
+            <img alt={`${name} icon`} src={iconLink} />
+          )}
+        </>
+      </Button>
+    </div>
   ) : null;
-};
-
-ActionButton.propTypes = {
-  name: PropTypes.string,
-  buttonText: PropTypes.string,
-  onActionButtonClick: PropTypes.func,
-  targetIds: PropTypes.arrayOf(PropTypes.number),
-  variant: PropTypes.string,
-  hideButton: PropTypes.oneOfType([PropTypes.bool, PropTypes.func]),
-  iconLink: PropTypes.string,
 };
 
 export default ActionButton;

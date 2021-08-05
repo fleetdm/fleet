@@ -68,5 +68,15 @@ services:
     volumes:
       - ./tools/app/prometheus.yml:/etc/prometheus/prometheus.yml
 
+  # localstack to simulate AWS integrations like firehose & kinesis
+  # use http://localhost:4566 as the `--endpoint-url` argument in awscli
+  localstack:
+    image: localstack/localstack
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    environment:
+      - SERVICES=firehose,kinesis
+
 volumes:
   mysql-persistent-volume:

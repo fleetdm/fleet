@@ -49,15 +49,13 @@ describe("Core tier - Observer user", () => {
     // Queries pages: Observer can or cannot run UI
     cy.visit("/queries/manage");
     cy.get("thead").within(() => {
-      cy.findByText(/observers can run/i).should("not.exist");
+      cy.findByText(/observer can run/i).should("not.exist");
     });
 
     cy.findByRole("button", { name: /create new query/i }).should("not.exist");
 
     cy.findByText(/detect presence/i).click();
-    cy.findByText(/sql/i).should("not.exist");
     cy.findByText(/packs/i).should("not.exist");
-    cy.findByRole("button", { name: /run query/i }).click();
     cy.findByLabelText(/query name/i).should("not.exist");
     cy.findByLabelText(/sql/i).should("not.exist");
     cy.findByLabelText(/description/i).should("not.exist");
@@ -72,9 +70,7 @@ describe("Core tier - Observer user", () => {
     cy.visit("/queries/manage");
 
     cy.findByText(/get authorized/i).click();
-    cy.findByText(/sql/i).should("not.exist");
     cy.findByText(/packs/i).should("not.exist");
-    cy.findByRole("button", { name: /show query/i }).click();
     cy.findByLabelText(/query name/i).should("not.exist");
     cy.findByLabelText(/sql/i).should("not.exist");
     cy.findByLabelText(/description/i).should("not.exist");

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -23,7 +22,7 @@ func (r applyUserRoleSpecsResponse) error() error { return r.Err }
 func makeApplyUserRoleSpecsEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
 	return newServer(
 		makeAuthenticatedServiceEndpoint(svc, applyUserRoleSpecsEndpoint),
-		makeDecoderForType(applyUserRoleSpecsRequest{}),
+		makeDecoder(applyUserRoleSpecsRequest{}),
 		opts,
 	)
 }
@@ -93,12 +92,4 @@ func (svc Service) checkAtLeastOneAdmin(user *fleet.User, spec *fleet.UserRoleSp
 		}
 	}
 	return nil
-}
-
-func (mw loggingMiddleware) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRoleSpec) (err error) {
-	defer func(begin time.Time) {
-		_ = mw.loggerDebug(err).Log("method", "ApplyUserRolesSpecs", "err", err, "took", time.Since(begin))
-	}(time.Now())
-	err = mw.Service.ApplyUserRolesSpecs(ctx, specs)
-	return err
 }

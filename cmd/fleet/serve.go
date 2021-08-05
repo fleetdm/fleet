@@ -6,9 +6,15 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/url"
+
+	"github.com/fleetdm/fleet/v4/server/logging"
+
+	"github.com/e-dard/netbug"
+	"github.com/fleetdm/fleet/v4/server"
+
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -16,8 +22,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 
 	"github.com/WatchBeam/clock"
@@ -192,7 +196,12 @@ the way that the Fleet server works.
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
+			osqueryLogger, err := logging.New(config, logger)
+			if err != nil {
+				initFatal(err, "initializing osquery logging")
+			}
+
+			svc, err := service.NewService(ds, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -234,9 +243,6 @@ the way that the Fleet server works.
 				Help:      "Total duration of requests in microseconds.",
 			}, fieldKeys)
 
-			svcLogger := kitlog.With(logger, "component", "service")
-
-			svc = service.NewLoggingService(svc, svcLogger)
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
 			httpLogger := kitlog.With(logger, "component", "http")
@@ -485,15 +491,17 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 }
 
 func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
-	config, err := ds.AppConfig()
+	appConfig, err := ds.AppConfig()
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
-	if config.VulnerabilityDatabasesPath == nil {
+	if appConfig.VulnerabilityDatabasesPath == nil {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return
 	}
+
+	vulnPath := *appConfig.VulnerabilityDatabasesPath
 
 	ticker := time.NewTicker(1 * time.Hour)
 	for {
@@ -510,10 +518,16 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			continue
 		}
 
-		err := vulnerabilities.TranslateSoftwareToCPE(ds)
+		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath)
 		if err != nil {
-			level.Error(logger).Log("err", "analyzing vulnerable software", "details", err)
+			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 		}
+
+		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger)
+		if err != nil {
+			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+		}
+
 		level.Debug(logger).Log("loop", "done")
 	}
 }

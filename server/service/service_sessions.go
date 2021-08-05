@@ -8,9 +8,11 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 )
 
@@ -18,6 +20,8 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SSOSettings, error)
 	// skipauth: Basic SSO settings are available to unauthenticated users (so
 	// that they have the necessary information to initiate SSO).
 	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(ctx, level.Info)
 
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
@@ -35,6 +39,8 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(ctx, level.Info)
 
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
@@ -95,6 +101,8 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(ctx, level.Info)
 
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
@@ -170,6 +178,8 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
 
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
 	// take ~1s and frustrate a timing attack.
@@ -231,6 +241,8 @@ func (svc *Service) makeSession(id uint) (string, error) {
 func (svc *Service) Logout(ctx context.Context) error {
 	// skipauth: Any user can always log out of their own session.
 	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(ctx, level.Info)
 
 	// TODO: this should not return an error if the user wasn't logged in
 	return svc.DestroySession(ctx)

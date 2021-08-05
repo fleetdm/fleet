@@ -196,7 +196,7 @@ func (d *Datastore) insertNewInstalledHostSoftware(
 	}
 	if len(insertsHostSoftware) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(insertsHostSoftware)/2), ",")
-		sql := fmt.Sprintf(`INSERT INTO host_software (host_id, software_id) VALUES %s`, values)
+		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id) VALUES %s`, values)
 		if _, err := tx.Exec(sql, insertsHostSoftware...); err != nil {
 			return errors.Wrap(err, "insert host software")
 		}
@@ -270,6 +270,30 @@ func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error
 	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
 	if _, err := d.db.Exec(sql, software.ID, cpe); err != nil {
 		return errors.Wrap(err, "insert software cpe")
+	}
+	return nil
+}
+
+func (d *Datastore) AllCPEs() ([]string, error) {
+	sql := `SELECT cpe FROM software_cpe`
+	var cpes []string
+	err := d.db.Select(cpes, sql)
+	if err != nil {
+		return nil, errors.Wrap(err, "loads cpes")
+	}
+	return cpes, nil
+}
+
+func (d *Datastore) InsertCVEForCPE(cve string, cpes []string) error {
+	values := strings.TrimSuffix(strings.Repeat("((SELECT id FROM software_cpe WHERE cpe=?),?),", len(cpes)), ",")
+	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
+	var args []interface{}
+	for _, cpe := range cpes {
+		args = append(args, cpe, cve)
+	}
+	_, err := d.db.Exec(sql, args...)
+	if err != nil {
+		return errors.Wrap(err, "insert software cve")
 	}
 	return nil
 }

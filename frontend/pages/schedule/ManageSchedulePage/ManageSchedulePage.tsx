@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { push } from "react-router-redux";
+// @ts-ignore
+import deepDifference from "utilities/deep_difference";
 import { IQuery } from "interfaces/query";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 // @ts-ignore
@@ -22,6 +24,7 @@ const baseClass = "manage-schedule-page";
 
 const renderTable = (
   onRemoveScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
+  onEditScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
   allGlobalScheduledQueriesList: IGlobalScheduledQuery[],
   allGlobalScheduledQueriesError: any,
   toggleScheduleEditorModal: () => void
@@ -33,6 +36,7 @@ const renderTable = (
   return (
     <ScheduleListWrapper
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
+      onEditScheduledQueryClick={onEditScheduledQueryClick}
       allGlobalScheduledQueriesList={allGlobalScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
     />
@@ -89,8 +93,13 @@ const ManageSchedulePage = (): JSX.Element => {
     setShowRemoveScheduledQueryModal,
   ] = useState(false);
   const [selectedQueryIds, setSelectedQueryIds] = useState([]);
+  const [
+    selectedScheduledQuery,
+    setSelectedScheduledQuery,
+  ] = useState<IGlobalScheduledQuery>();
 
   const toggleScheduleEditorModal = useCallback(() => {
+    setSelectedScheduledQuery(undefined); // create modal renders
     setShowScheduleEditorModal(!showScheduleEditorModal);
   }, [showScheduleEditorModal, setShowScheduleEditorModal]);
 
@@ -98,9 +107,14 @@ const ManageSchedulePage = (): JSX.Element => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
-  const onRemoveScheduledQueryClick = (selectedTableQueryIds: any) => {
+  const onRemoveScheduledQueryClick = (selectedTableQueryIds: any): any => {
     toggleRemoveScheduledQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
+  };
+
+  const onEditScheduledQueryClick = (selectedQuery: any): void => {
+    toggleScheduleEditorModal();
+    setSelectedScheduledQuery(selectedQuery); // edit modal renders
   };
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
@@ -131,22 +145,50 @@ const ManageSchedulePage = (): JSX.Element => {
   }, [dispatch, selectedQueryIds, toggleRemoveScheduledQueryModal]);
 
   const onAddScheduledQuerySubmit = useCallback(
-    (formData: IFormData) => {
-      dispatch(globalScheduledQueryActions.create({ ...formData }))
-        .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              `Successfully added ${formData.name} to the schedule.`
-            )
-          );
-          dispatch(globalScheduledQueryActions.loadAll());
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash("error", "Could not schedule query. Please try again.")
-          );
-        });
+    (formData: IFormData, editQuery: IGlobalScheduledQuery | undefined) => {
+      if (editQuery) {
+        const updatedAttributes = deepDifference(formData, editQuery);
+
+        dispatch(
+          globalScheduledQueryActions.update(editQuery, updatedAttributes)
+        )
+          .then(() => {
+            dispatch(
+              renderFlash(
+                "success",
+                `Successfully updated ${formData.name} in the schedule.`
+              )
+            );
+            dispatch(globalScheduledQueryActions.loadAll());
+          })
+          .catch(() => {
+            dispatch(
+              renderFlash(
+                "error",
+                "Could not update scheduled query. Please try again."
+              )
+            );
+          });
+      } else {
+        dispatch(globalScheduledQueryActions.create({ ...formData }))
+          .then(() => {
+            dispatch(
+              renderFlash(
+                "success",
+                `Successfully added ${formData.name} to the schedule.`
+              )
+            );
+            dispatch(globalScheduledQueryActions.loadAll());
+          })
+          .catch(() => {
+            dispatch(
+              renderFlash(
+                "error",
+                "Could not schedule query. Please try again."
+              )
+            );
+          });
+      }
       toggleScheduleEditorModal();
     },
     [dispatch, toggleScheduleEditorModal]
@@ -194,6 +236,7 @@ const ManageSchedulePage = (): JSX.Element => {
         <div>
           {renderTable(
             onRemoveScheduledQueryClick,
+            onEditScheduledQueryClick,
             allGlobalScheduledQueriesList,
             allGlobalScheduledQueriesError,
             toggleScheduleEditorModal
@@ -204,6 +247,7 @@ const ManageSchedulePage = (): JSX.Element => {
             onCancel={toggleScheduleEditorModal}
             onScheduleSubmit={onAddScheduledQuerySubmit}
             allQueries={allQueriesList}
+            editQuery={selectedScheduledQuery}
           />
         )}
         {showRemoveScheduledQueryModal && (

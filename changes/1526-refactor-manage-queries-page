@@ -1,0 +1,7 @@
+Refactor ManageQueriesPage as functional component in TypeScript
+Refactor old table using TableContainer component
+Enhance ActionButton component with optional icons
+Update DataTable component to render table header buttons per Figma
+Update Query interface with additional properties
+Update Cypress e2e tests
+Remove unused files
