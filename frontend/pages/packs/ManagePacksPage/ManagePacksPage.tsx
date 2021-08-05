@@ -109,16 +109,6 @@ const ManagePacksPage = (): JSX.Element => {
       });
   }, [dispatch, selectedPackIds, toggleRemovePackModal]);
 
-  const onEnablePackClick = (selectedTablePackIds: any) => {
-    setSelectedPackIds(selectedTablePackIds);
-    onEnableDisablePackSubmit(selectedTablePackIds, false);
-  };
-
-  const onDisablePackClick = (selectedTablePackIds: any) => {
-    setSelectedPackIds(selectedTablePackIds);
-    onEnableDisablePackSubmit(selectedTablePackIds, true);
-  };
-
   const onEnableDisablePackSubmit = useCallback(
     (selectedTablePackIds: any, disablePack: boolean) => {
       const packOrPacks = selectedPackIds.length === 1 ? "pack" : "packs";
@@ -153,6 +143,16 @@ const ManagePacksPage = (): JSX.Element => {
     },
     [dispatch, selectedPackIds]
   );
+
+  const onEnablePackClick = (selectedTablePackIds: any) => {
+    setSelectedPackIds(selectedTablePackIds);
+    onEnableDisablePackSubmit(selectedTablePackIds, false);
+  };
+
+  const onDisablePackClick = (selectedTablePackIds: any) => {
+    setSelectedPackIds(selectedTablePackIds);
+    onEnableDisablePackSubmit(selectedTablePackIds, true);
+  };
 
   return (
     <div className={baseClass}>
