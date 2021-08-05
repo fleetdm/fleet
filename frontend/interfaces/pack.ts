@@ -7,8 +7,8 @@ export default PropTypes.shape({
   name: PropTypes.string,
   platform: PropTypes.string,
   updated_at: PropTypes.string,
-  host_count: PropTypes.number,
-  total_query_count: PropTypes.number,
+  query_count: PropTypes.number,
+  total_hosts_count: PropTypes.number,
   disabled: PropTypes.bool,
 });
 
@@ -19,7 +19,7 @@ export interface IPack {
   name: string;
   platform: string;
   updated_at: string;
-  host_count: number;
-  total_query_count: number;
+  query_count: number;
+  total_hosts_count: number;
   disabled: boolean;
 }

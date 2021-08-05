@@ -34,6 +34,8 @@ interface IRootState {
 
 const renderTable = (
   onRemovePackClick: React.MouseEventHandler<HTMLButtonElement>,
+  onEnablePackClick: React.MouseEventHandler<HTMLButtonElement>,
+  onDisablePackClick: React.MouseEventHandler<HTMLButtonElement>,
   packsList: IPack[],
   packsErrors: any
 ): JSX.Element => {
@@ -44,6 +46,8 @@ const renderTable = (
   return (
     <PacksListWrapper
       onRemovePackClick={onRemovePackClick}
+      onEnablePackClick={onEnablePackClick}
+      onDisablePackClick={onDisablePackClick}
       packsList={packsList}
     />
   );
@@ -105,6 +109,51 @@ const ManagePacksPage = (): JSX.Element => {
       });
   }, [dispatch, selectedPackIds, toggleRemovePackModal]);
 
+  const onEnablePackClick = (selectedTablePackIds: any) => {
+    setSelectedPackIds(selectedTablePackIds);
+    onEnableDisablePackSubmit(selectedTablePackIds, false);
+  };
+
+  const onDisablePackClick = (selectedTablePackIds: any) => {
+    setSelectedPackIds(selectedTablePackIds);
+    onEnableDisablePackSubmit(selectedTablePackIds, true);
+  };
+
+  const onEnableDisablePackSubmit = useCallback(
+    (selectedTablePackIds: any, disablePack: boolean) => {
+      const packOrPacks = selectedPackIds.length === 1 ? "pack" : "packs";
+      const enableOrDisable = disablePack ? "disabled" : "enabled";
+
+      console.log("selectedPackIds:", selectedPackIds);
+
+      const promises = selectedTablePackIds.map((id: number) => {
+        console.log("id:", id);
+        console.log("disablePack:", disablePack);
+        return dispatch(packActions.update({ id }, { disabled: disablePack }));
+      });
+
+      return Promise.all(promises)
+        .then(() => {
+          dispatch(
+            renderFlash(
+              "success",
+              `Successfully ${enableOrDisable} selected ${packOrPacks}.`
+            )
+          );
+          dispatch(packActions.loadAll());
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Unable to ${enableOrDisable} selected ${packOrPacks}. Please try again.`
+            )
+          );
+        });
+    },
+    [dispatch, selectedPackIds]
+  );
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
@@ -135,7 +184,14 @@ const ManagePacksPage = (): JSX.Element => {
           )}
         </div>
         <div>
-          {true && renderTable(onRemovePackClick, packsList, packsErrors)}
+          {true &&
+            renderTable(
+              onRemovePackClick,
+              onEnablePackClick,
+              onDisablePackClick,
+              packsList,
+              packsErrors
+            )}
         </div>
         {showRemovePackModal && (
           <RemovePackModal

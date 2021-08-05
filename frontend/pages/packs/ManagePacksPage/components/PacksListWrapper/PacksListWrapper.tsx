@@ -12,6 +12,8 @@ const noPacksClass = "no-packs";
 
 interface IPacksListWrapperProps {
   onRemovePackClick: any;
+  onEnablePackClick: any;
+  onDisablePackClick: any;
   packsList: IPack[];
 }
 
@@ -28,7 +30,12 @@ interface IRootState {
 }
 
 const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
-  const { onRemovePackClick, packsList } = props;
+  const {
+    onRemovePackClick,
+    onEnablePackClick,
+    onDisablePackClick,
+    packsList,
+  } = props;
 
   const loadingTableData = useSelector(
     (state: IRootState) => state.entities.packs.isLoading
@@ -61,8 +68,6 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
     [setSearchString]
   );
 
-  console.log("DONT FORGET TO CHANGE NO PACKS COMPONENT");
-
   const NoPacksComponent = useCallback(() => {
     return (
       <div className={`${noPacksClass}`}>
@@ -74,11 +79,8 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
               <h2>No packs match your search.</h2>
             )}
             <p>
-              CHANGE ME CHANGE ME CHANGE ME Create a new pack, or{" "}
-              <a href="https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/standard-query-library">
-                go to GitHub
-              </a>{" "}
-              to import Fleet’s standard query library.
+              Expecting to see packs? Try again in a few seconds as the system
+              catches up.
             </p>
           </div>
         </div>
@@ -88,6 +90,22 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
 
   const tableHeaders = generateTableHeaders(isOnlyObserver);
 
+  const secondarySelectActions = [
+    {
+      name: "enable",
+      onActionButtonClick: onEnablePackClick,
+      buttonText: "Enable",
+      variant: "text-link",
+      icon: "check",
+    },
+    {
+      name: "disable",
+      onActionButtonClick: onDisablePackClick,
+      buttonText: "Disable",
+      variant: "text-link",
+      icon: "disable",
+    },
+  ];
   return (
     <div className={`${baseClass}`}>
       <TableContainer
@@ -107,6 +125,7 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
         primarySelectActionButtonVariant="text-link"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}
+        secondarySelectActions={secondarySelectActions}
         emptyComponent={NoPacksComponent}
       />
     </div>

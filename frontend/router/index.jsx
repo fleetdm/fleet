@@ -104,8 +104,8 @@ const routes = (
             </Route>
             <Route component={AuthGlobalAdminMaintainerRoutes}>
               <Route path="packs" component={PackPageWrapper}>
-                <Route path="oldmanage" component={ManagePacksPage} />
-                <Route path="manage" component={AllPacksPage} />
+                <Route path="manage" component={ManagePacksPage} />
+                <Route path="oldmanage" component={AllPacksPage} />
                 <Route path="new" component={PackComposerPage} />
                 <Route path=":id">
                   <IndexRoute component={EditPackPage} />

@@ -48,10 +48,11 @@ interface IDataColumn {
 }
 
 interface IPackTableData {
+  id: number;
   name: string;
-  total_query_count: number;
+  query_count: number;
   status: string;
-  host_count: number;
+  total_hosts_count: number;
   updated_at: string;
 }
 
@@ -110,6 +111,13 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       ),
     },
     {
+      title: "Status",
+      Header: "Status",
+      disableSortBy: true,
+      accessor: "status",
+      Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
+    },
+    {
       title: "Hosts",
       Header: (cellProps) => (
         <HeaderCell
@@ -121,13 +129,6 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
-    },
-    {
-      title: "Status",
-      Header: "Status",
-      disableSortBy: true,
-      accessor: "status",
-      Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
     },
     {
       title: "Last modified",
@@ -148,12 +149,12 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
 
 const enhancePackData = (packs: IPack[]): IPackTableData[] => {
   return packs.map((pack: IPack) => {
-    console.log(pack.disabled);
     return {
+      id: pack.id,
       name: pack.name,
-      total_query_count: pack.total_query_count,
+      query_count: pack.query_count,
       status: pack.disabled ? "disabled" : "enabled",
-      host_count: pack.host_count,
+      total_hosts_count: pack.total_hosts_count,
       updated_at: pack.updated_at,
     };
   });
