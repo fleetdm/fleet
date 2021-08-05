@@ -64,7 +64,7 @@ To enroll hosts to a team:
 
 3. Copy or download the team's enroll secret. Use this enroll secret when installing the osquery agents on your hosts to Fleet.
 
-Orbit is the recommended agent for Fleet. Check out [the Orbit for osquery documentation](https://github.com/fleetdm/orbit/blob/main/README.md) for instructions for packaging and deploying Orbit to your hosts.
+Orbit is the recommended agent for Fleet. Check out [the Orbit for osquery documentation](https://github.com/fleetdm/fleet/blob/main/orbit/README.md) for instructions for packaging and deploying Orbit to your hosts.
 
 ## Transfer hosts to a team
 

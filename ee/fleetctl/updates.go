@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/secure"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf"
 	"github.com/urfave/cli/v2"
@@ -324,29 +325,6 @@ func checkKeys(repoPath string, keys ...string) error {
 	return nil
 }
 
-func mkdirAllEnsurePerm(path string, perm os.FileMode) error {
-	dir, err := os.Stat(path)
-	if err == nil {
-		if dir.IsDir() {
-			if dir.Mode() != perm {
-				return errors.Errorf(
-					"Path %s already exists with mode %o instead of the expected %o", path, dir.Mode(), perm)
-			}
-			return nil
-		}
-		return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
-	}
-	return os.MkdirAll(path, perm)
-}
-
-func openFileEnsurePerm(name string, flag int, perm os.FileMode) (*os.File, error) {
-	if f, err := os.Stat(name); !errors.Is(err, os.ErrNotExist) && f.Mode() != perm {
-		return nil, errors.Errorf(
-			"File %s already exists with mode %o instead of the expected %o", name, f.Mode(), perm)
-	}
-	return os.OpenFile(name, flag, perm)
-}
-
 func copyTarget(srcPath, dstPath string) error {
 	src, err := os.Open(srcPath)
 	if err != nil {
@@ -354,11 +332,11 @@ func copyTarget(srcPath, dstPath string) error {
 	}
 	defer src.Close()
 
-	if err := mkdirAllEnsurePerm(filepath.Dir(dstPath), 0755); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
 		return errors.Wrap(err, "create dst dir for copy")
 	}
 
-	dst, err := openFileEnsurePerm(dstPath, os.O_RDWR|os.O_CREATE, 0644)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return errors.Wrap(err, "open dst for copy")
 	}

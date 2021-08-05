@@ -272,7 +272,7 @@ func debugArchiveCommand() *cli.Command {
 			}
 			outfile := outpath + ".tar.gz"
 
-			f, err := os.OpenFile(outfile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
+			f, err := secure.OpenFile(outfile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
 			if err != nil {
 				return errors.Wrap(err, "open archive for output")
 			}

@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/fleetdm/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
