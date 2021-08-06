@@ -445,7 +445,7 @@ export class ManageHostsPage extends PureComponent {
     const { dispatch, selectedFilters } = this.props;
     const { MANAGE_HOSTS } = PATHS;
     const isAllHosts = slug === ALL_HOSTS_LABEL;
-    let newFilters = [...selectedFilters];
+    const newFilters = [...selectedFilters];
 
     if (!isAllHosts) {
       // always remove "all-hosts" from the filters first because we don't want
