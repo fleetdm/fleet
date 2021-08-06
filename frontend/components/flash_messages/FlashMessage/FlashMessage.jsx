@@ -30,7 +30,7 @@ const FlashMessage = ({
         document.getElementById(`${klass}`).style.visibility = "hidden";
       }, 4000); // Hides success alerts after 4 seconds
     }
-  });
+  }, []);
 
   if (!isVisible) {
     return false;
