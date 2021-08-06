@@ -1,2 +1,5 @@
+- Added support for getting hosts by label and by status
 - Created new dropdown on manage hosts page for status
 - Removed status from sidebar
+- Modified url to contain status, label or both
+- Modified edit and delete buttons for labels, now icons
