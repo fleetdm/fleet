@@ -579,19 +579,27 @@ export class ManageHostsPage extends PureComponent {
     );
   };
 
-  renderHeaderLabelBlock = ({ description, display_text: displayText }) => {
+  renderHeaderLabelBlock = ({
+    description,
+    display_text: displayText,
+    type,
+  }) => {
     const { onEditLabelClick, toggleDeleteLabelModal } = this;
 
     return (
       <div className={`${baseClass}__label-block`}>
         <div className="title">
           <span>{displayText}</span>
-          <Button onClick={onEditLabelClick} variant={"text-icon"}>
-            <img src={PencilIcon} alt="Edit label" />
-          </Button>
-          <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
-            <img src={TrashIcon} alt="Delete label" />
-          </Button>
+          {type !== "platform" && (
+            <>
+              <Button onClick={onEditLabelClick} variant={"text-icon"}>
+                <img src={PencilIcon} alt="Edit label" />
+              </Button>
+              <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
+                <img src={TrashIcon} alt="Delete label" />
+              </Button>
+            </>
+          )}
         </div>
         <div className="description">
           <span>{description}</span>
