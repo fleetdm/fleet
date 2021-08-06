@@ -30,7 +30,6 @@ const DeleteTeamModal = (props: IDeleteTeamModalProps): JSX.Element => {
           <Button
             className={`${baseClass}__btn`}
             type="button"
-            variant="alert"
             onClick={onSubmit}
           >
             Delete

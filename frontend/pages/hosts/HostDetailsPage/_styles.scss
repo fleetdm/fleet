@@ -175,6 +175,10 @@
     }
   }
 
+  .button img {
+    transform: scale(0.5);
+  }
+
   .about,
   .osquery {
     .info {

@@ -55,6 +55,7 @@ import {
 import EmptySoftware from "./EmptySoftware";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
+import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
 
 const baseClass = "host-details";
 
@@ -286,7 +287,7 @@ export class HostDetailsPage extends Component {
           <Button onClick={onDestroyHost} variant="alert">
             Delete
           </Button>
-          <Button onClick={toggleDeleteHostModal(null)} variant="inverse">
+          <Button onClick={toggleDeleteHostModal(null)} variant="inverse-alert">
             Cancel
           </Button>
         </div>
@@ -342,8 +343,8 @@ export class HostDetailsPage extends Component {
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="active">
-          Delete
+        <Button onClick={toggleDeleteHostModal()} variant="inverse">
+          Delete <img src={DeleteIcon} alt="Delete host icon" />
         </Button>
       </div>
     );
