@@ -1190,7 +1190,8 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	lq.On("RunQuery", "21", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
 		User: &fleet.User{
-			ID: 0,
+			ID:         0,
+			GlobalRole: ptr.String(fleet.RoleAdmin),
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"

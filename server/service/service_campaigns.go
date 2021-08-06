@@ -65,15 +65,15 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
 			return nil, err
 		}
-		err := query.ValidateSQL()
-		if err != nil {
-			return nil, err
-		}
 		query = &fleet.Query{
 			Name:     fmt.Sprintf("distributed_%s_%d", vc.Email(), time.Now().Unix()),
 			Query:    queryString,
 			Saved:    false,
 			AuthorID: ptr.Uint(vc.UserID()),
+		}
+		err := query.ValidateSQL()
+		if err != nil {
+			return nil, err
 		}
 		query, err = svc.ds.NewQuery(query)
 		if err != nil {
