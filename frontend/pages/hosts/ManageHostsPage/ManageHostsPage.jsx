@@ -451,7 +451,7 @@ export class ManageHostsPage extends PureComponent {
       // always remove "all-hosts" from the filters first because we don't want
       // something like ["label/8", "all-hosts"]
       const allIndex = newFilters.findIndex((f) => f.includes(ALL_HOSTS_LABEL));
-      newFilters.splice(allIndex, 1);
+      allIndex > -1 && newFilters.splice(allIndex, 1);
 
       // replace slug for new params
       let index;
