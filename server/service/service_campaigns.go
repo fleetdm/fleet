@@ -15,6 +15,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/pkg/errors"
+	"gopkg.in/guregu/null.v3"
 )
 
 func (svc Service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*fleet.DistributedQueryCampaign, error) {
@@ -53,26 +54,35 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	}
 
 	var query *fleet.Query
+	var err error
 	if queryID != nil {
-		query, err := svc.ds.Query(*queryID)
+		query, err = svc.ds.Query(*queryID)
 		if err != nil {
 			return nil, err
 		}
 		queryString = query.Query
 	} else {
+		if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+			return nil, err
+		}
+		err := query.ValidateSQL()
+		if err != nil {
+			return nil, err
+		}
 		query = &fleet.Query{
 			Name:     fmt.Sprintf("distributed_%s_%d", vc.Email(), time.Now().Unix()),
 			Query:    queryString,
 			Saved:    false,
 			AuthorID: ptr.Uint(vc.UserID()),
 		}
+		query, err = svc.ds.NewQuery(query)
+		if err != nil {
+			return nil, errors.Wrap(err, "new query")
+		}
 	}
-	if err := query.ValidateSQL(); err != nil {
-		return nil, err
-	}
-	query, err := svc.ds.NewQuery(query)
-	if err != nil {
-		return nil, errors.Wrap(err, "new query")
+
+	if null.StringFromPtr(vc.User.GlobalRole).ValueOrZero() == fleet.RoleObserver && !query.ObserverCanRun {
+		return nil, authz.ForbiddenWithInternal("observers cannot run this query", vc.User, query, fleet.ActionRead)
 	}
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun}
