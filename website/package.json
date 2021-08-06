@@ -8,6 +8,7 @@
     "@sailshq/connect-redis": "^3.2.1",
     "@sailshq/lodash": "^3.10.3",
     "@sailshq/socket.io-redis": "^5.2.0",
+    "machinepack-github": "^5.0.0",
     "sails": "^1.4.3",
     "sails-hook-apianalytics": "^2.0.3",
     "sails-hook-organics": "^2.0.0",
