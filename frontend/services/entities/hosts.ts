@@ -10,7 +10,6 @@ interface ISortOption {
 interface IHostLoadOptions {
   page: number;
   perPage: number;
-  // selectedLabel: string;
   selectedLabels: string[];
   globalFilter: string;
   sortBy: ISortOption[];
@@ -39,7 +38,6 @@ export default {
     const { HOSTS, LABEL_HOSTS } = endpoints;
     const page = options?.page || 0;
     const perPage = options?.perPage || 100;
-    // const selectedLabel = options?.selectedLabel || "";
     const selectedLabels = options?.selectedLabels || [];
     const globalFilter = options?.globalFilter || "";
     const sortBy = options?.sortBy || [];
@@ -62,23 +60,6 @@ export default {
 
     let path = "";
     const labelPrefix = "labels/";
-    // if (selectedLabel.startsWith(labelPrefix)) {
-    //   const lid = selectedLabel.substr(labelPrefix.length);
-    //   path = `${LABEL_HOSTS(
-    //     parseInt(lid, 10)
-    //   )}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
-    // } else {
-    //   let selectedFilter = "";
-    //   if (
-    //     selectedLabel === "new" ||
-    //     selectedLabel === "online" ||
-    //     selectedLabel === "offline" ||
-    //     selectedLabel === "mia"
-    //   ) {
-    //     selectedFilter = `&status=${selectedLabel}`;
-    //   }
-    //   path = `${HOSTS}?${pagination}${selectedFilter}${searchQuery}${orderKeyParam}${orderDirection}`;
-    // }
 
     // Handle multiple filters
     const label = selectedLabels.find((f) => f.includes(labelPrefix));

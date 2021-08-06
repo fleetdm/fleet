@@ -99,7 +99,6 @@ export class ManageHostsPage extends PureComponent {
     labels: PropTypes.arrayOf(labelInterface),
     loadingLabels: PropTypes.bool.isRequired,
     enrollSecret: enrollSecretInterface,
-    // selectedFilter: PropTypes.string,
     selectedFilters: PropTypes.arrayOf(PropTypes.string),
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
@@ -191,16 +190,12 @@ export class ManageHostsPage extends PureComponent {
 
   onAddLabelClick = (evt) => {
     evt.preventDefault();
-    // const { dispatch, selectedFilter } = this.props;
-    // dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${NEW_LABEL_HASH}`));
     const { dispatch } = this.props;
     dispatch(push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`));
   };
 
   onEditLabelClick = (evt) => {
     evt.preventDefault();
-    // const { dispatch, selectedFilter } = this.props;
-    // dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${EDIT_LABEL_HASH}`));
     const { getLabelSelected } = this;
     const { dispatch } = this.props;
     dispatch(
@@ -229,15 +224,11 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onCancelAddLabel = () => {
-    // const { dispatch, selectedFilter } = this.props;
-    // dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
     const { dispatch, selectedFilters } = this.props;
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilters.join("/")}`));
   };
 
   onCancelEditLabel = () => {
-    // const { dispatch, selectedFilter } = this.props;
-    // dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
     const { dispatch, selectedFilters } = this.props;
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilters.join("/")}`));
   };
@@ -256,9 +247,7 @@ export class ManageHostsPage extends PureComponent {
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   onTableQueryChange = async (queryData) => {
-    // const { selectedFilter, dispatch } = this.props;
     const { retrieveHosts } = this;
-    // const { selectedFilters, dispatch } = this.props;
     const { selectedFilters } = this.props;
     const {
       pageIndex,
@@ -282,7 +271,6 @@ export class ManageHostsPage extends PureComponent {
     retrieveHosts({
       page: pageIndex,
       perPage: pageSize,
-      // selectedLabel: selectedFilter,
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       sortBy,
@@ -290,7 +278,6 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onEditLabel = (formData) => {
-    // const { dispatch, selectedLabel, selectedFilter } = this.props;
     const { getLabelSelected } = this.props;
     const { dispatch, selectedLabel } = this.props;
     const updateAttrs = deepDifference(formData, selectedLabel);
@@ -360,14 +347,12 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onTransferHostSubmit = (team) => {
-    // const { toggleTransferHostModal, isAcceptableStatus } = this;
     const {
       toggleTransferHostModal,
       isAcceptableStatus,
       getStatusSelected,
       retrieveHosts,
     } = this;
-    // const { dispatch, selectedFilter, selectedLabel } = this.props;
     const { dispatch, selectedFilters, selectedLabel } = this.props;
     const {
       selectedHostIds,
@@ -381,9 +366,7 @@ export class ManageHostsPage extends PureComponent {
       let status = "";
       let labelId = null;
 
-      // if (isAcceptableStatus(selectedFilter)) {
       if (isAcceptableStatus(getStatusSelected())) {
-        // status = selectedFilter;
         status = getStatusSelected();
       } else {
         labelId = selectedLabel.id;
@@ -404,7 +387,6 @@ export class ManageHostsPage extends PureComponent {
             ? `Hosts successfully removed from teams.`
             : `Hosts successfully transferred to  ${team.name}.`;
         dispatch(renderFlash("success", successMessage));
-        // dispatch(getHosts({ selectedLabel: selectedFilter, searchQuery }));
         retrieveHosts({
           selectedLabels: selectedFilters,
           globalFilter: searchQuery,
@@ -453,7 +435,6 @@ export class ManageHostsPage extends PureComponent {
   };
 
   toggleAllMatchingHosts = (shouldSelect = undefined) => {
-    // shouldSelect?: boolean
     const { isAllMatchingHostsSelected } = this.state;
 
     if (shouldSelect !== undefined) {
@@ -480,7 +461,6 @@ export class ManageHostsPage extends PureComponent {
     selectedFilters.splice(index, 1, slug);
 
     const nextLocation =
-      // type === "all" ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
       type === "all"
         ? MANAGE_HOSTS
         : `${MANAGE_HOSTS}/${selectedFilters.join("/")}`;
@@ -720,7 +700,6 @@ export class ManageHostsPage extends PureComponent {
     const {
       isAddLabel,
       labels,
-      // selectedFilter,
       selectedOsqueryTable,
       statusLabels,
       canAddNewLabels,
@@ -747,7 +726,6 @@ export class ManageHostsPage extends PureComponent {
           labels={labels}
           onAddLabelClick={onAddLabelClick}
           onLabelClick={onLabelClick}
-          // selectedFilter={selectedFilter}
           selectedFilter={getLabelSelected()}
           statusLabels={statusLabels}
           canAddNewLabel={canAddNewLabels}
@@ -759,12 +737,10 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderStatusDropdown = () => {
-    // const { selectedFilter } = this.props;
     const { handleStatusDropdownChange, getStatusSelected } = this;
 
     return (
       <Dropdown
-        // value={selectedFilter || "all-hosts"}
         value={getStatusSelected() || "all-hosts"}
         className={`${baseClass}__status_dropdown`}
         options={HOST_SELECT_STATUSES}
@@ -778,7 +754,6 @@ export class ManageHostsPage extends PureComponent {
     const {
       config,
       currentUser,
-      // selectedFilter,
       selectedFilters,
       selectedLabel,
       loadingHosts,
@@ -799,12 +774,10 @@ export class ManageHostsPage extends PureComponent {
     } = this;
 
     // The data has not been fetched yet.
-    // if (selectedFilter === undefined || selectedLabel === undefined)
     if (selectedFilters.length === 0 || selectedLabel === undefined)
       return null;
 
     // Hosts have not been set up for this instance yet.
-    // if (selectedFilter === "all-hosts" && selectedLabel.count === 0) {
     if (getStatusSelected() === "all-hosts" && selectedLabel.count === 0) {
       return <NoHosts />;
     }
@@ -824,7 +797,6 @@ export class ManageHostsPage extends PureComponent {
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
-        // additionalQueries={JSON.stringify([selectedFilter])}
         additionalQueries={JSON.stringify([getStatusSelected()])}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
@@ -896,7 +868,6 @@ export class ManageHostsPage extends PureComponent {
 const mapStateToProps = (state, { location, params }) => {
   const { active_label: activeLabel, label_id: labelID } = params;
   const activeLabelSlug = activeLabel || "all-hosts";
-  // const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
   const selectedFilters = [];
 
   labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
@@ -912,7 +883,6 @@ const mapStateToProps = (state, { location, params }) => {
       selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
     selectedFilters[0];
   const selectedLabel = labelEntities.findBy(
-    // { slug: selectedFilter },
     { slug: slugToFind },
     { ignoreCase: true }
   );
@@ -940,7 +910,6 @@ const mapStateToProps = (state, { location, params }) => {
   const teams = memoizedGetEntity(state.entities.teams.data);
 
   return {
-    // selectedFilter,
     selectedFilters,
     isAddLabel,
     isEditLabel,
