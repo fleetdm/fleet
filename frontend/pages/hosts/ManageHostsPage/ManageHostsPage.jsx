@@ -1,6 +1,5 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
-import AceEditor from "react-ace";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
 
@@ -23,13 +22,10 @@ import labelActions from "redux/nodes/entities/labels/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import hostActions from "redux/nodes/entities/hosts/actions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
-import {
-  getLabels,
-  getHosts,
-} from "redux/nodes/components/ManageHostsPage/actions";
+import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
-import { find, forEach } from "lodash";
+import { find } from "lodash";
 
 import hostClient from "services/entities/hosts";
 
@@ -51,6 +47,7 @@ import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 
 const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
+const ALL_HOSTS_LABEL = "all-hosts";
 const baseClass = "manage-hosts";
 const LABEL_SLUG_PREFIX = "labels/";
 
@@ -58,7 +55,7 @@ const HOST_SELECT_STATUSES = [
   {
     disabled: false,
     label: "All hosts",
-    value: "all-hosts",
+    value: ALL_HOSTS_LABEL,
     helpText: "All hosts which have enrolled to Fleet.",
   },
   {
@@ -222,16 +219,15 @@ export class ManageHostsPage extends PureComponent {
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
-  onTableQueryChange = async (queryData) => {
+  onTableQueryChange = async ({
+    pageIndex,
+    pageSize,
+    searchQuery,
+    sortHeader,
+    sortDirection,
+  }) => {
     const { retrieveHosts } = this;
     const { selectedFilters } = this.props;
-    const {
-      pageIndex,
-      pageSize,
-      searchQuery,
-      sortHeader,
-      sortDirection,
-    } = queryData;
 
     let sortBy = [];
     if (sortHeader !== "") {
@@ -239,10 +235,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     // keep track as a local state to be used later
-    this.setState({
-      searchQuery,
-      isHostsLoading: true,
-    });
+    this.setState({ searchQuery });
 
     retrieveHosts({
       page: pageIndex,
@@ -283,7 +276,6 @@ export class ManageHostsPage extends PureComponent {
 
   onOsqueryTableSelect = (tableName) => {
     const { dispatch } = this.props;
-
     dispatch(selectOsqueryTable(tableName));
 
     return false;
@@ -391,6 +383,7 @@ export class ManageHostsPage extends PureComponent {
 
   retrieveHosts = async (options) => {
     const { dispatch } = this.props;
+    this.setState({ isHostsLoading: true });
 
     try {
       const { hosts } = await hostClient.loadAll(options);
@@ -448,39 +441,45 @@ export class ManageHostsPage extends PureComponent {
     }
   };
 
-  handleLabelChange = (selectedLabel) => {
+  handleLabelChange = ({ slug, type }) => {
     const { dispatch, selectedFilters } = this.props;
     const { MANAGE_HOSTS } = PATHS;
-    const { slug, type } = selectedLabel;
+    const isAllHosts = slug === ALL_HOSTS_LABEL;
+    let newFilters = [...selectedFilters];
 
-    // replace slug for new params
-    let index;
-    if (slug.includes(LABEL_SLUG_PREFIX)) {
-      index = selectedFilters.findIndex((f) => f.includes(LABEL_SLUG_PREFIX));
-    } else {
-      index = selectedFilters.findIndex((f) => !f.includes(LABEL_SLUG_PREFIX));
+    if (!isAllHosts) {
+      // always remove "all-hosts" from the filters first because we don't want
+      // something like ["label/8", "all-hosts"]
+      const allIndex = newFilters.findIndex((f) => f.includes(ALL_HOSTS_LABEL));
+      newFilters.splice(allIndex, 1);
+
+      // replace slug for new params
+      let index;
+      if (slug.includes(LABEL_SLUG_PREFIX)) {
+        index = newFilters.findIndex((f) => f.includes(LABEL_SLUG_PREFIX));
+      } else {
+        index = newFilters.findIndex((f) => !f.includes(LABEL_SLUG_PREFIX));
+      }
+
+      if (index > -1) {
+        newFilters.splice(index, 1, slug);
+      } else {
+        newFilters.push(slug);
+      }
     }
 
-    if (index > -1) {
-      selectedFilters.splice(index, 1, slug);
-    } else {
-      selectedFilters.push(slug);
-    }
-
-    const nextLocation =
-      type === "all"
-        ? MANAGE_HOSTS
-        : `${MANAGE_HOSTS}/${selectedFilters.join("/")}`;
-
+    const nextLocation = isAllHosts
+      ? MANAGE_HOSTS
+      : `${MANAGE_HOSTS}/${newFilters.join("/")}`;
     dispatch(push(nextLocation));
   };
 
   handleStatusDropdownChange = (statusName) => {
-    const { labels } = this.props;
     const { handleLabelChange } = this;
+    const { labels } = this.props;
 
     // we want the full label object
-    const isAll = statusName === "all-hosts";
+    const isAll = statusName === ALL_HOSTS_LABEL;
     const selected = isAll
       ? find(labels, { type: "all" })
       : find(labels, { id: statusName });
@@ -719,7 +718,7 @@ export class ManageHostsPage extends PureComponent {
 
     return (
       <Dropdown
-        value={getStatusSelected() || "all-hosts"}
+        value={getStatusSelected() || ALL_HOSTS_LABEL}
         className={`${baseClass}__status_dropdown`}
         options={HOST_SELECT_STATUSES}
         searchable={false}
@@ -750,7 +749,7 @@ export class ManageHostsPage extends PureComponent {
       return null;
 
     // Hosts have not been set up for this instance yet.
-    if (getStatusSelected() === "all-hosts" && selectedLabel.count === 0) {
+    if (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) {
       return <NoHosts />;
     }
 
@@ -769,7 +768,7 @@ export class ManageHostsPage extends PureComponent {
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
-        additionalQueries={JSON.stringify([getStatusSelected()])}
+        additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
         onPrimarySelectActionClick={onTransferToTeamClick}
@@ -802,7 +801,6 @@ export class ManageHostsPage extends PureComponent {
       isAddLabel,
       isEditLabel,
       loadingLabels,
-      selectedLabel,
       canAddNewHosts,
     } = this.props;
 
@@ -837,11 +835,12 @@ export class ManageHostsPage extends PureComponent {
 
 const mapStateToProps = (state, { location, params }) => {
   const { active_label: activeLabel, label_id: labelID } = params;
-  const activeLabelSlug = activeLabel || "all-hosts";
   const selectedFilters = [];
 
   labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
-  activeLabelSlug && selectedFilters.push(activeLabelSlug);
+  activeLabel && selectedFilters.push(activeLabel);
+  // "all-hosts" should always be alone
+  !labelID && !activeLabel && selectedFilters.push(ALL_HOSTS_LABEL);
 
   const { status_labels: statusLabels } = state.components.ManageHostsPage;
   const labelEntities = entityGetter(state).get("labels");
