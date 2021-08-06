@@ -25,17 +25,10 @@ module.exports = {
     let GitHub = require('machinepack-github');
 
     let GREEN_LABEL_COLOR = '009800';// « Used in multiple places below.
-    let GITHUB_USERNAMES_OF_CORE_MAINTAINERS_AND_BOTS = [// « Used in multiple places below.
-      'sailsbot',
-      'mikermcneil',
-      'rachaelshaw',
-      'eashaw',
-      'johnabrams7',
-      'madisonhicks',
-      'particlebanana',
-      'sgress454',
-      'irlnathan',
+    let GITHUB_USERNAMES_OF_BOTS = [// « Used in multiple places below.
+      'sailsbot'
     ];
+    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');
@@ -101,7 +94,7 @@ module.exports = {
           `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
         }
       } else {
-        let wasReopenedByCoreMaintainerOrBot = GITHUB_USERNAMES_OF_CORE_MAINTAINERS_AND_BOTS.includes(sender.login);
+        let wasReopenedByCoreMaintainerOrBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
         if (wasReopenedByCoreMaintainerOrBot) {
           newBotComment = '';// « checked below
         } else {
@@ -153,7 +146,7 @@ module.exports = {
       if (action === 'edited' && pr.state !== 'open') {
         // If this is an edit to an already-closed pull request, then do nothing.
       } else if (action === 'reopened') {
-        let wasReopenedByCoreMaintainerOrBot = GITHUB_USERNAMES_OF_CORE_MAINTAINERS_AND_BOTS.includes(sender.login);
+        let wasReopenedByCoreMaintainerOrBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
         if (!wasReopenedByCoreMaintainerOrBot) {
           let newBotComment =
           `Oh hey again, @${issueOrPr.user.login}.  Now that this pull request is reopened, it's on our radar.  Please let us know if there's any new information we should be aware of!\n`+
@@ -216,7 +209,7 @@ module.exports = {
       let repo = repository.name;
       let issueNumber = issueOrPr.number;
 
-      let wasPostedByCoreMaintainerOrBot = GITHUB_USERNAMES_OF_CORE_MAINTAINERS_AND_BOTS.includes(sender.login);
+      let wasPostedByCoreMaintainerOrBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
       if (!wasPostedByCoreMaintainerOrBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
@@ -226,7 +219,7 @@ module.exports = {
     } else if (
       (ghNoun === 'issue_comment' && ['deleted'].includes(action) && comment.user.login !== 'sailsbot')||
       (ghNoun === 'commit_comment' && ['created'].includes(action))||
-      (ghNoun === 'label' && ['created','edited','deleted'].includes(action) && !['mikermcneil','rachaelshaw'].includes(sender.login))||//« exempt label changes made by mikermcneil and rachaelshaw, because we keep making too much noise in Slack every time I fiddle with our labels
+      (ghNoun === 'label' && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login)||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
       (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at&&issueOrPr.closed_at) && ((new Date(comment.created_at)).getTime() < Date.now() - 1*60*60*1000 ) )
     ) {
       //  ██╗███╗   ██╗███████╗ ██████╗ ██████╗ ███╗   ███╗    ██╗   ██╗███████╗
