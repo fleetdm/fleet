@@ -3255,7 +3255,6 @@ None.
 ---
 
 ### Team schedule
-- 
 - [Get team schedule](#get-team-schedule)
 - [Add query to team schedule](#add-query-to-team-schedule)
 - [Edit query in team schedule](#edit-query-in-team-schedule)
