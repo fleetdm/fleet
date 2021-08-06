@@ -1,0 +1,1 @@
+* Disallow target_id NULL for pack_targets to prevent issues when listing packs. This could happen because of a pack spec applied with a label name that was not existent anymore.
