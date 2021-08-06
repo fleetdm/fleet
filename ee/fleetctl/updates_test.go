@@ -98,7 +98,15 @@ func TestUpdatesInitKeysInitializedError(t *testing.T) {
 	require.Error(t, runUpdatesCommand("init", "--path", tmpDir))
 }
 
-func TestUpdatesFlow(t *testing.T) {
+func assertFileExists(t *testing.T, path string) {
+	t.Helper()
+	st, err := os.Stat(path)
+	if assert.NoError(t, err, "stat should succeed") {
+		assert.True(t, st.Mode().IsRegular(), "should be regular file: %s", path)
+	}
+}
+
+func TestUpdatesIntegration(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
 	tmpDir, err := ioutil.TempDir("", "fleetctl-updates-test-*")
 	require.NoError(t, err)
@@ -107,7 +115,7 @@ func TestUpdatesFlow(t *testing.T) {
 	setPassphrases(t)
 
 	require.NoError(t, runUpdatesCommand("init", "--path", tmpDir))
-	
+
 	// Capture stdout while running the updates roots command
 	func() {
 		stdout := os.Stdout
@@ -126,10 +134,26 @@ func TestUpdatesFlow(t *testing.T) {
 		// Check output
 		var keys []data.Key
 		require.NoError(t, json.Unmarshal(out, &keys))
-		assert.Len(t, keys, 1)		
+		assert.Len(t, keys, 1)
 		assert.Greater(t, len(keys[0].IDs()), 0)
 		assert.Equal(t, "ed25519", keys[0].Type)
 	}()
 
-	// TODO test the `add` and `timestamp` commands
+	testPath := filepath.Join(tmpDir, "test")
+	require.NoError(t, ioutil.WriteFile(testPath, []byte("test"), os.ModePerm))
+	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "linux", "--name", "test", "--version", "1.3.3.7"))
+	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "macos", "--name", "test", "--version", "1.3.3.7"))
+	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "windows", "--name", "test", "--version", "1.3.3.7"))
+
+	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "linux", "1.3.3.7", "test"))
+	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "macos", "1.3.3.7", "test"))
+	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "windows", "1.3.3.7", "test"))
+
+	require.NoError(t, runUpdatesCommand("timestamp", "--path", tmpDir))
+
+	// Should not be able to add with invalid passphrase
+	require.NoError(t, os.Setenv("FLEET_SNAPSHOT_PASSPHRASE", "invalid"))
+	// Reset the cache that already has correct passwords stored
+	passHandler = newPassphraseHandler()
+	require.Error(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "windows", "--name", "test", "--version", "1.3.4.7"))
 }
