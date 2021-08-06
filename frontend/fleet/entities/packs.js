@@ -55,9 +55,20 @@ export default (client) => {
       const packWithoutTargets = omit(updatedPack, "targets");
       const packParams = { ...packWithoutTargets, ...packTargets };
 
+      console.log("packParams", packParams);
       return client
         .authenticatedPatch(updatePackEndpoint, JSON.stringify(packParams))
         .then((response) => response.pack);
     },
+    // MERP
+    // updateStatus: (id, updatedStatus) => {
+    //   const { PACKS } = endpoints;
+    //   const updatePackEndpoint = client._endpoint(`${PACKS}/${id}`);
+    //   const packParams = updatedStatus;
+
+    //   return client
+    //     .authenticatedPatch(updatePackEndpoint, JSON.stringify(packParams))
+    //     .then((response) => response.pack);
+    // },
   };
 };

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { push } from "react-router-redux";
-import { IPack } from "interfaces/pack";
+import pack, { IPack } from "interfaces/pack";
 import { IUser } from "interfaces/user";
 
 // @ts-ignore
@@ -12,6 +12,8 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 import paths from "router/paths";
 import permissionUtils from "utilities/permissions";
+// @ts-ignore
+import deepDifference from "utilities/deep_difference";
 
 import Button from "components/buttons/Button";
 import PacksListError from "./components/PacksListError";
@@ -67,6 +69,7 @@ const ManagePacksPage = (): JSX.Element => {
 
   const packs = useSelector((state: IRootState) => state.entities.packs);
   const packsList = Object.values(packs.data);
+
   const packsErrors = packs.errors;
 
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
@@ -114,12 +117,10 @@ const ManagePacksPage = (): JSX.Element => {
       const packOrPacks = selectedPackIds.length === 1 ? "pack" : "packs";
       const enableOrDisable = disablePack ? "disabled" : "enabled";
 
-      console.log("selectedPackIds:", selectedPackIds);
-
       const promises = selectedTablePackIds.map((id: number) => {
-        console.log("id:", id);
-        console.log("disablePack:", disablePack);
-        return dispatch(packActions.update({ id }, { disabled: disablePack }));
+        return dispatch(
+          packActions.updateStatus({ id }, { disable: disablePack })
+        );
       });
 
       return Promise.all(promises)
