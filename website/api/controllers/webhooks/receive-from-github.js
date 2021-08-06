@@ -67,55 +67,55 @@ module.exports = {
       //  ╚██╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝    ██╔╝       ██║  ██║███████╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝██╔╝
       //   ╚═╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝     ╚═╝        ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝ ╚═╝
       //
-      // Handle opened/reopened issue by commenting on it.
-      let owner = repository.owner.login;
-      let repo = repository.name;
-      let issueNumber = issueOrPr.number;
-      let newBotComment;
-      if (action === 'opened') {
-        if (issueOrPr.state !== 'open') {
-          newBotComment = '';// « checked below
-        } else {
-          newBotComment =
-          `@${issueOrPr.user.login} Thanks for posting!  We'll take a look as soon as possible.\n`+
-          `\n`+
-          `In the mean time, there are a few ways you can help speed things along:\n`+
-          ` - look for a workaround.  _(Even if it's just temporary, sharing your solution can save someone else a lot of time and effort.)_\n`+
-          ` - tell us why this issue is important to you and your team.  What are you trying to accomplish?  _(Submissions with a little bit of human context tend to be easier to understand and faster to resolve.)_\n`+
-          ` - make sure you've provided clear instructions on how to reproduce the bug from a clean install.\n`+
-          ` - double-check that you've provided all of the requested version and dependency information.  _(Some of this info might seem irrelevant at first, like which database adapter you're using, but we ask that you include it anyway.  Oftentimes an issue is caused by a confluence of unexpected factors, and it can save everybody a ton of time to know all the details up front.)_\n`+
-          ` - read the [code of conduct](https://sailsjs.com/documentation/contributing/code-of-conduct).\n`+
-          ` - if appropriate, ask your business to [spons  or your issue](https://sailsjs.com/support).   _(Open source is our passion, and our core maintainers volunteer many of their nights and weekends working on Sails.  But you only get so many nights and weekends in life, and stuff gets done a lot faster when you can work on it during normal daylight hours.)_\n`+
-          ` - let us know if you are using a 3rd party plugin; whether that's a database adapter, a non-standard view engine, or any other dependency maintained by someone other than our core team.  _(Besides the name of the 3rd party package, it helps to include the exact version you're using.  If you're unsure, check out [this list of all the core packages we maintain](https://sailsjs.com/architecture).)_ \n`+
-          `<hr/>\n`+
-          `\n`+
-          `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
-          `\n`+
-          `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
-        }
-      } else {
-        let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
-        if (wasReopenedByBot) {
-          newBotComment = '';// « checked below
-        } else {
-          let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
-          await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-            await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
-          });//∞ß
-          newBotComment =
-          `Oh hey again, @${issueOrPr.user.login}.  Now that this issue is reopened, we'll take a fresh look as soon as we can!\n`+
-          `<hr/>\n`+
-          `\n`+
-          `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
-          `\n`+
-          `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
-        }
-      }
+      // // Handle opened/reopened issue by commenting on it.
+      // let owner = repository.owner.login;
+      // let repo = repository.name;
+      // let issueNumber = issueOrPr.number;
+      // let newBotComment;
+      // if (action === 'opened') {
+      //   if (issueOrPr.state !== 'open') {
+      //     newBotComment = '';// « checked below
+      //   } else {
+      //     newBotComment =
+      //     `@${issueOrPr.user.login} Thanks for posting!  We'll take a look as soon as possible.\n`+
+      //     `\n`+
+      //     `In the mean time, there are a few ways you can help speed things along:\n`+
+      //     ` - look for a workaround.  _(Even if it's just temporary, sharing your solution can save someone else a lot of time and effort.)_\n`+
+      //     ` - tell us why this issue is important to you and your team.  What are you trying to accomplish?  _(Submissions with a little bit of human context tend to be easier to understand and faster to resolve.)_\n`+
+      //     ` - make sure you've provided clear instructions on how to reproduce the bug from a clean install.\n`+
+      //     ` - double-check that you've provided all of the requested version and dependency information.  _(Some of this info might seem irrelevant at first, like which database adapter you're using, but we ask that you include it anyway.  Oftentimes an issue is caused by a confluence of unexpected factors, and it can save everybody a ton of time to know all the details up front.)_\n`+
+      //     ` - read the [code of conduct](https://sailsjs.com/documentation/contributing/code-of-conduct).\n`+
+      //     ` - if appropriate, ask your business to [spons  or your issue](https://sailsjs.com/support).   _(Open source is our passion, and our core maintainers volunteer many of their nights and weekends working on Sails.  But you only get so many nights and weekends in life, and stuff gets done a lot faster when you can work on it during normal daylight hours.)_\n`+
+      //     ` - let us know if you are using a 3rd party plugin; whether that's a database adapter, a non-standard view engine, or any other dependency maintained by someone other than our core team.  _(Besides the name of the 3rd party package, it helps to include the exact version you're using.  If you're unsure, check out [this list of all the core packages we maintain](https://sailsjs.com/architecture).)_ \n`+
+      //     `<hr/>\n`+
+      //     `\n`+
+      //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
+      //     `\n`+
+      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //   }
+      // } else {
+      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
+      //   if (wasReopenedByBot) {
+      //     newBotComment = '';// « checked below
+      //   } else {
+      //     let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
+      //     await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
+      //       await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
+      //     });//∞ß
+      //     newBotComment =
+      //     `Oh hey again, @${issueOrPr.user.login}.  Now that this issue is reopened, we'll take a fresh look as soon as we can!\n`+
+      //     `<hr/>\n`+
+      //     `\n`+
+      //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
+      //     `\n`+
+      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //   }
+      // }
 
-      // Now that we know what to say, add our comment.
-      if (newBotComment) {
-        await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
-      }//ﬁ
+      // // Now that we know what to say, add our comment.
+      // if (newBotComment) {
+      //   await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
+      // }//ﬁ
 
     } else if (
       (ghNoun === 'pull_request' &&  ['opened','reopened','edited'].includes(action))
@@ -134,61 +134,61 @@ module.exports = {
       //  ╚██╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝    ██╔╝       ███████╗██████╔╝██║   ██║   ███████╗██████╔╝    ██╔╝       ██║  ██║███████╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝██╔╝
       //   ╚═╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝     ╚═╝        ╚══════╝╚═════╝ ╚═╝   ╚═╝   ╚══════╝╚═════╝     ╚═╝        ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝ ╚═╝
       //
-      // Handle opened/reopened/edited PR by commenting/labeling/unlabeling it
-      // (if appropriate).
-      // > Note: If we apply the "needs cleanup" label here, then any subsequent
-      // > edits of the PR should trigger a webhook request that causes the bot
-      // > to re-examine the PR's title for compliance with the repo guidelines.
-      let owner = repository.owner.login;
-      let repo = repository.name;
-      let issueNumber = issueOrPr.number;
+      // // Handle opened/reopened/edited PR by commenting/labeling/unlabeling it
+      // // (if appropriate).
+      // // > Note: If we apply the "needs cleanup" label here, then any subsequent
+      // // > edits of the PR should trigger a webhook request that causes the bot
+      // // > to re-examine the PR's title for compliance with the repo guidelines.
+      // let owner = repository.owner.login;
+      // let repo = repository.name;
+      // let issueNumber = issueOrPr.number;
 
-      if (action === 'edited' && pr.state !== 'open') {
-        // If this is an edit to an already-closed pull request, then do nothing.
-      } else if (action === 'reopened') {
-        let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
-        if (!wasReopenedByBot) {
-          let newBotComment =
-          `Oh hey again, @${issueOrPr.user.login}.  Now that this pull request is reopened, it's on our radar.  Please let us know if there's any new information we should be aware of!\n`+
-          `<hr/>\n`+
-          `\n`+
-          `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
-          `\n`+
-          `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
-          await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
-        }//ﬁ
-      } else if (!pr.title.match(/^\[(proposal|patch|implements #\d+|fixes #\d+|misc)\]/i)) {
-        await sails.helpers.flow.simultaneously([
-          async() => await GitHub.addLabelsToIssue.with({ labels: [ 'needs cleanup' ], issueNumber, owner, repo, credentials }),
-          async() => await GitHub.commentOnIssue.with({ comment: `Hi @${pr.user.login}!  It looks like the title of your pull request doesn&rsquo;t quite match our [guidelines](https://sailsjs.com/contribute) yet.  Would you please edit your pull request's title so that it begins with \`[proposal]\`, \`[patch]\`, \`[fixes #<issue number>]\`, \`[implements #<other PR number>]\`, or \`[misc]\`?  Once you've edited it, I'll take another look!`, issueNumber, owner, repo, credentials })
-        ]);
-      } else {
-        let removeNeedsCleanupLabel = pr.labels.some(({name}) => name === 'needs cleanup');
-        if (removeNeedsCleanupLabel) {
-          await GitHub.removeLabelFromIssue.with({ label: 'needs cleanup', issueNumber, owner, repo, credentials });
-        }//ﬁ
-        if (action === 'opened' || removeNeedsCleanupLabel) {
-          await GitHub.commentOnIssue.with({
-            comment:
-              `Thanks for submitting this pull request, @${pr.user.login}!  We'll look at it ASAP.\n`+
-              `\n`+
-              `In the mean time, here are some ways you can help speed things along:\n`+
-              ` - discuss this pull request with [other contributors](https://gitter.im/balderdashy/sails) and get their feedback.  _(Reactions and comments can help us make better decisions, anticipate compatibility problems, and prevent bugs.)_\n`+
-              ` - ask [another JavaScript developer](https://gitter.im/balderdashy/sails) to review the files changed in this pull request.  _(Peer reviews definitely don't guarantee perfection, but they help catch mistakes and enourage collaborative thinking.  Code reviews are so useful that some open source projects require a minimum number of reviews before even considering a merge!)_\n`+
-              ` - if appropriate, ask your business to [sponsor your pull request](https://sailsjs.com/support).   _(Open source is our passion, and our core maintainers volunteer many of their nights and weekends working on Sails.  But you only get so many nights and weekends in life, and stuff gets done a lot faster when you can work on it during normal daylight hours.)_\n`+
-              ` - make sure you've answered the "why?"  _(Before we can review and merge a pull request, we feel it is important to fully understand the use case: the human reason these changes are important for you, your team, or your organization.)_\n`+
-              `<hr/>\n`+
-              `\n`+
-              `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
-              `\n`+
-              `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`,
-            issueNumber,
-            owner,
-            repo,
-            credentials
-          });
-        }//ﬁ
-      }
+      // if (action === 'edited' && pr.state !== 'open') {
+      //   // If this is an edit to an already-closed pull request, then do nothing.
+      // } else if (action === 'reopened') {
+      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
+      //   if (!wasReopenedByBot) {
+      //     let newBotComment =
+      //     `Oh hey again, @${issueOrPr.user.login}.  Now that this pull request is reopened, it's on our radar.  Please let us know if there's any new information we should be aware of!\n`+
+      //     `<hr/>\n`+
+      //     `\n`+
+      //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
+      //     `\n`+
+      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //     await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
+      //   }//ﬁ
+      // } else if (!pr.title.match(/^\[(proposal|patch|implements #\d+|fixes #\d+|misc)\]/i)) {
+      //   await sails.helpers.flow.simultaneously([
+      //     async() => await GitHub.addLabelsToIssue.with({ labels: [ 'needs cleanup' ], issueNumber, owner, repo, credentials }),
+      //     async() => await GitHub.commentOnIssue.with({ comment: `Hi @${pr.user.login}!  It looks like the title of your pull request doesn&rsquo;t quite match our [guidelines](https://sailsjs.com/contribute) yet.  Would you please edit your pull request's title so that it begins with \`[proposal]\`, \`[patch]\`, \`[fixes #<issue number>]\`, \`[implements #<other PR number>]\`, or \`[misc]\`?  Once you've edited it, I'll take another look!`, issueNumber, owner, repo, credentials })
+      //   ]);
+      // } else {
+      //   let removeNeedsCleanupLabel = pr.labels.some(({name}) => name === 'needs cleanup');
+      //   if (removeNeedsCleanupLabel) {
+      //     await GitHub.removeLabelFromIssue.with({ label: 'needs cleanup', issueNumber, owner, repo, credentials });
+      //   }//ﬁ
+      //   if (action === 'opened' || removeNeedsCleanupLabel) {
+      //     await GitHub.commentOnIssue.with({
+      //       comment:
+      //         `Thanks for submitting this pull request, @${pr.user.login}!  We'll look at it ASAP.\n`+
+      //         `\n`+
+      //         `In the mean time, here are some ways you can help speed things along:\n`+
+      //         ` - discuss this pull request with [other contributors](https://gitter.im/balderdashy/sails) and get their feedback.  _(Reactions and comments can help us make better decisions, anticipate compatibility problems, and prevent bugs.)_\n`+
+      //         ` - ask [another JavaScript developer](https://gitter.im/balderdashy/sails) to review the files changed in this pull request.  _(Peer reviews definitely don't guarantee perfection, but they help catch mistakes and enourage collaborative thinking.  Code reviews are so useful that some open source projects require a minimum number of reviews before even considering a merge!)_\n`+
+      //         ` - if appropriate, ask your business to [sponsor your pull request](https://sailsjs.com/support).   _(Open source is our passion, and our core maintainers volunteer many of their nights and weekends working on Sails.  But you only get so many nights and weekends in life, and stuff gets done a lot faster when you can work on it during normal daylight hours.)_\n`+
+      //         ` - make sure you've answered the "why?"  _(Before we can review and merge a pull request, we feel it is important to fully understand the use case: the human reason these changes are important for you, your team, or your organization.)_\n`+
+      //         `<hr/>\n`+
+      //         `\n`+
+      //         `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
+      //         `\n`+
+      //         `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`,
+      //       issueNumber,
+      //       owner,
+      //       repo,
+      //       credentials
+      //     });
+      //   }//ﬁ
+      // }
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗███████╗███╗   ██╗████████╗
       //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
@@ -238,7 +238,7 @@ module.exports = {
       //
       // Handle deleted issue/PR comments, new/modified/deleted commit comments,
       // new/edited/deleted labels, and new comments on closed issues/PRs by
-      // posting to the #contributors channel in Slack.
+      // posting to the Fleet Slack.
       // > FUTURE: also post to Slack about deleted issues, new repos, and deleted repos
       await sails.helpers.http.post(
         sails.config.custom.slackWebhookUrlForGithubBot,//« #g-operations channel (Fleet Slack workspace)
@@ -269,7 +269,7 @@ module.exports = {
       //  ██║ ╚═╝ ██║██║███████║╚██████╗
       //  ╚═╝     ╚═╝╚═╝╚══════╝ ╚═════╝
       //
-      // FUTURE: more stuff!
+      // FUTURE: more potential stuff
       //
       // For reference:  (as of Apr 16, 2019)
       // Ping                  : (no "action" included)
