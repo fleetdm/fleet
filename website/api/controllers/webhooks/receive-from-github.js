@@ -85,7 +85,7 @@ module.exports = {
           ` - make sure you've provided clear instructions on how to reproduce the bug from a clean install.\n`+
           ` - double-check that you've provided all of the requested version and dependency information.  _(Some of this info might seem irrelevant at first, like which database adapter you're using, but we ask that you include it anyway.  Oftentimes an issue is caused by a confluence of unexpected factors, and it can save everybody a ton of time to know all the details up front.)_\n`+
           ` - read the [code of conduct](https://sailsjs.com/documentation/contributing/code-of-conduct).\n`+
-          ` - if appropriate, ask your business to [sponsor your issue](https://sailsjs.com/support).   _(Open source is our passion, and our core maintainers volunteer many of their nights and weekends working on Sails.  But you only get so many nights and weekends in life, and stuff gets done a lot faster when you can work on it during normal daylight hours.)_\n`+
+          ` - if appropriate, ask your business to [spons  or your issue](https://sailsjs.com/support).   _(Open source is our passion, and our core maintainers volunteer many of their nights and weekends working on Sails.  But you only get so many nights and weekends in life, and stuff gets done a lot faster when you can work on it during normal daylight hours.)_\n`+
           ` - let us know if you are using a 3rd party plugin; whether that's a database adapter, a non-standard view engine, or any other dependency maintained by someone other than our core team.  _(Besides the name of the 3rd party package, it helps to include the exact version you're using.  If you're unsure, check out [this list of all the core packages we maintain](https://sailsjs.com/architecture).)_ \n`+
           `<hr/>\n`+
           `\n`+
@@ -94,8 +94,8 @@ module.exports = {
           `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
         }
       } else {
-        let wasReopenedByCoreMaintainerOrBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
-        if (wasReopenedByCoreMaintainerOrBot) {
+        let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
+        if (wasReopenedByBot) {
           newBotComment = '';// « checked below
         } else {
           let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
@@ -146,8 +146,8 @@ module.exports = {
       if (action === 'edited' && pr.state !== 'open') {
         // If this is an edit to an already-closed pull request, then do nothing.
       } else if (action === 'reopened') {
-        let wasReopenedByCoreMaintainerOrBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
-        if (!wasReopenedByCoreMaintainerOrBot) {
+        let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
+        if (!wasReopenedByBot) {
           let newBotComment =
           `Oh hey again, @${issueOrPr.user.login}.  Now that this pull request is reopened, it's on our radar.  Please let us know if there's any new information we should be aware of!\n`+
           `<hr/>\n`+
@@ -209,8 +209,8 @@ module.exports = {
       let repo = repository.name;
       let issueNumber = issueOrPr.number;
 
-      let wasPostedByCoreMaintainerOrBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
-      if (!wasPostedByCoreMaintainerOrBot) {
+      let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS.includes(sender.login);
+      if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
           await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
