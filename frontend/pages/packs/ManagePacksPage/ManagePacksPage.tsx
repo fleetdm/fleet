@@ -93,7 +93,7 @@ const ManagePacksPage = (): JSX.Element => {
     return Promise.all(promises)
       .then(() => {
         dispatch(
-          renderFlash("success", `Successfully removed ${packOrPacks}.`)
+          renderFlash("success", `Successfully deleted ${packOrPacks}.`)
         );
         toggleRemovePackModal();
         dispatch(packActions.loadAll());
