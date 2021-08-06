@@ -116,7 +116,11 @@
 
     .Select-menu-outer {
       width: 364px;
-      height: 299px;
+      max-height: 310px;
+
+      .Select-menu {
+        max-height: none;
+      }
     }
   }
 }
