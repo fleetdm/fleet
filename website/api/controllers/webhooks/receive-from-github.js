@@ -24,7 +24,7 @@ module.exports = {
 
     let GitHub = require('machinepack-github');
 
-    let GREEN_LABEL_COLOR = '009800';// « Used in multiple places below.
+    let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.
     let GITHUB_USERNAMES_OF_BOTS = [// « Used in multiple places below.
       'sailsbot'
     ];
