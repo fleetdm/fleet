@@ -66,15 +66,15 @@ export const getLabels = () => (dispatch) => {
   dispatch(silentGetStatusLabelCounts);
 };
 
-export const getHosts = (
+export const getHosts = ({
   page,
   perPage,
   selectedLabel,
   globalFilter,
-  sortBy
-) => (dispatch) => {
+  sortBy,
+}) => (dispatch) => {
   dispatch(
-    hostActions.loadAll(page, perPage, selectedLabel, globalFilter, sortBy)
+    hostActions.loadAll({ page, perPage, selectedLabel, globalFilter, sortBy })
   );
 };
 

@@ -7,7 +7,10 @@ import { secondsToDhms } from "fleet/helpers";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 
 interface IHeaderProps {
   column: {
@@ -23,7 +26,7 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: IGlobalScheduledQuery;
+    original: IGlobalScheduledQuery | ITeamScheduledQuery;
     getToggleRowSelectedProps: () => any; // TODO: do better with types
     toggleRowSelected: () => void;
   };
@@ -38,10 +41,22 @@ interface IDataColumn {
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
+interface IAllScheduledQueryTableData {
+  name: string;
+  interval: number;
+  actions: IDropdownOption[];
+  id: number;
+  type: string;
+}
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
+const generateTableHeaders = (
+  actionSelectHandler: (
+    value: string,
+    all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery
+  ) => void
+): IDataColumn[] => {
   return [
     {
       id: "selection",
@@ -65,10 +80,10 @@ const generateTableHeaders = (): IDataColumn[] => {
       disableHidden: true,
     },
     {
-      title: "Query name",
-      Header: "Query name",
+      title: "Query",
+      Header: "Query",
       disableSortBy: true,
-      accessor: "query_name",
+      accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -82,7 +97,68 @@ const generateTableHeaders = (): IDataColumn[] => {
         <TextCell value={secondsToDhms(cellProps.cell.value)} />
       ),
     },
+    {
+      title: "Actions",
+      Header: "",
+      disableSortBy: true,
+      accessor: "actions",
+      Cell: (cellProps) => (
+        <DropdownCell
+          options={cellProps.cell.value}
+          onChange={(value: string) =>
+            actionSelectHandler(value, cellProps.row.original)
+          }
+          placeholder={"Actions"}
+        />
+      ),
+    },
   ];
 };
 
-export default generateTableHeaders;
+const generateActionDropdownOptions = (): IDropdownOption[] => {
+  const dropdownOptions = [
+    {
+      label: "Edit",
+      disabled: false,
+      value: "edit",
+    },
+    {
+      label: "Remove",
+      disabled: false,
+      value: "remove",
+    },
+  ];
+  return dropdownOptions;
+};
+
+const enhanceAllScheduledQueryData = (
+  all_scheduled_queries: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
+  teamId: number
+): IAllScheduledQueryTableData[] => {
+  return all_scheduled_queries.map(
+    (all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery) => {
+      return {
+        name: all_scheduled_query.name,
+        interval: all_scheduled_query.interval,
+        actions: generateActionDropdownOptions(),
+        id: all_scheduled_query.id,
+        query_id: all_scheduled_query.query_id,
+        snapshot: all_scheduled_query.snapshot,
+        removed: all_scheduled_query.removed,
+        platform: all_scheduled_query.platform,
+        version: all_scheduled_query.version,
+        shard: all_scheduled_query.shard,
+        type: teamId ? "team_scheduled_query" : "global_scheduled_query",
+      };
+    }
+  );
+};
+
+const generateDataSet = (
+  all_scheduled_queries: IGlobalScheduledQuery[],
+  teamId: number
+): IAllScheduledQueryTableData[] => {
+  return [...enhanceAllScheduledQueryData(all_scheduled_queries, teamId)];
+};
+
+export { generateTableHeaders, generateDataSet };

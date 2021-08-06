@@ -404,7 +404,7 @@ func (d *Datastore) EnsureGlobalPack() (*fleet.Pack, error) {
 
 func (d *Datastore) insertNewGlobalPack() (*fleet.Pack, error) {
 	var packID uint
-	d.withTx(func(tx *sqlx.Tx) error {
+	err := d.withTx(func(tx *sqlx.Tx) error {
 		res, err := tx.Exec(
 			`INSERT INTO packs (name, description, platform, pack_type) VALUES ('Global', 'Global pack', '','global')`,
 		)
@@ -424,6 +424,63 @@ func (d *Datastore) insertNewGlobalPack() (*fleet.Pack, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return d.Pack(packID)
+}
+
+func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
+	pack := &fleet.Pack{}
+	t, err := d.Team(teamID)
+	if err != nil || t == nil {
+		return nil, errors.Wrap(err, "Error finding team")
+	}
+
+	teamType := fmt.Sprintf("team-%d", teamID)
+	err = d.db.Get(pack, `SELECT * FROM packs WHERE pack_type = ?`, teamType)
+	if err == sql.ErrNoRows {
+		return d.insertNewTeamPack(teamID)
+	} else if err != nil {
+		return nil, errors.Wrap(err, "get pack")
+	}
+
+	if err := d.loadPackTargets(pack); err != nil {
+		return nil, err
+	}
+
+	return pack, nil
+}
+
+func (d *Datastore) insertNewTeamPack(teamID uint) (*fleet.Pack, error) {
+	var packID uint
+	teamType := fmt.Sprintf("team-%d", teamID)
+	err := d.withTx(func(tx *sqlx.Tx) error {
+		res, err := tx.Exec(
+			`INSERT INTO packs (name, description, platform, pack_type) 
+                   VALUES (?, 'Schedule additional queries for all hosts assigned to this team.', '',?)`,
+			teamType, teamType,
+		)
+		if err != nil {
+			return err
+		}
+		packId, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		packID = uint(packId)
+		if _, err := tx.Exec(
+			`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, ?)`,
+			packID, fleet.TargetTeam, teamID,
+		); err != nil {
+			return errors.Wrap(err, "adding team id target to pack")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	return d.Pack(packID)
 }

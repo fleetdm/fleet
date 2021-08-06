@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -26,6 +27,9 @@ func setRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 		if strings.Contains(r.URL.Path, "users/") {
 			ctx = withUserIDFromRequest(r, ctx)
 		}
+
+		ctx = logging.NewContext(ctx, &logging.LoggingContext{})
+		ctx = logging.WithStartTime(ctx)
 		return ctx
 	}
 }

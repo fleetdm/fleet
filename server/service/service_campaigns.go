@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -84,6 +85,14 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	if err != nil {
 		return nil, errors.Wrap(err, "new campaign")
 	}
+
+	defer func() {
+		var numHosts uint = 0
+		if campaign != nil {
+			numHosts = campaign.Metrics.TotalHosts
+		}
+		logging.WithExtras(ctx, "sql", queryString, "query_id", queryID, "numHosts", numHosts)
+	}()
 
 	// Add host targets
 	for _, hid := range targets.HostIDs {
@@ -165,6 +174,8 @@ type campaignStatus struct {
 }
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
+	logging.WithExtras(ctx, "campaign_id", campaignID)
+
 	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRun); err != nil {
 		level.Info(svc.logger).Log("err", "stream results authorization failed")
 		conn.WriteJSONError(authz.ForbiddenErrorMessage)

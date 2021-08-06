@@ -14,9 +14,9 @@ type SaveAppConfigFunc func(info *fleet.AppConfig) error
 
 type VerifyEnrollSecretFunc func(secret string) (*fleet.EnrollSecret, error)
 
-type ApplyEnrollSecretsFunc func(treamID *uint, secrets []*fleet.EnrollSecret) error
-
 type GetEnrollSecretsFunc func(teamID *uint) ([]*fleet.EnrollSecret, error)
+
+type ApplyEnrollSecretsFunc func(teamID *uint, secrets []*fleet.EnrollSecret) error
 
 type AppConfigStore struct {
 	NewAppConfigFunc        NewAppConfigFunc
@@ -31,11 +31,11 @@ type AppConfigStore struct {
 	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
 	VerifyEnrollSecretFuncInvoked bool
 
-	ApplyEnrollSecretsFunc        ApplyEnrollSecretsFunc
-	ApplyEnrollSecretsFuncInvoked bool
-
 	GetEnrollSecretsFunc        GetEnrollSecretsFunc
 	GetEnrollSecretsFuncInvoked bool
+
+	ApplyEnrollSecretsFunc        ApplyEnrollSecretsFunc
+	ApplyEnrollSecretsFuncInvoked bool
 }
 
 func (s *AppConfigStore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
@@ -58,12 +58,12 @@ func (s *AppConfigStore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret,
 	return s.VerifyEnrollSecretFunc(secret)
 }
 
-func (s *AppConfigStore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
-	s.ApplyEnrollSecretsFuncInvoked = true
-	return s.ApplyEnrollSecretsFunc(teamID, secrets)
-}
-
 func (s *AppConfigStore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error) {
 	s.GetEnrollSecretsFuncInvoked = true
 	return s.GetEnrollSecretsFunc(teamID)
+}
+
+func (s *AppConfigStore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
+	s.ApplyEnrollSecretsFuncInvoked = true
+	return s.ApplyEnrollSecretsFunc(teamID, secrets)
 }

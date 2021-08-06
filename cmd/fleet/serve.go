@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/server/logging"
+
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
 
@@ -19,6 +21,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
@@ -192,7 +196,12 @@ the way that the Fleet server works.
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
+			osqueryLogger, err := logging.New(config, logger)
+			if err != nil {
+				initFatal(err, "initializing osquery logging")
+			}
+
+			svc, err := service.NewService(ds, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -234,9 +243,6 @@ the way that the Fleet server works.
 				Help:      "Total duration of requests in microseconds.",
 			}, fieldKeys)
 
-			svcLogger := kitlog.With(logger, "component", "service")
-
-			svc = service.NewLoggingService(svc, svcLogger)
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
 			httpLogger := kitlog.With(logger, "component", "http")
@@ -395,7 +401,8 @@ type Locker interface {
 }
 
 const (
-	LockKeyLeader = "leader"
+	lockKeyLeader          = "leader"
+	lockKeyVulnerabilities = "vulnerabilities"
 )
 
 func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) error {
@@ -441,42 +448,88 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger) context.CancelFunc {
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
 
-	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
-		for {
-			level.Debug(logger).Log("waiting", "on ticker")
-			select {
-			case <-ticker.C:
-				level.Debug(logger).Log("waiting", "done")
-			case <-ctx.Done():
-				level.Debug(logger).Log("exit", "done with crons.")
-				break
-			}
-			if locked, err := locker.Lock(LockKeyLeader, ourIdentifier, time.Hour); err != nil || !locked {
-				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
-				continue
-			}
-			_, err := ds.CleanupDistributedQueryCampaigns(time.Now())
-			if err != nil {
-				level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
-			}
-			err = ds.CleanupIncomingHosts(time.Now())
-			if err != nil {
-				level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
-			}
-			_, err = ds.CleanupCarves(time.Now())
-			if err != nil {
-				level.Error(logger).Log("err", "cleaning carves", "details", err)
-			}
+	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), locker, ourIdentifier)
+	go cronVulnerabilities(ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), locker, ourIdentifier)
 
-			err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
-			if err != nil {
-				level.Error(logger).Log("err", "sending statistics", "details", err)
-			}
-			level.Debug(logger).Log("loop", "done")
-		}
-	}()
 	return cancelBackground
+}
+
+func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
+	ticker := time.NewTicker(1 * time.Hour)
+	for {
+		level.Debug(logger).Log("waiting", "on ticker")
+		select {
+		case <-ticker.C:
+			level.Debug(logger).Log("waiting", "done")
+		case <-ctx.Done():
+			level.Debug(logger).Log("exit", "done with cron.")
+			break
+		}
+		if locked, err := locker.Lock(lockKeyLeader, identifier, time.Hour); err != nil || !locked {
+			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+			continue
+		}
+		_, err := ds.CleanupDistributedQueryCampaigns(time.Now())
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
+		}
+		err = ds.CleanupIncomingHosts(time.Now())
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
+		}
+		_, err = ds.CleanupCarves(time.Now())
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning carves", "details", err)
+		}
+
+		err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
+		if err != nil {
+			level.Error(logger).Log("err", "sending statistics", "details", err)
+		}
+		level.Debug(logger).Log("loop", "done")
+	}
+}
+
+func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
+	appConfig, err := ds.AppConfig()
+	if err != nil {
+		level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		return
+	}
+	if appConfig.VulnerabilityDatabasesPath == nil {
+		level.Info(logger).Log("vulnerability scanning", "not configured")
+		return
+	}
+
+	vulnPath := *appConfig.VulnerabilityDatabasesPath
+
+	ticker := time.NewTicker(1 * time.Hour)
+	for {
+		level.Debug(logger).Log("waiting", "on ticker")
+		select {
+		case <-ticker.C:
+			level.Debug(logger).Log("waiting", "done")
+		case <-ctx.Done():
+			level.Debug(logger).Log("exit", "done with cron.")
+			break
+		}
+		if locked, err := locker.Lock(lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
+			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+			continue
+		}
+
+		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath)
+		if err != nil {
+			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
+		}
+
+		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger)
+		if err != nil {
+			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+		}
+
+		level.Debug(logger).Log("loop", "done")
+	}
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on

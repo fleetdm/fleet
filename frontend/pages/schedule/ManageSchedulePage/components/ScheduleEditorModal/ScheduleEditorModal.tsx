@@ -1,4 +1,6 @@
-import React, { useState, useCallback } from "react";
+/* This component is used for creating and editing both global and team scheduled queries */
+
+import React, { useState, useCallback, useEffect } from "react";
 
 import { pull } from "lodash";
 // @ts-ignore
@@ -12,6 +14,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_OPTIONS,
@@ -30,22 +33,40 @@ interface IFormData {
   logging_type: string;
   platform: string;
   version: string;
+  team_id?: number;
 }
 
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
-  onScheduleSubmit: (formData: IFormData) => void;
+  onScheduleSubmit: (
+    formData: IFormData,
+    editQuery: IGlobalScheduledQuery | ITeamScheduledQuery | undefined
+  ) => void;
+  editQuery?: IGlobalScheduledQuery | ITeamScheduledQuery;
+  teamId?: number;
 }
 interface INoQueryOption {
   id: number;
   name: string;
 }
 
+const generateLoggingType = (query: IGlobalScheduledQuery) => {
+  if (query.snapshot) {
+    return "snapshot";
+  }
+  if (query.removed) {
+    return "differential";
+  }
+  return "differential_ignore_removals";
+};
+
 const ScheduleEditorModal = ({
   onCancel,
   onScheduleSubmit,
   allQueries,
+  editQuery,
+  teamId,
 }: IScheduleEditorModalProps): JSX.Element => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
@@ -53,19 +74,23 @@ const ScheduleEditorModal = ({
   const [selectedQuery, setSelectedQuery] = useState<
     IGlobalScheduledQuery | INoQueryOption
   >();
-  const [selectedFrequency, setSelectedFrequency] = useState<number>(86400);
+  const [selectedFrequency, setSelectedFrequency] = useState<number>(
+    editQuery ? editQuery.interval : 86400
+  );
   const [
     selectedPlatformOptions,
     setSelectedPlatformOptions,
-  ] = useState<string>("");
+  ] = useState<string>(editQuery?.platform || "");
   const [selectedLoggingType, setSelectedLoggingType] = useState<string>(
-    "snapshot"
+    editQuery ? generateLoggingType(editQuery) : "snapshot"
   );
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
-  ] = useState<string>("");
-  const [selectedShard, setSelectedShard] = useState<string>("");
+  ] = useState<string>(editQuery?.version || "");
+  const [selectedShard, setSelectedShard] = useState<string>(
+    editQuery?.shard ? editQuery?.shard.toString() : ""
+  );
 
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q) => {
@@ -137,28 +162,52 @@ const ScheduleEditorModal = ({
   );
 
   const onFormSubmit = () => {
-    onScheduleSubmit({
-      shard: parseInt(selectedShard, 10),
-      interval: selectedFrequency,
-      query_id: selectedQuery?.id,
-      name: selectedQuery?.name,
-      logging_type: selectedLoggingType,
-      platform: selectedPlatformOptions,
-      version: selectedMinOsqueryVersionOptions,
-    });
+    const query_id = () => {
+      if (editQuery) {
+        return editQuery.query_id;
+      }
+      return selectedQuery?.id;
+    };
+
+    const name = () => {
+      if (editQuery) {
+        return editQuery.name;
+      }
+      return selectedQuery?.name;
+    };
+
+    onScheduleSubmit(
+      {
+        shard: parseInt(selectedShard, 10),
+        interval: selectedFrequency,
+        query_id: query_id(),
+        name: name(),
+        logging_type: selectedLoggingType,
+        platform: selectedPlatformOptions,
+        version: selectedMinOsqueryVersionOptions,
+        team_id: teamId,
+      },
+      editQuery
+    );
   };
 
   return (
-    <Modal title={"Schedule editor"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={editQuery?.name || "Schedule editor"}
+      onExit={onCancel}
+      className={baseClass}
+    >
       <form className={`${baseClass}__form`}>
-        <Dropdown
-          searchable
-          options={createQueryDropdownOptions()}
-          onChange={onChangeSelectQuery}
-          placeholder={"Select query"}
-          value={selectedQuery?.id}
-          wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
-        />
+        {!editQuery && (
+          <Dropdown
+            searchable
+            options={createQueryDropdownOptions()}
+            onChange={onChangeSelectQuery}
+            placeholder={"Select query"}
+            value={selectedQuery?.id}
+            wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
+          />
+        )}
         <Dropdown
           searchable={false}
           options={FREQUENCY_DROPDOWN_OPTIONS}
@@ -244,7 +293,7 @@ const ScheduleEditorModal = ({
             type="button"
             variant="brand"
             onClick={onFormSubmit}
-            disabled={!selectedQuery}
+            disabled={!selectedQuery && !editQuery}
           >
             Schedule
           </Button>

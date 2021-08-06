@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	kithttp "github.com/go-kit/kit/transport/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
@@ -48,6 +51,8 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	logIPs(ctx)
+
 	if nodeKey == "" {
 		return nil, osqueryError{
 			message:     "authentication error: missing node key",
@@ -85,6 +90,8 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
+
+	logIPs(ctx, "hostIdentifier", hostIdentifier)
 
 	secret, err := svc.ds.VerifyEnrollSecret(enrollSecret)
 	if err != nil {
@@ -203,6 +210,8 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	logIPs(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
@@ -315,15 +324,30 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	logIPs(ctx)
+
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing status logs: " + err.Error()}
 	}
 	return nil
 }
 
+func logIPs(ctx context.Context, extras ...interface{}) {
+	remoteAddr, _ := ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string)
+	xForwardedFor, _ := ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string)
+	logging.WithLevel(
+		logging.WithExtras(
+			logging.WithNoUser(ctx),
+			append(extras, "ip_addr", remoteAddr, "x_for_ip_addr", xForwardedFor)...),
+		level.Debug,
+	)
+}
+
 func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
+
+	logIPs(ctx)
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing result logs: " + err.Error()}
@@ -933,6 +957,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	logIPs(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
@@ -1080,19 +1106,23 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	logIPs(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 
 	if !ok {
 		return osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	// Check for label queries and if so, load host additional. If we don't do
-	// this, we will end up unintentionally dropping any existing host
-	// additional info.
+	// Check for host details queries and if so, load host additional.
+	// If we don't do this, we will end up unintentionally dropping
+	// any existing host additional info.
 	for query := range results {
-		if strings.HasPrefix(query, hostLabelQueryPrefix) {
+		if strings.HasPrefix(query, hostDetailQueryPrefix) {
 			fullHost, err := svc.ds.Host(host.ID)
 			if err != nil {
+				// leave this error return here, we don't want to drop host additionals
+				// if we can't get a host, everything is lost
 				return osqueryError{message: "internal error: load host additional: " + err.Error()}
 			}
 			host = *fullHost
@@ -1119,14 +1149,14 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 			// osquery docs say any nonzero (string) value for
 			// status indicates a query error
 			status, ok := statuses[query]
-			failed := (ok && status != fleet.StatusOK)
+			failed := ok && status != fleet.StatusOK
 			err = svc.ingestDistributedQuery(host, query, rows, failed, messages[query])
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}
 
 		if err != nil {
-			return osqueryError{message: "failed to ingest result: " + err.Error()}
+			logging.WithExtras(ctx, "ingestion-err", err)
 		}
 	}
 
@@ -1135,7 +1165,7 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		host.LabelUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordLabelQueryExecutions(&host, labelResults, svc.clock.Now())
 		if err != nil {
-			return osqueryError{message: "failed to save labels: " + err.Error()}
+			logging.WithErr(ctx, err)
 		}
 	}
 
@@ -1144,16 +1174,17 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		host.DetailUpdatedAt = svc.clock.Now()
 		additionalJSON, err := json.Marshal(additionalResults)
 		if err != nil {
-			return osqueryError{message: "failed to marshal additional: " + err.Error()}
+			logging.WithErr(ctx, err)
+		} else {
+			additional := json.RawMessage(additionalJSON)
+			host.Additional = &additional
 		}
-		additional := json.RawMessage(additionalJSON)
-		host.Additional = &additional
 	}
 
 	if host.Modified {
 		err = svc.ds.SaveHost(&host)
 		if err != nil {
-			return osqueryError{message: "failed to update host details: " + err.Error()}
+			logging.WithErr(ctx, err)
 		}
 	}
 

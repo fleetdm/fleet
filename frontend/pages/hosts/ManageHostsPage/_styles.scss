@@ -50,6 +50,7 @@
 
   &__description {
     margin: 0 0 $pad-medium;
+    padding-top: $pad-xsmall;
 
     h2 {
       text-transform: uppercase;
@@ -59,7 +60,7 @@
     }
 
     p {
-      color: $core-fleet-blue;
+      color: $core-dark-blue-grey;
       margin: 0;
       font-size: $x-small;
       font-style: italic;

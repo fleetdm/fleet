@@ -332,6 +332,62 @@ func TestListHostsInLabel(t *testing.T) {
 	}
 }
 
+func TestListHostsInLabelAndStatus(t *testing.T) {
+	db := CreateMySQLDS(t)
+	defer db.Close()
+
+	h1, err := db.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.Nil(t, err)
+
+	lastSeenTime := time.Now().Add(-1000 * time.Hour)
+	h2, err := db.NewHost(&fleet.Host{
+		DetailUpdatedAt: lastSeenTime,
+		LabelUpdatedAt:  lastSeenTime,
+		SeenTime:        lastSeenTime,
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		UUID:            "2",
+		Hostname:        "bar.local",
+	})
+	require.Nil(t, err)
+
+	l1 := &fleet.LabelSpec{
+		ID:    1,
+		Name:  "label foo",
+		Query: "query1",
+	}
+	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{l1})
+	require.Nil(t, err)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	for _, h := range []*fleet.Host{h1, h2} {
+		err = db.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
+		assert.Nil(t, err)
+	}
+
+	{
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline})
+		require.Nil(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, "foo.local", hosts[0].Hostname)
+	}
+
+	{
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA})
+		require.Nil(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, "bar.local", hosts[0].Hostname)
+	}
+}
+
 func TestBuiltInLabels(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()

@@ -7,8 +7,10 @@ export default PropTypes.shape({
   shard: PropTypes.number,
   query: PropTypes.string.isRequired,
   query_id: PropTypes.number.isRequired,
-  removed: PropTypes.bool,
-  snapshot: PropTypes.bool,
+  removed: PropTypes.bool.isRequired,
+  snapshot: PropTypes.bool.isRequired,
+  version: PropTypes.string,
+  platform: PropTypes.string,
 });
 
 export interface IGlobalScheduledQuery {
@@ -20,4 +22,6 @@ export interface IGlobalScheduledQuery {
   query_id: number;
   removed: boolean;
   snapshot: boolean;
+  version?: string;
+  platform?: string;
 }

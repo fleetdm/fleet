@@ -53,7 +53,7 @@ describe("Core tier - Maintainer user", () => {
     // Queries pages: Can create, edit, and run query
     cy.visit("/queries/manage");
     cy.get("thead").within(() => {
-      cy.findByText(/observers can run/i).should("exist");
+      cy.findByText(/observer can run/i).should("exist");
     });
 
     cy.findByRole("button", { name: /create new query/i }).click();
@@ -87,7 +87,7 @@ describe("Core tier - Maintainer user", () => {
 
     cy.findByText(/query all/i).click();
 
-    cy.findByRole("button", { name: /edit or run query/i }).click();
+    cy.findByText(/edit & run query/i).should("exist");
 
     // Packs pages: Can create, edit, delete a pack
     cy.visit("/packs/manage");
