@@ -493,3 +493,23 @@ func TestEnsureTeamPack(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("team-%d", team2.ID), *tp2.Type)
 	assert.Equal(t, []uint{team2.ID}, tp2.TeamIDs)
 }
+
+func TestApplyPackSpecFailsOnTargetIDNull(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	// Do not define queries mentioned in spec
+	specs := []*fleet.PackSpec{
+		{
+			ID:   1,
+			Name: "test_pack",
+			Targets: fleet.PackSpecTargets{
+				Labels: []string{"UnexistentLabel"},
+			},
+		},
+	}
+
+	// Should error due to unkown label target id
+	err := ds.ApplyPackSpecs(specs)
+	require.Error(t, err)
+}
