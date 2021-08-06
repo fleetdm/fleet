@@ -123,7 +123,7 @@ describe("Query flow", () => {
       .parent()
       .parent()
       .within(() => {
-        cy.get(".kolide-checkbox__input").check({ force: true });
+        cy.get(".fleet-checkbox__input").check({ force: true });
       });
 
     cy.findByRole("button", { name: /delete/i }).click();
