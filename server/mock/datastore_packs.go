@@ -20,7 +20,7 @@ type DeletePackFunc func(name string) error
 
 type PackFunc func(pid uint) (*fleet.Pack, error)
 
-type ListPacksFunc func(opt fleet.ListOptions, includeSystemPacks bool) ([]*fleet.Pack, error)
+type ListPacksFunc func(opt fleet.PackListOptions) ([]*fleet.Pack, error)
 
 type PackByNameFunc func(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error)
 
@@ -103,9 +103,9 @@ func (s *PackStore) Pack(pid uint) (*fleet.Pack, error) {
 	return s.PackFunc(pid)
 }
 
-func (s *PackStore) ListPacks(opt fleet.ListOptions, includeSystemPacks bool) ([]*fleet.Pack, error) {
+func (s *PackStore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 	s.ListPacksFuncInvoked = true
-	return s.ListPacksFunc(opt, includeSystemPacks)
+	return s.ListPacksFunc(opt)
 }
 
 func (s *PackStore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {

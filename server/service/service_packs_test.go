@@ -19,7 +19,7 @@ func TestServiceListPacks(t *testing.T) {
 
 	svc := newTestService(ds, nil, nil)
 
-	queries, err := svc.ListPacks(test.UserContext(test.UserAdmin), fleet.ListOptions{})
+	queries, err := svc.ListPacks(test.UserContext(test.UserAdmin), fleet.PackListOptions{IncludeSystemPacks: false})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
@@ -28,7 +28,7 @@ func TestServiceListPacks(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	queries, err = svc.ListPacks(test.UserContext(test.UserAdmin), fleet.ListOptions{})
+	queries, err = svc.ListPacks(test.UserContext(test.UserAdmin), fleet.PackListOptions{IncludeSystemPacks: false})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }

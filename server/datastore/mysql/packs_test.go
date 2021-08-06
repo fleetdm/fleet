@@ -102,14 +102,14 @@ func TestListPacks(t *testing.T) {
 	err := ds.ApplyPackSpecs([]*fleet.PackSpec{p1})
 	require.Nil(t, err)
 
-	packs, err := ds.ListPacks(fleet.ListOptions{}, false)
+	packs, err := ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: false})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 
 	err = ds.ApplyPackSpecs([]*fleet.PackSpec{p1, p2})
 	require.Nil(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{}, false)
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: false})
 	require.Nil(t, err)
 	assert.Len(t, packs, 2)
 }
@@ -418,14 +418,14 @@ func TestEnsureGlobalPack(t *testing.T) {
 
 	test.AddAllHostsLabel(t, ds)
 
-	packs, err := ds.ListPacks(fleet.ListOptions{},true)
+	packs, err := ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 0)
 
 	gp, err := ds.EnsureGlobalPack()
 	require.Nil(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{}, true)
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 	assert.Equal(t, gp.ID, packs[0].ID)
@@ -439,7 +439,7 @@ func TestEnsureGlobalPack(t *testing.T) {
 	_, err = ds.EnsureGlobalPack()
 	require.Nil(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{}, true)
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 	assert.Equal(t, gp.ID, packs[0].ID)
@@ -450,7 +450,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	packs, err := ds.ListPacks(fleet.ListOptions{}, true)
+	packs, err := ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 0)
 
@@ -463,7 +463,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	tp, err := ds.EnsureTeamPack(team1.ID)
 	require.NoError(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{}, true)
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 	assert.Equal(t, tp.ID, packs[0].ID)
@@ -473,7 +473,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	_, err = ds.EnsureTeamPack(team1.ID)
 	require.NoError(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{}, true)
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 	assert.Equal(t, tp.ID, packs[0].ID)
@@ -484,7 +484,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	tp2, err := ds.EnsureTeamPack(team2.ID)
 	require.NoError(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{}, true)
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 2)
 	assert.Equal(t, tp.ID, packs[0].ID)

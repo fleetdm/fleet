@@ -12,7 +12,7 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 		return nil, err
 	}
 
-	packs, err := svc.ds.ListPacks(fleet.ListOptions{}, true)
+	packs, err := svc.ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: false})
 	if err != nil {
 		return nil, err
 	}
@@ -65,12 +65,12 @@ func (svc *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSp
 	return svc.ds.GetPackSpec(name)
 }
 
-func (svc *Service) ListPacks(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Pack, error) {
+func (svc *Service) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	return svc.ds.ListPacks(opt, false)
+	return svc.ds.ListPacks(opt)
 }
 
 func (svc *Service) GetPack(ctx context.Context, id uint) (*fleet.Pack, error) {

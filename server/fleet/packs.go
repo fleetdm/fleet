@@ -27,7 +27,7 @@ type PackStore interface {
 	Pack(pid uint) (*Pack, error)
 
 	// ListPacks lists all packs in the datastore.
-	ListPacks(opt ListOptions, includeSystemPacks bool) ([]*Pack, error)
+	ListPacks(opt PackListOptions) ([]*Pack, error)
 
 	// PackByName fetches pack if it exists, if the pack
 	// exists the bool return value is true
@@ -60,7 +60,7 @@ type PackService interface {
 	ModifyPack(ctx context.Context, id uint, p PackPayload) (pack *Pack, err error)
 
 	// ListPacks lists all packs in the application.
-	ListPacks(ctx context.Context, opt ListOptions) (packs []*Pack, err error)
+	ListPacks(ctx context.Context, opt PackListOptions) (packs []*Pack, err error)
 
 	// GetPack retrieves a pack by ID.
 	GetPack(ctx context.Context, id uint) (pack *Pack, err error)
@@ -73,6 +73,13 @@ type PackService interface {
 
 	// ListPacksForHost lists the packs that a host should execute.
 	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
+}
+
+type PackListOptions struct {
+	ListOptions
+
+	// IncludeSystemPacks will include Global & Team Packs while listing packs
+	IncludeSystemPacks bool
 }
 
 // Pack is the structure which represents an osquery query pack.

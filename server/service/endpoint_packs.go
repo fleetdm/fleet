@@ -100,7 +100,7 @@ func (r listPacksResponse) error() error { return r.Err }
 func makeListPacksEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listPacksRequest)
-		packs, err := svc.ListPacks(ctx, req.ListOptions)
+		packs, err := svc.ListPacks(ctx, fleet.PackListOptions{ListOptions: req.ListOptions, IncludeSystemPacks: false})
 		if err != nil {
 			return getPackResponse{Err: err}, nil
 		}
