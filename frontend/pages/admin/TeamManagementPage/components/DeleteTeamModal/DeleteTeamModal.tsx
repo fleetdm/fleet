@@ -31,13 +31,14 @@ const DeleteTeamModal = (props: IDeleteTeamModalProps): JSX.Element => {
             className={`${baseClass}__btn`}
             type="button"
             onClick={onSubmit}
+            variant="alert"
           >
             Delete
           </Button>
           <Button
             className={`${baseClass}__btn`}
             onClick={onCancel}
-            variant="inverse"
+            variant="inverse-alert"
           >
             Cancel
           </Button>
