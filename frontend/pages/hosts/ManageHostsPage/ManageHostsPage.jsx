@@ -460,7 +460,12 @@ export class ManageHostsPage extends PureComponent {
     } else {
       index = selectedFilters.findIndex((f) => !f.includes(LABEL_SLUG_PREFIX));
     }
-    selectedFilters.splice(index, 1, slug);
+
+    if (index > -1) {
+      selectedFilters.splice(index, 1, slug);
+    } else {
+      selectedFilters.push(slug);
+    }
 
     const nextLocation =
       type === "all"
