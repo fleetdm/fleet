@@ -67,7 +67,7 @@ describe("HostDetailsPage - component", () => {
       const props = { ...propsWithOnlineHost, dispatch };
       const page = mount(<HostDetailsPage {...props} />);
       const deleteBtn = page.find("Button").at(2);
-      expect(deleteBtn.text()).toBe("Delete");
+      expect(deleteBtn.text()).toContain("Delete");
 
       jest.spyOn(hostActions, "destroy").mockImplementation(() => () => {
         dispatch({ type: "hosts_LOAD_REQUEST" });

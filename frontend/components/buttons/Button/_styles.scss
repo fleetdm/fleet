@@ -216,7 +216,7 @@ $base-class: "button";
   }
 
   &--disabled {
-    opacity: 0.4;
+    opacity: 0.25;
     filter: grayscale(1);
     cursor: default;
 
