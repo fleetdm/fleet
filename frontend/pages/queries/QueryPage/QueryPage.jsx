@@ -41,6 +41,7 @@ import PATHS from "router/paths";
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "query-page";
+const test = "test";
 const DEFAULT_CAMPAIGN = {
   hosts_count: {
     total: 0,
