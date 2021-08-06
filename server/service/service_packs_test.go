@@ -120,7 +120,7 @@ func TestService_DeletePackByID_GlobalPack(t *testing.T) {
 	require.NoError(t, err)
 
 	type fields struct {
-		ds               fleet.Datastore
+		ds fleet.Datastore
 	}
 	type args struct {
 		ctx context.Context
@@ -139,7 +139,7 @@ func TestService_DeletePackByID_GlobalPack(t *testing.T) {
 			},
 			args: args{
 				ctx: test.UserContext(test.UserAdmin),
-				id: globalPack.ID,
+				id:  globalPack.ID,
 			},
 			wantErr: true,
 		},
@@ -149,6 +149,169 @@ func TestService_DeletePackByID_GlobalPack(t *testing.T) {
 			svc := newTestService(tt.fields.ds, nil, nil)
 			if err := svc.DeletePackByID(tt.args.ctx, tt.args.id); (err != nil) != tt.wantErr {
 				t.Errorf("DeletePackByID() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestService_ApplyPackSpecs(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+	test.AddAllHostsLabel(t, ds)
+
+	global, err := ds.EnsureGlobalPack()
+	require.NoError(t, err)
+
+	users := createTestUsers(t, ds)
+	user := users["admin1@example.com"]
+
+	team1, err := ds.NewTeam(&fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	teamPack, err := ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+
+	type fields struct {
+		ds fleet.Datastore
+	}
+	type args struct {
+		ctx   context.Context
+		specs []*fleet.PackSpec
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*fleet.PackSpec
+		wantErr bool
+	}{
+		{
+			name: "cannot modify global pack",
+			fields: fields{
+				ds,
+			},
+			args: args{
+				ctx: test.UserContext(&user),
+				specs: []*fleet.PackSpec{
+					{Name: global.Name, Description: "bar", Platform: "baz"},
+					{Name: "Foo Pack", Description: "Foo Desc", Platform: "MacOS"},
+					{Name: "Bar Pack", Description: "Bar Desc", Platform: "MacOS"},
+				},
+			},
+			want: []*fleet.PackSpec{
+				{Name: "Foo Pack", Description: "Foo Desc", Platform: "MacOS"},
+				{Name: "Bar Pack", Description: "Bar Desc", Platform: "MacOS"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "cannot modify team pack",
+			fields: fields{
+				ds,
+			},
+			args: args{
+				ctx: test.UserContext(&user),
+				specs: []*fleet.PackSpec{
+					{Name: teamPack.Name, Description: "Desc", Platform: "windows"},
+					{Name: "Test", Description: "Test Desc", Platform: "linux"},
+				},
+			},
+			want: []*fleet.PackSpec{
+				{Name: "Test", Description: "Test Desc", Platform: "linux"},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestService(tt.fields.ds, nil, nil)
+			got, err := svc.ApplyPackSpecs(tt.args.ctx, tt.args.specs)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ApplyPackSpecs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestService_DeletePack(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+	test.AddAllHostsLabel(t, ds)
+
+	gp, err := ds.EnsureGlobalPack()
+	require.NoError(t, err)
+
+	users := createTestUsers(t, ds)
+	user := users["admin1@example.com"]
+
+	team1, err := ds.NewTeam(&fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	tp, err := ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+
+	type fields struct {
+		ds               fleet.Datastore
+	}
+	type args struct {
+		ctx  context.Context
+		name string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "cannot delete global pack",
+			fields: fields{
+				ds: ds,
+			},
+			args: args{
+				ctx:  test.UserContext(&user),
+				name: gp.Name,
+			},
+			wantErr: true,
+		},
+		{
+			name: "cannot delete team pack",
+			fields: fields{
+				ds: ds,
+			},
+			args: args{
+				ctx:  test.UserContext(&user),
+				name: tp.Name,
+			},
+			wantErr: true,
+		},
+		{
+			name: "delete pack that doesn't exist",
+			fields: fields{
+				ds: ds,
+			},
+			args: args{
+				ctx:  test.UserContext(&user),
+				name: "foo",
+			},
+			wantErr: true,
+		},
+	}
+		for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestService(tt.fields.ds, nil, nil)
+			if err := svc.DeletePack(tt.args.ctx, tt.args.name); (err != nil) != tt.wantErr {
+				t.Errorf("DeletePack() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

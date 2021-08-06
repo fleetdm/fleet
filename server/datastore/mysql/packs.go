@@ -108,7 +108,7 @@ func applyPackSpec(tx *sqlx.Tx, spec *fleet.PackSpec) error {
 func (d *Datastore) GetPackSpecs() (specs []*fleet.PackSpec, err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic specs
-		query := "SELECT id, name, description, platform, disabled FROM packs"
+		query := "SELECT id, name, description, platform, disabled FROM packs WHERE pack_type IS NULL OR pack_type = ''"
 		if err := tx.Select(&specs, query); err != nil {
 			return errors.Wrap(err, "get packs")
 		}

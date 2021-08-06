@@ -47,7 +47,7 @@ type PackStore interface {
 type PackService interface {
 	// ApplyPackSpecs applies a list of PackSpecs to the datastore,
 	// creating and updating packs as necessary.
-	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) error
+	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) ([]*PackSpec, error)
 	// GetPackSpecs returns all of the stored PackSpecs.
 	GetPackSpecs(ctx context.Context) ([]*PackSpec, error)
 	// GetPackSpec gets the spec for the pack with the given name.
@@ -92,7 +92,7 @@ type Pack struct {
 // EditablePackType only returns true when the pack doesn't have a specific Type set, only nil & empty string Pack.Type
 // is editable https://github.com/fleetdm/fleet/issues/1485
 func (p *Pack) EditablePackType() bool {
-	return p.Type == nil || (p.Type != nil && *p.Type == "")
+	return p != nil && (p.Type == nil || (p.Type != nil && *p.Type == ""))
 }
 
 func (p Pack) AuthzType() string {

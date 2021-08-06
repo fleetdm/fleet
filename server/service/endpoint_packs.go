@@ -253,7 +253,7 @@ func (r applyPackSpecsResponse) error() error { return r.Err }
 func makeApplyPackSpecsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(applyPackSpecsRequest)
-		err := svc.ApplyPackSpecs(ctx, req.Specs)
+		_, err := svc.ApplyPackSpecs(ctx, req.Specs)
 		if err != nil {
 			return applyPackSpecsResponse{Err: err}, nil
 		}
