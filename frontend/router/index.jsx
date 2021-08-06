@@ -13,7 +13,6 @@ import AdminAppSettingsPage from "pages/admin/AppSettingsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
-import AllPacksPage from "pages/packs/AllPacksPage"; // DELETE LATER
 import App from "components/App";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
@@ -105,7 +104,6 @@ const routes = (
             <Route component={AuthGlobalAdminMaintainerRoutes}>
               <Route path="packs" component={PackPageWrapper}>
                 <Route path="manage" component={ManagePacksPage} />
-                <Route path="oldmanage" component={AllPacksPage} />
                 <Route path="new" component={PackComposerPage} />
                 <Route path=":id">
                   <IndexRoute component={EditPackPage} />
