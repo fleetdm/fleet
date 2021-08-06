@@ -9,8 +9,8 @@ import (
 )
 
 func isMorePermissive(currentMode, newMode os.FileMode) bool {
-	currentGroup := currentMode >> 1 & 07
-	newGroup := newMode >> 1 & 07
+	currentGroup := currentMode & 070
+	newGroup := newMode & 070
 	currentAll := currentMode & 0x7
 	newAll := newMode & 0x7
 
