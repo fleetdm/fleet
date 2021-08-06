@@ -137,7 +137,7 @@ module.exports = {
       // Handle opened/reopened/edited PR by commenting/labeling/unlabeling it
       // (if appropriate).
       // > Note: If we apply the "needs cleanup" label here, then any subsequent
-      // > edits of the PR should trigger a webhook request that causes sailsbot
+      // > edits of the PR should trigger a webhook request that causes the bot
       // > to re-examine the PR's title for compliance with the repo guidelines.
       let owner = repository.owner.login;
       let repo = repository.name;
@@ -217,7 +217,7 @@ module.exports = {
         });//∞ß
       }//ﬁ
     } else if (
-      (ghNoun === 'issue_comment' && ['deleted'].includes(action) && comment.user.login !== 'sailsbot')||
+      (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS.includes(comment.user.login))||
       (ghNoun === 'commit_comment' && ['created'].includes(action))||
       (ghNoun === 'label' && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login)||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
       (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at&&issueOrPr.closed_at) && ((new Date(comment.created_at)).getTime() < Date.now() - 1*60*60*1000 ) )
