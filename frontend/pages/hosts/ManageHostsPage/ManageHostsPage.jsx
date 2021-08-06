@@ -164,30 +164,6 @@ export class ManageHostsPage extends PureComponent {
     this.clearHostUpdates();
   }
 
-  getLabelSelected = () => {
-    const { selectedFilters } = this.props;
-    return selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX));
-  };
-
-  getStatusSelected = () => {
-    const { selectedFilters } = this.props;
-    return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
-  };
-
-  retrieveHosts = async (options) => {
-    try {
-      const { hosts } = await hostClient.loadAll(options);
-      this.setState({ hosts });
-    } catch (error) {
-      console.log(error);
-      dispatch(
-        renderFlash("error", "Sorry, we could not retrieve your hosts.")
-      );
-    } finally {
-      this.setState({ isHostsLoading: false });
-    }
-  };
-
   onAddLabelClick = (evt) => {
     evt.preventDefault();
     const { dispatch } = this.props;
@@ -278,7 +254,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onEditLabel = (formData) => {
-    const { getLabelSelected } = this.props;
+    const { getLabelSelected } = this;
     const { dispatch, selectedLabel } = this.props;
     const updateAttrs = deepDifference(formData, selectedLabel);
 
@@ -401,6 +377,32 @@ export class ManageHostsPage extends PureComponent {
     toggleTransferHostModal();
     this.setState({ selectedHostIds: [] });
     this.setState({ isAllMatchingHostsSelected: false });
+  };
+
+  getLabelSelected = () => {
+    const { selectedFilters } = this.props;
+    return selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX));
+  };
+
+  getStatusSelected = () => {
+    const { selectedFilters } = this.props;
+    return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
+  };
+
+  retrieveHosts = async (options) => {
+    const { dispatch } = this.props;
+
+    try {
+      const { hosts } = await hostClient.loadAll(options);
+      this.setState({ hosts });
+    } catch (error) {
+      console.log(error);
+      dispatch(
+        renderFlash("error", "Sorry, we could not retrieve your hosts.")
+      );
+    } finally {
+      this.setState({ isHostsLoading: false });
+    }
   };
 
   isAcceptableStatus = (filter) => {
