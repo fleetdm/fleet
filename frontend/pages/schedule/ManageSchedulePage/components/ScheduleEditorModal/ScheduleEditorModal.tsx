@@ -62,6 +62,25 @@ const generateLoggingType = (query: IGlobalScheduledQuery) => {
   return "differential_ignore_removals";
 };
 
+const generateLoggingDestination = (loggingConfig: string): string => {
+  switch (loggingConfig) {
+    case "filesystem":
+      return "the filesystem";
+    case "firehose":
+      return "AWS Kinesis Firehose";
+    case "kinesis":
+      return "AWS Kinesis";
+    case "lambda":
+      return "AWS Lambda";
+    case "pubsub":
+      return "GCP PubSub";
+    case "stdout":
+      return "the standard output stream";
+    default:
+      return loggingConfig;
+  }
+};
+
 const ScheduleEditorModal = ({
   onCancel,
   onScheduleSubmit,
@@ -69,15 +88,17 @@ const ScheduleEditorModal = ({
   editQuery,
   teamId,
 }: IScheduleEditorModalProps): JSX.Element => {
-  const [configLogging, setConfigLogging] = useState([]);
+  const [loggingConfig, setLoggingConfig] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingError, setIsLoadingError] = useState(false);
 
   useEffect((): void => {
     const getConfigDestination = async (): Promise<void> => {
       try {
-        const responseConfigDestination = await Fleet.config.loadAll();
+        const responseConfig = await Fleet.config.loadAll();
         setIsLoading(false);
+        console.log("responseConfigDestination", responseConfig);
+        setLoggingConfig(responseConfig.logging.result.plugin);
       } catch (err) {
         setIsLoadingError(true);
         setIsLoading(false);
@@ -85,8 +106,6 @@ const ScheduleEditorModal = ({
     };
     getConfigDestination();
   }, []);
-
-  console.log("configLogging", configLogging);
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
@@ -239,11 +258,11 @@ const ScheduleEditorModal = ({
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
           <p>
-            Your configured log destination is <b>filesystem</b>.
+            Your configured log destination is <b>{loggingConfig}</b>.
           </p>
           <p>
             This means that when this query is run on your hosts, the data will
-            be sent to the filesystem.
+            be sent to {generateLoggingDestination(loggingConfig)}.
           </p>
           <p>
             Check out the Fleet documentation on&nbsp;
