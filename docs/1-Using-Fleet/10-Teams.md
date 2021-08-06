@@ -94,7 +94,7 @@ To add users to a team:
 
 4. Select one or more users by searching for their full name and confirm the action.
 
-Users will be given the [Observer role](./8-Permissions.md#team-member-permissions) when added to the team. The [Edit a member's role](#edit-a-members-role) provides instructions on changing the permission level of users on a team.
+Users will be given the [Observer role](./9-Permissions.md#team-member-permissions) when added to the team. The [Edit a member's role](#edit-a-members-role) provides instructions on changing the permission level of users on a team.
 
 ## Edit a member's role
 
