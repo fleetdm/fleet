@@ -63,9 +63,8 @@ const formFields = [
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = (
     <Button
-      className={`button button--unstyled ${
-        showAdvancedOptions ? "upcarat" : "downcarat"
-      }`}
+      className={`button button--unstyled ${showAdvancedOptions ? "upcarat" : "downcarat"
+        }`}
     />
   );
 
@@ -223,7 +222,7 @@ class AppConfigForm extends Component {
     }
 
     const json = {
-      anonymous_identifier: 1,
+      anonymous_identifier: "wmTH972f06USpahr41LHpgLKAhgZL",
       fleet_version: "x.x.x",
       hosts_enrolled_count: 12345,
     };
@@ -403,9 +402,8 @@ class AppConfigForm extends Component {
               <a id="smtp">
                 SMTP Options{" "}
                 <small
-                  className={`smtp-options smtp-options--${
-                    smtpConfigured ? "configured" : "notconfigured"
-                  }`}
+                  className={`smtp-options smtp-options--${smtpConfigured ? "configured" : "notconfigured"
+                    }`}
                 >
                   STATUS:{" "}
                   <em>{smtpConfigured ? "CONFIGURED" : "NOT CONFIGURED"}</em>
@@ -519,7 +517,7 @@ class AppConfigForm extends Component {
               <a id="usage-stats">Usage statistics</a>
             </h2>
             <p className={`${baseClass}__section-description`}>
-              Help us improve Fleet by sending us anonymous usage statistics.
+              Help improve Fleet by sending anonymous usage statistics.
               <br />
               <br />
               This information helps our team better understand feature adoption

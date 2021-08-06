@@ -82,6 +82,9 @@ class AppSettingsPage extends Component {
                 <a href="#agent-options">Global agent options</a>
               </li>
               <li>
+                <a href="#usage-stats">Usage statistics</a>
+              </li>
+              <li>
                 <a href="#advanced-options">Advanced options</a>
               </li>
             </ul>
