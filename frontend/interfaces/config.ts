@@ -23,6 +23,27 @@ export default PropTypes.shape({
   user_name: PropTypes.string,
   verify_sll_certs: PropTypes.bool,
   tier: PropTypes.string,
+  logging: PropTypes.shape({
+    debug: PropTypes.bool,
+    json: PropTypes.bool,
+    result: PropTypes.shape({
+      plugin: PropTypes.string,
+      config: PropTypes.shape({
+        region: PropTypes.string,
+        status_stream: PropTypes.string,
+        result_stream: PropTypes.string,
+      }),
+    }),
+    status: PropTypes.shape({
+      plugin: PropTypes.string,
+      config: PropTypes.shape({
+        status_log_file: PropTypes.string,
+        result_log_file: PropTypes.string,
+        enable_log_rotation: PropTypes.bool,
+        enable_log_compression: PropTypes.bool,
+      }),
+    }),
+  }),
 });
 
 export interface IConfig {
@@ -48,4 +69,25 @@ export interface IConfig {
   user_name: string;
   verify_sll_certs: boolean;
   tier: string;
+  logging: {
+    debug: boolean;
+    json: boolean;
+    result: {
+      plugin: string;
+      config: {
+        region: string;
+        status_stream: string;
+        result_stream: string;
+      };
+    };
+    status: {
+      plugin: string;
+      config: {
+        status_log_file: string;
+        result_log_file: string;
+        enable_log_rotation: boolean;
+        enable_log_compression: boolean;
+      };
+    };
+  };
 }

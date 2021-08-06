@@ -1,7 +1,8 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
 import React, { useState, useCallback, useEffect } from "react";
-
+// @ts-ignore
+import Fleet from "fleet";
 import { pull } from "lodash";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
@@ -68,6 +69,25 @@ const ScheduleEditorModal = ({
   editQuery,
   teamId,
 }: IScheduleEditorModalProps): JSX.Element => {
+  const [configLogging, setConfigLogging] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingError, setIsLoadingError] = useState(false);
+
+  useEffect((): void => {
+    const getConfigDestination = async (): Promise<void> => {
+      try {
+        const responseConfigDestination = await Fleet.config.loadAll();
+        setIsLoading(false);
+      } catch (err) {
+        setIsLoadingError(true);
+        setIsLoading(false);
+      }
+    };
+    getConfigDestination();
+  }, []);
+
+  console.log("configLogging", configLogging);
+
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
   );
@@ -217,7 +237,7 @@ const ScheduleEditorModal = ({
           label={"Choose a frequency and then run this query on a schedule"}
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
         />
-        {/* <InfoBanner className={`${baseClass}__sandbox-info`}>
+        <InfoBanner className={`${baseClass}__sandbox-info`}>
           <p>
             Your configured log destination is <b>filesystem</b>.
           </p>
@@ -236,7 +256,7 @@ const ScheduleEditorModal = ({
               <FleetIcon name="external-link" />
             </a>
           </p>
-        </InfoBanner> */}
+        </InfoBanner>
         <div>
           <Button
             variant="unstyled"
