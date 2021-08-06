@@ -625,7 +625,12 @@ func TestVulnerableSoftware(t *testing.T) {
 	require.NoError(t, ds.SaveHostSoftware(host))
 	require.NoError(t, ds.LoadHostSoftware(host))
 
-	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
+	soft1 := host.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = host.Software[1]
+	}
+
+	require.NoError(t, ds.AddCPEForSoftware(soft1, "somecpe"))
 	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
 
 	path := fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID)
@@ -634,10 +639,7 @@ func TestVulnerableSoftware(t *testing.T) {
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	expectedJSON := `"software": [
-      {
-        "id": 2,
-        "name": "bar",
+	expectedJSONSoft2 := `"name": "bar",
         "version": "0.0.3",
         "source": "apps",
         "generated_cpe": "somecpe",
@@ -646,18 +648,14 @@ func TestVulnerableSoftware(t *testing.T) {
             "cve": "cve-123-123-132",
             "details_link": "https://nvd.nist.gov/vuln/detail/cve-123-123-132"
           }
-        ]
-      },
-      {
-        "id": 1,
-        "name": "foo",
+        ]`
+	expectedJSONSoft1 := `"name": "foo",
         "version": "0.0.1",
         "source": "chrome_extensions",
         "generated_cpe": "",
-        "vulnerabilities": null
-      }
-    ]`
+        "vulnerabilities": null`
 	// We are doing Contains instead of equals to test the output for software in particular
 	// ignoring other things like timestamps and things that are outside the cope of this ticket
-	assert.Contains(t, string(bodyBytes), expectedJSON)
+	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
+	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 }
