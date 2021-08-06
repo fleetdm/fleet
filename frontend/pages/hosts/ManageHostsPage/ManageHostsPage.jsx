@@ -201,8 +201,11 @@ export class ManageHostsPage extends PureComponent {
     evt.preventDefault();
     // const { dispatch, selectedFilter } = this.props;
     // dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${EDIT_LABEL_HASH}`));
+    const { getLabelSelected } = this;
     const { dispatch } = this.props;
-    dispatch(push(`${PATHS.MANAGE_HOSTS}${EDIT_LABEL_HASH}`));
+    dispatch(
+      push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}${EDIT_LABEL_HASH}`)
+    );
   };
 
   onEditColumnsClick = () => {
@@ -463,14 +466,24 @@ export class ManageHostsPage extends PureComponent {
   };
 
   handleLabelChange = (selectedLabel) => {
-    const { dispatch } = this.props;
+    const { dispatch, selectedFilters } = this.props;
     const { MANAGE_HOSTS } = PATHS;
     const { slug, type } = selectedLabel;
 
-    // remove and append the slug based on type
+    // replace slug for new params
+    let index;
+    if (slug.includes(LABEL_SLUG_PREFIX)) {
+      index = selectedFilters.findIndex((f) => f.includes(LABEL_SLUG_PREFIX));
+    } else {
+      index = selectedFilters.findIndex((f) => !f.includes(LABEL_SLUG_PREFIX));
+    }
+    selectedFilters.splice(index, 1, slug);
 
     const nextLocation =
-      type === "all" ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
+      // type === "all" ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
+      type === "all"
+        ? MANAGE_HOSTS
+        : `${MANAGE_HOSTS}/${selectedFilters.join("/")}`;
 
     dispatch(push(nextLocation));
   };
@@ -883,13 +896,11 @@ export class ManageHostsPage extends PureComponent {
 const mapStateToProps = (state, { location, params }) => {
   const { active_label: activeLabel, label_id: labelID } = params;
   const activeLabelSlug = activeLabel || "all-hosts";
+  // const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
   const selectedFilters = [];
 
-  labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${value}`);
+  labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
   activeLabelSlug && selectedFilters.push(activeLabelSlug);
-
-  // console.log(selectedFilters);
-  // const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
 
   const { status_labels: statusLabels } = state.components.ManageHostsPage;
   const labelEntities = entityGetter(state).get("labels");
@@ -905,8 +916,6 @@ const mapStateToProps = (state, { location, params }) => {
     { slug: slugToFind },
     { ignoreCase: true }
   );
-
-  console.log(labelEntities.entities);
 
   const isAddLabel = location.hash === NEW_LABEL_HASH;
   const isEditLabel = location.hash === EDIT_LABEL_HASH;
