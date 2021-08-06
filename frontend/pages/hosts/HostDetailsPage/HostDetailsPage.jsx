@@ -56,6 +56,8 @@ import EmptySoftware from "./EmptySoftware";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
+import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
+import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
 
 const baseClass = "host-details";
 
@@ -319,7 +321,7 @@ export class HostDetailsPage extends Component {
             variant="inverse"
             className={`${baseClass}__transfer-button`}
           >
-            Transfer
+            Transfer <img src={TransferIcon} alt="Transfer host icon" />
           </Button>
         )}
         <div data-tip data-for="query" data-tip-disable={isOnline}>
@@ -329,7 +331,7 @@ export class HostDetailsPage extends Component {
             disabled={isOffline}
             className={`${baseClass}__query-button`}
           >
-            Query
+            Query <img src={QueryIcon} alt="Query host icon" />
           </Button>
         </div>
         <ReactTooltip
