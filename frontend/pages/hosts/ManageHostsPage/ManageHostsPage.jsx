@@ -709,6 +709,7 @@ export class ManageHostsPage extends PureComponent {
       onLabelClick,
       onOsqueryTableSelect,
       getLabelSelected,
+      getStatusSelected,
     } = this;
 
     if (isAddLabel) {
@@ -726,7 +727,7 @@ export class ManageHostsPage extends PureComponent {
           labels={labels}
           onAddLabelClick={onAddLabelClick}
           onLabelClick={onLabelClick}
-          selectedFilter={getLabelSelected()}
+          selectedFilter={getLabelSelected() || getStatusSelected()}
           statusLabels={statusLabels}
           canAddNewLabel={canAddNewLabels}
         />
@@ -751,13 +752,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderTable = () => {
-    const {
-      config,
-      currentUser,
-      selectedFilters,
-      selectedLabel,
-      loadingHosts,
-    } = this.props;
+    const { config, currentUser, selectedFilters, selectedLabel } = this.props;
     const {
       hiddenColumns,
       isAllMatchingHostsSelected,
