@@ -579,44 +579,6 @@ export class ManageHostsPage extends PureComponent {
     );
   };
 
-  renderQuery = () => {
-    const { selectedLabel } = this.props;
-    const {
-      slug,
-      label_type: labelType,
-      label_membership_type: membershipType,
-      query,
-    } = selectedLabel;
-
-    if (membershipType === "manual" && labelType !== "builtin") {
-      return (
-        <h4 title="Manage manual labels with fleetctl">Manually managed</h4>
-      );
-    }
-
-    if (!query || slug === "all-hosts") {
-      return false;
-    }
-
-    return (
-      <AceEditor
-        editorProps={{ $blockScrolling: Infinity }}
-        mode="fleet"
-        minLines={1}
-        maxLines={20}
-        name="label-header"
-        readOnly
-        setOptions={{ wrap: true }}
-        showGutter={false}
-        showPrintMargin={false}
-        theme="fleet"
-        value={query}
-        width="100%"
-        fontSize={14}
-      />
-    );
-  };
-
   renderHeaderLabelBlock = ({ description, display_text: displayText }) => {
     const { onEditLabelClick, toggleDeleteLabelModal } = this;
 
@@ -823,7 +785,6 @@ export class ManageHostsPage extends PureComponent {
       renderSidePanel,
       renderAddHostModal,
       renderDeleteLabelModal,
-      renderQuery,
       renderTable,
       renderEditColumnsModal,
       renderTransferHostModal,
@@ -853,7 +814,6 @@ export class ManageHostsPage extends PureComponent {
                 </Button>
               ) : null}
             </div>
-            {selectedLabel && renderQuery()}
             {renderTable()}
           </div>
         )}
