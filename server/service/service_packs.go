@@ -12,7 +12,7 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 		return nil, err
 	}
 
-	packs, err := svc.ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: false})
+	packs, err := svc.ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	if err != nil {
 		return nil, err
 	}
