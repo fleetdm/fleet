@@ -256,10 +256,11 @@ export class QueryPage extends Component {
 
   onRunQuery = debounce(() => {
     const { queryText, targetsCount } = this.state;
-    const { query } = this.props.query;
+    const { query, query_id } = this.props.query;
     const sql = queryText || query;
     const { dispatch, selectedTargets } = this.props;
     const { error } = validateQuery(sql);
+    console.log("QUERY ID: ", query_id);
 
     if (!selectedTargets.length) {
       this.setState({
@@ -291,7 +292,7 @@ export class QueryPage extends Component {
     destroyCampaign();
 
     Fleet.queries
-      .run({ query: sql, selected })
+      .run({ query: sql, selected, query_id })
       .then((campaignResponse) => {
         return Fleet.websockets.queries
           .run(campaignResponse.id)
