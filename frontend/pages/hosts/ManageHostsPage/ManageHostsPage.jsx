@@ -2,7 +2,7 @@ import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
-import { find, isEmpty, isPlainObject, reduce, trim, union } from "lodash";
+import { find, isEmpty, reduce, trim, union } from "lodash";
 
 import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
@@ -96,19 +96,23 @@ export class ManageHostsPage extends PureComponent {
     }),
     labels: PropTypes.arrayOf(labelInterface),
     loadingLabels: PropTypes.bool.isRequired,
-    location: PropTypes.object,
-    params: PropTypes.object,
-    route: PropTypes.object,
+    queryParams: PropTypes.objectOf(
+      PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+    ),
+    routeTemplate: PropTypes.string,
+    routeParams: PropTypes.objectOf(
+      PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+    ),
     enrollSecret: enrollSecretInterface,
     selectedFilters: PropTypes.arrayOf(PropTypes.string),
     selectedLabel: labelInterface,
-    selectedTeam: PropTypes.oneOf([PropTypes.number, PropTypes.string]),
+    selectedTeam: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
     loadingHosts: PropTypes.bool,
     canAddNewHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
-    teams: PropTypes.object,
+    teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
     isOnGlobalTeam: PropTypes.bool,
     isBasicTier: PropTypes.bool,
@@ -149,16 +153,16 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentDidMount() {
-    const { dispatch } = this.props;
+    const { dispatch, isBasicTier } = this.props;
     dispatch(getLabels());
+    if (isBasicTier) {
+      dispatch(teamActions.loadAll({}));
+    }
   }
 
   componentDidUpdate(prevProps) {
     const { dispatch, isBasicTier } = this.props;
-    if (
-      isBasicTier !== prevProps.isBasicTier &&
-      isBasicTier
-    ) {
+    if (isBasicTier !== prevProps.isBasicTier && isBasicTier) {
       dispatch(teamActions.loadAll({}));
     }
   }
@@ -218,9 +222,32 @@ export class ManageHostsPage extends PureComponent {
     toggleAddHostModal();
   };
 
+  // The onChange method below is for the transfer host modal
   onChangeTeam = (team) => {
     const { dispatch } = this.props;
     dispatch(teamActions.getEnrollSecrets(team));
+  };
+
+  // The onChange method below is for the filter-by-team dropdown
+  onChangeSelectedTeam = (selectedTeam) => {
+    const { dispatch } = this.props;
+    const { getNextLocationUrl, isValidSelectedTeamId } = this;
+    const { MANAGE_HOSTS } = PATHS;
+
+    const teamId = parseInt(selectedTeam, 10);
+
+    let nextLocation = getNextLocationUrl(
+      MANAGE_HOSTS,
+      "",
+      {},
+      { team_id: teamId }
+    );
+    console.log(nextLocation);
+    if (!isValidSelectedTeamId(teamId)) {
+      nextLocation = nextLocation.replace(`team_id=${teamId}`, "");
+    }
+    console.log(nextLocation);
+    dispatch(push(nextLocation));
   };
 
   // NOTE: this is called once on the initial rendering. The initial render of
@@ -378,51 +405,34 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ isAllMatchingHostsSelected: false });
   };
 
-  onChangeSelectedTeam = (selectedTeam) => {
-    const { dispatch } = this.props;
-    const { getNextLocationUrl } = this;
-    const { MANAGE_HOSTS } = PATHS;
-
-    const teamId = parseInt(selectedTeam, 10);
-
-    let nextLocation = getNextLocationUrl(
-      MANAGE_HOSTS,
-      "",
-      {},
-      { team_id: teamId }
-    );
-    console.log(nextLocation);
-    if (isNaN(teamId) || teamId < 0) {
-      nextLocation = nextLocation.replace(`team_id=${teamId}`, "");
-    }
-    console.log(nextLocation);
-    dispatch(push(nextLocation));
-  };
-
   getNextLocationUrl = (
     pathPrefix = "",
-    route = "",
-    urlRouteParams = {},
-    urlQueryParams = {}
+    newRouteTemplate = "",
+    newRouteParams = {},
+    newQueryParams = {}
   ) => {
-    const { location, params } = this.props;
-    route = route || this.props.route.path;
+    console.log("getNextLocationUrl");
+    const routeTemplate = newRouteTemplate || this.props.routeTemplate || "";
+    const urlRouteParams = Object.assign(
+      {},
+      this.props.routeParams,
+      newRouteParams
+    );
+    const urlQueryParams = Object.assign(
+      {},
+      this.props.queryParams,
+      newQueryParams
+    );
 
-    urlRouteParams = isPlainObject(urlRouteParams)
-      ? Object.assign(params, urlRouteParams)
-      : params;
-
-    urlQueryParams = isPlainObject(urlQueryParams)
-      ? Object.assign(location.query, urlQueryParams)
-      : location.query;
+    let routeString = "";
 
     if (!isEmpty(urlRouteParams)) {
-      route = reduce(
+      routeString = reduce(
         urlRouteParams,
-        (pathString, value, key) => {
-          return pathString.replace(`:${key}`, encodeURIComponent(value));
+        (string, value, key) => {
+          return string.replace(`:${key}`, encodeURIComponent(value));
         },
-        route
+        routeTemplate
       );
     }
 
@@ -440,7 +450,7 @@ export class ManageHostsPage extends PureComponent {
 
     const nextLocation = union(
       trim(pathPrefix, "/").split("/"),
-      route.split("/")
+      routeString.split("/")
     ).join("/");
 
     return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
@@ -456,8 +466,8 @@ export class ManageHostsPage extends PureComponent {
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
 
-  generateTeamOptionsDropdownItems = () => {
-    const { currentUser, isOnGlobalTeam, teams } = this.props;
+  generateTeamOptionsDropdownItems = (teams) => {
+    const { currentUser, isOnGlobalTeam } = this.props;
 
     const currentUserTeamIds = currentUser.teams.map((t) => t.id);
 
@@ -469,7 +479,7 @@ export class ManageHostsPage extends PureComponent {
       },
     ];
 
-    Object.values(teams).forEach((team) => {
+    teams.forEach((team) => {
       if (isOnGlobalTeam || currentUserTeamIds.includes(team.id)) {
         teamOptions.push({
           disabled: false,
@@ -505,6 +515,15 @@ export class ManageHostsPage extends PureComponent {
       filter === "offline" ||
       filter === "mia"
     );
+  };
+
+  isValidSelectedTeamId = (teamId) => {
+    const { currentUser, isOnGlobalTeam, teams } = this.props;
+    const currentUserTeamIds = isOnGlobalTeam
+      ? teams.map((t) => t.id)
+      : currentUser.teams.map((t) => t.id);
+
+    return !isNaN(teamId) && teamId >= 0 && currentUserTeamIds.includes(teamId);
   };
 
   clearHostUpdates = () => {
@@ -586,12 +605,19 @@ export class ManageHostsPage extends PureComponent {
     handleLabelChange(selected);
   };
 
+  // TODO see how backend handles team_id=0, team_id=null, team_id=foo, etc.
   renderTeamsDropdown = () => {
     const { isBasicTier, selectedTeam, teams } = this.props;
-    const { generateTeamOptionsDropdownItems, onChangeSelectedTeam } = this;
-    const selectedTeamId = selectedTeam || 0;
+    const {
+      generateTeamOptionsDropdownItems,
+      isValidSelectedTeamId,
+      onChangeSelectedTeam,
+    } = this;
     const teamOptions = generateTeamOptionsDropdownItems(teams);
-    
+
+    let selectedTeamId = parseInt(selectedTeam, 10);
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
+
     return isBasicTier ? (
       <div>
         <Dropdown
@@ -955,6 +981,9 @@ export class ManageHostsPage extends PureComponent {
 const mapStateToProps = (state, ownProps) => {
   console.log(ownProps);
   const { location, params, route, routeParams } = ownProps;
+  const locationPath = location.path;
+  const queryParams = location.query;
+  const routeTemplate = route.path;
 
   const { active_label: activeLabel, label_id: labelID } = params;
   const selectedFilters = [];
@@ -989,9 +1018,9 @@ const mapStateToProps = (state, ownProps) => {
   const { loading: loadingHosts } = state.entities.hosts;
 
   const { loading: loadingTeams } = state.entities.teams;
-  const teams = state.entities.teams.data;
-  // const teams = memoizedGetEntity(state.entities.teams.data);
-  const selectedTeam = location.query?.team_id;
+  // const teams = Object.values(state.entities.teams.data);
+  const teams = memoizedGetEntity(state.entities.teams.data);
+  const selectedTeam = location.query?.team_id || 0;
 
   const currentUser = state.auth.user;
   const canAddNewHosts =
@@ -1007,9 +1036,10 @@ const mapStateToProps = (state, ownProps) => {
 
   return {
     selectedFilters,
-    location,
-    params,
-    route,
+    locationPath,
+    queryParams,
+    routeParams,
+    routeTemplate,
     isAddLabel,
     isEditLabel,
     labelErrors,
