@@ -106,11 +106,11 @@ export class ManageHostsPage extends PureComponent {
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
     loadingHosts: PropTypes.bool,
-    loadingTeams: PropTypes.bool,
     canAddNewHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
-    teams: PropTypes.arrayOf(teamInterface),
+    teams: PropTypes.object,
     isGlobalAdmin: PropTypes.bool,
+    isOnGlobalTeam: PropTypes.bool,
     isBasicTier: PropTypes.bool,
     currentUser: userInterface,
   };
@@ -144,6 +144,7 @@ export class ManageHostsPage extends PureComponent {
       searchQuery: "",
       hosts: [],
       isHostsLoading: false,
+      isTeamsLoading: true,
     };
   }
 
@@ -153,11 +154,10 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentDidUpdate(prevProps) {
-    const { dispatch, isBasicTier, canAddNewHosts } = this.props;
+    const { dispatch, isBasicTier } = this.props;
     if (
       isBasicTier !== prevProps.isBasicTier &&
-      isBasicTier &&
-      canAddNewHosts
+      isBasicTier
     ) {
       dispatch(teamActions.loadAll({}));
     }
@@ -457,7 +457,9 @@ export class ManageHostsPage extends PureComponent {
   };
 
   generateTeamOptionsDropdownItems = () => {
-    const { teams } = this.props;
+    const { currentUser, isOnGlobalTeam, teams } = this.props;
+
+    const currentUserTeamIds = currentUser.teams.map((t) => t.id);
 
     const teamOptions = [
       {
@@ -467,12 +469,14 @@ export class ManageHostsPage extends PureComponent {
       },
     ];
 
-    teams.forEach((team) => {
-      teamOptions.push({
-        disabled: false,
-        label: team.name,
-        value: team.id,
-      });
+    Object.values(teams).forEach((team) => {
+      if (isOnGlobalTeam || currentUserTeamIds.includes(team.id)) {
+        teamOptions.push({
+          disabled: false,
+          label: team.name,
+          value: team.id,
+        });
+      }
     });
     return teamOptions;
   };
@@ -583,16 +587,18 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderTeamsDropdown = () => {
-    const { isBasicTier, loadingTeams, selectedTeam } = this.props;
+    const { isBasicTier, selectedTeam, teams } = this.props;
     const { generateTeamOptionsDropdownItems, onChangeSelectedTeam } = this;
     const selectedTeamId = selectedTeam || 0;
-    return isBasicTier && !loadingTeams ? (
+    const teamOptions = generateTeamOptionsDropdownItems(teams);
+    
+    return isBasicTier ? (
       <div>
         <Dropdown
           value={selectedTeamId}
           placeholder={"All teams"}
           className={`${baseClass}__team-dropdown`}
-          options={generateTeamOptionsDropdownItems()}
+          options={teamOptions}
           searchable={false}
           onChange={(newSelectedValue) =>
             onChangeSelectedTeam(newSelectedValue)
@@ -948,7 +954,8 @@ export class ManageHostsPage extends PureComponent {
 // const mapStateToProps = (state, { location, params }) => {
 const mapStateToProps = (state, ownProps) => {
   console.log(ownProps);
-  const { location, params, route } = ownProps;
+  const { location, params, route, routeParams } = ownProps;
+
   const { active_label: activeLabel, label_id: labelID } = params;
   const selectedFilters = [];
 
@@ -956,8 +963,6 @@ const mapStateToProps = (state, ownProps) => {
   activeLabel && selectedFilters.push(activeLabel);
   // "all-hosts" should always be alone
   !labelID && !activeLabel && selectedFilters.push(ALL_HOSTS_LABEL);
-
-  const selectedTeam = location.query?.team_id;
 
   const { status_labels: statusLabels } = state.components.ManageHostsPage;
   const labelEntities = entityGetter(state).get("labels");
@@ -983,6 +988,11 @@ const mapStateToProps = (state, ownProps) => {
 
   const { loading: loadingHosts } = state.entities.hosts;
 
+  const { loading: loadingTeams } = state.entities.teams;
+  const teams = state.entities.teams.data;
+  // const teams = memoizedGetEntity(state.entities.teams.data);
+  const selectedTeam = location.query?.team_id;
+
   const currentUser = state.auth.user;
   const canAddNewHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
@@ -992,13 +1002,8 @@ const mapStateToProps = (state, ownProps) => {
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
+  const isOnGlobalTeam = permissionUtils.isOnGlobalTeam(currentUser);
   const isBasicTier = permissionUtils.isBasicTier(config);
-  const teams = memoizedGetEntity(state.entities.teams.data);
-
-  console.log(params.routeParams);
-  console.log(isPlainObject(params.routeParams));
-
-  const { loading: loadingTeams } = state.entities.teams;
 
   return {
     selectedFilters,
@@ -1020,6 +1025,7 @@ const mapStateToProps = (state, ownProps) => {
     canAddNewHosts,
     canAddNewLabels,
     isGlobalAdmin,
+    isOnGlobalTeam,
     isBasicTier,
     teams,
     loadingTeams,
