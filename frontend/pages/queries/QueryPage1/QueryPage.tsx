@@ -1,7 +1,24 @@
 import React from "react";
+import { connect } from "react-redux";
+import { useQuery } from "react-query";
 
-const QueryPage = () => {
+import queryAPI from "services/entities/queries";
+
+interface IQueryPageProps {
+  queryId: string;
+};
+
+const QueryPage = ({ queryId }: IQueryPageProps) => {
+  const { status, data, error } = useQuery("query", () => queryAPI.load(queryId), {
+    enabled: !!queryId
+  });
+
   return <div>Hey</div>;
 };
 
-export default QueryPage;
+const mapStateToProps = (_: any, { params }: any) => {
+  const { id: queryId } = params;
+  return { queryId };
+};
+
+export default connect(mapStateToProps)(QueryPage);

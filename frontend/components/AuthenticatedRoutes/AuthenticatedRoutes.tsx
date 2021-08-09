@@ -35,18 +35,19 @@ export const AuthenticatedRoutes = ({ children }: IAppProps) => {
     // because the fetchCurrentUser() call doesn't make it in time, so `mulligan` helps for now
     if (!loading && !user && !mulligan) {
       setMulligan(true);
+      return; 
     }
 
     if (!loading && !user && mulligan) {
-      redirectToLogin();
+      return redirectToLogin();
     }
 
     if (user && user.force_password_reset) {
-      redirectToPasswordReset();
+      return redirectToPasswordReset();
     }
 
     if (user && user.api_only) {
-      redirectToApiUserOnly();
+      return redirectToApiUserOnly();
     }
 
     return () => {};
