@@ -1,8 +1,11 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -512,4 +515,137 @@ func TestApplyPackSpecFailsOnTargetIDNull(t *testing.T) {
 	// Should error due to unkown label target id
 	err := ds.ApplyPackSpecs(specs)
 	require.Error(t, err)
+}
+
+func randomPackStatsForHost(hostID, packID uint, scheduledQueries []*fleet.ScheduledQuery) *fleet.Host {
+	var queryStats []fleet.ScheduledQueryStats
+
+	amount := rand.Intn(5000)
+
+	for i := 0; i < amount; i++ {
+		sq := scheduledQueries[rand.Intn(len(scheduledQueries))]
+		queryStats = append(queryStats, fleet.ScheduledQueryStats{
+			ScheduledQueryName: sq.Name,
+			ScheduledQueryID:   sq.ID,
+			QueryName:          sq.QueryName,
+			Description:        sq.Description,
+			PackID:             packID,
+			AverageMemory:      rand.Intn(100),
+			Denylisted:         false,
+			Executions:         rand.Intn(100),
+			Interval:           rand.Intn(100),
+			LastExecuted:       time.Now(),
+			OutputSize:         rand.Intn(1000),
+			SystemTime:         rand.Intn(1000),
+			UserTime:           rand.Intn(1000),
+			WallTime:           rand.Intn(1000),
+		})
+	}
+	return &fleet.Host{
+		ID: hostID,
+		PackStats: []fleet.PackStats{
+			{
+				PackID:     packID,
+				QueryStats: queryStats,
+			},
+		},
+	}
+}
+
+func TestPackApplyStatsNotLocking(t *testing.T) {
+	// apply a pack, get a scheduled query
+	// start a go routine that updates the stats for it on a loop
+	// apply the pack again
+
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	specs := setupPackSpecsTest(t, ds)
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				pack, _, err := ds.PackByName("test_pack")
+				require.NoError(t, err)
+				schedQueries, err := ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
+				require.NoError(t, err)
+
+				require.NoError(t, ds.saveHostPackStats(randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+			}
+		}
+	}()
+
+	time.Sleep(1 * time.Second)
+	for i := 0; i < 1000; i++ {
+		require.NoError(t, ds.ApplyPackSpecs(specs))
+		time.Sleep(77 * time.Millisecond)
+	}
+
+	cancelFunc()
+}
+
+func TestPackApplyStatsNotLockingTryTwo(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	setupPackSpecsTest(t, ds)
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	for i := 0; i < 2; i++ {
+		go func() {
+			ms := rand.Intn(100)
+			if ms == 0 {
+				ms = 10
+			}
+			ticker := time.NewTicker(time.Duration(ms) * time.Millisecond)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					pack, _, err := ds.PackByName("test_pack")
+					require.NoError(t, err)
+					schedQueries, err := ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
+					require.NoError(t, err)
+
+					require.NoError(t, ds.saveHostPackStats(randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+				}
+			}
+		}()
+	}
+
+	time.Sleep(60 * time.Second)
+
+	cancelFunc()
 }

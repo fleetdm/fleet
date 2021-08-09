@@ -162,14 +162,6 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 
 func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		sql := `
-			DELETE FROM scheduled_query_stats
-			WHERE host_id = ?
-		`
-		if _, err := tx.Exec(sql, host.ID); err != nil {
-			return errors.Wrap(err, "delete old stats")
-		}
-
 		// Bulk insert software entries
 		var args []interface{}
 		queryCount := 0
@@ -199,7 +191,7 @@ func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 		}
 
 		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
-		sql = fmt.Sprintf(`
+		sql := fmt.Sprintf(`
 			INSERT IGNORE INTO scheduled_query_stats (
 				scheduled_query_id,
 				host_id,
