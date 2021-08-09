@@ -27,13 +27,13 @@ TODO
 #### Frontend
 
 TODO
-<!-- Describe the required frontend changes to support the feature work. Include screenshot's from the feature's page in Figma when appropirate. Remove the "Frontend" section if the feature work does not require frontend changes. -->
+<!-- Describe the required frontend changes to support the feature work. Include screenshot's from the feature's page in Figma when appropriate. Remove the "Frontend" section if the feature work does not require frontend changes. -->
 
 - [ ] 
 
 #### Backend
 
 TODO
-<!-- Describe the required backend changes to support the feature work. Include screenshot's from the feature's page in Figma when appropirate. Remove the "Frontend" section if the feature work does not require frontend changes. -->
+<!-- Describe the required backend changes to support the feature work. Include screenshot's from the feature's page in Figma when appropriate. Remove the "Frontend" section if the feature work does not require frontend changes. -->
 
 - [ ] 
