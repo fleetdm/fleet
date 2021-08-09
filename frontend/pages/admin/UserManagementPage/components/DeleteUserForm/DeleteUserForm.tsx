@@ -31,7 +31,7 @@ const DeleteUserForm = (props: IDeleteUserForm): JSX.Element => {
         <Button
           className={`${baseClass}__btn`}
           onClick={onCancel}
-          variant="inverse"
+          variant="inverse-alert"
         >
           Cancel
         </Button>

@@ -1190,7 +1190,8 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	lq.On("RunQuery", "21", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
 		User: &fleet.User{
-			ID: 0,
+			ID:         0,
+			GlobalRole: ptr.String(fleet.RoleAdmin),
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
@@ -1894,4 +1895,77 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 	)
 	assert.Nil(t, err)
 	assert.True(t, ds.HostFuncInvoked)
+}
+
+func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
+	ds := new(mock.Store)
+	rs := &mock.QueryResultStore{
+		HealthCheckFunc: func() error {
+			return nil
+		},
+	}
+	lq := &live_query.MockLiveQuery{}
+	mockClock := clock.NewMockClock()
+	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
+
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+		return camp, nil
+	}
+	ds.QueryFunc = func(id uint) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:             42,
+			Name:           "query",
+			Query:          "select 1;",
+			ObserverCanRun: false,
+		}, nil
+	}
+	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{ID: 0, GlobalRole: ptr.String(fleet.RoleObserver)}})
+
+	q := "select year, month, day, hour, minutes, seconds from time"
+	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	require.Error(t, err)
+
+	_, err = svc.NewDistributedQueryCampaign(viewerCtx, "", ptr.Uint(42), fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	require.Error(t, err)
+
+	ds.QueryFunc = func(id uint) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:             42,
+			Name:           "query",
+			Query:          "select 1;",
+			ObserverCanRun: true,
+		}, nil
+	}
+
+	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.SaveHostFunc = func(host *fleet.Host) error { return nil }
+	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+		camp.ID = 21
+		return camp, nil
+	}
+	ds.NewDistributedQueryCampaignTargetFunc = func(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		return target, nil
+	}
+	ds.CountHostsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+		return fleet.TargetMetrics{}, nil
+	}
+	ds.HostIDsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+		return []uint{1, 3, 5}, nil
+	}
+	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+	lq.On("RunQuery", "21", "select 1;", []uint{1, 3, 5}).Return(nil)
+	_, err = svc.NewDistributedQueryCampaign(viewerCtx, "", ptr.Uint(42), fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	require.NoError(t, err)
 }

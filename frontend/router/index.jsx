@@ -91,6 +91,14 @@ const routes = (
                 component={ManageHostsPage}
               />
               <Route path="manage/:active_label" component={ManageHostsPage} />
+              <Route
+                path="manage/labels/:label_id/:active_label"
+                component={ManageHostsPage}
+              />
+              <Route
+                path="manage/:active_label/labels/:label_id"
+                component={ManageHostsPage}
+              />
               <Route path=":host_id" component={HostDetailsPage} />
             </Route>
             <Route component={AuthGlobalAdminMaintainerRoutes}>

@@ -28,7 +28,7 @@ describe("Basic tier - Admin user", () => {
     cy.contains("button", /add new host/i).click();
 
     // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
-    cy.get(".Select-control").click();
+    cy.get(".add-host-modal__team-dropdown-wrapper .Select-control").click();
 
     cy.get(".add-host-modal__team-dropdown-wrapper").within(() => {
       cy.findByText(/no team/i).should("exist");
