@@ -72,9 +72,7 @@ func runUpdatesCommand(args ...string) error {
 
 func TestUpdatesInit(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
-	tmpDir, err := ioutil.TempDir("", "fleetctl-updates-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	setPassphrases(t)
 
@@ -86,9 +84,7 @@ func TestUpdatesInit(t *testing.T) {
 
 func TestUpdatesInitKeysInitializedError(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
-	tmpDir, err := ioutil.TempDir("", "fleetctl-updates-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	setPassphrases(t)
 
@@ -101,16 +97,13 @@ func TestUpdatesInitKeysInitializedError(t *testing.T) {
 func assertFileExists(t *testing.T, path string) {
 	t.Helper()
 	st, err := os.Stat(path)
-	if assert.NoError(t, err, "stat should succeed") {
-		assert.True(t, st.Mode().IsRegular(), "should be regular file: %s", path)
-	}
+	require.NoError(t, err, "stat should succeed")
+	assert.True(t, st.Mode().IsRegular(), "should be regular file: %s", path)
 }
 
 func TestUpdatesIntegration(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
-	tmpDir, err := ioutil.TempDir("", "fleetctl-updates-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	setPassphrases(t)
 
@@ -134,7 +127,7 @@ func TestUpdatesIntegration(t *testing.T) {
 		// Check output
 		var keys []data.Key
 		require.NoError(t, json.Unmarshal(out, &keys))
-		assert.Len(t, keys, 1)
+		require.Len(t, keys, 1)
 		assert.Greater(t, len(keys[0].IDs()), 0)
 		assert.Equal(t, "ed25519", keys[0].Type)
 	}()
