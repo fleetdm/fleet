@@ -351,6 +351,21 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 		WHERE TRUE AND %s
     `, d.whereFilterHostsByTeams(filter, "h"),
 	)
+
+	sql, params = filterHostsByStatus(sql, opt, params)
+	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
+
+	sql = appendListOptionsToSQL(sql, opt.ListOptions)
+
+	hosts := []*fleet.Host{}
+	if err := d.db.Select(&hosts, sql, params...); err != nil {
+		return nil, errors.Wrap(err, "list hosts")
+	}
+
+	return hosts, nil
+}
+
+func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
 	case "new":
 		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
@@ -365,17 +380,7 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 		sql += "AND DATE_ADD(h.seen_time, INTERVAL 30 DAY) <= ?"
 		params = append(params, time.Now())
 	}
-
-	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-
-	sql = appendListOptionsToSQL(sql, opt.ListOptions)
-
-	hosts := []*fleet.Host{}
-	if err := d.db.Select(&hosts, sql, params...); err != nil {
-		return nil, errors.Wrap(err, "list hosts")
-	}
-
-	return hosts, nil
+	return sql, params
 }
 
 func (d *Datastore) CleanupIncomingHosts(now time.Time) error {

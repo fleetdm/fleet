@@ -1,0 +1,83 @@
+project_name: orbit
+
+monorepo:
+  tag_prefix: orbit-
+  dir: orbit
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - id: orbit
+    dir: ./orbit/cmd/orbit/
+    binary: orbit
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+    hooks:
+      post: ./orbit/tools/build/sign-macos.sh {{ .Path }}
+
+  - id: orbit-package
+    dir: ./orbit/cmd/package/
+    binary: orbit-package
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+    hooks:
+      post: ./orbit/tools/build/sign-macos.sh {{ .Path }}
+
+archives:
+  - id: orbit
+    builds:
+      - orbit
+    name_template: orbit_{{.Version}}_{{.Os}}
+    replacements:
+      darwin: macos
+    format_overrides:
+      - goos: windows
+        format: zip
+
+  - id: orbit-package
+    builds:
+      - orbit-package
+    name_template: orbit-package_{{.Version}}_{{.Os}}
+    replacements:
+      darwin: macos
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-untagged"
+
+changelog:
+  skip: true
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+release:
+  github:
+    owner: fleetdm
+    name: fleet
+  draft: true

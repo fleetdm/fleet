@@ -88,6 +88,14 @@ func updatesInitFunc(c *cli.Context) error {
 	if len(meta) != 0 {
 		return errors.Errorf("repo already initialized: %s", path)
 	}
+	// Ensure no existing keys before initializing
+	if _, err := os.Stat(filepath.Join(path, "keys")); !errors.Is(err, os.ErrNotExist) {
+		if err == nil {
+			return errors.Errorf("keys directory already exists: %s", filepath.Join(path, "keys"))
+		} else {
+			return errors.Wrap(err, "failed to check existence of keys directory")
+		}
+	}
 
 	repo, err := tuf.NewRepo(store)
 	if err != nil {
@@ -402,6 +410,9 @@ func (p *passphraseHandler) getPassphrase(role string, confirm bool) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
+	if len(passphrase) == 0 {
+		return nil, errors.New("passphrase must not be empty")
+	}
 
 	// Store cache
 	p.cache[role] = passphrase
@@ -415,7 +426,7 @@ func (p *passphraseHandler) passphraseEnvName(role string) string {
 }
 
 func (p *passphraseHandler) getPassphraseFromEnv(role string) []byte {
-	if pass := os.Getenv(p.passphraseEnvName(role)); pass != "" {
+	if pass, ok := os.LookupEnv(p.passphraseEnvName(role)); ok {
 		return []byte(pass)
 	}
 

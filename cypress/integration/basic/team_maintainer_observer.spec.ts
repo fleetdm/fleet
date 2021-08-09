@@ -16,7 +16,7 @@ describe("Basic tier - Team observer/maintainer user", () => {
     cy.visit("/");
 
     // Ensure page is loaded
-    cy.contains("All hosts");
+    cy.contains("Hosts");
 
     // On the Hosts page, they should…
 
@@ -110,7 +110,7 @@ describe("Basic tier - Team observer/maintainer user", () => {
     cy.visit("/");
 
     // Ensure page is loaded and appropriate nav links are displayed
-    cy.contains("All hosts");
+    cy.contains("Hosts");
     cy.get("nav").within(() => {
       cy.findByText(/hosts/i).should("exist");
       cy.findByText(/queries/i).should("exist");
@@ -119,7 +119,7 @@ describe("Basic tier - Team observer/maintainer user", () => {
     });
 
     // Ensure page is loaded and appropriate nav links are displayed
-    cy.contains("All hosts");
+    cy.contains("Hosts");
     cy.get("nav").within(() => {
       cy.findByText(/hosts/i).should("exist");
       cy.findByText(/queries/i).should("exist");

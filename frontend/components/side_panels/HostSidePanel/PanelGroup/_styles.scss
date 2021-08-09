@@ -1,7 +1,7 @@
 .panel-group {
   &__label {
     max-height: 280px;
-    overflow-y: scroll;
+    overflow-y: auto;
     position: relative;
 
     &--scroll-labels {

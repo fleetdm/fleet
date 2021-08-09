@@ -39,6 +39,9 @@ export default {
   NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
   MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
+  MANAGE_TEAM_SCHEDULE: (teamId: number): string => {
+    return `${URL_PREFIX}/schedule/manage/teams/${teamId}`;
+  },
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,

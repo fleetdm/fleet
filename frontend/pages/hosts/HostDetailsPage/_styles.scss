@@ -175,6 +175,10 @@
     }
   }
 
+  .button img {
+    transform: scale(0.5);
+  }
+
   .about,
   .osquery {
     .info {
@@ -244,7 +248,7 @@
 
   &__query-button,
   &__transfer-button {
-    margin-right: $pad-small;
+    margin-right: $pad-large;
   }
 
   &__modal {
