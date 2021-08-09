@@ -94,7 +94,7 @@ describe("Core tier - Admin user", () => {
     });
 
     cy.contains("a", /back to queries/i).click({ force: true });
-    cy.findByText(/cypress test query/i).click();
+    cy.findByText(/cypress test query/i).click({ force: true });
     cy.findByText(/edit & run query/i).should("exist");
 
     // On the Packs pages (manage, new, and edit), they should…
