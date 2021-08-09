@@ -560,6 +560,11 @@ func getHostsCommand() *cli.Command {
 		Aliases: []string{"host", "h"},
 		Usage:   "List information about one or more hosts",
 		Flags: []cli.Flag{
+			&cli.UintFlag{
+				Name:        "team",
+				Usage:       "filter hosts by team_id",
+				Required:    false,
+			},
 			jsonFlag(),
 			yamlFlag(),
 			configFlag(),
@@ -575,7 +580,11 @@ func getHostsCommand() *cli.Command {
 			identifier := c.Args().First()
 
 			if identifier == "" {
-				hosts, err := client.GetHosts()
+				query := ""
+				if c.Uint("team") > 0 {
+					query = fmt.Sprintf("team_id=%d", c.Uint("team"))
+				}
+				hosts, err := client.GetHosts(query)
 				if err != nil {
 					return errors.Wrap(err, "could not list hosts")
 				}
