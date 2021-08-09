@@ -69,7 +69,6 @@ const ManagePacksPage = (): JSX.Element => {
 
   const packs = useSelector((state: IRootState) => state.entities.packs);
   const packsList = Object.values(packs.data);
-
   const packsErrors = packs.errors;
 
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
@@ -118,9 +117,7 @@ const ManagePacksPage = (): JSX.Element => {
       const enableOrDisable = disablePack ? "disabled" : "enabled";
 
       const promises = selectedTablePackIds.map((id: number) => {
-        return dispatch(
-          packActions.updateStatus({ id }, { disable: disablePack })
-        );
+        return dispatch(packActions.update({ id }, { disabled: disablePack }));
       });
 
       return Promise.all(promises)

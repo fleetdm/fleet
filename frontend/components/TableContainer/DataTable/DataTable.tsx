@@ -200,7 +200,6 @@ const DataTable = ({
     if (secondarySelectActions) {
       const targetIds = selectedFlatRows.map((row: any) => row.original.id);
       const buttons = secondarySelectActions.map((actionProps) => {
-        console.log(targetIds);
         actionProps = { ...actionProps, targetIds };
         return renderActionButton(actionProps);
       });
