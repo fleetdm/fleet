@@ -632,8 +632,6 @@ The endpoint returns the host's installed `software` if the software inventory f
         "config_tls_refresh": 10,
         "logger_tls_period": 10,
         "additional": {},
-        "status": "offline",
-        "display_text": "259404d30eb6",
         "team_id": null,
         "team_name": null,
         "labels": [
@@ -680,7 +678,9 @@ The endpoint returns the host's installed `software` if the software inventory f
             "version": "7.61.1",
             "source": "rpm_packages",
           },
-        ]
+        ],
+        "status": "offline",
+        "display_text": "259404d30eb6"
     }
 }
 ```
@@ -1160,6 +1160,7 @@ Returns a list of the hosts that belong to the specified label.
       "label_updated_at": "2021-02-03T21:58:10Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
       "seen_time": "2021-02-03T21:58:20Z",
+      "refetch_requested": false,
       "hostname": "floobar42",
       "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
       "platform": "ubuntu",
@@ -1251,7 +1252,7 @@ If the `label_membership_type` is set to `dynamic`, the `query` property must al
 
 If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of hostnames.
 
-`POST /api/v1/fleet/specs/labels`
+`POST /api/v1/fleet/spec/labels`
 
 #### Parameters
 
@@ -1261,7 +1262,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 #### Example
 
-`POST /api/v1/fleet/specs/labels`
+`POST /api/v1/fleet/spec/labels`
 
 ##### Request body
 
@@ -1296,7 +1297,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ### Get labels specs
 
-`GET /api/v1/fleet/specs/labels`
+`GET /api/v1/fleet/spec/labels`
 
 #### Parameters
 
@@ -1453,11 +1454,10 @@ None.
       "id": 1,
       "name": "Jane Doe",
       "email": "janedoe@example.com",
-      "global_role": null,
-      "enabled": true,
       "force_password_reset": false,
       "gravatar_url": "",
       "sso_enabled": false,
+      "global_role": null,
       "api_only": false,
       "teams": [
         {
@@ -1731,12 +1731,11 @@ Returns all information about a specific user.
     "id": 2,
     "name": "Jane Doe",
     "email": "janedoe@example.com",
-    "global_role": "admin",
-    "api_only": false,
-    "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "global_role": "admin",
+    "api_only": false,
     "teams": []
   }
 }
@@ -2106,9 +2105,9 @@ Returns the query specified by ID.
     "description": "",
     "query": "select 1 from os_version where platform = \"centos\";",
     "saved": true,
+    "observer_can_run": true,
     "author_id": 1,
     "author_name": "John",
-    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2156,9 +2155,9 @@ Returns a list of all queries in the Fleet instance.
     "description": "query",
     "query": "SELECT * FROM osquery_info",
     "saved": true,
+    "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
-    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-05T21:13:04Z",
@@ -2179,9 +2178,9 @@ Returns a list of all queries in the Fleet instance.
     "description": "Report performance stats for each file in the query schedule.",
     "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
     "saved": true,
+    "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
-    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -3101,6 +3100,8 @@ None.
       "interval": 120,
       "snapshot": true,
       "removed": null,
+      "platform": "",
+      "version": "",
       "shard": null,
       "denylist": null
     },
@@ -3116,6 +3117,8 @@ None.
       "interval": 86400,
       "snapshot": true,
       "removed": null,
+      "platform": "",
+      "version": "",
       "shard": null,
       "denylist": null
     }
@@ -3171,6 +3174,8 @@ None.
     "interval": 86400,
     "snapshot": true,
     "removed": null,
+    "platform": "",
+    "version": "",
     "shard": null,
     "denylist": null
   }
@@ -3300,6 +3305,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "query": "select * from arp_cache;",
       "interval": 120,
       "snapshot": true,
+      "platform": "",
+      "version": "",
       "removed": null,
       "shard": null,
       "denylist": null
@@ -3316,6 +3323,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 86400,
       "snapshot": true,
       "removed": null,
+      "platform": "",
+      "version": "",
       "shard": null,
       "denylist": null
     }

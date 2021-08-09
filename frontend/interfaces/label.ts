@@ -2,34 +2,35 @@ import PropTypes, { string } from "prop-types";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
-  description: PropTypes.string,
-  display_text: PropTypes.string,
+  updated_at: PropTypes.string,
+  id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  name: PropTypes.string,
+  query: PropTypes.string,
+  label_type: PropTypes.string,
+  label_membership_type: PropTypes.string,
   hosts_count: PropTypes.number,
+  display_text: PropTypes.string,
+  count: PropTypes.number, // seems to be a repeat of hosts_count
   host_ids: PropTypes.arrayOf(
     PropTypes.oneOfType([PropTypes.number, PropTypes.string])
   ),
-  id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-  name: PropTypes.string,
-  label_type: PropTypes.string,
-  title: PropTypes.string, // confirm on rest api doc
-  type: PropTypes.string, // confirm on rest api doc
-  count: PropTypes.number, // confirm on rest api doc
+  title: PropTypes.string, // not returned by API
+  type: PropTypes.string, // not returned by API
 });
 
 export interface ILabel {
   created_at: string;
-  description: string;
-  display_text: string;
-  hosts_count: number;
-  host_ids: number[] | null;
+  updated_at: string;
   id: number | string;
-  label_membership_type: string;
-  label_type: string;
   name: string;
   query: string;
-  updated_at: string;
-  title: string; // confirm on rest api doc
-  type: string; // confirm on rest api doc
-  count: number;
-  slug?: string;
+  label_type: string;
+  label_membership_type: string;
+  hosts_count: number;
+  display_text: string;
+  count: number; // seems to be a repeat of hosts_count
+  host_ids: number[] | null; // array of numbers or null? how to write array of numbers or strings
+  title: string; // not returned by API
+  type: string; // not returned by API
+  slug?: string; // where is this from?
 }
