@@ -55,7 +55,7 @@ describe("Basic tier - Observer user", () => {
     cy.login("toni@organization.com", "user123#");
     cy.visit("/hosts/manage");
 
-    cy.findByText("All hosts which have enrolled in Fleet").should("exist");
+    cy.findByText("Hosts").should("exist");
 
     // Nav restrictions
     cy.findByText(/settings/i).should("not.exist");
