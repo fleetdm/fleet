@@ -63,8 +63,9 @@ const formFields = [
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = (
     <Button
-      className={`button button--unstyled ${showAdvancedOptions ? "upcarat" : "downcarat"
-        }`}
+      className={`button button--unstyled ${
+        showAdvancedOptions ? "upcarat" : "downcarat"
+      }`}
     />
   );
 
@@ -402,8 +403,9 @@ class AppConfigForm extends Component {
               <a id="smtp">
                 SMTP Options{" "}
                 <small
-                  className={`smtp-options smtp-options--${smtpConfigured ? "configured" : "notconfigured"
-                    }`}
+                  className={`smtp-options smtp-options--${
+                    smtpConfigured ? "configured" : "notconfigured"
+                  }`}
                 >
                   STATUS:{" "}
                   <em>{smtpConfigured ? "CONFIGURED" : "NOT CONFIGURED"}</em>
