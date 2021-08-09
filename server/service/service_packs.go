@@ -26,6 +26,7 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 
 	// loop over incoming specs filtering out possible edits to Global or Team Packs
 	for _, spec := range specs {
+		// see for known limitations https://github.com/fleetdm/fleet/pull/1558#discussion_r684218301
 		// check to see if incoming spec is already in the list of packs
 		if p, ok := namePacks[spec.Name]; ok {
 			// as long as pack is editable, we'll apply it
