@@ -332,16 +332,9 @@ export class QueryPage extends Component {
       })
       .catch((campaignError) => {
         console.log(campaignError);
-        // if (campaignError === "resource already created") {
-        //   dispatch(
-        //     renderFlash(
-        //       "error",
-        //       "A campaign with the provided query text has already been created"
-        //     )
-        //   );
-
-        //   return false;
-        // }
+        // TODO Revisit after taking a deeper look at error handling related to the Fleet.entities
+        // and flash_messages components in light of issues with those in other instances,
+        // especially as it concerns async errors.
 
         dispatch(push("/500"));
 

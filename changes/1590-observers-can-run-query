@@ -1,0 +1,1 @@
+* Fix API call to add query_id so backend can validate observer_can_run when an observer attempts to run as a live query
