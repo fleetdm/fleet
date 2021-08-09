@@ -515,7 +515,9 @@ export class ManageHostsPage extends PureComponent {
       ? teams.map((t) => t.id)
       : currentUser.teams.map((t) => t.id);
 
-    return !isNaN(teamId) && teamId >= 0 && currentUserTeamIds.includes(teamId);
+    teamId = parseInt(teamId, 10);
+
+    return !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId);
   };
 
   clearHostUpdates = () => {
@@ -559,17 +561,20 @@ export class ManageHostsPage extends PureComponent {
     const { getNextLocationUrl, isValidSelectedTeamId, retrieveHosts } = this;
     const { MANAGE_HOSTS } = PATHS;
 
-    const teamId = parseInt(selectedTeam, 10);
+    let selectedTeamId = parseInt(selectedTeam, 10);
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId)
+      ? selectedTeamId
+      : null;
 
     let nextLocation = getNextLocationUrl(
       MANAGE_HOSTS,
       "",
       {},
-      { team_id: teamId }
+      { team_id: selectedTeamId }
     );
     console.log(nextLocation);
-    if (!isValidSelectedTeamId(teamId)) {
-      nextLocation = nextLocation.replace(`?team_id=${teamId}`, "");
+    if (!selectedTeamId) {
+      nextLocation = nextLocation.replace(`team_id=${selectedTeamId}`, "");
     }
     console.log(nextLocation);
 
@@ -583,10 +588,16 @@ export class ManageHostsPage extends PureComponent {
   };
 
   handleLabelChange = ({ slug, type }) => {
-    const { dispatch, selectedFilters } = this.props;
+    const { dispatch, selectedFilters, selectedTeam } = this.props;
+    const { isValidSelectedTeamId } = this;
     const { MANAGE_HOSTS } = PATHS;
     const isAllHosts = slug === ALL_HOSTS_LABEL;
     const newFilters = [...selectedFilters];
+
+    let selectedTeamId = parseInt(selectedTeam, 10);
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId)
+      ? selectedTeamId
+      : null;
 
     if (!isAllHosts) {
       // always remove "all-hosts" from the filters first because we don't want
@@ -609,9 +620,13 @@ export class ManageHostsPage extends PureComponent {
       }
     }
 
-    const nextLocation = isAllHosts
+    let nextLocation = isAllHosts
       ? MANAGE_HOSTS
       : `${MANAGE_HOSTS}/${newFilters.join("/")}`;
+
+    if (selectedTeamId) {
+      nextLocation += `?team_id=${selectedTeamId}`;
+    }
     dispatch(push(nextLocation));
   };
 
