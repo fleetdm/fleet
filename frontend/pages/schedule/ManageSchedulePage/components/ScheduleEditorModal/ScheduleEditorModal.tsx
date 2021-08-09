@@ -97,7 +97,6 @@ const ScheduleEditorModal = ({
       try {
         const responseConfig = await Fleet.config.loadAll();
         setIsLoading(false);
-        console.log("responseConfigDestination", responseConfig);
         setLoggingConfig(responseConfig.logging.result.plugin);
       } catch (err) {
         setIsLoadingError(true);
