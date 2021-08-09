@@ -182,7 +182,7 @@ const ManagePacksPage = (): JSX.Element => {
           )}
         </div>
         <div>
-          {true &&
+          {!packs.isLoading &&
             renderTable(
               onRemovePackClick,
               onEnablePackClick,
