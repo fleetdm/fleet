@@ -49,6 +49,7 @@
     "react-ace": "^6.3.2",
     "react-dom": "^16",
     "react-entity-getter": "0.0.8",
+    "react-query": "^3.19.2",
     "react-redux": "7.2.2",
     "react-router": "^3.0.0",
     "react-router-redux": "4.0.8",

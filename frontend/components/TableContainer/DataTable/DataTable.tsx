@@ -2,8 +2,7 @@ import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
 import { kebabCase, noop } from "lodash";
-
-import useDeepEffect from "utilities/hooks/useDeepEffect";
+import { useDeepEffect } from "utilities/hooks";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "../../buttons/Button";
