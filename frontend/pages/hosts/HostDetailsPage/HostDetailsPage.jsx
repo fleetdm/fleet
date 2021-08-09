@@ -306,7 +306,6 @@ export class HostDetailsPage extends Component {
     const { host, isOnlyObserver, canTransferTeam } = this.props;
 
     const isOnline = host.status === "online";
-    const isOffline = host.status === "offline";
 
     // Hide action buttons for global and team only observers
     if (isOnlyObserver) {
@@ -328,7 +327,7 @@ export class HostDetailsPage extends Component {
           <Button
             onClick={toggleQueryHostModal()}
             variant="inverse"
-            disabled={isOffline}
+            disabled={!isOnline}
             className={`${baseClass}__query-button`}
           >
             Query <img src={QueryIcon} alt="Query host icon" />
@@ -534,7 +533,7 @@ export class HostDetailsPage extends Component {
     const { showRefetchLoadingSpinner } = this.state;
 
     const isOnline = host.status === "online";
-    const isOffline = host.status === "offline";
+
     return (
       <>
         <div
@@ -547,10 +546,10 @@ export class HostDetailsPage extends Component {
             className={`
               button
               button--unstyled
-              ${isOffline ? "refetch-offline" : ""} 
+              ${!isOnline ? "refetch-offline" : ""} 
               ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
-            disabled={isOffline}
+            disabled={!isOnline}
             onClick={onRefetchHost}
           >
             {showRefetchLoadingSpinner
