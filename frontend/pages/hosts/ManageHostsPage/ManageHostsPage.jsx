@@ -222,32 +222,10 @@ export class ManageHostsPage extends PureComponent {
     toggleAddHostModal();
   };
 
-  // The onChange method below is for the transfer host modal
+  // The onChange method below is for the dropdown used in modals
   onChangeTeam = (team) => {
     const { dispatch } = this.props;
     dispatch(teamActions.getEnrollSecrets(team));
-  };
-
-  // The onChange method below is for the filter-by-team dropdown
-  onChangeSelectedTeam = (selectedTeam) => {
-    const { dispatch } = this.props;
-    const { getNextLocationUrl, isValidSelectedTeamId } = this;
-    const { MANAGE_HOSTS } = PATHS;
-
-    const teamId = parseInt(selectedTeam, 10);
-
-    let nextLocation = getNextLocationUrl(
-      MANAGE_HOSTS,
-      "",
-      {},
-      { team_id: teamId }
-    );
-    console.log(nextLocation);
-    if (!isValidSelectedTeamId(teamId)) {
-      nextLocation = nextLocation.replace(`team_id=${teamId}`, "");
-    }
-    console.log(nextLocation);
-    dispatch(push(nextLocation));
   };
 
   // NOTE: this is called once on the initial rendering. The initial render of
@@ -466,12 +444,14 @@ export class ManageHostsPage extends PureComponent {
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
 
-  generateTeamOptionsDropdownItems = (teams) => {
+  generateTeamFilterDropdownOptions = (teams) => {
     const { currentUser, isOnGlobalTeam } = this.props;
 
-    const currentUserTeamIds = currentUser.teams.map((t) => t.id);
+    const currentUserTeams = isOnGlobalTeam
+      ? teams
+      : teams.filter((team) => currentUser.teams.includes(team.id));
 
-    const teamOptions = [
+    const allTeamsOption = [
       {
         disabled: false,
         label: "All teams",
@@ -479,16 +459,28 @@ export class ManageHostsPage extends PureComponent {
       },
     ];
 
-    teams.forEach((team) => {
-      if (isOnGlobalTeam || currentUserTeamIds.includes(team.id)) {
-        teamOptions.push({
+    const sortedCurrentUserTeamOptions = currentUserTeams
+      .map((team) => {
+        return {
           disabled: false,
           label: team.name,
           value: team.id,
-        });
-      }
-    });
-    return teamOptions;
+        };
+      })
+      .sort((a, b) => {
+        const labelA = a.label.toUpperCase();
+        const labelB = b.label.toUpperCase();
+        if (labelA < labelB) {
+          return -1;
+        }
+        if (labelA > labelB) {
+          return 1;
+        }
+
+        return 0; // values must be equal
+      });
+
+    return allTeamsOption.concat(sortedCurrentUserTeamOptions);
   };
 
   retrieveHosts = async (options) => {
@@ -560,6 +552,36 @@ export class ManageHostsPage extends PureComponent {
     }
   };
 
+  // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
+  handleChangeSelectedTeamFilter = (selectedTeam) => {
+    const { dispatch, selectedFilters } = this.props;
+    const { searchQuery } = this.state;
+    const { getNextLocationUrl, isValidSelectedTeamId, retrieveHosts } = this;
+    const { MANAGE_HOSTS } = PATHS;
+
+    const teamId = parseInt(selectedTeam, 10);
+
+    let nextLocation = getNextLocationUrl(
+      MANAGE_HOSTS,
+      "",
+      {},
+      { team_id: teamId }
+    );
+    console.log(nextLocation);
+    if (!isValidSelectedTeamId(teamId)) {
+      nextLocation = nextLocation.replace(`?team_id=${teamId}`, "");
+    }
+    console.log(nextLocation);
+
+    // TODO confirm that sort order, pagination work as expected
+    retrieveHosts({
+      teamId: selectedTeam,
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+    });
+    dispatch(push(nextLocation));
+  };
+
   handleLabelChange = ({ slug, type }) => {
     const { dispatch, selectedFilters } = this.props;
     const { MANAGE_HOSTS } = PATHS;
@@ -606,14 +628,14 @@ export class ManageHostsPage extends PureComponent {
   };
 
   // TODO see how backend handles team_id=0, team_id=null, team_id=foo, etc.
-  renderTeamsDropdown = () => {
+  renderTeamsFilterDropdown = () => {
     const { isBasicTier, selectedTeam, teams } = this.props;
     const {
-      generateTeamOptionsDropdownItems,
+      generateTeamFilterDropdownOptions,
       isValidSelectedTeamId,
-      onChangeSelectedTeam,
+      handleChangeSelectedTeamFilter,
     } = this;
-    const teamOptions = generateTeamOptionsDropdownItems(teams);
+    const teamOptions = generateTeamFilterDropdownOptions(teams);
 
     let selectedTeamId = parseInt(selectedTeam, 10);
     selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
@@ -627,7 +649,7 @@ export class ManageHostsPage extends PureComponent {
           options={teamOptions}
           searchable={false}
           onChange={(newSelectedValue) =>
-            onChangeSelectedTeam(newSelectedValue)
+            handleChangeSelectedTeamFilter(newSelectedValue)
           }
         />
       </div>
@@ -758,13 +780,13 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderHeader = () => {
-    const { renderHeaderLabelBlock, renderTeamsDropdown } = this;
+    const { renderHeaderLabelBlock, renderTeamsFilterDropdown } = this;
     const { isAddLabel, selectedLabel } = this.props;
     const type = selectedLabel?.type;
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
-          {renderTeamsDropdown()}
+          {renderTeamsFilterDropdown()}
           {type !== "all" &&
             type !== "status" &&
             selectedLabel &&
@@ -979,7 +1001,6 @@ export class ManageHostsPage extends PureComponent {
 
 // const mapStateToProps = (state, { location, params }) => {
 const mapStateToProps = (state, ownProps) => {
-  console.log(ownProps);
   const { location, params, route, routeParams } = ownProps;
   const locationPath = location.path;
   const queryParams = location.query;
@@ -1020,6 +1041,8 @@ const mapStateToProps = (state, ownProps) => {
   const { loading: loadingTeams } = state.entities.teams;
   // const teams = Object.values(state.entities.teams.data);
   const teams = memoizedGetEntity(state.entities.teams.data);
+
+  // if there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
   const selectedTeam = location.query?.team_id || 0;
 
   const currentUser = state.auth.user;

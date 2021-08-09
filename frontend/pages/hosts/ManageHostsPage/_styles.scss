@@ -146,6 +146,8 @@
 
     .Select-menu-outer {
       position: absolute;
+      width: 100%;
+      min-width: 125px;
       left: -12px;
       border-radius: 6px;
     }
