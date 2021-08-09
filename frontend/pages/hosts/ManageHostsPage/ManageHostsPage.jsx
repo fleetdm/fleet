@@ -27,7 +27,7 @@ import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
 import { find } from "lodash";
 
-import hostClient from "services/entities/hosts";
+import hostAPI from "services/entities/hosts";
 
 import permissionUtils from "utilities/permissions";
 import Dropdown from "components/forms/fields/Dropdown";
@@ -386,7 +386,7 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ isHostsLoading: true });
 
     try {
-      const { hosts } = await hostClient.loadAll(options);
+      const { hosts } = await hostAPI.loadAll(options);
       this.setState({ hosts });
     } catch (error) {
       console.log(error);
