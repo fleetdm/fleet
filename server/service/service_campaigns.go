@@ -15,7 +15,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/pkg/errors"
-	"gopkg.in/guregu/null.v3"
 )
 
 func (svc Service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*fleet.DistributedQueryCampaign, error) {
@@ -81,8 +80,8 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		}
 	}
 
-	if null.StringFromPtr(vc.User.GlobalRole).ValueOrZero() == fleet.RoleObserver && !query.ObserverCanRun {
-		return nil, authz.ForbiddenWithInternal("observers cannot run this query", vc.User, query, fleet.ActionRead)
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRun); err != nil {
+		return nil, err
 	}
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun}
