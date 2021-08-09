@@ -125,6 +125,13 @@ const routes = (
               </Route>
               <Route path=":id" component={QueryPage} />
             </Route>
+            {/* TEMP COMMENT: NEW QUERY PAGE */}
+            <Route path="queries1/manage" component={ManageQueriesPage} />
+            <Route component={AuthAnyMaintainerGlobalAdminRoutes}>
+              <Route path="queries1/new" component={QueryPage} />
+            </Route>
+            <Route path="queries1/:id" component={QueryPage} />
+            {/* END TEMP COMMENT: NEW QUERY PAGE */}
             <Route path="profile" component={UserSettingsPage} />
           </Route>
         </Route>
