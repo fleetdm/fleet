@@ -1,17 +1,14 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
+import React, { useState } from "react";
 import { size } from "lodash";
 
 import Checkbox from "components/forms/fields/Checkbox"; //@ts-ignore
-import DropdownButton from "components/buttons/DropdownButton"; //@ts-ignore
-import Form from "components/forms/Form";
-import formFieldInterface from "interfaces/form_field";
-import helpers from "components/forms/queries/QueryForm1/helpers"; //@ts-ignore
+import Form from "components/forms/Form"; //@ts-ignore
 import InputField from "components/forms/fields/InputField"; //@ts-ignore
-import FleetAce from "components/FleetAce";
-import queryInterface, { IQuery, IQueryFormFields, IQueryFormData } from "interfaces/query"; //@ts-ignore
+import FleetAce from "components/FleetAce"; //@ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
-import { useState } from "react";
+
+import { IQuery, IQueryFormFields, IQueryFormData } from "interfaces/query";
+
 import Button from "components/buttons/Button";
 
 const baseClass = "query-form1";
