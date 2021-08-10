@@ -8,7 +8,7 @@ export default PropTypes.shape({
   agent_options: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   // hosts: PropTypes.number, // is this used anywhere? it's not returned
   // members: PropTypes.number, // is this used anywhere? it's not returned
-  // role: PropTypes.string,  // is this used anywhere? it's not returned
+  role: PropTypes.string, // not returned by API
   user_count: PropTypes.number,
   host_count: PropTypes.number,
   secrets: PropTypes.object, // eslint-disable-line react/forbid-prop-types
@@ -27,7 +27,7 @@ export interface ITeam {
   host_count: number;
   secrets?: any;
   // role value is included when the team is in the context of a user.
-  // role?: string;  // is this used anywhere? it's not returned
+  role?: string; // not returned by API
 }
 
 /**

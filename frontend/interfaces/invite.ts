@@ -1,6 +1,8 @@
 import PropTypes from "prop-types";
 import teamInterface, { ITeam } from "./team";
 
+// update this entire thing
+
 export default PropTypes.shape({
   admin: PropTypes.bool,
   email: PropTypes.string,

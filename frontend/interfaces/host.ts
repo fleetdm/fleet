@@ -46,8 +46,8 @@ export default PropTypes.shape({
   software: PropTypes.arrayOf(softwareInterface), // on /hosts/{id}
   status: PropTypes.string,
   display_text: PropTypes.string,
-  ip: PropTypes.string, // is this outdated?
-  mac: PropTypes.string, // is this outdated?
+  // ip: PropTypes.string, // is this outdated? potentially changed to primary_ip if something breaks
+  // mac: PropTypes.string, // is this outdated? potentially changed to primary_ip if something breaks
   users: PropTypes.arrayOf(hostUserInterface), // is this outdated?
 });
 

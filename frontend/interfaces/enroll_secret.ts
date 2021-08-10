@@ -11,5 +11,5 @@ export default PropTypes.arrayOf(
 export interface IEnrollSecret {
   secret: string;
   created_at: string;
-  team_id: number;
+  team_id?: number;
 }

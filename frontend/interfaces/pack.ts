@@ -13,8 +13,6 @@ export default PropTypes.shape({
   host_ids: PropTypes.arrayOf(PropTypes.number),
   label_ids: PropTypes.arrayOf(PropTypes.number),
   team_ids: PropTypes.arrayOf(PropTypes.number),
-  detail_updated_at: PropTypes.string, // This does not exist in response
-  platform: PropTypes.string, // This does not exist in response
 });
 
 export interface IPack {
@@ -27,9 +25,7 @@ export interface IPack {
   disabled: boolean;
   query_count: number;
   total_hosts_count: number;
-  host_ids: number[]; // can host_ids, label_ids, team_ids, be anything other than numbers?
+  host_ids: number[];
   label_ids: number[];
   team_ids: number[];
-  detail_updated_at: string; // This does not exist in response
-  platform: string; // This does not exist in response
 }
