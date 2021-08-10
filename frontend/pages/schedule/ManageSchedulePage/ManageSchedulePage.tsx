@@ -186,7 +186,6 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
   const onRemoveScheduledQueryClick = (selectedTableQueryIds: any): void => {
-    console.log(selectedTableQueryIds);
     toggleRemoveScheduledQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
   };

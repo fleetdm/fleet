@@ -386,7 +386,6 @@ export class HostDetailsPage extends Component {
     const { host, isLoadingHost } = this.props;
     const { pack_stats } = host;
     const wrapperClassName = `${baseClass}__table`;
-    console.log(pack_stats);
     const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
