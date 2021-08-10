@@ -553,9 +553,7 @@ func randomPackStatsForHost(hostID, packID uint, scheduledQueries []*fleet.Sched
 }
 
 func TestPackApplyStatsNotLocking(t *testing.T) {
-	// apply a pack, get a scheduled query
-	// start a go routine that updates the stats for it on a loop
-	// apply the pack again
+	t.Skip("This can be too much for the test db if you're running all tests")
 
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -603,6 +601,8 @@ func TestPackApplyStatsNotLocking(t *testing.T) {
 }
 
 func TestPackApplyStatsNotLockingTryTwo(t *testing.T) {
+	t.Skip("This can be too much for the test db if you're running all tests")
+
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
