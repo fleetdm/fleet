@@ -1,7 +1,7 @@
 .manage-hosts {
   .header-wrap {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     margin-bottom: $pad-medium;
   }
@@ -48,21 +48,30 @@
     }
   }
 
-  &__description {
-    margin: 0 0 $pad-medium;
+  &__label-block {
+    margin-top: $pad-medium;
 
-    h2 {
-      text-transform: uppercase;
-      color: $core-fleet-black;
-      font-weight: $regular;
-      font-size: $small;
+    .title {
+      span {
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+      button {
+        margin-left: 12px;
+        padding: 0;
+        height: auto;
+
+        img {
+          margin: 0;
+        }
+      }
     }
-
-    p {
-      color: $core-fleet-blue;
-      margin: 0;
-      font-size: $x-small;
-      font-style: italic;
+    .description {
+      span {
+        vertical-align: text-top;
+        font-size: $x-small;
+        opacity: 0.5;
+      }
     }
   }
 
@@ -96,6 +105,22 @@
 
     .button:first-child {
       margin-right: $pad-medium;
+    }
+  }
+
+  .form-field--dropdown {
+    margin: 0;
+  }
+  &__status_dropdown {
+    width: 159px;
+
+    .Select-menu-outer {
+      width: 364px;
+      max-height: 310px;
+
+      .Select-menu {
+        max-height: none;
+      }
     }
   }
 }

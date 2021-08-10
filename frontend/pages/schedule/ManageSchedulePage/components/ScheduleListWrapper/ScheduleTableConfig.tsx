@@ -10,6 +10,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 
 interface IHeaderProps {
   column: {
@@ -25,7 +26,7 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: IGlobalScheduledQuery;
+    original: IGlobalScheduledQuery | ITeamScheduledQuery;
     getToggleRowSelectedProps: () => any; // TODO: do better with types
     toggleRowSelected: () => void;
   };
@@ -40,7 +41,7 @@ interface IDataColumn {
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
-interface IGlobalScheduledQueryTableData {
+interface IAllScheduledQueryTableData {
   name: string;
   interval: number;
   actions: IDropdownOption[];
@@ -53,7 +54,7 @@ interface IGlobalScheduledQueryTableData {
 const generateTableHeaders = (
   actionSelectHandler: (
     value: string,
-    global_scheduled_query: IGlobalScheduledQuery
+    all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery
   ) => void
 ): IDataColumn[] => {
   return [
@@ -130,30 +131,34 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   return dropdownOptions;
 };
 
-const enhanceGlobalScheduledQueryData = (
-  global_scheduled_queries: IGlobalScheduledQuery[]
-): IGlobalScheduledQueryTableData[] => {
-  return global_scheduled_queries.map((global_scheduled_query) => {
-    return {
-      name: global_scheduled_query.name,
-      interval: global_scheduled_query.interval,
-      actions: generateActionDropdownOptions(),
-      id: global_scheduled_query.id,
-      query_id: global_scheduled_query.query_id,
-      snapshot: global_scheduled_query.snapshot,
-      removed: global_scheduled_query.removed,
-      platform: global_scheduled_query.platform,
-      version: global_scheduled_query.version,
-      shard: global_scheduled_query.shard,
-      type: "global_scheduled_query",
-    };
-  });
+const enhanceAllScheduledQueryData = (
+  all_scheduled_queries: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
+  teamId: number
+): IAllScheduledQueryTableData[] => {
+  return all_scheduled_queries.map(
+    (all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery) => {
+      return {
+        name: all_scheduled_query.name,
+        interval: all_scheduled_query.interval,
+        actions: generateActionDropdownOptions(),
+        id: all_scheduled_query.id,
+        query_id: all_scheduled_query.query_id,
+        snapshot: all_scheduled_query.snapshot,
+        removed: all_scheduled_query.removed,
+        platform: all_scheduled_query.platform,
+        version: all_scheduled_query.version,
+        shard: all_scheduled_query.shard,
+        type: teamId ? "team_scheduled_query" : "global_scheduled_query",
+      };
+    }
+  );
 };
 
 const generateDataSet = (
-  global_scheduled_queries: IGlobalScheduledQuery[]
-): IGlobalScheduledQueryTableData[] => {
-  return [...enhanceGlobalScheduledQueryData(global_scheduled_queries)];
+  all_scheduled_queries: IGlobalScheduledQuery[],
+  teamId: number
+): IAllScheduledQueryTableData[] => {
+  return [...enhanceAllScheduledQueryData(all_scheduled_queries, teamId)];
 };
 
 export { generateTableHeaders, generateDataSet };

@@ -120,6 +120,8 @@ mysql:
 
 Basically, just capitalize the option and prepend `FLEET_` to it in order to get the environment variable. The conversion works the same the opposite way.
 
+All duration-based settings accept valid time units of `s`, `m`, `h`.
+
 ##### MySQL
 
 ###### `mysql_address`
@@ -534,6 +536,8 @@ The size of the session key.
 
 The amount of time that a session should last for.
 
+Valid time units are `s`, `m`, `h`.
+
 - Default value: `4 hours`
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
@@ -598,6 +602,8 @@ The interval at which Fleet will ask osquery agents to update their results for 
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
+Valid time units are `s`, `m`, `h`.
+
 - Default value: `1h`
 - Environment variable: `FLEET_OSQUERY_LABEL_UPDATE_INTERVAL`
 - Config file format:
@@ -612,6 +618,8 @@ Setting this to a higher value can reduce baseline load on the Fleet server in l
 The interval at which Fleet will ask osquery agents to update host details (such as uptime, hostname, network interfaces, etc.)
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
+
+Valid time units are `s`, `m`, `h`.
 
 - Default value: `1h`
 - Environment variable: `FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL`

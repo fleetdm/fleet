@@ -426,12 +426,18 @@ func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) 
 	if err != nil {
 		return err
 	}
-	req, err := http.Post(url, "application/json", bytes.NewBuffer(statsBytes))
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(statsBytes))
 	if err != nil {
 		return err
 	}
-	if req.StatusCode != http.StatusOK {
-		return errors.Errorf("Error posting to %s: %d", url, req.StatusCode)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("Error posting to %s: %d", url, resp.StatusCode)
 	}
 	return ds.RecordStatisticsSent()
 }
@@ -491,15 +497,17 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 }
 
 func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
-	config, err := ds.AppConfig()
+	appConfig, err := ds.AppConfig()
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
-	if config.VulnerabilityDatabasesPath == nil {
+	if appConfig.VulnerabilityDatabasesPath == nil {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return
 	}
+
+	vulnPath := *appConfig.VulnerabilityDatabasesPath
 
 	ticker := time.NewTicker(1 * time.Hour)
 	for {
@@ -516,10 +524,16 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			continue
 		}
 
-		err := vulnerabilities.TranslateSoftwareToCPE(ds)
+		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath)
 		if err != nil {
-			level.Error(logger).Log("err", "analyzing vulnerable software", "details", err)
+			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 		}
+
+		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger)
+		if err != nil {
+			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+		}
+
 		level.Debug(logger).Log("loop", "done")
 	}
 }

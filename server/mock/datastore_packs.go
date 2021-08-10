@@ -20,25 +20,11 @@ type DeletePackFunc func(name string) error
 
 type PackFunc func(pid uint) (*fleet.Pack, error)
 
-type ListPacksFunc func(opt fleet.ListOptions) ([]*fleet.Pack, error)
+type ListPacksFunc func(opt fleet.PackListOptions) ([]*fleet.Pack, error)
 
 type PackByNameFunc func(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error)
 
-type AddLabelToPackFunc func(lid uint, pid uint, opts ...fleet.OptionalArg) error
-
-type RemoveLabelFromPackFunc func(lid uint, pid uint) error
-
-type ListLabelsForPackFunc func(pid uint) ([]*fleet.Label, error)
-
-type AddHostToPackFunc func(hid uint, pid uint) error
-
-type RemoveHostFromPackFunc func(hid uint, pid uint) error
-
 type ListPacksForHostFunc func(hid uint) (packs []*fleet.Pack, err error)
-
-type ListHostsInPackFunc func(pid uint, opt fleet.ListOptions) ([]uint, error)
-
-type ListExplicitHostsInPackFunc func(pid uint, opt fleet.ListOptions) ([]uint, error)
 
 type EnsureGlobalPackFunc func() (*fleet.Pack, error)
 
@@ -72,45 +58,14 @@ type PackStore struct {
 	PackByNameFunc        PackByNameFunc
 	PackByNameFuncInvoked bool
 
-	AddLabelToPackFunc        AddLabelToPackFunc
-	AddLabelToPackFuncInvoked bool
-
-	RemoveLabelFromPackFunc        RemoveLabelFromPackFunc
-	RemoveLabelFromPackFuncInvoked bool
-
-	ListLabelsForPackFunc        ListLabelsForPackFunc
-	ListLabelsForPackFuncInvoked bool
-
-	AddHostToPackFunc        AddHostToPackFunc
-	AddHostToPackFuncInvoked bool
-
-	RemoveHostFromPackFunc        RemoveHostFromPackFunc
-	RemoveHostFromPackFuncInvoked bool
-
 	ListPacksForHostFunc        ListPacksForHostFunc
 	ListPacksForHostFuncInvoked bool
-
-	ListHostsInPackFunc        ListHostsInPackFunc
-	ListHostsInPackFuncInvoked bool
-
-	ListExplicitHostsInPackFunc        ListExplicitHostsInPackFunc
-	ListExplicitHostsInPackFuncInvoked bool
 
 	EnsureGlobalPackFunc        EnsureGlobalPackFunc
 	EnsureGlobalPackFuncInvoked bool
 
 	EnsureTeamPackFunc        EnsureTeamPackFunc
 	EnsureTeamPackFuncInvoked bool
-}
-
-func (s *PackStore) EnsureGlobalPack() (*fleet.Pack, error) {
-	s.EnsureGlobalPackFuncInvoked = true
-	return s.EnsureGlobalPackFunc()
-}
-
-func (s *PackStore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
-	s.EnsureTeamPackFuncInvoked = true
-	return s.EnsureTeamPackFunc(teamID)
 }
 
 func (s *PackStore) ApplyPackSpecs(specs []*fleet.PackSpec) error {
@@ -148,7 +103,7 @@ func (s *PackStore) Pack(pid uint) (*fleet.Pack, error) {
 	return s.PackFunc(pid)
 }
 
-func (s *PackStore) ListPacks(opt fleet.ListOptions) ([]*fleet.Pack, error) {
+func (s *PackStore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 	s.ListPacksFuncInvoked = true
 	return s.ListPacksFunc(opt)
 }
@@ -158,42 +113,17 @@ func (s *PackStore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.P
 	return s.PackByNameFunc(name, opts...)
 }
 
-func (s *PackStore) AddLabelToPack(lid uint, pid uint, opts ...fleet.OptionalArg) error {
-	s.AddLabelToPackFuncInvoked = true
-	return s.AddLabelToPackFunc(lid, pid, opts...)
-}
-
-func (s *PackStore) RemoveLabelFromPack(lid uint, pid uint) error {
-	s.RemoveLabelFromPackFuncInvoked = true
-	return s.RemoveLabelFromPackFunc(lid, pid)
-}
-
-func (s *PackStore) ListLabelsForPack(pid uint) ([]*fleet.Label, error) {
-	s.ListLabelsForPackFuncInvoked = true
-	return s.ListLabelsForPackFunc(pid)
-}
-
-func (s *PackStore) AddHostToPack(hid uint, pid uint) error {
-	s.AddHostToPackFuncInvoked = true
-	return s.AddHostToPackFunc(hid, pid)
-}
-
-func (s *PackStore) RemoveHostFromPack(hid uint, pid uint) error {
-	s.RemoveHostFromPackFuncInvoked = true
-	return s.RemoveHostFromPackFunc(hid, pid)
-}
-
 func (s *PackStore) ListPacksForHost(hid uint) (packs []*fleet.Pack, err error) {
 	s.ListPacksForHostFuncInvoked = true
 	return s.ListPacksForHostFunc(hid)
 }
 
-func (s *PackStore) ListHostsInPack(pid uint, opt fleet.ListOptions) ([]uint, error) {
-	s.ListHostsInPackFuncInvoked = true
-	return s.ListHostsInPackFunc(pid, opt)
+func (s *PackStore) EnsureGlobalPack() (*fleet.Pack, error) {
+	s.EnsureGlobalPackFuncInvoked = true
+	return s.EnsureGlobalPackFunc()
 }
 
-func (s *PackStore) ListExplicitHostsInPack(pid uint, opt fleet.ListOptions) ([]uint, error) {
-	s.ListExplicitHostsInPackFuncInvoked = true
-	return s.ListExplicitHostsInPackFunc(pid, opt)
+func (s *PackStore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
+	s.EnsureTeamPackFuncInvoked = true
+	return s.EnsureTeamPackFunc(teamID)
 }

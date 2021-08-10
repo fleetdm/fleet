@@ -101,6 +101,14 @@ module.exports.custom = {
   * (and possibly in ALL environments, if not overridden in config/env/)     *
   *                                                                          *
   ***************************************************************************/
+  // Contact form:
+  // slackWebhookUrlForContactForm: '…',
+
+  // GitHub bot:
+  // githubAccessToken: '…',
+  // githubBotWebhookSecret: '…',
+  // slackWebhookUrlForGithubBot: '…',
+
   //…
 
 };

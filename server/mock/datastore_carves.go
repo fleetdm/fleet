@@ -10,17 +10,17 @@ import (
 
 var _ fleet.CarveStore = (*CarveStore)(nil)
 
-type NewCarveFunc func(c *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
+type NewCarveFunc func(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
 
-type UpdateCarveFunc func(c *fleet.CarveMetadata) error
+type UpdateCarveFunc func(metadata *fleet.CarveMetadata) error
 
 type CarveFunc func(carveId int64) (*fleet.CarveMetadata, error)
-
-type ListCarvesFunc func(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
 
 type CarveBySessionIdFunc func(sessionId string) (*fleet.CarveMetadata, error)
 
 type CarveByNameFunc func(name string) (*fleet.CarveMetadata, error)
+
+type ListCarvesFunc func(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
 
 type NewBlockFunc func(metadata *fleet.CarveMetadata, blockId int64, data []byte) error
 
@@ -38,14 +38,14 @@ type CarveStore struct {
 	CarveFunc        CarveFunc
 	CarveFuncInvoked bool
 
-	ListCarvesFunc        ListCarvesFunc
-	ListCarvesFuncInvoked bool
-
 	CarveBySessionIdFunc        CarveBySessionIdFunc
 	CarveBySessionIdFuncInvoked bool
 
 	CarveByNameFunc        CarveByNameFunc
 	CarveByNameFuncInvoked bool
+
+	ListCarvesFunc        ListCarvesFunc
+	ListCarvesFuncInvoked bool
 
 	NewBlockFunc        NewBlockFunc
 	NewBlockFuncInvoked bool
@@ -57,24 +57,19 @@ type CarveStore struct {
 	CleanupCarvesFuncInvoked bool
 }
 
-func (s *CarveStore) NewCarve(c *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+func (s *CarveStore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	s.NewCarveFuncInvoked = true
-	return s.NewCarveFunc(c)
+	return s.NewCarveFunc(metadata)
 }
 
-func (s *CarveStore) UpdateCarve(c *fleet.CarveMetadata) error {
+func (s *CarveStore) UpdateCarve(metadata *fleet.CarveMetadata) error {
 	s.UpdateCarveFuncInvoked = true
-	return s.UpdateCarveFunc(c)
+	return s.UpdateCarveFunc(metadata)
 }
 
 func (s *CarveStore) Carve(carveId int64) (*fleet.CarveMetadata, error) {
 	s.CarveFuncInvoked = true
 	return s.CarveFunc(carveId)
-}
-
-func (s *CarveStore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
-	s.ListCarvesFuncInvoked = true
-	return s.ListCarvesFunc(opt)
 }
 
 func (s *CarveStore) CarveBySessionId(sessionId string) (*fleet.CarveMetadata, error) {
@@ -85,6 +80,11 @@ func (s *CarveStore) CarveBySessionId(sessionId string) (*fleet.CarveMetadata, e
 func (s *CarveStore) CarveByName(name string) (*fleet.CarveMetadata, error) {
 	s.CarveByNameFuncInvoked = true
 	return s.CarveByNameFunc(name)
+}
+
+func (s *CarveStore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+	s.ListCarvesFuncInvoked = true
+	return s.ListCarvesFunc(opt)
 }
 
 func (s *CarveStore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data []byte) error {

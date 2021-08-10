@@ -7,7 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
-	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/go-kit/kit/log"
 	"github.com/kolide/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"
