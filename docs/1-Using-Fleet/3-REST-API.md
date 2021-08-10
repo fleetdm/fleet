@@ -3754,7 +3754,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 456,
       "snapshot": false,
       "removed": true,
-      "shard": null
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3768,7 +3771,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 677,
       "snapshot": true,
       "removed": false,
-      "shard": null
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3782,7 +3788,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 6667,
       "snapshot": true,
       "removed": false,
-      "shard": null
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
     },
   ]
 }
@@ -3883,7 +3892,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
     "removed": true,
     "platform": "windows",
     "version": "4.5.0",
-    "shard": 10
+    "shard": 10,
+    "denylist": null,
   }
 }
 ```
@@ -3997,7 +4007,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 456,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "windows",
+          "version": "4.5.0"
         },
         {
           "query": "new_title_for_my_query",
@@ -4005,7 +4017,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 677,
           "snapshot": true,
-          "removed": false
+          "removed": false,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "osquery_info",
@@ -4013,7 +4027,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 6667,
           "snapshot": true,
-          "removed": false
+          "removed": false,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "query1",
@@ -4021,7 +4037,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 7767,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "osquery_events",
@@ -4029,7 +4047,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 454,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "osquery_events",
@@ -4037,7 +4057,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 120,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "",
+          "version": ""
         }
       ]
     },
@@ -4056,7 +4078,10 @@ Returns the specs for all packs in the Fleet instance.
           "interval": 333,
           "snapshot": false,
           "removed": true,
-          "platform": "windows"
+          "platform": "windows",
+          "version": "4.5.0",
+          "shard": 10,
+          "denylist": null
         }
       ]
     },
@@ -4216,7 +4241,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 677,
         "snapshot": true,
-        "removed": false
+        "removed": false,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "osquery_info",
@@ -4224,7 +4251,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 6667,
         "snapshot": true,
-        "removed": false
+        "removed": false,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "query1",
@@ -4232,7 +4261,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 7767,
         "snapshot": false,
-        "removed": true
+        "removed": true,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "osquery_events",
@@ -4240,7 +4271,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 454,
         "snapshot": false,
-        "removed": true
+        "removed": true,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "osquery_events",
@@ -4248,7 +4281,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 120,
         "snapshot": false,
-        "removed": true
+        "removed": true,
+        "platform": "",
+        "version": "",
       }
     ]
   }
@@ -4649,7 +4684,8 @@ None.
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
-    "live_query_disabled": false
+    "live_query_disabled": false,
+    "enable_analytics": true
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -4673,7 +4709,8 @@ None.
     "metadata": "",
     "metadata_url": "",
     "idp_name": "",
-    "enable_sso": false
+    "enable_sso": false,
+    "enable_sso_idp_login": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -4681,10 +4718,6 @@ None.
   },
   "host_settings": {
     "additional_queries": null
-  },
-  "license": {
-    "tier": "core",
-    "expiration": "0001-01-01T00:00:00Z"
   },
   "agent_options": {
     "spec": {
@@ -4707,6 +4740,36 @@ None.
         }
       },
       "overrides": {}
+    }
+  }
+  "license": {
+    "tier": "core",
+    "organization": "fleet",
+    "device_count": 100,
+    "expiration": "2021-12-31T19:00:00-05:00",
+    "note": ""
+  },
+  "vulnerability_settings": null,
+  "logging": {
+    "debug": false,
+    "json": false,
+    "result": {
+        "plugin": "filesystem",
+        "config": {
+          "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+          "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+          "enable_log_rotation": false,
+          "enable_log_compression": false
+        }
+      },
+    "status": {
+      "plugin": "filesystem",
+      "config": {
+        "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+        "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+        "enable_log_rotation": false,
+        "enable_log_compression": false
+      }
     }
   }
 }
@@ -4841,13 +4904,11 @@ None.
     "secrets": [
       {
         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        "created_at": "2021-01-07T19:40:04Z",
-        "team_id": null
+        "created_at": "2021-01-07T19:40:04Z"
       },
       {
         "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On",
-        "created_at": "2021-01-04T21:18:07Z",
-        "team_id": null
+        "created_at": "2021-01-04T21:18:07Z"
       }
     ]
   }
@@ -4971,18 +5032,31 @@ None.
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 3,
+    "invited_by": 1
     "email": "john_appleseed@example.com",
     "name": "John",
     "sso_enabled": false,
     "teams": [
       {
-        "id": 2,
-        "role: "observer"
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
       },
       {
-        "id": 3,
-        "role: "maintainer"
-      },
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
     ]
   }
 }

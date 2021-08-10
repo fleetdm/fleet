@@ -77,7 +77,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const dispatch = useDispatch();
 
   const isBasicTier = useSelector((state: IRootState) => {
-    return state.app.config.tier === "basic";
+    return state.app.config.license.tier === "basic";
   });
   const loadingTableData = useSelector(
     (state: IRootState) => state.entities.users.loading
@@ -96,11 +96,11 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   });
 
   const smtpConfigured = useSelector((state: IRootState) => {
-    return state.app.config.configured;
+    return state.app.config.smtp_settings.configured;
   });
 
   const canUseSso = useSelector((state: IRootState) => {
-    return state.app.config.enable_sso;
+    return state.app.config.sso_settings.enable_sso;
   });
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);

@@ -1,31 +1,35 @@
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
-  description: PropTypes.string,
-  detail_updated_at: PropTypes.string,
+  created_at: PropTypes.string,
+  updated_at: PropTypes.string,
   id: PropTypes.number,
   name: PropTypes.string,
-  platform: PropTypes.string,
-  updated_at: PropTypes.string,
-  query_count: PropTypes.number,
-  total_hosts_count: PropTypes.number,
+  description: PropTypes.string,
+  type: PropTypes.string,
   disabled: PropTypes.bool,
-  team_ids: PropTypes.arrayOf(PropTypes.number),
+  query_count: PropTypes.number,
+  total_host_count: PropTypes.number,
   host_ids: PropTypes.arrayOf(PropTypes.number),
   label_ids: PropTypes.arrayOf(PropTypes.number),
+  team_ids: PropTypes.arrayOf(PropTypes.number),
+  detail_updated_at: PropTypes.string, // This does not exist in response
+  platform: PropTypes.string, // This does not exist in response
 });
 
 export interface IPack {
-  description: string;
-  detail_updated_at: string;
+  created_at: string;
+  updated_at: string;
   id: number;
   name: string;
-  platform: string;
-  updated_at: string;
+  description: string;
+  type: string;
+  disabled: boolean;
   query_count: number;
   total_hosts_count: number;
-  disabled: boolean;
-  team_ids: number[];
-  host_ids: number[];
+  host_ids: number[]; // can host_ids, label_ids, team_ids, be anything other than numbers?
   label_ids: number[];
+  team_ids: number[];
+  detail_updated_at: string; // This does not exist in response
+  platform: string; // This does not exist in response
 }

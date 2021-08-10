@@ -613,6 +613,7 @@ const mapStateToProps = (state) => {
   const loadingTableData = loadingUsers || loadingInvites;
   const isBasicTier = permissionUtils.isBasicTier(config);
 
+  console.log("invites", invites);
   return {
     appConfigLoading,
     config,

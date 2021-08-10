@@ -2,16 +2,14 @@ import PropTypes from "prop-types";
 
 export default PropTypes.arrayOf(
   PropTypes.shape({
-    name: PropTypes.string,
     secret: PropTypes.string,
-    active: PropTypes.bool,
     created_at: PropTypes.string,
+    team_id: PropTypes.number,
   })
 );
 
 export interface IEnrollSecret {
-  name: string;
   secret: string;
-  active: boolean;
   created_at: string;
+  team_id: number;
 }

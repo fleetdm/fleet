@@ -33,5 +33,5 @@ export interface IGlobalScheduledQuery {
   platform?: string;
   version?: string;
   shard?: number;
-  denylist: any;
+  denylist?: any;
 }

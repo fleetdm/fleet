@@ -2,11 +2,11 @@ import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
 
 export const isCoreTier = (config: IConfig): boolean => {
-  return config.tier === "core";
+  return config.license.tier === "core";
 };
 
 export const isBasicTier = (config: IConfig): boolean => {
-  return config.tier === "basic";
+  return config.license.tier === "basic";
 };
 
 export const isGlobalAdmin = (user: IUser): boolean => {

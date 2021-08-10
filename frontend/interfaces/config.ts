@@ -29,9 +29,10 @@ export default PropTypes.shape({
     result: PropTypes.shape({
       plugin: PropTypes.string,
       config: PropTypes.shape({
-        region: PropTypes.string,
-        status_stream: PropTypes.string,
-        result_stream: PropTypes.string,
+        status_log_file: PropTypes.string,
+        result_log_file: PropTypes.string,
+        enable_log_rotation: PropTypes.bool,
+        enable_log_compression: PropTypes.bool,
       }),
     }),
     status: PropTypes.shape({
@@ -75,9 +76,10 @@ export interface IConfig {
     result: {
       plugin: string;
       config: {
-        region: string;
-        status_stream: string;
-        result_stream: string;
+        status_log_file: string;
+        result_log_file: string;
+        enable_log_rotation: boolean;
+        enable_log_compression: boolean;
       };
     };
     status: {
