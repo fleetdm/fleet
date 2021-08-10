@@ -10,12 +10,9 @@ export default PropTypes.shape({
   label_membership_type: PropTypes.string,
   hosts_count: PropTypes.number,
   display_text: PropTypes.string,
-  count: PropTypes.number, // seems to be a repeat of hosts_count
-  host_ids: PropTypes.arrayOf(
-    PropTypes.oneOfType([PropTypes.number, PropTypes.string])
+  count: PropTypes.number, // seems to be a repeat of hosts_count issue #1618
+  host_ids: PropTypes.arrayOf(PropTypes.number)
   ),
-  title: PropTypes.string, // not returned by API
-  type: PropTypes.string, // not returned by API
 });
 
 export interface ILabel {
@@ -28,9 +25,6 @@ export interface ILabel {
   label_membership_type: string;
   hosts_count: number;
   display_text: string;
-  count: number; // seems to be a repeat of hosts_count
-  host_ids: number[] | null; // array of numbers or null? how to write array of numbers or strings
-  title: string; // not returned by API
-  type: string; // not returned by API
-  slug?: string; // where is this from?
+  count: number; // seems to be a repeat of hosts_count issue #1618
+  host_ids: number[] | null;
 }

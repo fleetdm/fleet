@@ -22,7 +22,7 @@ export interface IPack {
   name: string;
   description: string;
   type: string;
-  disabled: boolean;
+  disabled?: boolean;
   query_count: number;
   total_hosts_count: number;
   host_ids: number[];

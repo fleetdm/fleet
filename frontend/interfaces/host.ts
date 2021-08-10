@@ -3,6 +3,7 @@ import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
 import packInterface, { IPack } from "./pack";
 import softwareInterface, { ISoftware } from "./software";
+import queryStatsInterface, { IQueryStats } from "./query_stats";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -38,17 +39,21 @@ export default PropTypes.shape({
   config_tls_refresh: PropTypes.number,
   logger_tls_period: PropTypes.number,
   team_id: PropTypes.number,
-  // pack_stats: returns null HELP
+  pack_stats: PropTypes.arrayOf(
+    PropTypes.shape({
+      pack_id: PropTypes.number,
+      pack_name: PropTypes.string,
+      query_stats: PropTypes.arrayOf(queryStatsInterface),
+    })
+  ),
   team_name: PropTypes.string,
-  additional: PropTypes.object, // on /hosts/{id}
-  labels: PropTypes.arrayOf(labelInterface), // on /hosts/{id}
-  packs: PropTypes.arrayOf(packInterface), // on /hosts/{id}
-  software: PropTypes.arrayOf(softwareInterface), // on /hosts/{id}
+  additional: PropTypes.object,
+  labels: PropTypes.arrayOf(labelInterface),
+  packs: PropTypes.arrayOf(packInterface),
+  software: PropTypes.arrayOf(softwareInterface),
   status: PropTypes.string,
   display_text: PropTypes.string,
-  // ip: PropTypes.string, // is this outdated? potentially changed to primary_ip if something breaks
-  // mac: PropTypes.string, // is this outdated? potentially changed to primary_ip if something breaks
-  users: PropTypes.arrayOf(hostUserInterface), // is this outdated?
+  users: PropTypes.arrayOf(hostUserInterface),
 });
 
 export interface IHost {
@@ -85,15 +90,17 @@ export interface IHost {
   config_tls_refresh: number;
   logger_tls_period: number;
   team_id: number;
-  // pack_stats: returns null HELP
+  pack_stats: {
+    pack_id: number;
+    pack_name: string;
+    query_stats: IQueryStats[];
+  }[];
   team_name: string;
-  additional: object; // on /hosts/{id}
-  labels: ILabel[]; // on /hosts/{id}
-  packs: IPack[]; // on /hosts/{id}
-  software: ISoftware[]; // on /hosts/{id}
+  additional: object;
+  labels: ILabel[];
+  packs: IPack[];
+  software: ISoftware[];
   status: string;
   display_text: string;
-  ip: string; // is this outdated?
-  mac: string; // is this outdated?
-  users: IHostUser[]; // is this outdated?
+  users: IHostUser[];
 }

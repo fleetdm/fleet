@@ -13,8 +13,6 @@ export default PropTypes.shape({
   author_name: PropTypes.string,
   observer_can_run: PropTypes.bool,
   packs: PropTypes.arrayOf(packInterface),
-  interval: PropTypes.number, // not on fleet/queries
-  last_executed: PropTypes.string, // not on fleet/queries
 });
 export interface IQuery {
   created_at: string;
@@ -28,6 +26,4 @@ export interface IQuery {
   author_name: string;
   observer_can_run: boolean;
   packs: IPack[];
-  interval: number; // not on fleet/queries
-  last_executed: string; // not on fleet/queries
 }

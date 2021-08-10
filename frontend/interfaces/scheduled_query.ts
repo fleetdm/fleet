@@ -15,7 +15,7 @@ export default PropTypes.shape({
   platform: PropTypes.string,
   version: PropTypes.string,
   shard: PropTypes.number,
-  denylist: PropTypes.any,
+  denylist: PropTypes.bool,
 });
 
 export interface IScheduledQuery {
@@ -33,5 +33,5 @@ export interface IScheduledQuery {
   platform?: string;
   version?: string;
   shard: number | null;
-  denylist?: any;
+  denylist?: boolean;
 }
