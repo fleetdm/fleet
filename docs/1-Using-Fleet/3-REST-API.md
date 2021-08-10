@@ -5380,43 +5380,46 @@ _Available in Fleet Basic_
 {
   "teams: [
     {
-      "name": "workstations",
       "id": 1.
-      "user_ids": [],
-      "host_ids": [],
+      "created_at": "2021-07-28T15:58:21Z",
+      "name": "workstations",
+      "description": "",
+      "agent_options": {
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
+          },
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {}
+      },
       "user_count": 0,
       "host_count": 0,
-      "agent_options": {
-        "spec": {
-          "config": {
-            "options": {
-              "logger_plugin": "tls",
-              "pack_delimiter": "/",
-              "logger_tls_period": 10,
-              "distributed_plugin": "tls",
-              "disable_distributed": false,
-              "logger_tls_endpoint": "/api/v1/osquery/log",
-              "distributed_interval": 10,
-              "distributed_tls_max_attempts": 3
-            },
-            "decorators": {
-              "load": [
-                "SELECT uuid AS host_uuid FROM system_info;",
-                "SELECT hostname AS hostname FROM system_info;"
-              ]
-            }
-          },
-          "overrides": {}
+      "secrets": [
+        {
+          "secret": "",
+          "created_at": "2021-07-28T15:58:21Z",
+          "team_id": 10
         }
-      }
+      ]
     },
     {
-      "name": "servers",
       "id": 2,
-      "user_ids": [],
-      "host_ids": [],
-      "user_count": 0,
-      "host_count": 0,
+      "created_at": "2021-08-05T21:41:42Z",
+      "name": "servers",
+      "description": "",
       "agent_options": {
         "spec": {
           "config": {
@@ -5438,8 +5441,16 @@ _Available in Fleet Basic_
             }
           },
           "overrides": {}
+        },
+      "user_count": 0,
+      "host_count": 0,
+      "secrets": [
+        {
+          "secret": "+ncixtnZB+IE0OrbrkCLeul3U8LMVITd",
+          "created_at": "2021-08-05T21:41:42Z",
+          "team_id": 15
         }
-      }
+      ]
     }
   ]
 }

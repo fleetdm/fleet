@@ -1,27 +1,33 @@
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
+  id: PropTypes.number.isRequired,
+  created_at: PropTypes.string,
+  name: PropTypes.string.isRequired,
   description: PropTypes.string,
-  name: PropTypes.string,
-  id: PropTypes.number,
-  hosts: PropTypes.number,
-  members: PropTypes.number,
-  role: PropTypes.string,
   agent_options: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+  // hosts: PropTypes.number, // is this used anywhere? it's not returned
+  // members: PropTypes.number, // is this used anywhere? it's not returned
+  // role: PropTypes.string,  // is this used anywhere? it's not returned
+  user_count: PropTypes.number,
+  host_count: PropTypes.number,
+  secrets: PropTypes.object, // eslint-disable-line react/forbid-prop-types
 });
 
 /**
  * The shape of a team entity
  */
 export interface ITeam {
-  description: string;
-  name: string;
   id: number;
-  host_count: number;
-  user_count: number;
-  // role value is included when the team is in the context of a user.
-  role?: string;
+  created_at?: string;
+  name: string;
+  description: string;
   agent_options?: any;
+  user_count: number;
+  host_count: number;
+  secrets?: any;
+  // role value is included when the team is in the context of a user.
+  // role?: string;  // is this used anywhere? it's not returned
 }
 
 /**
