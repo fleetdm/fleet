@@ -123,7 +123,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   }, [dispatch, teamId]);
 
   const isBasicTier = useSelector((state: IRootState) => {
-    return state.app.config.license.tier === "basic";
+    return state.app.config.tier === "basic";
   });
 
   const config = useSelector((state: IRootState) => state.app.config);
