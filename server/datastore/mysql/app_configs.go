@@ -123,9 +123,10 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 			additional_queries,
 			agent_options,
 			enable_analytics,
-			vulnerability_databases_path
+			vulnerability_databases_path,
+			enable_host_users
 		)
-		VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+		VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			org_name = VALUES(org_name),
 			org_logo_url = VALUES(org_logo_url),
@@ -158,7 +159,8 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 			additional_queries = VALUES(additional_queries),
 			agent_options = VALUES(agent_options),
 			enable_analytics = VALUES(enable_analytics),
-			vulnerability_databases_path = VALUES(vulnerability_databases_path)
+			vulnerability_databases_path = VALUES(vulnerability_databases_path),
+			enable_host_users = VALUES(enable_host_users)
     `
 
 		_, err = tx.Exec(insertStatement,
@@ -194,6 +196,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 			info.AgentOptions,
 			info.EnableAnalytics,
 			info.VulnerabilityDatabasesPath,
+			info.EnableHostUsers,
 		)
 		if err != nil {
 			return err
