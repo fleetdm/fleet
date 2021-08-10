@@ -25,7 +25,7 @@ export default {
 
     return sendRequest("GET", QUERIES);
   },
-  run: ({ query, selected }: {query: IQuery, selected: any }) => {
+  run: ({ query, selected }: { query: string, selected: any }) => {
     const { RUN_QUERY } = endpoints;
 
     return sendRequest("POST", RUN_QUERY, { query, selected });
