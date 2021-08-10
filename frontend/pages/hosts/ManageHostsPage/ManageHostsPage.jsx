@@ -2,8 +2,10 @@ import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
+import { find, isEmpty, reduce, trim, union } from "lodash";
 
 import Button from "components/buttons/Button";
+import Dropdown from "components/forms/fields/Dropdown";
 import configInterface from "interfaces/config";
 import HostSidePanel from "components/side_panels/HostSidePanel";
 import LabelForm from "components/forms/LabelForm";
@@ -25,12 +27,10 @@ import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
-import { find } from "lodash";
 
 import hostClient from "services/entities/hosts";
 
 import permissionUtils from "utilities/permissions";
-import Dropdown from "components/forms/fields/Dropdown";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -45,10 +45,11 @@ import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 
+const baseClass = "manage-hosts";
+
 const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
 const ALL_HOSTS_LABEL = "all-hosts";
-const baseClass = "manage-hosts";
 const LABEL_SLUG_PREFIX = "labels/";
 
 const HOST_SELECT_STATUSES = [
@@ -95,9 +96,17 @@ export class ManageHostsPage extends PureComponent {
     }),
     labels: PropTypes.arrayOf(labelInterface),
     loadingLabels: PropTypes.bool.isRequired,
+    queryParams: PropTypes.objectOf(
+      PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+    ),
+    routeTemplate: PropTypes.string,
+    routeParams: PropTypes.objectOf(
+      PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+    ),
     enrollSecret: enrollSecretInterface,
     selectedFilters: PropTypes.arrayOf(PropTypes.string),
     selectedLabel: labelInterface,
+    selectedTeam: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
     loadingHosts: PropTypes.bool,
@@ -105,6 +114,7 @@ export class ManageHostsPage extends PureComponent {
     canAddNewLabels: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
+    isOnGlobalTeam: PropTypes.bool,
     isBasicTier: PropTypes.bool,
     currentUser: userInterface,
   };
@@ -138,21 +148,21 @@ export class ManageHostsPage extends PureComponent {
       searchQuery: "",
       hosts: [],
       isHostsLoading: false,
+      isTeamsLoading: true,
     };
   }
 
   componentDidMount() {
-    const { dispatch } = this.props;
+    const { dispatch, isBasicTier } = this.props;
     dispatch(getLabels());
+    if (isBasicTier) {
+      dispatch(teamActions.loadAll({}));
+    }
   }
 
   componentDidUpdate(prevProps) {
-    const { dispatch, isBasicTier, canAddNewHosts } = this.props;
-    if (
-      isBasicTier !== prevProps.isBasicTier &&
-      isBasicTier &&
-      canAddNewHosts
-    ) {
+    const { dispatch, isBasicTier } = this.props;
+    if (isBasicTier !== prevProps.isBasicTier && isBasicTier) {
       dispatch(teamActions.loadAll({}));
     }
   }
@@ -212,6 +222,7 @@ export class ManageHostsPage extends PureComponent {
     toggleAddHostModal();
   };
 
+  // The onChange method below is for the dropdown used in modals
   onChangeTeam = (team) => {
     const { dispatch } = this.props;
     dispatch(teamActions.getEnrollSecrets(team));
@@ -227,7 +238,7 @@ export class ManageHostsPage extends PureComponent {
     sortDirection,
   }) => {
     const { retrieveHosts } = this;
-    const { selectedFilters } = this.props;
+    const { selectedFilters, selectedTeam } = this.props;
 
     let sortBy = [];
     if (sortHeader !== "") {
@@ -243,6 +254,7 @@ export class ManageHostsPage extends PureComponent {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       sortBy,
+      teamId: selectedTeam,
     });
   };
 
@@ -371,6 +383,56 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ isAllMatchingHostsSelected: false });
   };
 
+  getNextLocationUrl = (
+    pathPrefix = "",
+    newRouteTemplate = "",
+    newRouteParams = {},
+    newQueryParams = {}
+  ) => {
+    const routeTemplate = newRouteTemplate || this.props.routeTemplate || "";
+    const urlRouteParams = Object.assign(
+      {},
+      this.props.routeParams,
+      newRouteParams
+    );
+    const urlQueryParams = Object.assign(
+      {},
+      this.props.queryParams,
+      newQueryParams
+    );
+
+    let routeString = "";
+
+    if (!isEmpty(urlRouteParams)) {
+      routeString = reduce(
+        urlRouteParams,
+        (string, value, key) => {
+          return string.replace(`:${key}`, encodeURIComponent(value));
+        },
+        routeTemplate
+      );
+    }
+
+    let queryString = "";
+    if (!isEmpty(urlQueryParams)) {
+      queryString = reduce(
+        urlQueryParams,
+        (arr, value, key) => {
+          key && arr.push(`${key}=${encodeURIComponent(value)}`);
+          return arr;
+        },
+        []
+      ).join("&");
+    }
+
+    const nextLocation = union(
+      trim(pathPrefix, "/").split("/"),
+      routeString.split("/")
+    ).join("/");
+
+    return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
+  };
+
   getLabelSelected = () => {
     const { selectedFilters } = this.props;
     return selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX));
@@ -379,6 +441,48 @@ export class ManageHostsPage extends PureComponent {
   getStatusSelected = () => {
     const { selectedFilters } = this.props;
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
+  };
+
+  generateTeamFilterDropdownOptions = (teams) => {
+    const { currentUser, isOnGlobalTeam } = this.props;
+
+    let currentUserTeams = [];
+    if (isOnGlobalTeam) {
+      currentUserTeams = teams;
+    } else if (currentUser && currentUser.teams) {
+      currentUserTeams = currentUser.teams;
+    }
+
+    const allTeamsOption = [
+      {
+        disabled: false,
+        label: "All teams",
+        value: 0,
+      },
+    ];
+
+    const sortedCurrentUserTeamOptions = currentUserTeams
+      .map((team) => {
+        return {
+          disabled: false,
+          label: team.name,
+          value: team.id,
+        };
+      })
+      .sort((a, b) => {
+        const labelA = a.label.toUpperCase();
+        const labelB = b.label.toUpperCase();
+        if (labelA < labelB) {
+          return -1;
+        }
+        if (labelA > labelB) {
+          return 1;
+        }
+
+        return 0; // values are equal
+      });
+
+    return allTeamsOption.concat(sortedCurrentUserTeamOptions);
   };
 
   retrieveHosts = async (options) => {
@@ -407,12 +511,29 @@ export class ManageHostsPage extends PureComponent {
     );
   };
 
-  clearHostUpdates() {
+  isValidSelectedTeamId = (teamId) => {
+    const { currentUser, isOnGlobalTeam, teams } = this.props;
+
+    let currentUserTeams = [];
+    if (isOnGlobalTeam) {
+      currentUserTeams = teams;
+    } else if (currentUser && currentUser.teams) {
+      currentUserTeams = currentUser.teams;
+    }
+
+    const currentUserTeamIds = currentUserTeams.map((t) => t.id);
+
+    teamId = parseInt(teamId, 10);
+
+    return !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId);
+  };
+
+  clearHostUpdates = () => {
     if (this.timeout) {
       global.window.clearTimeout(this.timeout);
       this.timeout = null;
     }
-  }
+  };
 
   toggleAddHostModal = () => {
     const { showAddHostModal } = this.state;
@@ -441,11 +562,45 @@ export class ManageHostsPage extends PureComponent {
     }
   };
 
-  handleLabelChange = ({ slug, type }) => {
+  // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
+  handleChangeSelectedTeamFilter = (selectedTeam) => {
     const { dispatch, selectedFilters } = this.props;
+    const { searchQuery } = this.state;
+    const { getNextLocationUrl, isValidSelectedTeamId, retrieveHosts } = this;
+    const { MANAGE_HOSTS } = PATHS;
+
+    let selectedTeamId = parseInt(selectedTeam, 10);
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
+
+    let nextLocation = getNextLocationUrl(
+      MANAGE_HOSTS,
+      "",
+      {},
+      { team_id: selectedTeamId }
+    );
+
+    if (!selectedTeamId) {
+      nextLocation = nextLocation.replace(`team_id=${selectedTeamId}`, "");
+    }
+
+    // TODO confirm that sort order, pagination work as expected
+    retrieveHosts({
+      teamId: selectedTeam,
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+    });
+    dispatch(push(nextLocation));
+  };
+
+  handleLabelChange = ({ slug, type }) => {
+    const { dispatch, selectedFilters, selectedTeam } = this.props;
+    const { isValidSelectedTeamId } = this;
     const { MANAGE_HOSTS } = PATHS;
     const isAllHosts = slug === ALL_HOSTS_LABEL;
     const newFilters = [...selectedFilters];
+
+    let selectedTeamId = parseInt(selectedTeam, 10);
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
 
     if (!isAllHosts) {
       // always remove "all-hosts" from the filters first because we don't want
@@ -468,9 +623,13 @@ export class ManageHostsPage extends PureComponent {
       }
     }
 
-    const nextLocation = isAllHosts
+    let nextLocation = isAllHosts
       ? MANAGE_HOSTS
       : `${MANAGE_HOSTS}/${newFilters.join("/")}`;
+
+    if (selectedTeamId) {
+      nextLocation += `?team_id=${selectedTeamId}`;
+    }
     dispatch(push(nextLocation));
   };
 
@@ -484,6 +643,37 @@ export class ManageHostsPage extends PureComponent {
       ? find(labels, { type: "all" })
       : find(labels, { id: statusName });
     handleLabelChange(selected);
+  };
+
+  // TODO revisit UX for server errors for invalid team_id (e.g., team_id=0, team_id=null, team_id=foo, etc.)
+  renderTeamsFilterDropdown = () => {
+    const { isBasicTier, selectedTeam, teams } = this.props;
+    const {
+      generateTeamFilterDropdownOptions,
+      isValidSelectedTeamId,
+      handleChangeSelectedTeamFilter,
+    } = this;
+    const teamOptions = generateTeamFilterDropdownOptions(teams);
+
+    let selectedTeamId = parseInt(selectedTeam, 10);
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
+
+    return isBasicTier ? (
+      <div>
+        <Dropdown
+          value={selectedTeamId}
+          placeholder={"All teams"}
+          className={`${baseClass}__team-dropdown`}
+          options={teamOptions}
+          searchable={false}
+          onChange={(newSelectedValue) =>
+            handleChangeSelectedTeamFilter(newSelectedValue)
+          }
+        />
+      </div>
+    ) : (
+      <h1>Hosts</h1>
+    );
   };
 
   renderEditColumnsModal = () => {
@@ -608,22 +798,16 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderHeader = () => {
-    const { renderHeaderLabelBlock } = this;
+    const { renderHeaderLabelBlock, renderTeamsFilterDropdown } = this;
     const { isAddLabel, selectedLabel } = this.props;
-
-    if (!selectedLabel || isAddLabel) {
-      return false;
-    }
-
-    const { type } = selectedLabel;
+    const type = selectedLabel?.type;
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
-          <h1 className={`${baseClass}__title`}>
-            <span>Hosts</span>
-          </h1>
+          {renderTeamsFilterDropdown()}
           {type !== "all" &&
             type !== "status" &&
+            selectedLabel &&
             renderHeaderLabelBlock(selectedLabel)}
         </div>
       </div>
@@ -833,7 +1017,12 @@ export class ManageHostsPage extends PureComponent {
   }
 }
 
-const mapStateToProps = (state, { location, params }) => {
+const mapStateToProps = (state, ownProps) => {
+  const { location, params, route, routeParams } = ownProps;
+  const locationPath = location.path;
+  const queryParams = location.query;
+  const routeTemplate = route && route.path ? route.path : "";
+
   const { active_label: activeLabel, label_id: labelID } = params;
   const selectedFilters = [];
 
@@ -866,6 +1055,12 @@ const mapStateToProps = (state, { location, params }) => {
 
   const { loading: loadingHosts } = state.entities.hosts;
 
+  const { loading: loadingTeams } = state.entities.teams;
+  const teams = memoizedGetEntity(state.entities.teams.data);
+
+  // If there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
+  const selectedTeam = location.query?.team_id || 0;
+
   const currentUser = state.auth.user;
   const canAddNewHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
@@ -875,11 +1070,15 @@ const mapStateToProps = (state, { location, params }) => {
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
+  const isOnGlobalTeam = permissionUtils.isOnGlobalTeam(currentUser);
   const isBasicTier = permissionUtils.isBasicTier(config);
-  const teams = memoizedGetEntity(state.entities.teams.data);
 
   return {
     selectedFilters,
+    locationPath,
+    queryParams,
+    routeParams,
+    routeTemplate,
     isAddLabel,
     isEditLabel,
     labelErrors,
@@ -895,8 +1094,11 @@ const mapStateToProps = (state, { location, params }) => {
     canAddNewHosts,
     canAddNewLabels,
     isGlobalAdmin,
+    isOnGlobalTeam,
     isBasicTier,
     teams,
+    loadingTeams,
+    selectedTeam,
   };
 };
 
