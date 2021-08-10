@@ -446,7 +446,12 @@ export class ManageHostsPage extends PureComponent {
   generateTeamFilterDropdownOptions = (teams) => {
     const { currentUser, isOnGlobalTeam } = this.props;
 
-    const currentUserTeams = isOnGlobalTeam ? teams : currentUser.teams;
+    let currentUserTeams = [];
+    if (isOnGlobalTeam) {
+      currentUserTeams = teams;
+    } else if (currentUser && currentUser.teams) {
+      currentUserTeams = currentUser.teams;
+    }
 
     const allTeamsOption = [
       {
@@ -508,9 +513,15 @@ export class ManageHostsPage extends PureComponent {
 
   isValidSelectedTeamId = (teamId) => {
     const { currentUser, isOnGlobalTeam, teams } = this.props;
-    const currentUserTeamIds = isOnGlobalTeam
-      ? teams.map((t) => t.id)
-      : currentUser.teams.map((t) => t.id);
+
+    let currentUserTeams = [];
+    if (isOnGlobalTeam) {
+      currentUserTeams = teams;
+    } else if (currentUser && currentUser.teams) {
+      currentUserTeams = currentUser.teams;
+    }
+
+    const currentUserTeamIds = currentUserTeams.map((t) => t.id);
 
     teamId = parseInt(teamId, 10);
 
