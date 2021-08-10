@@ -29,7 +29,6 @@ import ScheduleError from "./components/ScheduleError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
-import { IScheduledQuery } from "interfaces/scheduled_query";
 
 const baseClass = "manage-schedule-page";
 
