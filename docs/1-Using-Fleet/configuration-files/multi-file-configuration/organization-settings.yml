@@ -53,3 +53,5 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
+  vulnerability_settings:
+    databases_path: /tmp/vulndbs
