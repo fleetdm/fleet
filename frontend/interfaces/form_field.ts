@@ -11,3 +11,10 @@ export default PropTypes.shape({
     PropTypes.string,
   ]),
 });
+
+export interface IFormField {
+  error: string;
+  name: string;
+  onChange: () => {},
+  value: any[] | boolean | number | string;
+};

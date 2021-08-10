@@ -1,0 +1,55 @@
+.query-form1 {
+  &__wrapper {
+    font-size: $x-small;
+
+    h1 {
+      margin: $pad-large 0;
+    }
+  }
+
+  &__query-name,
+  &__query-description {
+    width: 100%;
+  }
+
+  &__query-observer-can-run {
+    font-size: $x-small;
+    font-weight: $bold;
+    font-style: normal;
+
+    &__label {
+      margin-left: $pad-small;
+    }
+  }
+
+  &__query-observer-can-run-wrapper {
+    margin-bottom: $pad-xsmall;
+    font-weight: $bold !important; //override checkbox default
+  }
+
+  &__button-wrap {
+    &--new-query {
+      display: flex;
+      align-items: center;
+
+      button:not(:first-of-type) {
+        margin-left: $pad-small;
+      }
+    }
+  }
+
+  &__save-query-btn,
+  &__cancel-btn {
+    margin-right: $pad-xsmall;
+  }
+
+  &__text-editor-wrapper {
+    margin: $pad-medium 0;
+  }
+
+  &__title {
+    color: $core-fleet-black;
+    display: inline-block;
+    font-size: $large;
+  }
+}

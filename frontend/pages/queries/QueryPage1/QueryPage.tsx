@@ -16,7 +16,7 @@ import debounce from "utilities/debounce"; // @ts-ignore
 import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import permissionUtils from "utilities/permissions";
-import { IQueryUpdate, IQuery } from "interfaces/query";
+import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget, ITargetsResponse } from "interfaces/target";
 
 // @ts-ignore
@@ -27,7 +27,7 @@ import {
   setSelectedTargetsQuery // @ts-ignore
 } from "redux/nodes/components/QueryPages/actions"; // @ts-ignore
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers"; // @ts-ignore
-import QueryForm from "components/forms/queries/QueryForm"; // @ts-ignore
+import QueryForm from "components/forms/queries/QueryForm1"; // @ts-ignore
 import WarningBanner from "components/WarningBanner"; // @ts-ignore
 import QueryPageSelectTargets from "components/queries/QueryPageSelectTargets"; // @ts-ignore
 import QueryResultsTable from "components/queries/QueryResultsTable"; // @ts-ignore
@@ -153,7 +153,7 @@ const QueryPage = ({
     return false;
   };
 
-  const onSaveQueryFormSubmit = debounce((formData: IQueryUpdate) => {
+  const onSaveQueryFormSubmit = debounce((formData: IQueryFormData) => {
     const { error } = validateQuery(formData.query);
 
     if (error) {
@@ -281,7 +281,7 @@ const QueryPage = ({
     return teardownDistributedQuery();
   };
 
-  const onUpdateQuery = async (formData: IQueryUpdate) => {
+  const onUpdateQuery = async (formData: IQueryFormData) => {
     if (!query) {
       return false;
     }

@@ -1,9 +1,9 @@
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { IQueryUpdate, IQuery } from "interfaces/query";
+import { IQueryFormData, IQuery } from "interfaces/query";
 
 export default {
-  create: ({ description, name, query, observer_can_run }: IQueryUpdate) => {
+  create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
     const { QUERIES } = endpoints;
 
     return sendRequest("POST", QUERIES, { description, name, query, observer_can_run });
