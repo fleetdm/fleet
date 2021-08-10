@@ -1,4 +1,4 @@
-.all-packs-page {
+.manage-packs-page {
   font-size: $x-small;
 
   &__bulk-action-container {
@@ -46,7 +46,43 @@
   }
 
   &__title {
+    font-size: $large;
+
+    .fleeticon {
+      color: $core-fleet-blue;
+      margin-right: 15px;
+    }
+
+    .fleeticon-success-check {
+      color: $ui-success;
+    }
+
+    .fleeticon-offline {
+      color: $ui-error;
+    }
+
+    .fleeticon-mia {
+      color: $core-fleet-black;
+    }
+  }
+
+  &__description {
     margin: 0 0 $pad-medium;
+    padding-top: $pad-xsmall;
+
+    h2 {
+      text-transform: uppercase;
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $small;
+    }
+
+    p {
+      color: $core-dark-blue-grey;
+      margin: 0;
+      font-size: $x-small;
+      font-style: italic;
+    }
   }
 
   &__wrapper {
@@ -65,6 +101,11 @@
 
     .button {
       margin-left: 15px;
+      width: 120px;
     }
+  }
+
+  .button img {
+    transform: scale(0.5);
   }
 }

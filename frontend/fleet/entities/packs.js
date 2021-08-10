@@ -51,7 +51,11 @@ export default (client) => {
       const { PACKS } = endpoints;
       const { targets } = updatedPack;
       const updatePackEndpoint = `${client.baseURL}${PACKS}/${pack.id}`;
-      const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
+      let packTargets = null;
+      if (targets) {
+        packTargets = helpers.formatSelectedTargetsForApi(targets, true);
+      }
+
       const packWithoutTargets = omit(updatedPack, "targets");
       const packParams = { ...packWithoutTargets, ...packTargets };
 

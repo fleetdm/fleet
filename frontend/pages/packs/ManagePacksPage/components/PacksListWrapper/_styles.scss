@@ -1,4 +1,4 @@
-.queries-list-wrapper {
+.packs-list-wrapper {
   border-collapse: collapse;
 
   &__wrapper {
@@ -27,12 +27,17 @@
         width: 20px;
       }
 
-      &:nth-child(2) {
-        width: calc(49% - 20px);
+      &:nth-child(3),
+      &:nth-child(4) {
+        width: 11%;
       }
 
-      &:nth-child(3) {
-        width: 37%;
+      &:nth-child(5) {
+        width: 9%;
+      }
+
+      &:nth-child(6) {
+        width: 12%;
       }
 
       &:last-child {
@@ -52,7 +57,7 @@
   }
 }
 
-.no-queries {
+.no-packs {
   display: flex;
   flex-direction: column;
   align-items: center;
