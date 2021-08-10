@@ -302,7 +302,7 @@ export class AllPacksPage extends Component {
           <Button onClick={onBulkAction("delete")} variant="alert">
             Delete
           </Button>
-          <Button onClick={onToggleModal} variant="inverse">
+          <Button onClick={onToggleModal} variant="inverse-alert">
             Cancel
           </Button>
         </div>
