@@ -24,7 +24,7 @@ interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
   onEditScheduledQueryClick: any;
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
-  toggleScheduleEditorModal: any;
+  toggleScheduleEditorModal: () => void;
   teamId: number;
 }
 interface IRootState {

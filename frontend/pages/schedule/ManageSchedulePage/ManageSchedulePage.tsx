@@ -29,6 +29,7 @@ import ScheduleError from "./components/ScheduleError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
+import { IScheduledQuery } from "interfaces/scheduled_query";
 
 const baseClass = "manage-schedule-page";
 
@@ -126,9 +127,6 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     return state.app.config.tier === "basic";
   });
 
-  const config = useSelector((state: IRootState) => state.app.config);
-  console.log("config", config);
-
   const allQueries = useSelector((state: IRootState) => state.entities.queries);
   const allQueriesList = Object.values(allQueries.data);
 
@@ -188,6 +186,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
   const onRemoveScheduledQueryClick = (selectedTableQueryIds: any): void => {
+    console.log(selectedTableQueryIds);
     toggleRemoveScheduledQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
   };

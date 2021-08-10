@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -6,12 +7,10 @@ export default PropTypes.shape({
   name: PropTypes.string.isRequired,
   description: PropTypes.string,
   agent_options: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-  // hosts: PropTypes.number, // is this used anywhere? it's not returned
-  // members: PropTypes.number, // is this used anywhere? it's not returned
-  role: PropTypes.string, // not returned by API
+  role: PropTypes.string, // role value is included when the team is in the context of a user
   user_count: PropTypes.number,
   host_count: PropTypes.number,
-  secrets: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+  secrets: PropTypes.arrayOf(enrollSecretInterface),
 });
 
 /**
@@ -25,9 +24,8 @@ export interface ITeam {
   agent_options?: any;
   user_count: number;
   host_count: number;
-  secrets?: any;
-  // role value is included when the team is in the context of a user.
-  role?: string; // not returned by API
+  secrets?: IEnrollSecret[];
+  role?: string; // role value is included when the team is in the context of a user
 }
 
 /**

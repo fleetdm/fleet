@@ -1,4 +1,4 @@
-import PropTypes, { string } from "prop-types";
+import PropTypes from "prop-types";
 import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
 import packInterface, { IPack } from "./pack";
@@ -47,7 +47,7 @@ export default PropTypes.shape({
     })
   ),
   team_name: PropTypes.string,
-  additional: PropTypes.object,
+  additional: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   labels: PropTypes.arrayOf(labelInterface),
   packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
@@ -96,7 +96,7 @@ export interface IHost {
     query_stats: IQueryStats[];
   }[];
   team_name: string;
-  additional: object;
+  additional: object; // eslint-disable-line @typescript-eslint/ban-types
   labels: ILabel[];
   packs: IPack[];
   software: ISoftware[];

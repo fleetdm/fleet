@@ -30,14 +30,13 @@ export default PropTypes.shape({
   enable_sso_idp_login: PropTypes.bool,
   host_expiry_enabled: PropTypes.bool,
   host_expiry_window: PropTypes.number,
-  additional_queries: PropTypes.any,
   agent_options: PropTypes.string,
   tier: PropTypes.string,
   organization: PropTypes.string,
   device_count: PropTypes.number,
   expiration: PropTypes.string,
   note: PropTypes.string,
-  vulnerability_settings: PropTypes.any,
+  // vulnerability_settings: PropTypes.any, TODO
   logging: PropTypes.shape({
     debug: PropTypes.bool,
     json: PropTypes.bool,
@@ -90,14 +89,13 @@ export interface IConfig {
   enable_sso_idp_login: boolean;
   host_expiry_enabled: boolean;
   host_expiry_window: number;
-  additional_queries: any;
   agent_options: string;
   tier: string;
   organization: string;
   device_count: number;
   expiration: string;
   note: string;
-  vulnerability_settings: any;
+  // vulnerability_settings: any; TODO
   logging: {
     debug: boolean;
     json: boolean;
