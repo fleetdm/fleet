@@ -11,8 +11,7 @@ export default PropTypes.shape({
   hosts_count: PropTypes.number,
   display_text: PropTypes.string,
   count: PropTypes.number, // seems to be a repeat of hosts_count issue #1618
-  host_ids: PropTypes.arrayOf(PropTypes.number)
-  ),
+  host_ids: PropTypes.arrayOf(PropTypes.number),
 });
 
 export interface ILabel {

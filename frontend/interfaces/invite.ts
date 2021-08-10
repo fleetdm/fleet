@@ -1,26 +1,26 @@
 import PropTypes from "prop-types";
 import teamInterface, { ITeam } from "./team";
 
-// update this entire thing
-
 export default PropTypes.shape({
-  admin: PropTypes.bool,
-  email: PropTypes.string,
-  gravatarURL: PropTypes.string,
+  created_at: PropTypes.string,
+  updated_at: PropTypes.string,
   id: PropTypes.number,
   invited_by: PropTypes.number,
+  email: PropTypes.string,
   name: PropTypes.string,
+  sso_enabled: PropTypes.bool,
+  global_role: PropTypes.string,
   teams: PropTypes.arrayOf(teamInterface),
 });
 
 export interface IInvite {
-  admin: boolean;
-  email: string;
-  gravatarURL: string;
+  created_at: string;
+  updated_at: string;
   id: number;
   invited_by: number;
+  email: string;
   name: string;
-  teams: ITeam[];
   sso_enabled: boolean;
   global_role: string | null;
+  teams: ITeam[];
 }

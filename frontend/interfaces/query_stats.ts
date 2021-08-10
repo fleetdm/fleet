@@ -25,13 +25,13 @@ export interface IQueryStats {
   description: string;
   pack_name: string;
   pack_id: number;
-  average_memory: number;
-  denylisted: boolean;
-  executions: number;
+  average_memory?: number;
+  denylisted?: boolean;
+  executions?: number;
   interval: number;
   last_executed: string;
-  output_size: number;
-  system_time: number;
-  user_time: number;
-  wall_time: number;
+  output_size?: number;
+  system_time?: number;
+  user_time?: number;
+  wall_time?: number;
 }

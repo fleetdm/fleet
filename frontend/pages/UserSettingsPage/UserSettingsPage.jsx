@@ -18,6 +18,7 @@ import InputField from "components/forms/fields/InputField";
 import { logoutUser, updateUser } from "redux/nodes/auth/actions";
 import Modal from "components/modals/Modal";
 import configInterface from "interfaces/config";
+import versionInterface from "interfaces/version";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import versionActions from "redux/nodes/version/actions";
@@ -30,10 +31,7 @@ export class UserSettingsPage extends Component {
   static propTypes = {
     config: configInterface,
     dispatch: PropTypes.func.isRequired,
-    version: PropTypes.shape({
-      version: PropTypes.string,
-      go_version: PropTypes.string,
-    }),
+    version: versionInterface,
     errors: PropTypes.shape({
       email: PropTypes.string,
       base: PropTypes.string,
