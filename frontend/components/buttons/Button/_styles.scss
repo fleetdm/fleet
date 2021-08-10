@@ -63,7 +63,7 @@ $base-class: "button";
 
   &--alert {
     @include button-variant(
-      $ui-error,
+      $core-vibrant-red,
       $core-vibrant-red-over,
       $core-vibrant-red-down
     );
@@ -184,8 +184,13 @@ $base-class: "button";
       $inverse: true
     );
     color: $core-vibrant-blue;
-    border: 2px solid $core-vibrant-blue;
+    border: 0;
     box-sizing: border-box;
+    padding: 0;
+
+    &:hover {
+      border: 0;
+    }
   }
 
   &--inverse-alert {
@@ -195,9 +200,14 @@ $base-class: "button";
       $core-vibrant-red-down,
       $inverse: true
     );
-    color: $ui-error;
-    border: 2px solid $ui-error;
+    color: $core-vibrant-red;
+    border: 0;
     box-sizing: border-box;
+    padding: 0;
+
+    &:hover {
+      border: 0;
+    }
   }
 
   &--block {
@@ -206,8 +216,8 @@ $base-class: "button";
   }
 
   &--disabled {
-    opacity: 0.4;
-    filter: grayscale(1);
+    opacity: 0.5;
+    filter: grayscale(0.5);
     cursor: default;
 
     &:hover {
