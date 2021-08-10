@@ -33,13 +33,13 @@ export default (client) => {
         .authenticatedGet(client._endpoint(QUERIES))
         .then((response) => response.queries);
     },
-    run: ({ query, selected }) => {
+    run: ({ query, selected, query_id }) => {
       const { RUN_QUERY } = endpoints;
 
       return client
         .authenticatedPost(
           client._endpoint(RUN_QUERY),
-          JSON.stringify({ query, selected })
+          JSON.stringify({ query, selected, query_id })
         )
         .then((response) => {
           const { campaign } = response;
