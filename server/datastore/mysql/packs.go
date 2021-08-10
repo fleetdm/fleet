@@ -108,7 +108,7 @@ func applyPackSpec(tx *sqlx.Tx, spec *fleet.PackSpec) error {
 func (d *Datastore) GetPackSpecs() (specs []*fleet.PackSpec, err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic specs
-		query := "SELECT id, name, description, platform, disabled FROM packs"
+		query := "SELECT id, name, description, platform, disabled FROM packs WHERE pack_type IS NULL OR pack_type = ''"
 		if err := tx.Select(&specs, query); err != nil {
 			return errors.Wrap(err, "get packs")
 		}
@@ -486,10 +486,13 @@ func (d *Datastore) insertNewTeamPack(teamID uint) (*fleet.Pack, error) {
 }
 
 // ListPacks returns all fleet.Pack records limited and sorted by fleet.ListOptions
-func (d *Datastore) ListPacks(opt fleet.ListOptions) ([]*fleet.Pack, error) {
-	query := `SELECT * FROM packs`
-	packs := []*fleet.Pack{}
-	err := d.db.Select(&packs, appendListOptionsToSQL(query, opt))
+func (d *Datastore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+	query := `SELECT * FROM packs WHERE pack_type IS NULL OR pack_type = ''`
+	if opt.IncludeSystemPacks {
+		query = `SELECT * FROM packs`
+	}
+	var packs []*fleet.Pack
+	err := d.db.Select(&packs, appendListOptionsToSQL(query, opt.ListOptions))
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing packs")
 	}
