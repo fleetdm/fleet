@@ -389,7 +389,6 @@ export class ManageHostsPage extends PureComponent {
     newRouteParams = {},
     newQueryParams = {}
   ) => {
-    console.log("getNextLocationUrl");
     const routeTemplate = newRouteTemplate || this.props.routeTemplate || "";
     const urlRouteParams = Object.assign(
       {},
@@ -447,9 +446,7 @@ export class ManageHostsPage extends PureComponent {
   generateTeamFilterDropdownOptions = (teams) => {
     const { currentUser, isOnGlobalTeam } = this.props;
 
-    const currentUserTeams = isOnGlobalTeam
-      ? teams
-      : teams.filter((team) => currentUser.teams.includes(team.id));
+    const currentUserTeams = isOnGlobalTeam ? teams : currentUser.teams;
 
     const allTeamsOption = [
       {
@@ -477,7 +474,7 @@ export class ManageHostsPage extends PureComponent {
           return 1;
         }
 
-        return 0; // values must be equal
+        return 0; // values are equal
       });
 
     return allTeamsOption.concat(sortedCurrentUserTeamOptions);
@@ -562,9 +559,7 @@ export class ManageHostsPage extends PureComponent {
     const { MANAGE_HOSTS } = PATHS;
 
     let selectedTeamId = parseInt(selectedTeam, 10);
-    selectedTeamId = isValidSelectedTeamId(selectedTeamId)
-      ? selectedTeamId
-      : null;
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
 
     let nextLocation = getNextLocationUrl(
       MANAGE_HOSTS,
@@ -572,11 +567,10 @@ export class ManageHostsPage extends PureComponent {
       {},
       { team_id: selectedTeamId }
     );
-    console.log(nextLocation);
+
     if (!selectedTeamId) {
       nextLocation = nextLocation.replace(`team_id=${selectedTeamId}`, "");
     }
-    console.log(nextLocation);
 
     // TODO confirm that sort order, pagination work as expected
     retrieveHosts({
@@ -595,9 +589,7 @@ export class ManageHostsPage extends PureComponent {
     const newFilters = [...selectedFilters];
 
     let selectedTeamId = parseInt(selectedTeam, 10);
-    selectedTeamId = isValidSelectedTeamId(selectedTeamId)
-      ? selectedTeamId
-      : null;
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
 
     if (!isAllHosts) {
       // always remove "all-hosts" from the filters first because we don't want
@@ -642,7 +634,7 @@ export class ManageHostsPage extends PureComponent {
     handleLabelChange(selected);
   };
 
-  // TODO see how backend handles team_id=0, team_id=null, team_id=foo, etc.
+  // TODO revisit UX for server errors for invalid team_id (e.g., team_id=0, team_id=null, team_id=foo, etc.)
   renderTeamsFilterDropdown = () => {
     const { isBasicTier, selectedTeam, teams } = this.props;
     const {
@@ -1014,12 +1006,11 @@ export class ManageHostsPage extends PureComponent {
   }
 }
 
-// const mapStateToProps = (state, { location, params }) => {
 const mapStateToProps = (state, ownProps) => {
   const { location, params, route, routeParams } = ownProps;
   const locationPath = location.path;
   const queryParams = location.query;
-  const routeTemplate = route.path;
+  const routeTemplate = route && route.path ? route.path : "";
 
   const { active_label: activeLabel, label_id: labelID } = params;
   const selectedFilters = [];
@@ -1054,10 +1045,9 @@ const mapStateToProps = (state, ownProps) => {
   const { loading: loadingHosts } = state.entities.hosts;
 
   const { loading: loadingTeams } = state.entities.teams;
-  // const teams = Object.values(state.entities.teams.data);
   const teams = memoizedGetEntity(state.entities.teams.data);
 
-  // if there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
+  // If there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
   const selectedTeam = location.query?.team_id || 0;
 
   const currentUser = state.auth.user;
