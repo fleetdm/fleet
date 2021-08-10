@@ -126,6 +126,9 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     return state.app.config.tier === "basic";
   });
 
+  const config = useSelector((state: IRootState) => state.app.config);
+  console.log("config", config);
+
   const allQueries = useSelector((state: IRootState) => state.entities.queries);
   const allQueriesList = Object.values(allQueries.data);
 

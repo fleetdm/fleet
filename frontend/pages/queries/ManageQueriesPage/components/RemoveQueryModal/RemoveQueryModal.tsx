@@ -21,7 +21,7 @@ const RemoveQueryModal = (props: IRemoveQueryModalProps): JSX.Element => {
           <Button
             className={`${baseClass}__btn`}
             onClick={onCancel}
-            variant="inverse"
+            variant="inverse-alert"
           >
             Cancel
           </Button>
