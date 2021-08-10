@@ -11,11 +11,11 @@ export default PropTypes.shape({
   author_name: PropTypes.string,
   updated_at: PropTypes.string,
 });
-export interface INewQuery {
-  description: string;
-  name: string;
-  query: string;
-  observer_can_run: boolean;
+export interface IQueryUpdate {
+  description?: string;
+  name?: string;
+  query?: string;
+  observer_can_run?: boolean;
 };
 
 export interface IQuery {

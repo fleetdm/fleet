@@ -20,7 +20,6 @@ const baseClass = "query-side-panel";
 class QuerySidePanel extends Component {
   static propTypes = {
     onOsqueryTableSelect: PropTypes.func,
-    onTextEditorInputChange: PropTypes.func,
     selectedOsqueryTable: osqueryTableInterface,
   };
 
@@ -30,16 +29,6 @@ class QuerySidePanel extends Component {
     onOsqueryTableSelect(value);
 
     return false;
-  };
-
-  onSuggestedQueryClick = (query) => {
-    return (evt) => {
-      evt.preventDefault();
-
-      const { onTextEditorInputChange } = this.props;
-
-      return onTextEditorInputChange(query);
-    };
   };
 
   renderColumns = () => {
