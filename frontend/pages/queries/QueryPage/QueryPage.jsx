@@ -262,7 +262,6 @@ export class QueryPage extends Component {
     const sql = queryText || query;
     const { dispatch, selectedTargets } = this.props;
     const { error } = validateQuery(sql);
-    console.log("QUERY ID: ", query_id);
 
     if (!selectedTargets.length) {
       this.setState({
