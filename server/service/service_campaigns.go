@@ -185,7 +185,10 @@ type campaignStatus struct {
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
 	logging.WithExtras(ctx, "campaign_id", campaignID)
 
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRun); err != nil {
+	// Explicitly set ObserverCanRun: true in this check because we check that the user trying to
+	// read results is the same user that initiated the query. This means the observer check already
+	// happened with the actual value for this query.
+	if err := svc.authz.Authorize(ctx, &fleet.Query{ObserverCanRun: true}, fleet.ActionRun); err != nil {
 		level.Info(svc.logger).Log("err", "stream results authorization failed")
 		conn.WriteJSONError(authz.ForbiddenErrorMessage)
 		return
