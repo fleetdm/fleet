@@ -10,6 +10,7 @@ import validateQuery from "components/forms/validators/validate_query";
 import { IQuery, IQueryFormFields, IQueryFormData } from "interfaces/query";
 
 import Button from "components/buttons/Button";
+import Modal from "components/modals/Modal";
 
 const baseClass = "query-form1";
 
@@ -166,6 +167,42 @@ const QueryForm = ({
         </>
       )} */}
       {renderNewQueryButtons()}
+      <Modal title={"Save query"} onExit={() => {}} className={baseClass}>
+      <form className={`${baseClass}__form`}>
+        <InputField
+          {...fields.description}
+          inputClassName={`${baseClass}__query-description`}
+          label="Description"
+          type="textarea"
+        />
+        <Checkbox
+          {...fields.observer_can_run}
+          value={!!fields.observer_can_run.value}
+          wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+        >
+          Observers can run
+        </Checkbox>
+        Users with the Observer role will be able to run this query on hosts
+        where they have access.
+        <div className={`${baseClass}__btn-wrap`}>
+          <Button
+            className={`${baseClass}__btn`}
+            type="button"
+            variant="brand"
+            onClick={() => {}}
+          >
+            Create
+          </Button>
+          <Button
+            className={`${baseClass}__btn`}
+            onClick={() => {}}
+            variant="inverse"
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Modal>
     </form>
   );
 };
