@@ -173,6 +173,10 @@
       &--mia:before {
         background-color: $ui-offline;
       }
+
+      &--mia {
+        text-transform: uppercase;
+      }
     }
 
     .loading-overlay {

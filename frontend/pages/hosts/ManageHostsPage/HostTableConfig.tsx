@@ -124,11 +124,7 @@ const allHostTableHeaders: IHostDataColumn[] = [
     Header: "Status",
     disableSortBy: true,
     accessor: "status",
-    Cell: (cellProps) => (
-      <StatusCell
-        value={cellProps.cell.value === "mia" ? "MIA" : cellProps.cell.value}
-      />
-    ),
+    Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
   },
   {
     title: "OS",
