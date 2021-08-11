@@ -253,6 +253,7 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
   host_settings:
     additional_queries:
       time: SELECT * FROM time
+    enable_host_users: true
 `)
 	applyConfig(t, spec, server, token)
 
@@ -261,6 +262,7 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
     host_expiry_enabled: false
     host_expiry_window: 0
   host_settings:
+    enable_host_users: true
 `)
 	applyConfig(t, spec, server, token)
 
