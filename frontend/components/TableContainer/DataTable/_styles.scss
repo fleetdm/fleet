@@ -169,7 +169,8 @@
       }
 
       &--offline:before,
-      &--disabled:before {
+      &--disabled:before,
+      &--mia:before {
         background-color: $ui-offline;
       }
     }
