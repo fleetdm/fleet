@@ -21,18 +21,24 @@ interface IRootState {
   };
   entities: {
     queries: {
-      isLoading: boolean;
+      loading: boolean;
       data: IQuery[];
     };
   };
 }
 
-const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
-  const { onRemoveQueryClick, queriesList } = props;
+const QueriesListWrapper = (
+  listProps: IQueriesListWrapperProps
+): JSX.Element | null => {
+  const { onRemoveQueryClick, queriesList } = listProps;
 
-  const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.queries.isLoading
+  const loadingQueries = useSelector(
+    (state: IRootState) => state.entities.queries.loading
   );
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  useEffect(() => {
+    setIsLoading(loadingQueries);
+  }, [loadingQueries]);
 
   const currentUser = useSelector((state: IRootState) => state.auth.user);
   const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
@@ -41,15 +47,15 @@ const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
   const [searchString, setSearchString] = useState<string>("");
 
   useEffect(() => {
-    setFilteredQueries(queriesList);
-  }, [queriesList]);
-
-  useEffect(() => {
-    setFilteredQueries(() => {
-      return queriesList.filter((query) => {
-        return query.name.toLowerCase().includes(searchString.toLowerCase());
-      });
-    });
+    setFilteredQueries(
+      !searchString
+        ? queriesList
+        : queriesList.filter((query) => {
+            return query.name
+              .toLowerCase()
+              .includes(searchString.toLowerCase());
+          })
+    );
   }, [queriesList, searchString, setFilteredQueries]);
 
   const onQueryChange = useCallback(
@@ -85,13 +91,13 @@ const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
 
   const tableHeaders = generateTableHeaders(isOnlyObserver);
 
-  return (
+  return !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
         data={filteredQueries}
-        isLoading={loadingTableData}
+        isLoading={isLoading}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}
         showMarkAllPages={false}
@@ -107,7 +113,7 @@ const QueriesListWrapper = (props: IQueriesListWrapperProps): JSX.Element => {
         emptyComponent={NoQueriesComponent}
       />
     </div>
-  );
+  ) : null;
 };
 
 export default QueriesListWrapper;

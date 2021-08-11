@@ -209,13 +209,6 @@ func TestSaveHostPackStats(t *testing.T) {
 	host, err = ds.Host(host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.PackStats, 2)
-
-	// Set to empty should make it empty
-	host.PackStats = []fleet.PackStats{}
-	require.NoError(t, ds.SaveHost(host))
-	host, err = ds.Host(host.ID)
-	require.NoError(t, err)
-	require.Len(t, host.PackStats, 0)
 }
 
 func TestDeleteHost(t *testing.T) {

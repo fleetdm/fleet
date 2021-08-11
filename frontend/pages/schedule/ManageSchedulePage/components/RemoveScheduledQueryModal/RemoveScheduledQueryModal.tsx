@@ -26,18 +26,18 @@ const RemoveScheduledQueryModal = (
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
             type="button"
             variant="alert"
             onClick={onSubmit}
           >
             Remove
+          </Button>
+          <Button
+            className={`${baseClass}__btn`}
+            onClick={onCancel}
+            variant="inverse-alert"
+          >
+            Cancel
           </Button>
         </div>
       </div>

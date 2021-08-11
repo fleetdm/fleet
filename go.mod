@@ -30,6 +30,7 @@ require (
 	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-sql-driver/mysql v1.5.0
+	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/gomodule/redigo v1.8.4
 	github.com/google/go-cmp v0.5.6
 	github.com/google/go-github/v37 v37.0.0
@@ -55,7 +56,6 @@ require (
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
-	github.com/patrickmn/sortutil v0.0.0-20120526081524-abeda66eb583
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v0.9.3
 	github.com/prometheus/client_model v0.2.0 // indirect

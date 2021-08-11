@@ -1,0 +1,131 @@
+.packs-list-wrapper {
+  border-collapse: collapse;
+
+  &__wrapper {
+    border: 1px solid $ui-fleet-blue-15;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: $pad-medium;
+  }
+
+  thead {
+    background-color: $ui-off-white;
+    border-bottom: 1px solid $ui-fleet-blue-15;
+
+    th + th {
+      border-left: 1px solid $ui-fleet-blue-15;
+    }
+
+    th {
+      font-size: $x-small;
+      font-weight: $bold;
+      text-align: left;
+      padding: $pad-medium $pad-large;
+
+      &:nth-child(1) {
+        border-top-left-radius: 6px;
+        width: 20px;
+      }
+
+      &:nth-child(3),
+      &:nth-child(4) {
+        width: 11%;
+      }
+
+      &:nth-child(5) {
+        width: 9%;
+      }
+
+      &:nth-child(6) {
+        width: 12%;
+      }
+
+      &:last-child {
+        border-top-right-radius: 6px;
+      }
+    }
+  }
+
+  &__select-all {
+    margin-bottom: 0;
+  }
+
+  &__empty-table {
+    text-align: center;
+    font-size: $x-small;
+    color: $core-fleet-black;
+  }
+}
+
+.no-packs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: $pad-xxxlarge;
+
+  h1 {
+    font-size: $large;
+    font-weight: $regular;
+    line-height: normal;
+    letter-spacing: normal;
+    color: $core-fleet-black;
+  }
+
+  h2 {
+    font-size: $small;
+    font-weight: $bold;
+    margin: 0 0 $pad-large;
+    line-height: 20px;
+    color: $core-fleet-black;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    color: $core-fleet-black;
+    list-style: none;
+
+    li {
+      &::before {
+        content: "•";
+        color: $core-vibrant-blue;
+        margin-right: $pad-medium;
+      }
+    }
+  }
+
+  &__inner {
+    display: flex;
+    flex-direction: row;
+
+    h1 {
+      font-size: $small;
+      font-weight: $bold;
+      margin-bottom: $pad-medium;
+    }
+
+    img {
+      width: 176px;
+      margin-right: $pad-xlarge;
+    }
+
+    p {
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $x-small;
+      margin: 0;
+      margin-bottom: $pad-large;
+    }
+
+    .no-filter-results {
+      display: flex;
+      flex-direction: column;
+      width: 350px;
+    }
+  }
+
+  &__inner-text {
+    padding-left: $pad-xlarge;
+    width: 290px;
+  }
+}

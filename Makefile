@@ -149,6 +149,9 @@ generate-dev: .prefix
 		frontend/templates/ assets/... server/mail/templates
 	NODE_ENV=development webpack --progress --colors --watch
 
+generate-mock: .prefix
+	go generate github.com/fleetdm/fleet/v4/server/mock
+
 deps: deps-js deps-go
 
 deps-js:
