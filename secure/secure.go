@@ -11,8 +11,8 @@ import (
 func isMorePermissive(currentMode, newMode os.FileMode) bool {
 	currentGroup := currentMode & 070
 	newGroup := newMode & 070
-	currentAll := currentMode & 0x7
-	newAll := newMode & 0x7
+	currentAll := currentMode & 07
+	newAll := newMode & 07
 
 	return newGroup > currentGroup || newAll > currentAll
 }
@@ -35,16 +35,26 @@ func checkPermPath(path string, perm os.FileMode) error {
 		}
 	}
 
+	// Look for the parent directory in the path and then check the permissions in that
+	// This is based on the logic from os.MkdirAll
 	i := len(path)
+	// This first loop skips over trailing path separators. Eg:
+	// /some/path//////
+	//          ^ i will end up here
 	for i > 0 && os.IsPathSeparator(path[i-1]) { // Skip trailing path separator.
 		i--
 	}
 
 	j := i
+	// This loop starts from where i left off and finds the previous path separator
+	// /some/path//////
+	//      ^ j will end up here
 	for j > 0 && !os.IsPathSeparator(path[j-1]) { // Scan backward over element.
 		j--
 	}
 
+	// if we are pointing at a path separator that is not the root separator, then check for the path before it
+	// /some
 	if j > 1 {
 		return checkPermPath(path[:j-1], perm)
 	}
