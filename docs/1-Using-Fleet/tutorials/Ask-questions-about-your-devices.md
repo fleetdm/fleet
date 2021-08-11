@@ -76,7 +76,7 @@ Now hit the "Run" button to run the query, and you're done. The query may take s
 
 When the query has finished, you should see 4 columns and several rows in the "Results" table:
 
-<img src="https://user-images.githubusercontent.com/78363703/128488112-56c762da-5029-42d1-8f5d-e74f22aa39cd.png" alt="Fleet query results" width="800"/>
+<img src="https://user-images.githubusercontent.com/78363703/128488112-56c762da-5029-42d1-8f5d-e74f22aa39cd.png" alt="Fleet query results" width="600"/>
 
 - The "hostname" column answers: which device responded for a given row of results? 
 
