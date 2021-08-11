@@ -50,6 +50,8 @@ fleetctl apply -f standard-query-library.yml
 
 Success! Now, refresh the **Queries** page in the Fleet, and the "Queries" table will be populated with Fleet's standard query library.
 
+![image](https://user-images.githubusercontent.com/78363703/128487220-9cb4ffce-abb0-43be-aa7b-e2cade7c7220.png)
+
 ### Asking questions by running queries
 
 Let's ask the following questions about the simulated Linux hosts connected to your Fleet:
@@ -62,13 +64,20 @@ These questions can easily be answered with Fleet, by running the following quer
 
 On the **Queries** page, enter the query name, "Detect Linux hosts with high severity vulnerable versions of OpenSSL," in the search bar, and select it from the table to navigate to the **Edit or run query** page.
 
+![image](https://user-images.githubusercontent.com/78363703/128487468-7961c509-d0ba-48be-a0e8-54bfb4c371d5.png)
+
 On the **Edit or run query** page, open the "Select targets" dropdown, and press the purple "+" icon to the right of "All hosts." This means we'll be attempting to run this query against all hosts connected to your Fleet. 
+
+![image](https://user-images.githubusercontent.com/78363703/128487638-7d779d89-f3fa-42dd-903f-070dc9347a9b.png)
 
 Now hit the "Run" button to run the query, and you're done. The query may take several seconds to complete because Fleet has to wait for the osquery agents to respond with results.
 
 > Fleet's query response time is inherently variable because of osquery's heartbeat response time. This helps prevent performance issues on hosts.
 
 When the query has finished, you should see 4 columns and several rows in the "Results" table:
+
+![image](https://user-images.githubusercontent.com/78363703/128488112-56c762da-5029-42d1-8f5d-e74f22aa39cd.png)
+
 - The "hostname" column answers: which device responded for a given row of results? 
 
 - The "name" column answers: what is the name of the installed software item? The query we just ran asked for all software items that contain "openssl" in their name, so each row in this column should contain "openssl."
