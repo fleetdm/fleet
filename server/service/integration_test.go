@@ -267,7 +267,7 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	applyConfig(t, spec, server, token)
 
 	config := getConfig(t, server, token)
-	assert.Nil(t, config.HostSettings)
+	assert.Nil(t, config.HostSettings.AdditionalQueries)
 }
 
 func TestAppConfigHasLogging(t *testing.T) {
