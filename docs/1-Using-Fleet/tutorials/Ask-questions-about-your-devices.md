@@ -50,7 +50,7 @@ fleetctl apply -f standard-query-library.yml
 
 Success! Now, refresh the **Queries** page in the Fleet, and the "Queries" table will be populated with Fleet's standard query library.
 
-![image](https://user-images.githubusercontent.com/78363703/128487220-9cb4ffce-abb0-43be-aa7b-e2cade7c7220.png)
+<img src="https://user-images.githubusercontent.com/78363703/128487220-9cb4ffce-abb0-43be-aa7b-e2cade7c7220.png" alt="Fleet query page" width="800"/>
 
 ### Asking questions by running queries
 
@@ -64,11 +64,11 @@ These questions can easily be answered with Fleet, by running the following quer
 
 On the **Queries** page, enter the query name, "Detect Linux hosts with high severity vulnerable versions of OpenSSL," in the search bar, and select it from the table to navigate to the **Edit or run query** page.
 
-![image](https://user-images.githubusercontent.com/78363703/128487468-7961c509-d0ba-48be-a0e8-54bfb4c371d5.png)
+<img src="https://user-images.githubusercontent.com/78363703/128487468-7961c509-d0ba-48be-a0e8-54bfb4c371d5.png" alt="Fleet query search" width="800"/>
 
 On the **Edit or run query** page, open the "Select targets" dropdown, and press the purple "+" icon to the right of "All hosts." This means we'll be attempting to run this query against all hosts connected to your Fleet. 
 
-![image](https://user-images.githubusercontent.com/78363703/128487638-7d779d89-f3fa-42dd-903f-070dc9347a9b.png)
+<img src="https://user-images.githubusercontent.com/78363703/128487638-7d779d89-f3fa-42dd-903f-070dc9347a9b.png" alt="Fleet select targets" width="800"/>
 
 Now hit the "Run" button to run the query, and you're done. The query may take several seconds to complete because Fleet has to wait for the osquery agents to respond with results.
 
@@ -76,7 +76,7 @@ Now hit the "Run" button to run the query, and you're done. The query may take s
 
 When the query has finished, you should see 4 columns and several rows in the "Results" table:
 
-![image](https://user-images.githubusercontent.com/78363703/128488112-56c762da-5029-42d1-8f5d-e74f22aa39cd.png)
+<img src="https://user-images.githubusercontent.com/78363703/128488112-56c762da-5029-42d1-8f5d-e74f22aa39cd.png" alt="Fleet query results" width="800"/>
 
 - The "hostname" column answers: which device responded for a given row of results? 
 
