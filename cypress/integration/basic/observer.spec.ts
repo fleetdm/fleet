@@ -67,6 +67,8 @@ describe("Basic tier - Observer user", () => {
     cy.visit("/schedule/manage");
     cy.findByText(/you do not have permissions/i).should("exist");
 
+    cy.visit("/hosts/manage");
+
     cy.contains(".table-container .data-table__table th", "Team").should(
       "be.visible"
     );
