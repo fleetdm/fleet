@@ -480,6 +480,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
+| team_id                 | integer  | query | _Available in Fleet Basic_ Filters the users to only include users in the specified team.     |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1139,7 +1140,9 @@ Returns a list of the hosts that belong to the specified label.
 | id              | integer | path  | **Required**. The label's id.                                                                                                 |
 | order_key       | string  | query | What to order results by. Can be any column in the hosts table.                                                               |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                              |
 | query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
+| team_id         | integer | query | _Available in Fleet Basic_ Filters the users to only include users in the specified team.                                     |
 
 #### Example
 
@@ -3081,6 +3084,10 @@ For those familiar with osquery query packs, Fleet's query schedule can be thoug
 #### Parameters
 
 None.
+
+#### Example
+
+`GET /api/v1/fleet/global/schedule`
 
 ##### Default response
 
