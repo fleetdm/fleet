@@ -2,13 +2,11 @@ package pubsub
 
 import (
 	"context"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,36 +24,6 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 		return false // completed normally
 	case <-time.After(timeout):
 		return true // timed out
-	}
-}
-
-var testFunctions = [...]func(*testing.T, fleet.QueryResultStore){
-	testQueryResultsStore,
-	testQueryResultsStoreErrors,
-}
-
-func TestRedis(t *testing.T) {
-	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
-		t.SkipNow()
-	}
-
-	store, teardown := setupRedis(t)
-	defer teardown()
-
-	for _, f := range testFunctions {
-		t.Run(test.FunctionName(f), func(t *testing.T) {
-			f(t, store)
-		})
-	}
-}
-
-func TestInmem(t *testing.T) {
-	for _, f := range testFunctions {
-		t.Run(test.FunctionName(f), func(t *testing.T) {
-			t.Parallel()
-			store := NewInmemQueryResults()
-			f(t, store)
-		})
 	}
 }
 
@@ -82,7 +50,10 @@ func setupRedis(t *testing.T) (store *redisQueryResults, teardown func()) {
 	return store, teardown
 }
 
-func testQueryResultsStoreErrors(t *testing.T, store fleet.QueryResultStore) {
+func TestQueryResultsStoreErrors(t *testing.T) {
+	store, teardown := setupRedis(t)
+	defer teardown()
+
 	// Write with no subscriber
 	err := store.WriteResult(
 		fleet.DistributedQueryResult{
@@ -106,7 +77,10 @@ func testQueryResultsStoreErrors(t *testing.T, store fleet.QueryResultStore) {
 	}
 }
 
-func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
+func TestQueryResultsStore(t *testing.T) {
+	store, teardown := setupRedis(t)
+	defer teardown()
+
 	// Test handling results for two campaigns in parallel
 	campaign1 := fleet.DistributedQueryCampaign{ID: 1}
 
@@ -115,7 +89,7 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 	assert.Nil(t, err)
 
 	expected1 := []fleet.DistributedQueryResult{
-		fleet.DistributedQueryResult{
+		{
 			DistributedQueryCampaignID: 1,
 			Rows:                       []map[string]string{{"foo": "bar"}},
 			Host: fleet.Host{
@@ -136,7 +110,7 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 				SeenTime:        time.Now().UTC(),
 			},
 		},
-		fleet.DistributedQueryResult{
+		{
 			DistributedQueryCampaignID: 1,
 			Rows:                       []map[string]string{{"whoo": "wahh"}},
 			Host: fleet.Host{
@@ -154,7 +128,7 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 				SeenTime:        time.Now().UTC(),
 			},
 		},
-		fleet.DistributedQueryResult{
+		{
 			DistributedQueryCampaignID: 1,
 			Rows:                       []map[string]string{{"bing": "fds"}},
 			Host: fleet.Host{
@@ -269,10 +243,10 @@ func testQueryResultsStore(t *testing.T, store fleet.QueryResultStore) {
 	}()
 
 	// wait with a timeout to ensure that the test can't hang
-	if waitTimeout(&writerWg, 5*time.Second) {
+	if waitTimeout(&writerWg, 25*time.Second) {
 		t.Error("Timed out waiting for writers to join")
 	}
-	if waitTimeout(&readerWg, 5*time.Second) {
+	if waitTimeout(&readerWg, 25*time.Second) {
 		t.Error("Timed out waiting for readers to join")
 	}
 
