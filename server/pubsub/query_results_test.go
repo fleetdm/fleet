@@ -243,10 +243,10 @@ func TestQueryResultsStore(t *testing.T) {
 	}()
 
 	// wait with a timeout to ensure that the test can't hang
-	if waitTimeout(&writerWg, 25*time.Second) {
+	if waitTimeout(&writerWg, 5*time.Second) {
 		t.Error("Timed out waiting for writers to join")
 	}
-	if waitTimeout(&readerWg, 25*time.Second) {
+	if waitTimeout(&readerWg, 5*time.Second) {
 		t.Error("Timed out waiting for readers to join")
 	}
 
