@@ -40,9 +40,9 @@ describe("Label flow", () => {
       .click()
       .type("{selectall}{backspace}Select all usernames on Mac.");
 
-    cy.findByText(/select one/i).click();
+    cy.findByText(/select one/i).should("not.exist");
 
-    cy.findAllByText(/macos/i).click();
+    cy.findByText(/label platforms are immutable/i).should("exist");
 
     cy.findByRole("button", { name: /update label/i }).click();
 
