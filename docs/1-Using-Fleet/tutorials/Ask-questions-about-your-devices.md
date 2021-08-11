@@ -68,7 +68,7 @@ On the **Queries** page, enter the query name, "Detect Linux hosts with high sev
 
 On the **Edit or run query** page, open the "Select targets" dropdown, and press the purple "+" icon to the right of "All hosts." This means we'll be attempting to run this query against all hosts connected to your Fleet. 
 
-<img src="https://user-images.githubusercontent.com/78363703/128487638-7d779d89-f3fa-42dd-903f-070dc9347a9b.png" alt="Fleet select targets" width="800"/>
+<img src="https://user-images.githubusercontent.com/78363703/128487638-7d779d89-f3fa-42dd-903f-070dc9347a9b.png" alt="Fleet select targets" width="600"/>
 
 Now hit the "Run" button to run the query, and you're done. The query may take several seconds to complete because Fleet has to wait for the osquery agents to respond with results.
 
