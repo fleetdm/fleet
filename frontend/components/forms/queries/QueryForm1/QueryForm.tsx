@@ -1,24 +1,23 @@
 import React, { useState } from "react";
 import { size } from "lodash";
 
-import Checkbox from "components/forms/fields/Checkbox"; //@ts-ignore
+//@ts-ignore
 import Form from "components/forms/Form"; //@ts-ignore
-import InputField from "components/forms/fields/InputField"; //@ts-ignore
 import FleetAce from "components/FleetAce"; //@ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
 import { IQuery, IQueryFormFields, IQueryFormData } from "interfaces/query";
 
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import NewQueryModal from "./NewQueryModal";
 
 const baseClass = "query-form1";
 
 interface IQueryFormProps {
   baseError: string;
   fields: IQueryFormFields;
-  handleSubmit: () => {};
-  formData: IQuery;
+  onCreateQuery: (formData: IQueryFormData) => {};
+  // formData: IQuery;
   onOsqueryTableSelect: (tableName: string) => {};
   onRunQuery: () => {};
   onUpdate: (formData: IQueryFormData) => {};
@@ -27,18 +26,12 @@ interface IQueryFormProps {
   hasSavePermissions: boolean;
 }
 
-const validate = (formData: IQueryFormData) => {
+const validateQuerySQL = (query: string) => {
   const errors: {[key: string]: any} = {};
-  const { error: queryError, valid: queryValid } = validateQuery(
-    formData.query
-  );
+  const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
     errors.query = queryError;
-  }
-
-  if (!formData.name) {
-    errors.name = "Query name must be present";
   }
 
   const valid = !size(errors);
@@ -48,8 +41,8 @@ const validate = (formData: IQueryFormData) => {
 const QueryForm = ({
   baseError,
   fields,
-  handleSubmit,
-  formData,
+  onCreateQuery,
+  // formData,
   onOsqueryTableSelect,
   onRunQuery,
   onUpdate,
@@ -58,6 +51,7 @@ const QueryForm = ({
   hasSavePermissions,
 }: IQueryFormProps) => {
   const [errors, setErrors] = useState<{[key: string]: any}>({});
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
 
   const onLoad = (editor: any) => {
     editor.setOptions({
@@ -75,30 +69,17 @@ const QueryForm = ({
     });
   };
 
-  const handleUpdate = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const openSaveModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-
-    const formData = {
-      description: fields.description.value,
-      name: fields.name.value,
-      query: fields.query.value,
-      observer_can_run: fields.observer_can_run.value,
-    };
-
-    const { valid, errors: newErrors } = validate(formData);
-
-    if (valid) {
-      onUpdate(formData);
-
-      return false;
-    }
-
+    
+    const { query } = fields;
+    const { valid, errors: newErrors } = validateQuerySQL(query.value as string);
     setErrors({
       ...errors,
       ...newErrors,
     });
-
-    return false;
+    
+    valid && setIsSaveModalOpen(true);
   };
 
   const renderNewQueryButtons = () => {
@@ -108,8 +89,8 @@ const QueryForm = ({
           <Button
             className={`${baseClass}__save`}
             variant="brand"
-            onClick={handleSubmit}
-            disabled={formData.query === fields.query.value}
+            onClick={openSaveModal}
+            disabled={!fields.query.value}
           >
             Save
           </Button>
@@ -125,89 +106,30 @@ const QueryForm = ({
     )
   };
 
+  const modalProps = { baseClass, fields, queryValue: fields.query.value, onCreateQuery, setIsSaveModalOpen };
   return (
-    <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
-      <h1>{title}</h1>
-      {baseError && <div className="form__base-error">{baseError}</div>}
-      {/* {hasSavePermissions && (
-        <InputField
-          {...fields.name}
-          error={fields.name.error || errors.name}
-          inputClassName={`${baseClass}__query-name`}
-          label="Query name"
+    <>
+      <form className={`${baseClass}__wrapper`}>
+        <h1>{title}</h1>
+        {baseError && <div className="form__base-error">{baseError}</div>}
+        <FleetAce
+          {...fields.query}
+          error={fields.query.error || errors.query}
+          label="Query:"
+          name="query editor"
+          onLoad={onLoad}
+          readOnly={queryIsRunning}
+          wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          handleSubmit={onRunQuery}
         />
-      )} */}
-      <FleetAce
-        {...fields.query}
-        error={fields.query.error || errors.query}
-        label="Query:"
-        name="query editor"
-        onLoad={onLoad}
-        readOnly={queryIsRunning}
-        wrapperClassName={`${baseClass}__text-editor-wrapper`}
-        handleSubmit={onRunQuery}
-      />
-      {/* {hasSavePermissions && (
-        <>
-          <InputField
-            {...fields.description}
-            inputClassName={`${baseClass}__query-description`}
-            label="Description"
-            type="textarea"
-          />
-          <Checkbox
-            {...fields.observer_can_run}
-            value={!!fields.observer_can_run.value}
-            wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
-          >
-            Observers can run
-          </Checkbox>
-          Users with the Observer role will be able to run this query on hosts
-          where they have access.
-        </>
-      )} */}
-      {renderNewQueryButtons()}
-      <Modal title={"Save query"} onExit={() => {}} className={baseClass}>
-      <form className={`${baseClass}__form`}>
-        <InputField
-          {...fields.description}
-          inputClassName={`${baseClass}__query-description`}
-          label="Description"
-          type="textarea"
-        />
-        <Checkbox
-          {...fields.observer_can_run}
-          value={!!fields.observer_can_run.value}
-          wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
-        >
-          Observers can run
-        </Checkbox>
-        Users with the Observer role will be able to run this query on hosts
-        where they have access.
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="brand"
-            onClick={() => {}}
-          >
-            Create
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={() => {}}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
-        </div>
+        {renderNewQueryButtons()}
       </form>
-    </Modal>
-    </form>
+      {isSaveModalOpen && <NewQueryModal {...modalProps} />}
+    </>
   );
 };
 
 export default Form(QueryForm, {
-  fields: ["description", "name", "query", "observer_can_run"],
-  validate,
+  fields: ["query"],
+  validate: validateQuerySQL,
 });

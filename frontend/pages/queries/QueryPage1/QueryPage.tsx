@@ -42,7 +42,7 @@ import { IUser } from "interfaces/user";
 import { ICampaign } from "interfaces/campaign";
 
 interface IQueryPageProps {
-  queryId: string;
+  queryIdForEdit: string;
   selectedTargets: ITarget[];
   selectedOsqueryTable: IOsqueryTable;
   currentUser: IUser;
@@ -68,7 +68,7 @@ const QUERY_RESULTS_OPTIONS = {
 const baseClass = "query-page";
 
 const QueryPage = ({ 
-  queryId, 
+  queryIdForEdit, 
   selectedTargets,
   selectedOsqueryTable,
   currentUser,
@@ -91,9 +91,10 @@ const QueryPage = ({
   const [liveQueryError, setLiveQueryError] = useState<string>("");
   const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
   
-  const { status, data: query, error }: { status: string, data: IQuery | undefined, error: any } = useQuery("query", () => queryAPI.load(queryId), {
-    enabled: !!queryId
+  const { status, data: storedQuery, error }: { status: string, data: IQuery | undefined, error: any } = useQuery("query", () => queryAPI.load(queryIdForEdit), {
+    enabled: !!queryIdForEdit
   });
+  const { mutateAsync: createQuery } = useMutation((formData: IQueryFormData) => queryAPI.create(formData));
 
   useEffect(() => {
     const checkLiveQuery = () => {
@@ -153,21 +154,30 @@ const QueryPage = ({
     return false;
   };
 
-  const onSaveQueryFormSubmit = debounce((formData: IQueryFormData) => {
-    const { error } = validateQuery(formData.query);
+  const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
+    // const { error } = validateQuery(formData.query);
 
-    if (error) {
-      dispatch(renderFlash("error", error));
+    // if (error) {
+    //   dispatch(renderFlash("error", error));
 
-      return false;
+    //   return false;
+    // }
+
+    try {
+      const { query }: { query: IQuery } = await createQuery(formData);
+      dispatch(push(PATHS.EDIT_QUERY(query)));
+      dispatch(renderFlash("success", "Query created!"));
+    } catch (error) {
+      console.log(error);
+      dispatch(renderFlash("error", "Something went wrong creating your query. Please try again."));
     }
 
-    const mutation = useMutation(() => queryAPI.create(formData), {
-      onSuccess: () => {
-        query && dispatch(push(PATHS.EDIT_QUERY(query)));
-        dispatch(renderFlash("success", "Query created!"));
-      },
-    });
+    // const mutation = useMutation(() => queryAPI.create(formData), {
+    //   onSuccess: (data) => {
+    //     dispatch(push(PATHS.EDIT_QUERY(data)));
+    //     dispatch(renderFlash("success", "Query created!"));
+    //   },
+    // });
 
     // return dispatch(queryActions.create(formData))
     //   .then((query) => {
@@ -192,7 +202,7 @@ const QueryPage = ({
   };
 
   const onRunQuery = debounce(async () => {
-    const sql = typedQueryBody || query?.query;
+    const sql = typedQueryBody || storedQuery?.query;
     const { error } = validateQuery(sql);
 
     if (!sql) {
@@ -282,14 +292,14 @@ const QueryPage = ({
   };
 
   const onUpdateQuery = async (formData: IQueryFormData) => {
-    if (!query) {
+    if (!storedQuery) {
       return false;
     }
     
-    const updatedQuery = deepDifference(formData, query);
+    const updatedQuery = deepDifference(formData, storedQuery);
 
     try {
-      await queryAPI.update(query, updatedQuery);
+      await queryAPI.update(storedQuery, updatedQuery);
       dispatch(renderFlash("success", "Query updated!"));
     } catch(error) {
       console.log(error);
@@ -404,7 +414,7 @@ const QueryPage = ({
         targetsCount={targetsCount}
         queryTimerMilliseconds={runQueryMilliseconds}
         disableRun={liveQueryError !== undefined}
-        queryId={query?.id}
+        queryId={queryIdForEdit}
         isBasicTier={isBasicTier}
       />
     );
@@ -456,8 +466,8 @@ const QueryPage = ({
             <span>Back to queries</span>
           </Link>
           <QueryForm
-            formData={query}
-            handleSubmit={onSaveQueryFormSubmit}
+            // formData={storedQuery}
+            onCreateQuery={onSaveQueryFormSubmit}
             onChangeFunc={onChangeQueryFormField}
             onOsqueryTableSelect={onOsqueryTableSelect}
             onRunQuery={onRunQuery}
@@ -466,7 +476,7 @@ const QueryPage = ({
             queryIsRunning={queryIsRunning}
             serverErrors={error || {}}
             selectedOsqueryTable={selectedOsqueryTable}
-            title={query?.name || "New query"}
+            title={storedQuery?.name || "New query"}
             hasSavePermissions={hasSavePermissions(currentUser)}
           />
         </div>
@@ -486,14 +496,14 @@ const QueryPage = ({
 };
 
 const mapStateToProps = (state: any, { params }: any) => {
-  const { id: queryId } = params;
+  const { id: queryIdForEdit } = params;
   const { selectedOsqueryTable, selectedTargets } = state.components.QueryPages;
   const currentUser = state.auth.user;
   const config = state.app.config;
   const isBasicTier = permissionUtils.isBasicTier(config);
 
   return { 
-    queryId,
+    queryIdForEdit,
     selectedTargets,
     selectedOsqueryTable,
     currentUser,

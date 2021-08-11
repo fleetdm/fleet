@@ -129,3 +129,10 @@ pre {
     color: $core-white;
   }
 }
+
+hr {
+  margin-top: $pad-xlarge;
+  margin-bottom: $pad-xlarge;
+  border: none;
+  border-bottom: 1px solid $ui-fleet-blue-15;
+}

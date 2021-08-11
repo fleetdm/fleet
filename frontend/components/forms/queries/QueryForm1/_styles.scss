@@ -31,10 +31,14 @@
     &--new-query {
       display: flex;
       align-items: center;
-
-      button:not(:first-of-type) {
-        margin-left: $pad-small;
-      }
+    }
+    &--modal {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    button:not(:first-of-type) {
+      margin-left: $pad-medium;
     }
   }
 
