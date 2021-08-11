@@ -389,8 +389,29 @@ func TestListHostsQuery(t *testing.T) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	for _, host := range hosts {
+		require.NoError(t, ds.AddHostsToTeam(&team1.ID, []uint{host.ID}))
+	}
+
 	gotHosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
 	require.Nil(t, err)
+	assert.Equal(t, len(hosts), len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{TeamFilter: &team1.ID})
+	require.NoError(t, err)
+	assert.Equal(t, len(hosts), len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{TeamFilter: &team2.ID})
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{TeamFilter: nil})
+	require.NoError(t, err)
 	assert.Equal(t, len(hosts), len(gotHosts))
 
 	gotHosts, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "00"}})
