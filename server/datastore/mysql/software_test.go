@@ -261,3 +261,29 @@ func TestLoadSoftwareVulnerabilities(t *testing.T) {
 	assert.Equal(t, "someothercpewithoutvulns", host.Software[1].GenerateCPE)
 	require.Len(t, host.Software[1].Vulnerabilities, 0)
 }
+
+func TestAllCPEs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "apps"},
+			{Name: "blah", Version: "1.0", Source: "apps"},
+		},
+	}
+	host.HostSoftware = soft
+	require.NoError(t, ds.SaveHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(host.Software[1], "someothercpewithoutvulns"))
+
+	cpes, err := ds.AllCPEs()
+	require.NoError(t, err)
+	assert.ElementsMatch(t, cpes, []string{"somecpe", "someothercpewithoutvulns"})
+}

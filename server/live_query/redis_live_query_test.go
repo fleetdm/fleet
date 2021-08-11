@@ -1,7 +1,6 @@
 package live_query
 
 import (
-	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -11,10 +10,6 @@ import (
 )
 
 func TestRedisLiveQuery(t *testing.T) {
-	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
-		t.Skip("Redis tests not requested. Skipping.")
-	}
-
 	for _, f := range testFunctions {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			store, teardown := setupRedisLiveQuery(t)

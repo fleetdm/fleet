@@ -64,4 +64,22 @@
     margin-left: 0;
     padding-bottom: $pad-medium;
   }
+
+  &__empty-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  &__previous {
+    width: 350px;
+
+    .pagination__pager-wrap {
+      justify-content: left;
+
+      button:last-child {
+        display: none;
+      }
+    }
+  }
 }
