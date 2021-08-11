@@ -27,8 +27,8 @@ type appConfigResponse struct {
 	VulnerabilitySettings *fleet.VulnerabilitySettingsPayload `json:"vulnerability_settings"`
 
 	// Logging is loaded on the fly rather than from the database.
-	Logging            *fleet.Logging             `json:"logging,omitempty"`
-	Err                error                      `json:"error,omitempty"`
+	Logging *fleet.Logging `json:"logging,omitempty"`
+	Err     error          `json:"error,omitempty"`
 }
 
 func (r appConfigResponse) error() error { return r.Err }
@@ -85,10 +85,8 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			}
 		}
 		hostSettings := &fleet.HostSettings{
+			EnableHostUsers:   &config.EnableHostUsers,
 			AdditionalQueries: config.AdditionalQueries,
-		}
-		if config.AdditionalQueries == nil {
-			hostSettings = nil
 		}
 		response := appConfigResponse{
 			OrgInfo: &fleet.OrgInfo{
@@ -100,13 +98,13 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				LiveQueryDisabled: &config.LiveQueryDisabled,
 				EnableAnalytics:   &config.EnableAnalytics,
 			},
-			SMTPSettings:       smtpSettings,
-			SSOSettings:        ssoSettings,
-			HostExpirySettings: hostExpirySettings,
-			HostSettings:       hostSettings,
-			License:            license,
-			AgentOptions:       agentOptions,
-			Logging:            loggingConfig,
+			SMTPSettings:          smtpSettings,
+			SSOSettings:           ssoSettings,
+			HostExpirySettings:    hostExpirySettings,
+			HostSettings:          hostSettings,
+			License:               license,
+			AgentOptions:          agentOptions,
+			Logging:               loggingConfig,
 			VulnerabilitySettings: vulnerabilitySettings,
 		}
 		return response, nil

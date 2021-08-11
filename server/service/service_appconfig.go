@@ -190,8 +190,9 @@ func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppCon
 	}
 
 	if settings := p.HostSettings; settings != nil {
-		if settings.AdditionalQueries != nil {
-			config.AdditionalQueries = settings.AdditionalQueries
+		config.AdditionalQueries = settings.AdditionalQueries
+		if settings.EnableHostUsers != nil {
+			config.EnableHostUsers = *settings.EnableHostUsers
 		}
 	} else {
 		config.AdditionalQueries = nil
