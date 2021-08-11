@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import { size } from "lodash";
 
+import { IQueryFormFields, IQueryFormData } from "interfaces/query";
+
 //@ts-ignore
 import Form from "components/forms/Form"; //@ts-ignore
 import FleetAce from "components/FleetAce"; //@ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
-
-import { IQuery, IQueryFormFields, IQueryFormData } from "interfaces/query";
-
 import Button from "components/buttons/Button";
 import NewQueryModal from "./NewQueryModal";
 
@@ -17,7 +16,6 @@ interface IQueryFormProps {
   baseError: string;
   fields: IQueryFormFields;
   onCreateQuery: (formData: IQueryFormData) => {};
-  // formData: IQuery;
   onOsqueryTableSelect: (tableName: string) => {};
   onRunQuery: () => {};
   onUpdate: (formData: IQueryFormData) => {};
@@ -42,7 +40,6 @@ const QueryForm = ({
   baseError,
   fields,
   onCreateQuery,
-  // formData,
   onOsqueryTableSelect,
   onRunQuery,
   onUpdate,
@@ -82,30 +79,6 @@ const QueryForm = ({
     valid && setIsSaveModalOpen(true);
   };
 
-  const renderNewQueryButtons = () => {
-    return (
-      <div className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}>
-        {hasSavePermissions && (
-          <Button
-            className={`${baseClass}__save`}
-            variant="brand"
-            onClick={openSaveModal}
-            disabled={!fields.query.value}
-          >
-            Save
-          </Button>
-        )}
-        <Button
-          className={`${baseClass}__run`}
-          variant="blue-green"
-          onClick={onRunQuery}
-        >
-          Run query
-        </Button>
-      </div>
-    )
-  };
-
   const modalProps = { baseClass, fields, queryValue: fields.query.value, onCreateQuery, setIsSaveModalOpen };
   return (
     <>
@@ -122,7 +95,25 @@ const QueryForm = ({
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           handleSubmit={onRunQuery}
         />
-        {renderNewQueryButtons()}
+        <div className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}>
+          {hasSavePermissions && (
+            <Button
+              className={`${baseClass}__save`}
+              variant="brand"
+              onClick={openSaveModal}
+              disabled={!fields.query.value}
+            >
+              Save
+            </Button>
+          )}
+          <Button
+            className={`${baseClass}__run`}
+            variant="blue-green"
+            onClick={onRunQuery}
+          >
+            Run query
+          </Button>
+        </div>
       </form>
       {isSaveModalOpen && <NewQueryModal {...modalProps} />}
     </>

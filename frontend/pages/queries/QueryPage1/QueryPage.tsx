@@ -155,14 +155,6 @@ const QueryPage = ({
   };
 
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
-    // const { error } = validateQuery(formData.query);
-
-    // if (error) {
-    //   dispatch(renderFlash("error", error));
-
-    //   return false;
-    // }
-
     try {
       const { query }: { query: IQuery } = await createQuery(formData);
       dispatch(push(PATHS.EDIT_QUERY(query)));
@@ -171,21 +163,25 @@ const QueryPage = ({
       console.log(error);
       dispatch(renderFlash("error", "Something went wrong creating your query. Please try again."));
     }
-
-    // const mutation = useMutation(() => queryAPI.create(formData), {
-    //   onSuccess: (data) => {
-    //     dispatch(push(PATHS.EDIT_QUERY(data)));
-    //     dispatch(renderFlash("success", "Query created!"));
-    //   },
-    // });
-
-    // return dispatch(queryActions.create(formData))
-    //   .then((query) => {
-    //     dispatch(push(PATHS.EDIT_QUERY(query)));
-    //     dispatch(renderFlash("success", "Query created!"));
-    //   })
-    //   .catch(() => false);
   });
+
+  const onUpdateQuery = async (formData: IQueryFormData) => {
+    if (!storedQuery) {
+      return false;
+    }
+    
+    const updatedQuery = deepDifference(formData, storedQuery);
+
+    try {
+      await queryAPI.update(storedQuery, updatedQuery);
+      dispatch(renderFlash("success", "Query updated!"));
+    } catch(error) {
+      console.log(error);
+      dispatch(renderFlash("error", "Something went wrong updating your query. Please try again."));
+    }
+
+    return false;
+  };
 
   const onChangeQueryFormField = (fieldName: string, value: string) => {
     if (fieldName === "query") {
@@ -289,24 +285,6 @@ const QueryPage = ({
     evt.preventDefault();
 
     return teardownDistributedQuery();
-  };
-
-  const onUpdateQuery = async (formData: IQueryFormData) => {
-    if (!storedQuery) {
-      return false;
-    }
-    
-    const updatedQuery = deepDifference(formData, storedQuery);
-
-    try {
-      await queryAPI.update(storedQuery, updatedQuery);
-      dispatch(renderFlash("success", "Query updated!"));
-    } catch(error) {
-      console.log(error);
-      dispatch(renderFlash("error", "Something went wrong updating your query. Please try again."));
-    }
-
-    return false;
   };
 
   const onFetchTargets = (targetSearchText: string, targetResponse: ITargetsResponse) => {
@@ -466,7 +444,6 @@ const QueryPage = ({
             <span>Back to queries</span>
           </Link>
           <QueryForm
-            // formData={storedQuery}
             onCreateQuery={onSaveQueryFormSubmit}
             onChangeFunc={onChangeQueryFormField}
             onOsqueryTableSelect={onOsqueryTableSelect}
