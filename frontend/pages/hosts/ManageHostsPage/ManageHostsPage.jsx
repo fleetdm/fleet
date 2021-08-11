@@ -149,6 +149,7 @@ export class ManageHostsPage extends PureComponent {
       hosts: [],
       isHostsLoading: false,
       isTeamsLoading: true,
+      sortBy: [],
     };
   }
 
@@ -244,6 +245,9 @@ export class ManageHostsPage extends PureComponent {
     if (sortHeader !== "") {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
+    this.setState({
+      sortBy: sortBy,
+    });
 
     // keep track as a local state to be used later
     this.setState({ searchQuery });
@@ -338,6 +342,7 @@ export class ManageHostsPage extends PureComponent {
       selectedHostIds,
       isAllMatchingHostsSelected,
       searchQuery,
+      sortBy,
     } = this.state;
     const teamId = team.id === "no-team" ? null : team.id;
     let action = hostActions.transferToTeam(teamId, selectedHostIds);
@@ -370,6 +375,7 @@ export class ManageHostsPage extends PureComponent {
         retrieveHosts({
           selectedLabels: selectedFilters,
           globalFilter: searchQuery,
+          sortBy: sortBy,
         });
       })
       .catch(() => {
