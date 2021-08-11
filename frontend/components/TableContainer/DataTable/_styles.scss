@@ -169,8 +169,13 @@
       }
 
       &--offline:before,
-      &--disabled:before {
+      &--disabled:before,
+      &--mia:before {
         background-color: $ui-offline;
+      }
+
+      &--mia {
+        text-transform: uppercase;
       }
     }
 
