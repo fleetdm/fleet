@@ -509,7 +509,7 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 
 	vulnPath := *appConfig.VulnerabilityDatabasesPath
 
-	ticker := time.NewTicker(20 * time.Second)
+	ticker := time.NewTicker(1 * time.Hour)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
 		select {
