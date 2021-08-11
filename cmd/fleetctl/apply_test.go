@@ -214,11 +214,13 @@ kind: config
 spec:
   host_settings:
     enable_host_users: false
+    enable_software_inventory: false
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.False(t, savedAppConfig.EnableHostUsers)
+	assert.False(t, savedAppConfig.EnableSoftwareInventory)
 
 	name = writeTmpYml(t, `---
 apiVersion: v1
@@ -226,9 +228,11 @@ kind: config
 spec:
   host_settings:
     enable_host_users: true
+    enable_software_inventory: true
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.True(t, savedAppConfig.EnableHostUsers)
+	assert.True(t, savedAppConfig.EnableSoftwareInventory)
 }

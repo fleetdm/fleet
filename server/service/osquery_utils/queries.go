@@ -562,7 +562,7 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 		generatedMap[key] = query
 	}
 
-	if os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" {
+	if os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || (ac != nil && ac.EnableSoftwareInventory) {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows

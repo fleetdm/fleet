@@ -189,6 +189,9 @@ type AppConfig struct {
 
 	// EnableHostUsers indicates whether the users of each host will be queried and stored
 	EnableHostUsers bool `db:"enable_host_users" json:"enable_host_users"`
+
+	// EnableSoftwareInventory indicates whether fleet will request for software from hosts or not
+	EnableSoftwareInventory bool `db:"enable_software_inventory" json:"enable_software_inventory"`
 }
 
 func (c AppConfig) AuthzType() string {
@@ -312,8 +315,9 @@ type HostExpirySettings struct {
 }
 
 type HostSettings struct {
-	EnableHostUsers   *bool            `json:"enable_host_users"`
-	AdditionalQueries *json.RawMessage `json:"additional_queries,omitempty"`
+	EnableHostUsers         *bool            `json:"enable_host_users"`
+	EnableSoftwareInventory *bool            `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
 }
 
 type OrderDirection int
