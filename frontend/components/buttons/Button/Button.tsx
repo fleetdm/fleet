@@ -3,6 +3,25 @@ import classnames from "classnames";
 
 const baseClass = "button";
 
+export type ButtonVariant = 
+  "brand" |
+  "success" |
+  "alert" |
+  "blue-green" |
+  "grey" |
+  "warning" |
+  "link" |
+  "label" |
+  "text-link" |
+  "text-icon" |
+  "inverse" |
+  "inverse-alert" |
+  "block" |
+  "disabled" |
+  "unstyled" |
+  "unstyled-modal-query" |
+  "contextual-nav-item";
+
 interface IButtonProps {
   autofocus?: boolean;
   block?: boolean;
@@ -14,7 +33,7 @@ interface IButtonProps {
   tabIndex?: number;
   type?: "button" | "submit" | "reset";
   title?: string;
-  variant?: string; // default, brand, inverse, alert, disabled...
+  variant?: ButtonVariant;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface

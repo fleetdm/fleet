@@ -14,6 +14,7 @@ import scrollToTop from "utilities/scroll_to_top";
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
+import { ButtonVariant } from "components/buttons/Button/Button";
 
 interface ITableQueryData {
   searchQuery: string;
@@ -33,7 +34,7 @@ interface ITableContainerProps {
   onActionButtonClick?: () => void;
   actionButtonText?: string;
   actionButtonIcon?: string;
-  actionButtonVariant?: string;
+  actionButtonVariant?: ButtonVariant;
   onQueryChange: (queryData: ITableQueryData) => void;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
@@ -48,7 +49,7 @@ interface ITableContainerProps {
   wideSearch?: boolean;
   disablePagination?: boolean;
   disableCount?: boolean;
-  primarySelectActionButtonVariant?: string;
+  primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
@@ -79,7 +80,7 @@ const TableContainer = ({
   disableActionButton,
   actionButtonText,
   actionButtonIcon,
-  actionButtonVariant,
+  actionButtonVariant = "brand",
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
@@ -87,7 +88,7 @@ const TableContainer = ({
   wideSearch,
   disablePagination,
   disableCount,
-  primarySelectActionButtonVariant,
+  primarySelectActionButtonVariant = "brand",
   primarySelectActionButtonIcon,
   primarySelectActionButtonText,
   onPrimarySelectActionClick,
