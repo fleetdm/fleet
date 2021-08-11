@@ -221,7 +221,10 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 	// Open the channel from which we will receive incoming query results
 	// (probably from the redis pubsub implementation)
-	readChan, err := svc.resultStore.ReadChannel(context.Background(), *campaign)
+	cancelCtx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	readChan, err := svc.resultStore.ReadChannel(cancelCtx, *campaign)
 	if err != nil {
 		conn.WriteJSONError(fmt.Sprintf("cannot open read channel for campaign %d ", campaignID))
 		return

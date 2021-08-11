@@ -1,0 +1,1 @@
+* Reads live query results from redis in a thread safe manner.

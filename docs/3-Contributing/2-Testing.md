@@ -34,7 +34,7 @@ Check out [the instructions in the `/tools/osquery` directory](../../tools/osque
 To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
-MYSQL_TEST=1 REDIS_TEST=1 make test
+MYSQL_TEST=1 make test
 ```
 
 It is a good idea to run `make test` before submitting a Pull Request.
@@ -89,14 +89,6 @@ To run MySQL integration tests set environment variables as follows:
 
 ```
 MYSQL_TEST=1 make test-go
-```
-
-#### Redis tests
-
-To run Redis integration tests set environment variables as follows:
-
-```
-REDIS_TEST=1 make test-go
 ```
 
 #### Email tests
