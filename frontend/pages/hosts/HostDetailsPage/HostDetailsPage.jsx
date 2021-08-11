@@ -689,7 +689,7 @@ export class HostDetailsPage extends Component {
               <div className="info__item info__item--title">
                 <span className="info__header">Status</span>
                 <span className={`${statusClassName} info__data`}>
-                  {titleData.status}
+                  {titleData.status === "mia" ? "MIA" : titleData.status}
                 </span>
               </div>
               {isBasicTier ? hostTeam() : null}
