@@ -124,7 +124,7 @@ Successfully logout by running the `fleetctl logout` command. Then, log in again
 
 Run the `fleetctl get hosts` command.
 
-You should see your local machine returned. If your host isn't showing up, you may have to reenroll your local machine. Check out the [Orbit for osquery documentation](https://github.com/fleetdm/orbit/blob/main/README.md) for instructions on generating and installing an Orbit package.
+You should see your local machine returned. If your host isn't showing up, you may have to reenroll your local machine. Check out the [Orbit for osquery documentation](https://github.com/fleetdm/fleet/blob/main/orbit/README.md) for instructions on generating and installing an Orbit package.
 
 ### Query flow
 

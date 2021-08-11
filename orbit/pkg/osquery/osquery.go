@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fleetdm/orbit/pkg/constant"
-	"github.com/fleetdm/orbit/pkg/process"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/process"
+	"github.com/fleetdm/fleet/v4/secure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -71,7 +72,7 @@ func WithShell() func(*Runner) error {
 
 func WithDataPath(path string) func(*Runner) error {
 	return func(r *Runner) error {
-		if err := os.MkdirAll(filepath.Join(path, "logs"), constant.DefaultDirMode); err != nil {
+		if err := secure.MkdirAll(filepath.Join(path, "logs"), constant.DefaultDirMode); err != nil {
 			return errors.Wrap(err, "initialize osquery data path")
 		}
 
@@ -86,7 +87,7 @@ func WithDataPath(path string) func(*Runner) error {
 
 func WithLogPath(path string) func(*Runner) error {
 	return func(r *Runner) error {
-		if err := os.MkdirAll(path, constant.DefaultDirMode); err != nil {
+		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
 			return errors.Wrap(err, "initialize osquery log path")
 		}
 

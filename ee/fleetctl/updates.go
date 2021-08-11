@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/secure"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf"
 	"github.com/urfave/cli/v2"
@@ -339,11 +340,11 @@ func copyTarget(srcPath, dstPath string) error {
 	}
 	defer src.Close()
 
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
 		return errors.Wrap(err, "create dst dir for copy")
 	}
 
-	dst, err := os.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0644)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return errors.Wrap(err, "open dst for copy")
 	}

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fleetdm/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,9 +29,8 @@ func TestFileStorePathError(t *testing.T) {
 func TestFileStore(t *testing.T) {
 	t.Parallel()
 
-	tmpDir, err := ioutil.TempDir("", "filestore-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chmod(tmpDir, 0700))
 
 	store, err := New(filepath.Join(tmpDir, "metadata.json"))
 	require.NoError(t, err)

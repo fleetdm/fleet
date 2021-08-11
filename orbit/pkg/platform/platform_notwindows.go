@@ -5,7 +5,7 @@ package platform
 import (
 	"os"
 
-	"github.com/fleetdm/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/pkg/errors"
 )
 
