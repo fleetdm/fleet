@@ -246,7 +246,7 @@ export class ManageHostsPage extends PureComponent {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
     this.setState({
-      sortBy: sortBy,
+      sortBy,
     });
 
     // keep track as a local state to be used later
@@ -375,7 +375,7 @@ export class ManageHostsPage extends PureComponent {
         retrieveHosts({
           selectedLabels: selectedFilters,
           globalFilter: searchQuery,
-          sortBy: sortBy,
+          sortBy,
         });
       })
       .catch(() => {
