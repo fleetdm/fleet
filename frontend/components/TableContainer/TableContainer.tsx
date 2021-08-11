@@ -247,7 +247,21 @@ const TableContainer = ({
       <div className={`${baseClass}__data-table-container`}>
         {/* No entities for this result. */}
         {!isLoading && data.length === 0 ? (
-          <EmptyComponent pageIndex={pageIndex} />
+          <>
+            <EmptyComponent pageIndex={pageIndex} />
+            {pageIndex !== 0 && (
+              <div className={`${baseClass}__empty-page`}>
+                <div className={`${baseClass}__previous`}>
+                  <Pagination
+                    resultsOnCurrentPage={data.length}
+                    currentPage={pageIndex}
+                    resultsPerPage={pageSize}
+                    onPaginationChange={onPaginationChange}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <>
             <DataTable
