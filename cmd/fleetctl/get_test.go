@@ -239,3 +239,66 @@ spec:
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "hosts", "--yaml"}))
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "hosts", "--json"}))
 }
+
+func TestGetConfig(t *testing.T) {
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
+
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			EnableHostUsers:            true,
+			VulnerabilityDatabasesPath: ptr.String("/some/path"),
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: config
+spec:
+  agent_options: null
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  host_settings:
+    additional_queries: null
+    enable_host_users: true
+  org_info:
+    org_logo_url: ""
+    org_name: ""
+  server_settings:
+    enable_analytics: false
+    live_query_disabled: false
+    server_url: ""
+  smtp_settings:
+    authentication_method: authmethod_plain
+    authentication_type: authtype_username_password
+    configured: false
+    domain: ""
+    enable_smtp: false
+    enable_ssl_tls: false
+    enable_start_tls: false
+    password: '********'
+    port: 0
+    sender_address: ""
+    server: ""
+    user_name: ""
+    verify_ssl_certs: false
+  sso_settings:
+    enable_sso: false
+    enable_sso_idp_login: false
+    entity_id: ""
+    idp_image_url: ""
+    idp_name: ""
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: ""
+  vulnerability_settings:
+    databases_path: /some/path
+`
+	expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"authtype_username_password","user_name":"","password":"********","enable_ssl_tls":false,"authentication_method":"authmethod_plain","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"additional_queries":null},"agent_options":null,"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"}}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+}

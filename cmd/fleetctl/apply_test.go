@@ -174,3 +174,61 @@ spec:
 	assert.Equal(t, &newAgentOpts, teamsByName["team1"].AgentOptions)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 }
+
+func writeTmpYml(t *testing.T, contents string) string {
+	tmpFile, err := ioutil.TempFile(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(contents)
+	require.NoError(t, err)
+	return tmpFile.Name()
+}
+
+func TestApplyAppConfig(t *testing.T) {
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
+
+	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+
+	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	var savedAppConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  host_settings:
+    enable_host_users: false
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.False(t, savedAppConfig.EnableHostUsers)
+
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  host_settings:
+    enable_host_users: true
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.True(t, savedAppConfig.EnableHostUsers)
+}

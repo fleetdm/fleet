@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -272,9 +271,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 	for key := range m {
 		keys = append(keys, key)
 	}
-	sort.Slice(keys, func(i, j int) bool { return strings.Compare(keys[i], keys[j]) < 0 })
-	sort.Slice(expectedKeys, func(i, j int) bool { return strings.Compare(expectedKeys[i], expectedKeys[j]) < 0 })
-	require.Equal(t, expectedKeys, keys)
+	assert.ElementsMatch(t, keys, expectedKeys)
 }
 
 func TestGetDetailQueries(t *testing.T) {

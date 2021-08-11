@@ -312,6 +312,7 @@ type HostExpirySettings struct {
 }
 
 type HostSettings struct {
+	EnableHostUsers   *bool            `json:"enable_host_users"`
 	AdditionalQueries *json.RawMessage `json:"additional_queries"`
 }
 
