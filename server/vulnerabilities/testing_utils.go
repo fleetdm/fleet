@@ -9,12 +9,12 @@ const XmlCPETestDict = `
     <schema_version>2.3</schema_version>
     <timestamp>2021-07-20T03:50:36.509Z</timestamp>
   </generator>
-  <cpe-item name="cpe:/a:vendor:product:1.2.3:~~~macos~~">
-    <title xml:lang="en-US">Vendor Product 1.2.3 for MacOS</title>
+  <cpe-item name="cpe:/a:vendor:product-1:1.2.3:~~~macos~~">
+    <title xml:lang="en-US">Vendor Product-1 1.2.3 for MacOS</title>
     <references>
       <reference href="https://someurl.com">Change Log</reference>
     </references>
-    <cpe-23:cpe23-item name="cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*"/>
+    <cpe-23:cpe23-item name="cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*"/>
   </cpe-item>
   <cpe-item name="cpe:/a:vendor2:product2:0.3:~~~macos~~" deprecated="true" deprecation_date="2021-06-10T15:28:05.490Z">
     <title xml:lang="en-US">Vendor2 Product2 0.3 for MacOS</title>

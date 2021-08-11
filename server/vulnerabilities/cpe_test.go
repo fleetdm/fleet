@@ -13,6 +13,7 @@ import (
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,14 +32,14 @@ func TestCpeFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 
 	// checking an non existent version returns empty
-	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product.app", Version: "2.3.4", Source: "apps"})
+	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", Source: "apps"})
 	require.NoError(t, err)
 	require.Equal(t, "", cpe)
 
 	// checking a version that exists works
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product.app", Version: "1.2.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", Source: "apps"})
 	require.NoError(t, err)
-	require.Equal(t, "cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*", cpe)
+	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
 	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"})
@@ -179,10 +180,10 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
-	err = TranslateSoftwareToCPE(ds, tempDir)
+	err = TranslateSoftwareToCPE(ds, tempDir, kitlog.NewNopLogger())
 	require.NoError(t, err)
 	assert.Equal(t, []string{
-		"cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*",
+		"cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
 		"cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*",
 	}, cpes)
 	assert.True(t, iterator.closed)

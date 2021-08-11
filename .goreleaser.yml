@@ -17,7 +17,7 @@ builds:
     dir: ./cmd/fleet/
     binary: fleet
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - darwin
       - linux
