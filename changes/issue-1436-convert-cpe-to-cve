@@ -1,1 +1,0 @@
-* Converts all stored CPEs into their corresponding CVEs if any are present. Fixes issue 1436

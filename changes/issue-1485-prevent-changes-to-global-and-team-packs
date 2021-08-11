@@ -1,2 +1,0 @@
-* /api/v1/fleet/packs only returns packs that have nil or empty 'type' to prevent displaying global and team packs as modifiable packs
-* /api/v1/fleet/packs now prevent edit/deletion of Global & Team packs
