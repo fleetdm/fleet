@@ -1,88 +1,80 @@
 .manage-queries-page {
   &__header-wrap {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: center;
+    margin-bottom: $pad-xxlarge;
   }
 
-  &__ctas {
+  &__header {
     display: flex;
     align-items: center;
-    font-size: $x-small;
   }
 
-  &__selected-count {
-    padding: 0 $pad-medium;
-  }
-
-  &__query-count {
-    color: $core-fleet-black;
-    font-size: $x-small;
-    font-weight: $bold;
-    margin: 0 12px 0 0;
-    display: inline-block;
-  }
-
-  &__filter-and-cta {
-    display: flex;
-
-    input {
-      &[name="query-filter"] {
-        width: 100%;
-      }
-    }
-  }
-
-  &__filter-queries {
-    flex-grow: 1;
-    position: relative;
-    margin-top: $pad-xlarge;
-    margin-bottom: $pad-large;
-
-    &::before {
-      display: inline-block;
-      position: absolute;
-      padding: 5px 0 0 0; // centers spin
-      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
-      transform: scale(0.5);
-      height: 20px;
-      top: 3px;
-      left: 8px;
-    }
-
-    .input-field {
-      padding-left: 44px;
-    }
+  &__text {
+    margin-right: $pad-large;
   }
 
   &__title {
-    margin: 0 0 $pad-medium;
-  }
+    font-size: $large;
 
-  &__wrapper {
-    padding: $pad-xxlarge 30px;
-  }
+    .fleeticon {
+      color: $core-fleet-blue;
+      margin-right: 15px;
+    }
 
-  &__modal-btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
+    .fleeticon-success-check {
+      color: $ui-success;
+    }
 
-    .button {
-      margin-left: 15px;
-      width: 120px;
+    .fleeticon-offline {
+      color: $ui-error;
+    }
+
+    .fleeticon-mia {
+      color: $core-fleet-black;
     }
   }
 
-  &__empty-label {
-    font-size: $x-small;
-    font-weight: $bold;
-    padding: $pad-xlarge $pad-large 0;
-    margin: $pad-small 0;
+  &__description {
+    margin: 0 0 $pad-medium;
+    padding-top: $pad-xsmall;
+
+    h2 {
+      text-transform: uppercase;
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $small;
+    }
+
+    p {
+      color: $core-dark-blue-grey;
+      margin: 0;
+      font-size: $x-small;
+      font-style: italic;
+    }
   }
 
-  &__empty-description {
+  &__action-button-container {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .button {
     font-size: $x-small;
-    padding: 0 $pad-large;
-    margin: 0;
+
+    img {
+      transform: scale(0.5);
+    }
+  }
+
+  &__modal-buttons {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+
+    .button:first-child {
+      margin-right: $pad-medium;
+    }
   }
 }

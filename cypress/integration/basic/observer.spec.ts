@@ -41,7 +41,7 @@ describe("Basic tier - Observer user", () => {
 
     cy.findByText(/detect presence/i).click();
 
-    cy.findByRole("button", { name: /run query/i }).click();
+    cy.findByRole("button", { name: /run/i }).click();
 
     cy.get(".target-select").within(() => {
       cy.findByText(/Label name, host name, IP address, etc./i).click();
@@ -55,7 +55,7 @@ describe("Basic tier - Observer user", () => {
     cy.login("toni@organization.com", "user123#");
     cy.visit("/hosts/manage");
 
-    cy.findByText("All hosts which have enrolled in Fleet").should("exist");
+    cy.findByText("Hosts").should("exist");
 
     // Nav restrictions
     cy.findByText(/settings/i).should("not.exist");

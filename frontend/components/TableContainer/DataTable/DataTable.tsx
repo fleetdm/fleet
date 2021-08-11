@@ -15,6 +15,7 @@ interface IDataTableProps {
   columns: any;
   data: any;
   isLoading: boolean;
+  manualSortBy?: boolean;
   sortHeader: any;
   sortDirection: any;
   onSort: any; // TODO: an event type
@@ -23,6 +24,8 @@ interface IDataTableProps {
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
+  primarySelectActionButtonVariant?: string;
+  primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick: any; // TODO: an event type
   secondarySelectActions?: IActionButtonProps[];
@@ -34,6 +37,7 @@ const DataTable = ({
   columns: tableColumns,
   data: tableData,
   isLoading,
+  manualSortBy = false,
   sortHeader,
   sortDirection,
   onSort,
@@ -42,6 +46,8 @@ const DataTable = ({
   toggleAllPagesSelected,
   resultsTitle,
   defaultPageSize,
+  primarySelectActionButtonIcon,
+  primarySelectActionButtonVariant,
   onPrimarySelectActionClick,
   primarySelectActionButtonText,
   secondarySelectActions,
@@ -73,6 +79,7 @@ const DataTable = ({
         }, [sortHeader, sortDirection]),
       },
       disableMultiSort: true,
+      manualSortBy,
     },
     useSortBy,
     useRowSelect
@@ -120,7 +127,15 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
 
-  const renderSelectedText = (): JSX.Element => {
+  const renderSelectedCount = (): JSX.Element => {
+    return (
+      <p>
+        <span>{selectedFlatRows.length}</span> selected
+      </p>
+    );
+  };
+
+  const renderAreAllSelected = (): JSX.Element | null => {
     if (isAllPagesSelected) {
       return <p>All matching {resultsTitle} are selected</p>;
     }
@@ -128,12 +143,7 @@ const DataTable = ({
     if (isAllRowsSelected) {
       return <p>All {resultsTitle} on this page are selected</p>;
     }
-
-    return (
-      <p>
-        <span>{selectedFlatRows.length}</span> selected
-      </p>
-    );
+    return null;
   };
 
   const renderActionButton = (
@@ -146,7 +156,8 @@ const DataTable = ({
       targetIds,
       variant,
       hideButton,
-      iconLink,
+      icon,
+      iconPosition,
     } = actionButtonProps;
     return (
       <div className={`${baseClass}__${kebabCase(name)}`}>
@@ -158,7 +169,8 @@ const DataTable = ({
           targetIds={targetIds}
           variant={variant}
           hideButton={hideButton}
-          iconLink={iconLink}
+          icon={icon}
+          iconPosition={iconPosition}
         />
       </div>
     );
@@ -171,11 +183,14 @@ const DataTable = ({
         ? primarySelectActionButtonText(targetIds)
         : primarySelectActionButtonText;
     const name = buttonText ? kebabCase(buttonText) : "primary-select-action";
+
     const actionProps = {
       name,
       buttonText: buttonText || "",
       onActionButtonClick: onPrimarySelectActionClick,
       targetIds,
+      variant: primarySelectActionButtonVariant,
+      icon: primarySelectActionButtonIcon,
     };
 
     return !buttonText ? null : renderActionButton(actionProps);
@@ -219,29 +234,30 @@ const DataTable = ({
                 </th>
                 <th className={"active-selection__container"}>
                   <div className={"active-selection__inner"}>
+                    {renderSelectedCount()}
                     <div className={"active-selection__inner-left"}>
-                      {renderSelectedText()}
-                      {shouldRenderToggleAllPages && (
-                        <Button
-                          onClick={onToggleAllPagesClick}
-                          variant={"text-link"}
-                          className={"light-text"}
-                        >
-                          <>Select all matching {resultsTitle}</>
-                        </Button>
-                      )}
-                      <Button
-                        onClick={onClearSelectionClick}
-                        variant={"text-link"}
-                      >
-                        Clear selection
-                      </Button>
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
                     <div className={"active-selection__inner-right"}>
                       {primarySelectActionButtonText &&
                         renderPrimarySelectAction()}
                     </div>
+                    {toggleAllPagesSelected && renderAreAllSelected()}
+                    {shouldRenderToggleAllPages && (
+                      <Button
+                        onClick={onToggleAllPagesClick}
+                        variant={"text-link"}
+                        className={"light-text"}
+                      >
+                        <>Select all matching {resultsTitle}</>
+                      </Button>
+                    )}
+                    <Button
+                      onClick={onClearSelectionClick}
+                      variant={"text-link"}
+                    >
+                      Clear selection
+                    </Button>
                   </div>
                 </th>
               </tr>

@@ -5,30 +5,4 @@
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
   }
-
-  .Select.is-focused:not(.is-open) > .Select-control {
-    border: none;
-    box-shadow: none;
-  }
-
-  .Select.is-open {
-    .Select-arrow {
-      margin-top: 6px;
-      margin-bottom: -2px;
-    }
-  }
-
-  .Select-arrow {
-    margin-top: $pad-xsmall;
-  }
-
-  .Select-control:hover {
-    box-shadow: none;
-  }
-
-  .Select-placeholder {
-    font-size: $x-small;
-    margin-top: $pad-xxsmall;
-    padding-left: 0;
-  }
 }

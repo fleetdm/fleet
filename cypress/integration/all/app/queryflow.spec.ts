@@ -4,7 +4,7 @@ describe("Query flow", () => {
     cy.login();
   });
 
-  it("Create, check, edit, and delete a query successfully", () => {
+  it("Create, check, edit, and delete a query successfully and create, edit, and delete a global scheduled query successfully", () => {
     cy.visit("/queries/manage");
 
     cy.findByRole("button", { name: /create new query/i }).click();
@@ -32,7 +32,7 @@ describe("Query flow", () => {
 
     cy.findByText(/query all/i).click();
 
-    cy.findByRole("button", { name: /edit or run query/i }).click();
+    cy.findByText(/edit & run query/i).should("exist");
 
     cy.get(".ace_scroller")
       .click({ force: true })
@@ -83,32 +83,58 @@ describe("Query flow", () => {
 
     cy.findByText(/query all window crashes/i).should("exist");
 
-    // Checkbox won't check so can't test remove schedule
-    // cy.get("tbody").get(".table-checkbox__input").click();
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.findByText(/actions/i).click();
+    cy.findByText(/edit/i).click();
 
-    // cy.findByRole("button", { name: /remove query/i }).click();
+    cy.get(
+      ".schedule-editor-modal__form-field--frequency > .dropdown__select"
+    ).click();
 
-    // cy.get(".remove-scheduled-query-modal__btn-wrap")
-    //   .contains("button", /remove/i)
-    //   .click();
+    cy.findByText(/every 6 hours/i).click();
 
-    // cy.findByText(/query all window crashes/i).should("not.exist");
+    cy.findByText(/show advanced options/i).click();
+
+    cy.findByText(/ignore removals/i).click();
+    cy.findByText(/snapshot/i).click();
+
+    cy.get(".schedule-editor-modal__form-field--shard > .input-field")
+      .click()
+      .type("{selectall}{backspace}10");
+
+    cy.get(".schedule-editor-modal__btn-wrap")
+      .contains("button", /schedule/i)
+      .click();
+
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.findByText(/actions/i).click();
+    cy.findByText(/remove/i).click();
+
+    cy.get(".remove-scheduled-query-modal__btn-wrap")
+      .contains("button", /remove/i)
+      .click();
+
+    cy.findByText(/query all window crashes/i).should("not.exist");
     // End Test Schedules
 
     cy.visit("/queries/manage");
 
-    // This element has no label, text, or role
-    cy.get("#query-checkbox-1").check({ force: true });
+    cy.findByText(/query all window crashes/i)
+      .parent()
+      .parent()
+      .within(() => {
+        cy.get(".fleet-checkbox__input").check({ force: true });
+      });
 
     cy.findByRole("button", { name: /delete/i }).click();
 
     // Can't figure out how attach findByRole onto modal button
     // Can't use findByText because delete button under modal
-    cy.get(".manage-queries-page__modal-btn-wrap > .button--alert")
+    cy.get(".remove-query-modal")
       .contains("button", /delete/i)
       .click();
 
-    cy.findByText(/successfully deleted/i).should("be.visible");
+    cy.findByText(/successfully removed query/i).should("be.visible");
 
     cy.findByText(/query all/i).should("not.exist");
   });

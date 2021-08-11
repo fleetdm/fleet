@@ -9,10 +9,28 @@
     padding-bottom: $pad-large;
   }
 
+  &__block:before {
+    content: "";
+    position: relative;
+    height: 50px !important;
+    z-index: 0;
+    top: 35px;
+    left: 17px;
+    border-left: 1px dashed $ui-fleet-blue-15;
+    height: 100%;
+  }
+  &__block:last-child:before {
+    border-left: 0;
+  }
+
   &__avatar-frame {
     display: flex;
     width: 32px;
     height: 32px;
+  }
+
+  &__avatar-image {
+    z-index: 2;
   }
 
   &__details {

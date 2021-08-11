@@ -5,7 +5,7 @@ import { noop, pick } from "lodash";
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
 
-const baseClass = "kolide-checkbox";
+const baseClass = "fleet-checkbox";
 
 interface ICheckboxProps {
   children?: JSX.Element | Array<JSX.Element> | string;

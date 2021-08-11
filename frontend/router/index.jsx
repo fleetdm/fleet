@@ -13,7 +13,6 @@ import AdminAppSettingsPage from "pages/admin/AppSettingsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
-import AllPacksPage from "pages/packs/AllPacksPage";
 import App from "components/App";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
@@ -31,6 +30,7 @@ import LoginRoutes from "components/LoginRoutes";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
+import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackPageWrapper from "components/packs/PackPageWrapper";
 import PackComposerPage from "pages/packs/PackComposerPage";
@@ -91,11 +91,19 @@ const routes = (
                 component={ManageHostsPage}
               />
               <Route path="manage/:active_label" component={ManageHostsPage} />
+              <Route
+                path="manage/labels/:label_id/:active_label"
+                component={ManageHostsPage}
+              />
+              <Route
+                path="manage/:active_label/labels/:label_id"
+                component={ManageHostsPage}
+              />
               <Route path=":host_id" component={HostDetailsPage} />
             </Route>
             <Route component={AuthGlobalAdminMaintainerRoutes}>
               <Route path="packs" component={PackPageWrapper}>
-                <Route path="manage" component={AllPacksPage} />
+                <Route path="manage" component={ManagePacksPage} />
                 <Route path="new" component={PackComposerPage} />
                 <Route path=":id">
                   <IndexRoute component={EditPackPage} />
@@ -104,6 +112,10 @@ const routes = (
               </Route>
               <Route path="schedule" component={SchedulePageWrapper}>
                 <Route path="manage" component={ManageSchedulePage} />
+                <Route
+                  path="manage/teams/:team_id"
+                  component={ManageSchedulePage}
+                />
               </Route>
             </Route>
             <Route path="queries" component={QueryPageWrapper}>

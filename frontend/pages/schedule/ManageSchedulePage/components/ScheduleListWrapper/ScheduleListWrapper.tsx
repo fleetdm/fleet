@@ -8,11 +8,12 @@ import paths from "router/paths";
 
 import Button from "components/buttons/Button";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
-import generateTableHeaders from "./ScheduleTableConfig";
+import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
 // @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/schedule.svg";
 
@@ -21,8 +22,10 @@ const noScheduleClass = "no-schedule";
 
 interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
-  allGlobalScheduledQueriesList: IGlobalScheduledQuery[];
+  onEditScheduledQueryClick: any;
+  allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
   toggleScheduleEditorModal: any;
+  teamId: number;
 }
 interface IRootState {
   entities: {
@@ -30,14 +33,20 @@ interface IRootState {
       isLoading: boolean;
       data: IGlobalScheduledQuery[];
     };
+    team_scheduled_queries: {
+      isLoading: boolean;
+      data: ITeamScheduledQuery[];
+    };
   };
 }
 
 const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
   const {
     onRemoveScheduledQueryClick,
-    allGlobalScheduledQueriesList,
+    allScheduledQueriesList,
     toggleScheduleEditorModal,
+    onEditScheduledQueryClick,
+    teamId,
   } = props;
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -77,10 +86,27 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     );
   };
 
-  const tableHeaders = generateTableHeaders();
-  const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.global_scheduled_queries.isLoading
-  );
+  const onActionSelection = (
+    action: string,
+    global_scheduled_query: IGlobalScheduledQuery
+  ): void => {
+    switch (action) {
+      case "edit":
+        onEditScheduledQueryClick(global_scheduled_query);
+        break;
+      default:
+        onRemoveScheduledQueryClick([global_scheduled_query.id]);
+        break;
+    }
+  };
+
+  const tableHeaders = generateTableHeaders(onActionSelection);
+  const loadingTableData = useSelector((state: IRootState) => {
+    if (teamId) {
+      return state.entities.team_scheduled_queries.isLoading;
+    }
+    return state.entities.global_scheduled_queries.isLoading;
+  });
 
   // Search functionality disabled, needed if enabled
   const onQueryChange = useCallback(
@@ -102,7 +128,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={allGlobalScheduledQueriesList}
+        data={generateDataSet(allScheduledQueriesList, teamId)}
         isLoading={loadingTableData}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}
@@ -112,7 +138,9 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         inputPlaceHolder="Search"
         searchable={false}
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
-        primarySelectActionButtonText={"Remove query"}
+        primarySelectActionButtonVariant="text-link"
+        primarySelectActionButtonIcon="close"
+        primarySelectActionButtonText={"Remove"}
         emptyComponent={NoScheduledQueries}
       />
     </div>

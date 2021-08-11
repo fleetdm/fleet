@@ -53,7 +53,7 @@ describe("Core tier - Maintainer user", () => {
     // Queries pages: Can create, edit, and run query
     cy.visit("/queries/manage");
     cy.get("thead").within(() => {
-      cy.findByText(/observers can run/i).should("exist");
+      cy.findByText(/observer can run/i).should("exist");
     });
 
     cy.findByRole("button", { name: /create new query/i }).click();
@@ -87,7 +87,7 @@ describe("Core tier - Maintainer user", () => {
 
     cy.findByText(/query all/i).click();
 
-    cy.findByRole("button", { name: /edit or run query/i }).click();
+    cy.findByText(/edit & run query/i).should("exist");
 
     // Packs pages: Can create, edit, delete a pack
     cy.visit("/packs/manage");
@@ -106,17 +106,13 @@ describe("Core tier - Maintainer user", () => {
 
     cy.visit("/packs/manage");
 
-    cy.findByText(/errors and crashes/i).click();
-
-    cy.findByRole("link", { name: /edit pack/i }).should("exist");
-
-    cy.get("#select-pack-1").check({ force: true });
+    cy.get(".fleet-checkbox__input").check({ force: true });
 
     cy.findByRole("button", { name: /delete/i }).click();
 
     // Can't figure out how attach findByRole onto modal button
     // Can't use findByText because delete button under modal
-    cy.get(".all-packs-page__modal-btn-wrap > .button--alert")
+    cy.get(".remove-pack-modal__btn-wrap > .button--alert")
       .contains("button", /delete/i)
       .click();
 

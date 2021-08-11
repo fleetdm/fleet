@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -60,7 +61,7 @@ func getNodeKey(r interface{}) (string, error) {
 //
 // If auth fails or the user must reset their password, an error is returned.
 func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	authUserFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		// first check if already successfully set
 		if v, ok := viewer.FromContext(ctx); ok {
 			if v.User.AdminForcedPasswordReset {
@@ -87,6 +88,15 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 
 		ctx = viewer.NewContext(ctx, *v)
 		return next(ctx, request)
+	}
+
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		res, err := authUserFunc(ctx, request)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return nil, err
+		}
+		return res, nil
 	}
 }
 

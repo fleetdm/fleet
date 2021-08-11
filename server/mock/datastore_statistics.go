@@ -11,6 +11,7 @@ import (
 var _ fleet.StatisticsStore = (*StatisticsStore)(nil)
 
 type ShouldSendStatisticsFunc func(frequency time.Duration) (fleet.StatisticsPayload, bool, error)
+
 type RecordStatisticsSentFunc func() error
 
 type StatisticsStore struct {

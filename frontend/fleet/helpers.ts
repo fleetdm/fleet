@@ -42,8 +42,7 @@ const labelStubs = [
   {
     id: "online",
     count: 0,
-    description:
-      "Hosts that have recently checked-in to Fleet and are ready to run queries.",
+    description: "Hosts that have recently checked-in to Fleet.",
     display_text: "Online",
     slug: "online",
     statusLabelKey: "online_count",
@@ -334,6 +333,69 @@ export const formatGlobalScheduledQueryForClient = (
   return scheduledQuery;
 };
 
+export const formatTeamScheduledQueryForServer = (scheduledQuery: any) => {
+  const {
+    interval,
+    logging_type: loggingType,
+    platform,
+    query_id: queryID,
+    shard,
+    team_id: teamID,
+  } = scheduledQuery;
+  const result = omit(scheduledQuery, ["logging_type"]);
+
+  if (platform === "all") {
+    result.platform = "";
+  }
+
+  if (interval) {
+    result.interval = Number(interval);
+  }
+
+  if (loggingType) {
+    result.removed = loggingType === "differential";
+    result.snapshot = loggingType === "snapshot";
+  }
+
+  if (queryID) {
+    result.query_id = Number(queryID);
+  }
+
+  if (shard) {
+    result.shard = Number(shard);
+  }
+
+  if (teamID) {
+    result.query_id = Number(teamID);
+  }
+
+  return result;
+};
+
+export const formatTeamScheduledQueryForClient = (scheduledQuery: any): any => {
+  if (scheduledQuery.platform === "") {
+    scheduledQuery.platform = "all";
+  }
+
+  if (scheduledQuery.snapshot) {
+    scheduledQuery.logging_type = "snapshot";
+  } else {
+    scheduledQuery.snapshot = false;
+    if (scheduledQuery.removed === false) {
+      scheduledQuery.logging_type = "differential_ignore_removals";
+    } else {
+      // If both are unset, we should default to differential (like osquery does)
+      scheduledQuery.logging_type = "differential";
+    }
+  }
+
+  if (scheduledQuery.shard === null) {
+    scheduledQuery.shard = undefined;
+  }
+
+  return scheduledQuery;
+};
+
 export const formatTeamForClient = (team: any): any => {
   if (team.display_text === undefined) {
     team.display_text = team.name;
@@ -485,6 +547,8 @@ export default {
   formatScheduledQueryForServer,
   formatGlobalScheduledQueryForClient,
   formatGlobalScheduledQueryForServer,
+  formatTeamScheduledQueryForClient,
+  formatTeamScheduledQueryForServer,
   formatSelectedTargetsForApi,
   humanHostUptime,
   humanHostLastSeen,

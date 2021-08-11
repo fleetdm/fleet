@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
+
 	"github.com/kolide/kit/version"
 )
 
@@ -38,7 +40,7 @@ type AppConfigService interface {
 	// GetEnrollSecretSpec gets the spec for the current enroll secrets.
 	GetEnrollSecretSpec(ctx context.Context) (*EnrollSecretSpec, error)
 
-	// Certificate returns the PEM encoded certificate chain for osqueryd TLS termination.
+	// CertificateChain returns the PEM encoded certificate chain for osqueryd TLS termination.
 	// For cases where the connection is self-signed, the server will attempt to
 	// connect using the InsecureSkipVerify option in tls.Config.
 	CertificateChain(ctx context.Context) (cert []byte, err error)
@@ -52,6 +54,9 @@ type AppConfigService interface {
 
 	// License returns the licensing information.
 	License(ctx context.Context) (*LicenseInfo, error)
+
+	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
+	LoggingConfig(ctx context.Context) (*Logging, error)
 }
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -178,6 +183,9 @@ type AppConfig struct {
 
 	// AgentOptions is the global agent options, including overrides.
 	AgentOptions *json.RawMessage `db:"agent_options"`
+
+	// VulnerabilityDatabases path
+	VulnerabilityDatabasesPath *string `db:"vulnerability_databases_path"`
 }
 
 func (c AppConfig) AuthzType() string {
@@ -256,6 +264,13 @@ type SMTPSettingsPayload struct {
 	SMTPEnableStartTLS *bool `json:"enable_start_tls"`
 }
 
+// VulnerabilitySettingsPayload is part of the AppConfigPayload which defines how fleet will behave
+// while scanning for vulnerabilities in the host software
+type VulnerabilitySettingsPayload struct {
+	// DatabasesPath is the directory where fleet will store the different databases
+	DatabasesPath string `json:"databases_path"`
+}
+
 // AppConfigPayload contains request/response format of
 // the AppConfig endpoints.
 type AppConfigPayload struct {
@@ -269,6 +284,9 @@ type AppConfigPayload struct {
 	SMTPTest *bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
 	SSOSettings *SSOSettingsPayload `json:"sso_settings"`
+
+	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
+	VulnerabilitySettings *VulnerabilitySettingsPayload `json:"vulnerability_settings"`
 }
 
 // OrgInfo contains general info about the organization using Fleet.
@@ -371,3 +389,46 @@ type LicenseInfo struct {
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
 }
+
+type Logging struct {
+	Debug  bool          `json:"debug"`
+	Json   bool          `json:"json"`
+	Result LoggingPlugin `json:"result"`
+	Status LoggingPlugin `json:"status"`
+}
+
+type LoggingPlugin struct {
+	Plugin string `json:"plugin"`
+	Config interface{} `json:"config"`
+}
+
+type FilesystemConfig struct {
+	config.FilesystemConfig
+}
+
+type PubSubConfig struct {
+	config.PubSubConfig
+}
+
+// FirehoseConfig shadows config.FirehoseConfig only exposing a subset of fields
+type FirehoseConfig struct {
+	Region       string `json:"region"`
+	StatusStream string `json:"status_stream"`
+	ResultStream string `json:"result_stream"`
+}
+
+// KinesisConfig shadows config.KinesisConfig only exposing a subset of fields
+type KinesisConfig struct {
+	Region       string `json:"region"`
+	StatusStream string `json:"status_stream"`
+	ResultStream string `json:"result_stream"`
+}
+
+// LambdaConfig shadows config.LambdaConfig only exposing a subset of fields
+type LambdaConfig struct {
+	Region         string `json:"region"`
+	StatusFunction string `json:"status_function"`
+	ResultFunction string `json:"result_function"`
+}
+
+

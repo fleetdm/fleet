@@ -1,10 +1,11 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
-import AceEditor from "react-ace";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
+import { find, isEmpty, reduce, trim, union } from "lodash";
 
 import Button from "components/buttons/Button";
+import Dropdown from "components/forms/fields/Dropdown";
 import configInterface from "interfaces/config";
 import HostSidePanel from "components/side_panels/HostSidePanel";
 import LabelForm from "components/forms/LabelForm";
@@ -12,7 +13,6 @@ import Modal from "components/modals/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import labelInterface from "interfaces/label";
-import hostInterface from "interfaces/host";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
 import osqueryTableInterface from "interfaces/osquery_table";
@@ -24,12 +24,11 @@ import labelActions from "redux/nodes/entities/labels/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import hostActions from "redux/nodes/entities/hosts/actions";
 import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
-import {
-  getLabels,
-  getHosts,
-} from "redux/nodes/components/ManageHostsPage/actions";
+import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
+
+import hostClient from "services/entities/hosts";
 
 import permissionUtils from "utilities/permissions";
 import {
@@ -43,10 +42,48 @@ import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
+import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
+import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
+
+const baseClass = "manage-hosts";
 
 const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
-const baseClass = "manage-hosts";
+const ALL_HOSTS_LABEL = "all-hosts";
+const LABEL_SLUG_PREFIX = "labels/";
+
+const HOST_SELECT_STATUSES = [
+  {
+    disabled: false,
+    label: "All hosts",
+    value: ALL_HOSTS_LABEL,
+    helpText: "All hosts which have enrolled to Fleet.",
+  },
+  {
+    disabled: false,
+    label: "Online hosts",
+    value: "online",
+    helpText: "Hosts that have recently checked-in to Fleet.",
+  },
+  {
+    disabled: false,
+    label: "Offline hosts",
+    value: "offline",
+    helpText: "Hosts that have not checked-in to Fleet recently.",
+  },
+  {
+    disabled: false,
+    label: "New hosts",
+    value: "new",
+    helpText: "Hosts that have been enrolled to Fleet in the last 24 hours.",
+  },
+  {
+    disabled: false,
+    label: "MIA hosts",
+    value: "mia",
+    helpText: "Hosts that have not been seen by Fleet in more than 30 days.",
+  },
+];
 
 export class ManageHostsPage extends PureComponent {
   static propTypes = {
@@ -59,24 +96,31 @@ export class ManageHostsPage extends PureComponent {
     }),
     labels: PropTypes.arrayOf(labelInterface),
     loadingLabels: PropTypes.bool.isRequired,
+    queryParams: PropTypes.objectOf(
+      PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+    ),
+    routeTemplate: PropTypes.string,
+    routeParams: PropTypes.objectOf(
+      PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+    ),
     enrollSecret: enrollSecretInterface,
-    selectedFilter: PropTypes.string,
+    selectedFilters: PropTypes.arrayOf(PropTypes.string),
     selectedLabel: labelInterface,
+    selectedTeam: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
-    hosts: PropTypes.arrayOf(hostInterface),
     loadingHosts: PropTypes.bool,
     canAddNewHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
+    isOnGlobalTeam: PropTypes.bool,
     isBasicTier: PropTypes.bool,
     currentUser: userInterface,
   };
 
   static defaultProps = {
     loadingLabels: false,
-    hosts: [],
   };
 
   constructor(props) {
@@ -102,21 +146,23 @@ export class ManageHostsPage extends PureComponent {
       selectedHostIds: [],
       isAllMatchingHostsSelected: false,
       searchQuery: "",
+      hosts: [],
+      isHostsLoading: false,
+      isTeamsLoading: true,
     };
   }
 
   componentDidMount() {
-    const { dispatch } = this.props;
+    const { dispatch, isBasicTier } = this.props;
     dispatch(getLabels());
+    if (isBasicTier) {
+      dispatch(teamActions.loadAll({}));
+    }
   }
 
   componentDidUpdate(prevProps) {
-    const { dispatch, isBasicTier, canAddNewHosts } = this.props;
-    if (
-      isBasicTier !== prevProps.isBasicTier &&
-      isBasicTier &&
-      canAddNewHosts
-    ) {
+    const { dispatch, isBasicTier } = this.props;
+    if (isBasicTier !== prevProps.isBasicTier && isBasicTier) {
       dispatch(teamActions.loadAll({}));
     }
   }
@@ -127,14 +173,17 @@ export class ManageHostsPage extends PureComponent {
 
   onAddLabelClick = (evt) => {
     evt.preventDefault();
-    const { dispatch, selectedFilter } = this.props;
-    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${NEW_LABEL_HASH}`));
+    const { dispatch } = this.props;
+    dispatch(push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`));
   };
 
   onEditLabelClick = (evt) => {
     evt.preventDefault();
-    const { dispatch, selectedFilter } = this.props;
-    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}${EDIT_LABEL_HASH}`));
+    const { getLabelSelected } = this;
+    const { dispatch } = this.props;
+    dispatch(
+      push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}${EDIT_LABEL_HASH}`)
+    );
   };
 
   onEditColumnsClick = () => {
@@ -158,13 +207,13 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onCancelAddLabel = () => {
-    const { dispatch, selectedFilter } = this.props;
-    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
+    const { dispatch, selectedFilters } = this.props;
+    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilters.join("/")}`));
   };
 
   onCancelEditLabel = () => {
-    const { dispatch, selectedFilter } = this.props;
-    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
+    const { dispatch, selectedFilters } = this.props;
+    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilters.join("/")}`));
   };
 
   onAddHostClick = (evt) => {
@@ -173,6 +222,7 @@ export class ManageHostsPage extends PureComponent {
     toggleAddHostModal();
   };
 
+  // The onChange method below is for the dropdown used in modals
   onChangeTeam = (team) => {
     const { dispatch } = this.props;
     dispatch(teamActions.getEnrollSecrets(team));
@@ -180,15 +230,16 @@ export class ManageHostsPage extends PureComponent {
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
-  onTableQueryChange = (queryData) => {
-    const { selectedFilter, dispatch } = this.props;
-    const {
-      pageIndex,
-      pageSize,
-      searchQuery,
-      sortHeader,
-      sortDirection,
-    } = queryData;
+  onTableQueryChange = async ({
+    pageIndex,
+    pageSize,
+    searchQuery,
+    sortHeader,
+    sortDirection,
+  }) => {
+    const { retrieveHosts } = this;
+    const { selectedFilters, selectedTeam } = this.props;
+
     let sortBy = [];
     if (sortHeader !== "") {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
@@ -197,24 +248,24 @@ export class ManageHostsPage extends PureComponent {
     // keep track as a local state to be used later
     this.setState({ searchQuery });
 
-    dispatch(
-      getHosts({
-        page: pageIndex,
-        perPage: pageSize,
-        selectedLabel: selectedFilter,
-        globalFilter: searchQuery,
-        sortBy,
-      })
-    );
+    retrieveHosts({
+      page: pageIndex,
+      perPage: pageSize,
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+      sortBy,
+      teamId: selectedTeam,
+    });
   };
 
   onEditLabel = (formData) => {
-    const { dispatch, selectedLabel, selectedFilter } = this.props;
+    const { getLabelSelected } = this;
+    const { dispatch, selectedLabel } = this.props;
     const updateAttrs = deepDifference(formData, selectedLabel);
 
     return dispatch(labelActions.update(selectedLabel, updateAttrs))
       .then(() => {
-        dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilter}`));
+        dispatch(push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}`));
         dispatch(
           renderFlash(
             "success",
@@ -229,18 +280,14 @@ export class ManageHostsPage extends PureComponent {
   onLabelClick = (selectedLabel) => {
     return (evt) => {
       evt.preventDefault();
-      const { dispatch } = this.props;
-      const { MANAGE_HOSTS } = PATHS;
-      const { slug, type } = selectedLabel;
-      const nextLocation =
-        type === "all" ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
-      dispatch(push(nextLocation));
+
+      const { handleLabelChange } = this;
+      handleLabelChange(selectedLabel);
     };
   };
 
   onOsqueryTableSelect = (tableName) => {
     const { dispatch } = this.props;
-
     dispatch(selectOsqueryTable(tableName));
 
     return false;
@@ -280,8 +327,13 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onTransferHostSubmit = (team) => {
-    const { toggleTransferHostModal, isAcceptableStatus } = this;
-    const { dispatch, selectedFilter, selectedLabel } = this.props;
+    const {
+      toggleTransferHostModal,
+      isAcceptableStatus,
+      getStatusSelected,
+      retrieveHosts,
+    } = this;
+    const { dispatch, selectedFilters, selectedLabel } = this.props;
     const {
       selectedHostIds,
       isAllMatchingHostsSelected,
@@ -294,8 +346,8 @@ export class ManageHostsPage extends PureComponent {
       let status = "";
       let labelId = null;
 
-      if (isAcceptableStatus(selectedFilter)) {
-        status = selectedFilter;
+      if (isAcceptableStatus(getStatusSelected())) {
+        status = getStatusSelected();
       } else {
         labelId = selectedLabel.id;
       }
@@ -315,7 +367,10 @@ export class ManageHostsPage extends PureComponent {
             ? `Hosts successfully removed from teams.`
             : `Hosts successfully transferred to  ${team.name}.`;
         dispatch(renderFlash("success", successMessage));
-        dispatch(getHosts({ selectedLabel: selectedFilter, searchQuery }));
+        retrieveHosts({
+          selectedLabels: selectedFilters,
+          globalFilter: searchQuery,
+        });
       })
       .catch(() => {
         dispatch(
@@ -328,6 +383,125 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ isAllMatchingHostsSelected: false });
   };
 
+  getNextLocationUrl = (
+    pathPrefix = "",
+    newRouteTemplate = "",
+    newRouteParams = {},
+    newQueryParams = {}
+  ) => {
+    const routeTemplate = newRouteTemplate || this.props.routeTemplate || "";
+    const urlRouteParams = Object.assign(
+      {},
+      this.props.routeParams,
+      newRouteParams
+    );
+    const urlQueryParams = Object.assign(
+      {},
+      this.props.queryParams,
+      newQueryParams
+    );
+
+    let routeString = "";
+
+    if (!isEmpty(urlRouteParams)) {
+      routeString = reduce(
+        urlRouteParams,
+        (string, value, key) => {
+          return string.replace(`:${key}`, encodeURIComponent(value));
+        },
+        routeTemplate
+      );
+    }
+
+    let queryString = "";
+    if (!isEmpty(urlQueryParams)) {
+      queryString = reduce(
+        urlQueryParams,
+        (arr, value, key) => {
+          key && arr.push(`${key}=${encodeURIComponent(value)}`);
+          return arr;
+        },
+        []
+      ).join("&");
+    }
+
+    const nextLocation = union(
+      trim(pathPrefix, "/").split("/"),
+      routeString.split("/")
+    ).join("/");
+
+    return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
+  };
+
+  getLabelSelected = () => {
+    const { selectedFilters } = this.props;
+    return selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX));
+  };
+
+  getStatusSelected = () => {
+    const { selectedFilters } = this.props;
+    return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
+  };
+
+  generateTeamFilterDropdownOptions = (teams) => {
+    const { currentUser, isOnGlobalTeam } = this.props;
+
+    let currentUserTeams = [];
+    if (isOnGlobalTeam) {
+      currentUserTeams = teams;
+    } else if (currentUser && currentUser.teams) {
+      currentUserTeams = currentUser.teams;
+    }
+
+    const allTeamsOption = [
+      {
+        disabled: false,
+        label: "All teams",
+        value: 0,
+      },
+    ];
+
+    const sortedCurrentUserTeamOptions = currentUserTeams
+      .map((team) => {
+        return {
+          disabled: false,
+          label: team.name,
+          value: team.id,
+        };
+      })
+      .sort((a, b) => {
+        const labelA = a.label.toUpperCase();
+        const labelB = b.label.toUpperCase();
+        if (labelA < labelB) {
+          return -1;
+        }
+        if (labelA > labelB) {
+          return 1;
+        }
+
+        return 0; // values are equal
+      });
+
+    return allTeamsOption.concat(sortedCurrentUserTeamOptions);
+  };
+
+  retrieveHosts = async (options) => {
+    const { dispatch } = this.props;
+    this.setState({ isHostsLoading: true });
+
+    try {
+      const { hosts } = await hostClient.loadAll(options);
+      this.setState({ hosts });
+    } catch (error) {
+      console.log(error);
+      dispatch(
+        renderFlash("error", "Sorry, we could not retrieve your hosts.")
+      );
+    } finally {
+      this.setState({ isHostsLoading: false });
+    }
+  };
+
   isAcceptableStatus = (filter) => {
     return (
       filter === "new" ||
@@ -337,12 +511,29 @@ export class ManageHostsPage extends PureComponent {
     );
   };
 
-  clearHostUpdates() {
+  isValidSelectedTeamId = (teamId) => {
+    const { currentUser, isOnGlobalTeam, teams } = this.props;
+
+    let currentUserTeams = [];
+    if (isOnGlobalTeam) {
+      currentUserTeams = teams;
+    } else if (currentUser && currentUser.teams) {
+      currentUserTeams = currentUser.teams;
+    }
+
+    const currentUserTeamIds = currentUserTeams.map((t) => t.id);
+
+    teamId = parseInt(teamId, 10);
+
+    return !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId);
+  };
+
+  clearHostUpdates = () => {
     if (this.timeout) {
       global.window.clearTimeout(this.timeout);
       this.timeout = null;
     }
-  }
+  };
 
   toggleAddHostModal = () => {
     const { showAddHostModal } = this.state;
@@ -360,7 +551,6 @@ export class ManageHostsPage extends PureComponent {
   };
 
   toggleAllMatchingHosts = (shouldSelect = undefined) => {
-    // shouldSelect?: boolean
     const { isAllMatchingHostsSelected } = this.state;
 
     if (shouldSelect !== undefined) {
@@ -370,6 +560,120 @@ export class ManageHostsPage extends PureComponent {
         isAllMatchingHostsSelected: !isAllMatchingHostsSelected,
       });
     }
+  };
+
+  // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
+  handleChangeSelectedTeamFilter = (selectedTeam) => {
+    const { dispatch, selectedFilters } = this.props;
+    const { searchQuery } = this.state;
+    const { getNextLocationUrl, isValidSelectedTeamId, retrieveHosts } = this;
+    const { MANAGE_HOSTS } = PATHS;
+
+    let selectedTeamId = parseInt(selectedTeam, 10);
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
+
+    let nextLocation = getNextLocationUrl(
+      MANAGE_HOSTS,
+      "",
+      {},
+      { team_id: selectedTeamId }
+    );
+
+    if (!selectedTeamId) {
+      nextLocation = nextLocation.replace(`team_id=${selectedTeamId}`, "");
+    }
+
+    // TODO confirm that sort order, pagination work as expected
+    retrieveHosts({
+      teamId: selectedTeam,
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+    });
+    dispatch(push(nextLocation));
+  };
+
+  handleLabelChange = ({ slug, type }) => {
+    const { dispatch, selectedFilters, selectedTeam } = this.props;
+    const { isValidSelectedTeamId } = this;
+    const { MANAGE_HOSTS } = PATHS;
+    const isAllHosts = slug === ALL_HOSTS_LABEL;
+    const newFilters = [...selectedFilters];
+
+    let selectedTeamId = parseInt(selectedTeam, 10);
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
+
+    if (!isAllHosts) {
+      // always remove "all-hosts" from the filters first because we don't want
+      // something like ["label/8", "all-hosts"]
+      const allIndex = newFilters.findIndex((f) => f.includes(ALL_HOSTS_LABEL));
+      allIndex > -1 && newFilters.splice(allIndex, 1);
+
+      // replace slug for new params
+      let index;
+      if (slug.includes(LABEL_SLUG_PREFIX)) {
+        index = newFilters.findIndex((f) => f.includes(LABEL_SLUG_PREFIX));
+      } else {
+        index = newFilters.findIndex((f) => !f.includes(LABEL_SLUG_PREFIX));
+      }
+
+      if (index > -1) {
+        newFilters.splice(index, 1, slug);
+      } else {
+        newFilters.push(slug);
+      }
+    }
+
+    let nextLocation = isAllHosts
+      ? MANAGE_HOSTS
+      : `${MANAGE_HOSTS}/${newFilters.join("/")}`;
+
+    if (selectedTeamId) {
+      nextLocation += `?team_id=${selectedTeamId}`;
+    }
+    dispatch(push(nextLocation));
+  };
+
+  handleStatusDropdownChange = (statusName) => {
+    const { handleLabelChange } = this;
+    const { labels } = this.props;
+
+    // we want the full label object
+    const isAll = statusName === ALL_HOSTS_LABEL;
+    const selected = isAll
+      ? find(labels, { type: "all" })
+      : find(labels, { id: statusName });
+    handleLabelChange(selected);
+  };
+
+  // TODO revisit UX for server errors for invalid team_id (e.g., team_id=0, team_id=null, team_id=foo, etc.)
+  renderTeamsFilterDropdown = () => {
+    const { isBasicTier, selectedTeam, teams } = this.props;
+    const {
+      generateTeamFilterDropdownOptions,
+      isValidSelectedTeamId,
+      handleChangeSelectedTeamFilter,
+    } = this;
+    const teamOptions = generateTeamFilterDropdownOptions(teams);
+
+    let selectedTeamId = parseInt(selectedTeam, 10);
+    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
+
+    return isBasicTier ? (
+      <div>
+        <Dropdown
+          value={selectedTeamId}
+          placeholder={"All teams"}
+          className={`${baseClass}__team-dropdown`}
+          options={teamOptions}
+          searchable={false}
+          onChange={(newSelectedValue) =>
+            handleChangeSelectedTeamFilter(newSelectedValue)
+          }
+        />
+      </div>
+    ) : (
+      <h1>Hosts</h1>
+    );
   };
 
   renderEditColumnsModal = () => {
@@ -436,7 +740,7 @@ export class ManageHostsPage extends PureComponent {
       >
         <p>Are you sure you wish to delete this label?</p>
         <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={toggleDeleteLabelModal} variant="inverse">
+          <Button onClick={toggleDeleteLabelModal} variant="inverse-alert">
             Cancel
           </Button>
           <Button onClick={onDeleteLabel} variant="alert">
@@ -464,89 +768,48 @@ export class ManageHostsPage extends PureComponent {
     );
   };
 
-  renderDeleteButton = () => {
-    const { toggleDeleteLabelModal, onEditLabelClick } = this;
-    const {
-      selectedLabel: { type },
-    } = this.props;
-
-    if (type !== "custom") {
-      return false;
-    }
+  renderHeaderLabelBlock = ({
+    description,
+    display_text: displayText,
+    type,
+  }) => {
+    const { onEditLabelClick, toggleDeleteLabelModal } = this;
 
     return (
-      <div className={`${baseClass}__label-actions`}>
-        <Button onClick={onEditLabelClick} variant="inverse">
-          Edit
-        </Button>
-        <Button onClick={toggleDeleteLabelModal} variant="inverse">
-          Delete
-        </Button>
+      <div className={`${baseClass}__label-block`}>
+        <div className="title">
+          <span>{displayText}</span>
+          {type !== "platform" && (
+            <>
+              <Button onClick={onEditLabelClick} variant={"text-icon"}>
+                <img src={PencilIcon} alt="Edit label" />
+              </Button>
+              <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
+                <img src={TrashIcon} alt="Delete label" />
+              </Button>
+            </>
+          )}
+        </div>
+        <div className="description">
+          <span>{description}</span>
+        </div>
       </div>
     );
   };
 
-  renderQuery = () => {
-    const { selectedLabel } = this.props;
-    const {
-      slug,
-      label_type: labelType,
-      label_membership_type: membershipType,
-      query,
-    } = selectedLabel;
-
-    if (membershipType === "manual" && labelType !== "builtin") {
-      return (
-        <h4 title="Manage manual labels with fleetctl">Manually managed</h4>
-      );
-    }
-
-    if (!query || slug === "all-hosts") {
-      return false;
-    }
-
-    return (
-      <AceEditor
-        editorProps={{ $blockScrolling: Infinity }}
-        mode="fleet"
-        minLines={1}
-        maxLines={20}
-        name="label-header"
-        readOnly
-        setOptions={{ wrap: true }}
-        showGutter={false}
-        showPrintMargin={false}
-        theme="fleet"
-        value={query}
-        width="100%"
-        fontSize={14}
-      />
-    );
-  };
-
   renderHeader = () => {
-    const { renderDeleteButton } = this;
+    const { renderHeaderLabelBlock, renderTeamsFilterDropdown } = this;
     const { isAddLabel, selectedLabel } = this.props;
-
-    if (!selectedLabel || isAddLabel) {
-      return false;
-    }
-
-    const { description, display_text: displayText } = selectedLabel;
-
-    const defaultDescription = "No description available.";
-
+    const type = selectedLabel?.type;
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
-          <h1 className={`${baseClass}__title`}>
-            <span>{displayText}</span>
-          </h1>
-          <div className={`${baseClass}__description`}>
-            <p>{description || <em>{defaultDescription}</em>}</p>
-          </div>
+          {renderTeamsFilterDropdown()}
+          {type !== "all" &&
+            type !== "status" &&
+            selectedLabel &&
+            renderHeaderLabelBlock(selectedLabel)}
         </div>
-        {renderDeleteButton()}
       </div>
     );
   };
@@ -597,12 +860,17 @@ export class ManageHostsPage extends PureComponent {
     const {
       isAddLabel,
       labels,
-      selectedFilter,
       selectedOsqueryTable,
       statusLabels,
       canAddNewLabels,
     } = this.props;
-    const { onAddLabelClick, onLabelClick, onOsqueryTableSelect } = this;
+    const {
+      onAddLabelClick,
+      onLabelClick,
+      onOsqueryTableSelect,
+      getLabelSelected,
+      getStatusSelected,
+    } = this;
 
     if (isAddLabel) {
       SidePanel = (
@@ -619,7 +887,7 @@ export class ManageHostsPage extends PureComponent {
           labels={labels}
           onAddLabelClick={onAddLabelClick}
           onLabelClick={onLabelClick}
-          selectedFilter={selectedFilter}
+          selectedFilter={getLabelSelected() || getStatusSelected()}
           statusLabels={statusLabels}
           canAddNewLabel={canAddNewLabels}
         />
@@ -629,29 +897,43 @@ export class ManageHostsPage extends PureComponent {
     return SidePanel;
   };
 
+  renderStatusDropdown = () => {
+    const { handleStatusDropdownChange, getStatusSelected } = this;
+
+    return (
+      <Dropdown
+        value={getStatusSelected() || ALL_HOSTS_LABEL}
+        className={`${baseClass}__status_dropdown`}
+        options={HOST_SELECT_STATUSES}
+        searchable={false}
+        onChange={handleStatusDropdownChange}
+      />
+    );
+  };
+
   renderTable = () => {
+    const { config, currentUser, selectedFilters, selectedLabel } = this.props;
     const {
-      config,
-      currentUser,
-      selectedFilter,
-      selectedLabel,
+      hiddenColumns,
+      isAllMatchingHostsSelected,
       hosts,
-      loadingHosts,
-    } = this.props;
-    const { hiddenColumns, isAllMatchingHostsSelected } = this.state;
+      isHostsLoading,
+    } = this.state;
     const {
       onTableQueryChange,
       onEditColumnsClick,
       onTransferToTeamClick,
       toggleAllMatchingHosts,
+      renderStatusDropdown,
+      getStatusSelected,
     } = this;
 
     // The data has not been fetched yet.
-    if (selectedFilter === undefined || selectedLabel === undefined)
+    if (selectedFilters.length === 0 || selectedLabel === undefined)
       return null;
 
     // Hosts have not been set up for this instance yet.
-    if (selectedFilter === "all-hosts" && selectedLabel.count === 0) {
+    if (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) {
       return <NoHosts />;
     }
 
@@ -663,13 +945,14 @@ export class ManageHostsPage extends PureComponent {
           currentUser
         )}
         data={hosts}
-        isLoading={loadingHosts}
+        isLoading={isHostsLoading}
+        manualSortBy
         defaultSortHeader={"hostname"}
         defaultSortDirection={"asc"}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
-        additionalQueries={JSON.stringify([selectedFilter])}
+        additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
         onPrimarySelectActionClick={onTransferToTeamClick}
@@ -681,6 +964,7 @@ export class ManageHostsPage extends PureComponent {
         isAllPagesSelected={isAllMatchingHostsSelected}
         toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
+        customControl={renderStatusDropdown}
       />
     );
   };
@@ -692,7 +976,6 @@ export class ManageHostsPage extends PureComponent {
       renderSidePanel,
       renderAddHostModal,
       renderDeleteLabelModal,
-      renderQuery,
       renderTable,
       renderEditColumnsModal,
       renderTransferHostModal,
@@ -702,7 +985,6 @@ export class ManageHostsPage extends PureComponent {
       isAddLabel,
       isEditLabel,
       loadingLabels,
-      selectedLabel,
       canAddNewHosts,
     } = this.props;
 
@@ -722,7 +1004,6 @@ export class ManageHostsPage extends PureComponent {
                 </Button>
               ) : null}
             </div>
-            {selectedLabel && renderQuery()}
             {renderTable()}
           </div>
         )}
@@ -736,30 +1017,49 @@ export class ManageHostsPage extends PureComponent {
   }
 }
 
-const mapStateToProps = (state, { location, params }) => {
+const mapStateToProps = (state, ownProps) => {
+  const { location, params, route, routeParams } = ownProps;
+  const locationPath = location.path;
+  const queryParams = location.query;
+  const routeTemplate = route && route.path ? route.path : "";
+
   const { active_label: activeLabel, label_id: labelID } = params;
-  const activeLabelSlug = activeLabel || "all-hosts";
-  const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
+  const selectedFilters = [];
+
+  labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
+  activeLabel && selectedFilters.push(activeLabel);
+  // "all-hosts" should always be alone
+  !labelID && !activeLabel && selectedFilters.push(ALL_HOSTS_LABEL);
 
   const { status_labels: statusLabels } = state.components.ManageHostsPage;
   const labelEntities = entityGetter(state).get("labels");
   const { entities: labels } = labelEntities;
-  const isAddLabel = location.hash === NEW_LABEL_HASH;
-  const isEditLabel = location.hash === EDIT_LABEL_HASH;
+
+  // eqivalent to old way => const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
+  const slugToFind =
+    (selectedFilters.length > 0 &&
+      selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
+    selectedFilters[0];
   const selectedLabel = labelEntities.findBy(
-    { slug: selectedFilter },
+    { slug: slugToFind },
     { ignoreCase: true }
   );
+
+  const isAddLabel = location.hash === NEW_LABEL_HASH;
+  const isEditLabel = location.hash === EDIT_LABEL_HASH;
+
   const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
   const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
 
-  // NOTE: good opportunity for performance optimisation here later. This currently
-  // always generates a new array of hosts, when it could memoized version of the list.
-  const { entities: hosts } = entityGetter(state).get("hosts");
-
   const { loading: loadingHosts } = state.entities.hosts;
+
+  const { loading: loadingTeams } = state.entities.teams;
+  const teams = memoizedGetEntity(state.entities.teams.data);
+
+  // If there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
+  const selectedTeam = location.query?.team_id || 0;
 
   const currentUser = state.auth.user;
   const canAddNewHosts =
@@ -770,11 +1070,15 @@ const mapStateToProps = (state, { location, params }) => {
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
+  const isOnGlobalTeam = permissionUtils.isOnGlobalTeam(currentUser);
   const isBasicTier = permissionUtils.isBasicTier(config);
-  const teams = memoizedGetEntity(state.entities.teams.data);
 
   return {
-    selectedFilter,
+    selectedFilters,
+    locationPath,
+    queryParams,
+    routeParams,
+    routeTemplate,
     isAddLabel,
     isEditLabel,
     labelErrors,
@@ -786,13 +1090,15 @@ const mapStateToProps = (state, { location, params }) => {
     statusLabels,
     config,
     currentUser,
-    hosts,
     loadingHosts,
     canAddNewHosts,
     canAddNewLabels,
     isGlobalAdmin,
+    isOnGlobalTeam,
     isBasicTier,
     teams,
+    loadingTeams,
+    selectedTeam,
   };
 };
 

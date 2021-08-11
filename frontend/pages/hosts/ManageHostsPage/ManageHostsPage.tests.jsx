@@ -126,7 +126,12 @@ describe("ManageHostsPage - component", () => {
 
   describe("side panels", () => {
     it("renders a HostSidePanel when not adding a new label", () => {
-      const page = shallow(<ManageHostsPage {...props} />);
+      const pageProps = {
+        ...props,
+        selectedFilters: [],
+      };
+
+      const page = shallow(<ManageHostsPage {...pageProps} />);
 
       expect(page.find("HostSidePanel").length).toEqual(1);
     });
@@ -140,18 +145,6 @@ describe("ManageHostsPage - component", () => {
       const page = mount(component);
 
       expect(page.find("QuerySidePanel").length).toEqual(1);
-    });
-  });
-
-  describe("host filtering", () => {
-    it("shows all hosts by default", () => {
-      const ownProps = { location: { hash: "" }, params: {} };
-      const component = connectedComponent(ConnectedManageHostsPage, {
-        props: ownProps,
-        mockStore,
-      });
-      const page = mount(component);
-      expect(page.find("TableContainer").find("tbody tr").length).toEqual(2);
     });
   });
 
@@ -206,41 +199,23 @@ describe("ManageHostsPage - component", () => {
       });
     });
 
-    it("Renders the default description if the selected label does not have a description", () => {
-      const defaultDescription = "No description available.";
-      const noDescriptionLabel = { ...allHostsLabel, description: undefined };
-      const pageProps = {
-        ...props,
-        selectedLabel: noDescriptionLabel,
-      };
-
-      const Page = shallow(<ManageHostsPage {...pageProps} />);
-
-      expect(Page.find(".manage-hosts__header").text()).toContain(
-        defaultDescription
-      );
-    });
-
     it("Renders the label description if the selected label has a description", () => {
-      const defaultDescription = "No description available.";
       const labelDescription = "This is the label description";
-      const noDescriptionLabel = {
-        ...allHostsLabel,
+      const descriptionLabel = {
+        ...customLabel,
         description: labelDescription,
       };
       const pageProps = {
         ...props,
-        selectedLabel: noDescriptionLabel,
+        selectedLabel: descriptionLabel,
+        selectedFilters: [],
       };
 
       const Page = shallow(<ManageHostsPage {...pageProps} />);
 
-      expect(Page.find(".manage-hosts__header").text()).toContain(
-        labelDescription
-      );
-      expect(Page.find(".manage-hosts__header").text()).not.toContain(
-        defaultDescription
-      );
+      expect(
+        Page.find(".manage-hosts__label-block .description span").text()
+      ).toContain(labelDescription);
     });
   });
 
@@ -256,7 +231,7 @@ describe("ManageHostsPage - component", () => {
 
     it("renders the Edit button when a custom label is selected", () => {
       const Page = mount(component);
-      const EditButton = Page.find(".manage-hosts__label-actions")
+      const EditButton = Page.find(".manage-hosts__label-block")
         .find("Button")
         .first();
 
@@ -300,7 +275,7 @@ describe("ManageHostsPage - component", () => {
       });
       const page = mount(component);
       const deleteBtn = page
-        .find(".manage-hosts__label-actions")
+        .find(".manage-hosts__label-block")
         .find("Button")
         .last();
 

@@ -162,14 +162,6 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 
 func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		sql := `
-			DELETE FROM scheduled_query_stats
-			WHERE host_id = ?
-		`
-		if _, err := tx.Exec(sql, host.ID); err != nil {
-			return errors.Wrap(err, "delete old stats")
-		}
-
 		// Bulk insert software entries
 		var args []interface{}
 		queryCount := 0
@@ -199,7 +191,7 @@ func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 		}
 
 		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
-		sql = fmt.Sprintf(`
+		sql := fmt.Sprintf(`
 			INSERT IGNORE INTO scheduled_query_stats (
 				scheduled_query_id,
 				host_id,
@@ -351,6 +343,21 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 		WHERE TRUE AND %s
     `, d.whereFilterHostsByTeams(filter, "h"),
 	)
+
+	sql, params = filterHostsByStatus(sql, opt, params)
+	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
+
+	sql = appendListOptionsToSQL(sql, opt.ListOptions)
+
+	hosts := []*fleet.Host{}
+	if err := d.db.Select(&hosts, sql, params...); err != nil {
+		return nil, errors.Wrap(err, "list hosts")
+	}
+
+	return hosts, nil
+}
+
+func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
 	case "new":
 		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
@@ -365,17 +372,7 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 		sql += "AND DATE_ADD(h.seen_time, INTERVAL 30 DAY) <= ?"
 		params = append(params, time.Now())
 	}
-
-	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-
-	sql = appendListOptionsToSQL(sql, opt.ListOptions)
-
-	hosts := []*fleet.Host{}
-	if err := d.db.Select(&hosts, sql, params...); err != nil {
-		return nil, errors.Wrap(err, "list hosts")
-	}
-
-	return hosts, nil
+	return sql, params
 }
 
 func (d *Datastore) CleanupIncomingHosts(now time.Time) error {

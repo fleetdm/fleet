@@ -16,7 +16,7 @@ type UserByIDFunc func(id uint) (*fleet.User, error)
 
 type SaveUserFunc func(user *fleet.User) error
 
-type SaveUsersFunc func(user []*fleet.User) error
+type SaveUsersFunc func(users []*fleet.User) error
 
 type DeleteUserFunc func(id uint) error
 

@@ -39,7 +39,7 @@ describe("SSO Sessions", () => {
 
     cy.loginSSO();
 
-    cy.contains("All hosts");
+    cy.contains("Hosts");
   });
 
   it("Fails when IdP login disabled", () => {

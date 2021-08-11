@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,8 +14,10 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	fleetLogging "github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query"
@@ -23,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -312,9 +316,6 @@ func TestLabelQueries(t *testing.T) {
 
 	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
-	}
-	ds.DistributedQueriesForHostFunc = func(host *fleet.Host) (map[uint]string, error) {
-		return map[uint]string{}, nil
 	}
 	ds.HostFunc = func(id uint) (*fleet.Host, error) {
 		return host, nil
@@ -641,6 +642,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 		return nil
 	}
 
+	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+		return &host, nil
+	}
+
 	// Verify that results are ingested properly
 	svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
 
@@ -822,6 +827,10 @@ func TestDetailQueries(t *testing.T) {
 	ds.SaveHostAdditionalFunc = func(host *fleet.Host) error {
 		gotHost.Additional = host.Additional
 		return nil
+	}
+
+	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+		return &host, nil
 	}
 
 	// Verify that results are ingested properly
@@ -1151,9 +1160,6 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.DistributedQueriesForHostFunc = func(host *fleet.Host) (map[uint]string, error) {
-		return map[uint]string{}, nil
-	}
 	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return nil
 	}
@@ -1184,7 +1190,8 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	lq.On("RunQuery", "21", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
 		User: &fleet.User{
-			ID: 0,
+			ID:         0,
+			GlobalRole: ptr.String(fleet.RoleAdmin),
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
@@ -1224,9 +1231,6 @@ func TestDistributedQueryResults(t *testing.T) {
 	}
 	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return nil
-	}
-	ds.DistributedQueriesForHostFunc = func(host *fleet.Host) (map[uint]string, error) {
-		return map[uint]string{campaign.ID: "select * from time"}, nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -1820,4 +1824,148 @@ func TestGetHostIdentifier(t *testing.T) {
 			)
 		})
 	}
+}
+
+func TestDistributedQueriesLogsManyErrors(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	host := &fleet.Host{Platform: "darwin"}
+
+	ds.SaveHostFunc = func(host *fleet.Host) error {
+		return authz.CheckMissingWithResponse(nil)
+	}
+	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]bool, t time.Time) error {
+		return errors.New("something went wrong")
+	}
+
+	lCtx := &fleetLogging.LoggingContext{}
+	ctx := fleetLogging.NewContext(context.Background(), lCtx)
+	ctx = hostctx.NewContext(ctx, *host)
+
+	err := svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+	)
+	assert.Nil(t, err)
+
+	lCtx.Log(ctx, logger)
+
+	logs := buf.String()
+	parts := strings.Split(strings.TrimSpace(logs), "\n")
+	require.Len(t, parts, 1)
+	logData := make(map[string]json.RawMessage)
+	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
+	assert.Equal(t, json.RawMessage(`["something went wrong"]`), logData["err"])
+	assert.Equal(t, json.RawMessage(`["Missing authorization check"]`), logData["internal"])
+}
+
+func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	host := &fleet.Host{ID: 42, Platform: "darwin"}
+	ip := "1.1.1.1"
+
+	ds.SaveHostFunc = func(host *fleet.Host) error {
+		assert.Equal(t, ip, host.PrimaryIP)
+		return nil
+	}
+	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+		require.Equal(t, uint(42), id)
+		return &fleet.Host{ID: 42, Platform: "darwin", PrimaryIP: ip}, nil
+	}
+
+	ctx := hostctx.NewContext(context.Background(), *host)
+
+	err := svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostDetailQueryPrefix + "1": {{"col1": "val1"}},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+	)
+	assert.Nil(t, err)
+	assert.True(t, ds.HostFuncInvoked)
+}
+
+func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
+	ds := new(mock.Store)
+	rs := &mock.QueryResultStore{
+		HealthCheckFunc: func() error {
+			return nil
+		},
+	}
+	lq := &live_query.MockLiveQuery{}
+	mockClock := clock.NewMockClock()
+	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
+
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+		return camp, nil
+	}
+	ds.QueryFunc = func(id uint) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:             42,
+			Name:           "query",
+			Query:          "select 1;",
+			ObserverCanRun: false,
+		}, nil
+	}
+	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{ID: 0, GlobalRole: ptr.String(fleet.RoleObserver)}})
+
+	q := "select year, month, day, hour, minutes, seconds from time"
+	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	require.Error(t, err)
+
+	_, err = svc.NewDistributedQueryCampaign(viewerCtx, "", ptr.Uint(42), fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	require.Error(t, err)
+
+	ds.QueryFunc = func(id uint) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:             42,
+			Name:           "query",
+			Query:          "select 1;",
+			ObserverCanRun: true,
+		}, nil
+	}
+
+	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.SaveHostFunc = func(host *fleet.Host) error { return nil }
+	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+		camp.ID = 21
+		return camp, nil
+	}
+	ds.NewDistributedQueryCampaignTargetFunc = func(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		return target, nil
+	}
+	ds.CountHostsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+		return fleet.TargetMetrics{}, nil
+	}
+	ds.HostIDsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+		return []uint{1, 3, 5}, nil
+	}
+	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+	lq.On("RunQuery", "21", "select 1;", []uint{1, 3, 5}).Return(nil)
+	_, err = svc.NewDistributedQueryCampaign(viewerCtx, "", ptr.Uint(42), fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	require.NoError(t, err)
 }

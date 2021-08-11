@@ -2,9 +2,7 @@
 
 package mock
 
-import (
-	"github.com/fleetdm/fleet/v4/server/fleet"
-)
+import "github.com/fleetdm/fleet/v4/server/fleet"
 
 var _ fleet.TeamStore = (*TeamStore)(nil)
 
@@ -12,9 +10,9 @@ type NewTeamFunc func(team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(team *fleet.Team) (*fleet.Team, error)
 
-type DeleteTeamFunc func(tid uint) error
+type TeamFunc func(tid uint) (*fleet.Team, error)
 
-type TeamFunc func(id uint) (*fleet.Team, error)
+type DeleteTeamFunc func(tid uint) error
 
 type TeamByNameFunc func(name string) (*fleet.Team, error)
 
@@ -31,11 +29,11 @@ type TeamStore struct {
 	SaveTeamFunc        SaveTeamFunc
 	SaveTeamFuncInvoked bool
 
-	DeleteTeamFunc        DeleteTeamFunc
-	DeleteTeamFuncInvoked bool
-
 	TeamFunc        TeamFunc
 	TeamFuncInvoked bool
+
+	DeleteTeamFunc        DeleteTeamFunc
+	DeleteTeamFuncInvoked bool
 
 	TeamByNameFunc        TeamByNameFunc
 	TeamByNameFuncInvoked bool
@@ -60,19 +58,19 @@ func (s *TeamStore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
 	return s.SaveTeamFunc(team)
 }
 
+func (s *TeamStore) Team(tid uint) (*fleet.Team, error) {
+	s.TeamFuncInvoked = true
+	return s.TeamFunc(tid)
+}
+
 func (s *TeamStore) DeleteTeam(tid uint) error {
 	s.DeleteTeamFuncInvoked = true
 	return s.DeleteTeamFunc(tid)
 }
 
-func (s *TeamStore) Team(id uint) (*fleet.Team, error) {
-	s.TeamFuncInvoked = true
-	return s.TeamFunc(id)
-}
-
-func (s *TeamStore) TeamByName(identifier string) (*fleet.Team, error) {
+func (s *TeamStore) TeamByName(name string) (*fleet.Team, error) {
 	s.TeamByNameFuncInvoked = true
-	return s.TeamByNameFunc(identifier)
+	return s.TeamByNameFunc(name)
 }
 
 func (s *TeamStore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {

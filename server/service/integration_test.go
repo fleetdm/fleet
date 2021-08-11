@@ -7,13 +7,17 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -154,6 +158,25 @@ func doReq(
 	return resp
 }
 
+func doRawReq(
+	t *testing.T,
+	body []byte,
+	method string,
+	server *httptest.Server,
+	path string,
+	token string,
+	expectedStatusCode int,
+) *http.Response {
+	requestBody := &nopCloser{bytes.NewBuffer(body)}
+	req, _ := http.NewRequest(method, server.URL+path, requestBody)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, expectedStatusCode, resp.StatusCode)
+	return resp
+}
+
 func doJSONReq(
 	t *testing.T,
 	params interface{},
@@ -245,6 +268,17 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	assert.Nil(t, config.HostSettings)
 }
 
+func TestAppConfigHasLogging(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	config := getConfig(t, server, token)
+	require.NotNil(t, config.Logging)
+}
+
 func applyConfig(t *testing.T, spec []byte, server *httptest.Server, token string) {
 	var appConfigSpec fleet.AppConfigPayload
 	err := yaml.Unmarshal(spec, &appConfigSpec)
@@ -253,8 +287,8 @@ func applyConfig(t *testing.T, spec []byte, server *httptest.Server, token strin
 	doReq(t, appConfigSpec, "PATCH", server, "/api/v1/fleet/config", token, http.StatusOK)
 }
 
-func getConfig(t *testing.T, server *httptest.Server, token string) *fleet.AppConfigPayload {
-	var responseBody *fleet.AppConfigPayload
+func getConfig(t *testing.T, server *httptest.Server, token string) *appConfigResponse {
+	var responseBody *appConfigResponse
 	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/config", token, http.StatusOK, &responseBody)
 	return responseBody
 }
@@ -324,11 +358,7 @@ func TestGlobalSchedule(t *testing.T) {
 	require.NoError(t, err)
 
 	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
-	type responseType struct {
-		Scheduled *fleet.ScheduledQuery `json:"scheduled,omitempty"`
-		Err       error                 `json:"error,omitempty"`
-	}
-	r := responseType{}
+	r := globalScheduleQueryResponse{}
 	doJSONReq(t, gsParams, "POST", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &r)
 	require.Nil(t, r.Err)
 
@@ -352,7 +382,7 @@ func TestGlobalSchedule(t *testing.T) {
 	require.Len(t, gs.GlobalSchedule, 1)
 	assert.Equal(t, uint(55), gs.GlobalSchedule[0].Interval)
 
-	r = responseType{}
+	r = globalScheduleQueryResponse{}
 	doJSONReq(
 		t, nil, "DELETE", server,
 		fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id),
@@ -442,4 +472,190 @@ func TestTranslator(t *testing.T) {
 	assert.Len(t, payload.List, 1)
 
 	assert.Equal(t, users[payload.List[0].Payload.Identifier].ID, payload.List[0].Payload.ID)
+}
+
+func TestTeamSchedule(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	test.AddAllHostsLabel(t, ds)
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	team1, err := ds.NewTeam(&fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	ts := getTeamScheduleResponse{}
+	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
+	assert.Len(t, ts.Scheduled, 0)
+
+	qr, err := ds.NewQuery(&fleet.Query{Name: "TestQuery", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	require.NoError(t, err)
+
+	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: ptr.Uint(42)}}
+	r := teamScheduleQueryResponse{}
+	doJSONReq(t, gsParams, "POST", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &r)
+	require.Nil(t, r.Err)
+
+	ts = getTeamScheduleResponse{}
+	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
+	require.Len(t, ts.Scheduled, 1)
+	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
+	assert.Equal(t, "TestQuery", ts.Scheduled[0].Name)
+	assert.Equal(t, qr.ID, ts.Scheduled[0].QueryID)
+	id := ts.Scheduled[0].ID
+
+	modifyResp := modifyTeamScheduleResponse{}
+	modifyParams := modifyTeamScheduleRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}}
+	doJSONReq(
+		t, modifyParams, "PATCH", server,
+		fmt.Sprintf("/api/v1/fleet/team/%d/schedule/%d", team1.ID, id),
+		token, http.StatusOK, &modifyResp,
+	)
+
+	// just to satisfy my paranoia, wanted to make sure the contents of the json would work
+	doRawReq(t, []byte(`{"interval": 77}`), "PATCH", server,
+		fmt.Sprintf("/api/v1/fleet/team/%d/schedule/%d", team1.ID, id),
+		token, http.StatusOK)
+
+	ts = getTeamScheduleResponse{}
+	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
+	assert.Len(t, ts.Scheduled, 1)
+	assert.Equal(t, uint(77), ts.Scheduled[0].Interval)
+
+	deleteResp := deleteTeamScheduleResponse{}
+	doJSONReq(
+		t, nil, "DELETE", server,
+		fmt.Sprintf("/api/v1/fleet/team/%d/schedule/%d", team1.ID, id),
+		token, http.StatusOK, &deleteResp,
+	)
+	require.Nil(t, r.Err)
+
+	ts = getTeamScheduleResponse{}
+	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
+	assert.Len(t, ts.Scheduled, 0)
+}
+
+func TestLogger(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	token := getTestAdminToken(t, server)
+
+	getConfig(t, server, token)
+	params := fleet.QueryPayload{
+		Name:        ptr.String("somequery"),
+		Description: ptr.String("desc"),
+		Query:       ptr.String("select 1 from osquery;"),
+	}
+	payload := createQueryRequest{}
+	doJSONReq(t, params, "POST", server, "/api/v1/fleet/queries", token, http.StatusOK, &payload)
+
+	logs := buf.String()
+	parts := strings.Split(strings.TrimSpace(logs), "\n")
+	assert.Len(t, parts, 3)
+	for i, part := range parts {
+		kv := make(map[string]string)
+		err := json.Unmarshal([]byte(part), &kv)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, "", kv["took"])
+
+		switch i {
+		case 0:
+			assert.Equal(t, "info", kv["level"])
+			assert.Equal(t, "POST", kv["method"])
+			assert.Equal(t, "/api/v1/fleet/login", kv["uri"])
+		case 1:
+			assert.Equal(t, "debug", kv["level"])
+			assert.Equal(t, "GET", kv["method"])
+			assert.Equal(t, "/api/v1/fleet/config", kv["uri"])
+			assert.Equal(t, "admin1@example.com", kv["user"])
+		case 2:
+			assert.Equal(t, "info", kv["level"])
+			assert.Equal(t, "POST", kv["method"])
+			assert.Equal(t, "/api/v1/fleet/queries", kv["uri"])
+			assert.Equal(t, "admin1@example.com", kv["user"])
+			assert.Equal(t, "somequery", kv["name"])
+			assert.Equal(t, "select 1 from osquery;", kv["sql"])
+		default:
+			t.Fail()
+		}
+	}
+}
+
+func TestVulnerableSoftware(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "apps"},
+		},
+	}
+	host.HostSoftware = soft
+	require.NoError(t, ds.SaveHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	soft1 := host.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = host.Software[1]
+	}
+
+	require.NoError(t, ds.AddCPEForSoftware(soft1, "somecpe"))
+	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
+
+	path := fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID)
+	resp := doReq(t, nil, "GET", server, path, token, http.StatusOK)
+	defer resp.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	expectedJSONSoft2 := `"name": "bar",
+        "version": "0.0.3",
+        "source": "apps",
+        "generated_cpe": "somecpe",
+        "vulnerabilities": [
+          {
+            "cve": "cve-123-123-132",
+            "details_link": "https://nvd.nist.gov/vuln/detail/cve-123-123-132"
+          }
+        ]`
+	expectedJSONSoft1 := `"name": "foo",
+        "version": "0.0.1",
+        "source": "chrome_extensions",
+        "generated_cpe": "",
+        "vulnerabilities": null`
+	// We are doing Contains instead of equals to test the output for software in particular
+	// ignoring other things like timestamps and things that are outside the cope of this ticket
+	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
+	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 }

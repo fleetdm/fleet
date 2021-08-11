@@ -40,13 +40,11 @@ class HostSidePanel extends Component {
       onAddLabelClick,
       onLabelClick,
       selectedFilter,
-      statusLabels,
       canAddNewLabel,
     } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
     const allHostLabels = filter(labels, { type: "all" });
-    const hostStatusLabels = filter(labels, { type: "status" });
     const hostPlatformLabels = filter(labels, (label) => {
       return label.type === "platform" && label.count > 0;
     });
@@ -58,20 +56,11 @@ class HostSidePanel extends Component {
 
     return (
       <SecondarySidePanelContainer className={`${baseClass}`}>
-        <h3>Status</h3>
         <PanelGroup
           groupItems={allHostLabels}
           onLabelClick={onLabelClick}
           selectedFilter={selectedFilter}
           type="all-hosts"
-        />
-
-        <PanelGroup
-          groupItems={hostStatusLabels}
-          onLabelClick={onLabelClick}
-          statusLabels={statusLabels}
-          selectedFilter={selectedFilter}
-          type="status"
         />
 
         <h3>Operating Systems</h3>
