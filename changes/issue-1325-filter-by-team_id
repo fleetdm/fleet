@@ -1,0 +1,2 @@
+* add the `team_id` query parameter to `/api/v1/fleet/hosts` & `/api/v1/fleet/labels/{id}/hosts` which will filter the hosts by the specified team_id
+* add a `--team` command line flag to fleetctl to allow filtering hosts by team i.e. `fleetctl get hosts --team=1`

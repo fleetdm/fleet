@@ -413,12 +413,8 @@ func (d *Datastore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt flee
 	params := []interface{}{lid}
 
 	sql, params = filterHostsByStatus(sql, opt, params)
+	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-
-	if opt.TeamFilter != nil {
-		sql += ` AND h.team_id = ?`
-		params = append(params, *opt.TeamFilter)
-	}
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 	hosts := []*fleet.Host{}
