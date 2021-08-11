@@ -69,8 +69,8 @@ const routes = (
           <Route path="email/change/:token" component={EmailTokenRedirect} />
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
-            <IndexRedirect to={PATHS.MANAGE_HOSTS} />
-            <Route path="home/dashboard" component={Homepage} />
+            <IndexRedirect to={PATHS.HOMEPAGE} />
+            <Route path="home" component={Homepage} />
             <Route path="settings" component={AuthenticatedAdminRoutes}>
               <Route component={SettingsWrapper}>
                 <Route path="organization" component={AdminAppSettingsPage} />
