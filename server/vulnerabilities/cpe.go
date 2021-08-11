@@ -125,6 +125,8 @@ func cleanAppName(appName string) string {
 	return strings.TrimSuffix(appName, ".app")
 }
 
+var onlyAlphaNumeric = regexp.MustCompile("[^a-zA-Z0-9]+")
+
 func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	targetSW := ""
 	switch software.Source {
@@ -151,16 +153,16 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	}
 
 	checkTargetSW := ""
-	args := []interface{}{cleanAppName(software.Name)}
+	args := []interface{}{onlyAlphaNumeric.ReplaceAllString(cleanAppName(software.Name), " ")}
 	if targetSW != "" {
-		checkTargetSW = " AND target_sw=?"
+		checkTargetSW = " AND target_sw MATCH ?"
 		args = append(args, targetSW)
 	}
 	args = append(args, software.Version)
 
 	query := fmt.Sprintf(
 		`SELECT rowid, * FROM cpe WHERE rowid in (
-				  SELECT rowid FROM cpe_search WHERE title=?%s
+				  SELECT rowid FROM cpe_search WHERE title MATCH ?%s
 				) and version=? order by deprecated asc`,
 		checkTargetSW,
 	)
