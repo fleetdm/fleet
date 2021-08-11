@@ -247,7 +247,7 @@ const TableContainer = ({
       <div className={`${baseClass}__data-table-container`}>
         {/* No entities for this result. */}
         {!isLoading && data.length === 0 ? (
-          <EmptyComponent />
+          <EmptyComponent pageIndex={pageIndex} />
         ) : (
           <>
             <DataTable
