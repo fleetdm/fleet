@@ -85,8 +85,9 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			}
 		}
 		hostSettings := &fleet.HostSettings{
-			EnableHostUsers:   &config.EnableHostUsers,
-			AdditionalQueries: config.AdditionalQueries,
+			EnableHostUsers:         &config.EnableHostUsers,
+			EnableSoftwareInventory: &config.EnableSoftwareInventory,
+			AdditionalQueries:       config.AdditionalQueries,
 		}
 		response := appConfigResponse{
 			OrgInfo: &fleet.OrgInfo{
