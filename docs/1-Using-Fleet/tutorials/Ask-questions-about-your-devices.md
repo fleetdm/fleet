@@ -50,7 +50,7 @@ fleetctl apply -f standard-query-library.yml
 
 Success! Now, refresh the **Queries** page in the Fleet, and the "Queries" table will be populated with Fleet's standard query library.
 
-<img src="https://user-images.githubusercontent.com/78363703/128487220-9cb4ffce-abb0-43be-aa7b-e2cade7c7220.png" alt="Fleet query page" width="800"/>
+<img src="https://user-images.githubusercontent.com/78363703/128487220-9cb4ffce-abb0-43be-aa7b-e2cade7c7220.png" alt="Fleet query page" width="600"/>
 
 ### Asking questions by running queries
 
@@ -113,4 +113,3 @@ Now you have the results from your query, you can compare the results from the "
 | 1.0.1-1.0.1h                                              | [CVE-2014-3511](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-3511) |
 
 Do any of the simulated, Linux hosts have a high severity vulnerable version of OpenSSL installed? If the answer is yes, don't worry. The devices are running in a simulated Docker environment and do not provide any additional vectors for performing malicious actions against your device.
-
