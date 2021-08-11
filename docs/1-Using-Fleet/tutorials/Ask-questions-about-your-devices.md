@@ -64,7 +64,7 @@ These questions can easily be answered with Fleet, by running the following quer
 
 On the **Queries** page, enter the query name, "Detect Linux hosts with high severity vulnerable versions of OpenSSL," in the search bar, and select it from the table to navigate to the **Edit or run query** page.
 
-<img src="https://user-images.githubusercontent.com/78363703/128487468-7961c509-d0ba-48be-a0e8-54bfb4c371d5.png" alt="Fleet query search" width="800"/>
+<img src="https://user-images.githubusercontent.com/78363703/128487468-7961c509-d0ba-48be-a0e8-54bfb4c371d5.png" alt="Fleet query search" width="600"/>
 
 On the **Edit or run query** page, open the "Select targets" dropdown, and press the purple "+" icon to the right of "All hosts." This means we'll be attempting to run this query against all hosts connected to your Fleet. 
 
