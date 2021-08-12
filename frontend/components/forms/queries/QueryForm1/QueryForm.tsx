@@ -10,6 +10,7 @@ import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import NewQueryModal from "./NewQueryModal";
 
+const DEFAULT_QUERY = "SELECT * FROM osquery_info"; 
 const baseClass = "query-form1";
 
 interface IQueryFormProps {
@@ -95,7 +96,7 @@ const QueryForm = ({
         <h1>{title}</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
         <FleetAce
-          value={value || "SELECT * FROM osquery_info"}
+          value={value || DEFAULT_QUERY}
           error={error || errors.query}
           label="Query:"
           name="query editor"
@@ -113,7 +114,7 @@ const QueryForm = ({
               className={`${baseClass}__save`}
               variant="brand"
               onClick={openSaveModal}
-              disabled={!fields.query.value}
+              disabled={queryIsRunning}
             >
               Save
             </Button>
