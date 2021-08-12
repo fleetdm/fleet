@@ -88,19 +88,21 @@ const QueryForm = ({
     onCreateQuery,
     setIsSaveModalOpen,
   };
+  const { query: { error, onChange, value } } = fields;
   return (
     <>
       <form className={`${baseClass}__wrapper`}>
         <h1>{title}</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
         <FleetAce
-          {...fields.query}
-          error={fields.query.error || errors.query}
+          value={value || "SELECT * FROM osquery_info"}
+          error={error || errors.query}
           label="Query:"
           name="query editor"
           onLoad={onLoad}
           readOnly={queryIsRunning}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          onChange={onChange}
           handleSubmit={onRunQuery}
         />
         <div
