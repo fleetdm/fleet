@@ -48,6 +48,7 @@ func TestOrgInfo(t *testing.T) {
 	info2.MetadataURL = "https://idp.com/metadata.xml"
 	info2.IssuerURI = "https://idp.issuer.com"
 	info2.IDPName = "My IDP"
+	info2.EnableSoftwareInventory = true
 
 	err = ds.SaveAppConfig(info2)
 	require.Nil(t, err)

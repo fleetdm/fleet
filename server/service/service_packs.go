@@ -2,20 +2,48 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
+func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) ([]*fleet.PackSpec, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := svc.ds.ApplyPackSpecs(specs); err != nil {
-		return err
+	packs, err := svc.ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
+	if err != nil {
+		return nil, err
 	}
 
-	return svc.ds.NewActivity(
+	namePacks := make(map[string]*fleet.Pack, len(packs))
+	for _, pack := range packs {
+		namePacks[pack.Name] = pack
+	}
+
+	var result []*fleet.PackSpec
+
+	// loop over incoming specs filtering out possible edits to Global or Team Packs
+	for _, spec := range specs {
+		// see for known limitations https://github.com/fleetdm/fleet/pull/1558#discussion_r684218301
+		// check to see if incoming spec is already in the list of packs
+		if p, ok := namePacks[spec.Name]; ok {
+			// as long as pack is editable, we'll apply it
+			if p.EditablePackType() {
+				result = append(result, spec)
+			}
+		} else {
+			// incoming spec is new, let's apply it
+			result = append(result, spec)
+		}
+	}
+
+	if err := svc.ds.ApplyPackSpecs(result); err != nil {
+		return nil, err
+	}
+
+	return result, svc.ds.NewActivity(
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecPack,
 		&map[string]interface{}{},
@@ -38,7 +66,7 @@ func (svc *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSp
 	return svc.ds.GetPackSpec(name)
 }
 
-func (svc *Service) ListPacks(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Pack, error) {
+func (svc *Service) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -115,11 +143,11 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 		return nil, err
 	}
 
-	if p.Name != nil {
+	if p.Name != nil && pack.EditablePackType() {
 		pack.Name = *p.Name
 	}
 
-	if p.Description != nil {
+	if p.Description != nil && pack.EditablePackType() {
 		pack.Description = *p.Description
 	}
 
@@ -131,15 +159,15 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 		pack.Disabled = *p.Disabled
 	}
 
-	if p.HostIDs != nil {
+	if p.HostIDs != nil && pack.EditablePackType() {
 		pack.HostIDs = *p.HostIDs
 	}
 
-	if p.LabelIDs != nil {
+	if p.LabelIDs != nil && pack.EditablePackType() {
 		pack.LabelIDs = *p.LabelIDs
 	}
 
-	if p.TeamIDs != nil {
+	if p.TeamIDs != nil && pack.EditablePackType() {
 		pack.TeamIDs = *p.TeamIDs
 	}
 
@@ -164,6 +192,15 @@ func (svc *Service) DeletePack(ctx context.Context, name string) error {
 		return err
 	}
 
+	pack, _, err := svc.ds.PackByName(name)
+	if err != nil {
+		return err
+	}
+	// if there is a pack by this name, ensure it is not type Global or Team
+	if pack != nil && !pack.EditablePackType() {
+		return fmt.Errorf("cannot delete pack_type %s", *pack.Type)
+	}
+
 	if err := svc.ds.DeletePack(name); err != nil {
 		return err
 	}
@@ -183,6 +220,9 @@ func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 	pack, err := svc.ds.Pack(id)
 	if err != nil {
 		return err
+	}
+	if pack != nil && !pack.EditablePackType() {
+		return fmt.Errorf("cannot delete pack_type %s", *pack.Type)
 	}
 	if err := svc.ds.DeletePack(pack.Name); err != nil {
 		return err

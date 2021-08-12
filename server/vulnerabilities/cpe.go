@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/google/go-github/v37/github"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -72,7 +74,7 @@ func syncCPEDatabase(client *http.Client, dbPath string) error {
 
 	stat, err := os.Stat(dbPath)
 	if err != nil {
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 	} else if !nvdRelease.CreatedAt.After(stat.ModTime()) {
@@ -123,6 +125,8 @@ func cleanAppName(appName string) string {
 	return strings.TrimSuffix(appName, ".app")
 }
 
+var onlyAlphaNumeric = regexp.MustCompile("[^a-zA-Z0-9]+")
+
 func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	targetSW := ""
 	switch software.Source {
@@ -149,7 +153,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	}
 
 	checkTargetSW := ""
-	args := []interface{}{cleanAppName(software.Name)}
+	args := []interface{}{onlyAlphaNumeric.ReplaceAllString(cleanAppName(software.Name), " ")}
 	if targetSW != "" {
 		checkTargetSW = " AND target_sw MATCH ?"
 		args = append(args, targetSW)
@@ -165,7 +169,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	var indexedCPEs []IndexedCPEItem
 	err := db.Select(&indexedCPEs, query, args...)
 	if err != nil {
-		return "", errors.Wrap(err, "getting cpes")
+		return "", errors.Wrapf(err, "getting cpes for: %s", cleanAppName(software.Name))
 	}
 
 	for _, item := range indexedCPEs {
@@ -199,17 +203,17 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	return "", nil
 }
 
-func TranslateSoftwareToCPE(ds fleet.Datastore, vulnPath string) error {
+func TranslateSoftwareToCPE(ds fleet.Datastore, vulnPath string, logger kitlog.Logger) error {
 	dbPath := path.Join(vulnPath, "cpe.sqlite")
 
 	client := &http.Client{}
 	if err := syncCPEDatabase(client, dbPath); err != nil {
-		return err
+		return errors.Wrap(err, "sync cpe db")
 	}
 
 	iterator, err := ds.AllSoftwareWithoutCPEIterator()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "all software iterator")
 	}
 	defer iterator.Close()
 
@@ -222,18 +226,19 @@ func TranslateSoftwareToCPE(ds fleet.Datastore, vulnPath string) error {
 	for iterator.Next() {
 		software, err := iterator.Value()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "getting value from iterator")
 		}
 		cpe, err := CPEFromSoftware(db, software)
 		if err != nil {
-			return err
+			level.Error(logger).Log("software->cpe", "error translating to CPE, skipping...", "err", err)
+			continue
 		}
 		if cpe == "" {
 			continue
 		}
 		err = ds.AddCPEForSoftware(*software, cpe)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "inserting cpe")
 		}
 	}
 

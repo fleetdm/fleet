@@ -59,7 +59,6 @@
       font-size: $small;
       font-weight: $regular;
     }
-
   }
 
   &__table-url {
@@ -78,7 +77,7 @@
     color: $core-fleet-black;
     margin: 30px 0 0;
 
-    .kolide-checkbox {
+    .fleet-checkbox {
       display: block;
 
       &__label {
@@ -91,7 +90,7 @@
       padding-left: $pad-xxlarge;
     }
 
-    .kolide-checkbox__input {
+    .fleet-checkbox__input {
       position: absolute;
       left: 0;
       top: 0;

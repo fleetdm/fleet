@@ -64,7 +64,7 @@ To enroll hosts to a team:
 
 3. Copy or download the team's enroll secret. Use this enroll secret when installing the osquery agents on your hosts to Fleet.
 
-Orbit is the recommended agent for Fleet. Check out [the Orbit for osquery documentation](https://github.com/fleetdm/orbit/blob/main/README.md) for instructions for packaging and deploying Orbit to your hosts.
+Orbit is the recommended agent for Fleet. Check out [the Orbit for osquery documentation](https://github.com/fleetdm/fleet/blob/main/orbit/README.md) for instructions for packaging and deploying Orbit to your hosts.
 
 ## Transfer hosts to a team
 
@@ -94,7 +94,7 @@ To add users to a team:
 
 4. Select one or more users by searching for their full name and confirm the action.
 
-Users will be given the [Observer role](./8-Permissions.md#team-member-permissions) when added to the team. The [Edit a member's role](#edit-a-members-role) provides instructions on changing the permission level of users on a team.
+Users will be given the [Observer role](./9-Permissions.md#team-member-permissions) when added to the team. The [Edit a member's role](#edit-a-members-role) provides instructions on changing the permission level of users on a team.
 
 ## Edit a member's role
 

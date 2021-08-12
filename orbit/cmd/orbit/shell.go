@@ -5,10 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fleetdm/orbit/pkg/constant"
-	"github.com/fleetdm/orbit/pkg/osquery"
-	"github.com/fleetdm/orbit/pkg/update"
-	"github.com/fleetdm/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/secure"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -38,7 +39,7 @@ var shellCommand = &cli.Command{
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
 
-		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
+		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return errors.Wrap(err, "initialize root dir")
 		}
 

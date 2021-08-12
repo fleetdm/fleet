@@ -203,7 +203,6 @@ export class EditPackPage extends Component {
     const { dispatch, pack } = this.props;
     const { update } = packActions;
     const updatedPack = deepDifference(formData, pack);
-
     return dispatch(update(pack, updatedPack))
       .then(() => {
         this.onToggleEdit();

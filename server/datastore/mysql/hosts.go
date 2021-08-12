@@ -162,14 +162,6 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 
 func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		sql := `
-			DELETE FROM scheduled_query_stats
-			WHERE host_id = ?
-		`
-		if _, err := tx.Exec(sql, host.ID); err != nil {
-			return errors.Wrap(err, "delete old stats")
-		}
-
 		// Bulk insert software entries
 		var args []interface{}
 		queryCount := 0
@@ -199,7 +191,7 @@ func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 		}
 
 		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
-		sql = fmt.Sprintf(`
+		sql := fmt.Sprintf(`
 			INSERT IGNORE INTO scheduled_query_stats (
 				scheduled_query_id,
 				host_id,
@@ -353,6 +345,7 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
+	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
@@ -363,6 +356,14 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 	}
 
 	return hosts, nil
+}
+
+func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.TeamFilter != nil {
+		sql += ` AND h.team_id = ?`
+		params = append(params, *opt.TeamFilter)
+	}
+	return sql, params
 }
 
 func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {

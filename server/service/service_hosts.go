@@ -183,10 +183,6 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
-		return err
-	}
-
 	host, err := svc.ds.Host(id)
 	if err != nil {
 		return errors.Wrap(err, "find host for refetch")

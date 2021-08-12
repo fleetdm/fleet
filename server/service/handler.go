@@ -539,9 +539,6 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	r.PathPrefix("/api/v1/fleet/results/").
 		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
 		Name("distributed_query_results")
-	r.PathPrefix("/api/v1/fleet/results/").
-		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
-		Name("distributed_query_results")
 
 	addMetrics(r)
 

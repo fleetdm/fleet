@@ -11,6 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
+
+	"github.com/fleetdm/fleet/v4/secure"
 )
 
 func debugCommand() *cli.Command {
@@ -272,7 +274,7 @@ func debugArchiveCommand() *cli.Command {
 			}
 			outfile := outpath + ".tar.gz"
 
-			f, err := os.OpenFile(outfile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
+			f, err := secure.OpenFile(outfile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
 			if err != nil {
 				return errors.Wrap(err, "open archive for output")
 			}

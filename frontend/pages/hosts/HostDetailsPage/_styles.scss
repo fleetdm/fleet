@@ -175,6 +175,10 @@
     }
   }
 
+  .button img {
+    transform: scale(0.5);
+  }
+
   .about,
   .osquery {
     .info {
@@ -224,7 +228,8 @@
       }
     }
 
-    &--offline {
+    &--offline,
+    &--mia {
       &:before {
         background-color: $ui-fleet-black-25;
         border-radius: 100%;
@@ -235,6 +240,10 @@
         width: 8px;
       }
     }
+
+    &--mia {
+      text-transform: uppercase;
+    }
   }
 
   &__action-button-container {
@@ -244,7 +253,7 @@
 
   &__query-button,
   &__transfer-button {
-    margin-right: $pad-small;
+    margin-right: $pad-large;
   }
 
   &__modal {

@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/fleetdm/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/secure"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf/client"
 )
@@ -80,7 +81,7 @@ func (s *fileStore) readData() error {
 }
 
 func (s *fileStore) writeData() error {
-	f, err := os.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, constant.DefaultFileMode)
+	f, err := secure.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, constant.DefaultFileMode)
 	if err != nil {
 		return errors.Wrap(err, "open file store")
 	}
