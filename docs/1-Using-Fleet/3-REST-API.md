@@ -938,7 +938,7 @@ Creates a dynamic label.
 
 ### Modify label
 
-Modifies the specified label. Note: Label queries are immutable. To change the query, you must delete the label and create a new label.
+Modifies the specified label. Note: Label queries and platforms are immutable. To change these, you must delete the label and create a new label.
 
 `PATCH /api/v1/fleet/labels/{id}`
 
@@ -949,7 +949,6 @@ Modifies the specified label. Note: Label queries are immutable. To change the q
 | id          | integer | path | **Required**. The label's id.                                                                                                                                                                                                                |
 | name        | string  | body | The label's name.                                                                                                                                                                                                                            |
 | description | string  | body | The label's description.                                                                                                                                                                                                                     |
-| platform    | string  | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 #### Example
 
