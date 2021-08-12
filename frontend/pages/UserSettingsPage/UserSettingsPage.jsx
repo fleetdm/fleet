@@ -341,8 +341,6 @@ export class UserSettingsPage extends Component {
           />
         </div>
         <div className={`${baseClass}__additional body-wrap`}>
-          <h2>Photo</h2>
-
           <div className={`${baseClass}__change-avatar`}>
             <Avatar user={user} className={`${baseClass}__avatar`} />
             <a href="http://en.gravatar.com/emails/">

@@ -17,13 +17,14 @@
   }
 
   &__additional {
-    width: 350px;
-    max-width: 350px;
-    min-width: 350px;
+    width: 340px;
+    max-width: 340px;
+    min-width: 340px;
     box-sizing: border-box;
-    padding: $pad-xlarge;
-    background-color: $ui-light-grey;
+    padding: $pad-xxlarge;
+    background-color: $core-white;
     min-height: 100vh;
+    border-left: solid 1px $ui-fleet-blue-15;
   }
 
   &__change-avatar {
