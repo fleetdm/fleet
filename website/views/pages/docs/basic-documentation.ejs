@@ -135,7 +135,7 @@
   
       <div class="container-fluid d-flex flex-column flex-lg-row justify-content-start justify-content-lg-between p-0 pt-lg-4 pb-lg-4 m-0">
   
-        <div purpose="left-sidebar" style="min-width: 170px; max-width: 210px;" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
+        <div purpose="left-sidebar" style="min-width: 190px; max-width: 210px;" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
           <ul class="p-0 pb-2 m-0 left-nav">
             <li v-for="page in findPagesByUrl()" :key="page.title">
               <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
@@ -154,18 +154,18 @@
           <a href="/support" class="btn btn-block btn-sm btn-primary">Support</a>
         </div>
   
-        <div purpose="right-sidebar" style="min-width: 170px; max-width: 210px;" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar">
+        <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar">
           
-          <h6 class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</h6>
+          <p class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</p>
           <div class="subtopics">
             <ul class="p-0">
               <!-- <li v-for="(subtopic, index) in subtopics" :class="pl-lg-2 pb-3 pb-1g-2 subtopic" :key="index">
                 <a :class="getActiveSubtopicClass(currentLocation, subtopic.url)" :href="subtopic.url">{{subtopic.title}}</a>
               </li> -->
-              <li v-for="(subtopic, index) in subtopics" class="pl-lg-2 pb-3 pb-lg-2 subtopic" :key="index">
+              <li v-for="(subtopic, index) in subtopics" class="pl-lg-3 pb-3 pb-lg-2 subtopic" :key="index">
                 <a :href="subtopic.url">{{subtopic.title}}</a>
               </li>
-              <li class="d-lg-none pl-lg-2 subtopic">
+              <li class="d-lg-none pl-lg-3 subtopic">
                 <a href="/support">Help and feedback</a>
               </li>
             </ul>
@@ -180,7 +180,7 @@
   
         </div>
 
-        <div purpose="content" id="body-content" style="max-width: 800px;" class="d-flex flex-column p-0 pl-lg-5 pr-lg-4 content">
+        <div purpose="content" id="body-content" style="max-width: 800px;" class="d-flex flex-column p-0 px-lg-5 content">
           <%- partial(
             path.relative(
               path.dirname(__filename), 

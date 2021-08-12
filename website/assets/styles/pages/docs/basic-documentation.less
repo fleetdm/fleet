@@ -1,8 +1,18 @@
 #basic-documentation {
 
+  h1 {
+    font-size: 36px;
+    line-height: 48px;
+  }
+
   h3 {
-    font-size: 28px;
+    font-size: 22px;
     line-height: 36px;
+  }
+
+  h4 {
+    font-size: 18px;
+    padding-top: 24px;
   }
 
   h6 {
@@ -55,21 +65,10 @@
 
   .subtopic {
     color: @core-vibrant-blue;
+    font-size: 14px;
   }
 
-  .left-sidebar {
-    border-right: 1px solid @core-fleet-black-25;
-    a {
-      color: @core-fleet-black;
-      text-decoration: none;
-      &.btn-primary {
-        color: #fff;
-      }
-    }
-    .left-nav {
-      border-bottom: 1px solid @core-fleet-black-25;
-    }
-  }
+
 
   .btn-primary {
     color: #fff;
@@ -210,7 +209,57 @@
     }
 
   }
-  
+
+  [purpose='search'] {
+    input {
+      border-radius: 6px;
+      border-top-left-radius: 0px;
+      border-bottom-left-radius: 0px;
+    } 
+    
+    .input-group-prepend {
+      border-radius: 6px;
+      border-top-right-radius: 0px;
+      border-bottom-right-radius: 0px;
+
+    }
+  }
+
+  [purpose='breadcrumbs'] {
+    p, a {
+      font-size: 14px;
+    }
+  }
+
+  [purpose='left-sidebar'] {
+    font-size: 14px;
+    border-right: 1px solid @core-fleet-black-25;
+    a {
+      color: @core-fleet-black;
+      text-decoration: none;
+      &:hover {
+        color: #6A67FE;
+      }
+      &.btn-primary {
+        color: #fff;
+      }
+    }
+    .left-nav {
+      border-bottom: 1px solid @core-fleet-black-25;
+    }
+  }
+
+  [purpose='right-sidebar'] {
+    p, a {
+      font-size: 14px;
+    }
+
+    a {
+      &:hover {
+        color: #6A67FE;
+      }
+    }
+  }
 
   [purpose='content'] {
     h1 {
@@ -253,6 +302,11 @@
       }
     }
 
+    [purpose='right-sidebar'] {
+      min-width: 190px;
+      max-width: 210px;
+    }
+
     .subtopic {
       color: @core-fleet-black;
       padding-top: 4px;
@@ -281,16 +335,25 @@
 
   // Placeholder style for code blocks
   pre {
-    background: #23241f;
-    padding: 12px;
+    background: #282C40;
+    padding: 24px;
     border: 1px solid @core-fleet-black-25;
     border-radius: 4px;
+    margin: 16px 0px 32px;
+
+    .hljs {
+      background: #282C40;
+    }
+
     &.muted {
       color: @core-fleet-black-50;
       background: @ui-off-white;
+      margin: 16px 0px 32px;
     }
 
   }
+
+
 
   // TODO get Mike T input/style guide for code blocks; below is example of styles from sailsjs.com
 
@@ -301,7 +364,7 @@
   */
 
   .hljs {
-    background: #23241f;
+    background: #282C40;
   }
 
   .hljs,
