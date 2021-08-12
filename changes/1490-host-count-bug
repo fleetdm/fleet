@@ -1,1 +1,0 @@
-- Fix host count bug by refactoring host counts to use built-in labels with exact label names

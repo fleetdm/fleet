@@ -6,8 +6,8 @@ spec:
     config:
       decorators:
         load:
-        - SELECT uuid AS host_uuid FROM system_info;
-        - SELECT hostname AS hostname FROM system_info;
+          - SELECT uuid AS host_uuid FROM system_info;
+          - SELECT hostname AS hostname FROM system_info;
       options:
         disable_distributed: false
         distributed_interval: 10
@@ -23,6 +23,8 @@ spec:
     host_expiry_window: 0
   host_settings:
     additional_queries: null
+    enable_host_users: true
+    enable_software_inventory: true
   org_info:
     org_logo_url: ""
     org_name: org
@@ -38,7 +40,7 @@ spec:
     enable_smtp: false
     enable_ssl_tls: true
     enable_start_tls: true
-    password: '********'
+    password: "********"
     port: 587
     sender_address: ""
     server: ""

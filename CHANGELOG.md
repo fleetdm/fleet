@@ -1,3 +1,35 @@
+## Fleet 4.2.0 (Aug 11, 2021)
+
+* Add ability to simultaneously filter hosts by status (`online`, `offline`, `new`, `mia`) and by label on the **Hosts** page.
+
+* Add ability to filter hosts by team in the Fleet UI, fleetctl CLI tool, and Fleet API. *Available for Fleet Basic customers*.
+
+* Add ability to create a Team schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1). *Available for Fleet Basic customers*.
+
+* Add Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/13-Vulnerability-Processing.md#vulnerability-processing).
+
+* Add ability to see which logging destination is configured for Fleet in the Fleet UI. To see this information, head to the **Schedule** page and then select "Schedule a query." Configured logging destination information is also available in the `GET api/v1/fleet/config` API route.
+
+* Improve the `fleetctl preview` experience by downloading Fleet's standard query library and loading the queries into the Fleet UI.
+
+* Improve the user interface for the **Packs** page and **Queries** page in the Fleet UI.
+
+* Add ability to modify scheduled queries in your Schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1).
+
+* Add ability to disable the Users feature in Fleet by setting the new `enable_host_users` key to `true` in the `config` yaml, configuration file. For documentation on using configuration files in yaml syntax, check out the [Using yaml files in Fleet](https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/configuration-files#using-yaml-files-in-fleet) documentation.
+
+* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/2-Configuration.md#feature-flags).
+
+* Improve performance of inserting `pack_stats` in the database. The `pack_stats` information is used to display "Frequency" and "Last run" information for a specific host's scheduled queries. You can find this information on the **Host details** page.
+
+* Improve Fleet server logging so that it is more uniform.
+
+* Fix a bug in which a user with the Observer role was unable to run a live query.
+
+* Fix a bug that prevented the new **Home** page from being displayed in some Fleet instances.
+
+* Fix a bug that prevented accurate sorting issues across multiple pages on the **Hosts** page.
+
 ## Fleet 4.1.0 (Jul 26, 2021)
 
 The primary additions in Fleet 4.1.0 are the new Schedule and Activity feed features.

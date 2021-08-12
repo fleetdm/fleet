@@ -1,1 +1,0 @@
-* Preview command now downloads the standard query library from "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/1-Using-Fleet/standard-query-library/standard-query-library.yml" and loads it into the console via fleet api
