@@ -37,7 +37,7 @@ describe("Basic tier - Team observer/maintainer user", () => {
     cy.visit("/schedule/manage");
     cy.findByText(/you do not have permissions/i).should("exist");
 
-    // NOT see and select "add new label"
+    // NOT see and select "add label"
     cy.findByRole("button", { name: /new label/i }).should("not.exist");
 
     // On the Host details page, they should…

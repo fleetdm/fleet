@@ -31,7 +31,7 @@ describe("Core tier - Maintainer user", () => {
     cy.findByText("select a team").should("not.exist");
     cy.contains("button", /done/i).click();
 
-    cy.contains("button", /add new label/i).click();
+    cy.contains("button", /add label/i).click();
     cy.contains("button", /cancel/i).click();
 
     // Host details page: No team UI, can delete and create new query

@@ -33,7 +33,7 @@ describe("Core tier - Observer user", () => {
     cy.visit("/hosts/manage");
     cy.findByText(/teams/i).should("not.exist");
     cy.contains("button", /add new host/i).should("not.exist");
-    cy.contains("button", /add new label/i).should("not.exist");
+    cy.contains("button", /add label/i).should("not.exist");
 
     // Host details page: No team UI, cannot delete or query
     cy.get("tbody").within(() => {

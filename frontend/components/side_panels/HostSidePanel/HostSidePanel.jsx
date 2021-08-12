@@ -82,7 +82,7 @@ class HostSidePanel extends Component {
                 onClick={onAddLabelClick}
                 className={`${baseClass}__add-label-btn`}
               >
-                Add new label <img src={PlusIcon} alt="Add label icon" />
+                Add label <img src={PlusIcon} alt="Add label icon" />
               </Button>
             )}
           </div>

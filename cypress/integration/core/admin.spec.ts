@@ -37,7 +37,7 @@ describe("Core tier - Admin user", () => {
     cy.contains(/team/i).should("not.exist");
     cy.findByRole("button", { name: /done/i }).click();
 
-    // See and select "add new label"
+    // See and select "add label"
     cy.findByRole("button", { name: /new label/i }).click();
     cy.findByRole("button", { name: /cancel/i }).click();
 

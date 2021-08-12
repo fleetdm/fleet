@@ -7,7 +7,7 @@ describe("Label flow", () => {
   it("Create, edit, and delete a label successfully", () => {
     cy.visit("/hosts/manage");
 
-    cy.findByRole("button", { name: /add new label/i }).click();
+    cy.findByRole("button", { name: /add label/i }).click();
 
     // Using class selector because third party element doesn't work with Cypress Testing Selector Library
     cy.get(".ace_content")
