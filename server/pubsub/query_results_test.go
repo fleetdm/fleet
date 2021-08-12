@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // waitTimeout waits for the waitgroup for the specified max timeout.
@@ -27,31 +26,8 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 	}
 }
 
-func setupRedis(t *testing.T) (store *redisQueryResults, teardown func()) {
-	var (
-		addr       = "127.0.0.1:6379"
-		password   = ""
-		database   = 0
-		useTLS     = false
-		dupResults = false
-	)
-
-	pool, err := NewRedisPool(addr, password, database, useTLS)
-	require.NoError(t, err)
-	store = NewRedisQueryResults(pool, dupResults)
-
-	_, err = store.pool.Get().Do("PING")
-	require.Nil(t, err)
-
-	teardown = func() {
-		store.pool.Close()
-	}
-
-	return store, teardown
-}
-
 func TestQueryResultsStoreErrors(t *testing.T) {
-	store, teardown := setupRedis(t)
+	store, teardown := SetupRedisForTest(t)
 	defer teardown()
 
 	// Write with no subscriber
@@ -78,7 +54,7 @@ func TestQueryResultsStoreErrors(t *testing.T) {
 }
 
 func TestQueryResultsStore(t *testing.T) {
-	store, teardown := setupRedis(t)
+	store, teardown := SetupRedisForTest(t)
 	defer teardown()
 
 	// Test handling results for two campaigns in parallel
