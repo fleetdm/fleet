@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -397,6 +398,17 @@ func TestGlobalSchedule(t *testing.T) {
 	require.Len(t, gs.GlobalSchedule, 0)
 }
 
+func requireJsonEqual(t *testing.T, s1, s2 *json.RawMessage) {
+	// MariaDB (all versions I've tried so far) return the JSON without a space after the colon, so we normalize before
+	// we check
+	var o1 interface{}
+	var o2 interface{}
+
+	require.NoError(t, json.Unmarshal(*s1, &o1))
+	require.NoError(t, json.Unmarshal(*s2, &o2))
+	require.True(t, reflect.DeepEqual(o1, o2))
+}
+
 func TestTeamSpecs(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
@@ -419,7 +431,7 @@ func TestTeamSpecs(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, team.Secrets, 0)
-	assert.Equal(t, &agentOpts, team.AgentOptions)
+	requireJsonEqual(t, &agentOpts, team.AgentOptions)
 
 	// creates a team with default agent options
 	user, err := ds.UserByEmail("admin1@example.com")
@@ -441,7 +453,7 @@ func TestTeamSpecs(t *testing.T) {
 
 	defaultOpts := json.RawMessage("{\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}")
 	assert.Len(t, team.Secrets, 0)
-	assert.Equal(t, &defaultOpts, team.AgentOptions)
+	requireJsonEqual(t, &defaultOpts, team.AgentOptions)
 
 	// updates secrets
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
