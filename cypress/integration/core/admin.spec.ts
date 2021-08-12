@@ -38,7 +38,7 @@ describe("Core tier - Admin user", () => {
     cy.findByRole("button", { name: /done/i }).click();
 
     // See and select "add label"
-    cy.findByRole("button", { name: /new label/i }).click();
+    cy.findByRole("button", { name: /add label/i }).click();
     cy.findByRole("button", { name: /cancel/i }).click();
 
     // On the Host details page, they should…
