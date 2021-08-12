@@ -26,6 +26,7 @@ builds:
       - -tags=full,fts5
       - -trimpath
     ldflags:
+      - -extldflags "-static"
       - -X github.com/kolide/kit/version.appName={{ .ArtifactName }}
       - -X github.com/kolide/kit/version.version={{ .Version }}
       - -X github.com/kolide/kit/version.branch={{ .Branch }}
@@ -47,7 +48,6 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -extldflags "-static"
       - -X github.com/kolide/kit/version.appName={{ .ArtifactName }}
       - -X github.com/kolide/kit/version.version={{ .Version }}
       - -X github.com/kolide/kit/version.branch={{ .Branch }}
