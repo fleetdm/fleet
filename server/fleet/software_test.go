@@ -16,12 +16,12 @@ func TestVulnerabilitiesScan(t *testing.T) {
 		{
 			"bad json input",
 			`{"badjson"`,
-			`[{\"badjson\"]: invalid character ']' after object key`,
+			`src=[{"badjson"]: invalid character ']' after object key`,
 		},
 		{
 			"json object instead of slice",
 			`"something"`,
-			`src=\"something\": json: cannot unmarshal string into Go value of type fleet.VulnerabilitiesSlice`,
+			`src="something": json: cannot unmarshal string into Go value of type fleet.VulnerabilitiesSlice`,
 		},
 	}
 
