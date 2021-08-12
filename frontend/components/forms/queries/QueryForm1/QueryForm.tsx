@@ -3,9 +3,9 @@ import { size } from "lodash";
 
 import { IQueryFormFields, IQueryFormData } from "interfaces/query";
 
-//@ts-ignore
-import Form from "components/forms/Form"; //@ts-ignore
-import FleetAce from "components/FleetAce"; //@ts-ignore
+// @ts-ignore
+import Form from "components/forms/Form"; // @ts-ignore
+import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import NewQueryModal from "./NewQueryModal";
@@ -15,17 +15,17 @@ const baseClass = "query-form1";
 interface IQueryFormProps {
   baseError: string;
   fields: IQueryFormFields;
-  onCreateQuery: (formData: IQueryFormData) => {};
-  onOsqueryTableSelect: (tableName: string) => {};
-  onRunQuery: () => {};
-  onUpdate: (formData: IQueryFormData) => {};
+  onCreateQuery: (formData: IQueryFormData) => void;
+  onOsqueryTableSelect: (tableName: string) => void;
+  onRunQuery: (value: any) => void;
+  onUpdate: (formData: IQueryFormData) => void;
   queryIsRunning: boolean;
   title: string;
   hasSavePermissions: boolean;
 }
 
 const validateQuerySQL = (query: string) => {
-  const errors: {[key: string]: any} = {};
+  const errors: { [key: string]: any } = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
@@ -47,7 +47,7 @@ const QueryForm = ({
   title,
   hasSavePermissions,
 }: IQueryFormProps) => {
-  const [errors, setErrors] = useState<{[key: string]: any}>({});
+  const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
 
   const onLoad = (editor: any) => {
@@ -68,18 +68,26 @@ const QueryForm = ({
 
   const openSaveModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-    
+
     const { query } = fields;
-    const { valid, errors: newErrors } = validateQuerySQL(query.value as string);
+    const { valid, errors: newErrors } = validateQuerySQL(
+      query.value as string
+    );
     setErrors({
       ...errors,
       ...newErrors,
     });
-    
+
     valid && setIsSaveModalOpen(true);
   };
 
-  const modalProps = { baseClass, fields, queryValue: fields.query.value, onCreateQuery, setIsSaveModalOpen };
+  const modalProps = {
+    baseClass,
+    fields,
+    queryValue: fields.query.value,
+    onCreateQuery,
+    setIsSaveModalOpen,
+  };
   return (
     <>
       <form className={`${baseClass}__wrapper`}>
@@ -95,7 +103,9 @@ const QueryForm = ({
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           handleSubmit={onRunQuery}
         />
-        <div className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}>
+        <div
+          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+        >
           {hasSavePermissions && (
             <Button
               className={`${baseClass}__save`}

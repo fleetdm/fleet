@@ -6,7 +6,12 @@ export default {
   create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
     const { QUERIES } = endpoints;
 
-    return sendRequest("POST", QUERIES, { description, name, query, observer_can_run });
+    return sendRequest("POST", QUERIES, {
+      description,
+      name,
+      query,
+      observer_can_run,
+    });
   },
   destroy: (id: string) => {
     const { QUERIES } = endpoints;
@@ -17,7 +22,7 @@ export default {
   load: (id: string) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
-    
+
     return sendRequest("GET", path);
   },
   loadAll: () => {
@@ -25,7 +30,7 @@ export default {
 
     return sendRequest("GET", QUERIES);
   },
-  run: ({ query, selected }: { query: string, selected: any }) => {
+  run: ({ query, selected }: { query: string; selected: any }) => {
     const { RUN_QUERY } = endpoints;
 
     return sendRequest("POST", RUN_QUERY, { query, selected });

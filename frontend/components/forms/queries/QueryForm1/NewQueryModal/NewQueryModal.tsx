@@ -3,10 +3,10 @@ import { size } from "lodash";
 
 import { IQueryFormData, IQueryFormFields } from "interfaces/query";
 
-//@ts-ignore
-import Form from "components/forms/Form"; 
-import Checkbox from "components/forms/fields/Checkbox";  //@ts-ignore
-import InputField from "components/forms/fields/InputField"; //@ts-ignore
+// @ts-ignore
+import Form from "components/forms/Form";
+import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 
@@ -14,12 +14,12 @@ interface INewQueryModalProps {
   baseClass: string;
   fields: IQueryFormFields;
   queryValue: string;
-  onCreateQuery: (formData: IQueryFormData) => {};
-  setIsSaveModalOpen: (isOpen: boolean) => {};
+  onCreateQuery: (formData: IQueryFormData) => void;
+  setIsSaveModalOpen: (isOpen: boolean) => void;
 }
 
 const validateQueryName = (name: string) => {
-  const errors: {[key: string]: any} = {};
+  const errors: { [key: string]: any } = {};
 
   if (!name) {
     errors.name = "Query name must be present";
@@ -36,26 +36,29 @@ const NewQueryModal = ({
   onCreateQuery,
   setIsSaveModalOpen,
 }: INewQueryModalProps) => {
-  const [errors, setErrors] = useState<{[key: string]: any}>({});
-  
+  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+
   const handleUpdate = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-    
+
     const { description, name, observer_can_run } = fields;
-    const { valid, errors: newErrors } = validateQueryName(name.value as string);
+    const { valid, errors: newErrors } = validateQueryName(
+      name.value as string
+    );
     setErrors({
       ...errors,
       ...newErrors,
-    }); 
-
-    valid && onCreateQuery({
-      description: description.value,
-      name: name.value,
-      query: queryValue,
-      observer_can_run: observer_can_run.value,
     });
+
+    valid &&
+      onCreateQuery({
+        description: description.value,
+        name: name.value,
+        query: queryValue,
+        observer_can_run: observer_can_run.value,
+      });
   };
-  
+
   return (
     <Modal title={"Save query"} onExit={() => setIsSaveModalOpen(false)}>
       <form className={`${baseClass}__save-modal-form`}>
@@ -85,7 +88,9 @@ const NewQueryModal = ({
           where they have access.
         </p>
         <hr />
-        <div className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}>
+        <div
+          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
+        >
           <Button
             className={`${baseClass}__btn`}
             onClick={() => setIsSaveModalOpen(false)}

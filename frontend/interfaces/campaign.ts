@@ -5,7 +5,7 @@ export default PropTypes.shape({
   hosts_count: PropTypes.shape({
     total: PropTypes.number,
     successful: PropTypes.number,
-    failed: PropTypes.number
+    failed: PropTypes.number,
   }),
   id: PropTypes.number,
   online: PropTypes.number,
@@ -25,7 +25,7 @@ export interface ICampaignQueryResult {
   uuid: string;
   version: string;
   watcher: string;
-};
+}
 
 export interface ICampaign {
   created_at: string;
@@ -48,4 +48,4 @@ export interface ICampaign {
   };
   updated_at: string;
   user_id: number;
-};
+}

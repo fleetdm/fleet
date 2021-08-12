@@ -17,11 +17,11 @@ interface ITableColumn {
   description: string;
   name: string;
   type: string;
-};
+}
 
 export interface IOsqueryTable {
   columns: ITableColumn[];
   description: string;
   name: string;
   platform: string;
-};
+}

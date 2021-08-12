@@ -27,3 +27,5 @@ export const useDeepEffect = (fn: () => void, deps: Array<any>) => {
     prevDeps.current = deps;
   }, [deps, fn]);
 };
+
+export default useDeepEffect;

@@ -17,4 +17,4 @@ export interface ITargetsResponse {
   targets_missing_in_action: number;
   targets_offline: number;
   targets_online: number;
-};
+}

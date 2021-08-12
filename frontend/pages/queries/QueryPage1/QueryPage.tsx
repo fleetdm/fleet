@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "react-query";
 import { push } from "react-router-redux";
 import moment from "moment";
 import FileSaver from "file-saver";
+import { filter, isEqual } from "lodash";
 
 // @ts-ignore
 import Fleet from "fleet";
@@ -18,28 +19,31 @@ import deepDifference from "utilities/deep_difference";
 import permissionUtils from "utilities/permissions";
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget, ITargetsResponse } from "interfaces/target";
+import { IOsqueryTable } from "interfaces/osquery_table";
+import { IUser } from "interfaces/user";
+import { ICampaign } from "interfaces/campaign";
 
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import { 
-  selectOsqueryTable, 
+import {
+  selectOsqueryTable,
   setSelectedTargets,
-  setSelectedTargetsQuery // @ts-ignore
+  setSelectedTargetsQuery, // @ts-ignore
 } from "redux/nodes/components/QueryPages/actions"; // @ts-ignore
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers"; // @ts-ignore
+
 import QueryForm from "components/forms/queries/QueryForm1"; // @ts-ignore
 import WarningBanner from "components/WarningBanner"; // @ts-ignore
 import QueryPageSelectTargets from "components/queries/QueryPageSelectTargets"; // @ts-ignore
 import QueryResultsTable from "components/queries/QueryResultsTable"; // @ts-ignore
 import QuerySidePanel from "components/side_panels/QuerySidePanel"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
-import { hasSavePermissions, selectHosts } from "pages/queries/QueryPage1/helpers";
+import {
+  hasSavePermissions,
+  selectHosts,
+} from "pages/queries/QueryPage1/helpers";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
-import { filter, isEqual } from "lodash";
-import { IOsqueryTable } from "interfaces/osquery_table";
-import { IUser } from "interfaces/user";
-import { ICampaign } from "interfaces/campaign";
 
 interface IQueryPageProps {
   queryIdForEdit: string;
@@ -47,7 +51,7 @@ interface IQueryPageProps {
   selectedOsqueryTable: IOsqueryTable;
   currentUser: IUser;
   isBasicTier: boolean;
-};
+}
 
 let runQueryInterval: any = null;
 let globalSocket: any = null;
@@ -67,8 +71,8 @@ const QUERY_RESULTS_OPTIONS = {
 
 const baseClass = "query-page";
 
-const QueryPage = ({ 
-  queryIdForEdit, 
+const QueryPage = ({
+  queryIdForEdit,
   selectedTargets,
   selectedOsqueryTable,
   currentUser,
@@ -76,9 +80,9 @@ const QueryPage = ({
 }: IQueryPageProps) => {
   const { EDITOR, TARGETS, RUN, RESULTS } = PAGE_STEP;
   const dispatch = useDispatch();
-  
+
   const [step, setStep] = useState<string>(EDITOR);
-  const [typedQueryBody, setTypedQueryBody] = useState<string>('');
+  const [typedQueryBody, setTypedQueryBody] = useState<string>("");
   const [runQueryMilliseconds, setRunQueryMilliseconds] = useState<number>(0);
   const [campaign, setCampaign] = useState<ICampaign | null>(null);
   const [queryIsRunning, setQueryIsRunning] = useState<boolean>(false);
@@ -86,25 +90,38 @@ const QueryPage = ({
   const [targetsError, setTargetsError] = useState<string | null>(null);
   const [queryResultsToggle, setQueryResultsToggle] = useState<any>(null);
   const [queryPosition, setQueryPosition] = useState<any>({});
-  const [selectRelatedHostTarget, setSelectRelatedHostTarget] = useState<boolean>(true);
+  const [
+    selectRelatedHostTarget,
+    setSelectRelatedHostTarget,
+  ] = useState<boolean>(true);
   const [observerShowSql, setObserverShowSql] = useState<boolean>(false);
   const [liveQueryError, setLiveQueryError] = useState<string>("");
   const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
-  
-  const { status, data: storedQuery, error }: { status: string, data: IQuery | undefined, error: any } = useQuery("query", () => queryAPI.load(queryIdForEdit), {
-    enabled: !!queryIdForEdit
-  });
-  const { mutateAsync: createQuery } = useMutation((formData: IQueryFormData) => queryAPI.create(formData));
+
+  const {
+    status,
+    data: storedQuery,
+    error,
+  }: { status: string; data: IQuery | undefined; error: any } = useQuery(
+    "query",
+    () => queryAPI.load(queryIdForEdit),
+    {
+      enabled: !!queryIdForEdit,
+    }
+  );
+  const { mutateAsync: createQuery } = useMutation((formData: IQueryFormData) =>
+    queryAPI.create(formData)
+  );
 
   useEffect(() => {
     const checkLiveQuery = () => {
       Fleet.status.live_query().catch((response: any) => {
         try {
-          const error = response.message.errors[0].reason;
-          setLiveQueryError(error);
+          const liveError = response.message.errors[0].reason;
+          setLiveQueryError(liveError);
         } catch (e) {
-          const error = `Unknown error: ${e}`;
-          setLiveQueryError(error);
+          const liveError = `Unknown error: ${e}`;
+          setLiveQueryError(liveError);
         }
       });
     };
@@ -127,11 +144,11 @@ const QueryPage = ({
     const update = () => {
       setRunQueryMilliseconds(runQueryMilliseconds + 1000);
     };
-  
+
     if (!runQueryInterval) {
       runQueryInterval = setInterval(update, 1000);
     }
-  
+
     return false;
   };
 
@@ -141,8 +158,8 @@ const QueryPage = ({
       runQueryInterval = null;
     }
 
-    setQueryIsRunning(false),
-    setRunQueryMilliseconds(0),
+    setQueryIsRunning(false);
+    setRunQueryMilliseconds(0);
     removeSocket();
 
     return false;
@@ -159,9 +176,14 @@ const QueryPage = ({
       const { query }: { query: IQuery } = await createQuery(formData);
       dispatch(push(PATHS.EDIT_QUERY(query)));
       dispatch(renderFlash("success", "Query created!"));
-    } catch (error) {
-      console.log(error);
-      dispatch(renderFlash("error", "Something went wrong creating your query. Please try again."));
+    } catch (createError) {
+      console.log(createError);
+      dispatch(
+        renderFlash(
+          "error",
+          "Something went wrong creating your query. Please try again."
+        )
+      );
     }
   });
 
@@ -169,15 +191,20 @@ const QueryPage = ({
     if (!storedQuery) {
       return false;
     }
-    
+
     const updatedQuery = deepDifference(formData, storedQuery);
 
     try {
       await queryAPI.update(storedQuery, updatedQuery);
       dispatch(renderFlash("success", "Query updated!"));
-    } catch(error) {
-      console.log(error);
-      dispatch(renderFlash("error", "Something went wrong updating your query. Please try again."));
+    } catch (updateError) {
+      console.log(updateError);
+      dispatch(
+        renderFlash(
+          "error",
+          "Something went wrong updating your query. Please try again."
+        )
+      );
     }
 
     return false;
@@ -199,7 +226,7 @@ const QueryPage = ({
 
   const onRunQuery = debounce(async () => {
     const sql = typedQueryBody || storedQuery?.query;
-    const { error } = validateQuery(sql);
+    const { error: validationError } = validateQuery(sql);
 
     if (!sql) {
       return false;
@@ -212,14 +239,15 @@ const QueryPage = ({
     }
 
     if (!targetsCount) {
-      setTargetsError("You must select a target with at least one host to run a query");
+      setTargetsError(
+        "You must select a target with at least one host to run a query"
+      );
 
       return false;
     }
 
-    if (error) {
-      dispatch(renderFlash("error", error));
-
+    if (validationError) {
+      dispatch(renderFlash("error", validationError));
       return false;
     }
 
@@ -231,39 +259,38 @@ const QueryPage = ({
     try {
       const campaignResponse = await queryAPI.run({ query: sql, selected });
 
-      Fleet.websockets.queries
-        .run(campaignResponse.id)
-        .then((socket: any) => {
-          setupDistributedQuery(socket);
-          setCampaign(campaignResponse);
-          setQueryIsRunning(true);
+      Fleet.websockets.queries.run(campaignResponse.id).then((socket: any) => {
+        setupDistributedQuery(socket);
+        setCampaign(campaignResponse);
+        setQueryIsRunning(true);
 
-          socket.onmessage = ({ data }: any) => {
-            const socketData = JSON.parse(data);
+        socket.onmessage = ({ data }: any) => {
+          const socketData = JSON.parse(data);
 
-            if (
-              previousSocketData &&
-              isEqual(socketData, previousSocketData)
-            ) {
-              return false;
-            }
-            
-            previousSocketData = socketData;
-            
-            const { campaign, queryIsRunning } = campaignHelpers.updateCampaignState(socketData)
-            campaign && setCampaign(campaign);
-            queryIsRunning !== undefined && setQueryIsRunning(queryIsRunning);
-
-            if (
-              socketData.type === "status" &&
-              socketData.data.status === "finished"
-            ) {
-              return teardownDistributedQuery();
-            }
-
+          if (previousSocketData && isEqual(socketData, previousSocketData)) {
             return false;
-          };
-        });
+          }
+
+          previousSocketData = socketData;
+
+          const {
+            campaign: socketCampaign,
+            queryIsRunning: socketQueryIsRunning,
+          } = campaignHelpers.updateCampaignState(socketData);
+          socketCampaign && setCampaign(socketCampaign);
+          socketQueryIsRunning !== undefined &&
+            setQueryIsRunning(socketQueryIsRunning);
+
+          if (
+            socketData.type === "status" &&
+            socketData.data.status === "finished"
+          ) {
+            return teardownDistributedQuery();
+          }
+
+          return false;
+        };
+      });
     } catch (campaignError) {
       if (campaignError === "resource already created") {
         dispatch(
@@ -278,7 +305,7 @@ const QueryPage = ({
 
       dispatch(renderFlash("error", campaignError));
       return false;
-    };
+    }
   });
 
   const onStopQuery = (evt: React.MouseEvent<HTMLButtonElement>) => {
@@ -287,11 +314,14 @@ const QueryPage = ({
     return teardownDistributedQuery();
   };
 
-  const onFetchTargets = (targetSearchText: string, targetResponse: ITargetsResponse) => {
-    const { targets_count: targetsCount } = targetResponse;
+  const onFetchTargets = (
+    targetSearchText: string,
+    targetResponse: ITargetsResponse
+  ) => {
+    const { targets_count: responseTargetsCount } = targetResponse;
 
     dispatch(setSelectedTargetsQuery(targetSearchText));
-    setTargetsCount(targetsCount);
+    setTargetsCount(responseTargetsCount);
 
     return false;
   };
@@ -436,10 +466,7 @@ const QueryPage = ({
     <div className={`${baseClass} has-sidebar`}>
       <div className={`${baseClass}__content`}>
         <div className={`${baseClass}__form body-wrap`}>
-          <Link
-            to={PATHS.MANAGE_QUERIES}
-            className={`${baseClass}__back-link`}
-          >
+          <Link to={PATHS.MANAGE_QUERIES} className={`${baseClass}__back-link`}>
             <img src={BackChevron} alt="back chevron" id="back-chevron" />
             <span>Back to queries</span>
           </Link>
@@ -479,7 +506,7 @@ const mapStateToProps = (state: any, { params }: any) => {
   const config = state.app.config;
   const isBasicTier = permissionUtils.isBasicTier(config);
 
-  return { 
+  return {
     queryIdForEdit,
     selectedTargets,
     selectedOsqueryTable,

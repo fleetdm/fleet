@@ -6,6 +6,6 @@ export default PropTypes.shape({
 });
 
 export interface IRedirectLocation {
-  action: string,
-  pathname: string,
-};
+  action: string;
+  pathname: string;
+}

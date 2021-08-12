@@ -3,7 +3,7 @@ import PATHS from "router/paths";
 import { differenceWith, isEqual, uniqWith } from "lodash";
 
 import permissionUtils from "utilities/permissions";
-import hostActions from "redux/nodes/entities/hosts/actions"; //@ts-ignore
+import hostActions from "redux/nodes/entities/hosts/actions"; // @ts-ignore
 import { setSelectedTargets } from "redux/nodes/components/QueryPages/actions";
 import { IHost } from "interfaces/host";
 import { ITarget } from "interfaces/target";
@@ -28,7 +28,10 @@ const comparator = (arrayVal: any, otherVal: any) => {
   );
 };
 
-export const selectHosts = (dispatch: any, { hosts = [], selectedTargets = [] }) => {
+export const selectHosts = (
+  dispatch: any,
+  { hosts = [], selectedTargets = [] }
+) => {
   if (!hosts.length || !targetsChanged(hosts, selectedTargets)) {
     return false;
   }

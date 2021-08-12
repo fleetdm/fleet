@@ -17,7 +17,7 @@ export interface IQueryFormData {
   name?: string | number | boolean | any[];
   query?: string | number | boolean | any[];
   observer_can_run?: string | number | boolean | any[];
-};
+}
 
 export interface IQuery {
   description: string;
@@ -29,11 +29,11 @@ export interface IQuery {
   observer_can_run: boolean;
   author_name: string;
   updated_at: string;
-};
+}
 
 export interface IQueryFormFields {
   description: IFormField;
   name: IFormField;
   query: IFormField;
   observer_can_run: IFormField;
-};
+}

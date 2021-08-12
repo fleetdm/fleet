@@ -3,24 +3,24 @@ import classnames from "classnames";
 
 const baseClass = "button";
 
-export type ButtonVariant = 
-  "brand" |
-  "success" |
-  "alert" |
-  "blue-green" |
-  "grey" |
-  "warning" |
-  "link" |
-  "label" |
-  "text-link" |
-  "text-icon" |
-  "inverse" |
-  "inverse-alert" |
-  "block" |
-  "disabled" |
-  "unstyled" |
-  "unstyled-modal-query" |
-  "contextual-nav-item";
+export type ButtonVariant =
+  | "brand"
+  | "success"
+  | "alert"
+  | "blue-green"
+  | "grey"
+  | "warning"
+  | "link"
+  | "label"
+  | "text-link"
+  | "text-icon"
+  | "inverse"
+  | "inverse-alert"
+  | "block"
+  | "disabled"
+  | "unstyled"
+  | "unstyled-modal-query"
+  | "contextual-nav-item";
 
 interface IButtonProps {
   autofocus?: boolean;

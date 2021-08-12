@@ -15,6 +15,6 @@ export default PropTypes.shape({
 export interface IFormField {
   error: string;
   name: string;
-  onChange: () => {},
+  onChange: (value: any) => void;
   value: any[] | boolean | number | string;
-};
+}

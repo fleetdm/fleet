@@ -11,9 +11,9 @@ import { fetchCurrentUser } from "redux/nodes/auth/actions"; // @ts-ignore
 import { getConfig, getEnrollSecret } from "redux/nodes/app/actions";
 import { IUser } from "interfaces/user";
 
-interface IAppProps { 
+interface IAppProps {
   children: JSX.Element;
-};
+}
 
 interface IRootState {
   auth: {
@@ -25,7 +25,7 @@ const App = ({ children }: IAppProps) => {
   const dispatch = useDispatch();
   const user = useSelector((state: IRootState) => state.auth.user);
   const queryClient = new QueryClient();
-  
+
   useDeepEffect(() => {
     if (!user && authToken()) {
       dispatch(fetchCurrentUser()).catch(() => false);
@@ -43,6 +43,6 @@ const App = ({ children }: IAppProps) => {
       <div className={wrapperStyles}>{children}</div>;
     </QueryClientProvider>
   );
-}
+};
 
 export default App;

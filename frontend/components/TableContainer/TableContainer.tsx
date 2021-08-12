@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import classnames from "classnames";
 import { useAsyncDebounce } from "react-table";
-import Button from "components/buttons/Button";
+
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import Pagination from "components/Pagination";
-// @ts-ignore
+import Button from "components/buttons/Button";
+import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
 import scrollToTop from "utilities/scroll_to_top";
 
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
-import { ButtonVariant } from "components/buttons/Button/Button";
 
 interface ITableQueryData {
   searchQuery: string;
