@@ -2,21 +2,19 @@
 
 > This tutorial assumes that you have a preview environment of Fleet up and running. Check out [the "Try Fleet" instructions](../../../README.md#try-fleet) on how to start a preview environment of Fleet.
 
-This tutorial covers the following Fleet concepts:
+In this tutorial, we'll cover the following Fleet concepts:
 
 - Where to see your devices in Fleet
 - How to add Fleet's standard query library
 - How to ask questions about your devices by running queries
 
-### Devices in Fleet
+### Where to see your devices in Fleet
 
 Once you log into Fleet, you're presented with the **Hosts** page. In Fleet, devices are refered to as "hosts." 
 
-On this page you'll see 7 hosts. These hosts are simulated Linux devices, and like the Fleet preview environment, they're running locally on your computer in Docker.
+On this page you'll see 7 hosts by default. These hosts are simulated Linux devices, and like the Fleet preview environment, they're running locally on your computer in Docker. For this tutorial we'll be asking questions about these devices by running some queries against them.
 
-In this tutorial you'll be asking questions about these devices by running some queries against them.
-
-### Add queries
+### How to add Fleet's standard query library
 
 Fleet uses queries to determine the information to return from your devices. Put simply, a query is a specific question you can ask about your devices. 
 
@@ -54,7 +52,7 @@ Success! Now, refresh the **Queries** page in the Fleet, and the "Queries" table
 <img src="https://user-images.githubusercontent.com/78363703/128487220-9cb4ffce-abb0-43be-aa7b-e2cade7c7220.png" alt="Fleet query page" width="600"/>
 
 
-### Asking questions by running queries
+### How to ask questions about your devices by running queries
 
 Let's ask the following questions about the simulated Linux hosts connected to your Fleet:
 
