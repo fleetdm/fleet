@@ -3,9 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -26,7 +29,16 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 		Name: name,
 	}
 
-	for name, query := range inputPack.Queries {
+	keys := make([]string, len(inputPack.Queries))
+	i := 0
+	for k := range inputPack.Queries {
+		keys[i] = k
+		i++
+	}
+
+	sort.Strings(keys)
+	for _, name := range keys {
+		query := inputPack.Queries[name]
 		spec := &fleet.QuerySpec{
 			Name:        name,
 			Description: query.Description,
@@ -63,12 +75,21 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 
 	specs.Packs = append(specs.Packs, pack)
 
+	//sort.Slice(specs.Packs, func(i, j int) bool {
+	//	return specs.Packs[i].Name > specs.Packs[j].Name
+	//})
+	//
+	//sort.Slice(specs.Queries, func(i, j int) bool {
+	//	return specs.Queries[i].Name > specs.Queries[j].Name
+	//})
+
 	return specs, nil
 }
 
 func convertCommand() *cli.Command {
 	var (
-		flFilename string
+		flFilename     string
+		outputFilename string
 	)
 	return &cli.Command{
 		Name:      "convert",
@@ -83,6 +104,13 @@ func convertCommand() *cli.Command {
 				Value:       "",
 				Destination: &flFilename,
 				Usage:       "A file to apply",
+			},
+			&cli.StringFlag{
+				Name:        "o",
+				EnvVars:     []string{"OUTPUT_FILENAME"},
+				Value:       "",
+				Destination: &outputFilename,
+				Usage:       "The name of the file to output converted results",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -119,6 +147,16 @@ func convertCommand() *cli.Command {
 				return errors.New("could not parse files")
 			}
 
+			var w io.Writer = os.Stdout
+			if outputFilename != "" {
+				file, err := os.Create(outputFilename)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+				w = file
+			}
+
 			for _, pack := range specs.Packs {
 				spec, err := json.Marshal(pack)
 				if err != nil {
@@ -136,8 +174,8 @@ func convertCommand() *cli.Command {
 					return err
 				}
 
-				fmt.Println("---")
-				fmt.Print(string(out))
+				fmt.Fprintln(w, "---")
+				fmt.Fprint(w, string(out))
 			}
 
 			for _, query := range specs.Queries {
@@ -157,8 +195,8 @@ func convertCommand() *cli.Command {
 					return err
 				}
 
-				fmt.Println("---")
-				fmt.Print(string(out))
+				fmt.Fprintln(w, "---")
+				fmt.Fprint(w, string(out))
 			}
 
 			return nil
