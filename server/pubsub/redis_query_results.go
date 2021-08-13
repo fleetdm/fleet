@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -94,6 +95,10 @@ func pubSubForID(id uint) string {
 	return fmt.Sprintf("results_%d", id)
 }
 
+func (r *redisQueryResults) Pool() *redisc.Cluster {
+	return r.pool
+}
+
 func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) error {
 	conn := r.pool.Get()
 	defer conn.Close()
@@ -121,6 +126,17 @@ func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) err
 	return nil
 }
 
+// writeOrDone tries to write the item into the channel taking into account context.Done(). If context is done, returns
+// true, otherwise false
+func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) bool {
+	select {
+	case ch <- item:
+	case <-ctx.Done():
+		return true
+	}
+	return false
+}
+
 // receiveMessages runs in a goroutine, forwarding messages from the Pub/Sub
 // connection over the provided channel. This effectively allows a select
 // statement to run on conn.Receive() (by running on the channel that is being
@@ -131,8 +147,8 @@ func receiveMessages(ctx context.Context, pool *redisc.Cluster, query fleet.Dist
 
 	pubSubName := pubSubForID(query.ID)
 	err := conn.Subscribe(pubSubName)
-	if err != nil {
-		outChan <- errors.Wrap(err, "subscribe to channel")
+	if err != nil && writeOrDone(ctx, outChan, errors.Wrap(err, "subscribe to channel")) {
+		return
 	}
 	defer conn.Unsubscribe(pubSubName)
 
@@ -141,24 +157,28 @@ func receiveMessages(ctx context.Context, pool *redisc.Cluster, query fleet.Dist
 	}()
 
 	for {
-		msg := conn.Receive()
+		// This Receive needs to be with timeout, otherwise we might block on it forever
+		msg := conn.ReceiveWithTimeout(5 * time.Second)
+
 		select {
 		case outChan <- msg:
 			switch msg := msg.(type) {
 			case error:
-				// If an error occurred (i.e. connection was closed),
-				// then we should exit
-				return
+				if err, ok := msg.(net.Error); ok && err.Timeout() {
+					// We ignore timeouts, we just want them there to make sure we don't hang on Receiving
+					continue
+				} else {
+					// If an error occurred (i.e. connection was closed), then we should exit
+					return
+				}
 			case redis.Subscription:
-				// If the subscription count is 0, the ReadChannel call
-				// that invoked this goroutine has unsubscribed, and we
-				// can exit
+				// If the subscription count is 0, the ReadChannel call that invoked this goroutine has unsubscribed,
+				// and we can exit
 				if msg.Count == 0 {
 					return
 				}
 			}
 		case <-ctx.Done():
-			conn.Unsubscribe(pubSubName)
 			return
 		}
 	}
@@ -176,8 +196,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 		defer close(outChannel)
 
 		for {
-			// Loop reading messages from conn.Receive() (via
-			// msgChannel) until the context is cancelled.
+			// Loop reading messages from conn.Receive() (via msgChannel) until the context is cancelled.
 			select {
 			case msg, ok := <-msgChannel:
 				if !ok {
@@ -188,11 +207,17 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 					var res fleet.DistributedQueryResult
 					err := json.Unmarshal(msg.Data, &res)
 					if err != nil {
-						outChannel <- err
+						if writeOrDone(ctx, outChannel, err) {
+							return
+						}
 					}
-					outChannel <- res
+					if writeOrDone(ctx, outChannel, res) {
+						return
+					}
 				case error:
-					outChannel <- errors.Wrap(msg, "reading from redis")
+					if writeOrDone(ctx, outChannel, errors.Wrap(msg, "reading from redis")) {
+						return
+					}
 				}
 			case <-ctx.Done():
 				return
