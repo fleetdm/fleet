@@ -108,8 +108,8 @@ parasails.registerPage('basic-documentation', {
 
     // https://github.com/sailshq/sailsjs.com/blob/7a74d4901dcc1e63080b502492b03fc971d3d3b2/assets/js/functions/sails-website-actions.js#L177-L239
     (function highlightThatSyntax(){
-      $('pre code').each(function(i, block) {
-        hljs.highlightBlock(block);
+      $('pre code').each((i, block) => {
+        window.hljs.highlightBlock(block);
       });
 
       // Make sure the <pre> tags whose code isn't being highlighted

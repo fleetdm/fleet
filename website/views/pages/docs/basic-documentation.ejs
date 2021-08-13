@@ -21,7 +21,7 @@
         </div>
       </div>
   
-      <div class="cta-cards">
+      <div purpose="cta-cards">
         <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 pt-4 mt-3">
           <div class="container-fluid d-flex flex-column flex-md-row justify-content-center align-items-center py-3 m-0 mr-sm-1 cta-card" @click="clickCTA('get-started')">
             <img class="cta-image" alt="Install Fleet" src="/images/install-fleet-140x72@2x.png"/>
@@ -46,7 +46,7 @@
         </div>
       </div>
   
-      <div class="tree">
+      <div purpose="docs-tree">
         <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 px-4">
           <div v-for="page in findPagesByUrl()">
             <div style="max-width: 300px;" class="container-fluid justify-content-start align-items-center p-0 px-2 pt-4 m-0 mt-3">
@@ -64,7 +64,7 @@
   </div>
 
   <div v-else>
-    <div style="max-width: 1200px;" class="container-fluid px-3 px-sm-4 mb-5">
+    <div purpose="docs-template" style="max-width: 1200px;" class="container-fluid px-3 px-sm-4 mb-5">
 
       <div purpose="breadcrumbs-and-search" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0 breadcrumbs-search">
         
@@ -99,7 +99,7 @@
   
         <div purpose="mobile-docs-nav" class="d-flex-block d-lg-none">
           <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
-            <button type="button" purpose="docs-nav-button" class="btn btn-block d-flex align-items-center docs-nav-button" @click="toggleDocsNav">
+            <button purpose="docs-nav-button" class="btn btn-block d-flex align-items-center docs-nav-button" type="button" @click="toggleDocsNav">
               <span class="pr-2 m-0">Docs</span>
               <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
               <span class="font-weight-bold px-2 m-0">{{thisPage.title}}</span>
@@ -131,9 +131,9 @@
   
       </div>
   
-      <h1 class="d-flex d-lg-none py-4 m-0">{{thisPage.title}}</h1>
+      <h1 purpose='page-title' class="d-flex d-lg-none py-4 m-0 foo">{{thisPage.title}}</h1>
   
-      <div class="container-fluid d-flex flex-column flex-lg-row justify-content-start justify-content-lg-between p-0 pt-lg-4 pb-lg-4 m-0">
+      <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
   
         <div purpose="left-sidebar" style="min-width: 190px; max-width: 210px;" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
           <ul class="p-0 pb-2 m-0 left-nav">
@@ -154,11 +154,11 @@
           <a href="/support" class="btn btn-block btn-sm btn-primary">Support</a>
         </div>
   
-        <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar">
+        <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
           
           <p class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</p>
-          <div class="subtopics">
-            <ul class="p-0">
+          <div purpose="subtopics">
+            <ul class="p-0 m-0">
               <!-- <li v-for="(subtopic, index) in subtopics" :class="pl-lg-2 pb-3 pb-1g-2 subtopic" :key="index">
                 <a :class="getActiveSubtopicClass(currentLocation, subtopic.url)" :href="subtopic.url">{{subtopic.title}}</a>
               </li> -->
@@ -180,7 +180,7 @@
   
         </div>
 
-        <div purpose="content" id="body-content" style="max-width: 800px;" class="d-flex flex-column p-0 px-lg-5 content">
+        <div purpose="content" id="body-content" class="d-flex flex-column p-0 px-lg-5 content">
           <%- partial(
             path.relative(
               path.dirname(__filename), 
