@@ -24,6 +24,7 @@ import userActions from "redux/nodes/entities/users/actions";
 import versionActions from "redux/nodes/version/actions";
 import userInterface from "interfaces/user";
 import UserSettingsForm from "components/forms/UserSettingsForm";
+import { generateRole, generateTeam, greyCell } from "fleet/helpers";
 
 const baseClass = "user-settings";
 
@@ -323,8 +324,16 @@ export class UserSettingsPage extends Component {
       return false;
     }
 
-    const { admin, updated_at: updatedAt, sso_enabled: ssoEnabled } = user;
-    const roleText = admin ? "Admin" : "User";
+    const {
+      global_role: globalRole,
+      updated_at: updatedAt,
+      sso_enabled: ssoEnabled,
+      teams,
+    } = user;
+
+    const roleText = generateRole(teams, globalRole);
+    const teamsText = generateTeam(teams, globalRole);
+
     const lastUpdatedAt = moment(updatedAt).fromNow();
 
     return (
@@ -347,10 +356,23 @@ export class UserSettingsPage extends Component {
               Change photo at Gravatar
             </a>
           </div>
-
+          <div className={`${baseClass}__more-info-detail`}>
+            <p className={`${baseClass}__header`}>Teams</p>
+            <p
+              className={`${baseClass}__description ${baseClass}__teams ${greyCell(
+                teamsText
+              )}`}
+            >
+              {teamsText}
+            </p>
+          </div>
           <div className={`${baseClass}__more-info-detail`}>
             <p className={`${baseClass}__header`}>Role</p>
-            <p className={`${baseClass}__description ${baseClass}__role`}>
+            <p
+              className={`${baseClass}__description ${baseClass}__role ${greyCell(
+                roleText
+              )}`}
+            >
               {roleText}
             </p>
           </div>

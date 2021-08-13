@@ -5,10 +5,9 @@ import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCel
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IInvite } from "interfaces/invite";
 import { IUser } from "interfaces/user";
-import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import stringUtils from "utilities/strings";
 import DropdownCell from "../../../components/TableContainer/DataTable/DropdownCell";
+import { generateRole, generateTeam, greyCell } from "fleet/helpers";
 
 interface IHeaderProps {
   column: {
@@ -88,7 +87,12 @@ const generateTableHeaders = (
       Header: "Roles",
       accessor: "roles",
       disableSortBy: true,
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <TextCell
+          value={cellProps.cell.value}
+          greyed={greyCell(cellProps.cell.value)}
+        />
+      ),
     },
     {
       title: "Actions",
@@ -114,7 +118,12 @@ const generateTableHeaders = (
       Header: "Teams",
       accessor: "teams",
       disableSortBy: true,
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <TextCell
+          value={cellProps.cell.value}
+          greyed={greyCell(cellProps.cell.value)}
+        />
+      ),
     });
   }
 
@@ -129,57 +138,6 @@ const generateStatus = (type: string, data: IUser | IInvite): string => {
   }
 
   return type === "invite" ? "Invite pending" : "Active";
-};
-
-const generateTeam = (teams: ITeam[], globalRole: string | null): string => {
-  if (globalRole === null) {
-    if (teams.length === 0) {
-      // no global role and no teams
-      return "No Team";
-    } else if (teams.length === 1) {
-      // no global role and only one team
-      return teams[0].name;
-    }
-    return `${teams.length} teams`; // no global role and multiple teams
-  }
-
-  if (teams.length === 0) {
-    // global role and no teams
-    return "Global";
-  }
-  return `${teams.length + 1} teams`; // global role and one or more teams
-};
-
-const generateRole = (teams: ITeam[], globalRole: string | null): string => {
-  if (globalRole === null) {
-    const listOfRoles: any = teams.map((team) => team.role);
-
-    if (teams.length === 0) {
-      // no global role and no teams
-      return "Unassigned";
-    } else if (teams.length === 1) {
-      // no global role and only one team
-      return stringUtils.capitalize(teams[0].role ?? "");
-    } else if (
-      listOfRoles.every((role: string): boolean => role === "maintainer")
-    ) {
-      // only team maintainers
-      return stringUtils.capitalize(teams[0].role ?? "");
-    } else if (
-      listOfRoles.every((role: string): boolean => role === "observer")
-    ) {
-      // only team observers
-      return stringUtils.capitalize(teams[0].role ?? "");
-    }
-
-    return "Various"; // no global role and multiple teams
-  }
-
-  if (teams.length === 0) {
-    // global role and no teams
-    return stringUtils.capitalize(globalRole);
-  }
-  return "Various"; // global role and one or more teams
 };
 
 const generateActionDropdownOptions = (
