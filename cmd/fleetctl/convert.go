@@ -29,14 +29,15 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 		Name: name,
 	}
 
+	// this ensures order is consistent in output
 	keys := make([]string, len(inputPack.Queries))
 	i := 0
 	for k := range inputPack.Queries {
 		keys[i] = k
 		i++
 	}
-
 	sort.Strings(keys)
+
 	for _, name := range keys {
 		query := inputPack.Queries[name]
 		spec := &fleet.QuerySpec{
@@ -74,14 +75,6 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 	}
 
 	specs.Packs = append(specs.Packs, pack)
-
-	//sort.Slice(specs.Packs, func(i, j int) bool {
-	//	return specs.Packs[i].Name > specs.Packs[j].Name
-	//})
-	//
-	//sort.Slice(specs.Queries, func(i, j int) bool {
-	//	return specs.Queries[i].Name > specs.Queries[j].Name
-	//})
 
 	return specs, nil
 }
