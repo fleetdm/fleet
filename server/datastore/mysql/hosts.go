@@ -602,8 +602,8 @@ func (d *Datastore) MarkHostsSeen(hostIDs []uint, t time.Time) error {
 		if err != nil {
 			return errors.Wrap(err, "sqlx in")
 		}
-		query = d.db.Rebind(query)
-		if _, err := d.db.Exec(query, args...); err != nil {
+		query = tx.Rebind(query)
+		if _, err := tx.Exec(query, args...); err != nil {
 			return errors.Wrap(err, "exec update")
 		}
 
