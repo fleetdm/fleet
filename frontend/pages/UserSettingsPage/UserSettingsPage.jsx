@@ -13,6 +13,7 @@ import Button from "components/buttons/Button";
 import ChangeEmailForm from "components/forms/ChangeEmailForm";
 import ChangePasswordForm from "components/forms/ChangePasswordForm";
 import deepDifference from "utilities/deep_difference";
+import permissionUtils from "utilities/permissions";
 import FleetIcon from "components/icons/FleetIcon";
 import InputField from "components/forms/fields/InputField";
 import { logoutUser, updateUser } from "redux/nodes/auth/actions";
@@ -43,6 +44,7 @@ export class UserSettingsPage extends Component {
       new_password: PropTypes.string,
       old_password: PropTypes.string,
     }),
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -317,7 +319,7 @@ export class UserSettingsPage extends Component {
       renderPasswordModal,
       renderApiTokenModal,
     } = this;
-    const { version, errors, user, config } = this.props;
+    const { version, errors, user, config, isBasicTier } = this.props;
     const { pendingEmail } = this.state;
 
     if (!user) {
@@ -356,16 +358,18 @@ export class UserSettingsPage extends Component {
               Change photo at Gravatar
             </a>
           </div>
-          <div className={`${baseClass}__more-info-detail`}>
-            <p className={`${baseClass}__header`}>Teams</p>
-            <p
-              className={`${baseClass}__description ${baseClass}__teams ${greyCell(
-                teamsText
-              )}`}
-            >
-              {teamsText}
-            </p>
-          </div>
+          {isBasicTier && (
+            <div className={`${baseClass}__more-info-detail`}>
+              <p className={`${baseClass}__header`}>Teams</p>
+              <p
+                className={`${baseClass}__description ${baseClass}__teams ${greyCell(
+                  teamsText
+                )}`}
+              >
+                {teamsText}
+              </p>
+            </div>
+          )}
           <div className={`${baseClass}__more-info-detail`}>
             <p className={`${baseClass}__header`}>Role</p>
             <p
@@ -412,8 +416,9 @@ const mapStateToProps = (state) => {
   const { errors, user } = state.auth;
   const { config } = state.app;
   const { errors: userErrors } = state.entities.users;
+  const isBasicTier = permissionUtils.isBasicTier(config);
 
-  return { version, errors, user, userErrors, config };
+  return { version, errors, user, userErrors, config, isBasicTier };
 };
 
 export default connect(mapStateToProps)(UserSettingsPage);
