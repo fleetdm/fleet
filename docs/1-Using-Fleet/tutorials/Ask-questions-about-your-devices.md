@@ -5,7 +5,6 @@
 In this tutorial, we'll cover the following Fleet concepts:
 
 - Where to see your devices in Fleet
-- How to add Fleet's standard query library
 - How to ask questions about your devices by running queries
 
 ### Where to see your devices in Fleet
@@ -13,43 +12,6 @@ In this tutorial, we'll cover the following Fleet concepts:
 Once you log into Fleet, you're presented with the **Hosts** page. In Fleet, devices are refered to as "hosts." 
 
 On this page you'll see 7 hosts by default. These hosts are simulated Linux devices, and like the Fleet preview environment, they're running locally on your computer in Docker. For this tutorial we'll be asking questions about these devices by running some queries against them.
-
-### How to add Fleet's standard query library
-
-Fleet uses queries to determine the information to return from your devices. Put simply, a query is a specific question you can ask about your devices. 
-
-> Fleet facilitates providing the answer to these questions by communicating with the osquery agent that runs on any given device. To learn more about osquery, check out [the osquery documentation](https://osquery.readthedocs.io/en/stable/).
-
-In Fleet, select the "Queries" tab from the top navigation bar. On first load the "Queries" table is empty, so let's populate it with Fleet's standard query library.
-
-First, head to the following file in the fleetdm/fleet GitHub repository: https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/standard-query-library/standard-query-library.yml
-
-Copy the contents into a new file on your local computer called `standard-query-library.yml`. Please note where this file is located in your local filesystem.
-
-> You can manage your Fleet with configuration files in yaml syntax. This concept might be familiar to those who have used Kubernetes, or other tools, that offer yaml configuration files. Check out [the configuration file documentation](../configuration-files/README.md) for more information on managing Fleet with configuration files.
-
-Now, you can use the `fleetctl` command-line tool to import the queries into Fleet.
-
-Log in to `fleetctl` by running the following command in your terminal window:
-
-```
-fleetctl login
-```
-
-Use the same `admin@example.com` email and `admin123#` password when prompted.
-
-Import the queries into fleet by running the following command:
-
-```
-fleetctl apply -f standard-query-library.yml
-```
-
-> If you received a message that looks like `open standard-query-library.yml: no such file or directory` you may need to confirm the absolute path to your `standard-query-library.yml` file and change this in the command above.
-
-Success! Now, refresh the **Queries** page in the Fleet, and the "Queries" table will be populated with Fleet's standard query library.
-
-
-<img src="https://user-images.githubusercontent.com/78363703/128487220-9cb4ffce-abb0-43be-aa7b-e2cade7c7220.png" alt="Fleet query page" width="600"/>
 
 
 ### How to ask questions about your devices by running queries

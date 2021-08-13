@@ -4679,10 +4679,6 @@ None.
   "host_settings": {
     "additional_queries": null
   },
-  "license": {
-    "tier": "core",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
   "agent_options": {
     "spec": {
       "config": {
@@ -4705,6 +4701,32 @@ None.
       },
       "overrides": {}
     }
+  },
+  "license": {
+    "tier": "core",
+    "expiration": "0001-01-01T00:00:00Z"
+  },
+  "vulnerability_settings": null,
+  "logging": {
+      "debug": false,
+      "json": false,
+      "result": {
+          "plugin": "firehose",
+          "config": {
+              "region": "us-east-1",
+              "status_stream": "",
+              "result_stream": "result-topic"
+          }
+      },
+      "status": {
+          "plugin": "filesystem",
+          "config": {
+              "status_log_file": "foo_status",
+              "result_log_file": "",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+          }
+      }
   }
 }
 ```
@@ -4810,6 +4832,59 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "host_settings": {
     "additional_queries": null
+  },
+  "license": {
+    "tier": "core",
+    "expiration": "0001-01-01T00:00:00Z"
+  },
+  "license": {
+    "tier": "core",
+    "expiration": "0001-01-01T00:00:00Z"
+  },
+  "agent_options": {
+    "spec": {
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
+        },
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {}
+    }
+  },
+  "vulnerability_settings": null,
+  "logging": {
+      "debug": false,
+      "json": false,
+      "result": {
+          "plugin": "firehose",
+          "config": {
+              "region": "us-east-1",
+              "status_stream": "",
+              "result_stream": "result-topic"
+          }
+      },
+      "status": {
+          "plugin": "filesystem",
+          "config": {
+              "status_log_file": "foo_status",
+              "result_log_file": "",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+          }
+      }
   }
 }
 ```
