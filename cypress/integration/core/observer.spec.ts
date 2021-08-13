@@ -78,5 +78,13 @@ describe("Core tier - Observer user", () => {
     cy.findByText(/show sql/i).click();
     cy.get(".target-select").should("not.exist");
     cy.findByRole("button", { name: /run/i }).should("not.exist");
+
+    // On the Profile page, they should…
+    // See Observer in Role section, and no Team section
+    cy.visit("/profile");
+    cy.findByText(/teams/i).should("not.exist");
+    cy.findByText("Role")
+      .next()
+      .contains(/observer/i);
   });
 });

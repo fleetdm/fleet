@@ -122,5 +122,13 @@ describe("Core tier - Maintainer user", () => {
 
     // Schedule page: Can create, edit, remove a schedule
     // TODO: Copy flow from queryflow.spec.ts here to ensure maintainers have access
+
+    // On the Profile page, they should…
+    // See Maintainer in Role section, and no Team section
+    cy.visit("/profile");
+    cy.findByText(/teams/i).should("not.exist");
+    cy.findByText("Role")
+      .next()
+      .contains(/maintainer/i);
   });
 });

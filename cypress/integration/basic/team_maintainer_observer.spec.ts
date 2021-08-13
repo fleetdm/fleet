@@ -186,5 +186,15 @@ describe("Basic tier - Team observer/maintainer user", () => {
           // ^^TODO modify for expected host count once hosts are seeded
         });
     });
+
+    // On the Profile page, they should…
+    // See 2 Teams in the Team section and Various in the Role section
+    cy.visit("/profile");
+    cy.findByText("Teams")
+      .next()
+      .contains(/2 teams/i);
+    cy.findByText("Role")
+      .next()
+      .contains(/various/i);
   });
 });

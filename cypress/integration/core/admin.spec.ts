@@ -112,5 +112,11 @@ describe("Core tier - Admin user", () => {
     cy.findByText(/team/i).should("not.exist");
     cy.visit("/settings/teams");
     cy.findByText(/you do not have permissions/i).should("exist");
+
+    // On the Profile page, they should…
+    // See Admin in Role section, and no Team section
+    cy.visit("/profile");
+    cy.findByText(/teams/i).should("not.exist");
+    cy.findByText("Role").next().contains(/admin/i);
   });
 });

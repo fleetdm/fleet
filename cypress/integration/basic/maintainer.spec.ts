@@ -74,5 +74,15 @@ describe("Basic tier - Maintainer user", () => {
     // On the Packs pages (manage, new, and edit), they should…
     // On the Schedule pages (manage, new, and edit), they should…
     // ^^General maintainer functionality for packs page is being tested in core/maintainer.spec.ts
+
+    // On the Profile page, they should…
+    // See Global in the Team section and Maintainer in the Role section
+    cy.visit("/profile");
+    cy.findByText(/team/i)
+      .next()
+      .contains(/global/i);
+    cy.findByText("Role")
+      .next()
+      .contains(/maintainer/i);
   });
 });
