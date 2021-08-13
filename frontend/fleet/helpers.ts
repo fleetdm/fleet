@@ -2,12 +2,11 @@ import { flatMap, omit, pick, size } from "lodash";
 import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
+import stringUtils from "utilities/strings";
+import { ITeam } from "interfaces/team";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
-import stringUtils from "utilities/strings";
-
-import { ITeam } from "interfaces/team";
 
 export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
