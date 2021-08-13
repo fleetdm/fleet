@@ -23,7 +23,7 @@ export default {
   FLEET_403: `${URL_PREFIX}/403`,
   FLEET_500: `${URL_PREFIX}/500`,
   LOGIN: `${URL_PREFIX}/login`,
-  HOMEPAGE: `${URL_PREFIX}/home/dashboard`,
+  HOMEPAGE: `${URL_PREFIX}/home`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
   HOST_DETAILS: (host: IHost): string => {

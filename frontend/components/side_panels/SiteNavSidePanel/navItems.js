@@ -21,7 +21,7 @@ export default (currentUser) => {
       name: "Home",
       iconName: "logo",
       location: {
-        regex: new RegExp(`^${URL_PREFIX}/home/dashboard`),
+        regex: new RegExp(`^${URL_PREFIX}/home`),
         pathname: PATHS.HOMEPAGE,
       },
     },
