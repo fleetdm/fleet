@@ -13,10 +13,24 @@
 
       .fleeticon-chevronleft {
         margin-right: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
       }
 
       .fleeticon-chevronright {
         margin-left: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
       }
     }
 

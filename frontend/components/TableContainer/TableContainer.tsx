@@ -53,6 +53,7 @@ interface ITableContainerProps {
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
+  customControl?: () => JSX.Element;
 }
 
 const baseClass = "table-container";
@@ -91,6 +92,7 @@ const TableContainer = ({
   primarySelectActionButtonText,
   onPrimarySelectActionClick,
   secondarySelectActions,
+  customControl,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -227,6 +229,7 @@ const TableContainer = ({
               </>
             </Button>
           )}
+          {customControl && customControl()}
           {/* Render search bar only if not empty component */}
           {searchable && !wideSearch && (
             <div className={`${baseClass}__search-input`}>
@@ -244,7 +247,21 @@ const TableContainer = ({
       <div className={`${baseClass}__data-table-container`}>
         {/* No entities for this result. */}
         {!isLoading && data.length === 0 ? (
-          <EmptyComponent />
+          <>
+            <EmptyComponent pageIndex={pageIndex} />
+            {pageIndex !== 0 && (
+              <div className={`${baseClass}__empty-page`}>
+                <div className={`${baseClass}__previous`}>
+                  <Pagination
+                    resultsOnCurrentPage={data.length}
+                    currentPage={pageIndex}
+                    resultsPerPage={pageSize}
+                    onPaginationChange={onPaginationChange}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <>
             <DataTable

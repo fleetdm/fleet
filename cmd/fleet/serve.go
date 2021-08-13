@@ -426,12 +426,18 @@ func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) 
 	if err != nil {
 		return err
 	}
-	req, err := http.Post(url, "application/json", bytes.NewBuffer(statsBytes))
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(statsBytes))
 	if err != nil {
 		return err
 	}
-	if req.StatusCode != http.StatusOK {
-		return errors.Errorf("Error posting to %s: %d", url, req.StatusCode)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("Error posting to %s: %d", url, resp.StatusCode)
 	}
 	return ds.RecordStatisticsSent()
 }
@@ -518,7 +524,7 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			continue
 		}
 
-		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath)
+		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath, logger)
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 		}

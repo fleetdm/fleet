@@ -14,4 +14,5 @@ export default new Config({
   parseEntityFunc: formatPackForClient,
   schema,
   updateFunc: Fleet.packs.update,
+  updateParamsFunc: Fleet.packs.updateParams,
 });

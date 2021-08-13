@@ -37,7 +37,7 @@ class Pagination extends PureComponent {
           disabled={this.disablePrev()}
           onClick={() => onPaginationChange(currentPage - 1)}
         >
-          <FleetIcon name="chevronleft" /> Prev
+          <FleetIcon name="chevronleft" /> Previous
         </Button>
         <Button
           variant="unstyled"

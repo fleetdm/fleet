@@ -186,6 +186,12 @@ type AppConfig struct {
 
 	// VulnerabilityDatabases path
 	VulnerabilityDatabasesPath *string `db:"vulnerability_databases_path"`
+
+	// EnableHostUsers indicates whether the users of each host will be queried and stored
+	EnableHostUsers bool `db:"enable_host_users" json:"enable_host_users"`
+
+	// EnableSoftwareInventory indicates whether fleet will request for software from hosts or not
+	EnableSoftwareInventory bool `db:"enable_software_inventory" json:"enable_software_inventory"`
 }
 
 func (c AppConfig) AuthzType() string {
@@ -309,7 +315,9 @@ type HostExpirySettings struct {
 }
 
 type HostSettings struct {
-	AdditionalQueries *json.RawMessage `json:"additional_queries"`
+	EnableHostUsers         *bool            `json:"enable_host_users"`
+	EnableSoftwareInventory *bool            `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
 }
 
 type OrderDirection int
@@ -398,7 +406,7 @@ type Logging struct {
 }
 
 type LoggingPlugin struct {
-	Plugin string `json:"plugin"`
+	Plugin string      `json:"plugin"`
 	Config interface{} `json:"config"`
 }
 
@@ -430,5 +438,3 @@ type LambdaConfig struct {
 	StatusFunction string `json:"status_function"`
 	ResultFunction string `json:"result_function"`
 }
-
-

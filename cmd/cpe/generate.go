@@ -61,6 +61,7 @@ func main() {
 	panicif(err)
 
 	db, err := os.Open(dbPath)
+	panicif(err)
 	w := gzip.NewWriter(compressedDB)
 
 	_, err = io.Copy(w, db)

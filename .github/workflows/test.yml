@@ -174,7 +174,7 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        MYSQL_TEST=1 REDIS_TEST=1 make test-go
+        MYSQL_TEST=1 make test-go
 
 
   lint-go:

@@ -125,46 +125,55 @@ func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) err
 // connection over the provided channel. This effectively allows a select
 // statement to run on conn.Receive() (by running on the channel that is being
 // fed by this function)
-func receiveMessages(conn *redis.PubSubConn, outChan chan<- interface{}) {
+func receiveMessages(ctx context.Context, pool *redisc.Cluster, query fleet.DistributedQueryCampaign, outChan chan<- interface{}) {
+	conn := redis.PubSubConn{Conn: pool.Get()}
+	defer conn.Close()
+
+	pubSubName := pubSubForID(query.ID)
+	err := conn.Subscribe(pubSubName)
+	if err != nil {
+		outChan <- errors.Wrap(err, "subscribe to channel")
+	}
+	defer conn.Unsubscribe(pubSubName)
+
 	defer func() {
 		close(outChan)
 	}()
 
 	for {
 		msg := conn.Receive()
-		outChan <- msg
-		switch msg := msg.(type) {
-		case error:
-			// If an error occurred (i.e. connection was closed),
-			// then we should exit
-			return
-		case redis.Subscription:
-			// If the subscription count is 0, the ReadChannel call
-			// that invoked this goroutine has unsubscribed, and we
-			// can exit
-			if msg.Count == 0 {
+		select {
+		case outChan <- msg:
+			switch msg := msg.(type) {
+			case error:
+				// If an error occurred (i.e. connection was closed),
+				// then we should exit
 				return
+			case redis.Subscription:
+				// If the subscription count is 0, the ReadChannel call
+				// that invoked this goroutine has unsubscribed, and we
+				// can exit
+				if msg.Count == 0 {
+					return
+				}
 			}
+		case <-ctx.Done():
+			conn.Unsubscribe(pubSubName)
+			return
 		}
 	}
 }
 
 func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan interface{}, error) {
 	outChannel := make(chan interface{})
-
-	conn := redis.PubSubConn{Conn: r.pool.Get()}
-
-	pubSubName := pubSubForID(query.ID)
-	conn.Subscribe(pubSubName)
-
 	msgChannel := make(chan interface{})
+
 	// Run a separate goroutine feeding redis messages into
 	// msgChannel
-	go receiveMessages(&conn, msgChannel)
+	go receiveMessages(ctx, r.pool, query, msgChannel)
 
 	go func() {
 		defer close(outChannel)
-		defer conn.Close()
 
 		for {
 			// Loop reading messages from conn.Receive() (via
@@ -185,13 +194,11 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 				case error:
 					outChannel <- errors.Wrap(msg, "reading from redis")
 				}
-
 			case <-ctx.Done():
-				conn.Unsubscribe()
-
+				return
 			}
-		}
 
+		}
 	}()
 	return outChannel, nil
 }

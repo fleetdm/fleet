@@ -27,7 +27,7 @@ type PackStore interface {
 	Pack(pid uint) (*Pack, error)
 
 	// ListPacks lists all packs in the datastore.
-	ListPacks(opt ListOptions) ([]*Pack, error)
+	ListPacks(opt PackListOptions) ([]*Pack, error)
 
 	// PackByName fetches pack if it exists, if the pack
 	// exists the bool return value is true
@@ -47,7 +47,7 @@ type PackStore interface {
 type PackService interface {
 	// ApplyPackSpecs applies a list of PackSpecs to the datastore,
 	// creating and updating packs as necessary.
-	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) error
+	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) ([]*PackSpec, error)
 	// GetPackSpecs returns all of the stored PackSpecs.
 	GetPackSpecs(ctx context.Context) ([]*PackSpec, error)
 	// GetPackSpec gets the spec for the pack with the given name.
@@ -60,7 +60,7 @@ type PackService interface {
 	ModifyPack(ctx context.Context, id uint, p PackPayload) (pack *Pack, err error)
 
 	// ListPacks lists all packs in the application.
-	ListPacks(ctx context.Context, opt ListOptions) (packs []*Pack, err error)
+	ListPacks(ctx context.Context, opt PackListOptions) (packs []*Pack, err error)
 
 	// GetPack retrieves a pack by ID.
 	GetPack(ctx context.Context, id uint) (pack *Pack, err error)
@@ -75,6 +75,13 @@ type PackService interface {
 	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
 }
 
+type PackListOptions struct {
+	ListOptions
+
+	// IncludeSystemPacks will include Global & Team Packs while listing packs
+	IncludeSystemPacks bool
+}
+
 // Pack is the structure which represents an osquery query pack.
 type Pack struct {
 	UpdateCreateTimestamps
@@ -87,6 +94,12 @@ type Pack struct {
 	LabelIDs    []uint  `json:"label_ids"`
 	HostIDs     []uint  `json:"host_ids"`
 	TeamIDs     []uint  `json:"team_ids"`
+}
+
+// EditablePackType only returns true when the pack doesn't have a specific Type set, only nil & empty string Pack.Type
+// is editable https://github.com/fleetdm/fleet/issues/1485
+func (p *Pack) EditablePackType() bool {
+	return p != nil && (p.Type == nil || (p.Type != nil && *p.Type == ""))
 }
 
 func (p Pack) AuthzType() string {

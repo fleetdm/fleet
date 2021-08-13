@@ -20,7 +20,7 @@ type DeletePackFunc func(name string) error
 
 type PackFunc func(pid uint) (*fleet.Pack, error)
 
-type ListPacksFunc func(opt fleet.ListOptions) ([]*fleet.Pack, error)
+type ListPacksFunc func(opt fleet.PackListOptions) ([]*fleet.Pack, error)
 
 type PackByNameFunc func(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error)
 
@@ -68,16 +68,6 @@ type PackStore struct {
 	EnsureTeamPackFuncInvoked bool
 }
 
-func (s *PackStore) EnsureGlobalPack() (*fleet.Pack, error) {
-	s.EnsureGlobalPackFuncInvoked = true
-	return s.EnsureGlobalPackFunc()
-}
-
-func (s *PackStore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
-	s.EnsureTeamPackFuncInvoked = true
-	return s.EnsureTeamPackFunc(teamID)
-}
-
 func (s *PackStore) ApplyPackSpecs(specs []*fleet.PackSpec) error {
 	s.ApplyPackSpecsFuncInvoked = true
 	return s.ApplyPackSpecsFunc(specs)
@@ -113,7 +103,7 @@ func (s *PackStore) Pack(pid uint) (*fleet.Pack, error) {
 	return s.PackFunc(pid)
 }
 
-func (s *PackStore) ListPacks(opt fleet.ListOptions) ([]*fleet.Pack, error) {
+func (s *PackStore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 	s.ListPacksFuncInvoked = true
 	return s.ListPacksFunc(opt)
 }
@@ -126,4 +116,14 @@ func (s *PackStore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.P
 func (s *PackStore) ListPacksForHost(hid uint) (packs []*fleet.Pack, err error) {
 	s.ListPacksForHostFuncInvoked = true
 	return s.ListPacksForHostFunc(hid)
+}
+
+func (s *PackStore) EnsureGlobalPack() (*fleet.Pack, error) {
+	s.EnsureGlobalPackFuncInvoked = true
+	return s.EnsureGlobalPackFunc()
+}
+
+func (s *PackStore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
+	s.EnsureTeamPackFuncInvoked = true
+	return s.EnsureTeamPackFunc(teamID)
 }

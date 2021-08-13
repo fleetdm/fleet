@@ -211,14 +211,28 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 		selectFunc = tx.Select
 	}
 	sql := `
-		SELECT * FROM software
-		WHERE id IN
+		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe, 
+			IF(
+				JSON_ARRAYAGG(scv.cve) = JSON_ARRAYAGG(null), 
+				null, 
+				JSON_ARRAYAGG(
+					JSON_OBJECT(
+						"cve", scv.cve, 
+						"details_link", CONCAT('https://nvd.nist.gov/vuln/detail/', scv.cve)
+					)
+				)
+			) as vulnerabilities FROM software s
+		LEFT JOIN software_cpe scp ON (s.id=scp.software_id)
+		LEFT JOIN software_cve scv ON (scp.id=scv.cpe_id)
+		WHERE s.id IN
 			(SELECT software_id FROM host_software WHERE host_id = ?)
+		group by s.id, s.name, s.version, s.source, generated_cpe
 	`
 	var result []fleet.Software
 	if err := selectFunc(&result, sql, id); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
+
 	return result, nil
 }
 
@@ -277,7 +291,7 @@ func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error
 func (d *Datastore) AllCPEs() ([]string, error) {
 	sql := `SELECT cpe FROM software_cpe`
 	var cpes []string
-	err := d.db.Select(cpes, sql)
+	err := d.db.Select(&cpes, sql)
 	if err != nil {
 		return nil, errors.Wrap(err, "loads cpes")
 	}

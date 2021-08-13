@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -252,6 +253,7 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
   host_settings:
     additional_queries:
       time: SELECT * FROM time
+    enable_host_users: true
 `)
 	applyConfig(t, spec, server, token)
 
@@ -260,11 +262,12 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
     host_expiry_enabled: false
     host_expiry_window: 0
   host_settings:
+    enable_host_users: true
 `)
 	applyConfig(t, spec, server, token)
 
 	config := getConfig(t, server, token)
-	assert.Nil(t, config.HostSettings)
+	assert.Nil(t, config.HostSettings.AdditionalQueries)
 }
 
 func TestAppConfigHasLogging(t *testing.T) {
@@ -591,4 +594,70 @@ func TestLogger(t *testing.T) {
 			t.Fail()
 		}
 	}
+}
+
+func TestVulnerableSoftware(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "apps"},
+		},
+	}
+	host.HostSoftware = soft
+	require.NoError(t, ds.SaveHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	soft1 := host.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = host.Software[1]
+	}
+
+	require.NoError(t, ds.AddCPEForSoftware(soft1, "somecpe"))
+	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
+
+	path := fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID)
+	resp := doReq(t, nil, "GET", server, path, token, http.StatusOK)
+	defer resp.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	expectedJSONSoft2 := `"name": "bar",
+        "version": "0.0.3",
+        "source": "apps",
+        "generated_cpe": "somecpe",
+        "vulnerabilities": [
+          {
+            "cve": "cve-123-123-132",
+            "details_link": "https://nvd.nist.gov/vuln/detail/cve-123-123-132"
+          }
+        ]`
+	expectedJSONSoft1 := `"name": "foo",
+        "version": "0.0.1",
+        "source": "chrome_extensions",
+        "generated_cpe": "",
+        "vulnerabilities": null`
+	// We are doing Contains instead of equals to test the output for software in particular
+	// ignoring other things like timestamps and things that are outside the cope of this ticket
+	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
+	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 }

@@ -28,7 +28,7 @@ describe("Label flow", () => {
 
     cy.findByText(/show all users/i).click();
 
-    cy.contains("button", /edit/i).click();
+    cy.get(".manage-hosts__label-block button").first().click();
 
     // Label SQL not editable to test
 
@@ -40,16 +40,16 @@ describe("Label flow", () => {
       .click()
       .type("{selectall}{backspace}Select all usernames on Mac.");
 
-    cy.findByText(/select one/i).click();
+    cy.findByText(/select one/i).should("not.exist");
 
-    cy.findAllByText(/macos/i).click();
+    cy.findByText(/label platforms are immutable/i).should("exist");
 
     cy.findByRole("button", { name: /update label/i }).click();
 
     // Close success notification
     cy.get(".flash-message__remove").click();
 
-    cy.findByRole("button", { name: /delete/i }).click();
+    cy.get(".manage-hosts__label-block button").last().click();
 
     // Can't figure out how attach findByRole onto modal button
     // Can't use findByText because delete button under modal

@@ -1,11 +1,11 @@
 package update
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,14 +13,13 @@ import (
 func TestInitializeDirectories(t *testing.T) {
 	t.Parallel()
 
-	tmpDir, err := ioutil.TempDir("", "orbit-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chmod(tmpDir, constant.DefaultDirMode))
 
 	opt := DefaultOptions
 	opt.RootDirectory = tmpDir
 	updater := Updater{opt: opt}
-	err = updater.initializeDirectories()
+	err := updater.initializeDirectories()
 	require.NoError(t, err)
 	assertDir(t, filepath.Join(tmpDir, binDir))
 }

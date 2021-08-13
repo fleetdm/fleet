@@ -106,17 +106,13 @@ describe("Core tier - Maintainer user", () => {
 
     cy.visit("/packs/manage");
 
-    cy.findByText(/errors and crashes/i).click();
-
-    cy.findByRole("link", { name: /edit pack/i }).should("exist");
-
-    cy.get("#select-pack-1").check({ force: true });
+    cy.get(".fleet-checkbox__input").check({ force: true });
 
     cy.findByRole("button", { name: /delete/i }).click();
 
     // Can't figure out how attach findByRole onto modal button
     // Can't use findByText because delete button under modal
-    cy.get(".all-packs-page__modal-btn-wrap > .button--alert")
+    cy.get(".remove-pack-modal__btn-wrap > .button--alert")
       .contains("button", /delete/i)
       .click();
 

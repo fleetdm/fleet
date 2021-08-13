@@ -17,17 +17,16 @@ builds:
     dir: ./cmd/fleet/
     binary: fleet
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
-      - darwin
       - linux
-      - windows
     goarch:
       - amd64
     flags:
-      - -tags=full
+      - -tags=full,fts5
       - -trimpath
     ldflags:
+      - -extldflags "-static"
       - -X github.com/kolide/kit/version.appName={{ .ArtifactName }}
       - -X github.com/kolide/kit/version.version={{ .Version }}
       - -X github.com/kolide/kit/version.branch={{ .Branch }}
@@ -60,7 +59,6 @@ archives:
   - id: fleet
     builds:
       - fleet
-      - fleetctl
     name_template: fleet_v{{.Version}}_{{.Os}}
     replacements:
       darwin: macos
