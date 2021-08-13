@@ -3,9 +3,13 @@ import { ITeam } from "interfaces/team";
 
 export const adminUserStub = {
   id: 1,
-  admin: true,
   email: "hi@gnar.dog",
+  force_password_reset: false,
+  api_only: false,
+  global_role: "admin",
+  gravatar_url: "https://image.com",
   name: "Gnar Mike",
+  sso_enabled: false,
 };
 
 export const configStub = {
@@ -196,12 +200,12 @@ export const userTeamStub: ITeam = {
 
 export const userStub: IUser = {
   id: 1,
-  email: "hi@gnar.dog",
-  force_password_reset: false,
-  api_only: false,
-  global_role: "admin",
-  gravatar_url: "https://image.com",
   name: "Gnar Mike",
+  email: "hi@gnar.dog",
+  global_role: "maintainer",
+  api_only: false,
+  force_password_reset: false,
+  gravatar_url: "https://image.com",
   sso_enabled: false,
   teams: [{ ...userTeamStub }],
 };

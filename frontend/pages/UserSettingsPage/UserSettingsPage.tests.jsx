@@ -6,7 +6,7 @@ import ConnectedPage, {
   UserSettingsPage,
 } from "pages/UserSettingsPage/UserSettingsPage";
 import testHelpers from "test/helpers";
-import { userStub, configStub } from "test/stubs";
+import { userStub, configStub, adminUserStub } from "test/stubs";
 import * as authActions from "redux/nodes/auth/actions";
 
 const { connectedComponent, fillInFormInput, reduxMockStore } = testHelpers;
@@ -27,20 +27,19 @@ describe("UserSettingsPage - component", () => {
   });
 
   it("contains expected text", () => {
-    const admin = { ...userStub, admin: true };
     const pageWithUser = mount(
       <UserSettingsPage dispatch={noop} user={userStub} config={configStub} />
     );
     const pageWithAdmin = mount(
-      <UserSettingsPage dispatch={noop} user={admin} config={configStub} />
+      <UserSettingsPage
+        dispatch={noop}
+        user={adminUserStub}
+        config={configStub}
+      />
     );
 
-    expect(pageWithUser.find(".user-settings__role").text()).toContain("User");
-    expect(pageWithUser.find(".user-settings__role").text()).not.toContain(
-      "Admin"
-    );
-    expect(pageWithAdmin.find(".user-settings__role").text()).not.toContain(
-      "User"
+    expect(pageWithUser.find(".user-settings__role").text()).toContain(
+      "Maintainer"
     );
     expect(pageWithAdmin.find(".user-settings__role").text()).toContain(
       "Admin"
