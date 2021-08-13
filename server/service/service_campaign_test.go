@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query"
@@ -24,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestService_StreamCampaignResults(t *testing.T) {
+func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	store, teardown := pubsub.SetupRedisForTest(t)
 	defer teardown()
 
@@ -73,9 +72,6 @@ func TestService_StreamCampaignResults(t *testing.T) {
 	}
 
 	host := &fleet.Host{ID: 1, Platform: "windows"}
-	hostCtx := hostctx.NewContext(context.Background(), *host)
-
-	_ = hostCtx
 
 	lq.On("QueriesForHost", uint(1)).Return(
 		map[string]string{
