@@ -10,6 +10,7 @@ export const adminUserStub = {
   gravatar_url: "https://image.com",
   name: "Gnar Mike",
   sso_enabled: false,
+  teams: [],
 };
 
 export const configStub = {
@@ -202,7 +203,7 @@ export const userStub: IUser = {
   id: 1,
   name: "Gnar Mike",
   email: "hi@gnar.dog",
-  global_role: "maintainer",
+  global_role: null,
   api_only: false,
   force_password_reset: false,
   gravatar_url: "https://image.com",

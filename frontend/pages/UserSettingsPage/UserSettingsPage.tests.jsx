@@ -39,7 +39,7 @@ describe("UserSettingsPage - component", () => {
     );
 
     expect(pageWithUser.find(".user-settings__role").text()).toContain(
-      "Maintainer"
+      "Observer"
     );
     expect(pageWithAdmin.find(".user-settings__role").text()).toContain(
       "Admin"
