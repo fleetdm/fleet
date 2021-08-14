@@ -3,6 +3,7 @@ package main
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -18,16 +19,17 @@ func TestConvertFileOutput(t *testing.T) {
 	app.Setup()
 
 	// read the expected output file
-	expected, err := ioutil.ReadFile("testdata/convert_output.yml")
+	expected, err := ioutil.ReadFile(filepath.Join("testdata", "convert_output.yml"))
 	require.NoError(t, err)
 
 	// setup a file for the convert command to write to
-	file, err := ioutil.TempFile(os.TempDir(), "convert_output.yml")
+	file, err := ioutil.TempFile(t.TempDir(), "convert_output.yml")
+	defer file.Close()
 	require.NoError(t, err)
 
 	// get the program name
 	args := os.Args[0:1]
-	args = append(args, []string{"convert", "-f", "testdata/convert_input.conf", "-o", file.Name()}...)
+	args = append(args, []string{"convert", "-f", filepath.Join("testdata", "convert_input.conf"), "-o", file.Name()}...)
 	err = app.Run(args)
 	require.NoError(t, err)
 
@@ -49,12 +51,12 @@ func TestConvertFileStdout(t *testing.T) {
 	app.Setup()
 
 	// read the expected output file
-	expected, err := ioutil.ReadFile("testdata/convert_output.yml")
+	expected, err := ioutil.ReadFile(filepath.Join("testdata", "convert_output.yml"))
 	require.NoError(t, err)
 
 	// get the program name
 	args := os.Args[0:1]
-	args = append(args, []string{"convert", "-f", "testdata/convert_input.conf"}...)
+	args = append(args, []string{"convert", "-f", filepath.Join("testdata", "convert_input.conf")}...)
 	err = app.Run(args)
 	require.NoError(t, err)
 
