@@ -10,6 +10,7 @@ import (
 )
 
 func TestConvertFileOutput(t *testing.T) {
+t.Parallel()
 	// setup the cli and the convert command
 	app := cli.NewApp()
 	app.Commands = []*cli.Command{convertCommand()}
