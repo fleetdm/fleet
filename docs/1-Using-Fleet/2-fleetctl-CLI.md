@@ -158,6 +158,7 @@ Check out the [configuration files](./configuration-files/README.md) section of 
 `fleetctl` includes easy tooling to convert osquery pack JSON into the
 `fleetctl` format. Use `fleetctl convert` with a path to the pack file:
 
+You can optionally supply `-o file_name` to output to a file destination.
 ```
 fleetctl convert -f test.json
 ---

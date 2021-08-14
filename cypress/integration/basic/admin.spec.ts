@@ -14,7 +14,7 @@ describe("Basic tier - Admin user", () => {
 
   it("Can perform the appropriate basic-tier admin actions", () => {
     cy.login("anna@organization.com", "user123#");
-    cy.visit("/");
+    cy.visit("/hosts/manage");
 
     // Ensure the hosts page is loaded
     cy.contains("All hosts");

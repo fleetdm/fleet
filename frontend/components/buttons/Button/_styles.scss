@@ -102,6 +102,7 @@ $base-class: "button";
     font-size: $xx-small;
     padding: $pad-xsmall 10px;
     height: 24px;
+    white-space: nowrap;
 
     &:active {
       box-shadow: inset 2px 2px 2px rgba(0, 0, 0, 0.25);
