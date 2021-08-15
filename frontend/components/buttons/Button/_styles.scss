@@ -162,7 +162,7 @@ $base-class: "button";
     }
 
     &:active {
-      box-shadow: none;
+      color: $core-vibrant-blue-down;
     }
 
     &:focus {
@@ -170,9 +170,7 @@ $base-class: "button";
     }
 
     &:hover {
-      background-color: transparent;
-      box-shadow: none;
-      text-decoration: underline;
+      color: $core-vibrant-blue-over;
     }
   }
 
