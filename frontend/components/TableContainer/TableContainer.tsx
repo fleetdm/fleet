@@ -219,13 +219,13 @@ const TableContainer = ({
               className={`${baseClass}__table-action-button`}
             >
               <>
+                {actionButtonText}
                 {actionButtonIcon && (
                   <img
                     src={actionButtonIcon}
                     alt={`${actionButtonText} icon`}
                   />
                 )}
-                {actionButtonText}
               </>
             </Button>
           )}

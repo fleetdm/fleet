@@ -149,17 +149,16 @@ $base-class: "button";
 
   &--text-icon {
     @include button-variant(transparent);
+    padding: 0;
     border: 0;
     box-shadow: none;
-    color: $core-fleet-black;
+    color: $core-vibrant-blue;
     font-size: $x-small;
-    font-weight: $regular;
+    font-weight: $bold;
     cursor: pointer;
 
     img {
-      height: 14px;
-      width: 14px;
-      margin-right: $pad-small;
+      transform: scale(0.5);
     }
 
     &:active {
