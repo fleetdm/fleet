@@ -86,7 +86,7 @@ class SiteNavSidePanel extends Component {
           onClick={onNavItemClick(navItem.location.pathname)}
         >
           {icon}
-          <span className={`${navItemBaseClass}__name`}>{name}</span>
+          <span className={`${navItemBaseClass}__name`} data-text={navItem.name}>{name}</span>
         </a>
       </li>
     );
