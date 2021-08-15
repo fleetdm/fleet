@@ -14,7 +14,7 @@ import QueriesIcon from "../../../../assets/images/icon-main-queries@2x-16x16@2x
 import PacksIcon from "../../../../assets/images/icon-main-packs@2x-16x16@2x.png";
 import AdminIcon from "../../../../assets/images/icon-main-settings@2x-16x16@2x.png";
 
-class SiteNavSidePanel extends Component {
+class SiteTopNav extends Component {
   static propTypes = {
     onLogoutUser: PropTypes.func,
     onNavItemClick: PropTypes.func,
@@ -86,7 +86,12 @@ class SiteNavSidePanel extends Component {
           onClick={onNavItemClick(navItem.location.pathname)}
         >
           {icon}
-          <span className={`${navItemBaseClass}__name`} data-text={navItem.name}>{name}</span>
+          <span
+            className={`${navItemBaseClass}__name`}
+            data-text={navItem.name}
+          >
+            {name}
+          </span>
         </a>
       </li>
     );
@@ -119,4 +124,4 @@ class SiteNavSidePanel extends Component {
   }
 }
 
-export default SiteNavSidePanel;
+export default SiteTopNav;
