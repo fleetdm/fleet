@@ -55,6 +55,9 @@ export default (client: any) => {
         const sortItem = sortBy[0];
         orderKeyParam += `&order_key=${sortItem.id}`;
         orderDirection = `&order_direction=${sortItem.direction}`;
+      } else {
+        orderKeyParam += `&order_key=hostname`;
+        orderDirection = `&order_direction=asc`;
       }
 
       let searchQuery = "";
