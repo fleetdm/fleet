@@ -115,7 +115,6 @@ export class ManageHostsPage extends PureComponent {
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
     isOnGlobalTeam: PropTypes.bool,
-    isBasicTier: PropTypes.bool,
     currentUser: userInterface,
   };
 
@@ -147,24 +146,49 @@ export class ManageHostsPage extends PureComponent {
       isAllMatchingHostsSelected: false,
       searchQuery: "",
       hosts: [],
-      isHostsLoading: false,
-      isTeamsLoading: true,
+      isHostsLoading: true,
       sortBy: [],
+      isConfigLoaded: null,
+      isTeamsLoaded: null,
+      isBasicTier: null,
     };
   }
 
   componentDidMount() {
-    const { dispatch, isBasicTier } = this.props;
+    const { dispatch } = this.props;
     dispatch(getLabels());
-    if (isBasicTier) {
-      dispatch(teamActions.loadAll({}));
-    }
   }
 
-  componentDidUpdate(prevProps) {
-    const { dispatch, isBasicTier } = this.props;
-    if (isBasicTier !== prevProps.isBasicTier && isBasicTier) {
-      dispatch(teamActions.loadAll({}));
+  componentWillReceiveProps() {
+    const { config, dispatch } = this.props;
+    const { isConfigLoaded } = this.state;
+
+    if (!isConfigLoaded && !isEmpty(config)) {
+      const isBasicTier = permissionUtils.isBasicTier(config);
+
+      if (isBasicTier) {
+        dispatch(teamActions.loadAll({}))
+          .then(() => {
+            this.setState({
+              isBasicTier,
+              isTeamsLoaded: true,
+            });
+          })
+          .catch((error) => {
+            renderFlash(
+              "error",
+              "An error occured loading teams. Please try again."
+            );
+            console.log(error);
+            this.setState({
+              isBasicTier,
+              isTeamsLoaded: false,
+            });
+          });
+      } else {
+        this.setState({ isBasicTier });
+      }
+      this.setState({ isConfigLoaded: true });
     }
   }
 
@@ -337,7 +361,12 @@ export class ManageHostsPage extends PureComponent {
       getStatusSelected,
       retrieveHosts,
     } = this;
-    const { dispatch, selectedFilters, selectedLabel } = this.props;
+    const {
+      dispatch,
+      selectedFilters,
+      selectedLabel,
+      selectedTeam: selectedTeamFilter,
+    } = this.props;
     const {
       selectedHostIds,
       isAllMatchingHostsSelected,
@@ -376,6 +405,7 @@ export class ManageHostsPage extends PureComponent {
           selectedLabels: selectedFilters,
           globalFilter: searchQuery,
           sortBy,
+          teamId: selectedTeamFilter,
         });
       })
       .catch(() => {
@@ -449,6 +479,28 @@ export class ManageHostsPage extends PureComponent {
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
 
+  getValidatedTeamId = (teamId) => {
+    const { currentUser, isOnGlobalTeam, teams } = this.props;
+
+    teamId = parseInt(teamId, 10);
+
+    let currentUserTeams = [];
+    if (isOnGlobalTeam) {
+      currentUserTeams = teams;
+    } else if (currentUser && currentUser.teams) {
+      currentUserTeams = currentUser.teams;
+    }
+
+    const currentUserTeamIds = currentUserTeams.map((t) => t.id);
+
+    const validatedTeamId =
+      !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
+        ? teamId
+        : 0;
+
+    return validatedTeamId;
+  };
+
   generateTeamFilterDropdownOptions = (teams) => {
     const { currentUser, isOnGlobalTeam } = this.props;
 
@@ -491,9 +543,16 @@ export class ManageHostsPage extends PureComponent {
     return allTeamsOption.concat(sortedCurrentUserTeamOptions);
   };
 
-  retrieveHosts = async (options) => {
+  retrieveHosts = async (options = {}) => {
     const { dispatch } = this.props;
+    const { getValidatedTeamId } = this;
+
     this.setState({ isHostsLoading: true });
+
+    options = {
+      ...options,
+      team_id: getValidatedTeamId(options.teamId),
+    };
 
     try {
       const { hosts } = await hostClient.loadAll(options);
@@ -515,23 +574,6 @@ export class ManageHostsPage extends PureComponent {
       filter === "offline" ||
       filter === "mia"
     );
-  };
-
-  isValidSelectedTeamId = (teamId) => {
-    const { currentUser, isOnGlobalTeam, teams } = this.props;
-
-    let currentUserTeams = [];
-    if (isOnGlobalTeam) {
-      currentUserTeams = teams;
-    } else if (currentUser && currentUser.teams) {
-      currentUserTeams = currentUser.teams;
-    }
-
-    const currentUserTeamIds = currentUserTeams.map((t) => t.id);
-
-    teamId = parseInt(teamId, 10);
-
-    return !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId);
   };
 
   clearHostUpdates = () => {
@@ -569,44 +611,42 @@ export class ManageHostsPage extends PureComponent {
   };
 
   // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
+  // TODO confirm that sort order, pagination work as expected
   handleChangeSelectedTeamFilter = (selectedTeam) => {
     const { dispatch, selectedFilters } = this.props;
     const { searchQuery } = this.state;
-    const { getNextLocationUrl, isValidSelectedTeamId, retrieveHosts } = this;
+    const { getNextLocationUrl, getValidatedTeamId, retrieveHosts } = this;
     const { MANAGE_HOSTS } = PATHS;
 
-    let selectedTeamId = parseInt(selectedTeam, 10);
-    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
+    const teamIdParam = getValidatedTeamId(selectedTeam);
+
+    const hostsOptions = {
+      teamId: teamIdParam,
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+    };
+    retrieveHosts(hostsOptions);
 
     let nextLocation = getNextLocationUrl(
       MANAGE_HOSTS,
       "",
       {},
-      { team_id: selectedTeamId }
+      { team_id: teamIdParam } // getNextLocationUrl will use this to overwrite prior team_id value;
     );
 
-    if (!selectedTeamId) {
-      nextLocation = nextLocation.replace(`team_id=${selectedTeamId}`, "");
+    if (!teamIdParam) {
+      nextLocation = nextLocation.replace(`team_id=${teamIdParam}`, ""); // Remove query param for falsey values 
     }
-
-    // TODO confirm that sort order, pagination work as expected
-    retrieveHosts({
-      teamId: selectedTeam,
-      selectedLabels: selectedFilters,
-      globalFilter: searchQuery,
-    });
     dispatch(push(nextLocation));
   };
 
   handleLabelChange = ({ slug, type }) => {
     const { dispatch, selectedFilters, selectedTeam } = this.props;
-    const { isValidSelectedTeamId } = this;
+    const { getValidatedTeamId } = this;
     const { MANAGE_HOSTS } = PATHS;
     const isAllHosts = slug === ALL_HOSTS_LABEL;
     const newFilters = [...selectedFilters];
 
-    let selectedTeamId = parseInt(selectedTeam, 10);
-    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
 
     if (!isAllHosts) {
       // always remove "all-hosts" from the filters first because we don't want
@@ -633,8 +673,9 @@ export class ManageHostsPage extends PureComponent {
       ? MANAGE_HOSTS
       : `${MANAGE_HOSTS}/${newFilters.join("/")}`;
 
-    if (selectedTeamId) {
-      nextLocation += `?team_id=${selectedTeamId}`;
+    const teamIdParam = getValidatedTeamId(selectedTeam);
+    if (teamIdParam) {
+      nextLocation += `?team_id=${teamIdParam}`;
     }
     dispatch(push(nextLocation));
   };
@@ -653,22 +694,26 @@ export class ManageHostsPage extends PureComponent {
 
   // TODO revisit UX for server errors for invalid team_id (e.g., team_id=0, team_id=null, team_id=foo, etc.)
   renderTeamsFilterDropdown = () => {
-    const { isBasicTier, selectedTeam, teams } = this.props;
+    const { selectedTeam, teams } = this.props;
+    const { isBasicTier, isConfigLoaded, isTeamsLoaded } = this.state;
     const {
       generateTeamFilterDropdownOptions,
-      isValidSelectedTeamId,
+      getValidatedTeamId,
       handleChangeSelectedTeamFilter,
     } = this;
+
+    if (!isConfigLoaded || !isBasicTier || !isTeamsLoaded) {
+      return <h1>Hosts</h1>;
+    }
+
     const teamOptions = generateTeamFilterDropdownOptions(teams);
+    const selectedTeamId = getValidatedTeamId(selectedTeam);
 
-    let selectedTeamId = parseInt(selectedTeam, 10);
-    selectedTeamId = isValidSelectedTeamId(selectedTeamId) ? selectedTeamId : 0;
-
-    return isBasicTier ? (
+    return (
       <div>
         <Dropdown
           value={selectedTeamId}
-          placeholder={"All teams"}
+          placeholder={"Hosts"}
           className={`${baseClass}__team-dropdown`}
           options={teamOptions}
           searchable={false}
@@ -677,8 +722,6 @@ export class ManageHostsPage extends PureComponent {
           }
         />
       </div>
-    ) : (
-      <h1>Hosts</h1>
     );
   };
 
@@ -924,6 +967,7 @@ export class ManageHostsPage extends PureComponent {
       isAllMatchingHostsSelected,
       hosts,
       isHostsLoading,
+      isConfigLoaded,
     } = this.state;
     const {
       onTableQueryChange,
@@ -935,8 +979,13 @@ export class ManageHostsPage extends PureComponent {
     } = this;
 
     // The data has not been fetched yet.
-    if (selectedFilters.length === 0 || selectedLabel === undefined)
+    if (
+      !isConfigLoaded ||
+      selectedFilters.length === 0 ||
+      selectedLabel === undefined
+    ) {
       return null;
+    }
 
     // Hosts have not been set up for this instance yet.
     if (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) {
@@ -993,6 +1042,7 @@ export class ManageHostsPage extends PureComponent {
       loadingLabels,
       canAddNewHosts,
     } = this.props;
+    const { isBasicTier, isConfigLoaded } = this.state;
 
     return (
       <div className="has-sidebar">
@@ -1010,7 +1060,7 @@ export class ManageHostsPage extends PureComponent {
                 </Button>
               ) : null}
             </div>
-            {renderTable()}
+            {isConfigLoaded && isBasicTier !== null && renderTable()}
           </div>
         )}
         {!loadingLabels && renderSidePanel()}
@@ -1077,7 +1127,6 @@ const mapStateToProps = (state, ownProps) => {
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
   const isOnGlobalTeam = permissionUtils.isOnGlobalTeam(currentUser);
-  const isBasicTier = permissionUtils.isBasicTier(config);
 
   return {
     selectedFilters,
@@ -1101,7 +1150,6 @@ const mapStateToProps = (state, ownProps) => {
     canAddNewLabels,
     isGlobalAdmin,
     isOnGlobalTeam,
-    isBasicTier,
     teams,
     loadingTeams,
     selectedTeam,
