@@ -17,7 +17,7 @@ interface IQueryFormProps {
   fields: IQueryFormFields;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
-  onRunQuery: (value: any) => void;
+  goToSelectTargets: (value: any) => void;
   onUpdate: (formData: IQueryFormData) => void;
   queryIsRunning: boolean;
   title: string;
@@ -41,7 +41,7 @@ const QueryForm = ({
   fields,
   onCreateQuery,
   onOsqueryTableSelect,
-  onRunQuery,
+  goToSelectTargets,
   onUpdate,
   queryIsRunning,
   title,
@@ -100,10 +100,9 @@ const QueryForm = ({
           label="Query:"
           name="query editor"
           onLoad={onLoad}
-          readOnly={queryIsRunning}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           onChange={onChange}
-          handleSubmit={onRunQuery}
+          handleSubmit={openSaveModal}
         />
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
@@ -113,7 +112,7 @@ const QueryForm = ({
               className={`${baseClass}__save`}
               variant="brand"
               onClick={openSaveModal}
-              disabled={!fields.query.value}
+              disabled={queryIsRunning}
             >
               Save
             </Button>
@@ -121,7 +120,7 @@ const QueryForm = ({
           <Button
             className={`${baseClass}__run`}
             variant="blue-green"
-            onClick={onRunQuery}
+            onClick={goToSelectTargets}
           >
             Run query
           </Button>
