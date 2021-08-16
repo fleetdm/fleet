@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (mw validationMiddleware) ModifyAppConfig(ctx context.Context, p fleet.AppConfigPayload) (*fleet.AppConfig, error) {
+func (mw validationMiddleware) ModifyAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet.AppConfig, error) {
 	existing, err := mw.ds.AppConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching existing app config in validation")
@@ -27,11 +27,11 @@ func isSet(val *string) bool {
 	return false
 }
 
-func validateSSOSettings(p fleet.AppConfigPayload, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
+func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
 	if p.SSOSettings != nil && p.SSOSettings.EnableSSO != nil {
 		if *p.SSOSettings.EnableSSO {
 			if !isSet(p.SSOSettings.Metadata) && !isSet(p.SSOSettings.MetadataURL) {
-				if existing.Metadata == "" && existing.MetadataURL == "" {
+				if existing.SSOSettings == nil || (!isSet(existing.SSOSettings.Metadata) && !isSet(existing.SSOSettings.MetadataURL)) {
 					invalid.Append("metadata", "either metadata or metadata_url must be defined")
 				}
 			}
@@ -39,7 +39,7 @@ func validateSSOSettings(p fleet.AppConfigPayload, existing *fleet.AppConfig, in
 				invalid.Append("metadata", "both metadata and metadata_url are defined, only one is allowed")
 			}
 			if !isSet(p.SSOSettings.EntityID) {
-				if existing.EntityID == "" {
+				if existing.SSOSettings == nil || !isSet(existing.SSOSettings.EntityID) {
 					invalid.Append("entity_id", "required")
 				}
 			} else {
@@ -48,7 +48,7 @@ func validateSSOSettings(p fleet.AppConfigPayload, existing *fleet.AppConfig, in
 				}
 			}
 			if !isSet(p.SSOSettings.IDPName) {
-				if existing.IDPName == "" {
+				if existing.SSOSettings != nil && !isSet(existing.SSOSettings.IDPName) {
 					invalid.Append("idp_name", "required")
 				}
 			} else {

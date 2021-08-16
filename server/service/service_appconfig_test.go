@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"runtime"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/config"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -43,10 +44,10 @@ func TestCreateAppConfig(t *testing.T) {
 	}
 
 	var appConfigTests = []struct {
-		configPayload fleet.AppConfigPayload
+		configPayload fleet.AppConfig
 	}{
 		{
-			configPayload: fleet.AppConfigPayload{
+			configPayload: fleet.AppConfig{
 				OrgInfo: &fleet.OrgInfo{
 					OrgLogoURL: ptr.String("acme.co/images/logo.png"),
 					OrgName:    ptr.String("Acme"),
@@ -77,10 +78,10 @@ func TestCreateAppConfig(t *testing.T) {
 		require.Nil(t, err)
 
 		payload := tt.configPayload
-		assert.Equal(t, *payload.OrgInfo.OrgLogoURL, result.OrgLogoURL)
-		assert.Equal(t, *payload.OrgInfo.OrgName, result.OrgName)
-		assert.Equal(t, "https://acme.co:8080", result.ServerURL)
-		assert.Equal(t, *payload.ServerSettings.LiveQueryDisabled, result.LiveQueryDisabled)
+		assert.Equal(t, *payload.OrgInfo.OrgLogoURL, *result.OrgInfo.OrgLogoURL)
+		assert.Equal(t, *payload.OrgInfo.OrgName, *result.OrgInfo.OrgName)
+		assert.Equal(t, "https://acme.co:8080/", *result.ServerSettings.ServerURL)
+		assert.Equal(t, *payload.ServerSettings.LiveQueryDisabled, *result.ServerSettings.LiveQueryDisabled)
 
 		// Ensure enroll secret was set
 		require.NotNil(t, gotSecrets)
@@ -279,13 +280,13 @@ func TestService_LoggingConfig(t *testing.T) {
 			},
 		},
 		{
-			name:   "test unrecognized config",
+			name: "test unrecognized config",
 			fields: fields{config: config.FleetConfig{
 				Osquery: config.OsqueryConfig{ResultLogPlugin: "bar", StatusLogPlugin: "bar"},
 			}},
-			args:   args{ctx: test.UserContext(test.UserAdmin)},
+			args:    args{ctx: test.UserContext(test.UserAdmin)},
 			wantErr: true,
-			want: nil,
+			want:    nil,
 		},
 	}
 	t.Parallel()

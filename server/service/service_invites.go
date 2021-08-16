@@ -78,9 +78,9 @@ func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayloa
 		Config:  config,
 		Mailer: &mail.InviteMailer{
 			Invite:    invite,
-			BaseURL:   template.URL(config.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:   template.URL(config.GetString("server_settings.server_url") + svc.config.Server.URLPrefix),
 			AssetURL:  getAssetURL(),
-			OrgName:   config.OrgName,
+			OrgName:   config.GetString("org_info.org_name"),
 			InvitedBy: invitedBy,
 		},
 	}

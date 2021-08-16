@@ -288,13 +288,13 @@ func TestGetDetailQueries(t *testing.T) {
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{EnableHostUsers: true})
+	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{})
 	require.Len(t, queriesWithUsers, 8)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users"))
 
 	require.NoError(t, os.Setenv("FLEET_BETA_SOFTWARE_INVENTORY", "1"))
 
-	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{EnableHostUsers: true})
+	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{})
 	require.Len(t, queriesWithUsersAndSoftware, 11)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows"))

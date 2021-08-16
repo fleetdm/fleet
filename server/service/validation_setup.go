@@ -9,7 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.AppConfigPayload) (*fleet.AppConfig, error) {
+func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.AppConfig) (*fleet.AppConfig, error) {
 	invalid := &fleet.InvalidArgumentError{}
 	var serverURLString string
 	if payload.ServerSettings == nil || payload.ServerSettings.ServerURL == nil ||

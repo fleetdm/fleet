@@ -9,7 +9,7 @@ import (
 )
 
 func TestAppConfigGet(t *testing.T) {
-	c := &AppConfigPayload{
+	c := &AppConfig{
 		OrgInfo: &OrgInfo{
 			OrgName: ptr.String("somename"),
 		},
@@ -25,5 +25,15 @@ func TestAppConfigGet(t *testing.T) {
 
 	// check undefined zero reasonably
 	require.Equal(t, "", c.GetString("org_info.org_logo_url"))
-	require.Equal(t, json.RawMessage{}, c.GetJSON("host_settings.additional_queries"))
+	require.Equal(t, json.RawMessage(nil), c.GetJSON("host_settings.additional_queries"))
+
+	// returns zero/default when types mismatch
+	require.Equal(t, json.RawMessage(nil), c.GetJSON("org_info.org_logo_url"))
+
+	// return zero for type when path doesn't exist
+	require.Equal(t, 0, c.GetInt("some.non.existent.path"))
+	require.Equal(t, json.RawMessage(nil), c.GetJSON("org_info.asdfasdf"))
+
+	// gets default if parent struct is not defined
+	require.Equal(t, false, c.GetBool("host_expiry_settings.host_expiry_enabled"))
 }

@@ -3,13 +3,14 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/oleiade/reflections"
-
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/kolide/kit/version"
+	"github.com/oleiade/reflections"
 )
 
 // AppConfigStore contains method for saving and retrieving
@@ -32,9 +33,9 @@ type AppConfigStore interface {
 // AppConfigService provides methods for configuring
 // the Fleet application
 type AppConfigService interface {
-	NewAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
+	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
-	ModifyAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
+	ModifyAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in
 	// the spec.
@@ -71,131 +72,6 @@ const (
 	AuthTypeNameNone             = "authtype_none"
 )
 
-type SMTPAuthType int
-
-const (
-	AuthTypeUserNamePassword SMTPAuthType = iota
-	AuthTypeNone
-)
-
-func (a SMTPAuthType) String() string {
-	switch a {
-	case AuthTypeUserNamePassword:
-		return AuthTypeNameUserNamePassword
-	case AuthTypeNone:
-		return AuthTypeNameNone
-	default:
-		return ""
-	}
-}
-
-type SMTPAuthMethod int
-
-const (
-	AuthMethodPlain SMTPAuthMethod = iota
-	AuthMethodCramMD5
-	AuthMethodLogin
-)
-
-func (m SMTPAuthMethod) String() string {
-	switch m {
-	case AuthMethodPlain:
-		return AuthMethodNamePlain
-	case AuthMethodCramMD5:
-		return AuthMethodNameCramMD5
-	case AuthMethodLogin:
-		return AuthMethodNameLogin
-	default:
-		return ""
-	}
-}
-
-// AppConfig holds configuration about the Fleet application.
-// AppConfig data can be managed by a Fleet API user.
-type AppConfig struct {
-	ID         uint
-	OrgName    string `db:"org_name"`
-	OrgLogoURL string `db:"org_logo_url"`
-	ServerURL  string `db:"server_url"`
-
-	// SMTPConfigured is a flag that indicates if smtp has been successfully
-	// tested with the settings provided by an admin user.
-	SMTPConfigured bool `db:"smtp_configured"`
-	// SMTPSenderAddress is the email address that will appear in emails sent
-	// from Fleet
-	SMTPSenderAddress string `db:"smtp_sender_address"`
-	// SMTPServer is the host name of the SMTP server Fleet will use to send mail
-	SMTPServer string `db:"smtp_server"`
-	// SMTPPort port SMTP server will use
-	SMTPPort uint `db:"smtp_port"`
-	// SMTPAuthenticationType type of authentication for SMTP
-	SMTPAuthenticationType SMTPAuthType `db:"smtp_authentication_type"`
-	// SMTPUserName must be provided if SMTPAuthenticationType is UserNamePassword
-	SMTPUserName string `db:"smtp_user_name"`
-	// SMTPPassword must be provided if SMTPAuthenticationType is UserNamePassword
-	SMTPPassword string `db:"smtp_password"`
-	// SMTPEnableSSLTLS whether to use SSL/TLS for SMTP
-	SMTPEnableTLS bool `db:"smtp_enable_ssl_tls"`
-	// SMTPAuthenticationMethod authentication method smtp server will use
-	SMTPAuthenticationMethod SMTPAuthMethod `db:"smtp_authentication_method"`
-
-	// SMTPDomain optional domain for SMTP
-	SMTPDomain string `db:"smtp_domain"`
-	// SMTPVerifySSLCerts defaults to true but can be turned off if self signed
-	// SSL certs are used by the SMTP server
-	SMTPVerifySSLCerts bool `db:"smtp_verify_ssl_certs"`
-	// SMTPEnableStartTLS detects of TLS is enabled on mail server and starts to use it (default true)
-	SMTPEnableStartTLS bool `db:"smtp_enable_start_tls"`
-	// EntityID is a uri that identifies this service provider
-	EntityID string `db:"entity_id"`
-	// IssuerURI is the uri that identifies the identity provider
-	IssuerURI string `db:"issuer_uri"`
-	// IDPImageURL is a link to a logo or other image that is used for UX
-	IDPImageURL string `db:"idp_image_url"`
-	// Metadata contains IDP metadata XML
-	Metadata string `db:"metadata"`
-	// MetadataURL is a URL provided by the IDP which can be used to download
-	// metadata
-	MetadataURL string `db:"metadata_url"`
-	// IDPName is a human friendly name for the IDP
-	IDPName string `db:"idp_name"`
-	// EnableSSO flag to determine whether or not to enable SSO
-	EnableSSO bool `db:"enable_sso"`
-	// EnableSSO flag to determine whether or not to enable SSO
-	EnableSSOIdPLogin bool `db:"enable_sso_idp_login"`
-	// FIMInterval defines the interval when file integrity checks will occur
-	FIMInterval int `db:"fim_interval"`
-	// FIMFileAccess defines the FIMSections which will be monitored for file access events as a JSON formatted array
-	FIMFileAccesses string `db:"fim_file_accesses"`
-
-	// HostExpiryEnabled defines whether automatic host cleanup is enabled.
-	HostExpiryEnabled bool `db:"host_expiry_enabled"`
-	// HostExpiryWindow defines a number in days after which a host will be removed if it has not communicated with Fleet.
-	HostExpiryWindow int `db:"host_expiry_window"`
-
-	// LiveQueryDisabled defines whether live queries are disabled.
-	LiveQueryDisabled bool `db:"live_query_disabled"`
-
-	// EnableAnalytics indicates whether usage analytics are enabled.
-	EnableAnalytics bool `db:"enable_analytics" json:"analytics"`
-
-	// AdditionalQueries is the set of additional queries that should be run
-	// when collecting details from hosts.
-	AdditionalQueries *json.RawMessage `db:"additional_queries"`
-
-	// AgentOptions is the global agent options, including overrides.
-	AgentOptions *json.RawMessage `db:"agent_options"`
-
-	// VulnerabilityDatabases path
-	VulnerabilityDatabasesPath *string `db:"vulnerability_databases_path"`
-
-	// EnableHostUsers indicates whether the users of each host will be queried and stored
-	EnableHostUsers bool `db:"enable_host_users" json:"enable_host_users"`
-
-	// EnableSoftwareInventory indicates whether fleet will request for software from hosts or not
-	EnableSoftwareInventory bool `db:"enable_software_inventory" json:"enable_software_inventory"`
-}
-
 func (c AppConfig) AuthzType() string {
 	return "app_config"
 }
@@ -214,8 +90,8 @@ type ModifyAppConfigRequest struct {
 	AppConfig AppConfig `json:"app_config"`
 }
 
-// SSOSettingsPayload wire format for SSO settings
-type SSOSettingsPayload struct {
+// SSOSettings wire format for SSO settings
+type SSOSettings struct {
 	// EntityID is a uri that identifies this service provider
 	EntityID *string `json:"entity_id"`
 	// IssuerURI is the uri that identifies the identity provider
@@ -236,9 +112,9 @@ type SSOSettingsPayload struct {
 	EnableSSOIdPLogin *bool `json:"enable_sso_idp_login"`
 }
 
-// SMTPSettingsPayload is part of the AppConfigPayload which defines the wire representation
+// SMTPSettings is part of the AppConfig which defines the wire representation
 // of the app config endpoints
-type SMTPSettingsPayload struct {
+type SMTPSettings struct {
 	// SMTPEnabled indicates whether the user has selected that SMTP is
 	// enabled in the UI.
 	SMTPEnabled *bool `json:"enable_smtp"`
@@ -272,162 +148,216 @@ type SMTPSettingsPayload struct {
 	SMTPEnableStartTLS *bool `json:"enable_start_tls"`
 }
 
-// VulnerabilitySettingsPayload is part of the AppConfigPayload which defines how fleet will behave
+// VulnerabilitySettings is part of the AppConfig which defines how fleet will behave
 // while scanning for vulnerabilities in the host software
-type VulnerabilitySettingsPayload struct {
+type VulnerabilitySettings struct {
 	// DatabasesPath is the directory where fleet will store the different databases
 	DatabasesPath string `json:"databases_path"`
 }
 
-// AppConfigPayload contains request/response format of
-// the AppConfig endpoints.
-type AppConfigPayload struct {
-	OrgInfo            *OrgInfo             `json:"org_info"`
-	ServerSettings     *ServerSettings      `json:"server_settings"`
-	SMTPSettings       *SMTPSettingsPayload `json:"smtp_settings"`
-	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
-	HostSettings       *HostSettings        `json:"host_settings"`
-	AgentOptions       *json.RawMessage     `json:"agent_options"`
+// AppConfig
+type AppConfig struct {
+	OrgInfo            *OrgInfo            `json:"org_info"`
+	ServerSettings     *ServerSettings     `json:"server_settings"`
+	SMTPSettings       *SMTPSettings       `json:"smtp_settings"`
+	HostExpirySettings *HostExpirySettings `json:"host_expiry_settings"`
+	HostSettings       *HostSettings       `json:"host_settings"`
+	AgentOptions       *json.RawMessage    `json:"agent_options"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest *bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
-	SSOSettings *SSOSettingsPayload `json:"sso_settings"`
+	SSOSettings *SSOSettings `json:"sso_settings"`
 
 	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
-	VulnerabilitySettings *VulnerabilitySettingsPayload `json:"vulnerability_settings"`
+	VulnerabilitySettings *VulnerabilitySettings `json:"vulnerability_settings"`
 }
 
-func (c *AppConfigPayload) Get(path string) interface{} {
+func (c *AppConfig) Get(path string) interface{} {
 	pathParts := strings.Split(path, ".")
-	field, err := getFieldByPath(c, pathParts...)
-	if err != nil {
-		panic(err)
-	}
-	return field
+	return getFieldByPath(c, pathParts...)
 }
 
 var configDefaults = map[string]func() interface{}{
 	"host_settings.enable_host_users": func() interface{} { return true },
+
+	"smtp_settings.port":                  func() interface{} { return uint(587) },
+	"smtp_settings.enable_ssl_tls":        func() interface{} { return true },
+	"smtp_settings.authentication_type":   func() interface{} { return AuthTypeNameUserNamePassword },
+	"smtp_settings.authentication_method": func() interface{} { return AuthMethodNamePlain },
+	"smtp_settings.verify_ssl_certs":      func() interface{} { return true },
+	"smtp_settings.enable_start_tls":      func() interface{} { return true },
 }
 
-func (c *AppConfigPayload) GetInt(path string) int {
+func (c *AppConfig) GetInt(path string) int {
 	field := c.Get(path)
+	defaultOrZeroFunc := func() int {
+		defaultFunc, ok := configDefaults[path]
+		if !ok {
+			return 0
+		}
+		return defaultFunc().(int)
+	}
+	if !reflect.ValueOf(field).IsValid() {
+		return defaultOrZeroFunc()
+	}
+
 	switch typed := field.(type) {
 	case int:
 		return typed
 	case *int:
 		if typed == nil {
-			defaultFunc, ok := configDefaults[path]
-			if !ok {
-				return 0
-			}
-			return defaultFunc().(int)
+			return defaultOrZeroFunc()
 		}
 		return *typed
 	default:
-		panic("Cannot get " + path + " as int")
+		return defaultOrZeroFunc()
 	}
 }
 
-func (c *AppConfigPayload) GetUint(path string) uint {
+func (c *AppConfig) GetUint(path string) uint {
 	field := c.Get(path)
+	defaultOrZeroFunc := func() uint {
+		defaultFunc, ok := configDefaults[path]
+		if !ok {
+			return 0
+		}
+		return defaultFunc().(uint)
+	}
+	if !reflect.ValueOf(field).IsValid() {
+		return defaultOrZeroFunc()
+	}
+
 	switch typed := field.(type) {
 	case uint:
 		return typed
 	case *uint:
 		if typed == nil {
-			defaultFunc, ok := configDefaults[path]
-			if !ok {
-				return 0
-			}
-			return defaultFunc().(uint)
+			return defaultOrZeroFunc()
 		}
 		return *typed
 	default:
-		panic("Cannot get " + path + " as uint")
+		return defaultOrZeroFunc()
 	}
 }
 
-func (c *AppConfigPayload) GetBool(path string) bool {
+func (c *AppConfig) GetBool(path string) bool {
 	field := c.Get(path)
+	defaultOrZeroFunc := func() bool {
+		defaultFunc, ok := configDefaults[path]
+		if !ok {
+			return false
+		}
+		return defaultFunc().(bool)
+	}
+	if !reflect.ValueOf(field).IsValid() {
+		return defaultOrZeroFunc()
+	}
+
 	switch typed := field.(type) {
 	case bool:
 		return typed
 	case *bool:
 		if typed == nil {
-			defaultFunc, ok := configDefaults[path]
-			if !ok {
-				return false
-			}
-			return defaultFunc().(bool)
+			return defaultOrZeroFunc()
 		}
 		return *typed
 	default:
-		panic("Cannot get " + path + " as bool")
+		return defaultOrZeroFunc()
 	}
 }
 
-func (c *AppConfigPayload) GetString(path string) string {
+func (c *AppConfig) GetString(path string) string {
 	field := c.Get(path)
+	defaultOrZeroFunc := func() string {
+		defaultFunc, ok := configDefaults[path]
+		if !ok {
+			return ""
+		}
+		return defaultFunc().(string)
+	}
+	if !reflect.ValueOf(field).IsValid() {
+		return defaultOrZeroFunc()
+	}
+
 	switch typed := field.(type) {
 	case string:
 		return typed
 	case *string:
 		if typed == nil {
-			defaultFunc, ok := configDefaults[path]
-			if !ok {
-				return ""
-			}
-			return defaultFunc().(string)
+			return defaultOrZeroFunc()
 		}
 		return *typed
 	default:
-		panic("Cannot get " + path + " as string")
+		return defaultOrZeroFunc()
 	}
 }
 
-func getFieldByPath(obj interface{}, path ...string) (interface{}, error) {
-	if len(path) == 0 {
-		return obj, nil
-	}
-	fields, err := reflections.Fields(obj)
-	if err != nil {
-		return nil, err
-	}
-	for _, f := range fields {
-		tag, err := reflections.GetFieldTag(obj, f, "json")
-		if err != nil {
-			return nil, err
-		}
-		tag = strings.TrimSuffix(tag, ",omitempty")
-		if tag == path[0] {
-			field, err := reflections.GetField(obj, f)
-			if err != nil {
-				return nil, err
-			}
-			return getFieldByPath(field, path[1:]...)
-		}
-	}
-	return nil, nil
-}
-
-func (c *AppConfigPayload) GetJSON(path string) json.RawMessage {
+func (c *AppConfig) GetJSON(path string) json.RawMessage {
 	field := c.Get(path)
+	defaultOrZeroFunc := func() json.RawMessage {
+		defaultFunc, ok := configDefaults[path]
+		if !ok {
+			return nil
+		}
+		return defaultFunc().(json.RawMessage)
+	}
+	if !reflect.ValueOf(field).IsValid() {
+		return defaultOrZeroFunc()
+	}
+
 	switch typed := field.(type) {
 	case json.RawMessage:
 		return typed
 	case *json.RawMessage:
 		if typed == nil {
-			defaultFunc, ok := configDefaults[path]
-			if !ok {
-				return json.RawMessage{}
-			}
-			return defaultFunc().(json.RawMessage)
+			return defaultOrZeroFunc()
 		}
 		return *typed
 	default:
-		panic("Cannot get " + path + " as uint")
+		return defaultOrZeroFunc()
 	}
+}
+
+func (c *AppConfig) GetStringPtr(path string) *string {
+	return ptr.String(c.GetString(path))
+}
+
+func (c *AppConfig) GetBoolPtr(path string) *bool {
+	return ptr.Bool(c.GetBool(path))
+}
+
+func (c *AppConfig) GetUintPtr(path string) *uint {
+	return ptr.Uint(c.GetUint(path))
+}
+
+func (c *AppConfig) GetIntPtr(path string) *int {
+	return ptr.Int(c.GetInt(path))
+}
+
+func (c *AppConfig) GetJSONPtr(path string) *json.RawMessage {
+	return ptr.RawMessage(c.GetJSON(path))
+}
+
+func getFieldByPath(obj interface{}, path ...string) interface{} {
+	// We ignore the errors here because all the errors in reflections are based on type, we know what types are
+	// going through here.
+	if len(path) == 0 {
+		return obj
+	}
+	v := reflect.ValueOf(obj)
+	if !v.IsValid() || v.IsZero() {
+		return nil
+	}
+	fields, _ := reflections.Fields(obj)
+	for _, f := range fields {
+		tag, _ := reflections.GetFieldTag(obj, f, "json")
+		tag = strings.TrimSuffix(tag, ",omitempty")
+		if tag == path[0] {
+			field, _ := reflections.GetField(obj, f)
+			return getFieldByPath(field, path[1:]...)
+		}
+	}
+	return nil
 }
 
 // OrgInfo contains general info about the organization using Fleet.

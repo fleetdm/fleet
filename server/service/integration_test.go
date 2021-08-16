@@ -282,7 +282,7 @@ func TestAppConfigHasLogging(t *testing.T) {
 }
 
 func applyConfig(t *testing.T, spec []byte, server *httptest.Server, token string) {
-	var appConfigSpec fleet.AppConfigPayload
+	var appConfigSpec fleet.AppConfig
 	err := yaml.Unmarshal(spec, &appConfigSpec)
 	require.NoError(t, err)
 

@@ -9,7 +9,7 @@ import (
 )
 
 // ApplyAppConfig sends the application config to be applied to the Fleet instance.
-func (c *Client) ApplyAppConfig(payload *fleet.AppConfigPayload) error {
+func (c *Client) ApplyAppConfig(payload *fleet.AppConfig) error {
 	response, err := c.AuthenticatedDo("PATCH", "/api/v1/fleet/config", "", payload)
 	if err != nil {
 		return errors.Wrap(err, "PATCH /api/v1/fleet/config")
@@ -37,7 +37,7 @@ func (c *Client) ApplyAppConfig(payload *fleet.AppConfigPayload) error {
 }
 
 // GetAppConfig fetches the application config from the server API
-func (c *Client) GetAppConfig() (*fleet.AppConfigPayload, error) {
+func (c *Client) GetAppConfig() (*fleet.AppConfig, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/config", "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/fleet/config")
@@ -52,7 +52,7 @@ func (c *Client) GetAppConfig() (*fleet.AppConfigPayload, error) {
 		)
 	}
 
-	var responseBody *fleet.AppConfigPayload
+	var responseBody *fleet.AppConfig
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
 		return nil, errors.Wrap(err, "decode get config response")

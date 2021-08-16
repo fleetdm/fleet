@@ -12,20 +12,14 @@ import (
 )
 
 type appConfigRequest struct {
-	Payload fleet.AppConfigPayload
+	Payload fleet.AppConfig
 }
 
 type appConfigResponse struct {
-	OrgInfo               *fleet.OrgInfo                      `json:"org_info,omitempty"`
-	ServerSettings        *fleet.ServerSettings               `json:"server_settings,omitempty"`
-	SMTPSettings          *fleet.SMTPSettingsPayload          `json:"smtp_settings,omitempty"`
-	SSOSettings           *fleet.SSOSettingsPayload           `json:"sso_settings,omitempty"`
-	HostExpirySettings    *fleet.HostExpirySettings           `json:"host_expiry_settings,omitempty"`
-	HostSettings          *fleet.HostSettings                 `json:"host_settings,omitempty"`
-	AgentOptions          *json.RawMessage                    `json:"agent_options,omitempty"`
-	License               *fleet.LicenseInfo                  `json:"license,omitempty"`
-	VulnerabilitySettings *fleet.VulnerabilitySettingsPayload `json:"vulnerability_settings"`
+	fleet.AppConfig
 
+	// License is loaded from the service
+	License *fleet.LicenseInfo `json:"license,omitempty"`
 	// Logging is loaded on the fly rather than from the database.
 	Logging *fleet.Logging `json:"logging,omitempty"`
 	Err     error          `json:"error,omitempty"`
@@ -52,61 +46,73 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		var smtpSettings *fleet.SMTPSettingsPayload
-		var ssoSettings *fleet.SSOSettingsPayload
+		var smtpSettings *fleet.SMTPSettings
+		var ssoSettings *fleet.SSOSettings
 		var hostExpirySettings *fleet.HostExpirySettings
-		var vulnerabilitySettings *fleet.VulnerabilitySettingsPayload
 		var agentOptions *json.RawMessage
 		// only admin can see smtp, sso, and host expiry settings
 		if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
-			smtpSettings = smtpSettingsFromAppConfig(config)
+			smtpSettings = &fleet.SMTPSettings{
+				SMTPEnabled:              config.GetBoolPtr("smtp_settings.enable_smtp"),
+				SMTPConfigured:           config.GetBoolPtr("smtp_settings.configured"),
+				SMTPSenderAddress:        config.GetStringPtr("smtp_settings.sender_address"),
+				SMTPServer:               config.GetStringPtr("smtp_settings.server"),
+				SMTPPort:                 config.GetUintPtr("smtp_settings.port"),
+				SMTPAuthenticationType:   config.GetStringPtr("smtp_settings.authentication_type"),
+				SMTPUserName:             config.GetStringPtr("smtp_settings.user_name"),
+				SMTPPassword:             config.GetStringPtr("smtp_settings.password"),
+				SMTPEnableTLS:            config.GetBoolPtr("smtp_settings.enable_ssl_tls"),
+				SMTPAuthenticationMethod: config.GetStringPtr("smtp_settings.authentication_method"),
+				SMTPDomain:               config.GetStringPtr("smtp_settings.domain"),
+				SMTPVerifySSLCerts:       config.GetBoolPtr("smtp_settings.verify_ssl_certs"),
+				SMTPEnableStartTLS:       config.GetBoolPtr("smtp_settings.enable_start_tls"),
+			}
 			if smtpSettings.SMTPPassword != nil {
 				*smtpSettings.SMTPPassword = "********"
 			}
-			ssoSettings = &fleet.SSOSettingsPayload{
-				EntityID:          &config.EntityID,
-				IssuerURI:         &config.IssuerURI,
-				IDPImageURL:       &config.IDPImageURL,
-				Metadata:          &config.Metadata,
-				MetadataURL:       &config.MetadataURL,
-				IDPName:           &config.IDPName,
-				EnableSSO:         &config.EnableSSO,
-				EnableSSOIdPLogin: &config.EnableSSOIdPLogin,
+			ssoSettings = &fleet.SSOSettings{
+				EntityID:          config.GetStringPtr("sso_settings.entity_id"),
+				IssuerURI:         config.GetStringPtr("sso_settings.issuer_uri"),
+				IDPImageURL:       config.GetStringPtr("sso_settings.idp_image_url"),
+				Metadata:          config.GetStringPtr("sso_settings.metadata"),
+				MetadataURL:       config.GetStringPtr("sso_settings.metadata_url"),
+				IDPName:           config.GetStringPtr("sso_settings.idp_name"),
+				EnableSSO:         config.GetBoolPtr("sso_settings.enable_sso"),
+				EnableSSOIdPLogin: config.GetBoolPtr("sso_settings.enable_sso_idp_login"),
 			}
 			hostExpirySettings = &fleet.HostExpirySettings{
-				HostExpiryEnabled: &config.HostExpiryEnabled,
-				HostExpiryWindow:  &config.HostExpiryWindow,
+				HostExpiryEnabled: config.GetBoolPtr("host_expiry_settings.host_expiry_enabled"),
+				HostExpiryWindow:  config.GetIntPtr("host_expiry_settings.host_expiry_window"),
 			}
 			agentOptions = config.AgentOptions
 		}
-		if config.VulnerabilityDatabasesPath != nil {
-			vulnerabilitySettings = &fleet.VulnerabilitySettingsPayload{
-				DatabasesPath: *config.VulnerabilityDatabasesPath,
-			}
-		}
 		hostSettings := &fleet.HostSettings{
-			EnableHostUsers:         &config.EnableHostUsers,
-			EnableSoftwareInventory: &config.EnableSoftwareInventory,
-			AdditionalQueries:       config.AdditionalQueries,
+			EnableHostUsers:         config.GetBoolPtr("host_settings.enable_host_users"),
+			EnableSoftwareInventory: config.GetBoolPtr("host_settings.enable_software_inventory"),
+			AdditionalQueries:       config.GetJSONPtr("host_settings.additional_queries"),
 		}
 		response := appConfigResponse{
-			OrgInfo: &fleet.OrgInfo{
-				OrgName:    &config.OrgName,
-				OrgLogoURL: &config.OrgLogoURL,
+			AppConfig: fleet.AppConfig{
+				OrgInfo: &fleet.OrgInfo{
+					OrgName:    config.GetStringPtr("org_info.org_name"),
+					OrgLogoURL: config.GetStringPtr("org_info.org_logo_url"),
+				},
+				ServerSettings: &fleet.ServerSettings{
+					ServerURL:         config.GetStringPtr("server_settings.server_url"),
+					LiveQueryDisabled: config.GetBoolPtr("server_settings.live_query_disabled"),
+					EnableAnalytics:   config.GetBoolPtr("server_settings.enable_analytics"),
+				},
+				HostSettings:          hostSettings,
+				VulnerabilitySettings: config.VulnerabilitySettings,
+
+				SMTPSettings:       smtpSettings,
+				SSOSettings:        ssoSettings,
+				HostExpirySettings: hostExpirySettings,
+				AgentOptions:       agentOptions,
 			},
-			ServerSettings: &fleet.ServerSettings{
-				ServerURL:         &config.ServerURL,
-				LiveQueryDisabled: &config.LiveQueryDisabled,
-				EnableAnalytics:   &config.EnableAnalytics,
-			},
-			SMTPSettings:          smtpSettings,
-			SSOSettings:           ssoSettings,
-			HostExpirySettings:    hostExpirySettings,
-			HostSettings:          hostSettings,
-			License:               license,
-			AgentOptions:          agentOptions,
-			Logging:               loggingConfig,
-			VulnerabilitySettings: vulnerabilitySettings,
+
+			License: license,
+			Logging: loggingConfig,
 		}
 		return response, nil
 	}
@@ -128,58 +134,15 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return nil, err
 		}
 		response := appConfigResponse{
-			OrgInfo: &fleet.OrgInfo{
-				OrgName:    &config.OrgName,
-				OrgLogoURL: &config.OrgLogoURL,
-			},
-			ServerSettings: &fleet.ServerSettings{
-				ServerURL:         &config.ServerURL,
-				LiveQueryDisabled: &config.LiveQueryDisabled,
-				EnableAnalytics:   &config.EnableAnalytics,
-			},
-			SMTPSettings: smtpSettingsFromAppConfig(config),
-			SSOSettings: &fleet.SSOSettingsPayload{
-				EntityID:          &config.EntityID,
-				IssuerURI:         &config.IssuerURI,
-				IDPImageURL:       &config.IDPImageURL,
-				Metadata:          &config.Metadata,
-				MetadataURL:       &config.MetadataURL,
-				IDPName:           &config.IDPName,
-				EnableSSO:         &config.EnableSSO,
-				EnableSSOIdPLogin: &config.EnableSSOIdPLogin,
-			},
-			HostExpirySettings: &fleet.HostExpirySettings{
-				HostExpiryEnabled: &config.HostExpiryEnabled,
-				HostExpiryWindow:  &config.HostExpiryWindow,
-			},
-			License:      license,
-			AgentOptions: config.AgentOptions,
-			Logging:      loggingConfig,
+			AppConfig: *config,
+			License:   license,
+			Logging:   loggingConfig,
 		}
-		if response.SMTPSettings.SMTPPassword != nil {
+
+		if response.GetString("smtp_settings.smtp_password") != "" {
 			*response.SMTPSettings.SMTPPassword = "********"
 		}
 		return response, nil
-	}
-}
-
-func smtpSettingsFromAppConfig(config *fleet.AppConfig) *fleet.SMTPSettingsPayload {
-	authType := config.SMTPAuthenticationType.String()
-	authMethod := config.SMTPAuthenticationMethod.String()
-	return &fleet.SMTPSettingsPayload{
-		SMTPEnabled:              &config.SMTPConfigured,
-		SMTPConfigured:           &config.SMTPConfigured,
-		SMTPSenderAddress:        &config.SMTPSenderAddress,
-		SMTPServer:               &config.SMTPServer,
-		SMTPPort:                 &config.SMTPPort,
-		SMTPAuthenticationType:   &authType,
-		SMTPUserName:             &config.SMTPUserName,
-		SMTPPassword:             &config.SMTPPassword,
-		SMTPEnableTLS:            &config.SMTPEnableTLS,
-		SMTPAuthenticationMethod: &authMethod,
-		SMTPDomain:               &config.SMTPDomain,
-		SMTPVerifySSLCerts:       &config.SMTPVerifySSLCerts,
-		SMTPEnableStartTLS:       &config.SMTPEnableStartTLS,
 	}
 }
 

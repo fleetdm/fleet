@@ -17,8 +17,10 @@ func TestOrgInfo(t *testing.T) {
 	defer ds.Close()
 
 	info := &fleet.AppConfig{
-		OrgName:    "Test",
-		OrgLogoURL: "localhost:8080/logo.png",
+		OrgInfo: &fleet.OrgInfo{
+			OrgName:    ptr.String("Test"),
+			OrgLogoURL: ptr.String("localhost:8080/logo.png"),
+		},
 	}
 
 	info, err := ds.NewAppConfig(info)
@@ -27,28 +29,32 @@ func TestOrgInfo(t *testing.T) {
 
 	info2, err := ds.AppConfig()
 	require.Nil(t, err)
-	assert.Equal(t, info2.OrgName, info.OrgName)
-	assert.False(t, info2.SMTPConfigured)
+	assert.Equal(t, *info2.OrgInfo.OrgName, *info.OrgInfo.OrgName)
+	smtpConfigured := info2.GetBool("smtp_settings.configured")
+	assert.False(t, smtpConfigured)
 
-	info2.OrgName = "testss"
-	info2.SMTPDomain = "foo"
-	info2.SMTPConfigured = true
-	info2.SMTPSenderAddress = "123"
-	info2.SMTPServer = "server"
-	info2.SMTPPort = 100
-	info2.SMTPAuthenticationType = fleet.AuthTypeUserNamePassword
-	info2.SMTPUserName = "username"
-	info2.SMTPPassword = "password"
-	info2.SMTPEnableTLS = false
-	info2.SMTPAuthenticationMethod = fleet.AuthMethodCramMD5
-	info2.SMTPVerifySSLCerts = true
-	info2.SMTPEnableStartTLS = true
-	info2.EnableSSO = true
-	info2.EntityID = "test"
-	info2.MetadataURL = "https://idp.com/metadata.xml"
-	info2.IssuerURI = "https://idp.issuer.com"
-	info2.IDPName = "My IDP"
-	info2.EnableSoftwareInventory = true
+	info2.OrgInfo.OrgName = ptr.String("testss")
+	info2.SMTPSettings = &fleet.SMTPSettings{}
+	info2.SMTPSettings.SMTPDomain = ptr.String("foo")
+	info2.SMTPSettings.SMTPConfigured = ptr.Bool(true)
+	info2.SMTPSettings.SMTPSenderAddress = ptr.String("123")
+	info2.SMTPSettings.SMTPServer = ptr.String("server")
+	info2.SMTPSettings.SMTPPort = ptr.Uint(100)
+	info2.SMTPSettings.SMTPAuthenticationType = ptr.String(fleet.AuthTypeNameUserNamePassword)
+	info2.SMTPSettings.SMTPUserName = ptr.String("username")
+	info2.SMTPSettings.SMTPPassword = ptr.String("password")
+	info2.SMTPSettings.SMTPEnableTLS = ptr.Bool(false)
+	info2.SMTPSettings.SMTPAuthenticationMethod = ptr.String(fleet.AuthMethodNameCramMD5)
+	info2.SMTPSettings.SMTPVerifySSLCerts = ptr.Bool(true)
+	info2.SMTPSettings.SMTPEnableStartTLS = ptr.Bool(true)
+	info2.SSOSettings = &fleet.SSOSettings{}
+	info2.SSOSettings.EnableSSO = ptr.Bool(true)
+	info2.SSOSettings.EntityID = ptr.String("test")
+	info2.SSOSettings.MetadataURL = ptr.String("https://idp.com/metadata.xml")
+	info2.SSOSettings.IssuerURI = ptr.String("https://idp.issuer.com")
+	info2.SSOSettings.IDPName = ptr.String("My IDP")
+	info2.HostSettings = &fleet.HostSettings{}
+	info2.HostSettings.EnableSoftwareInventory = ptr.Bool(true)
 
 	err = ds.SaveAppConfig(info2)
 	require.Nil(t, err)
@@ -75,7 +81,7 @@ func TestOrgInfo(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, verify.SSOEnabled)
 
-	info4.EnableSSO = false
+	info4.SSOSettings.EnableSSO = ptr.Bool(false)
 	err = ds.SaveAppConfig(info4)
 	assert.Nil(t, err)
 
@@ -90,22 +96,27 @@ func TestAdditionalQueries(t *testing.T) {
 
 	additional := json.RawMessage("not valid json")
 	info := &fleet.AppConfig{
-		OrgName:           "Test",
-		OrgLogoURL:        "localhost:8080/logo.png",
-		AdditionalQueries: &additional,
+		OrgInfo: &fleet.OrgInfo{
+			OrgName:    ptr.String("Test"),
+			OrgLogoURL: ptr.String("localhost:8080/logo.png"),
+		},
+		HostSettings: &fleet.HostSettings{
+			AdditionalQueries: &additional,
+		},
 	}
 
 	_, err := ds.NewAppConfig(info)
-	assert.NotNil(t, err)
+	require.Error(t, err)
 
 	additional = json.RawMessage(`{}`)
 	info, err = ds.NewAppConfig(info)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	additional = json.RawMessage(`{"foo": "bar"}`)
 	info, err = ds.NewAppConfig(info)
-	assert.Nil(t, err)
-	assert.JSONEq(t, `{"foo":"bar"}`, string(*info.AdditionalQueries))
+	require.NoError(t, err)
+	rawJson := info.GetJSON("host_settings.additional_queries")
+	assert.JSONEq(t, `{"foo":"bar"}`, string(rawJson))
 }
 
 func TestEnrollSecrets(t *testing.T) {

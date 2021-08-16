@@ -25,7 +25,7 @@ func (svc *Service) StatusLiveQuery(ctx context.Context) error {
 		return errors.Wrap(err, "retrieve app config")
 	}
 
-	if cfg.LiveQueryDisabled {
+	if cfg.GetBool("server_settings.live_query_disabled") {
 		return errors.New("disabled by administrator")
 	}
 

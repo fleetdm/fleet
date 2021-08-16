@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	defer ts.Close()
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableAnalytics: true}, nil
+		return &fleet.AppConfig{ServerSettings: &fleet.ServerSettings{EnableAnalytics: ptr.Bool(true)}}, nil
 	}
 
 	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
@@ -59,7 +60,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 	defer ts.Close()
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableAnalytics: true}, nil
+		return &fleet.AppConfig{ServerSettings: &fleet.ServerSettings{EnableAnalytics: ptr.Bool(true)}}, nil
 	}
 
 	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
@@ -88,7 +89,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	defer ts.Close()
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableAnalytics: false}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)

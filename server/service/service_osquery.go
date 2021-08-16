@@ -396,13 +396,13 @@ func (svc *Service) hostDetailQueries(host fleet.Host) (map[string]string, error
 	}
 
 	// Get additional queries
-	if config.AdditionalQueries == nil {
+	if config.HostSettings == nil || config.HostSettings.AdditionalQueries == nil {
 		// No additional queries set
 		return queries, nil
 	}
 
 	var additionalQueries map[string]string
-	if err := json.Unmarshal(*config.AdditionalQueries, &additionalQueries); err != nil {
+	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
 		return nil, osqueryError{message: "unmarshal additional queries: " + err.Error()}
 	}
 

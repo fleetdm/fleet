@@ -219,8 +219,10 @@ spec:
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
-	assert.False(t, savedAppConfig.EnableHostUsers)
-	assert.False(t, savedAppConfig.EnableSoftwareInventory)
+	hostUsers := savedAppConfig.GetBool("host_settings.enable_host_users")
+	assert.False(t, hostUsers)
+	softwareInventory := savedAppConfig.GetBool("host_settings.enable_software_inventory")
+	assert.False(t, softwareInventory)
 
 	name = writeTmpYml(t, `---
 apiVersion: v1
@@ -233,6 +235,8 @@ spec:
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
-	assert.True(t, savedAppConfig.EnableHostUsers)
-	assert.True(t, savedAppConfig.EnableSoftwareInventory)
+	hostUsers = savedAppConfig.GetBool("host_settings.enable_host_users")
+	assert.True(t, hostUsers)
+	softwareInventory = savedAppConfig.GetBool("host_settings.enable_software_inventory")
+	assert.True(t, softwareInventory)
 }

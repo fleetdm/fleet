@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SSOSettings, error) {
+func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings, error) {
 	// skipauth: Basic SSO settings are available to unauthenticated users (so
 	// that they have the necessary information to initiate SSO).
 	svc.authz.SkipAuthorization(ctx)
@@ -25,12 +25,13 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SSOSettings, error)
 
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
-		return nil, errors.Wrap(err, "SSOSettings getting app config")
+		return nil, errors.Wrap(err, "SessionSSOSettings getting app config")
 	}
-	settings := &fleet.SSOSettings{
-		IDPName:     appConfig.IDPName,
-		IDPImageURL: appConfig.IDPImageURL,
-		SSOEnabled:  appConfig.EnableSSO,
+
+	settings := &fleet.SessionSSOSettings{
+		IDPName:     appConfig.GetString("sso_settings.idp_name"),
+		IDPImageURL: appConfig.GetString("sso_settings.idp_image_url"),
+		SSOEnabled:  appConfig.GetBool("sso_settings.enable_sso"),
 	}
 	return settings, nil
 }
@@ -52,24 +53,26 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", errors.Wrap(err, "InitiateSSO getting metadata")
 	}
 
+	serverURL := appConfig.GetString("server_settings.server_url")
 	settings := sso.Settings{
 		Metadata: metadata,
 		// Construct call back url to send to idp
-		AssertionConsumerServiceURL: appConfig.ServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
+		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 redirectURL,
 	}
 
 	// If issuer is not explicitly set, default to host name.
 	var issuer string
-	if appConfig.EntityID == "" {
-		u, err := url.Parse(appConfig.ServerURL)
+	entityID := appConfig.GetString("sso_settings.entity_id")
+	if entityID == "" {
+		u, err := url.Parse(serverURL)
 		if err != nil {
 			return "", errors.Wrap(err, "parse server url")
 		}
 		issuer = u.Hostname()
 	} else {
-		issuer = appConfig.EntityID
+		issuer = entityID
 	}
 	idpURL, err := sso.CreateAuthorizationRequest(&settings, issuer)
 	if err != nil {
@@ -80,21 +83,26 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 }
 
 func (svc *Service) getMetadata(config *fleet.AppConfig) (*sso.Metadata, error) {
-	if config.MetadataURL != "" {
-		metadata, err := sso.GetMetadata(config.MetadataURL)
+	metadataUrl := config.GetString("sso_settings.metadata_url")
+	if metadataUrl != "" {
+		metadata, err := sso.GetMetadata(metadataUrl)
 		if err != nil {
 			return nil, err
 		}
 		return metadata, nil
 	}
-	if config.Metadata != "" {
-		metadata, err := sso.ParseMetadata(config.Metadata)
+
+	metadata := config.GetString("sso_settings.metadata")
+	if metadata != "" {
+		metadata, err := sso.ParseMetadata(metadata)
 		if err != nil {
 			return nil, err
 		}
 		return metadata, nil
 	}
-	return nil, errors.Errorf("missing metadata for idp %s", config.IDPName)
+
+	idpName := config.GetString("sso_settings.idp_name")
+	return nil, errors.Errorf("missing metadata for idp %s", idpName)
 }
 
 func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SSOSession, error) {
@@ -114,7 +122,8 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	// localhost:9080/simplesaml/saml2/idp/SSOService.php?spentityid=https://localhost:8080
 	var metadata *sso.Metadata
 	var redirectURL string
-	if appConfig.EnableSSOIdPLogin && auth.RequestID() == "" {
+
+	if appConfig.GetBool("sso_settings.enable_sso_idp_login") && auth.RequestID() == "" {
 		// Missing request ID indicates this was IdP-initiated. Only allow if
 		// configured to do so.
 		metadata, err = svc.getMetadata(appConfig)
