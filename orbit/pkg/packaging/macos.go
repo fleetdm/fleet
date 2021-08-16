@@ -316,9 +316,9 @@ func cpio(srcPath, dstPath string) error {
 	if err != nil {
 		return errors.Wrap(err, "wait gzip")
 	}
-	err = dst.Close()
+	err = dst.Sync()
 	if err != nil {
-		return errors.Wrap(err, "close dst")
+		return errors.Wrap(err, "sync dst")
 	}
 
 	return nil
