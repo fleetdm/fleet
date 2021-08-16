@@ -3,9 +3,11 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/oleiade/reflections"
 
 	"github.com/kolide/kit/version"
 )
@@ -293,6 +295,139 @@ type AppConfigPayload struct {
 
 	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
 	VulnerabilitySettings *VulnerabilitySettingsPayload `json:"vulnerability_settings"`
+}
+
+func (c *AppConfigPayload) Get(path string) interface{} {
+	pathParts := strings.Split(path, ".")
+	field, err := getFieldByPath(c, pathParts...)
+	if err != nil {
+		panic(err)
+	}
+	return field
+}
+
+var configDefaults = map[string]func() interface{}{
+	"host_settings.enable_host_users": func() interface{} { return true },
+}
+
+func (c *AppConfigPayload) GetInt(path string) int {
+	field := c.Get(path)
+	switch typed := field.(type) {
+	case int:
+		return typed
+	case *int:
+		if typed == nil {
+			defaultFunc, ok := configDefaults[path]
+			if !ok {
+				return 0
+			}
+			return defaultFunc().(int)
+		}
+		return *typed
+	default:
+		panic("Cannot get " + path + " as int")
+	}
+}
+
+func (c *AppConfigPayload) GetUint(path string) uint {
+	field := c.Get(path)
+	switch typed := field.(type) {
+	case uint:
+		return typed
+	case *uint:
+		if typed == nil {
+			defaultFunc, ok := configDefaults[path]
+			if !ok {
+				return 0
+			}
+			return defaultFunc().(uint)
+		}
+		return *typed
+	default:
+		panic("Cannot get " + path + " as uint")
+	}
+}
+
+func (c *AppConfigPayload) GetBool(path string) bool {
+	field := c.Get(path)
+	switch typed := field.(type) {
+	case bool:
+		return typed
+	case *bool:
+		if typed == nil {
+			defaultFunc, ok := configDefaults[path]
+			if !ok {
+				return false
+			}
+			return defaultFunc().(bool)
+		}
+		return *typed
+	default:
+		panic("Cannot get " + path + " as bool")
+	}
+}
+
+func (c *AppConfigPayload) GetString(path string) string {
+	field := c.Get(path)
+	switch typed := field.(type) {
+	case string:
+		return typed
+	case *string:
+		if typed == nil {
+			defaultFunc, ok := configDefaults[path]
+			if !ok {
+				return ""
+			}
+			return defaultFunc().(string)
+		}
+		return *typed
+	default:
+		panic("Cannot get " + path + " as string")
+	}
+}
+
+func getFieldByPath(obj interface{}, path ...string) (interface{}, error) {
+	if len(path) == 0 {
+		return obj, nil
+	}
+	fields, err := reflections.Fields(obj)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range fields {
+		tag, err := reflections.GetFieldTag(obj, f, "json")
+		if err != nil {
+			return nil, err
+		}
+		tag = strings.TrimSuffix(tag, ",omitempty")
+		if tag == path[0] {
+			field, err := reflections.GetField(obj, f)
+			if err != nil {
+				return nil, err
+			}
+			return getFieldByPath(field, path[1:]...)
+		}
+	}
+	return nil, nil
+}
+
+func (c *AppConfigPayload) GetJSON(path string) json.RawMessage {
+	field := c.Get(path)
+	switch typed := field.(type) {
+	case json.RawMessage:
+		return typed
+	case *json.RawMessage:
+		if typed == nil {
+			defaultFunc, ok := configDefaults[path]
+			if !ok {
+				return json.RawMessage{}
+			}
+			return defaultFunc().(json.RawMessage)
+		}
+		return *typed
+	default:
+		panic("Cannot get " + path + " as uint")
+	}
 }
 
 // OrgInfo contains general info about the organization using Fleet.
