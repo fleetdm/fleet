@@ -3,7 +3,7 @@ import { mount } from "enzyme";
 import { noop } from "lodash";
 
 import QueryDetailsSidePanel from "components/side_panels/QueryDetailsSidePanel";
-import { queryStub, userStub } from "test/stubs";
+import { queryStub, adminUserStub } from "test/stubs";
 
 describe("QueryDetailsSidePanel - component", () => {
   it("renders", () => {
@@ -11,7 +11,7 @@ describe("QueryDetailsSidePanel - component", () => {
       <QueryDetailsSidePanel
         onEditQuery={noop}
         query={queryStub}
-        currentUser={userStub}
+        currentUser={adminUserStub}
       />
     );
 
@@ -23,7 +23,7 @@ describe("QueryDetailsSidePanel - component", () => {
       <QueryDetailsSidePanel
         onEditQuery={noop}
         query={queryStub}
-        currentUser={userStub}
+        currentUser={adminUserStub}
       />
     );
     const aceEditor = component.find("FleetAce");
@@ -39,7 +39,7 @@ describe("QueryDetailsSidePanel - component", () => {
       <QueryDetailsSidePanel
         onEditQuery={spy}
         query={queryStub}
-        currentUser={userStub}
+        currentUser={adminUserStub}
       />
     );
     const button = component.find("Button");

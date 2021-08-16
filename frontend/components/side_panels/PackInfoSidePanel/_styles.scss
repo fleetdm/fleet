@@ -4,7 +4,6 @@
   border-left: 1px solid $ui-fleet-blue-15;
   box-sizing: border-box;
   overflow: scroll;
-  padding: $pad-xlarge;
 
   &__title {
     font-size: $medium;
@@ -16,7 +15,7 @@
   }
 
   &__subtitle {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
   }
