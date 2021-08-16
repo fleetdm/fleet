@@ -417,7 +417,7 @@ export const generateRole = (
   globalRole: string | null
 ): string => {
   if (globalRole === null) {
-    const listOfRoles: any = teams.map((team) => team.role);
+    const listOfRoles: (string | undefined)[] = teams.map((team) => team.role);
 
     if (teams.length === 0) {
       // no global role and no teams
@@ -426,15 +426,19 @@ export const generateRole = (
       // no global role and only one team
       return stringUtils.capitalize(teams[0].role ?? "");
     } else if (
-      listOfRoles.every((role: string): boolean => role === "maintainer")
+      listOfRoles.every(
+        (role: string | undefined): boolean => role === "maintainer"
+      )
     ) {
       // only team maintainers
-      return stringUtils.capitalize(teams[0].role ?? "");
+      return "Maintainer";
     } else if (
-      listOfRoles.every((role: string): boolean => role === "observer")
+      listOfRoles.every(
+        (role: string | undefined): boolean => role === "observer"
+      )
     ) {
       // only team observers
-      return stringUtils.capitalize(teams[0].role ?? "");
+      return "Observer";
     }
 
     return "Various"; // no global role and multiple teams
