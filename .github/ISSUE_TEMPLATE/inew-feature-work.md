@@ -1,6 +1,6 @@
 ---
-name: 🎟  Internal - Feature work
-about: Specify engineering work for a new feature or enhancement in Fleet. If you'd like to propose a new feature or enhancement in Fleet, please use the "💡  Feature request" issue template.
+name: 🎟  New feature work
+about: Specify engineering work required to add a new feature or enhancement in Fleet.
 title: ''
 labels: 'project'
 assignees: ''
