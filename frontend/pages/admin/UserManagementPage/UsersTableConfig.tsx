@@ -109,8 +109,6 @@ const generateTableHeaders = (
 
   // Add Teams tab for basic tier only
   if (isBasicTier) {
-    console.log("catching is basic tier on usertableconfig!!");
-
     tableHeaders.splice(3, 0, {
       title: "Teams",
       Header: "Teams",
