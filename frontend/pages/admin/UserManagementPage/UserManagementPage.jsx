@@ -82,15 +82,7 @@ export class UserManagementPage extends Component {
       showResetSessionsModal: false,
       userEditing: null,
       usersEditing: [],
-      isBasicTier: props.isBasicTier, // starts as false and changes to true
     };
-
-    // done as an instance variable as these headers will not change, so dont
-    // want to recalculate on re-renders.
-    this.tableHeaders = generateTableHeaders(
-      this.onActionSelect,
-      this.state.isBasicTier
-    );
   }
 
   componentDidMount() {
@@ -548,7 +540,6 @@ export class UserManagementPage extends Component {
 
   render() {
     const {
-      tableHeaders,
       renderCreateUserModal,
       renderEditUserModal,
       renderDeleteUserModal,
@@ -558,7 +549,16 @@ export class UserManagementPage extends Component {
       onTableQueryChange,
       onActionSelect,
     } = this;
-    const { loadingTableData, users, invites, currentUser } = this.props;
+
+    const {
+      loadingTableData,
+      users,
+      invites,
+      currentUser,
+      isBasicTier,
+    } = this.props;
+
+    const tableHeaders = generateTableHeaders(onActionSelect, isBasicTier);
 
     let tableData = [];
     if (!loadingTableData) {
