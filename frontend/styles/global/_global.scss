@@ -60,7 +60,7 @@ a {
   @at-root {
     .has-sidebar & {
       margin-right: 0;
-      min-width: 610px;
+      min-width: 760px;
       max-width: calc(
         100vw - #{$pad-xlarge} - #{$pad-xlarge} - #{$pad-xxsmall} - #{$sidepanel-width}
       );
