@@ -31,6 +31,7 @@ func debugCommand() *cli.Command {
 			debugGoroutineCommand(),
 			debugTraceCommand(),
 			debugArchiveCommand(),
+			debugConnectionCommand(),
 		},
 	}
 }
@@ -312,6 +313,36 @@ func debugArchiveCommand() *cli.Command {
 
 			fmt.Fprintf(os.Stderr, "Archive written to %s\n", outfile)
 
+			return nil
+		},
+	}
+}
+
+func debugConnectionCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "connection",
+		Usage: "Investigate the cause of a connection failure to the Fleet server.",
+		Flags: []cli.Flag{
+			outfileFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+			_ = fleet
+
+			// TODO: check to make sure clientFromCLI can work without a working connection.
+			// The command's steps could be:
+			// 1. Check that the url's host resolves to an IP address or is otherwise a valid IP address directly. (net.ResolveIPAddr)
+			// 2. Attempt a raw connection to host:port. (net.DialTimeout or Context)
+			// 3. Is the certificate valid at all (x509.Certificate.ParseCertificate?)
+			// 4. Is the certificate valid for the hostname/IP address (x509.Certificate.VerifyHostname?)
+			// 5. Does the server respond with expected responses (POST to /api/v1/osquery/enroll with invalid secret).
+			// More?
 			return nil
 		},
 	}
