@@ -93,13 +93,12 @@ const DataTable = ({
   useEffect(() => {
     const column = sortBy[0];
     if (column !== undefined) {
-      onSort(column.id, column.desc);
-      // if (
-      //   column.id !== sortHeader ||
-      //   column.desc !== (sortDirection === "desc")
-      // ) {
-      //   onSort(column.id, column.desc);
-      // }
+      if (
+        column.id !== sortHeader ||
+        column.desc !== (sortDirection === "desc")
+      ) {
+        onSort(column.id, column.desc);
+      }
     } else {
       onSort(undefined);
     }
