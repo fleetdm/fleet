@@ -39,7 +39,7 @@ import {
 import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
-import { getNextLocationUrl } from "./helpers";
+import { getNextLocationPath } from "./helpers";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
@@ -198,13 +198,22 @@ export class ManageHostsPage extends PureComponent {
   onAddLabelClick = (evt) => {
     evt.preventDefault();
     const { dispatch } = this.props;
+    const { setLastLocation } = this;
+
+    // persist url params in local state for routing back on submit/cancel
+    setLastLocation();
+
     dispatch(push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`));
   };
 
   onEditLabelClick = (evt) => {
     evt.preventDefault();
-    const { getLabelSelected } = this;
+    const { getLabelSelected, setLastLocation } = this;
     const { dispatch } = this.props;
+
+    // persist url params in local state for routing back on submit/cancel
+    setLastLocation();
+
     dispatch(
       push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}${EDIT_LABEL_HASH}`)
     );
@@ -231,13 +240,19 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onCancelAddLabel = () => {
-    const { dispatch, selectedFilters } = this.props;
-    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilters.join("/")}`));
+    const { dispatch } = this.props;
+
+    // return user to previous location based on url params persisted in local state
+    dispatch(push(getNextLocationPath(this.state.lastLocation)));
+    this.setState({ lastLocation: null });
   };
 
   onCancelEditLabel = () => {
-    const { dispatch, selectedFilters } = this.props;
-    dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilters.join("/")}`));
+    const { dispatch } = this.props;
+
+    // return user to previous location based on url params persisted in local state
+    dispatch(push(getNextLocationPath(this.state.lastLocation)));
+    this.setState({ lastLocation: null });
   };
 
   onAddHostClick = (evt) => {
@@ -292,45 +307,48 @@ export class ManageHostsPage extends PureComponent {
       teamId,
     });
 
-    const newQueryParams = {};
+    const queryParams = {};
     console.log("query: ", searchQuery);
     if (!isEmpty(searchQuery)) {
-      newQueryParams.query = searchQuery;
+      queryParams.query = searchQuery;
     }
     if (sortBy[0] && sortBy[0].id) {
-      newQueryParams.order_key = sortBy[0].id;
+      queryParams.order_key = sortBy[0].id;
     }
     if (sortBy[0] && sortBy[0].direction) {
-      newQueryParams.order_direction = sortBy[0].direction;
+      queryParams.order_direction = sortBy[0].direction;
     }
     if (teamId) {
-      newQueryParams.team_id = teamId;
+      queryParams.team_id = teamId;
     }
 
-    const nextLocation = getNextLocationUrl({
+    const nextLocation = getNextLocationPath({
       pathPrefix: PATHS.MANAGE_HOSTS,
-      newRouteTemplate: routeTemplate,
-      newRouteParams: routeParams,
-      newQueryParams,
+      routeTemplate,
+      routeParams,
+      queryParams,
     });
 
     dispatch(push(nextLocation));
   };
 
   onEditLabel = (formData) => {
-    const { getLabelSelected } = this;
     const { dispatch, selectedLabel } = this.props;
     const updateAttrs = deepDifference(formData, selectedLabel);
 
     return dispatch(labelActions.update(selectedLabel, updateAttrs))
       .then(() => {
-        dispatch(push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}`));
+        // return user to previous location based on url params persisted in local state
+        dispatch(push(getNextLocationPath(this.state.lastLocation)));
+        this.setState({ lastLocation: null });
+
         dispatch(
           renderFlash(
             "success",
             "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
           )
         );
+
         return false;
       })
       .catch(() => false);
@@ -482,6 +500,17 @@ export class ManageHostsPage extends PureComponent {
     return validatedTeamId;
   };
 
+  setLastLocation = () => {
+    this.setState({
+      lastLocation: {
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate: this.props.routeTemplate,
+        routeParams: this.props.routeParams,
+        queryParams: this.props.queryParams,
+      },
+    });
+  };
+
   generateTeamFilterDropdownOptions = (teams) => {
     const { currentUser, isOnGlobalTeam } = this.props;
 
@@ -614,11 +643,11 @@ export class ManageHostsPage extends PureComponent {
     };
     retrieveHosts(hostsOptions);
 
-    let nextLocation = getNextLocationUrl({
+    let nextLocation = getNextLocationPath({
       pathPrefix: MANAGE_HOSTS,
-      newRouteTemplate: routeTemplate,
-      newRouteParams: routeParams,
-      newQueryParams: Object.assign({}, queryParams, { team_id: teamIdParam }),
+      routeTemplate,
+      routeParams,
+      queryParams: Object.assign({}, queryParams, { team_id: teamIdParam }),
     });
 
     if (!teamIdParam) {
