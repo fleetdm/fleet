@@ -107,7 +107,7 @@ const QueriesListWrapper = (
         searchable
         disablePagination
         onPrimarySelectActionClick={onRemoveQueryClick}
-        primarySelectActionButtonVariant="text-link"
+        primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}
         emptyComponent={NoQueriesComponent}
