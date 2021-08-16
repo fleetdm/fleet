@@ -109,15 +109,15 @@ const TableContainer = ({
   const onSortChange = useCallback(
     (id?: string, isDesc?: boolean) => {
       if (id === undefined) {
-        setSortHeader("");
-        setSortDirection("");
+        setSortHeader(defaultSortHeader || "");
+        setSortDirection(defaultSortDirection || "");
       } else {
         setSortHeader(id);
         const direction = isDesc ? "desc" : "asc";
         setSortDirection(direction);
       }
     },
-    [setSortHeader, setSortDirection]
+    [defaultSortHeader, defaultSortDirection, setSortHeader, setSortDirection]
   );
 
   const onSearchQueryChange = (value: string) => {

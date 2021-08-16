@@ -79,6 +79,7 @@ const DataTable = ({
         }, [sortHeader, sortDirection]),
       },
       disableMultiSort: true,
+      disableSortRemove: true,
       manualSortBy,
     },
     useSortBy,
@@ -92,12 +93,13 @@ const DataTable = ({
   useEffect(() => {
     const column = sortBy[0];
     if (column !== undefined) {
-      if (
-        column.id !== sortHeader ||
-        column.desc !== (sortDirection === "desc")
-      ) {
-        onSort(column.id, column.desc);
-      }
+      onSort(column.id, column.desc);
+      // if (
+      //   column.id !== sortHeader ||
+      //   column.desc !== (sortDirection === "desc")
+      // ) {
+      //   onSort(column.id, column.desc);
+      // }
     } else {
       onSort(undefined);
     }
