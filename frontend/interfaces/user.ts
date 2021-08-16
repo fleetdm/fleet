@@ -2,26 +2,30 @@ import PropTypes from "prop-types";
 import teamInterface, { ITeam } from "./team";
 
 export default PropTypes.shape({
-  email: PropTypes.string,
-  force_password_reset: PropTypes.bool,
-  api_only: PropTypes.bool,
-  global_role: PropTypes.string,
-  gravatar_url: PropTypes.string,
+  created_at: PropTypes.string,
+  updated_at: PropTypes.string,
   id: PropTypes.number,
   name: PropTypes.string,
+  email: PropTypes.string,
+  force_password_reset: PropTypes.bool,
+  gravatar_url: PropTypes.string,
   sso_enabled: PropTypes.bool,
+  global_role: PropTypes.string,
+  api_only: PropTypes.bool,
   teams: PropTypes.arrayOf(teamInterface),
 });
 
 export interface IUser {
-  email: string;
-  force_password_reset: boolean;
-  api_only: boolean;
-  global_role: string | null;
-  gravatar_url: string;
+  created_at?: string;
+  updated_at?: string;
   id: number;
   name: string;
+  email: string;
+  force_password_reset: boolean;
+  gravatar_url: string;
   sso_enabled: boolean;
+  global_role: string | null;
+  api_only: boolean;
   teams: ITeam[];
 }
 
