@@ -154,7 +154,7 @@ To start the Fleet server backed by the Docker development infrastructure, run t
 ./build/fleet serve --dev
 ```
 
-The server is accessible by default at [https://localhost:8081](https://localhost:8080). Note that `--dev` requires the use of `make generate-dev` as the server will not use bundled assets in this mode (you may see an error mentioning a template not found when visiting the website otherwise).
+The server is accessible by default at [https://localhost:8080](https://localhost:8080). Note that `--dev` requires the use of `make generate-dev` as the server will not use bundled assets in this mode (you may see an error mentioning a template not found when visiting the website otherwise).
 
 By default, Fleet will try to connect to servers running on default ports on `localhost`. Depending on your browser's settings, you may have to click through a security warning.
 
