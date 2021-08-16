@@ -137,6 +137,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search"
         searchable={false}
+        disablePagination
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="close"
