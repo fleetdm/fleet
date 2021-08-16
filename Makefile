@@ -101,7 +101,7 @@ help:
 build: fleet fleetctl
 
 fleet: .prefix .pre-build .pre-fleet
-	CGO_ENABLED=1 go build -tags full,fts5 -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 go build -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 
 fleetctl: .prefix .pre-build .pre-fleetctl
 	CGO_ENABLED=0 go build -tags full,fts5 -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
@@ -115,10 +115,10 @@ lint-go:
 lint: lint-go lint-js
 
 test-go:
-	go test -tags full,fts5 -parallel 8 ./...
+	go test -tags full,fts5,netgo -parallel 8 ./...
 
 analyze-go:
-	go test -tags full,fts5 -race -cover ./...
+	go test -tags full,fts5,netgo -race -cover ./...
 
 test-js:
 	npm test
@@ -182,7 +182,7 @@ docker-push-release: docker-build-release
 
 docker-build-circle:
 	@echo ">> building docker image"
-	CGO_ENABLED=1 GOOS=linux go build -tags full,fts5 -o build/linux/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 GOOS=linux go build -tags full,fts5,netgo -o build/linux/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
 	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
 
@@ -192,9 +192,9 @@ docker-build-circle:
 	mkdir -p build/binary-bundle/darwin
 
 xp-fleet: .pre-binary-bundle .pre-fleet generate
-	CGO_ENABLED=1 GOOS=linux go build -tags full,fts5 -trimpath -o build/binary-bundle/linux/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	CGO_ENABLED=1 GOOS=darwin go build -tags full,fts5 -trimpath -o build/binary-bundle/darwin/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	CGO_ENABLED=1 GOOS=windows go build -tags full,fts5 -trimpath -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 GOOS=linux go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/linux/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 GOOS=darwin go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/darwin/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 GOOS=windows go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
 
 xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate-go
 	CGO_ENABLED=0 GOOS=linux go build -tags full,fts5 -trimpath -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
@@ -223,8 +223,8 @@ endif
 
 binary-arch: .pre-binary-arch .pre-binary-bundle .pre-fleet
 	mkdir -p build/binary-bundle/${GOARCH}-${GOOS}
-	CGO_ENABLED=1 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full,fts5 -o build/binary-bundle/${GOARCH}-${GOOS}/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	CGO_ENABLED=0 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full,fts5 -o build/binary-bundle/${GOARCH}-${GOOS}/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=1 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full,fts5,netgo -o build/binary-bundle/${GOARCH}-${GOOS}/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=0 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full,fts5,netgo -o build/binary-bundle/${GOARCH}-${GOOS}/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 	cd build/binary-bundle/${GOARCH}-${GOOS} && tar -czf fleetctl-${GOARCH}-${GOOS}.tar.gz fleetctl fleet
 
 
