@@ -47,7 +47,7 @@ npm install -g yarn
 
 Note: all packages default to the latest versions. To specify a version, place `--version <version-number>` after each package. You may also install all packages manually from their websites if you prefer.
 
-After the packages have installed, you must use **Git Bash** to continue with the [next section](#clone-and-build). 
+After the packages have installed, you must use **Git Bash** to continue with the [next section](#clone-and-build).
 
 ### Clone and build
 
@@ -71,7 +71,7 @@ To setup a working local development environment, you must install the following
 
 Once you have those minimum requirements, check out this [Loom video](https://www.loom.com/share/e7439f058eb44c45af872abe8f8de4a1) that walks through starting up a local development environment for Fleet.
 
-For a text-based walkthrough, continue through the following steps: 
+For a text-based walkthrough, continue through the following steps:
 
 First, you will need to install Fleet's dependencies.
 
@@ -154,7 +154,7 @@ To start the Fleet server backed by the Docker development infrastructure, run t
 ./build/fleet serve --dev
 ```
 
-The server is accessible by default at [https://localhost:8080](https://localhost:8080).
+The server is accessible by default at [https://localhost:8080](https://localhost:8080). Note that `--dev` requires the use of `make generate-dev` as the server will not use bundled assets in this mode (you may see an error mentioning a template not found when visiting the website otherwise).
 
 By default, Fleet will try to connect to servers running on default ports on `localhost`. Depending on your browser's settings, you may have to click through a security warning.
 
