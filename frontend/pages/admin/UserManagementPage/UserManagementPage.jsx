@@ -82,18 +82,22 @@ export class UserManagementPage extends Component {
       showResetSessionsModal: false,
       userEditing: null,
       usersEditing: [],
+      isBasicTier: props.isBasicTier, // starts as false and changes to true
     };
-
-    const { isBasicTier } = props;
 
     // done as an instance variable as these headers will not change, so dont
     // want to recalculate on re-renders.
-    this.tableHeaders = generateTableHeaders(this.onActionSelect, isBasicTier);
+    this.tableHeaders = generateTableHeaders(
+      this.onActionSelect,
+      this.state.isBasicTier
+    );
   }
 
   componentDidMount() {
-    const { dispatch } = this.props;
-    dispatch(teamActions.loadAll({}));
+    const { dispatch, isBasicTier } = this.props;
+    if (isBasicTier) {
+      dispatch(teamActions.loadAll({}));
+    }
   }
 
   onEditUser = (formData) => {
