@@ -180,12 +180,6 @@ docker-push-release: docker-build-release
 	docker push fleetdm/fleet:${VERSION}
 	docker push fleetdm/fleet:latest
 
-docker-build-circle:
-	@echo ">> building docker image"
-	CGO_ENABLED=1 GOOS=linux go build -tags full,fts5,netgo -o build/linux/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
-	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
-	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-
 .pre-binary-bundle:
 	rm -rf build/binary-bundle
 	mkdir -p build/binary-bundle/linux
