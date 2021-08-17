@@ -328,8 +328,15 @@ func debugConnectionCommand() *cli.Command {
 	const timeoutPerCheck = 10 * time.Second
 
 	return &cli.Command{
-		Name:  "connection",
-		Usage: "Investigate the cause of a connection failure to the Fleet server.",
+		Name:      "connection",
+		ArgsUsage: "[<address>]",
+		Usage:     "Investigate the cause of a connection failure to the Fleet server.",
+		Description: `Run a number of checks to debug a connection failure to the Fleet
+server.
+
+If <address> is provided, this is the address that is investigated,
+otherwise the address of the provided context is used, with
+the default context used if none is explicitly specified.`,
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -337,15 +344,25 @@ func debugConnectionCommand() *cli.Command {
 			fleetCertificateFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			var addr string
+			if narg := c.NArg(); narg > 0 {
+				if narg > 1 {
+					return errors.New("too many arguments")
+				}
+				addr = c.Args().First()
+			}
+
+			// TODO: not correct: clientFromCLI requires a login token, which
+			// can only be obtained once the connection works. The context cannot apply
+			// for this command, use a provided address (as mentioned in the issue), and
+			// build the fleet client just before the API endpoint check.
+			_ = addr
+
 			fleet, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
 
-			// TODO: not sure this is correct, clientFromCLI requires a login token, which
-			// can only be obtained once the connection works. The context cannot apply
-			// for this command, use a provided address (as mentioned in the issue), and
-			// build the fleet client just before the API endpoint check.
 			baseURL := fleet.BaseURL()
 
 			// 1. Check that the url's host resolves to an IP address or is otherwise
