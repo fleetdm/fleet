@@ -29,15 +29,12 @@ export class CoreLayout extends Component {
     }).isRequired,
   };
 
-  static contextType = TableContext;
-
   componentWillReceiveProps(nextProps) {
     const { notifications } = nextProps;
     const table = this.context;
 
     if (!isEqual(this.props.notifications, notifications)) {
       if (notifications.alertType === "success") {
-        console.log("two ifs fired");
         setTimeout(() => {
           table.setResetSelectedRows(true);
           setTimeout(() => {
@@ -94,6 +91,8 @@ export class CoreLayout extends Component {
       return onRemoveFlash();
     };
   };
+
+  static contextType = TableContext;
 
   render() {
     const {

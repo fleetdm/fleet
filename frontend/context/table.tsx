@@ -6,12 +6,12 @@ type Props = {
 
 type InitialStateType = {
   resetSelectedRows: boolean;
-  setResetSelectedRows: Function;
+  setResetSelectedRows: (update: boolean) => void;
 };
 
 const initialState = {
   resetSelectedRows: false,
-  setResetSelectedRows: () => {},
+  setResetSelectedRows: () => null,
 };
 
 const actions = {
