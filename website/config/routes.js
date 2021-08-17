@@ -27,14 +27,14 @@ module.exports.routes = {
   'GET /docs/?*':            { skipAssets: false, action: 'docs/view-basic-documentation' },// handles /docs and /docs/foo/bar
   'GET /handbook/?*':        { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
 
-  '/contribute':             'https://github.com/fleetdm/fleet/tree/main/docs/3-Contributing',
+  '/contribute':             '/docs/contribute',
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   '/legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
   '/security':               'https://github.com/fleetdm/fleet/security/policy',
 
   'GET /transparency':       { action: 'view-transparency' },
 
-  'GET /apply': 'https://fleet-device-management.breezy.hr',
+  'GET /apply':              'https://fleet-device-management.breezy.hr',
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
