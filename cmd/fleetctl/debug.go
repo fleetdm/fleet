@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -331,6 +332,7 @@ func debugConnectionCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			fleetCertificateFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -345,17 +347,46 @@ func debugConnectionCommand() *cli.Command {
 			// verify if the certificate is for one of them instead of the hostname.
 			ips, err := resolveHostname(c.Context, timeoutPerCheck, baseURL.Hostname())
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Fail")
 			}
+			fmt.Fprintf(os.Stdout, "Success: can resolve host %s.\n", baseURL.Hostname())
 			_ = ips
 
-			// TODO: check to make sure clientFromCLI can work without a working connection.
-			// The command's steps could be:
-			// 2. Attempt a raw connection to host:port. (net.DialTimeout or Context)
-			// 3. Is the certificate valid at all (x509.Certificate.ParseCertificate?)
-			// 4. Is the certificate valid for the hostname/IP address (x509.Certificate.VerifyHostname?)
-			// 5. Does the server respond with expected responses (POST to /api/v1/osquery/enroll with invalid secret).
-			// More?
+			// 2. Attempt a raw TCP connection to host:port.
+			if err := dialHostPort(c.Context, timeoutPerCheck, baseURL.Host); err != nil {
+				return errors.Wrap(err, "Fail")
+			}
+			fmt.Fprintf(os.Stdout, "Success: can dial server at %s.\n", baseURL.Host)
+
+			if cert := getFleetCertificate(c); cert != "" {
+				// TODO: check to make sure clientFromCLI can work without a working connection.
+				// The command's steps could be:
+				// 3. Is the certificate valid at all (x509.Certificate.ParseCertificate?)
+				// 4. Is the certificate valid for the hostname/IP address (x509.Certificate.VerifyHostname?)
+			}
+
+			// 5. Check that the server responds with expected responses (by
+			// making a POST to /api/v1/osquery/enroll with an invalid
+			// secret).
+			var enrollRes struct {
+				Error       string `json:"error"`
+				NodeInvalid bool   `json:"node_invalid"`
+			}
+			res, err := fleet.Do("POST", "/api/v1/osquery/enroll", "", map[string]string{
+				"enroll_secret": "--invalid--",
+			})
+			if err != nil {
+				return errors.Wrap(err, "Fail")
+			}
+			defer res.Body.Close()
+			if err := json.NewDecoder(res.Body).Decode(&enrollRes); err != nil {
+				// TODO: handle invalid json response
+			}
+			if enrollRes.Error == "" || !enrollRes.NodeInvalid {
+				// TODO: handle unexpected response, should have failed
+			}
+			fmt.Fprintf(os.Stdout, "%#v\n", enrollRes)
+			fmt.Fprintln(os.Stdout, "Success: agent API endpoints are available.")
 			return nil
 		},
 	}
@@ -367,4 +398,16 @@ func resolveHostname(ctx context.Context, timeout time.Duration, host string) ([
 
 	var r net.Resolver
 	return r.LookupIP(ctx, "ip", host)
+}
+
+func dialHostPort(ctx context.Context, timeout time.Duration, addr string) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", addr)
+	if err == nil {
+		conn.Close()
+	}
+	return err
 }

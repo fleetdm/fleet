@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -104,7 +105,7 @@ func EnableClientDebug() ClientOption {
 	}
 }
 
-func (c *Client) doWithHeaders(verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
+func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
 	var bodyBytes []byte
 	var err error
 	if params != nil {
@@ -114,7 +115,8 @@ func (c *Client) doWithHeaders(verb, path, rawQuery string, params interface{}, 
 		}
 	}
 
-	request, err := http.NewRequest(
+	request, err := http.NewRequestWithContext(
+		ctx,
 		verb,
 		c.url(path, rawQuery).String(),
 		bytes.NewBuffer(bodyBytes),
@@ -136,12 +138,17 @@ func (c *Client) BaseURL() url.URL {
 }
 
 func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
+	return c.DoContext(context.Background(), verb, path,
+		rawQuery, params)
+}
+
+func (c *Client) DoContext(ctx context.Context, verb, path, rawQuery string, params interface{}) (*http.Response, error) {
 	headers := map[string]string{
 		"Content-type": "application/json",
 		"Accept":       "application/json",
 	}
 
-	return c.doWithHeaders(verb, path, rawQuery, params, headers)
+	return c.doContextWithHeaders(ctx, verb, path, rawQuery, params, headers)
 }
 
 func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
@@ -155,7 +162,8 @@ func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}
 		"Authorization": fmt.Sprintf("Bearer %s", c.token),
 	}
 
-	return c.doWithHeaders(verb, path, rawQuery, params, headers)
+	return c.doContextWithHeaders(context.Background(), verb,
+		path, rawQuery, params, headers)
 }
 
 func (c *Client) SetToken(t string) {

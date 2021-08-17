@@ -41,8 +41,4 @@ func TestDebugResolveHostname(t *testing.T) {
 
 	_, err = resolveHostname(context.Background(), timeout, noSuchHost)
 	require.Error(t, err)
-	var to interface{ Timeout() bool }
-	require.Implements(t, &to, err)
-	to = err.(interface{ Timeout() bool })
-	require.True(t, to.Timeout())
 }
