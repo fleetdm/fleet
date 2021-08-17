@@ -426,30 +426,25 @@
     }
 
     .data-table__table {
+      table-layout: fixed;
+
+      thead {
+        // Width and overflow behavior for all columns
+        // except the "Query name" column
+        // Width calculation adjusts for each row's horizontal padding
+        th {
+          width: calc(160px - 27px * 2);
+        }
+
+        // Width and overflow behavior the "Query name" column
+        // Width calculation adjusts for each row's horizontal padding
+        th:nth-child(1) {
+          width: auto !important;
+        }
+      }
+
       tbody {
-        // Width and overflow behavior for the "Query name" column
-        // Width calculation adjusts for each row's horizontal padding
-        td:nth-child(1) {
-          width: calc(740px - 27px * 2);
-          min-width: calc(740px - 27px * 2);
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        // Width and overflow behavior for the "Frequency" column
-        // Width calculation adjusts for each row's horizontal padding
-        td:nth-child(2) {
-          width: calc(740px - 27px * 2);
-          min-width: calc(160px - 27px * 2);
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        // Width and overflow behavior for the "Last run" column
-        // Width calculation adjusts for each row's horizontal padding
-        td:nth-child(3) {
-          width: calc(740px - 27px * 2);
-          min-width: calc(160px - 27px * 2);
+        td {
           overflow: hidden;
           text-overflow: ellipsis;
         }
