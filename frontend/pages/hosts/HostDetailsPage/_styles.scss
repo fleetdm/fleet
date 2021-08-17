@@ -428,22 +428,25 @@
     .data-table__table {
       tbody {
         // Width and overflow behavior for the "Query name" column
+        // Width calculation adjusts for each row's horizontal padding
         td:nth-child(1) {
-          min-width: 740px;
+          min-width: calc(740px - 27px * 2);
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
         // Width and overflow behavior for the "Frequency" column
+        // Width calculation adjusts for each row's horizontal padding
         td:nth-child(2) {
-          min-width: 160px;
+          min-width: calc(160px - 27px * 2);
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
         // Width and overflow behavior for the "Last run" column
+        // Width calculation adjusts for each row's horizontal padding
         td:nth-child(3) {
-          min-width: 160px;
+          min-width: calc(160px - 27px * 2);
           overflow: hidden;
           text-overflow: ellipsis;
         }
