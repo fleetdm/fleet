@@ -723,8 +723,11 @@
     if (!pageName) { throw new Error('1st argument (page name) is required'); }
     if (!def) { throw new Error('2nd argument (page script definition) is required'); }
 
+    // Don't look for a matching page-script for elements that share an id with a page (checking for a `parasails-has-no-page-script` attribute)
+    var domsToIgnore = $('#'+pageName).parents().filter('[parasails-has-no-page-script]');
+
     // Only actually build+load this page script if it is relevant for the current contents of the DOM.
-    if (!document.getElementById(pageName)) { return; }//eslint-disable-line no-undef
+    if (!document.getElementById(pageName) || domsToIgnore.length >= 1) { return; }//eslint-disable-line no-undef
 
     // Spinlock
     if (didAlreadyLoadPageScript) { throw new Error('Cannot load page script (`'+pageName+') because a page script has already been loaded on this page.'); }
