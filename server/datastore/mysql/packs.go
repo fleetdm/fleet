@@ -228,7 +228,7 @@ func (d *Datastore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet
 			(name, description, platform, disabled)
 			VALUES ( ?, ?, ?, ? )
 		`
-		result, err := d.db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled)
+		result, err := tx.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled)
 		if err != nil {
 			return errors.Wrap(err, "insert pack")
 		}
@@ -346,7 +346,7 @@ func (d *Datastore) SavePack(pack *fleet.Pack) error {
 			WHERE id = ?
 	`
 
-		results, err := d.db.Exec(query, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
+		results, err := tx.Exec(query, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
 		if err != nil {
 			return errors.Wrap(err, "updating pack")
 		}

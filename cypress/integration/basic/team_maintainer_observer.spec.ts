@@ -37,7 +37,7 @@ describe("Basic tier - Team observer/maintainer user", () => {
     cy.visit("/schedule/manage");
     cy.findByText(/you do not have permissions/i).should("exist");
 
-    // NOT see and select "add new label"
+    // NOT see and select "add label"
     cy.findByRole("button", { name: /new label/i }).should("not.exist");
 
     // On the Host details page, they should…
@@ -186,5 +186,15 @@ describe("Basic tier - Team observer/maintainer user", () => {
           // ^^TODO modify for expected host count once hosts are seeded
         });
     });
+
+    // On the Profile page, they should…
+    // See 2 Teams in the Team section and Various in the Role section
+    cy.visit("/profile");
+    cy.findByText("Teams")
+      .next()
+      .contains(/2 teams/i);
+    cy.findByText("Role")
+      .next()
+      .contains(/various/i);
   });
 });

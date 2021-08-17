@@ -2,6 +2,8 @@ import { flatMap, omit, pick, size } from "lodash";
 import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
+import stringUtils from "utilities/strings";
+import { ITeam } from "interfaces/team";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -410,6 +412,79 @@ export const formatPackForClient = (pack: any): any => {
   return pack;
 };
 
+export const generateRole = (
+  teams: ITeam[],
+  globalRole: string | null
+): string => {
+  if (globalRole === null) {
+    const listOfRoles: (string | undefined)[] = teams.map((team) => team.role);
+
+    if (teams.length === 0) {
+      // no global role and no teams
+      return "Unassigned";
+    } else if (teams.length === 1) {
+      // no global role and only one team
+      return stringUtils.capitalize(teams[0].role ?? "");
+    } else if (
+      listOfRoles.every(
+        (role: string | undefined): boolean => role === "maintainer"
+      )
+    ) {
+      // only team maintainers
+      return "Maintainer";
+    } else if (
+      listOfRoles.every(
+        (role: string | undefined): boolean => role === "observer"
+      )
+    ) {
+      // only team observers
+      return "Observer";
+    }
+
+    return "Various"; // no global role and multiple teams
+  }
+
+  if (teams.length === 0) {
+    // global role and no teams
+    return stringUtils.capitalize(globalRole);
+  }
+  return "Various"; // global role and one or more teams
+};
+
+export const generateTeam = (
+  teams: ITeam[],
+  globalRole: string | null
+): string => {
+  if (globalRole === null) {
+    if (teams.length === 0) {
+      // no global role and no teams
+      return "No Team";
+    } else if (teams.length === 1) {
+      // no global role and only one team
+      return teams[0].name;
+    }
+    return `${teams.length} teams`; // no global role and multiple teams
+  }
+
+  if (teams.length === 0) {
+    // global role and no teams
+    return "Global";
+  }
+  return `${teams.length + 1} teams`; // global role and one or more teams
+};
+
+export const greyCell = (roleOrTeamText: string): string => {
+  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No Team"];
+
+  if (
+    GREYED_TEXT.includes(roleOrTeamText) ||
+    roleOrTeamText.includes(" teams")
+  ) {
+    return "grey-cell";
+  }
+  return "";
+};
+
 const setupData = (formData: any) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
@@ -550,6 +625,9 @@ export default {
   formatTeamScheduledQueryForClient,
   formatTeamScheduledQueryForServer,
   formatSelectedTargetsForApi,
+  generateRole,
+  generateTeam,
+  greyCell,
   humanHostUptime,
   humanHostLastSeen,
   humanHostEnrolled,

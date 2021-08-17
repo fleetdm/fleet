@@ -1,3 +1,15 @@
+## Fleet 4.2.1 (Aug 14, 2021)
+
+* Fix a database issue with MariaDB 10.5.4.
+
+* Display updated team name after edit.
+
+* When a connection from a live query websocket is closed, Fleet now timeouts the receive and handles the different cases correctly to not hold the connection to Redis.
+
+* Read live query results from Redis in a thread safe manner.
+
+* Allow observers and maintainers to refetch a host in a team they belong to.
+
 ## Fleet 4.2.0 (Aug 11, 2021)
 
 * Add ability to simultaneously filter hosts by status (`online`, `offline`, `new`, `mia`) and by label on the **Hosts** page.

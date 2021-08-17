@@ -87,5 +87,13 @@ describe("Basic tier - Admin user", () => {
     });
     cy.findByRole("button", { name: /create user/i }).click();
     cy.findByText(/assign teams/i).should("exist");
+
+    // On the Profile page, they should…
+    // See Global in the Team section and Admin in the Role section
+    cy.visit("/profile");
+    cy.findByText(/team/i)
+      .next()
+      .contains(/global/i);
+    cy.findByText("Role").next().contains(/admin/i);
   });
 });

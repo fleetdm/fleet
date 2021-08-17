@@ -2,34 +2,28 @@ import PropTypes, { string } from "prop-types";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
-  description: PropTypes.string,
-  display_text: PropTypes.string,
-  hosts_count: PropTypes.number,
-  host_ids: PropTypes.arrayOf(
-    PropTypes.oneOfType([PropTypes.number, PropTypes.string])
-  ),
+  updated_at: PropTypes.string,
   id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   name: PropTypes.string,
+  query: PropTypes.string,
   label_type: PropTypes.string,
-  title: PropTypes.string, // confirm on rest api doc
-  type: PropTypes.string, // confirm on rest api doc
-  count: PropTypes.number, // confirm on rest api doc
+  label_membership_type: PropTypes.string,
+  hosts_count: PropTypes.number,
+  display_text: PropTypes.string,
+  count: PropTypes.number, // seems to be a repeat of hosts_count issue #1618
+  host_ids: PropTypes.arrayOf(PropTypes.number),
 });
 
 export interface ILabel {
   created_at: string;
-  description: string;
-  display_text: string;
-  hosts_count: number;
-  host_ids: number[] | null;
+  updated_at: string;
   id: number | string;
-  label_membership_type: string;
-  label_type: string;
   name: string;
   query: string;
-  updated_at: string;
-  title: string; // confirm on rest api doc
-  type: string; // confirm on rest api doc
-  count: number;
-  slug?: string;
+  label_type: string;
+  label_membership_type: string;
+  hosts_count: number;
+  display_text: string;
+  count: number; // seems to be a repeat of hosts_count issue #1618
+  host_ids: number[] | null;
 }

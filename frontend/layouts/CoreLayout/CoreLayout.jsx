@@ -7,7 +7,7 @@ import { push } from "react-router-redux";
 import configInterface from "interfaces/config";
 import FlashMessage from "components/flash_messages/FlashMessage";
 import PersistentFlash from "components/flash_messages/PersistentFlash";
-import SiteNavSidePanel from "components/side_panels/SiteNavSidePanel";
+import SiteTopNav from "components/side_panels/SiteTopNav";
 import userInterface from "interfaces/user";
 import notificationInterface from "interfaces/notification";
 import { hideFlash } from "redux/nodes/notifications/actions";
@@ -92,7 +92,7 @@ export class CoreLayout extends Component {
     return (
       <div className="app-wrap">
         <nav className="site-nav">
-          <SiteNavSidePanel
+          <SiteTopNav
             config={config}
             onLogoutUser={onLogoutUser}
             onNavItemClick={onNavItemClick}

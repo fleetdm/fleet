@@ -79,6 +79,7 @@ const DataTable = ({
         }, [sortHeader, sortDirection]),
       },
       disableMultiSort: true,
+      disableSortRemove: true,
       manualSortBy,
     },
     useSortBy,

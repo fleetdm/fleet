@@ -1,29 +1,35 @@
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
+  created_at: PropTypes.string,
+  updated_at: PropTypes.string,
   id: PropTypes.number.isRequired,
-  interval: PropTypes.number.isRequired,
+  pack_id: PropTypes.number,
   name: PropTypes.string.isRequired,
-  shard: PropTypes.number,
-  query: PropTypes.string.isRequired,
   query_id: PropTypes.number.isRequired,
-  removed: PropTypes.bool,
+  query: PropTypes.string.isRequired,
+  query_name: PropTypes.string.isRequired,
+  interval: PropTypes.number.isRequired,
   snapshot: PropTypes.bool,
-  team_id: PropTypes.number.isRequired,
-  version: PropTypes.string,
+  removed: PropTypes.bool,
+  shard: PropTypes.number,
   platform: PropTypes.string,
+  version: PropTypes.string,
 });
 
 export interface ITeamScheduledQuery {
+  created_at: string;
+  updated_at: string;
   id: number;
-  interval: number;
+  pack_id: number;
   name: string;
-  shard?: number;
-  query: string;
   query_id: number;
-  removed: boolean;
+  query: string;
+  query_name: string;
+  interval: number;
   snapshot: boolean;
-  team_id: number;
-  version?: string;
+  removed: boolean;
   platform?: string;
+  version?: string;
+  shard?: number;
 }
