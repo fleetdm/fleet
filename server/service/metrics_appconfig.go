@@ -36,7 +36,7 @@ func (mw metricsMiddleware) AppConfig(ctx context.Context) (*fleet.AppConfig, er
 	return info, err
 }
 
-func (mw metricsMiddleware) ModifyAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet.AppConfig, error) {
+func (mw metricsMiddleware) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
 	var (
 		info *fleet.AppConfig
 		err  error

@@ -55,12 +55,12 @@ func TestModifyUserEmail(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPSettings: &fleet.SMTPSettings{
-				SMTPConfigured:         ptr.Bool(true),
-				SMTPAuthenticationType: ptr.String(fleet.AuthTypeNameNone),
-				SMTPPort:               ptr.Uint(1025),
-				SMTPServer:             ptr.String("127.0.0.1"),
-				SMTPSenderAddress:      ptr.String("xxx@fleet.co"),
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
 			},
 		}
 		return config, nil
@@ -102,12 +102,12 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPSettings: &fleet.SMTPSettings{
-				SMTPConfigured:         ptr.Bool(true),
-				SMTPAuthenticationType: ptr.String(fleet.AuthTypeNameNone),
-				SMTPPort:               ptr.Uint(1025),
-				SMTPServer:             ptr.String("127.0.0.1"),
-				SMTPSenderAddress:      ptr.String("xxx@fleet.co"),
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
 			},
 		}
 		return config, nil
@@ -148,12 +148,12 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPSettings: &fleet.SMTPSettings{
-				SMTPConfigured:         ptr.Bool(true),
-				SMTPAuthenticationType: ptr.String(fleet.AuthTypeNameNone),
-				SMTPPort:               ptr.Uint(1025),
-				SMTPServer:             ptr.String("127.0.0.1"),
-				SMTPSenderAddress:      ptr.String("xxx@fleet.co"),
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
 			},
 		}
 		return config, nil
@@ -194,12 +194,12 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPSettings: &fleet.SMTPSettings{
-				SMTPConfigured:         ptr.Bool(true),
-				SMTPAuthenticationType: ptr.String(fleet.AuthTypeNameNone),
-				SMTPPort:               ptr.Uint(1025),
-				SMTPServer:             ptr.String("127.0.0.1"),
-				SMTPSenderAddress:      ptr.String("xxx@fleet.co"),
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
 			},
 		}
 		return config, nil

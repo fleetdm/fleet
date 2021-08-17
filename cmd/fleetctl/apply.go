@@ -27,7 +27,7 @@ type specGroup struct {
 	Teams        []*fleet.TeamSpec
 	Packs        []*fleet.PackSpec
 	Labels       []*fleet.LabelSpec
-	AppConfig    *fleet.AppConfig
+	AppConfig    interface{} // This needs to be interface{} to allow for the patch logic
 	EnrollSecret *fleet.EnrollSecretSpec
 	UsersRoles   *fleet.UsersRoleSpec
 }
@@ -82,7 +82,7 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 				return nil, errors.New("config defined twice in the same file")
 			}
 
-			var appConfigSpec *fleet.AppConfig
+			var appConfigSpec interface{}
 			if err := yaml.Unmarshal(s.Spec, &appConfigSpec); err != nil {
 				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}

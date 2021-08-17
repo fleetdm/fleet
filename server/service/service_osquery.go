@@ -396,7 +396,7 @@ func (svc *Service) hostDetailQueries(host fleet.Host) (map[string]string, error
 	}
 
 	// Get additional queries
-	if config.HostSettings == nil || config.HostSettings.AdditionalQueries == nil {
+	if config.HostSettings.AdditionalQueries == nil {
 		// No additional queries set
 		return queries, nil
 	}

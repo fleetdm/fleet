@@ -410,7 +410,7 @@ func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) 
 	if err != nil {
 		return err
 	}
-	if !ac.GetBool("server_settings.enable_analytics") {
+	if !ac.ServerSettings.EnableAnalytics {
 		return nil
 	}
 
@@ -502,7 +502,7 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
-	vulnPath := appConfig.GetString("vulnerability_settings.databases_path")
+	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
 	if vulnPath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return

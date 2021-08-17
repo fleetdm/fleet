@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,18 +46,18 @@ func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
 		Subject: "smtp plain auth",
 		To:      []string{"john@fleet.co"},
 		Config: &fleet.AppConfig{
-			SMTPSettings: &fleet.SMTPSettings{
-				SMTPConfigured:           ptr.Bool(true),
-				SMTPAuthenticationType:   ptr.String(fleet.AuthTypeNameUserNamePassword),
-				SMTPAuthenticationMethod: ptr.String(fleet.AuthMethodNamePlain),
-				SMTPUserName:             ptr.String("bob"),
-				SMTPPassword:             ptr.String("secret"),
-				SMTPEnableTLS:            ptr.Bool(true),
-				SMTPVerifySSLCerts:       ptr.Bool(true),
-				SMTPEnableStartTLS:       ptr.Bool(true),
-				SMTPPort:                 ptr.Uint(1025),
-				SMTPServer:               ptr.String("localhost"),
-				SMTPSenderAddress:        ptr.String("test@example.com"),
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:           true,
+				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+				SMTPUserName:             "bob",
+				SMTPPassword:             "secret",
+				SMTPEnableTLS:            true,
+				SMTPVerifySSLCerts:       true,
+				SMTPEnableStartTLS:       true,
+				SMTPPort:                 1025,
+				SMTPServer:               "localhost",
+				SMTPSenderAddress:        "test@example.com",
 			},
 		},
 		Mailer: &SMTPTestMailer{
@@ -75,18 +74,18 @@ func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 		Subject: "skip verify",
 		To:      []string{"john@fleet.co"},
 		Config: &fleet.AppConfig{
-			SMTPSettings: &fleet.SMTPSettings{
-				SMTPConfigured:           ptr.Bool(true),
-				SMTPAuthenticationType:   ptr.String(fleet.AuthTypeNameUserNamePassword),
-				SMTPAuthenticationMethod: ptr.String(fleet.AuthMethodNamePlain),
-				SMTPUserName:             ptr.String("bob"),
-				SMTPPassword:             ptr.String("secret"),
-				SMTPEnableTLS:            ptr.Bool(true),
-				SMTPVerifySSLCerts:       ptr.Bool(false),
-				SMTPEnableStartTLS:       ptr.Bool(true),
-				SMTPPort:                 ptr.Uint(1025),
-				SMTPServer:               ptr.String("localhost"),
-				SMTPSenderAddress:        ptr.String("test@example.com"),
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:           true,
+				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+				SMTPUserName:             "bob",
+				SMTPPassword:             "secret",
+				SMTPEnableTLS:            true,
+				SMTPVerifySSLCerts:       false,
+				SMTPEnableStartTLS:       true,
+				SMTPPort:                 1025,
+				SMTPServer:               "localhost",
+				SMTPSenderAddress:        "test@example.com",
 			},
 		},
 		Mailer: &SMTPTestMailer{
@@ -103,14 +102,14 @@ func testSMTPNoAuth(t *testing.T, mailer fleet.MailService) {
 		Subject: "no auth",
 		To:      []string{"bob@foo.com"},
 		Config: &fleet.AppConfig{
-			SMTPSettings: &fleet.SMTPSettings{
-				SMTPConfigured:         ptr.Bool(true),
-				SMTPAuthenticationType: ptr.String(fleet.AuthTypeNameNone),
-				SMTPEnableTLS:          ptr.Bool(true),
-				SMTPVerifySSLCerts:     ptr.Bool(true),
-				SMTPPort:               ptr.Uint(1025),
-				SMTPServer:             ptr.String("localhost"),
-				SMTPSenderAddress:      ptr.String("test@example.com"),
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPEnableTLS:          true,
+				SMTPVerifySSLCerts:     true,
+				SMTPPort:               1025,
+				SMTPServer:             "localhost",
+				SMTPSenderAddress:      "test@example.com",
 			},
 		},
 		Mailer: &SMTPTestMailer{
@@ -127,14 +126,14 @@ func testMailTest(t *testing.T, mailer fleet.MailService) {
 		Subject: "test tester",
 		To:      []string{"bob@foo.com"},
 		Config: &fleet.AppConfig{
-			SMTPSettings: &fleet.SMTPSettings{
-				SMTPConfigured:         ptr.Bool(true),
-				SMTPAuthenticationType: ptr.String(fleet.AuthTypeNameNone),
-				SMTPEnableTLS:          ptr.Bool(true),
-				SMTPVerifySSLCerts:     ptr.Bool(true),
-				SMTPPort:               ptr.Uint(1025),
-				SMTPServer:             ptr.String("localhost"),
-				SMTPSenderAddress:      ptr.String("test@example.com"),
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPEnableTLS:          true,
+				SMTPVerifySSLCerts:     true,
+				SMTPPort:               1025,
+				SMTPServer:             "localhost",
+				SMTPSenderAddress:      "test@example.com",
 			},
 		},
 		Mailer: &SMTPTestMailer{

@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -38,13 +37,6 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	// skipauth: No user context yet when the app config is first created.
 	svc.authz.SkipAuthorization(ctx)
 
-	if p.ServerSettings == nil {
-		p.ServerSettings = &fleet.ServerSettings{}
-	}
-	// New installations start with analytics enabled by default
-	if p.ServerSettings.EnableAnalytics == nil {
-		p.ServerSettings.EnableAnalytics = ptr.Bool(true)
-	}
 	newConfig, err := svc.ds.NewAppConfig(&p)
 	if err != nil {
 		return nil, err
@@ -86,7 +78,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
 		Mailer: &mail.SMTPTestMailer{
-			BaseURL:  template.URL(config.GetString("server_settings.server_url") + svc.config.Server.URLPrefix),
+			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 		Config: config,
@@ -99,7 +91,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 
 }
 
-func (svc *Service) ModifyAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet.AppConfig, error) {
+func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -109,22 +101,25 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p fleet.AppConfig) (*fl
 		return nil, err
 	}
 
-	if p.SMTPSettings != nil {
-		enabled := p.SMTPSettings.SMTPEnabled
-		if enabled == nil && oldAppConfig.GetBool("smtp_settings.configured") || (enabled != nil && *enabled) {
-			if err = svc.sendTestEmail(ctx, &p); err != nil {
-				return nil, err
-			}
-			p.SMTPSettings.SMTPConfigured = ptr.Bool(true)
-		} else if enabled != nil && !*enabled {
-			p.SMTPSettings.SMTPConfigured = ptr.Bool(false)
-		}
-	}
-
-	if err := svc.ds.SaveAppConfig(&p); err != nil {
+	// We apply the config that is incoming to the old one
+	err = json.Unmarshal(p, &oldAppConfig)
+	if err != nil {
 		return nil, err
 	}
-	return &p, nil
+
+	if oldAppConfig.SMTPSettings.SMTPEnabled || oldAppConfig.SMTPSettings.SMTPConfigured {
+		if err = svc.sendTestEmail(ctx, oldAppConfig); err != nil {
+			return nil, err
+		}
+		oldAppConfig.SMTPSettings.SMTPConfigured = true
+	} else if oldAppConfig.SMTPSettings.SMTPEnabled {
+		oldAppConfig.SMTPSettings.SMTPConfigured = false
+	}
+
+	if err := svc.ds.SaveAppConfig(oldAppConfig); err != nil {
+		return nil, err
+	}
+	return oldAppConfig, nil
 }
 
 func cleanupURL(url string) string {

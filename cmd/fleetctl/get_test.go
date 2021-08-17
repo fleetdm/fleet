@@ -247,8 +247,8 @@ func TestGetConfig(t *testing.T) {
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			HostSettings:          &fleet.HostSettings{EnableHostUsers: ptr.Bool(true)},
-			VulnerabilitySettings: &fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
+			HostSettings:          fleet.HostSettings{EnableHostUsers: true},
+			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 		}, nil
 	}
 
@@ -271,19 +271,19 @@ spec:
     live_query_disabled: false
     server_url: ""
   smtp_settings:
-    authentication_method: authmethod_plain
-    authentication_type: authtype_username_password
+    authentication_method: ""
+    authentication_type: ""
     configured: false
     domain: ""
     enable_smtp: false
-    enable_ssl_tls: true
-    enable_start_tls: true
-    password: '********'
-    port: 587
+    enable_ssl_tls: false
+    enable_start_tls: false
+    password: ""
+    port: 0
     sender_address: ""
     server: ""
     user_name: ""
-    verify_ssl_certs: true
+    verify_ssl_certs: false
   sso_settings:
     enable_sso: false
     enable_sso_idp_login: false
@@ -296,7 +296,7 @@ spec:
   vulnerability_settings:
     databases_path: /some/path
 `
-	expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":587,"authentication_type":"authtype_username_password","user_name":"","password":"********","enable_ssl_tls":true,"authentication_method":"authmethod_plain","domain":"","verify_ssl_certs":true,"enable_start_tls":true},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"agent_options":null,"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"}}}
+	expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"agent_options":null,"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"}}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))

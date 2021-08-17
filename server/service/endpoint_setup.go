@@ -31,10 +31,11 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(setupRequest)
 		config := &fleet.AppConfig{}
-		config.OrgInfo = req.OrgInfo
-		config.ServerSettings = &fleet.ServerSettings{}
+		if req.OrgInfo != nil {
+			config.OrgInfo = *req.OrgInfo
+		}
 		if req.ServerURL != nil {
-			config.ServerSettings.ServerURL = req.ServerURL
+			config.ServerSettings.ServerURL = *req.ServerURL
 		}
 		config, err := svc.NewAppConfig(ctx, *config)
 		if err != nil {
@@ -73,7 +74,7 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 		}
 		return setupResponse{
 			Admin:     admin,
-			OrgInfo:   config.OrgInfo,
+			OrgInfo:   &config.OrgInfo,
 			ServerURL: req.ServerURL,
 			Token:     token,
 		}, nil

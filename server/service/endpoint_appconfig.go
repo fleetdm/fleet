@@ -12,7 +12,7 @@ import (
 )
 
 type appConfigRequest struct {
-	Payload fleet.AppConfig
+	Payload []byte
 }
 
 type appConfigResponse struct {
@@ -46,62 +46,25 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		var smtpSettings *fleet.SMTPSettings
-		var ssoSettings *fleet.SSOSettings
-		var hostExpirySettings *fleet.HostExpirySettings
+		var smtpSettings fleet.SMTPSettings
+		var ssoSettings fleet.SSOSettings
+		var hostExpirySettings fleet.HostExpirySettings
 		var agentOptions *json.RawMessage
 		// only admin can see smtp, sso, and host expiry settings
 		if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
-			smtpSettings = &fleet.SMTPSettings{
-				SMTPEnabled:              config.GetBoolPtr("smtp_settings.enable_smtp"),
-				SMTPConfigured:           config.GetBoolPtr("smtp_settings.configured"),
-				SMTPSenderAddress:        config.GetStringPtr("smtp_settings.sender_address"),
-				SMTPServer:               config.GetStringPtr("smtp_settings.server"),
-				SMTPPort:                 config.GetUintPtr("smtp_settings.port"),
-				SMTPAuthenticationType:   config.GetStringPtr("smtp_settings.authentication_type"),
-				SMTPUserName:             config.GetStringPtr("smtp_settings.user_name"),
-				SMTPPassword:             config.GetStringPtr("smtp_settings.password"),
-				SMTPEnableTLS:            config.GetBoolPtr("smtp_settings.enable_ssl_tls"),
-				SMTPAuthenticationMethod: config.GetStringPtr("smtp_settings.authentication_method"),
-				SMTPDomain:               config.GetStringPtr("smtp_settings.domain"),
-				SMTPVerifySSLCerts:       config.GetBoolPtr("smtp_settings.verify_ssl_certs"),
-				SMTPEnableStartTLS:       config.GetBoolPtr("smtp_settings.enable_start_tls"),
+			smtpSettings = config.SMTPSettings
+			if smtpSettings.SMTPPassword != "" {
+				smtpSettings.SMTPPassword = "********"
 			}
-			if smtpSettings.SMTPPassword != nil {
-				*smtpSettings.SMTPPassword = "********"
-			}
-			ssoSettings = &fleet.SSOSettings{
-				EntityID:          config.GetStringPtr("sso_settings.entity_id"),
-				IssuerURI:         config.GetStringPtr("sso_settings.issuer_uri"),
-				IDPImageURL:       config.GetStringPtr("sso_settings.idp_image_url"),
-				Metadata:          config.GetStringPtr("sso_settings.metadata"),
-				MetadataURL:       config.GetStringPtr("sso_settings.metadata_url"),
-				IDPName:           config.GetStringPtr("sso_settings.idp_name"),
-				EnableSSO:         config.GetBoolPtr("sso_settings.enable_sso"),
-				EnableSSOIdPLogin: config.GetBoolPtr("sso_settings.enable_sso_idp_login"),
-			}
-			hostExpirySettings = &fleet.HostExpirySettings{
-				HostExpiryEnabled: config.GetBoolPtr("host_expiry_settings.host_expiry_enabled"),
-				HostExpiryWindow:  config.GetIntPtr("host_expiry_settings.host_expiry_window"),
-			}
+			ssoSettings = config.SSOSettings
+			hostExpirySettings = config.HostExpirySettings
 			agentOptions = config.AgentOptions
 		}
-		hostSettings := &fleet.HostSettings{
-			EnableHostUsers:         config.GetBoolPtr("host_settings.enable_host_users"),
-			EnableSoftwareInventory: config.GetBoolPtr("host_settings.enable_software_inventory"),
-			AdditionalQueries:       config.GetJSONPtr("host_settings.additional_queries"),
-		}
+		hostSettings := config.HostSettings
 		response := appConfigResponse{
 			AppConfig: fleet.AppConfig{
-				OrgInfo: &fleet.OrgInfo{
-					OrgName:    config.GetStringPtr("org_info.org_name"),
-					OrgLogoURL: config.GetStringPtr("org_info.org_logo_url"),
-				},
-				ServerSettings: &fleet.ServerSettings{
-					ServerURL:         config.GetStringPtr("server_settings.server_url"),
-					LiveQueryDisabled: config.GetBoolPtr("server_settings.live_query_disabled"),
-					EnableAnalytics:   config.GetBoolPtr("server_settings.enable_analytics"),
-				},
+				OrgInfo:               config.OrgInfo,
+				ServerSettings:        config.ServerSettings,
 				HostSettings:          hostSettings,
 				VulnerabilitySettings: config.VulnerabilitySettings,
 
@@ -139,8 +102,8 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			Logging:   loggingConfig,
 		}
 
-		if response.GetString("smtp_settings.smtp_password") != "" {
-			*response.SMTPSettings.SMTPPassword = "********"
+		if response.SMTPSettings.SMTPPassword != "" {
+			response.SMTPSettings.SMTPPassword = "********"
 		}
 		return response, nil
 	}

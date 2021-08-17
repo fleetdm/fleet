@@ -17,9 +17,9 @@ func TestOrgInfo(t *testing.T) {
 	defer ds.Close()
 
 	info := &fleet.AppConfig{
-		OrgInfo: &fleet.OrgInfo{
-			OrgName:    ptr.String("Test"),
-			OrgLogoURL: ptr.String("localhost:8080/logo.png"),
+		OrgInfo: fleet.OrgInfo{
+			OrgName:    "Test",
+			OrgLogoURL: "localhost:8080/logo.png",
 		},
 	}
 
@@ -29,32 +29,29 @@ func TestOrgInfo(t *testing.T) {
 
 	info2, err := ds.AppConfig()
 	require.Nil(t, err)
-	assert.Equal(t, *info2.OrgInfo.OrgName, *info.OrgInfo.OrgName)
-	smtpConfigured := info2.GetBool("smtp_settings.configured")
+	assert.Equal(t, info2.OrgInfo.OrgName, info.OrgInfo.OrgName)
+	smtpConfigured := info2.SMTPSettings.SMTPConfigured
 	assert.False(t, smtpConfigured)
 
-	info2.OrgInfo.OrgName = ptr.String("testss")
-	info2.SMTPSettings = &fleet.SMTPSettings{}
-	info2.SMTPSettings.SMTPDomain = ptr.String("foo")
-	info2.SMTPSettings.SMTPConfigured = ptr.Bool(true)
-	info2.SMTPSettings.SMTPSenderAddress = ptr.String("123")
-	info2.SMTPSettings.SMTPServer = ptr.String("server")
-	info2.SMTPSettings.SMTPPort = ptr.Uint(100)
-	info2.SMTPSettings.SMTPAuthenticationType = ptr.String(fleet.AuthTypeNameUserNamePassword)
-	info2.SMTPSettings.SMTPUserName = ptr.String("username")
-	info2.SMTPSettings.SMTPPassword = ptr.String("password")
-	info2.SMTPSettings.SMTPEnableTLS = ptr.Bool(false)
-	info2.SMTPSettings.SMTPAuthenticationMethod = ptr.String(fleet.AuthMethodNameCramMD5)
-	info2.SMTPSettings.SMTPVerifySSLCerts = ptr.Bool(true)
-	info2.SMTPSettings.SMTPEnableStartTLS = ptr.Bool(true)
-	info2.SSOSettings = &fleet.SSOSettings{}
-	info2.SSOSettings.EnableSSO = ptr.Bool(true)
-	info2.SSOSettings.EntityID = ptr.String("test")
-	info2.SSOSettings.MetadataURL = ptr.String("https://idp.com/metadata.xml")
-	info2.SSOSettings.IssuerURI = ptr.String("https://idp.issuer.com")
-	info2.SSOSettings.IDPName = ptr.String("My IDP")
-	info2.HostSettings = &fleet.HostSettings{}
-	info2.HostSettings.EnableSoftwareInventory = ptr.Bool(true)
+	info2.OrgInfo.OrgName = "testss"
+	info2.SMTPSettings.SMTPDomain = "foo"
+	info2.SMTPSettings.SMTPConfigured = true
+	info2.SMTPSettings.SMTPSenderAddress = "123"
+	info2.SMTPSettings.SMTPServer = "server"
+	info2.SMTPSettings.SMTPPort = 100
+	info2.SMTPSettings.SMTPAuthenticationType = fleet.AuthTypeNameUserNamePassword
+	info2.SMTPSettings.SMTPUserName = "username"
+	info2.SMTPSettings.SMTPPassword = "password"
+	info2.SMTPSettings.SMTPEnableTLS = false
+	info2.SMTPSettings.SMTPAuthenticationMethod = fleet.AuthMethodNameCramMD5
+	info2.SMTPSettings.SMTPVerifySSLCerts = true
+	info2.SMTPSettings.SMTPEnableStartTLS = true
+	info2.SSOSettings.EnableSSO = true
+	info2.SSOSettings.EntityID = "test"
+	info2.SSOSettings.MetadataURL = "https://idp.com/metadata.xml"
+	info2.SSOSettings.IssuerURI = "https://idp.issuer.com"
+	info2.SSOSettings.IDPName = "My IDP"
+	info2.HostSettings.EnableSoftwareInventory = true
 
 	err = ds.SaveAppConfig(info2)
 	require.Nil(t, err)
@@ -81,7 +78,7 @@ func TestOrgInfo(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, verify.SSOEnabled)
 
-	info4.SSOSettings.EnableSSO = ptr.Bool(false)
+	info4.SSOSettings.EnableSSO = false
 	err = ds.SaveAppConfig(info4)
 	assert.Nil(t, err)
 
@@ -94,28 +91,28 @@ func TestAdditionalQueries(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	additional := json.RawMessage("not valid json")
+	additional := ptr.RawMessage(json.RawMessage("not valid json"))
 	info := &fleet.AppConfig{
-		OrgInfo: &fleet.OrgInfo{
-			OrgName:    ptr.String("Test"),
-			OrgLogoURL: ptr.String("localhost:8080/logo.png"),
+		OrgInfo: fleet.OrgInfo{
+			OrgName:    "Test",
+			OrgLogoURL: "localhost:8080/logo.png",
 		},
-		HostSettings: &fleet.HostSettings{
-			AdditionalQueries: &additional,
+		HostSettings: fleet.HostSettings{
+			AdditionalQueries: additional,
 		},
 	}
 
 	_, err := ds.NewAppConfig(info)
 	require.Error(t, err)
 
-	additional = json.RawMessage(`{}`)
+	info.HostSettings.AdditionalQueries = ptr.RawMessage(json.RawMessage(`{}`))
 	info, err = ds.NewAppConfig(info)
 	require.NoError(t, err)
 
-	additional = json.RawMessage(`{"foo": "bar"}`)
+	info.HostSettings.AdditionalQueries = ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`))
 	info, err = ds.NewAppConfig(info)
 	require.NoError(t, err)
-	rawJson := info.GetJSON("host_settings.additional_queries")
+	rawJson := *info.HostSettings.AdditionalQueries
 	assert.JSONEq(t, `{"foo":"bar"}`, string(rawJson))
 }
 

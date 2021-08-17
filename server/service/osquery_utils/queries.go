@@ -562,14 +562,14 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 		generatedMap[key] = query
 	}
 
-	softwareInventory := ac != nil && ac.GetBool("host_settings.enable_software_inventory")
+	softwareInventory := ac != nil && ac.HostSettings.EnableSoftwareInventory
 	if os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || softwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 	}
 
-	if ac != nil && ac.GetBool("host_settings.enable_host_users") {
+	if ac != nil && ac.HostSettings.EnableHostUsers {
 		generatedMap["users"] = usersQuery
 	}
 

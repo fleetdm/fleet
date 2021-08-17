@@ -58,13 +58,13 @@ func getMessageBody(e fleet.Email) ([]byte, error) {
 	mime := `MIME-version: 1.0;` + "\r\n"
 	content := `Content-Type: text/html; charset="UTF-8";` + "\r\n"
 	subject := "Subject: " + e.Subject + "\r\n"
-	from := "From: " + e.Config.GetString("smtp_settings.sender_address") + "\r\n"
+	from := "From: " + e.Config.SMTPSettings.SMTPSenderAddress + "\r\n"
 	msg := []byte(subject + from + mime + content + "\r\n" + string(body) + "\r\n")
 	return msg, nil
 }
 
 func (m mailService) SendEmail(e fleet.Email) error {
-	if !e.Config.GetBool("smtp_settings.configured") {
+	if !e.Config.SMTPSettings.SMTPConfigured {
 		return fmt.Errorf("email not configured")
 	}
 	msg, err := getMessageBody(e)
@@ -117,14 +117,14 @@ func (l *loginauth) Next(fromServer []byte, more bool) (toServer []byte, err err
 }
 
 func smtpAuth(e fleet.Email) (smtp.Auth, error) {
-	if e.Config.GetString("smtp_settings.authentication_type") != fleet.AuthTypeNameUserNamePassword {
+	if e.Config.SMTPSettings.SMTPAuthenticationType != fleet.AuthTypeNameUserNamePassword {
 		return nil, nil
 	}
 
-	username := e.Config.GetString("smtp_settings.user_name")
-	password := e.Config.GetString("smtp_settings.password")
-	server := e.Config.GetString("smtp_settings.server")
-	authMethod := e.Config.GetString("smtp_settings.authentication_method")
+	username := e.Config.SMTPSettings.SMTPUserName
+	password := e.Config.SMTPSettings.SMTPPassword
+	server := e.Config.SMTPSettings.SMTPServer
+	authMethod := e.Config.SMTPSettings.SMTPAuthenticationMethod
 
 	var auth smtp.Auth
 	switch authMethod {
@@ -142,14 +142,14 @@ func smtpAuth(e fleet.Email) (smtp.Auth, error) {
 
 func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	smtpHost := fmt.Sprintf(
-		"%s:%d", e.Config.GetString("smtp_settings.server"), e.Config.GetUint("smtp_settings.port"))
+		"%s:%d", e.Config.SMTPSettings.SMTPServer, e.Config.SMTPSettings.SMTPPort)
 	auth, err := smtpAuth(e)
 	if err != nil {
 		return errors.Wrap(err, "failed to get smtp auth")
 	}
 
-	if e.Config.GetString("smtp_settings.authentication_method") == fleet.AuthMethodNameCramMD5 {
-		err = smtp.SendMail(smtpHost, auth, e.Config.GetString("smtp_settings.sender_address"), e.To, msg)
+	if e.Config.SMTPSettings.SMTPAuthenticationMethod == fleet.AuthMethodNameCramMD5 {
+		err = smtp.SendMail(smtpHost, auth, e.Config.SMTPSettings.SMTPSenderAddress, e.To, msg)
 		if err != nil {
 			return errors.Wrap(err, "failed to send mail. cramd5 auth method")
 		}
@@ -162,11 +162,11 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	}
 	defer client.Close()
 
-	if e.Config.GetBool("smtp_settings.enable_start_tls") {
+	if e.Config.SMTPSettings.SMTPEnableStartTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
 			config := &tls.Config{
-				ServerName:         e.Config.GetString("smtp_settings.server"),
-				InsecureSkipVerify: !e.Config.GetBool("smtp_settings.verify_ssl_certs"),
+				ServerName:         e.Config.SMTPSettings.SMTPServer,
+				InsecureSkipVerify: !e.Config.SMTPSettings.SMTPVerifySSLCerts,
 			}
 			if err = client.StartTLS(config); err != nil {
 				return errors.Wrap(err, "startTLS error")
@@ -178,7 +178,7 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 			return errors.Wrap(err, "client auth error")
 		}
 	}
-	if err = client.Mail(e.Config.GetString("smtp_settings.sender_address")); err != nil {
+	if err = client.Mail(e.Config.SMTPSettings.SMTPSenderAddress); err != nil {
 		return errors.Wrap(err, "could not issue mail to provided address")
 	}
 	for _, recip := range e.To {

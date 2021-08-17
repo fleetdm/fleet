@@ -9,7 +9,7 @@ import (
 )
 
 // ApplyAppConfig sends the application config to be applied to the Fleet instance.
-func (c *Client) ApplyAppConfig(payload *fleet.AppConfig) error {
+func (c *Client) ApplyAppConfig(payload interface{}) error {
 	response, err := c.AuthenticatedDo("PATCH", "/api/v1/fleet/config", "", payload)
 	if err != nil {
 		return errors.Wrap(err, "PATCH /api/v1/fleet/config")
@@ -59,15 +59,6 @@ func (c *Client) GetAppConfig() (*fleet.AppConfig, error) {
 	}
 
 	return responseBody, nil
-}
-
-// GetServerSettings fetches the server settings from the server API
-func (c *Client) GetServerSettings() (*fleet.ServerSettings, error) {
-	appConfig, err := c.GetAppConfig()
-	if err != nil {
-		return nil, errors.Wrap(err, "get server settings")
-	}
-	return appConfig.ServerSettings, nil
 }
 
 // GetEnrollSecretSpec fetches the enroll secrets stored on the server

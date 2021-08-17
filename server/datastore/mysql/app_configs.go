@@ -13,6 +13,8 @@ import (
 )
 
 func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
+	info.ApplyDefaultsForNewInstalls()
+
 	if err := d.SaveAppConfig(info); err != nil {
 		return nil, errors.Wrap(err, "new app config")
 	}
@@ -88,8 +90,8 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 		return err
 	}
 
-	expiryEnabled := info.GetBool("host_expiry_settings.host_expiry_enabled")
-	expiryWindow := info.GetInt("host_expiry_settings.host_expiry_window")
+	expiryEnabled := info.HostExpirySettings.HostExpiryEnabled
+	expiryWindow := info.HostExpirySettings.HostExpiryWindow
 
 	if !eventSchedulerEnabled && expiryEnabled {
 		return errors.New("MySQL Event Scheduler must be enabled to configure Host Expiry.")
@@ -113,7 +115,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 			return err
 		}
 
-		if !info.GetBool("sso_settings.enable_sso") {
+		if !info.SSOSettings.EnableSSO {
 			_, err = tx.Exec(`UPDATE users SET sso_enabled=false`)
 			if err != nil {
 				return err

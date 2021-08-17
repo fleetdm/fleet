@@ -20,7 +20,7 @@ func (svc *Service) CertificateChain(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	u, err := url.Parse(config.GetString("server_settings.server_url"))
+	u, err := url.Parse(config.ServerSettings.ServerURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing serverURL")
 	}
