@@ -323,7 +323,6 @@ func debugConnectionCommand() *cli.Command {
 		Name:  "connection",
 		Usage: "Investigate the cause of a connection failure to the Fleet server.",
 		Flags: []cli.Flag{
-			outfileFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -333,7 +332,11 @@ func debugConnectionCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+
 			_ = fleet
+			//baseURL := fleet.BaseURL()
+			//_ = baseURL.Hostname()
+			//net.ResolveIPAddr()
 
 			// TODO: check to make sure clientFromCLI can work without a working connection.
 			// The command's steps could be:
