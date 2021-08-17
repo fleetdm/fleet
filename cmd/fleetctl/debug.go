@@ -3,8 +3,10 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -319,6 +321,9 @@ func debugArchiveCommand() *cli.Command {
 }
 
 func debugConnectionCommand() *cli.Command {
+	// TODO: do we want to allow setting this via a flag?
+	const timeoutPerCheck = 10 * time.Second
+
 	return &cli.Command{
 		Name:  "connection",
 		Usage: "Investigate the cause of a connection failure to the Fleet server.",
@@ -333,14 +338,19 @@ func debugConnectionCommand() *cli.Command {
 				return err
 			}
 
-			_ = fleet
-			//baseURL := fleet.BaseURL()
-			//_ = baseURL.Hostname()
-			//net.ResolveIPAddr()
+			baseURL := fleet.BaseURL()
+
+			// 1. Check that the url's host resolves to an IP address or is otherwise
+			// a valid IP address directly. The ips may be used in a later check to
+			// verify if the certificate is for one of them instead of the hostname.
+			ips, err := resolveHostname(c.Context, timeoutPerCheck, baseURL.Hostname())
+			if err != nil {
+				return err
+			}
+			_ = ips
 
 			// TODO: check to make sure clientFromCLI can work without a working connection.
 			// The command's steps could be:
-			// 1. Check that the url's host resolves to an IP address or is otherwise a valid IP address directly. (net.ResolveIPAddr)
 			// 2. Attempt a raw connection to host:port. (net.DialTimeout or Context)
 			// 3. Is the certificate valid at all (x509.Certificate.ParseCertificate?)
 			// 4. Is the certificate valid for the hostname/IP address (x509.Certificate.VerifyHostname?)
@@ -349,4 +359,12 @@ func debugConnectionCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+func resolveHostname(ctx context.Context, timeout time.Duration, host string) ([]net.IP, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	var r net.Resolver
+	return r.LookupIP(ctx, "ip", host)
 }
