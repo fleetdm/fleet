@@ -44,6 +44,7 @@ interface IDataColumn {
   accessor?: string;
   disableHidden?: boolean;
   disableSortBy?: boolean;
+  sortType?: string;
 }
 
 // NOTE: cellProps come from react-table
@@ -65,6 +66,7 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
           path={PATHS.EDIT_QUERY(cellProps.row.original)}
         />
       ),
+      sortType: "caseInsensitive",
     },
     {
       title: "Author",
@@ -78,6 +80,7 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
+      sortType: "caseInsensitive",
     },
     {
       title: "Last modified",
@@ -127,6 +130,7 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={capitalize(cellProps.cell.value.toString())} />
       ),
+      sortType: "basic",
     });
   }
   return tableHeaders;
