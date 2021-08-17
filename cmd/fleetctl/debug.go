@@ -342,6 +342,10 @@ func debugConnectionCommand() *cli.Command {
 				return err
 			}
 
+			// TODO: not sure this is correct, clientFromCLI requires a login token, which
+			// can only be obtained once the connection works. The context cannot apply
+			// for this command, use a provided address (as mentioned in the issue), and
+			// build the fleet client just before the API endpoint check.
 			baseURL := fleet.BaseURL()
 
 			// 1. Check that the url's host resolves to an IP address or is otherwise
@@ -351,18 +355,16 @@ func debugConnectionCommand() *cli.Command {
 			if err != nil {
 				return errors.Wrap(err, "Fail")
 			}
-			fmt.Fprintf(os.Stdout, "Success: can resolve host %s.\n", baseURL.Hostname())
+			fmt.Fprintf(c.App.Writer, "Success: can resolve host %s.\n", baseURL.Hostname())
 			_ = ips
 
 			// 2. Attempt a raw TCP connection to host:port.
 			if err := dialHostPort(c.Context, timeoutPerCheck, baseURL.Host); err != nil {
 				return errors.Wrap(err, "Fail")
 			}
-			fmt.Fprintf(os.Stdout, "Success: can dial server at %s.\n", baseURL.Host)
+			fmt.Fprintf(c.App.Writer, "Success: can dial server at %s.\n", baseURL.Host)
 
 			if cert := getFleetCertificate(c); cert != "" {
-				// TODO: check to make sure clientFromCLI can work without a working connection.
-				// The command's steps could be:
 				// 3. Is the certificate valid at all (x509.Certificate.ParseCertificate?)
 				// 4. Is the certificate valid for the hostname/IP address (x509.Certificate.VerifyHostname?)
 			}
@@ -373,7 +375,7 @@ func debugConnectionCommand() *cli.Command {
 			if err := checkAPIEndpoint(c.Context, timeoutPerCheck, fleet); err != nil {
 				return errors.Wrap(err, "Fail")
 			}
-			fmt.Fprintln(os.Stdout, "Success: agent API endpoints are available.")
+			fmt.Fprintln(c.App.Writer, "Success: agent API endpoints are available.")
 
 			return nil
 		},
@@ -425,5 +427,22 @@ func checkAPIEndpoint(ctx context.Context, timeout time.Duration, client *servic
 	if res.StatusCode != http.StatusUnauthorized || enrollRes.Error == "" || !enrollRes.NodeInvalid {
 		return fmt.Errorf("unexpected %d response", res.StatusCode)
 	}
+	return nil
+}
+
+func checkFleetCert(ctx context.Context, timeout time.Duration, certPath, host string, ips []net.IP) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	//	b, err := ioutil.ReadFile(cert)
+	//	if err != nil {
+	//		return errors.Wrap(err, "invalid certificate path")
+	//	}
+	//	// TODO: flag is the PEM, not the DER
+	//	xcert, err := x509.ParseCertificate(b)
+	//	if err != nil {
+	//		return errors.Wrap(err, "parsing x509 cert")
+	//	}
+	//	_ = xcert
 	return nil
 }

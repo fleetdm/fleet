@@ -8,14 +8,30 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
-func TestDebugConnection(t *testing.T) {
+func TestDebugConnectionCommand(t *testing.T) {
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
+
+	ds.VerifyEnrollSecretFunc = func(secret string) (*fleet.EnrollSecret, error) {
+		return nil, errors.New("invalid")
+	}
+
+	output := runAppForTest(t, []string{"debug", "connection"})
+	// 3 successes: resolve host, dial address, check api endpoint
+	require.Equal(t, 3, strings.Count(output, "Success:"))
+}
+
+func TestDebugConnectionChecks(t *testing.T) {
 	t.Run("resolveHostname", func(t *testing.T) {
 		localIP4 := net.IPv4(127, 0, 0, 1)
 		timeout := 100 * time.Millisecond
