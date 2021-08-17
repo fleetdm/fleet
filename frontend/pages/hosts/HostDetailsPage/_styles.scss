@@ -429,15 +429,13 @@
       table-layout: fixed;
 
       thead {
-        // Width and overflow behavior for all columns
-        // except the "Query name" column
+        // Width for all columns except the "Query name" column
         // Width calculation adjusts for each row's horizontal padding
         th {
           width: calc(160px - 27px * 2);
         }
 
-        // Width and overflow behavior the "Query name" column
-        // Width calculation adjusts for each row's horizontal padding
+        // Width for the "Query name" column
         th:nth-child(1) {
           width: auto !important;
         }
