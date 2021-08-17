@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useContext } from "react";
+import { TableContext } from "context/table";
 import classnames from "classnames";
 
 const baseClass = "modal";
@@ -11,6 +12,8 @@ interface IModalProps {
 }
 
 const Modal = ({ children, onExit, title, className }: IModalProps) => {
+  const { setResetSelectedRows } = useContext(TableContext);
+
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {

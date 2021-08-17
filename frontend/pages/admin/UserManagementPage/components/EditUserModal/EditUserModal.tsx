@@ -38,6 +38,7 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
     isSsoEnabled,
   } = props;
 
+  console.log("onSubmit", onSubmit);
   return (
     <Modal
       title="Edit user"

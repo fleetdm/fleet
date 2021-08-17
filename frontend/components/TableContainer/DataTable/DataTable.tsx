@@ -1,4 +1,5 @@
-import React, { useMemo, useEffect, useCallback } from "react";
+import React, { useMemo, useEffect, useCallback, useContext } from "react";
+import { TableContext } from "context/table";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
 import { kebabCase, noop } from "lodash";
@@ -52,6 +53,8 @@ const DataTable = ({
   primarySelectActionButtonText,
   secondarySelectActions,
 }: IDataTableProps): JSX.Element => {
+  const { resetSelectedRows } = useContext(TableContext);
+
   const columns = useMemo(() => {
     return tableColumns;
   }, [tableColumns]);
@@ -80,6 +83,8 @@ const DataTable = ({
       },
       disableMultiSort: true,
       manualSortBy,
+      // Initializes as false, but changes briefly to true on successful notification
+      autoResetSelectedRows: resetSelectedRows,
     },
     useSortBy,
     useRowSelect
