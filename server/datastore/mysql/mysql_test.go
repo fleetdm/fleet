@@ -15,14 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//func TestMain(m *testing.M) {
-//	if _, ok := os.LookupEnv("MYSQL_TEST"); ok {
-//		// Initialize the schema once for the entire test run.
-//		InitializeSchemaOrPanic()
-//	}
-//	os.Exit(m.Run())
-//}
-
 func TestSanitizeColumn(t *testing.T) {
 	t.Parallel()
 

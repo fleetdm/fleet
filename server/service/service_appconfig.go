@@ -96,30 +96,30 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, err
 	}
 
-	oldAppConfig, err := svc.AppConfig(ctx)
+	appConfig, err := svc.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// We apply the config that is incoming to the old one
-	err = json.Unmarshal(p, &oldAppConfig)
+	err = json.Unmarshal(p, &appConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	if oldAppConfig.SMTPSettings.SMTPEnabled || oldAppConfig.SMTPSettings.SMTPConfigured {
-		if err = svc.sendTestEmail(ctx, oldAppConfig); err != nil {
+	if appConfig.SMTPSettings.SMTPEnabled || appConfig.SMTPSettings.SMTPConfigured {
+		if err = svc.sendTestEmail(ctx, appConfig); err != nil {
 			return nil, err
 		}
-		oldAppConfig.SMTPSettings.SMTPConfigured = true
-	} else if oldAppConfig.SMTPSettings.SMTPEnabled {
-		oldAppConfig.SMTPSettings.SMTPConfigured = false
+		appConfig.SMTPSettings.SMTPConfigured = true
+	} else if appConfig.SMTPSettings.SMTPEnabled {
+		appConfig.SMTPSettings.SMTPConfigured = false
 	}
 
-	if err := svc.ds.SaveAppConfig(oldAppConfig); err != nil {
+	if err := svc.ds.SaveAppConfig(appConfig); err != nil {
 		return nil, err
 	}
-	return oldAppConfig, nil
+	return appConfig, nil
 }
 
 func cleanupURL(url string) string {
