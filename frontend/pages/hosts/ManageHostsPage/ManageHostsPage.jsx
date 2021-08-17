@@ -2,7 +2,7 @@ import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
-import { find, isEmpty } from "lodash";
+import { find, isEmpty, omit } from "lodash";
 
 import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
@@ -52,6 +52,9 @@ const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
 const ALL_HOSTS_LABEL = "all-hosts";
 const LABEL_SLUG_PREFIX = "labels/";
+
+const DEFAULT_SORT_HEADER = "hostname";
+const DEFAULT_SORT_DIRECTION = "asc";
 
 const HOST_SELECT_STATUSES = [
   {
@@ -147,7 +150,7 @@ export class ManageHostsPage extends PureComponent {
       searchQuery: "",
       hosts: [],
       isHostsLoading: true,
-      sortBy: [],
+      sortBy: [{ id: DEFAULT_SORT_HEADER, direction: DEFAULT_SORT_DIRECTION }],
       isConfigLoaded: null,
       isTeamsLoaded: null,
       isBasicTier: null,
@@ -290,6 +293,8 @@ export class ManageHostsPage extends PureComponent {
     let sortBy = [];
     if (sortHeader !== "") {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
+    } else {
+      sortBy = [{ id: DEFAULT_SORT_HEADER, direction: DEFAULT_SORT_DIRECTION }];
     }
     this.setState({
       sortBy,
@@ -307,28 +312,35 @@ export class ManageHostsPage extends PureComponent {
       teamId,
     });
 
+    // rebuild queryParams to dispatch new browser location to react-router
     const queryParams = {};
     if (!isEmpty(searchQuery)) {
       queryParams.query = searchQuery;
     }
     if (sortBy[0] && sortBy[0].id) {
       queryParams.order_key = sortBy[0].id;
+    } else {
+      queryParams.order_key = DEFAULT_SORT_HEADER;
     }
     if (sortBy[0] && sortBy[0].direction) {
       queryParams.order_direction = sortBy[0].direction;
+    } else {
+      queryParams.order_direction = DEFAULT_SORT_DIRECTION;
     }
     if (teamId) {
       queryParams.team_id = teamId;
     }
 
-    const nextLocation = getNextLocationPath({
-      pathPrefix: PATHS.MANAGE_HOSTS,
-      routeTemplate,
-      routeParams,
-      queryParams,
-    });
-
-    dispatch(push(nextLocation));
+    dispatch(
+      push(
+        getNextLocationPath({
+          pathPrefix: PATHS.MANAGE_HOSTS,
+          routeTemplate,
+          routeParams,
+          queryParams,
+        })
+      )
+    );
   };
 
   onEditLabel = (formData) => {
@@ -629,7 +641,7 @@ export class ManageHostsPage extends PureComponent {
       routeParams,
       queryParams,
     } = this.props;
-    const { searchQuery } = this.state;
+    const { searchQuery, sortBy } = this.state;
     const { getValidatedTeamId, retrieveHosts } = this;
     const { MANAGE_HOSTS } = PATHS;
 
@@ -639,6 +651,7 @@ export class ManageHostsPage extends PureComponent {
       teamId: teamIdParam,
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
+      sortBy,
     };
     retrieveHosts(hostsOptions);
 
@@ -647,7 +660,7 @@ export class ManageHostsPage extends PureComponent {
       routeTemplate,
       routeParams,
       queryParams: !teamIdParam
-        ? {}
+        ? omit(queryParams, "team_id")
         : Object.assign({}, queryParams, { team_id: teamIdParam }),
     });
 
@@ -1015,8 +1028,8 @@ export class ManageHostsPage extends PureComponent {
         data={hosts}
         isLoading={isHostsLoading}
         manualSortBy
-        defaultSortHeader={"hostname"}
-        defaultSortDirection={"asc"}
+        defaultSortHeader={DEFAULT_SORT_HEADER}
+        defaultSortDirection={DEFAULT_SORT_DIRECTION}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
