@@ -81,11 +81,16 @@
   .queries-list-wrapper {
     .data-table__table {
       tbody {
+        // Width and overflow behavior for the "Name" column
+        // Width calculation adjusts for each row's horizontal padding
         td {
-          white-space: normal !important;
-
-          button {
-            text-align: left;
+          .button {
+            display: block;
+            text-align: start;
+            width: calc(624px - 27px * 2);
+            max-width: calc(624px - 27px * 2);
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
         }
       }
