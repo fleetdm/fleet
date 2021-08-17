@@ -402,7 +402,7 @@
   }
 
   .accordion__panel {
-    padding: 20px;
+    padding: 0;
     animation: fadein 0.35s ease-in;
   }
 
@@ -417,6 +417,37 @@
 
     100% {
       opacity: 1;
+    }
+  }
+
+  &__pack-table {
+    .table-container__header {
+      display: none;
+    }
+
+    .data-table__table {
+      tbody {
+        // Width and overflow behavior for the "Query name" column
+        td:nth-child(1) {
+          min-width: 740px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        // Width and overflow behavior for the "Frequency" column
+        td:nth-child(2) {
+          min-width: 160px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        // Width and overflow behavior for the "Last run" column
+        td:nth-child(3) {
+          min-width: 160px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
     }
   }
 }

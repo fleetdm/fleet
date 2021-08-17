@@ -41,20 +41,9 @@ const generatePackTableHeaders = (): IDataColumn[] => {
   return [
     {
       title: "Query name",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "scheduled_query_name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
-      title: "Description",
-      Header: "Description",
-      accessor: "description",
+      Header: "Query name",
       disableSortBy: true,
+      accessor: "scheduled_query_name",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
