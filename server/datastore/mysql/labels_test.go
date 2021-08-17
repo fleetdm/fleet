@@ -677,3 +677,35 @@ func TestSaveLabel(t *testing.T) {
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
 }
+
+func TestLabelQueriesForCentOSHost(t *testing.T) {
+	db := CreateMySQLDS(t)
+	defer db.Close()
+
+	host, err := db.EnrollHost("0", "0", nil, 0)
+	require.Nil(t, err, "enrollment should succeed")
+	host.Platform = "rhel"
+	host.OSVersion = "CentOS 6"
+	require.NoError(t, db.SaveHost(host))
+
+	label, err := db.NewLabel(&fleet.Label{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
+		},
+		ID:                  42,
+		Name:                "centos labe",
+		Query:               "select 1;",
+		Platform:            "centos",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	baseTime := time.Now().Add(-5 * time.Minute)
+
+	queries, err := db.LabelQueriesForHost(host, baseTime)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
+}

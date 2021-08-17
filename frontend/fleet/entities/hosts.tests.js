@@ -61,7 +61,8 @@ describe("Kolide - API client (hosts)", () => {
     it("calls the label endpoint when used with label filter", () => {
       const request = createRequestMock({
         bearerToken,
-        endpoint: "/api/v1/fleet/labels/6/hosts?page=2&per_page=50",
+        endpoint:
+          "/api/v1/fleet/labels/6/hosts?page=2&per_page=50&order_key=hostname&order_direction=asc",
         method: "get",
         response: { hosts: [] },
       });

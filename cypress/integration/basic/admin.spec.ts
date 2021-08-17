@@ -14,7 +14,7 @@ describe("Basic tier - Admin user", () => {
 
   it("Can perform the appropriate basic-tier admin actions", () => {
     cy.login("anna@organization.com", "user123#");
-    cy.visit("/");
+    cy.visit("/hosts/manage");
 
     // Ensure the hosts page is loaded
     cy.contains("All hosts");
@@ -87,5 +87,13 @@ describe("Basic tier - Admin user", () => {
     });
     cy.findByRole("button", { name: /create user/i }).click();
     cy.findByText(/assign teams/i).should("exist");
+
+    // On the Profile page, they should…
+    // See Global in the Team section and Admin in the Role section
+    cy.visit("/profile");
+    cy.findByText(/team/i)
+      .next()
+      .contains(/global/i);
+    cy.findByText("Role").next().contains(/admin/i);
   });
 });

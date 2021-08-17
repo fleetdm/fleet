@@ -78,6 +78,10 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
   return Object.values(query_stats).map((query) => {
     return {
       scheduled_query_name: query.scheduled_query_name,
+      scheduled_query_id: query.scheduled_query_id,
+      query_name: query.query_name,
+      pack_name: query.pack_name,
+      pack_id: query.pack_id,
       description: query.description,
       interval: query.interval,
       last_executed: query.last_executed,

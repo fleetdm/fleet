@@ -13,16 +13,19 @@ import Button from "components/buttons/Button";
 import ChangeEmailForm from "components/forms/ChangeEmailForm";
 import ChangePasswordForm from "components/forms/ChangePasswordForm";
 import deepDifference from "utilities/deep_difference";
+import permissionUtils from "utilities/permissions";
 import FleetIcon from "components/icons/FleetIcon";
 import InputField from "components/forms/fields/InputField";
 import { logoutUser, updateUser } from "redux/nodes/auth/actions";
 import Modal from "components/modals/Modal";
 import configInterface from "interfaces/config";
+import versionInterface from "interfaces/version";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import versionActions from "redux/nodes/version/actions";
 import userInterface from "interfaces/user";
 import UserSettingsForm from "components/forms/UserSettingsForm";
+import { generateRole, generateTeam, greyCell } from "fleet/helpers";
 
 const baseClass = "user-settings";
 
@@ -30,10 +33,7 @@ export class UserSettingsPage extends Component {
   static propTypes = {
     config: configInterface,
     dispatch: PropTypes.func.isRequired,
-    version: PropTypes.shape({
-      version: PropTypes.string,
-      go_version: PropTypes.string,
-    }),
+    version: versionInterface,
     errors: PropTypes.shape({
       email: PropTypes.string,
       base: PropTypes.string,
@@ -44,6 +44,7 @@ export class UserSettingsPage extends Component {
       new_password: PropTypes.string,
       old_password: PropTypes.string,
     }),
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -318,15 +319,23 @@ export class UserSettingsPage extends Component {
       renderPasswordModal,
       renderApiTokenModal,
     } = this;
-    const { version, errors, user, config } = this.props;
+    const { version, errors, user, config, isBasicTier } = this.props;
     const { pendingEmail } = this.state;
 
     if (!user) {
       return false;
     }
 
-    const { admin, updated_at: updatedAt, sso_enabled: ssoEnabled } = user;
-    const roleText = admin ? "Admin" : "User";
+    const {
+      global_role: globalRole,
+      updated_at: updatedAt,
+      sso_enabled: ssoEnabled,
+      teams,
+    } = user;
+
+    const roleText = generateRole(teams, globalRole);
+    const teamsText = generateTeam(teams, globalRole);
+
     const lastUpdatedAt = moment(updatedAt).fromNow();
 
     return (
@@ -343,18 +352,31 @@ export class UserSettingsPage extends Component {
           />
         </div>
         <div className={`${baseClass}__additional body-wrap`}>
-          <h2>Photo</h2>
-
           <div className={`${baseClass}__change-avatar`}>
             <Avatar user={user} className={`${baseClass}__avatar`} />
             <a href="http://en.gravatar.com/emails/">
               Change photo at Gravatar
             </a>
           </div>
-
+          {isBasicTier && (
+            <div className={`${baseClass}__more-info-detail`}>
+              <p className={`${baseClass}__header`}>Teams</p>
+              <p
+                className={`${baseClass}__description ${baseClass}__teams ${greyCell(
+                  teamsText
+                )}`}
+              >
+                {teamsText}
+              </p>
+            </div>
+          )}
           <div className={`${baseClass}__more-info-detail`}>
             <p className={`${baseClass}__header`}>Role</p>
-            <p className={`${baseClass}__description ${baseClass}__role`}>
+            <p
+              className={`${baseClass}__description ${baseClass}__role ${greyCell(
+                roleText
+              )}`}
+            >
               {roleText}
             </p>
           </div>
@@ -394,8 +416,9 @@ const mapStateToProps = (state) => {
   const { errors, user } = state.auth;
   const { config } = state.app;
   const { errors: userErrors } = state.entities.users;
+  const isBasicTier = permissionUtils.isBasicTier(config);
 
-  return { version, errors, user, userErrors, config };
+  return { version, errors, user, userErrors, config, isBasicTier };
 };
 
 export default connect(mapStateToProps)(UserSettingsPage);

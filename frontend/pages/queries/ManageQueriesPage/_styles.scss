@@ -77,4 +77,18 @@
       margin-right: $pad-medium;
     }
   }
+
+  .queries-list-wrapper {
+    .data-table__table {
+      tbody {
+        td {
+          white-space: normal !important;
+
+          button {
+            text-align: left;
+          }
+        }
+      }
+    }
+  }
 }

@@ -18,3 +18,4 @@ jobs:
           # version.
           version: v1.33
           working-directory: orbit/
+          args: --timeout 3m
