@@ -308,7 +308,6 @@ export class ManageHostsPage extends PureComponent {
     });
 
     const queryParams = {};
-    console.log("query: ", searchQuery);
     if (!isEmpty(searchQuery)) {
       queryParams.query = searchQuery;
     }
@@ -643,16 +642,15 @@ export class ManageHostsPage extends PureComponent {
     };
     retrieveHosts(hostsOptions);
 
-    let nextLocation = getNextLocationPath({
+    const nextLocation = getNextLocationPath({
       pathPrefix: MANAGE_HOSTS,
       routeTemplate,
       routeParams,
-      queryParams: Object.assign({}, queryParams, { team_id: teamIdParam }),
+      queryParams: !teamIdParam
+        ? {}
+        : Object.assign({}, queryParams, { team_id: teamIdParam }),
     });
 
-    if (!teamIdParam) {
-      nextLocation = nextLocation.replace(`team_id=${teamIdParam}`, ""); // Remove query param for falsey values
-    }
     dispatch(push(nextLocation));
   };
 
@@ -728,7 +726,7 @@ export class ManageHostsPage extends PureComponent {
       <div>
         <Dropdown
           value={selectedTeamId}
-          placeholder={"Hosts"}
+          placeholder={"All teams"}
           className={`${baseClass}__team-dropdown`}
           options={teamOptions}
           searchable={false}
