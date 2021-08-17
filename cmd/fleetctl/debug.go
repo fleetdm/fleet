@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/server/service"
 )
 
 func debugCommand() *cli.Command {
@@ -368,25 +370,11 @@ func debugConnectionCommand() *cli.Command {
 			// 5. Check that the server responds with expected responses (by
 			// making a POST to /api/v1/osquery/enroll with an invalid
 			// secret).
-			var enrollRes struct {
-				Error       string `json:"error"`
-				NodeInvalid bool   `json:"node_invalid"`
-			}
-			res, err := fleet.Do("POST", "/api/v1/osquery/enroll", "", map[string]string{
-				"enroll_secret": "--invalid--",
-			})
-			if err != nil {
+			if err := checkAPIEndpoint(c.Context, timeoutPerCheck, fleet); err != nil {
 				return errors.Wrap(err, "Fail")
 			}
-			defer res.Body.Close()
-			if err := json.NewDecoder(res.Body).Decode(&enrollRes); err != nil {
-				// TODO: handle invalid json response
-			}
-			if enrollRes.Error == "" || !enrollRes.NodeInvalid {
-				// TODO: handle unexpected response, should have failed
-			}
-			fmt.Fprintf(os.Stdout, "%#v\n", enrollRes)
 			fmt.Fprintln(os.Stdout, "Success: agent API endpoints are available.")
+
 			return nil
 		},
 	}
@@ -410,4 +398,32 @@ func dialHostPort(ctx context.Context, timeout time.Duration, addr string) error
 		conn.Close()
 	}
 	return err
+}
+
+func checkAPIEndpoint(ctx context.Context, timeout time.Duration, client *service.Client) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	var enrollRes struct {
+		Error       string `json:"error"`
+		NodeInvalid bool   `json:"node_invalid"`
+	}
+	// make an enroll request with a deliberately invalid secret,
+	// to see if we get the expected error json payload.
+	res, err := client.DoContext(ctx, "POST",
+		"/api/v1/osquery/enroll", "", map[string]string{
+			"enroll_secret": "--invalid--",
+		})
+	if err != nil {
+		return errors.Wrap(err, "request failed")
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&enrollRes); err != nil {
+		return errors.Wrap(err, "invalid JSON")
+	}
+	if res.StatusCode != http.StatusUnauthorized || enrollRes.Error == "" || !enrollRes.NodeInvalid {
+		return fmt.Errorf("unexpected %d response", res.StatusCode)
+	}
+	return nil
 }
