@@ -25,7 +25,8 @@ module.exports.routes = {
   'GET /queries/:slug':      { action: 'view-query-detail' },
 
   'GET /docs/?*':            { skipAssets: false, action: 'docs/view-basic-documentation' },// handles /docs and /docs/foo/bar
-  'GET /handbook/?*':        { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
+  // 'GET /handbook/?*':        { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
+  'GET /handbook':           'https://github.com/fleetdm/fleet/tree/main/handbook',// TODO: Bring back the above when styles are ready
 
   '/contribute':             '/docs/contribute',
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
