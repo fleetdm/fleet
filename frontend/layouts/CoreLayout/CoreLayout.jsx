@@ -28,6 +28,8 @@ export class CoreLayout extends Component {
       message: PropTypes.string.isRequired,
     }).isRequired,
   };
+  
+  static contextType = TableContext;
 
   componentWillReceiveProps(nextProps) {
     const { notifications } = nextProps;
@@ -94,8 +96,6 @@ export class CoreLayout extends Component {
       return onRemoveFlash();
     };
   };
-
-  static contextType = TableContext;
 
   render() {
     const {
