@@ -1,0 +1,1 @@
+* Remove constraints for scheduled query stats to improve performance.
