@@ -107,7 +107,7 @@ module.exports = {
 
         let SECTION_INFOS_BY_SECTION_REPO_PATHS = {
           'docs/':     { urlPrefix: '/docs', },
-          'handbook/': { urlPrefix: '/handbook', },
+          // 'handbook/': { urlPrefix: '/handbook', }, // TODO: Bring this back when styles are complete (removed from build in the meantime so that sitemap.xml is not incorrect)
         };
         let rootRelativeUrlPathsSeen = [];
         for (let sectionRepoPath of Object.keys(SECTION_INFOS_BY_SECTION_REPO_PATHS)) {// FUTURE: run this in parallel
