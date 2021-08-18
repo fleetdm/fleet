@@ -12,10 +12,6 @@ import (
 )
 
 func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
-	if flag.Lookup("test.v") != nil {
-		return service.NewClient(os.Getenv("FLEET_SERVER_ADDRESS"), true, "", "")
-	}
-
 	cc, err := clientConfigFromCLI(c)
 	if err != nil {
 		return nil, err
@@ -88,6 +84,13 @@ func unauthenticatedClientFromConfig(cc Context, debug bool) (*service.Client, e
 }
 
 func clientConfigFromCLI(c *cli.Context) (Context, error) {
+	if flag.Lookup("test.v") != nil {
+		return Context{
+			Address:       os.Getenv("FLEET_SERVER_ADDRESS"),
+			TLSSkipVerify: true,
+		}, nil
+	}
+
 	var zeroCtx Context
 
 	if err := makeConfigIfNotExists(c.String("config")); err != nil {
