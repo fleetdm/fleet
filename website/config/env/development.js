@@ -17,8 +17,7 @@ module.exports = {
   // Add any dev-only routes for local development of not-yet-released pages.
   // e.g. http://localhost:2024/sandbox/example-query
   routes: {
-    'GET /sandbox/documentation': { action: 'view-documentation' },
-    'GET /sandbox/docs-template': { action: 'view-docs-template' },
+
   },
 
 };
