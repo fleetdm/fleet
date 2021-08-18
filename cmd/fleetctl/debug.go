@@ -351,6 +351,7 @@ the default context used if none is explicitly specified.`,
 				addr = c.Args().First()
 			}
 
+			// ensure there is an address to debug
 			cc, err := clientConfigFromCLI(c)
 			if err != nil {
 				return err
@@ -360,7 +361,13 @@ the default context used if none is explicitly specified.`,
 			}
 			if cc.Address == "" {
 				return errors.New(`set the Fleet API address with: fleetctl config set --address https://localhost:8080
-or provide an <address> argument to debug: fleetctl debug connection <address>`)
+or provide an <address> argument to debug: fleetctl debug connection localhost:8080`)
+			}
+
+			// it's ok if there is no scheme specified, add it automatically (to debug a non-https localhost address,
+			// the scheme must be explicitly set).
+			if !strings.Contains(cc.Address, "://") {
+				cc.Address = "https://" + cc.Address
 			}
 
 			fleet, err := unauthenticatedClientFromConfig(cc, getDebug(c))
@@ -368,21 +375,33 @@ or provide an <address> argument to debug: fleetctl debug connection <address>`)
 				return err
 			}
 
+			// print a summary of the address and TLS context that is investigated
 			baseURL := fleet.BaseURL()
+			fmt.Fprintf(c.App.Writer, "Debugging connection to %s; Configuration context: %s; ", baseURL.Hostname(), c.String("context"))
+			rootCA := "(system)"
+			if cc.RootCA != "" {
+				rootCA = cc.RootCA
+			}
+			fmt.Fprintf(c.App.Writer, "Root CA: %s; ", rootCA)
+			tlsMode := "secure"
+			if cc.TLSSkipVerify {
+				tlsMode = "insecure"
+			}
+			fmt.Fprintf(c.App.Writer, "TLS: %s.\n", tlsMode)
 
 			// 1. Check that the url's host resolves to an IP address or is otherwise
 			// a valid IP address directly. The ips may be used in a later check to
 			// verify if the certificate is for one of them instead of the hostname.
 			ips, err := resolveHostname(c.Context, timeoutPerCheck, baseURL.Hostname())
 			if err != nil {
-				return errors.Wrap(err, "Fail")
+				return errors.Wrap(err, "Fail: resolve host")
 			}
 			fmt.Fprintf(c.App.Writer, "Success: can resolve host %s.\n", baseURL.Hostname())
 			_ = ips
 
 			// 2. Attempt a raw TCP connection to host:port.
 			if err := dialHostPort(c.Context, timeoutPerCheck, baseURL.Host); err != nil {
-				return errors.Wrap(err, "Fail")
+				return errors.Wrap(err, "Fail: dial server")
 			}
 			fmt.Fprintf(c.App.Writer, "Success: can dial server at %s.\n", baseURL.Host)
 
@@ -395,7 +414,7 @@ or provide an <address> argument to debug: fleetctl debug connection <address>`)
 			// making a POST to /api/v1/osquery/enroll with an invalid
 			// secret).
 			if err := checkAPIEndpoint(c.Context, timeoutPerCheck, fleet); err != nil {
-				return errors.Wrap(err, "Fail")
+				return errors.Wrap(err, "Fail: agent API endpoint")
 			}
 			fmt.Fprintln(c.App.Writer, "Success: agent API endpoints are available.")
 
