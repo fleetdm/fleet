@@ -494,6 +494,7 @@ func TestMigrations(t *testing.T) {
 	require.NoError(t, err)
 	defer ds.Close()
 	require.NoError(t, ds.MigrateTables())
+	require.NoError(t, ds.MigrateData())
 
 	// Dump schema to dumpfile
 	cmd := exec.Command(
