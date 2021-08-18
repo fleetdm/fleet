@@ -346,8 +346,8 @@ FROM mounts WHERE path = '/';`,
 	},
 	"disk_space_windows": {
 		Query: `
-SELECT ROUND(free_space * 100 / size * 10e-10) AS percent_disk_space_available,
-       ROUND(free_space * 10e-10) AS gigs_disk_space_available,  
+SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available, 
+       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available 
 FROM logical_drives WHERE file_system = 'NTFS';`,
 		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
 		IngestFunc: ingestDiskSpace,
@@ -573,6 +573,21 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 }
 
 func ingestDiskSpace(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "ingestDiskSpace", "err",
+			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
+		return nil
+	}
+
+	var err error
+	host.GigsDiskSpaceAvailable, err = strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
+	host.PercentDiskSpaceAvailable, err = strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
