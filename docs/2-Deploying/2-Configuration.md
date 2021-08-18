@@ -1265,7 +1265,7 @@ How often vulnerabilities are checked.
 
   ```
   vulnerabilities:
-  	vulnerabilities_periodicity: 1hr
+  	periodicity: 1hr
   ```
 
 ###### `cpe_database_url`
@@ -1278,7 +1278,7 @@ URL to fetch the CPE dictionary database from. Some users want to control where 
 
   ```
   vulnerabilities:
-  	vulnerabilities_cpe_database_url: ""
+  	cpe_database_url: ""
   ```
 
 ###### `cve_feed_prefix_url`
@@ -1291,7 +1291,7 @@ Similarly to the CPE dictionary, we allow users to define where to get the CVE f
 
   ```
   vulnerabilities:
-  	vulnerabilities_cve_database_url: ""
+  	cve_database_url: ""
   ```
 
 ###### `current_instance_checks`
