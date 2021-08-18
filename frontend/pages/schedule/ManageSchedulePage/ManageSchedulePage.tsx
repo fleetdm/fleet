@@ -171,7 +171,6 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[] | never[]>(
     []
   );
-
   const [selectedScheduledQuery, setSelectedScheduledQuery] = useState<
     IGlobalScheduledQuery | ITeamScheduledQuery
   >();
