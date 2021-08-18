@@ -10,9 +10,14 @@ export default PropTypes.oneOfType([
 ]);
 
 export type ITarget = IHost | ILabel | ITeam;
+export interface ITargets {
+  hosts: IHost[];
+  labels: ILabel[];
+  teams: ITeam[];
+};
 
 export interface ITargetsResponse {
-  targets: ITarget[];
+  targets: ITargets;
   targets_count: number;
   targets_missing_in_action: number;
   targets_offline: number;

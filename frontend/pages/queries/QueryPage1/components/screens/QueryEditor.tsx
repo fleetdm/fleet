@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Dispatch } from "redux";
 import { Link } from "react-router";
 import { push } from "react-router-redux";
@@ -26,7 +26,7 @@ interface IQueryEditorProps {
   storedQuery: IQuery | undefined;
   createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
   error: any;
-  goToSelectTargets: (value: any) => void;
+  goToSelectTargets: () => void;
   setTypedQueryBody: (value: string) => void;
 };
 

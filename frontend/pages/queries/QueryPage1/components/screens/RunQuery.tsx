@@ -21,6 +21,7 @@ import QueryProgressDetails from "components/queries/QueryProgressDetails"; // @
 import QueryResultsTable from "components/queries/QueryResultsTable";
 
 interface IRunQueryProps {
+  baseClass: string;
   typedQueryBody: string;
   storedQuery: IQuery | undefined;
   campaign: ICampaign | null;
@@ -41,6 +42,7 @@ const QUERY_RESULTS_OPTIONS = {
 };
 
 const RunQuery = ({
+  baseClass,
   typedQueryBody,
   storedQuery,
   campaign,
