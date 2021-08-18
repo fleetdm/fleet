@@ -815,6 +815,12 @@ func TestDetailQueries(t *testing.T) {
       "type": "sometype",
       "groupname": "somegroup"
     }
+],
+"fleet_detail_query_disk_space_unix": [
+	{
+		"percent_disk_space_available": "56",
+		"gigs_disk_space_available": "277.0",
+	}
 ]
 }
 `

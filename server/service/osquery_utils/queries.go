@@ -336,6 +336,22 @@ var detailQueries = map[string]DetailQuery{
 			return nil
 		},
 	},
+	"disk_space_unix": {
+		Query: `
+SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available, 
+       round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available 
+FROM mounts WHERE path = '/';`,
+		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
+		IngestFunc: ingestDiskSpace,
+	},
+	"disk_space_windows": {
+		Query: `
+SELECT ROUND(free_space * 100 / size * 10e-10) AS percent_disk_space_available,
+       ROUND(free_space * 10e-10) AS gigs_disk_space_available,  
+FROM logical_drives WHERE file_system = 'NTFS';`,
+		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
+		IngestFunc: ingestDiskSpace,
+	},
 }
 
 var softwareMacOS = DetailQuery{
@@ -553,6 +569,10 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 
 	host.HostSoftware = software
 
+	return nil
+}
+
+func ingestDiskSpace(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	return nil
 }
 
