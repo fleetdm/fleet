@@ -72,5 +72,15 @@ describe("Basic tier - Observer user", () => {
     cy.contains(".table-container .data-table__table th", "Team").should(
       "be.visible"
     );
+
+    // On the Profile page, they should…
+    // See Global in the Team section and Observer in the Role section
+    cy.visit("/profile");
+    cy.findByText(/team/i)
+      .next()
+      .contains(/apples/i);
+    cy.findByText("Role")
+      .next()
+      .contains(/observer/i);
   });
 });

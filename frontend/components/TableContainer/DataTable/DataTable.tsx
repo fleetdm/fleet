@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useCallback, useContext } from "react";
 import { TableContext } from "context/table";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
-import { kebabCase, noop } from "lodash";
+import { isString, kebabCase, noop } from "lodash";
 
 import useDeepEffect from "utilities/hooks/useDeepEffect";
 
@@ -82,9 +82,30 @@ const DataTable = ({
         }, [sortHeader, sortDirection]),
       },
       disableMultiSort: true,
+      disableSortRemove: true,
       manualSortBy,
       // Initializes as false, but changes briefly to true on successful notification
       autoResetSelectedRows: resetSelectedRows,
+      sortTypes: React.useMemo(
+        () => ({
+          caseInsensitive: (a: any, b: any, id: any) => {
+            let valueA = a.values[id];
+            let valueB = b.values[id];
+
+            valueA = isString(valueA) ? valueA.toLowerCase() : valueA;
+            valueB = isString(valueB) ? valueB.toLowerCase() : valueB;
+
+            if (valueB > valueA) {
+              return 1;
+            }
+            if (valueB < valueA) {
+              return -1;
+            }
+            return 0;
+          },
+        }),
+        []
+      ),
     },
     useSortBy,
     useRowSelect

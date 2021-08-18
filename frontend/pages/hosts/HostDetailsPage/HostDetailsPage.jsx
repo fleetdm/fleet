@@ -317,7 +317,7 @@ export class HostDetailsPage extends Component {
         {canTransferTeam && (
           <Button
             onClick={toggleTransferHostModal()}
-            variant="inverse"
+            variant="text-icon"
             className={`${baseClass}__transfer-button`}
           >
             Transfer <img src={TransferIcon} alt="Transfer host icon" />
@@ -326,7 +326,7 @@ export class HostDetailsPage extends Component {
         <div data-tip data-for="query" data-tip-disable={isOnline}>
           <Button
             onClick={toggleQueryHostModal()}
-            variant="inverse"
+            variant="text-icon"
             disabled={!isOnline}
             className={`${baseClass}__query-button`}
           >
@@ -344,7 +344,7 @@ export class HostDetailsPage extends Component {
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="inverse">
+        <Button onClick={toggleDeleteHostModal()} variant="text-icon">
           Delete <img src={DeleteIcon} alt="Delete host icon" />
         </Button>
       </div>
@@ -385,7 +385,7 @@ export class HostDetailsPage extends Component {
   renderPacks = () => {
     const { host, isLoadingHost } = this.props;
     const { pack_stats } = host;
-    const wrapperClassName = `${baseClass}__table`;
+    const wrapperClassName = `${baseClass}__pack-table`;
     const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
@@ -402,18 +402,20 @@ export class HostDetailsPage extends Component {
               ) : (
                 <>
                   {!!pack.query_stats.length && (
-                    <TableContainer
-                      columns={tableHeaders}
-                      data={generatePackDataSet(pack.query_stats)}
-                      isLoading={isLoadingHost}
-                      onQueryChange={() => null}
-                      resultsTitle={"queries"}
-                      defaultSortHeader={"scheduled_query_name"}
-                      defaultSortDirection={"asc"}
-                      showMarkAllPages={false}
-                      disablePagination
-                      disableCount
-                    />
+                    <div className={`${wrapperClassName}`}>
+                      <TableContainer
+                        columns={tableHeaders}
+                        data={generatePackDataSet(pack.query_stats)}
+                        isLoading={isLoadingHost}
+                        onQueryChange={() => null}
+                        resultsTitle={"queries"}
+                        defaultSortHeader={"scheduled_query_name"}
+                        defaultSortDirection={"asc"}
+                        showMarkAllPages={false}
+                        disablePagination
+                        disableCount
+                      />
+                    </div>
                   )}
                 </>
               )}

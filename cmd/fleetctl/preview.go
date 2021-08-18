@@ -172,6 +172,22 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			client.SetToken(token)
 
+			fmt.Println("Loading standard query library...")
+			buf, err := downloadStandardQueryLibrary()
+			if err != nil {
+				return errors.Wrap(err, "failed to download standard query library")
+			}
+
+			specGroup, err := specGroupFromBytes(buf)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse standard query library")
+			}
+
+			err = client.ApplyQueries(specGroup.Queries)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply standard query library")
+			}
+
 			secrets, err := client.GetEnrollSecretSpec()
 			if err != nil {
 				return errors.Wrap(err, "Error retrieving enroll secret")
@@ -192,23 +208,6 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
-			}
-
-			fmt.Println("Downloading standard query library")
-			buf, err := downloadStandardQueryLibrary()
-			if err != nil {
-				return errors.Wrap(err, "failed to download standard query library")
-			}
-
-			specGroup, err := specGroupFromBytes(buf)
-			if err != nil {
-				return errors.Wrap(err, "failed to parse standard query library")
-			}
-
-			fmt.Println("Applying standard query library")
-			err = client.ApplyQueries(specGroup.Queries)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply standard query library")
 			}
 
 			fmt.Println("Preview environment complete. Enjoy using Fleet!")
