@@ -22,7 +22,7 @@ func LoadPEM(path string) (*x509.CertPool, error) {
 	}
 
 	if ok := pool.AppendCertsFromPEM(contents); !ok {
-		return nil, errors.Errorf("no valid ceritificates found in %s", path)
+		return nil, errors.Errorf("no valid certificates found in %s", path)
 	}
 
 	return pool, nil

@@ -405,7 +405,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			if cert := getFleetCertificate(c); cert != "" {
 				// Run some validations on the TLS certificate.
 				if err := checkFleetCert(c.Context, timeoutPerCheck, cert, baseURL.Host); err != nil {
-					return errors.Wrap(err, "Fail: TLS certificate")
+					return errors.Wrap(err, "Fail: certificate")
 				}
 				fmt.Fprintln(c.App.Writer, "Success: TLS certificate seems valid.")
 			}
