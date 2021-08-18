@@ -352,7 +352,7 @@ func (man Manager) addConfigs() {
 		"Enable compression for the rotated osquery log files")
 
 	// License
-	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Basic features)")
+	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 }
 
 // LoadConfig will load the config variables into a fully initialized

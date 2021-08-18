@@ -378,7 +378,7 @@ type EnrollSecretSpec struct {
 }
 
 const (
-	// TierBasic is Fleet Basic aka the paid license.
+	// TierBasic is Fleet Premium aka the paid license.
 	TierBasic = "basic"
 	// TierCore is Fleet Free aka the free license.
 	TierCore = "core"

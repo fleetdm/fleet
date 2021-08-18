@@ -63,7 +63,7 @@ func createServeCmd(configManager config.Manager) *cobra.Command {
 	debug := false
 	// Whether to enable developer options
 	dev := false
-	// Whether to enable development Fleet Basic license
+	// Whether to enable development Fleet Premium license
 	devLicense := false
 
 	serveCmd := &cobra.Command{
@@ -209,7 +209,7 @@ the way that the Fleet server works.
 			if license.Tier == fleet.TierBasic {
 				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
 				if err != nil {
-					initFatal(err, "initial Fleet Basic service")
+					initFatal(err, "initial Fleet Premium service")
 				}
 			}
 

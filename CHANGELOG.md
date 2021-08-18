@@ -14,9 +14,9 @@
 
 * Add ability to simultaneously filter hosts by status (`online`, `offline`, `new`, `mia`) and by label on the **Hosts** page.
 
-* Add ability to filter hosts by team in the Fleet UI, fleetctl CLI tool, and Fleet API. *Available for Fleet Basic customers*.
+* Add ability to filter hosts by team in the Fleet UI, fleetctl CLI tool, and Fleet API. *Available for Fleet Premium customers*.
 
-* Add ability to create a Team schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1). *Available for Fleet Basic customers*.
+* Add ability to create a Team schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1). *Available for Fleet Premium customers*.
 
 * Add Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/13-Vulnerability-Processing.md#vulnerability-processing).
 
@@ -52,7 +52,7 @@ Activity feed adds the ability to observe when, and by whom, queries are changes
 
 ### New features breakdown
 
-* Add ability to create teams and update their respective agent options and enroll secrets using the new `teams` yaml document and fleetctl. Available in Fleet Basic.
+* Add ability to create teams and update their respective agent options and enroll secrets using the new `teams` yaml document and fleetctl. Available in Fleet Premium.
 
 * Adds a new **Home** page to the Fleet UI. The **Home** page presents a breakdown of the enrolled hosts by operating system.
 
@@ -66,7 +66,7 @@ Activity feed adds the ability to observe when, and by whom, queries are changes
 
 * Add ability to retrieve hosts' `status`, `display_text`, and `labels` using the `fleetctl get hosts` command.
 
-* Add a new `user_roles` yaml document that allows users to manage user roles via fleetctl. Available in Fleet Basic.
+* Add a new `user_roles` yaml document that allows users to manage user roles via fleetctl. Available in Fleet Premium.
 
 * Change default ordering of the "Hosts" table in the Fleet UI to ascending order (A-Z).
 
@@ -110,7 +110,7 @@ Teams adds the ability to separate hosts into exclusive groups. This way, users 
 
 * Add ability to define a user's access to features in Fleet by introducing the Admin, Maintainer, and Observer roles. Available in Fleet Free.
 
-* Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Basic customers. Check out the list below for the new functionality included with Teams:
+* Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Premium customers. Check out the list below for the new functionality included with Teams:
 
 * Teams: Add ability to enroll hosts to one team using team specific enroll secrets.
 
@@ -140,7 +140,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Replace the use of the `api/v1/fleet/spec/osquery/options` with `api/v1/fleet/config`. In Fleet 4.0.0, "osquery options" are now called "agent options." The new agent options are moved to the Fleet application config spec file and the `api/v1/fleet/config` API endpoint.
 
-* Enroll secrets no longer have "names" and are now either global or for a specific team. Hosts no longer store the “name” of the enroll secret that was used. Users that want to be able to segment hosts (for configuration, queries, etc.) based on the enrollment secret should use the Teams feature in Fleet Basic.
+* Enroll secrets no longer have "names" and are now either global or for a specific team. Hosts no longer store the “name” of the enroll secret that was used. Users that want to be able to segment hosts (for configuration, queries, etc.) based on the enrollment secret should use the Teams feature in Fleet Premium.
 
 * JWT encoding is no longer used for session keys. Sessions now default to expiring in 4 hours of inactivity. `auth_jwt_key` and `auth_jwt_key_file` are no longer accepted as configuration.
 
@@ -168,7 +168,7 @@ Teams adds the ability to separate hosts into exclusive groups. This way, users 
 
 * Add ability to define a user's access to features in Fleet by introducing the Admin, Maintainer, and Observer roles. Available in Fleet Free.
 
-* Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Basic customers. Check out the list below for the new functionality included with Teams:
+* Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Premium customers. Check out the list below for the new functionality included with Teams:
 
 * Teams: Add ability to enroll hosts to one team using team specific enroll secrets.
 
@@ -194,7 +194,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Replace the use of the `api/v1/fleet/spec/osquery/options` with `api/v1/fleet/config`. In Fleet 4.0.0, "osquery options" are now called "agent options." The new agent options are moved to the Fleet application config spec file and the `api/v1/fleet/config` API endpoint.
 
-* Enroll secrets no longer have "names" and are now either global or for a specific team. Hosts no longer store the “name” of the enroll secret that was used. Users that want to be able to segment hosts (for configuration, queries, etc.) based on the enrollment secret should use the Teams feature in Fleet Basic.
+* Enroll secrets no longer have "names" and are now either global or for a specific team. Hosts no longer store the “name” of the enroll secret that was used. Users that want to be able to segment hosts (for configuration, queries, etc.) based on the enrollment secret should use the Teams feature in Fleet Premium.
 
 * `auth_jwt_key` and `auth_jwt_key_file` are no longer accepted as configuration. 
 
@@ -219,7 +219,7 @@ There are several known issues that will be fixed for the stable release of Flee
 
 * Add ability to define a user's access to information and features in Fleet by introducing the Admin, Maintainer, and Observer roles.
 
-* Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Basic customers. Check out the list below for the new functionality included with Teams:
+* Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Premium customers. Check out the list below for the new functionality included with Teams:
 
 * Add ability to enroll hosts to one team using team specific enroll secrets.
 
@@ -239,7 +239,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Replace the use of the `api/v1/fleet/spec/osquery/options` with `api/v1/fleet/config`. In Fleet 4.0.0, "osquery options" are now called "agent options." The new agent options are moved to the Fleet application config spec file and the `api/v1/fleet/config` API endpoint.
 
-* Enroll secrets no longer have "names" and are now either global or for a specific team. Hosts no longer store the “name” of the enroll secret that was used. Users that want to be able to segment hosts (for configuration, queries, etc.) based on the enrollment secret should use the Teams feature in Fleet Basic.
+* Enroll secrets no longer have "names" and are now either global or for a specific team. Hosts no longer store the “name” of the enroll secret that was used. Users that want to be able to segment hosts (for configuration, queries, etc.) based on the enrollment secret should use the Teams feature in Fleet Premium.
 
 * `auth_jwt_key` and `auth_jwt_key_file` are no longer accepted as configuration. 
 
@@ -281,7 +281,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](./docs/2-Deploying/2-Configuration.md#software-inventory).
 
-* Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Basic customers.
+* Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Premium customers.
 
 * Make running common queries more convenient by adding the ability to select a saved query directly from a host's respective _Host details_ page.
 
@@ -295,7 +295,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 ## Fleet 3.10.0 (Mar 31, 2021)
 
-* Add `fleetctl` agent auto-updates beta which introduces the ability to self-manage an agent update server. Available for Fleet Basic customers.
+* Add `fleetctl` agent auto-updates beta which introduces the ability to self-manage an agent update server. Available for Fleet Premium customers.
 
 * Add option for Identity Provider-Initiated (IdP-initiated) Single Sign-On (SSO).
 
