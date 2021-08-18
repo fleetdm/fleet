@@ -74,6 +74,16 @@ If the action fails, please complete the following steps:
 2. Select "Roll back to here" on the second to most recent deploy.
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
+
+##### Browser compatibility checking
+
+A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks, and functions as expected across all [supported browsers](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/12-Supported-browsers.md).
+
+- We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
+- Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
+- Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign for fixing.
+- If in doubt about anything regarding design or layout, please reach out to the Design team.
+
 ### About the handbook
 #### Why bother?
 The Fleet handbook is inspired by (and heavily influenced by) the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
