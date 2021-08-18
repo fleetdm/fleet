@@ -33,6 +33,9 @@ export class CoreLayout extends Component {
     const { notifications } = nextProps;
     const table = this.context;
 
+    // on success of an action, the table will reset its checkboxes.
+    // setTimeout is to help with race conditions as table reloads
+    // in some instances (i.e. Manage Hosts)
     if (!isEqual(this.props.notifications, notifications)) {
       if (notifications.alertType === "success") {
         setTimeout(() => {
