@@ -365,8 +365,7 @@ the default context used if none is explicitly specified.`,
 or provide an <address> argument to debug: fleetctl debug connection localhost:8080`)
 			}
 
-			// it's ok if there is no scheme specified, add it automatically (to debug a non-https localhost address,
-			// the scheme must be explicitly set).
+			// it's ok if there is no scheme specified, add it automatically
 			if !strings.Contains(cc.Address, "://") {
 				cc.Address = "https://" + cc.Address
 			}
@@ -405,7 +404,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 
 			if cert := getFleetCertificate(c); cert != "" {
 				// Run some validations on the TLS certificate.
-				if err := checkFleetCert(c.Context, timeoutPerCheck, cert, baseURL.Hostname()); err != nil {
+				if err := checkFleetCert(c.Context, timeoutPerCheck, cert, baseURL.Host); err != nil {
 					return errors.Wrap(err, "Fail: TLS certificate")
 				}
 				fmt.Fprintln(c.App.Writer, "Success: TLS certificate seems valid.")
@@ -479,7 +478,7 @@ func checkAPIEndpoint(ctx context.Context, timeout time.Duration, client *servic
 	return nil
 }
 
-func checkFleetCert(ctx context.Context, timeout time.Duration, certPath, host string) error {
+func checkFleetCert(ctx context.Context, timeout time.Duration, certPath, addr string) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -487,7 +486,7 @@ func checkFleetCert(ctx context.Context, timeout time.Duration, certPath, host s
 	if err != nil {
 		return err
 	}
-	if err := certificate.ValidateConnectionContext(ctx, certPool, "https://"+host); err != nil {
+	if err := certificate.ValidateConnectionContext(ctx, certPool, "https://"+addr); err != nil {
 		return err
 	}
 
