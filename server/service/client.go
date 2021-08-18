@@ -138,8 +138,7 @@ func (c *Client) BaseURL() url.URL {
 }
 
 func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
-	return c.DoContext(context.Background(), verb, path,
-		rawQuery, params)
+	return c.DoContext(context.Background(), verb, path, rawQuery, params)
 }
 
 func (c *Client) DoContext(ctx context.Context, verb, path, rawQuery string, params interface{}) (*http.Response, error) {
@@ -162,8 +161,7 @@ func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}
 		"Authorization": fmt.Sprintf("Bearer %s", c.token),
 	}
 
-	return c.doContextWithHeaders(context.Background(), verb,
-		path, rawQuery, params, headers)
+	return c.doContextWithHeaders(context.Background(), verb, path, rawQuery, params, headers)
 }
 
 func (c *Client) SetToken(t string) {
