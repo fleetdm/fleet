@@ -164,12 +164,11 @@ type LicenseConfig struct {
 
 // VulnerabilitiesConfig defines configs related to vulnerability processing within Fleet.
 type VulnerabilitiesConfig struct {
-	DatabasePath              string        `json:"database_path" yaml:"database_path"`
-	Periodicity               time.Duration `json:"periodicity" yaml:"periodicity"`
-	CPEDatabaseURL            string        `json:"cpe_database_url" yaml:"cpe_database_url"`
-	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
-	CurrentInstanceChecks     bool          `json:"current_instance_checks" yaml:"current_instance_checks"`
-	CurrentInstanceChecksUsed bool          `json:"-" yaml:"-"`
+	DatabasesPath         string        `json:"databases_path" yaml:"databases_path"`
+	Periodicity           time.Duration `json:"periodicity" yaml:"periodicity"`
+	CPEDatabaseURL        string        `json:"cpe_database_url" yaml:"cpe_database_url"`
+	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
+	CurrentInstanceChecks string        `json:"current_instance_checks" yaml:"current_instance_checks"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -366,7 +365,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Basic features)")
 
 	// Vulnerability processing
-	man.addConfigString("vulnerabilities.database_path", "",
+	man.addConfigString("vulnerabilities.databases_path", "",
 		"Path where Fleet will download the data feeds to check CVEs")
 	man.addConfigDuration("vulnerabilities.periodicity", 1*time.Hour,
 		"How much time to wait between processing software for vulnerabilities.")
@@ -374,7 +373,7 @@ func (man Manager) addConfigs() {
 		"URL from which to get the latest CPE database. If empty, defaults to the official Github link.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
-	man.addConfigBool("vulnerabilities.current_instance_checks", false,
+	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
 }
 
@@ -494,12 +493,11 @@ func (man Manager) LoadConfig() FleetConfig {
 			Key: man.getConfigString("license.key"),
 		},
 		Vulnerabilities: VulnerabilitiesConfig{
-			DatabasePath:              man.getConfigString("vulnerabilities.database_path"),
-			Periodicity:               man.getConfigDuration("vulnerabilities.periodicity"),
-			CPEDatabaseURL:            man.getConfigString("vulnerabilities.cpe_database_url"),
-			CVEFeedPrefixURL:          man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
-			CurrentInstanceChecks:     man.getConfigBool("vulnerabilities.current_instance_checks"),
-			CurrentInstanceChecksUsed: man.IsSet("vulnerabilities.current_instance_checks"),
+			DatabasesPath:         man.getConfigString("vulnerabilities.databases_path"),
+			Periodicity:           man.getConfigDuration("vulnerabilities.periodicity"),
+			CPEDatabaseURL:        man.getConfigString("vulnerabilities.cpe_database_url"),
+			CVEFeedPrefixURL:      man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
+			CurrentInstanceChecks: man.getConfigString("vulnerabilities.current_instance_checks"),
 		},
 	}
 }

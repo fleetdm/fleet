@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
@@ -505,7 +506,7 @@ func cronVulnerabilities(
 	identifier string,
 	config config.FleetConfig,
 ) {
-	if config.Vulnerabilities.CurrentInstanceChecksUsed && !config.Vulnerabilities.CurrentInstanceChecks {
+	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("vulnerability scanning", "host not configured to check for vulnerabilities")
 		return
 	}
@@ -515,14 +516,21 @@ func cronVulnerabilities(
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
-	if appConfig.VulnerabilityDatabasesPath == nil && config.Vulnerabilities.DatabasePath == "" {
+	if ptr.StringValueOrZero(appConfig.VulnerabilityDatabasesPath) == "" &&
+		config.Vulnerabilities.DatabasesPath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return
 	}
 
-	vulnPath := *appConfig.VulnerabilityDatabasesPath
+	vulnPath := ptr.StringValueOrZero(appConfig.VulnerabilityDatabasesPath)
 	if vulnPath == "" {
-		vulnPath = config.Vulnerabilities.DatabasePath
+		vulnPath = config.Vulnerabilities.DatabasesPath
+	}
+	if config.Vulnerabilities.DatabasesPath != "" && config.Vulnerabilities.DatabasesPath != vulnPath {
+		vulnPath = config.Vulnerabilities.DatabasesPath
+		level.Info(logger).Log(
+			"databases_path", "fleet config takes precedence over app config when both are configured",
+			"result", vulnPath)
 	}
 
 	level.Info(logger).Log("databases-path", vulnPath)
@@ -539,7 +547,7 @@ func cronVulnerabilities(
 			level.Debug(logger).Log("exit", "done with cron.")
 			break
 		}
-		if !config.Vulnerabilities.CurrentInstanceChecksUsed {
+		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
 			if locked, err := locker.Lock(lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
 				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 				continue
