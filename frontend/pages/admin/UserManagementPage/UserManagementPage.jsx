@@ -83,17 +83,13 @@ export class UserManagementPage extends Component {
       userEditing: null,
       usersEditing: [],
     };
-
-    const { isBasicTier } = props;
-
-    // done as an instance variable as these headers will not change, so dont
-    // want to recalculate on re-renders.
-    this.tableHeaders = generateTableHeaders(this.onActionSelect, isBasicTier);
   }
 
   componentDidMount() {
-    const { dispatch } = this.props;
-    dispatch(teamActions.loadAll({}));
+    const { dispatch, isBasicTier } = this.props;
+    if (isBasicTier) {
+      dispatch(teamActions.loadAll({}));
+    }
   }
 
   onEditUser = (formData) => {
@@ -544,7 +540,6 @@ export class UserManagementPage extends Component {
 
   render() {
     const {
-      tableHeaders,
       renderCreateUserModal,
       renderEditUserModal,
       renderDeleteUserModal,
@@ -554,7 +549,16 @@ export class UserManagementPage extends Component {
       onTableQueryChange,
       onActionSelect,
     } = this;
-    const { loadingTableData, users, invites, currentUser } = this.props;
+
+    const {
+      loadingTableData,
+      users,
+      invites,
+      currentUser,
+      isBasicTier,
+    } = this.props;
+
+    const tableHeaders = generateTableHeaders(onActionSelect, isBasicTier);
 
     let tableData = [];
     if (!loadingTableData) {

@@ -14,11 +14,12 @@ export enum ActivityType {
   AppliedQuerySpec = "applied_query_spec",
 }
 export interface IActivity {
-  id: number;
   created_at: string;
-  actor_email?: string;
+  id: number;
   actor_full_name: string;
   actor_id: number;
+  actor_gravatar: string;
+  actor_email?: string;
   type: ActivityType;
   details?: IActivityDetails;
 }
@@ -33,11 +34,12 @@ export interface IActivityDetails {
 }
 
 export default PropTypes.shape({
-  id: PropTypes.number,
   created_at: PropTypes.string,
-  actor_email: PropTypes.string,
+  id: PropTypes.number,
   actor_full_name: PropTypes.string,
   actor_id: PropTypes.number,
+  actor_gravatar: PropTypes.string,
+  actor_email: PropTypes.string,
   type: PropTypes.string,
   details: PropTypes.shape({
     pack_id: PropTypes.number,

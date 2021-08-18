@@ -60,7 +60,10 @@ func makeConfigIfNotExists(fp string) error {
 		}
 	}
 
-	_, err := secure.OpenFile(fp, os.O_RDONLY|os.O_CREATE, configFilePerms)
+	f, err := secure.OpenFile(fp, os.O_RDONLY|os.O_CREATE, configFilePerms)
+	if err == nil {
+		f.Close()
+	}
 	return err
 }
 

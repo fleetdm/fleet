@@ -31,7 +31,7 @@ describe("Core tier - Maintainer user", () => {
     cy.findByText("select a team").should("not.exist");
     cy.contains("button", /done/i).click();
 
-    cy.contains("button", /add new label/i).click();
+    cy.contains("button", /add label/i).click();
     cy.contains("button", /cancel/i).click();
 
     // Host details page: No team UI, can delete and create new query
@@ -122,5 +122,13 @@ describe("Core tier - Maintainer user", () => {
 
     // Schedule page: Can create, edit, remove a schedule
     // TODO: Copy flow from queryflow.spec.ts here to ensure maintainers have access
+
+    // On the Profile page, they should…
+    // See Maintainer in Role section, and no Team section
+    cy.visit("/profile");
+    cy.findByText(/teams/i).should("not.exist");
+    cy.findByText("Role")
+      .next()
+      .contains(/maintainer/i);
   });
 });

@@ -37,8 +37,8 @@ describe("Core tier - Admin user", () => {
     cy.contains(/team/i).should("not.exist");
     cy.findByRole("button", { name: /done/i }).click();
 
-    // See and select "add new label"
-    cy.findByRole("button", { name: /new label/i }).click();
+    // See and select "add label"
+    cy.findByRole("button", { name: /add label/i }).click();
     cy.findByRole("button", { name: /cancel/i }).click();
 
     // On the Host details page, they should…
@@ -112,5 +112,11 @@ describe("Core tier - Admin user", () => {
     cy.findByText(/team/i).should("not.exist");
     cy.visit("/settings/teams");
     cy.findByText(/you do not have permissions/i).should("exist");
+
+    // On the Profile page, they should…
+    // See Admin in Role section, and no Team section
+    cy.visit("/profile");
+    cy.findByText(/teams/i).should("not.exist");
+    cy.findByText("Role").next().contains(/admin/i);
   });
 });

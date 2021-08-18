@@ -633,8 +633,6 @@ The endpoint returns the host's installed `software` if the software inventory f
         "config_tls_refresh": 10,
         "logger_tls_period": 10,
         "additional": {},
-        "status": "offline",
-        "display_text": "259404d30eb6",
         "team_id": null,
         "team_name": null,
         "labels": [
@@ -681,7 +679,9 @@ The endpoint returns the host's installed `software` if the software inventory f
             "version": "7.61.1",
             "source": "rpm_packages",
           },
-        ]
+        ],
+        "status": "offline",
+        "display_text": "259404d30eb6"
     }
 }
 ```
@@ -1162,6 +1162,7 @@ Returns a list of the hosts that belong to the specified label.
       "label_updated_at": "2021-02-03T21:58:10Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
       "seen_time": "2021-02-03T21:58:20Z",
+      "refetch_requested": false,
       "hostname": "floobar42",
       "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
       "platform": "ubuntu",
@@ -1253,7 +1254,7 @@ If the `label_membership_type` is set to `dynamic`, the `query` property must al
 
 If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of hostnames.
 
-`POST /api/v1/fleet/specs/labels`
+`POST /api/v1/fleet/spec/labels`
 
 #### Parameters
 
@@ -1263,7 +1264,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 #### Example
 
-`POST /api/v1/fleet/specs/labels`
+`POST /api/v1/fleet/spec/labels`
 
 ##### Request body
 
@@ -1298,7 +1299,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ### Get labels specs
 
-`GET /api/v1/fleet/specs/labels`
+`GET /api/v1/fleet/spec/labels`
 
 #### Parameters
 
@@ -1455,11 +1456,10 @@ None.
       "id": 1,
       "name": "Jane Doe",
       "email": "janedoe@example.com",
-      "global_role": null,
-      "enabled": true,
       "force_password_reset": false,
       "gravatar_url": "",
       "sso_enabled": false,
+      "global_role": null,
       "api_only": false,
       "teams": [
         {
@@ -1733,12 +1733,11 @@ Returns all information about a specific user.
     "id": 2,
     "name": "Jane Doe",
     "email": "janedoe@example.com",
-    "global_role": "admin",
-    "api_only": false,
-    "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "global_role": "admin",
+    "api_only": false,
     "teams": []
   }
 }
@@ -2108,9 +2107,9 @@ Returns the query specified by ID.
     "description": "",
     "query": "select 1 from os_version where platform = \"centos\";",
     "saved": true,
+    "observer_can_run": true,
     "author_id": 1,
     "author_name": "John",
-    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2158,9 +2157,9 @@ Returns a list of all queries in the Fleet instance.
     "description": "query",
     "query": "SELECT * FROM osquery_info",
     "saved": true,
+    "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
-    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-05T21:13:04Z",
@@ -2181,9 +2180,9 @@ Returns a list of all queries in the Fleet instance.
     "description": "Report performance stats for each file in the query schedule.",
     "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
     "saved": true,
+    "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
-    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -3107,6 +3106,8 @@ None.
       "interval": 120,
       "snapshot": true,
       "removed": null,
+      "platform": "",
+      "version": "",
       "shard": null,
       "denylist": null
     },
@@ -3122,6 +3123,8 @@ None.
       "interval": 86400,
       "snapshot": true,
       "removed": null,
+      "platform": "",
+      "version": "",
       "shard": null,
       "denylist": null
     }
@@ -3177,6 +3180,8 @@ None.
     "interval": 86400,
     "snapshot": true,
     "removed": null,
+    "platform": "",
+    "version": "",
     "shard": null,
     "denylist": null
   }
@@ -3306,6 +3311,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "query": "select * from arp_cache;",
       "interval": 120,
       "snapshot": true,
+      "platform": "",
+      "version": "",
       "removed": null,
       "shard": null,
       "denylist": null
@@ -3322,6 +3329,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 86400,
       "snapshot": true,
       "removed": null,
+      "platform": "",
+      "version": "",
       "shard": null,
       "denylist": null
     }
@@ -3751,7 +3760,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 456,
       "snapshot": false,
       "removed": true,
-      "shard": null
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3765,7 +3777,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 677,
       "snapshot": true,
       "removed": false,
-      "shard": null
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3779,7 +3794,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 6667,
       "snapshot": true,
       "removed": false,
-      "shard": null
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
     },
   ]
 }
@@ -3880,7 +3898,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
     "removed": true,
     "platform": "windows",
     "version": "4.5.0",
-    "shard": 10
+    "shard": 10,
+    "denylist": null,
   }
 }
 ```
@@ -3994,7 +4013,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 456,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "windows",
+          "version": "4.5.0"
         },
         {
           "query": "new_title_for_my_query",
@@ -4002,7 +4023,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 677,
           "snapshot": true,
-          "removed": false
+          "removed": false,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "osquery_info",
@@ -4010,7 +4033,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 6667,
           "snapshot": true,
-          "removed": false
+          "removed": false,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "query1",
@@ -4018,7 +4043,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 7767,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "osquery_events",
@@ -4026,7 +4053,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 454,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "osquery_events",
@@ -4034,7 +4063,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 120,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "",
+          "version": ""
         }
       ]
     },
@@ -4053,7 +4084,10 @@ Returns the specs for all packs in the Fleet instance.
           "interval": 333,
           "snapshot": false,
           "removed": true,
-          "platform": "windows"
+          "platform": "windows",
+          "version": "4.5.0",
+          "shard": 10,
+          "denylist": null
         }
       ]
     },
@@ -4213,7 +4247,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 677,
         "snapshot": true,
-        "removed": false
+        "removed": false,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "osquery_info",
@@ -4221,7 +4257,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 6667,
         "snapshot": true,
-        "removed": false
+        "removed": false,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "query1",
@@ -4229,7 +4267,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 7767,
         "snapshot": false,
-        "removed": true
+        "removed": true,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "osquery_events",
@@ -4237,7 +4277,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 454,
         "snapshot": false,
-        "removed": true
+        "removed": true,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "osquery_events",
@@ -4245,7 +4287,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 120,
         "snapshot": false,
-        "removed": true
+        "removed": true,
+        "platform": "",
+        "version": "",
       }
     ]
   }
@@ -4646,7 +4690,8 @@ None.
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
-    "live_query_disabled": false
+    "live_query_disabled": false,
+    "enable_analytics": true
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -4670,7 +4715,8 @@ None.
     "metadata": "",
     "metadata_url": "",
     "idp_name": "",
-    "enable_sso": false
+    "enable_sso": false,
+    "enable_sso_idp_login": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -4727,6 +4773,36 @@ None.
               "enable_log_compression": false
           }
       }
+  }
+  "license": {
+    "tier": "core",
+    "organization": "fleet",
+    "device_count": 100,
+    "expiration": "2021-12-31T19:00:00-05:00",
+    "note": ""
+  },
+  "vulnerability_settings": null,
+  "logging": {
+    "debug": false,
+    "json": false,
+    "result": {
+        "plugin": "filesystem",
+        "config": {
+          "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+          "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+          "enable_log_rotation": false,
+          "enable_log_compression": false
+        }
+      },
+    "status": {
+      "plugin": "filesystem",
+      "config": {
+        "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+        "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+        "enable_log_rotation": false,
+        "enable_log_compression": false
+      }
+    }
   }
 }
 ```
@@ -4913,13 +4989,11 @@ None.
     "secrets": [
       {
         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        "created_at": "2021-01-07T19:40:04Z",
-        "team_id": null
+        "created_at": "2021-01-07T19:40:04Z"
       },
       {
         "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On",
-        "created_at": "2021-01-04T21:18:07Z",
-        "team_id": null
+        "created_at": "2021-01-04T21:18:07Z"
       }
     ]
   }
@@ -5043,18 +5117,31 @@ None.
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 3,
+    "invited_by": 1
     "email": "john_appleseed@example.com",
     "name": "John",
     "sso_enabled": false,
     "teams": [
       {
-        "id": 2,
-        "role: "observer"
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
       },
       {
-        "id": 3,
-        "role: "maintainer"
-      },
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
     ]
   }
 }
@@ -5378,43 +5465,46 @@ _Available in Fleet Basic_
 {
   "teams: [
     {
-      "name": "workstations",
       "id": 1.
-      "user_ids": [],
-      "host_ids": [],
+      "created_at": "2021-07-28T15:58:21Z",
+      "name": "workstations",
+      "description": "",
+      "agent_options": {
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
+          },
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {}
+      },
       "user_count": 0,
       "host_count": 0,
-      "agent_options": {
-        "spec": {
-          "config": {
-            "options": {
-              "logger_plugin": "tls",
-              "pack_delimiter": "/",
-              "logger_tls_period": 10,
-              "distributed_plugin": "tls",
-              "disable_distributed": false,
-              "logger_tls_endpoint": "/api/v1/osquery/log",
-              "distributed_interval": 10,
-              "distributed_tls_max_attempts": 3
-            },
-            "decorators": {
-              "load": [
-                "SELECT uuid AS host_uuid FROM system_info;",
-                "SELECT hostname AS hostname FROM system_info;"
-              ]
-            }
-          },
-          "overrides": {}
+      "secrets": [
+        {
+          "secret": "",
+          "created_at": "2021-07-28T15:58:21Z",
+          "team_id": 10
         }
-      }
+      ]
     },
     {
-      "name": "servers",
       "id": 2,
-      "user_ids": [],
-      "host_ids": [],
-      "user_count": 0,
-      "host_count": 0,
+      "created_at": "2021-08-05T21:41:42Z",
+      "name": "servers",
+      "description": "",
       "agent_options": {
         "spec": {
           "config": {
@@ -5436,8 +5526,16 @@ _Available in Fleet Basic_
             }
           },
           "overrides": {}
+        },
+      "user_count": 0,
+      "host_count": 0,
+      "secrets": [
+        {
+          "secret": "+ncixtnZB+IE0OrbrkCLeul3U8LMVITd",
+          "created_at": "2021-08-05T21:41:42Z",
+          "team_id": 15
         }
-      }
+      ]
     }
   ]
 }

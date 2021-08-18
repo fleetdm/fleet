@@ -88,7 +88,10 @@ func (s *fileStore) writeData() error {
 	defer f.Close()
 
 	if err := json.NewEncoder(f).Encode(s.metadata); err != nil {
-		return errors.Wrap(err, "read file store")
+		return errors.Wrap(err, "write file store")
+	}
+	if err := f.Sync(); err != nil {
+		return errors.Wrap(err, "sync file store")
 	}
 
 	return nil
