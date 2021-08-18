@@ -158,7 +158,7 @@ type AppConfig struct {
 	SMTPSettings       SMTPSettings       `json:"smtp_settings"`
 	HostExpirySettings HostExpirySettings `json:"host_expiry_settings"`
 	HostSettings       HostSettings       `json:"host_settings"`
-	AgentOptions       *json.RawMessage   `json:"agent_options"`
+	AgentOptions       *json.RawMessage   `json:"agent_options,omitempty"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
