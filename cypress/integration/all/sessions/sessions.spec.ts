@@ -15,8 +15,8 @@ describe("Sessions", () => {
     cy.get("button").click();
 
     // Verify dashboard
-    cy.url().should("include", "/home");
-    cy.contains("Hosts");
+    cy.url().should("include", "/hosts/manage");
+    cy.contains("All Hosts");
 
     // Log out
     cy.findByAltText(/user avatar/i).click();
