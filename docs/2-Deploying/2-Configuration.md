@@ -1240,6 +1240,73 @@ AWS STS role ARN to use for S3 authentication.
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
+##### Vulnerabilities
+
+###### `databases_path`
+
+The path specified needs to exist and fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
+
+- Default value: none
+- Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
+- Config file format:
+
+  ```
+  vulnerabilities:
+  	databases_path: /some/path
+  ```
+
+###### `periodicity`
+
+How often vulnerabilities are checked.
+
+- Default value: `1hr`
+- Environment variable: `FLEET_VULNERABILITIES_PERIODICITY`
+- Config file format:
+
+  ```
+  vulnerabilities:
+  	periodicity: 1hr
+  ```
+
+###### `cpe_database_url`
+
+URL to fetch the CPE dictionary database from. Some users want to control where fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
+
+- Default value: `""`
+- Environment variable: `FLEET_VULNERABILITIES_CPE_DATABASE_URL`
+- Config file format:
+
+  ```
+  vulnerabilities:
+  	cpe_database_url: ""
+  ```
+
+###### `cve_feed_prefix_url`
+
+Similarly to the CPE dictionary, we allow users to define where to get the CVE feeds from. In this case, the url should be a host that serves the files in the path /feeds/json/cve/1.1/. Fleet expects to find there all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds. When not defined, Fleet downloads from the nvd.nist.gov host.
+
+- Default value: `""`
+- Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`
+- Config file format:
+
+  ```
+  vulnerabilities:
+  	cve_database_url: ""
+  ```
+
+###### `current_instance_checks`
+
+When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to no and one of them set to yes.
+
+- Default value: `auto`
+- Environment variable: `FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS`
+- Config file format:
+
+  ```
+  vulnerabilities:
+  	current_instance_checks: yes
+  ```
+
 ## Managing osquery configurations
 
 We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Fleet have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
