@@ -2,7 +2,11 @@ package vulnerabilities
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -19,9 +23,7 @@ var cvetests = []struct {
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	tempDir, err := os.MkdirTemp(os.TempDir(), "TestTranslateCPEToCVE-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	ds := new(mock.Store)
 	ctx := context.Background()
@@ -43,12 +45,33 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				return nil
 			}
 
-			err = TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout))
+			err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), "")
 			require.NoError(t, err)
 
 			require.Equal(t, []string{tt.cve}, cvesFound)
 			require.Equal(t, []string{tt.cpe}, cveToCPEs[tt.cve])
 		})
 	}
+}
 
+func TestSyncsCVEFromURL(t *testing.T) {
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.RequestURI, ".meta") {
+			fmt.Fprint(w, "lastModifiedDate:2021-08-04T11:10:30-04:00\r\n")
+			fmt.Fprint(w, "size:20967174\r\n")
+			fmt.Fprint(w, "zipSize:1453429\r\n")
+			fmt.Fprint(w, "gzSize:1453293\r\n")
+			fmt.Fprint(w, "sha256:10D7338A1E2D8DB344C381793110B67FCA7D729ADA21624EF089EBA78CCE7B53\r\n")
+		}
+	}))
+	defer ts.Close()
+
+	tempDir := t.TempDir()
+	err := syncCVEData(tempDir, ts.URL)
+	require.Error(t, err)
+	require.Equal(t,
+		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
+		err.Error(),
+	)
 }

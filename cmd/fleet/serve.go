@@ -213,7 +213,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, kitlog.With(logger, "component", "crons"))
+			cancelBackground := runCrons(ds, kitlog.With(logger, "component", "crons"), config)
 
 			// Flush seen hosts every second
 			go func() {
@@ -442,7 +442,7 @@ func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) 
 	return ds.RecordStatisticsSent()
 }
 
-func runCrons(ds fleet.Datastore, logger kitlog.Logger) context.CancelFunc {
+func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
 	locker, ok := ds.(Locker)
 	if !ok {
 		initFatal(errors.New("No global locker available"), "")
@@ -455,7 +455,8 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger) context.CancelFunc {
 	}
 
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), locker, ourIdentifier)
-	go cronVulnerabilities(ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), locker, ourIdentifier)
+	go cronVulnerabilities(
+		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), locker, ourIdentifier, config)
 
 	return cancelBackground
 }
@@ -496,42 +497,65 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	}
 }
 
-func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
+func cronVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	locker Locker,
+	identifier string,
+	config config.FleetConfig,
+) {
+	if config.Vulnerabilities.CurrentInstanceChecksUsed && !config.Vulnerabilities.CurrentInstanceChecks {
+		level.Info(logger).Log("vulnerability scanning", "host not configured to check for vulnerabilities")
+		return
+	}
+
 	appConfig, err := ds.AppConfig()
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
-	if appConfig.VulnerabilityDatabasesPath == nil {
+	if appConfig.VulnerabilityDatabasesPath == nil && config.Vulnerabilities.DatabasePath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return
 	}
 
 	vulnPath := *appConfig.VulnerabilityDatabasesPath
+	if vulnPath == "" {
+		vulnPath = config.Vulnerabilities.DatabasePath
+	}
 
-	ticker := time.NewTicker(1 * time.Hour)
+	level.Info(logger).Log("databases-path", vulnPath)
+	level.Info(logger).Log("periodicity", config.Vulnerabilities.Periodicity)
+
+	ticker := time.NewTicker(10 * time.Second)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
 		select {
 		case <-ticker.C:
 			level.Debug(logger).Log("waiting", "done")
+			ticker.Reset(config.Vulnerabilities.Periodicity)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			break
 		}
-		if locked, err := locker.Lock(lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
-			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+		if !config.Vulnerabilities.CurrentInstanceChecksUsed {
+			if locked, err := locker.Lock(lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
+				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+				continue
+			}
+		}
+
+		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath, logger, config.Vulnerabilities.CPEDatabaseURL)
+		if err != nil {
+			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 			continue
 		}
 
-		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath, logger)
-		if err != nil {
-			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
-		}
-
-		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger)
+		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config.Vulnerabilities.CVEFeedPrefixURL)
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+			continue
 		}
 
 		level.Debug(logger).Log("loop", "done")

@@ -162,26 +162,37 @@ type LicenseConfig struct {
 	Key string `yaml:"key"`
 }
 
+// VulnerabilitiesConfig defines configs related to vulnerability processing within Fleet.
+type VulnerabilitiesConfig struct {
+	DatabasePath              string        `json:"database_path" yaml:"database_path"`
+	Periodicity               time.Duration `json:"periodicity" yaml:"periodicity"`
+	CPEDatabaseURL            string        `json:"cpe_database_url" yaml:"cpe_database_url"`
+	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
+	CurrentInstanceChecks     bool          `json:"current_instance_checks" yaml:"current_instance_checks"`
+	CurrentInstanceChecksUsed bool          `json:"-" yaml:"-"`
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
 type FleetConfig struct {
-	Mysql      MysqlConfig
-	Redis      RedisConfig
-	Server     ServerConfig
-	Auth       AuthConfig
-	App        AppConfig
-	Session    SessionConfig
-	Osquery    OsqueryConfig
-	Logging    LoggingConfig
-	Firehose   FirehoseConfig
-	Kinesis    KinesisConfig
-	Lambda     LambdaConfig
-	S3         S3Config
-	PubSub     PubSubConfig
-	Filesystem FilesystemConfig
-	License    LicenseConfig
+	Mysql           MysqlConfig
+	Redis           RedisConfig
+	Server          ServerConfig
+	Auth            AuthConfig
+	App             AppConfig
+	Session         SessionConfig
+	Osquery         OsqueryConfig
+	Logging         LoggingConfig
+	Firehose        FirehoseConfig
+	Kinesis         KinesisConfig
+	Lambda          LambdaConfig
+	S3              S3Config
+	PubSub          PubSubConfig
+	Filesystem      FilesystemConfig
+	License         LicenseConfig
+	Vulnerabilities VulnerabilitiesConfig
 }
 
 // addConfigs adds the configuration keys and default values that will be
@@ -353,6 +364,18 @@ func (man Manager) addConfigs() {
 
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Basic features)")
+
+	// Vulnerability processing
+	man.addConfigString("vulnerabilities.database_path", "",
+		"Path where Fleet will download the data feeds to check CVEs")
+	man.addConfigDuration("vulnerabilities.periodicity", 1*time.Hour,
+		"How much time to wait between processing software for vulnerabilities.")
+	man.addConfigString("vulnerabilities.cpe_database_url", "",
+		"URL from which to get the latest CPE database. If empty, defaults to the official Github link.")
+	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
+		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
+	man.addConfigBool("vulnerabilities.current_instance_checks", false,
+		"Allows to manually select an instance to do the vulnerability processing.")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -469,6 +492,14 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		License: LicenseConfig{
 			Key: man.getConfigString("license.key"),
+		},
+		Vulnerabilities: VulnerabilitiesConfig{
+			DatabasePath:              man.getConfigString("vulnerabilities.database_path"),
+			Periodicity:               man.getConfigDuration("vulnerabilities.periodicity"),
+			CPEDatabaseURL:            man.getConfigString("vulnerabilities.cpe_database_url"),
+			CVEFeedPrefixURL:          man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
+			CurrentInstanceChecks:     man.getConfigBool("vulnerabilities.current_instance_checks"),
+			CurrentInstanceChecksUsed: man.IsSet("vulnerabilities.current_instance_checks"),
 		},
 	}
 }
