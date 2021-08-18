@@ -13,6 +13,13 @@ import validate from "components/forms/LabelForm/validate";
 
 const baseClass = "label-form";
 
+const PLATFORM_STRINGS = {
+  darwin: "macOS",
+  windows: "MS Windows",
+  ubuntu: "Ubuntu Linux",
+  centos: "CentOS Linux",
+};
+
 class LabelForm extends Component {
   static propTypes = {
     baseError: PropTypes.string,
@@ -74,6 +81,8 @@ class LabelForm extends Component {
       ? "Label queries are immutable. To change the query, delete this label and create a new one."
       : "";
 
+    const { platform } = fields;
+
     if (isBuiltin) {
       return (
         <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
@@ -109,12 +118,26 @@ class LabelForm extends Component {
           label="Description"
           type="textarea"
         />
-        {!isManual && (
+        {!isManual && !isEdit && (
           <div className="form-field form-field--dropdown">
             <label className="form-field__label" htmlFor="platform">
               Platform
             </label>
             <Dropdown {...fields.platform} options={helpers.platformOptions} />
+          </div>
+        )}
+        {isEdit && platform && (
+          <div className={`${baseClass}__label-platform`}>
+            <p className="title">Platform</p>
+            <p>
+              {!platform.value
+                ? "All platforms"
+                : PLATFORM_STRINGS[platform.value]}
+            </p>
+            <p className="hint">
+              Label platforms are immutable. To change the platform, delete this
+              label and create a new one.
+            </p>
           </div>
         )}
         <div className={`${baseClass}__button-wrap`}>

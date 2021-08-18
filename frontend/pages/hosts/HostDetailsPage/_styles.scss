@@ -228,7 +228,8 @@
       }
     }
 
-    &--offline {
+    &--offline,
+    &--mia {
       &:before {
         background-color: $ui-fleet-black-25;
         border-radius: 100%;
@@ -238,6 +239,10 @@
         margin-right: $pad-small;
         width: 8px;
       }
+    }
+
+    &--mia {
+      text-transform: uppercase;
     }
   }
 
@@ -397,7 +402,7 @@
   }
 
   .accordion__panel {
-    padding: 20px;
+    padding: 0;
     animation: fadein 0.35s ease-in;
   }
 
@@ -412,6 +417,36 @@
 
     100% {
       opacity: 1;
+    }
+  }
+
+  &__pack-table {
+    .table-container__header {
+      display: none;
+    }
+
+    .data-table__table {
+      table-layout: fixed;
+
+      thead {
+        // Width for all columns except the "Query name" column
+        // Width calculation adjusts for each row's horizontal padding
+        th {
+          width: calc(160px - 27px * 2);
+        }
+
+        // Width for the "Query name" column
+        th:nth-child(1) {
+          width: auto !important;
+        }
+      }
+
+      tbody {
+        td {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
     }
   }
 }

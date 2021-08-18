@@ -165,9 +165,9 @@ type Label struct {
 	UpdateCreateTimestamps
 	ID                  uint                `json:"id"`
 	Name                string              `json:"name"`
-	Description         string              `json:"description,omitempty"`
+	Description         string              `json:"description"`
 	Query               string              `json:"query"`
-	Platform            string              `json:"platform,omitempty"`
+	Platform            string              `json:"platform"`
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`

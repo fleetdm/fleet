@@ -253,6 +253,7 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
   host_settings:
     additional_queries:
       time: SELECT * FROM time
+    enable_host_users: true
 `)
 	applyConfig(t, spec, server, token)
 
@@ -261,11 +262,12 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
     host_expiry_enabled: false
     host_expiry_window: 0
   host_settings:
+    enable_host_users: true
 `)
 	applyConfig(t, spec, server, token)
 
 	config := getConfig(t, server, token)
-	assert.Nil(t, config.HostSettings)
+	assert.Nil(t, config.HostSettings.AdditionalQueries)
 }
 
 func TestAppConfigHasLogging(t *testing.T) {
@@ -417,7 +419,7 @@ func TestTeamSpecs(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, team.Secrets, 0)
-	assert.Equal(t, &agentOpts, team.AgentOptions)
+	require.JSONEq(t, string(agentOpts), string(*team.AgentOptions))
 
 	// creates a team with default agent options
 	user, err := ds.UserByEmail("admin1@example.com")
@@ -437,9 +439,9 @@ func TestTeamSpecs(t *testing.T) {
 	team, err = ds.TeamByName("team2")
 	require.NoError(t, err)
 
-	defaultOpts := json.RawMessage("{\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}")
+	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
 	assert.Len(t, team.Secrets, 0)
-	assert.Equal(t, &defaultOpts, team.AgentOptions)
+	require.JSONEq(t, defaultOpts, string(*team.AgentOptions))
 
 	// updates secrets
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}

@@ -265,9 +265,20 @@ func (d *Datastore) ListLabels(filter fleet.TeamFilter, opt fleet.ListOptions) (
 	return labels, nil
 }
 
+func platformForHost(host *fleet.Host) string {
+	if host.Platform != "rhel" {
+		return host.Platform
+	}
+	if strings.Contains(strings.ToLower(host.OSVersion), "centos") {
+		return "centos"
+	}
+	return host.Platform
+}
+
 func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 	var rows *sql.Rows
 	var err error
+	platform := platformForHost(host)
 	if host.LabelUpdatedAt.Before(cutoff) {
 		// Retrieve all labels (with matching platform) for this host
 		sql := `
@@ -276,7 +287,7 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 			WHERE platform = ? OR platform = ''
 			AND label_membership_type = ?
 `
-		rows, err = d.db.Query(sql, host.Platform, fleet.LabelMembershipTypeDynamic)
+		rows, err = d.db.Query(sql, platform, fleet.LabelMembershipTypeDynamic)
 	} else {
 		// Retrieve all labels (with matching platform) iff there is a label
 		// that has been created since this host last reported label query
@@ -290,9 +301,9 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 `
 		rows, err = d.db.Query(
 			sql,
-			host.Platform,
+			platform,
 			host.LabelUpdatedAt,
-			host.Platform,
+			platform,
 			fleet.LabelMembershipTypeDynamic,
 		)
 	}
@@ -413,6 +424,7 @@ func (d *Datastore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt flee
 	params := []interface{}{lid}
 
 	sql, params = filterHostsByStatus(sql, opt, params)
+	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)

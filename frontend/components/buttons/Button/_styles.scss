@@ -102,6 +102,7 @@ $base-class: "button";
     font-size: $xx-small;
     padding: $pad-xsmall 10px;
     height: 24px;
+    white-space: nowrap;
 
     &:active {
       box-shadow: inset 2px 2px 2px rgba(0, 0, 0, 0.25);
@@ -148,21 +149,20 @@ $base-class: "button";
 
   &--text-icon {
     @include button-variant(transparent);
+    padding: 0;
     border: 0;
     box-shadow: none;
-    color: $core-fleet-black;
+    color: $core-vibrant-blue;
     font-size: $x-small;
-    font-weight: $regular;
+    font-weight: $bold;
     cursor: pointer;
 
     img {
-      height: 14px;
-      width: 14px;
-      margin-right: $pad-small;
+      transform: scale(0.5);
     }
 
     &:active {
-      box-shadow: none;
+      color: $core-vibrant-blue-down;
     }
 
     &:focus {
@@ -170,9 +170,7 @@ $base-class: "button";
     }
 
     &:hover {
-      background-color: transparent;
-      box-shadow: none;
-      text-decoration: underline;
+      color: $core-vibrant-blue-over;
     }
   }
 

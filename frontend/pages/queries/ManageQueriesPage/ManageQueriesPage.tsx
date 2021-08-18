@@ -14,6 +14,7 @@ import paths from "router/paths";
 import permissionUtils from "utilities/permissions";
 
 import Button from "components/buttons/Button";
+import Spinner from "components/loaders/Spinner";
 import QueriesListError from "./components/QueriesListError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
@@ -25,7 +26,7 @@ interface IRootState {
   };
   entities: {
     queries: {
-      isLoading: boolean;
+      loading: boolean;
       data: IQuery[];
       errors: any;
     };
@@ -60,6 +61,17 @@ const ManageQueriesPage = (): JSX.Element => {
   useEffect(() => {
     dispatch(queryActions.loadAll());
   }, [dispatch]);
+
+  const loadingQueries = useSelector(
+    (state: IRootState) => state.entities.queries.loading
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  useEffect(() => {
+    setIsLoading(loadingQueries);
+  }, [loadingQueries]);
+  useEffect(() => {
+    setIsLoading(true);
+  }, []);
 
   const queries = useSelector((state: IRootState) => state.entities.queries);
   const queriesList = Object.values(queries.data);
@@ -134,7 +146,11 @@ const ManageQueriesPage = (): JSX.Element => {
           )}
         </div>
         <div>
-          {true && renderTable(onRemoveQueryClick, queriesList, queriesErrors)}
+          {!isLoading ? (
+            renderTable(onRemoveQueryClick, queriesList, queriesErrors)
+          ) : (
+            <Spinner />
+          )}
         </div>
         {showRemoveQueryModal && (
           <RemoveQueryModal

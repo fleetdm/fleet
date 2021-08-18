@@ -109,6 +109,8 @@ type HostListOptions struct {
 	AdditionalFilters []string
 	// StatusFilter selects the online status of the hosts.
 	StatusFilter HostStatus
+	// TeamFilter selects the hosts for specified team
+	TeamFilter *uint
 }
 
 type HostUser struct {

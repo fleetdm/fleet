@@ -14,7 +14,7 @@ describe("Basic tier - Maintainer user", () => {
 
   it("Can perform the appropriate basic global maintainer actions", () => {
     cy.login("mary@organization.com", "user123#");
-    cy.visit("/");
+    cy.visit("/hosts/manage");
 
     // Ensure page is loaded
     cy.contains("All hosts");
@@ -74,5 +74,15 @@ describe("Basic tier - Maintainer user", () => {
     // On the Packs pages (manage, new, and edit), they should…
     // On the Schedule pages (manage, new, and edit), they should…
     // ^^General maintainer functionality for packs page is being tested in core/maintainer.spec.ts
+
+    // On the Profile page, they should…
+    // See Global in the Team section and Maintainer in the Role section
+    cy.visit("/profile");
+    cy.findByText(/team/i)
+      .next()
+      .contains(/global/i);
+    cy.findByText("Role")
+      .next()
+      .contains(/maintainer/i);
   });
 });

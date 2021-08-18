@@ -13,7 +13,6 @@ import AdminAppSettingsPage from "pages/admin/AppSettingsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
-import AllPacksPage from "pages/packs/AllPacksPage";
 import App from "components/App";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
@@ -31,6 +30,7 @@ import LoginRoutes from "components/LoginRoutes";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
+import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackPageWrapper from "components/packs/PackPageWrapper";
 import PackComposerPage from "pages/packs/PackComposerPage";
@@ -69,8 +69,8 @@ const routes = (
           <Route path="email/change/:token" component={EmailTokenRedirect} />
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
-            <IndexRedirect to={PATHS.MANAGE_HOSTS} />
-            <Route path="home/dashboard" component={Homepage} />
+            <IndexRedirect to={PATHS.HOMEPAGE} />
+            <Route path="home" component={Homepage} />
             <Route path="settings" component={AuthenticatedAdminRoutes}>
               <Route component={SettingsWrapper}>
                 <Route path="organization" component={AdminAppSettingsPage} />
@@ -103,7 +103,7 @@ const routes = (
             </Route>
             <Route component={AuthGlobalAdminMaintainerRoutes}>
               <Route path="packs" component={PackPageWrapper}>
-                <Route path="manage" component={AllPacksPage} />
+                <Route path="manage" component={ManagePacksPage} />
                 <Route path="new" component={PackComposerPage} />
                 <Route path=":id">
                   <IndexRoute component={EditPackPage} />

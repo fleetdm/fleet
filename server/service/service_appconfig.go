@@ -190,8 +190,12 @@ func appConfigFromAppConfigPayload(p fleet.AppConfigPayload, config fleet.AppCon
 	}
 
 	if settings := p.HostSettings; settings != nil {
-		if settings.AdditionalQueries != nil {
-			config.AdditionalQueries = settings.AdditionalQueries
+		config.AdditionalQueries = settings.AdditionalQueries
+		if settings.EnableHostUsers != nil {
+			config.EnableHostUsers = *settings.EnableHostUsers
+		}
+		if settings.EnableSoftwareInventory != nil {
+			config.EnableSoftwareInventory = *settings.EnableSoftwareInventory
 		}
 	} else {
 		config.AdditionalQueries = nil

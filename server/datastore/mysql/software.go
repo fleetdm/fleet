@@ -291,7 +291,7 @@ func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error
 func (d *Datastore) AllCPEs() ([]string, error) {
 	sql := `SELECT cpe FROM software_cpe`
 	var cpes []string
-	err := d.db.Select(cpes, sql)
+	err := d.db.Select(&cpes, sql)
 	if err != nil {
 		return nil, errors.Wrap(err, "loads cpes")
 	}

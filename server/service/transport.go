@@ -183,6 +183,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
+	team_id := r.URL.Query().Get("team_id")
+	if team_id != "" {
+		id, err := strconv.Atoi(team_id)
+		if err != nil {
+			return hopt, err
+		}
+		tid := uint(id)
+		hopt.TeamFilter = &tid
+	}
+
 	return hopt, nil
 }
 

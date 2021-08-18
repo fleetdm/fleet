@@ -41,7 +41,7 @@ const binName = platform === "windows" ? "fleetctl.exe" : "fleetctl";
 const binPath = path.join(installDir, binName);
 
 const install = async () => {
-  const url = `https://github.com/fleetdm/fleet/releases/download/${strippedVersion}/fleetctl_${strippedVersion}_${platform}.tar.gz`;
+  const url = `https://github.com/fleetdm/fleet/releases/download/fleet-${strippedVersion}/fleetctl_${strippedVersion}_${platform}.tar.gz`;
 
   fs.mkdirSync(installDir, { recursive: true });
 

@@ -524,7 +524,7 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			continue
 		}
 
-		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath)
+		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath, logger)
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 		}

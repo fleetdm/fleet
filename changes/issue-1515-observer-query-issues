@@ -1,1 +1,0 @@
-* Observers can run queries that admins create, but not create their own. Improves errors returned and checks.

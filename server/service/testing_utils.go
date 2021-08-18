@@ -83,27 +83,6 @@ func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq f
 	return svc
 }
 
-func createTestAppConfig(t *testing.T, ds fleet.Datastore) *fleet.AppConfig {
-	config := &fleet.AppConfig{
-		OrgName:                "Tyrell Corp",
-		OrgLogoURL:             "https://tyrell.com/image.png",
-		ServerURL:              "https://fleet.tyrell.com",
-		SMTPConfigured:         true,
-		SMTPSenderAddress:      "test@example.com",
-		SMTPServer:             "smtp.tyrell.com",
-		SMTPPort:               587,
-		SMTPAuthenticationType: fleet.AuthTypeUserNamePassword,
-		SMTPUserName:           "deckard",
-		SMTPPassword:           "replicant",
-		SMTPVerifySSLCerts:     true,
-		SMTPEnableTLS:          true,
-	}
-	result, err := ds.NewAppConfig(config)
-	require.Nil(t, err)
-	require.NotNil(t, result)
-	return result
-}
-
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
 	for _, u := range testUsers {

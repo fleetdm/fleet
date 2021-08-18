@@ -33,7 +33,7 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 		global_role
       ) VALUES (?,?,?,?,?,?,?,?,?,?)
       `
-		result, err := d.db.Exec(sqlStatement,
+		result, err := tx.Exec(sqlStatement,
 			user.Password,
 			user.Salt,
 			user.Name,

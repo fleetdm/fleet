@@ -109,15 +109,15 @@ const TableContainer = ({
   const onSortChange = useCallback(
     (id?: string, isDesc?: boolean) => {
       if (id === undefined) {
-        setSortHeader("");
-        setSortDirection("");
+        setSortHeader(defaultSortHeader || "");
+        setSortDirection(defaultSortDirection || "");
       } else {
         setSortHeader(id);
         const direction = isDesc ? "desc" : "asc";
         setSortDirection(direction);
       }
     },
-    [setSortHeader, setSortDirection]
+    [defaultSortHeader, defaultSortDirection, setSortHeader, setSortDirection]
   );
 
   const onSearchQueryChange = (value: string) => {
@@ -219,13 +219,13 @@ const TableContainer = ({
               className={`${baseClass}__table-action-button`}
             >
               <>
+                {actionButtonText}
                 {actionButtonIcon && (
                   <img
                     src={actionButtonIcon}
                     alt={`${actionButtonText} icon`}
                   />
                 )}
-                {actionButtonText}
               </>
             </Button>
           )}
@@ -247,7 +247,21 @@ const TableContainer = ({
       <div className={`${baseClass}__data-table-container`}>
         {/* No entities for this result. */}
         {!isLoading && data.length === 0 ? (
-          <EmptyComponent />
+          <>
+            <EmptyComponent pageIndex={pageIndex} />
+            {pageIndex !== 0 && (
+              <div className={`${baseClass}__empty-page`}>
+                <div className={`${baseClass}__previous`}>
+                  <Pagination
+                    resultsOnCurrentPage={data.length}
+                    currentPage={pageIndex}
+                    resultsPerPage={pageSize}
+                    onPaginationChange={onPaginationChange}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <>
             <DataTable

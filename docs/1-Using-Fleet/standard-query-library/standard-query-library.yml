@@ -76,7 +76,7 @@ spec:
   name: Get installed Chrome Extensions
   platforms: macOS, Linux, Windows, FreeBSD
   description: List installed Chrome Extensions for all users.
-  query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
+  query: SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
   purpose: Informational
   contributors: zwass
 ---
