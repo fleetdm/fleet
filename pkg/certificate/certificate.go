@@ -37,7 +37,7 @@ func ValidateConnection(pool *x509.CertPool, fleetURL string) error {
 		return errors.Wrap(err, "parse url")
 	}
 	conn, err := tls.Dial("tcp", parsed.Host, &tls.Config{
-		ClientCAs:          pool,
+		RootCAs:            pool,
 		InsecureSkipVerify: true,
 		VerifyConnection: func(state tls.ConnectionState) error {
 			if len(state.PeerCertificates) == 0 {
