@@ -17,7 +17,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/certificate"
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/service"
 )
 

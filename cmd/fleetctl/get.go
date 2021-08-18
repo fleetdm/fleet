@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -562,9 +562,9 @@ func getHostsCommand() *cli.Command {
 		Usage:   "List information about one or more hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:        "team",
-				Usage:       "filter hosts by team_id",
-				Required:    false,
+				Name:     "team",
+				Usage:    "filter hosts by team_id",
+				Required: false,
 			},
 			jsonFlag(),
 			yamlFlag(),
