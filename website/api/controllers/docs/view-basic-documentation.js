@@ -41,9 +41,9 @@ module.exports = {
     let thisPage = _.find(sails.config.builtStaticContent.markdownPages, {
       url: _.trimRight(SECTION_URL_PREFIX + '/' + _.trim(pageUrlSuffix, '/'), '/')
     });
-    console.log('pageUrlSuffix:',pageUrlSuffix);
-    console.log('SECTION_URL_PREFIX + "/" + _.trim(pageUrlSuffix, "/"):',SECTION_URL_PREFIX + '/' + _.trim(pageUrlSuffix, '/'));
-    console.log('thisPage:',thisPage);
+    // console.log('pageUrlSuffix:',pageUrlSuffix);
+    // console.log('SECTION_URL_PREFIX + "/" + _.trim(pageUrlSuffix, "/"):',SECTION_URL_PREFIX + '/' + _.trim(pageUrlSuffix, '/'));
+    // console.log('thisPage:',thisPage);
     if (!thisPage) {
       throw 'notFound';
     }
