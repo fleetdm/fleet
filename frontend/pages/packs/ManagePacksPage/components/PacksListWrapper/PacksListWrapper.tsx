@@ -94,14 +94,14 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
       name: "enable",
       onActionButtonClick: onEnablePackClick,
       buttonText: "Enable",
-      variant: "text-link",
+      variant: "text-icon",
       icon: "check",
     },
     {
       name: "disable",
       onActionButtonClick: onDisablePackClick,
       buttonText: "Disable",
-      variant: "text-link",
+      variant: "text-icon",
       icon: "disable",
     },
   ];
@@ -121,7 +121,7 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
         searchable
         disablePagination
         onPrimarySelectActionClick={onRemovePackClick}
-        primarySelectActionButtonVariant="text-link"
+        primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}
         secondarySelectActions={secondarySelectActions}

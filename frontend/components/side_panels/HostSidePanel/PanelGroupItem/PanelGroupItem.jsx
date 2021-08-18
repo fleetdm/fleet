@@ -3,9 +3,30 @@ import PropTypes from "prop-types";
 import classnames from "classnames";
 
 import statusLabelsInterface from "interfaces/status_labels";
+import darwinIcon from "../../../../../assets/images/icon-darwin-fleet-black-16x16@2x.png";
+import linuxIcon from "../../../../../assets/images/icon-linux-fleet-black-16x16@2x.png";
+import ubuntuIcon from "../../../../../assets/images/icon-ubuntu-fleet-black-16x16@2x.png";
+import centosIcon from "../../../../../assets/images/icon-centos-fleet-black-16x16@2x.png";
+import windowsIcon from "../../../../../assets/images/icon-windows-fleet-black-16x16@2x.png";
 
 const baseClass = "panel-group-item";
 
+const displayIcon = (name) => {
+  switch (name) {
+    case "Darwin":
+      return <img src={darwinIcon} alt="Apple icon" />;
+    case "Linux":
+      return <img src={linuxIcon} alt="Linux icon" />;
+    case "Ubuntu Linux":
+      return <img src={ubuntuIcon} alt="Ubuntu icon" />;
+    case "CentOS Linux":
+      return <img src={centosIcon} alt="Centos icon" />;
+    case "Windows":
+      return <img src={windowsIcon} alt="Windows icon" />;
+    default:
+      break;
+  }
+};
 class PanelGroupItem extends Component {
   static propTypes = {
     item: PropTypes.shape({
@@ -15,6 +36,7 @@ class PanelGroupItem extends Component {
       type: PropTypes.string.isRequired,
       id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       name: PropTypes.string,
+      label_type: PropTypes.string,
     }).isRequired,
     onLabelClick: PropTypes.func,
     isSelected: PropTypes.bool,
@@ -39,7 +61,8 @@ class PanelGroupItem extends Component {
   render() {
     const { displayCount } = this;
     const { item, onLabelClick, isSelected } = this.props;
-    const { display_text: displayText, type } = item;
+    const { display_text: displayText, type, label_type, name } = item;
+
     const wrapperClassName = classnames(
       baseClass,
       "button",
@@ -56,7 +79,10 @@ class PanelGroupItem extends Component {
     return (
       <button className={wrapperClassName} onClick={onLabelClick}>
         <div className={`${baseClass}__flexy`}>
-          <span className={`${baseClass}__name`}>{displayText}</span>
+          <span className={`${baseClass}__name`}>
+            {label_type === "builtin" && displayIcon(name)}&nbsp;
+            {displayText}
+          </span>
           <span className={`${baseClass}__count`}>{displayCount()}</span>
         </div>
       </button>

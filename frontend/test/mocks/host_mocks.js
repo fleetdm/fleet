@@ -15,7 +15,8 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: "/api/v1/fleet/hosts?page=0&per_page=100",
+        endpoint:
+          "/api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&order_direction=asc",
         method: "get",
         response: { hosts: [] },
       });

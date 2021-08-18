@@ -1,13 +1,466 @@
 #basic-documentation {
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // For a starting point on how to approach styling this generated HTML, please see @RachelElysia's draft in:
-  // https://github.com/fleetdm/fleet/commit/bfb758d9dc81c423538f75fc86244b06cc810c1a
-  // https://github.com/fleetdm/fleet/commit/e4c77b981627bde0e6225c805c89143467a9bca1
-  //
-  // Note that handbook and documentation can probably share many of the same styles.  (Consider a dedicated mixin.)
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  h1 {
+    font-size: 36px;
+    line-height: 48px;
+  }
 
-  //…
+  h3 {
+    font-size: 22px;
+    line-height: 36px;
+  }
+
+  h4 {
+    font-size: 18px;
+    padding-top: 24px;
+  }
+
+  h6 {
+    font-family: 'Nunito';
+  }
+
+  a {
+    color: @core-vibrant-blue;
+  }
+
+  ul {
+    list-style: none;
+    padding-left: 8px;
+
+    li {
+      padding-bottom: 8px;
+    }
+
+  }
+
+  [purpose='docs-landing-page'] {
+
+    h3 {
+      font-size: 24px;
+      line-height: 32px;
+    }
+
+    a {
+      color: @core-vibrant-blue;
+    }
+
+    [purpose='search'] {
+
+      input {
+        padding-top: 6px;
+        padding-bottom: 6px;
+
+        &::placeholder {
+          font-size: 16px;
+          line-height: 24px;
+
+        }
+
+      }
+
+      .input-group-text {
+        color: @core-fleet-black-50;
+        border-color: @core-fleet-black-25;
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
+      }
+
+      .form-control {
+        height: 48px;
+        font-size: 16px;
+        border-color: @core-fleet-black-25;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+
+        &:focus {
+          border: 1px solid @core-fleet-black-25;
+        }
+
+      }
+
+    }
+
+    [purpose='cta-cards'] {
+
+      .cta-card {
+        cursor: pointer;
+        border: 1px solid @ui-gray;
+        border-radius: 8px;
+        box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
+
+        .cta-image {
+          max-height: 60px;
+          width: auto;
+        }
+
+        .cta-text {
+
+          a {
+            color: @core-fleet-black;
+            text-decoration: none;
+          }
+
+          img {
+            padding-left: 8px;
+            transition: 0.2s ease-in-out;
+            -o-transition: 0.2s ease-in-out;
+            -ms-transition: 0.2s ease-in-out;
+            -moz-transition: 0.2s ease-in-out;
+            -webkit-transition: 0.2s ease-in-out;
+          }
+
+          &:hover {
+
+            .arrow {
+
+              img {
+                padding-left: 11px;
+                transition: 0.2s ease-in-out;
+                -o-transition: 0.2s ease-in-out;
+                -ms-transition: 0.2s ease-in-out;
+                -moz-transition: 0.2s ease-in-out;
+                -webkit-transition: 0.2s ease-in-out;
+              }
+
+            }
+
+          }
+
+        }
+
+      }
+
+    }
+
+    [purpose='docs-tree'] {
+
+      a {
+        color: @core-fleet-black;
+        text-decoration: none;
+
+        &:hover {
+          color: @core-vibrant-blue;
+        }
+
+      }
+
+    }
+
+    @media (min-width: 768px) {
+
+      .cta-card {
+        max-width: 437px;
+        min-height: 160px;
+
+        .cta-image {
+          max-height: 72px;
+        }
+
+      }
+
+    }
+
+  }
+
+
+  [purpose='docs-template'] {
+
+    h3 {
+
+      code {
+        color: @core-fleet-black;
+      }
+
+    }
+
+    [purpose='search'] {
+
+      input {
+        padding-top: 6px;
+        padding-bottom: 6px;
+        border-radius: 6px;
+        border-top-left-radius: 0px;
+        border-bottom-left-radius: 0px;
+
+        &::placeholder {
+          font-size: 16px;
+          line-height: 24px;
+        }
+
+      }
+
+      .input-group-prepend {
+        border-radius: 6px;
+        border-top-right-radius: 0px;
+        border-bottom-right-radius: 0px;
+
+      }
+
+      .input-group-text {
+        color: #8b8fa2;
+        border-color: #c5c7d1;
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+      }
+
+      .form-control {
+        height: 40px;
+        font-size: 16px;
+        border-color: #c5c7d1;
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+
+        &:focus {
+          border: 1px solid #c5c7d1;
+        }
+
+      }
+
+    }
+
+    [purpose='breadcrumbs'] {
+
+      p, a {
+        font-size: 14px;
+      }
+
+    }
+
+    [purpose='mobile-docs-nav'] {
+
+      a {
+        color: @core-fleet-black;
+        text-decoration: none;
+
+        &.active {
+          color: @core-vibrant-blue;
+        }
+
+      }
+
+      [purpose='docs-nav-button'] {
+        color: @core-fleet-black;
+        background-color: transparent;
+        font-family: 'Nunito';
+        font-weight: 400;
+        font-size: 16px;
+        padding: 0;
+        padding-top: 12px;
+        padding-bottom: 12px;
+
+        &:focus {
+            box-shadow: none;
+        }
+
+      }
+
+    }
+
+    [purpose='left-sidebar'] {
+      font-size: 14px;
+      border-right: 1px solid @core-fleet-black-25;
+
+      a {
+        color: @core-fleet-black;
+        text-decoration: none;
+
+        &:hover {
+          color: #6A67FE;
+        }
+
+        &.btn-primary {
+          color: #fff;
+        }
+
+        .btn-primary {
+          color: #fff;
+          background-color: #ff5c83;
+          border-color: #ff5c83;
+
+          &:hover {
+            background-color: darken(#ff5c83, 10%);
+            border-color: darken(#ff5c83, 10%);
+          }
+
+        }
+
+      }
+
+      .left-nav {
+        border-bottom: 1px solid @core-fleet-black-25;
+      }
+
+      .topic {
+
+        &.active {
+          color: @core-vibrant-blue;
+        }
+
+      }
+
+    }
+
+    [purpose='right-sidebar'] {
+
+      p, a {
+        font-size: 14px;
+      }
+
+      a {
+        &:hover {
+          color: #6A67FE;
+        }
+      }
+
+    }
+
+    [purpose='content'] {
+
+      h1 {
+        padding-bottom: 16px;
+      }
+
+      h2 {
+        font-size: 28px;
+        line-height: 36px;
+        padding-top: 24px;
+        padding-bottom: 24px;
+      }
+
+      h3 {
+        font-size: 24px;
+        line-height: 28px;
+        padding-top: 24px;
+        padding-bottom: 24px;
+        margin-bottom: 0px;
+      }
+
+      ul {
+        list-style-type: disc;
+        padding-left: 32px;
+      }
+
+      img {
+        display: flex;
+        width: 100%;
+        height: auto;
+        padding-top: 24px;
+        padding-bottom: 24px;
+      }
+
+      h1 + ul {
+        display: none; // Hides links at top of some markdown files
+      }
+
+      h2 + h3 {
+        padding-top: 8px;
+      }
+
+      .note {
+        background-color: @core-vibrant-blue-10;
+        border-radius: 12px;
+        text-decoration: none;
+      }
+
+    }
+
+    // for smaller screens
+    @media (max-width: 991px) {
+
+      [purpose='right-sidebar'] {
+        width: 100%;
+
+        [purpose='subtopics'] {
+          color: @core-fleet-black;
+
+          a {
+            color: @core-vibrant-blue;
+          }
+
+        }
+
+      }
+
+      [purpose='content'] {
+        width: 100%;
+
+        h1:first-of-type {
+          display: none;  // hides on mobile
+        }
+
+      }
+
+    }
+
+    // for larger screens
+    @media (min-width: 992px) {
+
+      ul {
+        .topic {
+          padding-left: 8px;
+        }
+      }
+
+      [purpose='search'] {
+
+        .input-group {
+          min-width: 400px;
+        }
+
+      }
+
+      [purpose='page-title'] {
+
+        h1 {
+          display: block;
+        }
+
+      }
+
+      [purpose='right-sidebar'] {
+        min-width: 190px;
+        max-width: 210px;
+
+        [purpose='subtopics'] {
+          color: @core-fleet-black;
+          padding-top: 4px;
+          padding-bottom: 4px;
+          border-left: 1px solid @core-vibrant-blue-25;
+
+          a {
+            color: @core-fleet-black;
+            text-decoration: none;
+
+            &:hover {
+              color: @core-vibrant-blue;
+            }
+
+          }
+
+          // .active {
+          //   color: @core-vibrant-blue;
+          //   position: absolute;
+          //   height: 32px;
+          //   transform: translate(-2px, -4px);
+          //   border-left: 3px solid @core-vibrant-blue;
+          //   border-radius: 2px;
+          //   a {
+          //     color: @core-vibrant-blue;
+          //   }
+          // }
+
+        }
+
+      }
+
+      [purpose='content'] {
+        min-width: 0px; // in order for <pre> elements to shrink properly, the parent flex element needs to override min-width auto
+      }
+
+    }
+
+  }
+
+  @import 'code-blocks.less'; // styles for code blocks and hljs
 
 }

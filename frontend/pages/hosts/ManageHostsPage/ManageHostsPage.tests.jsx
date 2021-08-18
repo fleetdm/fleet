@@ -13,7 +13,7 @@ import {
   reduxMockStore,
   stubbedOsqueryTable,
 } from "test/helpers";
-import { hostStub, configStub, userStub, teamStub } from "test/stubs";
+import { hostStub, configStub, adminUserStub, teamStub } from "test/stubs";
 import * as manageHostsPageActions from "redux/nodes/components/ManageHostsPage/actions";
 
 const allHostsLabel = {
@@ -48,7 +48,7 @@ const customLabel = {
 };
 const mockStore = reduxMockStore({
   app: { enrollSecret: [], config: {} },
-  auth: { user: userStub },
+  auth: { user: adminUserStub },
   components: {
     ManageHostsPage: {
       display: "Grid",
