@@ -9,7 +9,7 @@ assignees: ''
 
 **Fleet version** (Head to the "My account" page in the Fleet UI or run `fleetctl version`):
 
-**Fleet tier** (Are you using the free (Fleet Core) or paid (Fleet Basic) tier?):
+**Fleet tier** (Are you using the free (Fleet Free) or paid (Fleet Basic) tier?):
 
 **User role** (Which role are you assigned in Fleet? (Admin, Maintainer, or Observer)):
 > 3 roles are introduced in Fleet 4.0.0. If you're using a prior version of Fleet or don't know your assigned role, please feel free to leave this item blank.

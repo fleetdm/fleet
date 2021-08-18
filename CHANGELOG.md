@@ -108,7 +108,7 @@ Teams adds the ability to separate hosts into exclusive groups. This way, users 
 
 ### New features breakdown
 
-* Add ability to define a user's access to features in Fleet by introducing the Admin, Maintainer, and Observer roles. Available in Fleet Core.
+* Add ability to define a user's access to features in Fleet by introducing the Admin, Maintainer, and Observer roles. Available in Fleet Free.
 
 * Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Basic customers. Check out the list below for the new functionality included with Teams:
 
@@ -120,9 +120,9 @@ Teams adds the ability to separate hosts into exclusive groups. This way, users 
 
 * Teams: Add ability to grant users access to one or more teams. This allows you to define a user's access to specific groups of hosts in Fleet.
 
-* Add ability to create an API-only user. API-only users cannot access the Fleet UI. These users can access all Fleet API endpoints and `fleetctl` features. Available in Fleet Core.
+* Add ability to create an API-only user. API-only users cannot access the Fleet UI. These users can access all Fleet API endpoints and `fleetctl` features. Available in Fleet Free.
 
-* Add Redis cluster support. Available in Fleet Core.
+* Add Redis cluster support. Available in Fleet Free.
 
 * Fix a bug that prevented the columns chosen for the "Hosts" table from persisting after logging out of Fleet.
 
@@ -166,7 +166,7 @@ Teams adds the ability to separate hosts into exclusive groups. This way, users 
 
 ### New features breakdown
 
-* Add ability to define a user's access to features in Fleet by introducing the Admin, Maintainer, and Observer roles. Available in Fleet Core.
+* Add ability to define a user's access to features in Fleet by introducing the Admin, Maintainer, and Observer roles. Available in Fleet Free.
 
 * Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Basic customers. Check out the list below for the new functionality included with Teams:
 
@@ -178,9 +178,9 @@ Teams adds the ability to separate hosts into exclusive groups. This way, users 
 
 * Teams: Add ability to grant users access to one or more teams. This allows you to define a user's access to specific groups of hosts in Fleet.
 
-* Add ability to create an API-only user. API-only users cannot access the Fleet UI. These users can access all Fleet API endpoints and `fleetctl` features. Available in Fleet Core.
+* Add ability to create an API-only user. API-only users cannot access the Fleet UI. These users can access all Fleet API endpoints and `fleetctl` features. Available in Fleet Free.
 
-* Add Redis cluster support. Available in Fleet Core.
+* Add Redis cluster support. Available in Fleet Free.
 
 * Fix a bug that prevented the columns chosen for the "Hosts" table from persisting after logging out of Fleet.
 

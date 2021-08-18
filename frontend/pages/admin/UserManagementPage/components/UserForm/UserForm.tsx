@@ -407,7 +407,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
 
     if (!isBasicTier && !isGlobalUser) {
       console.log(
-        `Note: Fleet Core UI does not have teams options.\n
+        `Note: Fleet Free UI does not have teams options.\n
         User ${name} is already assigned to a team and cannot be reassigned without access to Fleet Basic UI.`
       );
     }
