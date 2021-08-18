@@ -59,7 +59,7 @@ declare namespace Cypress {
     getEmails(): Chainable<Response>;
 
     /**
-     * Custom command to seed the Core tier teams/users.
+     * Custom command to seed the Free tier teams/users.
      *
      * NOTE: login() command is required before this, as it will make authenticated
      * requests.
@@ -67,7 +67,7 @@ declare namespace Cypress {
     seedCore(): Chainable<Element>;
 
     /**
-     * Custom command to seed the Basic tier teams/users.
+     * Custom command to seed the Premium tier teams/users.
      *
      * NOTE: login() command is required before this, as it will make authenticated
      * requests.

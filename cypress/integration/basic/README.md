@@ -1,4 +1,4 @@
-# Basic tier tests
+# Premium tier tests
 
 These tests should only run when the server is in `basic` tier.
 

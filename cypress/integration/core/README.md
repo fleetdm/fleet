@@ -1,4 +1,4 @@
-# Core tier tests
+# Free tier tests
 
 These tests should only run when the server is in `core` tier.
 
