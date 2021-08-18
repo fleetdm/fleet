@@ -1,7 +1,6 @@
 /* Conditionally renders global schedule and team schedules */
 
-import React, { useState, useCallback, useEffect, useContext } from "react";
-import { TableContext } from "context/table";
+import React, { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { push } from "react-router-redux";
@@ -123,8 +122,6 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     );
   }, [dispatch, teamId]);
 
-  const { setResetSelectedRows } = useContext(TableContext);
-
   const isBasicTier = useSelector((state: IRootState) => {
     return state.app.config.tier === "basic";
   });
@@ -174,7 +171,6 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[] | never[]>(
     []
   );
-  console.log(selectedQueryIds);
 
   const [selectedScheduledQuery, setSelectedScheduledQuery] = useState<
     IGlobalScheduledQuery | ITeamScheduledQuery
