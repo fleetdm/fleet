@@ -11,9 +11,17 @@ func init() {
 }
 
 func Up_20210806135609(tx *sql.Tx) error {
-	_, err := tx.Exec(`INSERT INTO labels (name, query, label_type) VALUES (?, ?, ?)`,
-		"All Linux",
+	_, err := tx.Exec(`
+		INSERT INTO labels (
+			name,
+			description,
+			query,
+			platform,
+			label_type
+		) VALUES (?, ?, ?, ?, ?)`,
+		"All Linux", "All Linux distributions",
 		"SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+		"",
 		fleet.LabelTypeBuiltIn,
 	)
 	if err != nil {
