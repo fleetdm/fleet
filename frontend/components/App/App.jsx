@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import TableProvider from "context/table";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { noop } from "lodash";
@@ -49,7 +50,11 @@ export class App extends Component {
 
     const wrapperStyles = classnames("wrapper");
 
-    return <div className={wrapperStyles}>{children}</div>;
+    return (
+      <TableProvider>
+        <div className={wrapperStyles}>{children}</div>
+      </TableProvider>
+    );
   }
 }
 
