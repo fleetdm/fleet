@@ -115,9 +115,9 @@ lint-go:
 lint: lint-go lint-js
 
 dump-test-schema:
-	docker-compose exec -T mysql_test mysqldump -uroot -ptoor schemadb --compact --skip-comments > server/datastore/mysql/schema.sql
+	go test -tags full,fts5 -parallel 8 ./server/datastore/mysql/ -run TestMigrations
 
-test-go:
+test-go: dump-test-schema
 	go test -tags full,fts5 -parallel 8 ./...
 
 analyze-go:
