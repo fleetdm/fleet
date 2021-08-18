@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,27 +31,20 @@ func TestDebugConnectionCommand(t *testing.T) {
 }
 
 func TestDebugConnectionChecks(t *testing.T) {
-	t.Run("resolveHostname", func(t *testing.T) {
-		localIP4 := net.IPv4(127, 0, 0, 1)
-		timeout := 100 * time.Millisecond
+	const timeout = 100 * time.Millisecond
 
+	t.Run("resolveHostname", func(t *testing.T) {
 		// resolves host name
-		ips, err := resolveHostname(context.Background(), timeout, "localhost")
+		err := resolveHostname(context.Background(), timeout, "localhost")
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, len(ips), 1)
-		require.Contains(t, ips, localIP4)
 
 		// resolves ip4 address
-		ips, err = resolveHostname(context.Background(), timeout, "127.0.0.1")
+		err = resolveHostname(context.Background(), timeout, "127.0.0.1")
 		require.NoError(t, err)
-		require.Len(t, ips, 1)
-		require.Equal(t, localIP4, ips[0])
 
 		// resolves ip6 address
-		ips, err = resolveHostname(context.Background(), timeout, "::1")
+		err = resolveHostname(context.Background(), timeout, "::1")
 		require.NoError(t, err)
-		require.Len(t, ips, 1)
-		require.Equal(t, net.IPv6loopback, ips[0])
 
 		// fails on invalid host
 		randBytes := make([]byte, 8)
@@ -60,13 +52,11 @@ func TestDebugConnectionChecks(t *testing.T) {
 		require.NoError(t, err)
 		noSuchHost := "no_such_host" + hex.EncodeToString(randBytes)
 
-		_, err = resolveHostname(context.Background(), timeout, noSuchHost)
+		err = resolveHostname(context.Background(), timeout, noSuchHost)
 		require.Error(t, err)
 	})
 
 	t.Run("checkAPIEndpoint", func(t *testing.T) {
-		const timeout = 100 * time.Millisecond
-
 		cases := [...]struct {
 			code        int // == 0 panics, negative value waits for timeout, sets status code to absolute value
 			body        string

@@ -390,32 +390,28 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			}
 			fmt.Fprintf(c.App.Writer, "TLS: %s.\n", tlsMode)
 
-			// 1. Check that the url's host resolves to an IP address or is otherwise
-			// a valid IP address directly. The ips may be used in a later check to
-			// verify if the certificate is for one of them instead of the hostname.
-			ips, err := resolveHostname(c.Context, timeoutPerCheck, baseURL.Hostname())
-			if err != nil {
+			// Check that the url's host resolves to an IP address or is otherwise
+			// a valid IP address directly.
+			if err := resolveHostname(c.Context, timeoutPerCheck, baseURL.Hostname()); err != nil {
 				return errors.Wrap(err, "Fail: resolve host")
 			}
 			fmt.Fprintf(c.App.Writer, "Success: can resolve host %s.\n", baseURL.Hostname())
-			_ = ips
 
-			// 2. Attempt a raw TCP connection to host:port.
+			// Attempt a raw TCP connection to host:port.
 			if err := dialHostPort(c.Context, timeoutPerCheck, baseURL.Host); err != nil {
 				return errors.Wrap(err, "Fail: dial server")
 			}
 			fmt.Fprintf(c.App.Writer, "Success: can dial server at %s.\n", baseURL.Host)
 
 			if cert := getFleetCertificate(c); cert != "" {
-				// 3. Is the certificate valid at all (x509.Certificate.ParseCertificate?)
-				// 4. Is the certificate valid for the hostname/IP address (x509.Certificate.VerifyHostname?)
-				if err := checkFleetCert(c.Context, timeoutPerCheck, cert, baseURL.Hostname(), ips); err != nil {
+				// Run some validations on the TLS certificate.
+				if err := checkFleetCert(c.Context, timeoutPerCheck, cert, baseURL.Hostname()); err != nil {
 					return errors.Wrap(err, "Fail: TLS certificate")
 				}
 				fmt.Fprintln(c.App.Writer, "Success: TLS certificate seems valid.")
 			}
 
-			// 5. Check that the server responds with expected responses (by
+			// Check that the server responds with expected responses (by
 			// making a POST to /api/v1/osquery/enroll with an invalid
 			// secret).
 			if err := checkAPIEndpoint(c.Context, timeoutPerCheck, fleet); err != nil {
@@ -428,12 +424,19 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 	}
 }
 
-func resolveHostname(ctx context.Context, timeout time.Duration, host string) ([]net.IP, error) {
+func resolveHostname(ctx context.Context, timeout time.Duration, host string) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	var r net.Resolver
-	return r.LookupIP(ctx, "ip", host)
+	ips, err := r.LookupIP(ctx, "ip", host)
+	if err != nil {
+		return err
+	}
+	if len(ips) == 0 {
+		return errors.New("no address found for host")
+	}
+	return nil
 }
 
 func dialHostPort(ctx context.Context, timeout time.Duration, addr string) error {
@@ -476,25 +479,17 @@ func checkAPIEndpoint(ctx context.Context, timeout time.Duration, client *servic
 	return nil
 }
 
-func checkFleetCert(ctx context.Context, timeout time.Duration, certPath, host string, ips []net.IP) error {
+func checkFleetCert(ctx context.Context, timeout time.Duration, certPath, host string) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// TODO: is it ok to use an orbit package from fleet? I remember reading that
-	// those used to be distinct repos and can both be used independently, so
-	// maybe we don't want to depend on each other in code either.
 	certPool, err := certificate.LoadPEM(certPath)
 	if err != nil {
 		return err
 	}
-
-	// TODO: validation would ideally take a context so we can apply a timeout
-	if err := certificate.ValidateConnection(certPool, "https://"+host); err != nil {
+	if err := certificate.ValidateConnectionContext(ctx, certPool, "https://"+host); err != nil {
 		return err
 	}
-	// TODO: ValidateConnection checks that it can connect with
-	// InsecureSkipVerify, add a step that connects without skipping (if the
-	// fleetctl config doesn't skip it)?
 
 	return nil
 }
