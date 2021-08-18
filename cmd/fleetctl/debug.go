@@ -324,7 +324,6 @@ func debugArchiveCommand() *cli.Command {
 }
 
 func debugConnectionCommand() *cli.Command {
-	// TODO: do we want to allow setting this via a flag?
 	const timeoutPerCheck = 10 * time.Second
 
 	return &cli.Command{
@@ -352,13 +351,19 @@ the default context used if none is explicitly specified.`,
 				addr = c.Args().First()
 			}
 
-			// TODO: not correct: clientFromCLI requires a login token, which
-			// can only be obtained once the connection works. The context cannot apply
-			// for this command, use a provided address (as mentioned in the issue), and
-			// build the fleet client just before the API endpoint check.
-			_ = addr
+			cc, err := clientConfigFromCLI(c)
+			if err != nil {
+				return err
+			}
+			if addr != "" {
+				cc.Address = addr
+			}
+			if cc.Address == "" {
+				return errors.New(`set the Fleet API address with: fleetctl config set --address https://localhost:8080
+or provide an <address> argument to debug: fleetctl debug connection <address>`)
+			}
 
-			fleet, err := clientFromCLI(c)
+			fleet, err := unauthenticatedClientFromConfig(cc, getDebug(c))
 			if err != nil {
 				return err
 			}
