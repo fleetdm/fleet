@@ -1255,7 +1255,7 @@ The path specified needs to exist and fleet needs to be able to read and write t
   	databases_path: /some/path
   ```
 
-###### `vulnerabilities_periodicity`
+###### `periodicity`
 
 How often vulnerabilities are checked.
 
@@ -1268,7 +1268,7 @@ How often vulnerabilities are checked.
   	vulnerabilities_periodicity: 1hr
   ```
 
-###### `vulnerabilities_cpe_database_url`
+###### `cpe_database_url`
 
 URL to fetch the CPE dictionary database from. Some users want to control where fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
 
@@ -1281,12 +1281,12 @@ URL to fetch the CPE dictionary database from. Some users want to control where 
   	vulnerabilities_cpe_database_url: ""
   ```
 
-###### `vulnerabilities_cve_database_url`
+###### `cve_feed_prefix_url`
 
 Similarly to the CPE dictionary, we allow users to define where to get the CVE feeds from. In this case, the url should be a host that serves the files in the path /feeds/json/cve/1.1/. Fleet expects to find there all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds. When not defined, Fleet downloads from the nvd.nist.gov host.
 
 - Default value: `""`
-- Environment variable: `FLEET_VULNERABILITIES_CVE_DATABASE_URL`
+- Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`
 - Config file format:
 
   ```
@@ -1298,7 +1298,7 @@ Similarly to the CPE dictionary, we allow users to define where to get the CVE f
 
 When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to no and one of them set to yes.
 
-- Default value: `""`
+- Default value: `auto`
 - Environment variable: `FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS`
 - Config file format:
 
