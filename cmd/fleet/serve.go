@@ -8,11 +8,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/logging"
 
 	"io/ioutil"
 	"net/http"
@@ -516,13 +514,13 @@ func cronVulnerabilities(
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
-	if appConfig.VulnerabilityDatabasesPath == "" &&
+	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
 		config.Vulnerabilities.DatabasesPath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return
 	}
 
-	vulnPath := appConfig.VulnerabilityDatabasesPath
+	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
 	if vulnPath == "" {
 		vulnPath = config.Vulnerabilities.DatabasesPath
 	}
