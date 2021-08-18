@@ -206,7 +206,8 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 	h1 := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
-	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "")
+	test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "1")
+	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "2")
 
 	_, err := ds.db.Exec(`INSERT INTO scheduled_query_stats (
                                    host_id, scheduled_query_id, average_memory, denylisted, 

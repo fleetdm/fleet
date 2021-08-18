@@ -168,7 +168,7 @@ func (d *Datastore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
 }
 
 func (ds *Datastore) CleanupOrphanScheduledQueryStats() error {
-	_, err := ds.db.Exec(`DELETE FROM scheduled_query_stats where host_id not in (select id from scheduled_queries where id=scheduled_query_id)`)
+	_, err := ds.db.Exec(`DELETE FROM scheduled_query_stats where scheduled_query_id not in (select id from scheduled_queries where id=scheduled_query_id)`)
 	if err != nil {
 		return errors.Wrap(err, "cleaning orphan scheduled_query_stats by scheduled_query")
 	}
