@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import { useTable, useSortBy, useRowSelect } from "react-table";
+import classnames from "classnames";
+import { useTable, useSortBy, useRowSelect, Row } from "react-table";
 import { kebabCase, noop } from "lodash";
 import { useDeepEffect } from "utilities/hooks";
 
@@ -19,6 +20,7 @@ interface IDataTableProps {
   sortHeader: any;
   sortDirection: any;
   onSort: any; // TODO: an event type
+  disableMultiRowSelect: boolean;
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
@@ -27,8 +29,9 @@ interface IDataTableProps {
   primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
-  onPrimarySelectActionClick: any; // TODO: an event type
+  onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
+  onSelectSingleRow?: (value: Row) => void;
 }
 
 // This data table uses react-table for implementation. The relevant documentation of the library
@@ -41,6 +44,7 @@ const DataTable = ({
   sortHeader,
   sortDirection,
   onSort,
+  disableMultiRowSelect,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
@@ -51,6 +55,7 @@ const DataTable = ({
   onPrimarySelectActionClick,
   primarySelectActionButtonText,
   secondarySelectActions,
+  onSelectSingleRow,
 }: IDataTableProps): JSX.Element => {
   const columns = useMemo(() => {
     return tableColumns;
@@ -277,8 +282,21 @@ const DataTable = ({
           <tbody>
             {rows.map((row) => {
               prepareRow(row);
+
+              const rowStyles = classnames({
+                "single-row": disableMultiRowSelect,
+              });
               return (
-                <tr {...row.getRowProps()}>
+                <tr className={rowStyles} {...row.getRowProps({
+                  // @ts-ignore // TS complains about prop not existing
+                  onClick: () => {
+                    if (disableMultiRowSelect) {
+                      toggleAllRowsSelected(false);
+                      row.toggleRowSelected();
+                      onSelectSingleRow && onSelectSingleRow(row);
+                    }
+                  }
+                })}>
                   {row.cells.map((cell) => {
                     return (
                       <td {...cell.getCellProps()}>{cell.render("Cell")}</td>

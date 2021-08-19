@@ -14,10 +14,11 @@ import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 
  // @ts-ignore
-import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
+import TargetsInput from "pages/queries/QueryPage1/components/TargetsInput";
 import Button from "components/buttons/Button";
 import PlusIcon from "../../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../../assets/images/icon-check-purple-32x32@2x.png";
+import { Row } from "react-table";
 
 interface ITargetPillSelectorProps {
   entity: ILabel | ITeam;
@@ -72,8 +73,10 @@ const SelectTargets = ({
   const [teams, setTeams] = useState<ITeam[] | null>(null);
   const [otherLabels, setOtherLabels] = useState<ILabel[] | null>(null);
   const [selectedLabels, setSelectedLabels] = useState<any>([]);
+  const [inputTabIndex, setInputTabIndex] = useState<number>(0);
 
   useQuery("targets", () => targetsAPI.loadAll({ query: typedQueryBody }), {
+    refetchOnWindowFocus: false,
     onSuccess: (data: ITargetsResponse) => {
       const { labels, teams } = data.targets;
       const allHosts = remove(labels, ({ display_text: text }) => text === "All Hosts");
@@ -107,6 +110,9 @@ const SelectTargets = ({
       setPlatformLabels(platforms);
       setTeams(teams);
       setOtherLabels(other);
+
+      const labelCount = allHosts.length + platforms.length + teams.length + other.length;
+      setInputTabIndex(labelCount || 0);
     }
   });
 
@@ -122,12 +128,12 @@ const SelectTargets = ({
     return false;
   };
 
-  const onTargetSelect = (selected: ITarget[]) => {
-    setTargetsError(null);
-    dispatch(setSelectedTargets(selectedTargets));
+  // const onTargetSelect = (selected: ITarget | ITarget[]) => {
+  //   setTargetsError(null);
+  //   dispatch(setSelectedTargets(selectedTargets));
 
-    return false;
-  };
+  //   return false;
+  // };
 
   const handleSelectedLabels = (
     entity: ILabel | ITeam
@@ -161,6 +167,10 @@ const SelectTargets = ({
     </>
   );
 
+  const handleRowSelect = (row: Row) => {
+    console.log(row);
+  };
+
   return (
     <div className={`${baseClass}__wrapper body-wrap`}>
       <h1>Select Targets</h1>
@@ -170,7 +180,7 @@ const SelectTargets = ({
         {teams && renderTargetEntityList("Teams", teams)}
         {otherLabels && renderTargetEntityList("Labels", otherLabels)}
       </div>
-      <SelectTargetsDropdown
+      {/* <SelectTargetsDropdown
         error={targetsError}
         onFetchTargets={onFetchTargets}
         onSelect={onTargetSelect}
@@ -179,7 +189,8 @@ const SelectTargets = ({
         label="Select targets"
         queryId={queryIdForEdit}
         isBasicTier={isBasicTier}
-      />
+      /> */}
+      <TargetsInput tabIndex={inputTabIndex} handleRowSelect={handleRowSelect} />
       <div className={`${baseClass}__button-wrap`}>
         <Button
           className={`${baseClass}__btn`}

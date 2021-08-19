@@ -54,11 +54,7 @@ const QueryPage = ({
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [liveQueryError, setLiveQueryError] = useState<string>("");
 
-  const {
-    status,
-    data: storedQuery,
-    error,
-  }: { status: string; data: IQuery | undefined; error: any } = useQuery(
+  const { status, data: storedQuery, error } = useQuery<IQuery, Error>(
     "query",
     () => queryAPI.load(queryIdForEdit),
     {

@@ -85,6 +85,12 @@ export default {
     } else {
       path = `${HOSTS}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
     }
+    
+    return sendRequest("GET", path);
+  },
+  search: (searchText: string) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}?query=${searchText}`;
 
     return sendRequest("GET", path);
   },
