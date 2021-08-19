@@ -108,7 +108,10 @@ func TestLabels(t *testing.T) {
 	assert.Len(t, labels, 1)
 
 	// Record a query execution
-	err = db.RecordLabelQueryExecutions(host, map[uint]bool{1: true, 2: false, 3: true, 4: false, 5: false}, baseTime)
+	err = db.RecordLabelQueryExecutions(
+		host, map[uint]*bool{
+			1: ptr.Bool(true), 2: ptr.Bool(false), 3: ptr.Bool(true), 4: ptr.Bool(false), 5: ptr.Bool(false),
+		}, baseTime)
 	assert.Nil(t, err)
 
 	host, err = db.Host(host.ID)
@@ -321,7 +324,7 @@ func TestListHostsInLabel(t *testing.T) {
 	}
 
 	for _, h := range []*fleet.Host{h1, h2, h3} {
-		err = db.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
@@ -369,7 +372,7 @@ func TestListHostsInLabelAndStatus(t *testing.T) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	for _, h := range []*fleet.Host{h1, h2} {
-		err = db.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
@@ -429,11 +432,11 @@ func TestListHostsInLabelAndTeamFilter(t *testing.T) {
 	team2, err := db.NewTeam(&fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	db.AddHostsToTeam(&team1.ID, []uint{h1.ID})
+	require.NoError(t, db.AddHostsToTeam(&team1.ID, []uint{h1.ID}))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	for _, h := range []*fleet.Host{h1, h2} {
-		err = db.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
@@ -516,12 +519,12 @@ func TestListUniqueHostsInLabels(t *testing.T) {
 	require.Nil(t, err)
 
 	for i := 0; i < 3; i++ {
-		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]bool{l1.ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 	// host 2 executes twice
 	for i := 2; i < len(hosts); i++ {
-		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]bool{l2.ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 

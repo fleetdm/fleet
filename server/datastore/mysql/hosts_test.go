@@ -233,59 +233,6 @@ func TestDeleteHost(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func testListHosts(t *testing.T, ds fleet.Datastore) {
-	hosts := []*fleet.Host{}
-	for i := 0; i < 10; i++ {
-		host, err := ds.NewHost(&fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			SeenTime:        time.Now(),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
-			UUID:            fmt.Sprintf("%d", i),
-			Hostname:        fmt.Sprintf("foo.local%d", i),
-		})
-		assert.Nil(t, err)
-		if err != nil {
-			return
-		}
-		hosts = append(hosts, host)
-	}
-
-	filter := fleet.TeamFilter{User: test.UserAdmin}
-	hosts2, err := ds.ListHosts(filter, fleet.HostListOptions{})
-	require.Nil(t, err)
-	assert.Equal(t, len(hosts), len(hosts2))
-
-	for _, host := range hosts2 {
-		i, err := strconv.Atoi(host.UUID)
-		assert.Nil(t, err)
-		assert.True(t, i >= 0)
-		assert.True(t, strings.HasPrefix(host.Hostname, "foo.local"))
-	}
-
-	// Test with logic for only a few hosts
-	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{PerPage: 4, Page: 0}})
-	require.Nil(t, err)
-	assert.Equal(t, 4, len(hosts2))
-
-	err = ds.DeleteHost(hosts[0].ID)
-	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{})
-	require.Nil(t, err)
-	assert.Equal(t, len(hosts)-1, len(hosts2))
-
-	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{})
-	require.Nil(t, err)
-	require.Equal(t, len(hosts2), len(hosts))
-
-	err = ds.SaveHost(hosts[0])
-	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{})
-	require.Nil(t, err)
-	require.Equal(t, hosts[0].ID, hosts2[0].ID)
-}
-
 func TestListHostsFilterAdditional(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -1126,4 +1073,62 @@ func TestSaveUsers(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
+}
+
+func TestListHostsByPolicy(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(&fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
+	p, err := ds.NewGlobalPolicy(q.ID)
+	require.NoError(t, err)
+
+	// When policy response is null, we list all hosts that haven't reported at all for the policy, or errored out
+	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
+	require.NoError(t, err)
+	require.Len(t, hosts, 10)
+
+	h1 := hosts[0]
+	h2 := hosts[1]
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// Make one host pass the policy and another not pass
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now()))
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, h1.ID, hosts[0].ID)
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, h2.ID, hosts[0].ID)
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
+	require.NoError(t, err)
+	require.Len(t, hosts, 8)
 }

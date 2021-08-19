@@ -684,6 +684,10 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	handle("POST", "/api/v1/fleet/team/{team_id}/schedule", makeTeamScheduleQueryEndpoint(svc, opts), "add_to_team_schedule", r)
 	handle("PATCH", "/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}", makeModifyTeamScheduleEndpoint(svc, opts), "edit_team_schedule", r)
 	handle("DELETE", "/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}", makeDeleteTeamScheduleEndpoint(svc, opts), "delete_team_schedule", r)
+
+	handle("POST", "/api/v1/fleet/global/policies", makeGlobalPolicyEndpoint(svc, opts), "add_to_global_policy", r)
+	handle("GET", "/api/v1/fleet/global/policies", makeListGlobalPoliciesEndpoint(svc, opts), "list_global_policies", r)
+	handle("POST", "/api/v1/fleet/global/policies/delete", makeDeleteGlobalPoliciesEndpoint(svc, opts), "delete_global_policies", r)
 }
 
 func handle(verb, path string, handler http.Handler, name string, r *mux.Router) {

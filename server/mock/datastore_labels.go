@@ -28,7 +28,7 @@ type ListLabelsFunc func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fle
 
 type LabelQueriesForHostFunc func(host *fleet.Host, cutoff time.Time) (map[string]string, error)
 
-type RecordLabelQueryExecutionsFunc func(host *fleet.Host, results map[uint]bool, t time.Time) error
+type RecordLabelQueryExecutionsFunc func(host *fleet.Host, results map[uint]*bool, t time.Time) error
 
 type ListLabelsForHostFunc func(hid uint) ([]*fleet.Label, error)
 
@@ -132,7 +132,7 @@ func (s *LabelStore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (ma
 	return s.LabelQueriesForHostFunc(host, cutoff)
 }
 
-func (s *LabelStore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, t time.Time) error {
+func (s *LabelStore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]*bool, t time.Time) error {
 	s.RecordLabelQueryExecutionsFuncInvoked = true
 	return s.RecordLabelQueryExecutionsFunc(host, results, t)
 }

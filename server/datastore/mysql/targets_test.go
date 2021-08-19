@@ -72,12 +72,12 @@ func TestCountHostsInTargets(t *testing.T) {
 	require.NoError(t, ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2}))
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*fleet.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l2.ID: true}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l2.ID: ptr.Bool(true)}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
@@ -275,12 +275,12 @@ func TestHostIDsInTargets(t *testing.T) {
 	require.Nil(t, err)
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*fleet.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l2.ID: true}, time.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 

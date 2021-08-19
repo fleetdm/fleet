@@ -132,6 +132,12 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	}
 }
 
+func makeNopDecoder() kithttp.DecodeRequestFunc {
+	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		return nil, nil
+	}
+}
+
 func makeAuthenticatedServiceEndpoint(svc fleet.Service, f handlerFunc) endpoint.Endpoint {
 	return authenticatedUser(svc, makeServiceEndpoint(svc, f))
 }
