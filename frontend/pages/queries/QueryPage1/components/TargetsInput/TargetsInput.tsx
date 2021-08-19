@@ -10,7 +10,7 @@ import { ITarget } from "interfaces/target";
 import Input from "components/forms/fields/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
-import { xorBy } from "lodash";
+import { filter, pullAllBy } from "lodash";
 
 interface IHostsQueryResponse {
   hosts: IHost[];
@@ -31,10 +31,6 @@ const EmptyHosts = () => (
   <p>No hosts match the current search criteria.</p>
 );
 
-const EmptyChosenHosts = () => (
-  <p>No hosts are chosen. Type something above.</p>
-);
-
 const TargetsInput = ({
   tabIndex,
   searchText,
@@ -43,27 +39,15 @@ const TargetsInput = ({
   handleRowSelect,
   setSearchText,
 }: ITargetsInputProps) => {
-  // const { 
-  //   status: hostsLoadedStatus, 
-  //   data: { hosts: loadedHosts } = {}, 
-  //   error: hostsLoadedError 
-  // } = useQuery<IHostsQueryResponse, Error>(
-  //   ["hostsFromInput", searchText], 
-  //   () => hostsAPI.search(searchText), {
-  //     enabled: !!searchText,
-  //     refetchOnWindowFocus: false,
-  //   }
-  // );
-
-  // get the difference of all hosts returned vs hosts selected (inside selectedTargets)
-  // so we can remove selected hosts from the dropdown table
-  const finalHosts = relatedHosts && xorBy(relatedHosts, selectedTargets, "uuid");
   const tableHeaders = generateTableHeaders();
+  const finalRelatedHosts = relatedHosts && pullAllBy(relatedHosts, selectedTargets, "hostname");
+  const finalSelectedHostTargets = selectedTargets && filter(selectedTargets, "hostname");
+  
   return (
     <div className={baseClass}>
       <Input 
         autofocus={true}
-        type="text"
+        type="search"
         iconName="search"
         value={searchText}
         tabIndex={tabIndex}
@@ -72,11 +56,11 @@ const TargetsInput = ({
         placeholder="Search hosts by hostname, UUID, MAC address"
         onChange={setSearchText}
       />
-      {finalHosts && (
+      {finalRelatedHosts.length > 0 && (
         <div className={`${baseClass}__hosts-search-dropdown`}>
           <TableContainer
             columns={tableHeaders}
-            data={finalHosts}
+            data={finalRelatedHosts}
             isLoading={false}
             resultsTitle=""
             emptyComponent={EmptyHosts}
@@ -92,10 +76,10 @@ const TargetsInput = ({
       <div className={`${baseClass}__hosts-selected-table`}>
         <TableContainer
             columns={tableHeaders}
-            data={selectedTargets}
+            data={finalSelectedHostTargets}
             isLoading={false}
             resultsTitle=""
-            emptyComponent={EmptyChosenHosts}
+            emptyComponent={() => <></>}
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount={true}

@@ -4,10 +4,14 @@
   
   &__hosts-search-dropdown {
     width: 100%;
+    min-height: 200px;
     position: absolute;
     top: 70px;
     left: 0;
     z-index: 1;
+    background-color: $core-white;
+    box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
+    border-radius: 0px 0px 8px 8px;
 
     .table-container {
       max-height: 400px;

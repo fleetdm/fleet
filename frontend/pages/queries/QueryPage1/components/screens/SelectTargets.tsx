@@ -2,24 +2,25 @@ import React, { useState } from "react";
 import { Dispatch } from "redux";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
-import { isEmpty, reduce, remove } from "lodash";
+import { forEach, isEmpty, reduce, remove, unionBy, uniqBy, xorBy } from "lodash";
 
 import {
   setSelectedTargets,
   setSelectedTargetsQuery, // @ts-ignore
 } from "redux/nodes/components/QueryPages/actions";
+import { formatSelectedTargetsForApi } from "fleet/helpers";
 import targetsAPI from "services/entities/targets";
 import { ITarget, ITargets, ITargetsResponse } from "interfaces/target";
 import { ICampaign } from "interfaces/campaign";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
+import { IHost } from "interfaces/host";
 
  // @ts-ignore
 import TargetsInput from "pages/queries/QueryPage1/components/TargetsInput";
 import Button from "components/buttons/Button";
 import PlusIcon from "../../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../../assets/images/icon-check-purple-32x32@2x.png";
-import { IHost } from "interfaces/host";
 
 interface ITargetPillSelectorProps {
   entity: ILabel | ITeam;
@@ -64,7 +65,6 @@ const SelectTargets = ({
   goToRunQuery,
   dispatch,
 }: ISelectTargetsProps) => {
-  const [targetsCount, setTargetsCount] = useState<number>(0);
   const [targetsError, setTargetsError] = useState<string | null>(null);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
@@ -113,7 +113,7 @@ const SelectTargets = ({
         
         platforms.push(mergedLinux);
   
-        setRelatedHosts(hosts);
+        // setRelatedHosts([...hosts]);
         setAllHostsLabels(allHosts);
         setPlatformLabels(platforms);
         setTeams(teams);
@@ -121,46 +121,64 @@ const SelectTargets = ({
   
         const labelCount = allHosts.length + platforms.length + teams.length + other.length;
         setInputTabIndex(labelCount || 0);
+      } else if (searchText === "") {
+        setRelatedHosts([]);
       } else {
-        // this will always update as user types
-        setRelatedHosts(data as IHost[]);
+        // this will always update as the user types
+        setRelatedHosts([...data] as IHost[]);
       }
     }
   });
-
-  // const onFetchTargets = (
-  //   targetSearchText: string,
-  //   targetResponse: ITargetsResponse
-  // ) => {
-  //   const { targets_count: responseTargetsCount } = targetResponse;
-
-  //   dispatch(setSelectedTargetsQuery(targetSearchText));
-  //   setTargetsCount(responseTargetsCount);
-
-  //   return false;
-  // };
-
-  // const onTargetSelect = (selected: ITarget | ITarget[]) => {
-  //   setTargetsError(null);
-  //   dispatch(setSelectedTargets(selectedTargets));
-
-  //   return false;
-  // };
 
   const handleSelectedLabels = (
     entity: ILabel | ITeam
   ) => (e: React.MouseEvent<HTMLButtonElement>): void => {
     e.preventDefault();
     let labels = selectedLabels;
+    let targets = selectedTargets;
+    let newTargets = null;
+    let removed = [];
+
+    if (entity.name === "Linux") {
+      removed = remove(labels, ({ name }) => name.includes('Linux'));
+    } else {
+      removed = remove(labels, ({ id }) => id === entity.id);
+    }
     
-    const index = labels.findIndex(({ id }: ILabel | ITeam) => id === entity.id);
-    if (index > -1) {
-      labels.splice(index, 1);
+    // visually show selection
+    const isRemoval = removed.length > 0;
+    if (isRemoval) {
+      newTargets = labels;
     } else {
       labels.push(entity);
-    }
+      
+      // now prepare the labels data
+      const linuxFakeIndex = labels.findIndex(({ name }: any) => name === "Linux");
+      if (linuxFakeIndex > -1) {
+        // use the official linux labels instead
+        labels.splice(linuxFakeIndex, 1);
+        labels = labels.concat(linuxLabels);
+      } 
+      
+      forEach(labels, (label) => {
+        label["target_type"] = "label_type" in label ? "labels" : "teams";
+      });
 
+      newTargets = unionBy(targets, labels, "id");
+    }
+    
     setSelectedLabels([...labels]);
+    dispatch(setSelectedTargets([...newTargets]));
+  };
+  
+  const handleRowSelect = (row: Row) => {
+    const targets = selectedTargets;
+    const hostTarget = row.original as any; // intentional
+
+    hostTarget["target_type"] = "hosts";
+
+    targets.push(hostTarget as IHost);
+    dispatch(setSelectedTargets([...targets]));
   };
 
   const renderTargetEntityList = (header: string, entityList: ILabel[] | ITeam[]): JSX.Element => (
@@ -179,12 +197,7 @@ const SelectTargets = ({
     </>
   );
 
-  const handleRowSelect = (row: Row) => {
-    const targets = selectedTargets;
-    targets.push(row.original as IHost)
-    dispatch(setSelectedTargets(targets));
-  };
-
+  const formattedTargets = formatSelectedTargetsForApi(selectedTargets);
   return (
     <div className={`${baseClass}__wrapper body-wrap`}>
       <h1>Select Targets</h1>
@@ -194,16 +207,6 @@ const SelectTargets = ({
         {teams && renderTargetEntityList("Teams", teams)}
         {otherLabels && renderTargetEntityList("Labels", otherLabels)}
       </div>
-      {/* <SelectTargetsDropdown
-        error={targetsError}
-        onFetchTargets={onFetchTargets}
-        onSelect={onTargetSelect}
-        selectedTargets={selectedTargets}
-        targetsCount={targetsCount}
-        label="Select targets"
-        queryId={queryIdForEdit}
-        isBasicTier={isBasicTier}
-      /> */}
       <TargetsInput 
         tabIndex={inputTabIndex} 
         searchText={searchText}
@@ -224,7 +227,7 @@ const SelectTargets = ({
           className={`${baseClass}__btn`}
           type="button"
           variant="blue-green"
-          disabled={!targetsCount}
+          disabled={selectedTargets.length === 0}
           onClick={goToRunQuery}
         >
           Run
