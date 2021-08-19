@@ -149,9 +149,19 @@
   }
   &__targets-button-wrap {
     margin-top: 30px;
+    display: flex;
+    align-items: center;
 
     button:not(:first-of-type) {
       margin-left: 16px;
+    }
+  }
+  &__targets-total-count {
+    margin-left: 16px;
+    font-size: $x-small;
+
+    span {
+      font-weight: 700;
     }
   }
 }

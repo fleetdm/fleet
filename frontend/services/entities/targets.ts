@@ -2,6 +2,7 @@ import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
+import { ITeam } from "interfaces/team";
 
 interface ITargetsProps {
   query?: string;
@@ -9,12 +10,14 @@ interface ITargetsProps {
   selected?: {
     hosts: IHost[];
     labels: ILabel[];
+    teams: ITeam[];
   };
 }
 
 const defaultSelected = {
   hosts: [],
   labels: [],
+  teams: [],
 };
 
 export default {

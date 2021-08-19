@@ -10,7 +10,7 @@ import {
 } from "redux/nodes/components/QueryPages/actions";
 import { formatSelectedTargetsForApi } from "fleet/helpers";
 import targetsAPI from "services/entities/targets";
-import { ITarget, ITargets, ITargetsResponse } from "interfaces/target";
+import { ITarget, ITargets, ITargetsAPIResponse } from "interfaces/target";
 import { ICampaign } from "interfaces/campaign";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
@@ -42,6 +42,12 @@ interface ISelectTargetsProps {
   dispatch: Dispatch;
 }
 
+interface IModifiedUseQueryTargetsResponse {
+  results: IHost[] | ITargets;
+  targetsCount: number;
+  onlineCount: number;
+}
+
 const TargetPillSelector = ({
   entity,
   isSelected,
@@ -68,7 +74,10 @@ const SelectTargets = ({
   goToRunQuery,
   dispatch,
 }: ISelectTargetsProps) => {
-  const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
+  const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
+    null
+  );
+  const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
   const [targetsError, setTargetsError] = useState<string | null>(null);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
@@ -81,19 +90,38 @@ const SelectTargets = ({
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
   useQuery(
-    ["targetsFromSearch", searchText],
-    () => targetsAPI.loadAll({ query: searchText }),
+    ["targetsFromSearch", searchText, [...selectedTargets]], // triggers query on change
+    () =>
+      targetsAPI.loadAll({
+        query: searchText,
+        queryId: null,
+        selected: formatSelectedTargetsForApi(selectedTargets) as any,
+      }),
     {
       refetchOnWindowFocus: false,
 
       // only retrieve the whole targets object once
       // we will only update related hosts when a search query fires
-      select: (data: ITargetsResponse) =>
-        allHostsLabels ? data.targets.hosts : data.targets,
-      onSuccess: (data: IHost[] | ITargets) => {
-        if ("labels" in data) {
+      select: (data: ITargetsAPIResponse) =>
+        allHostsLabels
+          ? {
+              results: data.targets.hosts,
+              targetsCount: data.targets_count,
+              onlineCount: data.targets_online,
+            }
+          : {
+              results: data.targets,
+              targetsCount: data.targets_count,
+              onlineCount: data.targets_online,
+            },
+      onSuccess: ({
+        results,
+        targetsCount,
+        onlineCount,
+      }: IModifiedUseQueryTargetsResponse) => {
+        if ("labels" in results) {
           // this will only run once
-          const { hosts, labels, teams: targetTeams } = data as ITargets;
+          const { labels, teams: targetTeams } = results as ITargets;
           const allHosts = remove(
             labels,
             ({ display_text: text }) => text === "All Hosts"
@@ -149,21 +177,16 @@ const SelectTargets = ({
           setRelatedHosts([]);
         } else {
           // this will always update as the user types
-          setRelatedHosts([...data] as IHost[]);
+          setRelatedHosts([...results] as IHost[]);
+        }
+
+        setTargetsTotalCount(targetsCount);
+        if (targetsCount > 0) {
+          setTargetsOnlinePercent(onlineCount / targetsCount);
         }
       },
     }
   );
-
-  // TODO: Leave alone until we figure out logic to get REAL total count
-  // useDeepEffect(() => {
-  //   const labelCount = reduce(selectedLabels, (result: number, { count }: ILabel) => {
-  //     return result + count;
-  //   }, 0);
-
-  //   console.log(labelCount);
-
-  // }, [selectedTargets]);
 
   const handleSelectedLabels = (entity: ILabel | ITeam) => (
     e: React.MouseEvent<HTMLButtonElement>
@@ -268,14 +291,19 @@ const SelectTargets = ({
           className={`${baseClass}__btn`}
           type="button"
           variant="blue-green"
-          disabled={selectedTargets.length === 0}
+          disabled={!targetsTotalCount}
           onClick={goToRunQuery}
         >
           Run
         </Button>
-        {/* <div className={`${baseClass}__targets-total-count`}>
-          <span></span> targets selected
-        </div> */}
+        <div className={`${baseClass}__targets-total-count`}>
+          {!!targetsTotalCount && (
+            <>
+              <span>{targetsTotalCount}</span> targets selected&nbsp; (
+              {targetsOnlinePercent}% online)
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

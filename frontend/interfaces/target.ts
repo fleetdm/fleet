@@ -16,7 +16,7 @@ export interface ITargets {
   teams: ITeam[];
 }
 
-export interface ITargetsResponse {
+export interface ITargetsAPIResponse {
   targets: ITargets;
   targets_count: number;
   targets_missing_in_action: number;
