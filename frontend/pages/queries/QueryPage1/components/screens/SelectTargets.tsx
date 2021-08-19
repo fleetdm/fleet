@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Dispatch } from "redux";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
-import { forEach, isEmpty, reduce, remove, unionBy, uniqBy, xorBy } from "lodash";
+import { forEach, isEmpty, reduce, remove, unionBy } from "lodash";
 
 import {
   setSelectedTargets,
@@ -15,6 +15,7 @@ import { ICampaign } from "interfaces/campaign";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
+import { useDeepEffect } from "utilities/hooks";
 
  // @ts-ignore
 import TargetsInput from "pages/queries/QueryPage1/components/TargetsInput";
@@ -65,6 +66,7 @@ const SelectTargets = ({
   goToRunQuery,
   dispatch,
 }: ISelectTargetsProps) => {
+  const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
   const [targetsError, setTargetsError] = useState<string | null>(null);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
@@ -129,6 +131,16 @@ const SelectTargets = ({
       }
     }
   });
+
+  // TODO: Leave alone until we figure out logic to get REAL total count
+  // useDeepEffect(() => {
+  //   const labelCount = reduce(selectedLabels, (result: number, { count }: ILabel) => {
+  //     return result + count;
+  //   }, 0);
+
+  //   console.log(labelCount);
+
+  // }, [selectedTargets]);
 
   const handleSelectedLabels = (
     entity: ILabel | ITeam
@@ -231,6 +243,9 @@ const SelectTargets = ({
         >
           Run
         </Button>
+        {/* <div className={`${baseClass}__targets-total-count`}>
+          <span></span> targets selected
+        </div> */}
       </div>
     </div>
   );
