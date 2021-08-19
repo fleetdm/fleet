@@ -106,7 +106,7 @@ To add your own device to Fleet, you'll first need to install the osquery agent.
 # Generate a macOS installer pointed at your local Fleet
 go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE```
 ```
-An installer configured to point at your Fleet instance has now been generated in the Orbit repository
+An installer configured to point at your Fleet instance has now been generated in your local Orbit repository
 
 4. Navigate to the installer (use ```open .``` from macOS commandline,) and run the generated installer to enroll your device as a host in Fleet.
 
