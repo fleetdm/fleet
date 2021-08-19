@@ -4,11 +4,13 @@ import { Row } from "react-table";
 
 import hostsAPI from "services/entities/hosts";
 import { IHost } from "interfaces/host";
+import { ITarget } from "interfaces/target";
 
 // @ts-ignore
 import Input from "components/forms/fields/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
+import { xorBy } from "lodash";
 
 interface IHostsQueryResponse {
   hosts: IHost[];
@@ -16,6 +18,7 @@ interface IHostsQueryResponse {
 
 interface ITargetsInputProps {
   tabIndex: number;
+  selectedTargets: ITarget[];
   handleRowSelect: (value: Row) => void;
 }
 
@@ -25,8 +28,13 @@ const EmptyHosts = () => (
   <p>No hosts match the current search criteria.</p>
 );
 
+const EmptyChosenHosts = () => (
+  <p>No hosts are chosen. Type something above.</p>
+);
+
 const TargetsInput = ({
   tabIndex,
+  selectedTargets,
   handleRowSelect,
 }: ITargetsInputProps) => {
   const [searchText, setSearchText] = useState<string>("");
@@ -43,6 +51,9 @@ const TargetsInput = ({
     }
   );
 
+  // get the difference of all hosts returned vs hosts selected (inside selectedTargets)
+  // so we can remove selected hosts from the dropdown table
+  const finalHosts = loadedHosts && xorBy(loadedHosts, selectedTargets, "uuid");
   const tableHeaders = generateTableHeaders();
   return (
     <div className={baseClass}>
@@ -57,11 +68,11 @@ const TargetsInput = ({
         placeholder="Search hosts by hostname, UUID, MAC address"
         onChange={setSearchText}
       />
-      {loadedHosts && (
+      {finalHosts && (
         <div className={`${baseClass}__hosts-search-dropdown`}>
           <TableContainer
             columns={tableHeaders}
-            data={loadedHosts}
+            data={finalHosts}
             isLoading={hostsLoadedStatus === "loading"}
             resultsTitle=""
             emptyComponent={EmptyHosts}
@@ -75,7 +86,18 @@ const TargetsInput = ({
         </div>
       )}
       <div className={`${baseClass}__hosts-selected-table`}>
-
+        <TableContainer
+            columns={tableHeaders}
+            data={selectedTargets}
+            isLoading={false}
+            resultsTitle=""
+            emptyComponent={EmptyChosenHosts}
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            disableCount={true}
+            disablePagination={true}
+            disableMultiRowSelect={true}
+          />
       </div>
     </div>
   )

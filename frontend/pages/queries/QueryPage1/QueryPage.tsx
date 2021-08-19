@@ -124,7 +124,7 @@ const QueryPage = ({
         const step2Opts = {
           baseClass,
           typedQueryBody,
-          selectedTargets,
+          selectedTargets: [...selectedTargets],
           campaign,
           isBasicTier,
           queryIdForEdit,

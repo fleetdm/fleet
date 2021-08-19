@@ -19,6 +19,7 @@ import TargetsInput from "pages/queries/QueryPage1/components/TargetsInput";
 import Button from "components/buttons/Button";
 import PlusIcon from "../../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../../assets/images/icon-check-purple-32x32@2x.png";
+import { IHost } from "interfaces/host";
 
 interface ITargetPillSelectorProps {
   entity: ILabel | ITeam;
@@ -116,17 +117,17 @@ const SelectTargets = ({
     }
   });
 
-  const onFetchTargets = (
-    targetSearchText: string,
-    targetResponse: ITargetsResponse
-  ) => {
-    const { targets_count: responseTargetsCount } = targetResponse;
+  // const onFetchTargets = (
+  //   targetSearchText: string,
+  //   targetResponse: ITargetsResponse
+  // ) => {
+  //   const { targets_count: responseTargetsCount } = targetResponse;
 
-    dispatch(setSelectedTargetsQuery(targetSearchText));
-    setTargetsCount(responseTargetsCount);
+  //   dispatch(setSelectedTargetsQuery(targetSearchText));
+  //   setTargetsCount(responseTargetsCount);
 
-    return false;
-  };
+  //   return false;
+  // };
 
   // const onTargetSelect = (selected: ITarget | ITarget[]) => {
   //   setTargetsError(null);
@@ -168,7 +169,9 @@ const SelectTargets = ({
   );
 
   const handleRowSelect = (row: Row) => {
-    console.log(row);
+    const targets = selectedTargets;
+    targets.push(row.original as IHost)
+    dispatch(setSelectedTargets(targets));
   };
 
   return (
@@ -190,7 +193,11 @@ const SelectTargets = ({
         queryId={queryIdForEdit}
         isBasicTier={isBasicTier}
       /> */}
-      <TargetsInput tabIndex={inputTabIndex} handleRowSelect={handleRowSelect} />
+      <TargetsInput 
+        tabIndex={inputTabIndex} 
+        selectedTargets={[...selectedTargets]}
+        handleRowSelect={handleRowSelect} 
+      />
       <div className={`${baseClass}__button-wrap`}>
         <Button
           className={`${baseClass}__btn`}

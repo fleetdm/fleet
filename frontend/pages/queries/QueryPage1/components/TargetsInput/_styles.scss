@@ -1,0 +1,28 @@
+.targets-input {
+  max-width: 980px;
+  position: relative;
+  
+  &__hosts-search-dropdown {
+    width: 100%;
+    position: absolute;
+    top: 70px;
+    left: 0;
+    z-index: 1;
+  }
+  // hack because it's creating unwanted space
+  .table-container {
+    background-color: $core-white;
+
+    &__header {
+      display: none;
+    }
+    .data-table {
+      &__wrapper {
+        margin: 0;
+      }
+    }
+  }
+  &__hosts-selected-table {
+    margin-top: px-to-rem(8);
+  }
+}
