@@ -506,7 +506,7 @@ How long invite tokens should be valid for.
 
 ###### `license_key`
 
-The license key provided to Fleet customers which provides access to Fleet Basic features.
+The license key provided to Fleet customers which provides access to Fleet Premium features.
 
 - Default value: none
 - Environment variable: `FLEET_LICENSE_KEY`
