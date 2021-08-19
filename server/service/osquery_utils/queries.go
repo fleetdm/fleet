@@ -349,7 +349,7 @@ FROM mounts WHERE path = '/';`,
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available, 
        ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available 
 FROM logical_drives WHERE file_system = 'NTFS';`,
-		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
+		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
 	},
 }

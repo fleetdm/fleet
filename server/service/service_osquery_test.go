@@ -31,7 +31,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var expectedDetailQueries = len(osquery_utils.GetDetailQueries(&fleet.AppConfig{EnableHostUsers: true}))
+// One of these queries is the disk space, only one of the two works in a platform
+var expectedDetailQueries = len(osquery_utils.GetDetailQueries(&fleet.AppConfig{EnableHostUsers: true})) - 1
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
