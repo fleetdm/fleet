@@ -9,7 +9,7 @@
 - [Queries](#queries)
 - [Schedule](#schedule)
 - [Packs](#packs)
-- [Activities](#activities) 
+- [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
@@ -480,7 +480,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
-| team_id                 | integer  | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.     |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -599,90 +599,117 @@ The endpoint returns the host's installed `software` if the software inventory f
 
 ```
 {
-    "host": {
-        "created_at": "2021-01-19T18:04:12Z",
-        "updated_at": "2021-01-19T20:21:27Z",
-        "id": 121,
-        "detail_updated_at": "2021-01-19T20:04:22Z",
-        "label_updated_at": "2021-01-19T20:04:22Z",
-        "last_enrolled_at": "2021-01-19T18:04:12Z",
-        "seen_time": "2021-01-19T20:21:27Z",
-        "hostname": "259404d30eb6",
-        "uuid": "f01c4390-0000-0000-a1e5-14346a5724dc",
-        "platform": "ubuntu",
-        "osquery_version": "2.10.2",
-        "os_version": "Ubuntu 14.4.0",
-        "build": "",
-        "platform_like": "debian",
-        "code_name": "",
-        "uptime": 11202000000000,
-        "memory": 2085326848,
-        "cpu_type": "6",
-        "cpu_subtype": "142",
-        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-        "cpu_physical_cores": 4,
-        "cpu_logical_cores": 4,
-        "hardware_vendor": "",
-        "hardware_model": "",
-        "hardware_version": "",
-        "hardware_serial": "",
-        "computer_name": "259404d30eb6",
-        "primary_ip": "172.19.0.4",
-        "primary_mac": "02:42:ac:13:00:04",
-        "distributed_interval": 10,
-        "config_tls_refresh": 10,
-        "logger_tls_period": 10,
-        "additional": {},
-        "team_id": null,
-        "team_name": null,
-        "labels": [
-          {
-            "created_at": "2021-01-14T16:37:24Z",
-            "updated_at": "2021-01-14T16:37:24Z",
-            "id": 6,
-            "name": "All Hosts",
-            "description": "All hosts which have enrolled in Fleet",
-            "query": "select 1;",
-            "label_type": "builtin",
-            "label_membership_type": "dynamic"
-          },
-          {
-            "created_at": "2021-01-14T16:37:24Z",
-            "updated_at": "2021-01-14T16:37:24Z",
-            "id": 7,
-            "name": "macOS",
-            "description": "All macOS hosts",
-            "query": "select 1 from os_version where platform = 'darwin';",
-            "label_type": "builtin",
-            "label_membership_type": "dynamic"
-          }
-        ],
-        "packs": [
-          {
-            "created_at": "2021-01-17T00:02:35Z",
-            "updated_at": "2021-01-17T00:02:35Z",
-            "id": 1,
-            "name": "osquery_monitoring"
-          }
-        ],
-        "pack_stats": null,
-        "software": [
-          {
-            "id": 1,
-            "name": "CentOS Linux $releasever - AppStream",
-            "version": "",
-            "source": "yum_packages",
-          },
-          {
-            "id": 2,
-            "name": "curl",
-            "version": "7.61.1",
-            "source": "rpm_packages",
-          },
-        ],
-        "status": "offline",
-        "display_text": "259404d30eb6"
-    }
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "software": [
+      {
+        "id": 408,
+        "name": "osquery",
+        "version": "4.5.1",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 1146,
+        "name": "tar",
+        "version": "1.30",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      }
+    ],
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
+    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "platform": "rhel",
+    "osquery_version": "4.5.1",
+    "os_version": "CentOS Linux 8.3.2011",
+    "build": "",
+    "platform_like": "rhel",
+    "code_name": "",
+    "uptime": 210671000000000,
+    "memory": 16788398080,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "158",
+    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
+    "cpu_physical_cores": 12,
+    "cpu_logical_cores": 12,
+    "hardware_vendor": "",
+    "hardware_model": "",
+    "hardware_version": "",
+    "hardware_serial": "",
+    "computer_name": "23cfc9caacf0",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
+    "distributed_interval": 10,
+    "config_tls_refresh": 10,
+    "logger_tls_period": 10,
+    "team_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "additional": {},
+    "users": [
+      {
+        "id": 98,
+        "uid": 0,
+        "username": "root",
+        "type": "",
+        "groupname": "root"
+      },
+      {
+        "id": 99,
+        "uid": 1,
+        "username": "bin",
+        "type": "",
+        "groupname": "bin"
+      },
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "select 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 9,
+        "name": "CentOS Linux",
+        "description": "All CentOS hosts",
+        "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 12,
+        "name": "All Linux",
+        "description": "All Linux distributions",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
+    ],
+    "packs": [],
+    "status": "online",
+    "display_text": "23cfc9caacf0"
+  }
 }
 ```
 
@@ -944,11 +971,11 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                                                                                                                                                  |
-| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id          | integer | path | **Required**. The label's id.                                                                                                                                                                                                                |
-| name        | string  | body | The label's name.                                                                                                                                                                                                                            |
-| description | string  | body | The label's description.                                                                                                                                                                                                                     |
+| Name        | Type    | In   | Description                   |
+| ----------- | ------- | ---- | ----------------------------- |
+| id          | integer | path | **Required**. The label's id. |
+| name        | string  | body | The label's name.             |
+| description | string  | body | The label's description.      |
 
 #### Example
 
@@ -1141,7 +1168,7 @@ Returns a list of the hosts that belong to the specified label.
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                              |
 | query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
-| team_id         | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                     |
+| team_id         | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                   |
 
 #### Example
 
@@ -1433,7 +1460,7 @@ Returns a list of all enabled users
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| team_id         | string  | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                     |
+| team_id         | string  | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                   |
 
 #### Example
 
@@ -1499,14 +1526,14 @@ Creates a user account after an invited user provides registration information a
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                                                                                                                                                                                                                                                                                                            |
-| --------------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| email                 | string | body | **Required**. The email address of the user.                                                                                                                                                                                                                                                                                                           |
-| invite_token          | string | body | **Required**. Token provided to the user in the invitation email.                                                                                                                                                                                                                                                                                      |
-| name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                    |
-| password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                     |
-| password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                       |
-| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
+| Name                  | Type   | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| email                 | string | body | **Required**. The email address of the user.                                                                                                                                                                                                                                                                                                             |
+| invite_token          | string | body | **Required**. Token provided to the user in the invitation email.                                                                                                                                                                                                                                                                                        |
+| name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
+| password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
+| password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
+| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
 | teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
@@ -1615,14 +1642,14 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                            |
-| ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                |
-| name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                        |
-| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                      |
-| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
-| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
-| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                  |
+| name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
+| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
+| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
 | teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
@@ -1765,15 +1792,15 @@ Returns all information about a specific user.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                            |
-| ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| id          | integer | path | **Required**. The user's id.                                                                                                                                                                                                                                                                                                                           |
-| name        | string  | body | The user's name.                                                                                                                                                                                                                                                                                                                                       |
-| position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                   |
-| email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                      |
-| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
-| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
-| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id          | integer | path | **Required**. The user's id.                                                                                                                                                                                                                                                                                                                             |
+| name        | string  | body | The user's name.                                                                                                                                                                                                                                                                                                                                         |
+| position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                     |
+| email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                        |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
+| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
 | teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
@@ -3266,6 +3293,7 @@ None.
 ---
 
 ### Team schedule
+
 - [Get team schedule](#get-team-schedule)
 - [Add query to team schedule](#add-query-to-team-schedule)
 - [Edit query in team schedule](#edit-query-in-team-schedule)
@@ -3453,10 +3481,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Parameters
 
-| Name               | Type    | In   | Description                                                                                                   |
-| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id            | integer | path | **Required.** The team's ID.                                                                                  |
-| scheduled_query_id | integer | path | **Required.** The scheduled query's ID.                                                                       |
+| Name               | Type    | In   | Description                             |
+| ------------------ | ------- | ---- | --------------------------------------- |
+| team_id            | integer | path | **Required.** The team's ID.            |
+| scheduled_query_id | integer | path | **Required.** The scheduled query's ID. |
 
 #### Example
 
@@ -3469,6 +3497,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 ```
 {}
 ```
+
 ---
 
 ## Packs
@@ -3494,12 +3523,12 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Parameters
 
-| Name        | Type   | In   | Description                                                           |
-| ----------- | ------ | ---- | --------------------------------------------------------------------- |
-| name        | string | body | **Required**. The pack's name.                                        |
-| description | string | body | The pack's description.                                               |
-| host_ids    | list   | body | A list containing the targeted host IDs.                              |
-| label_ids   | list   | body | A list containing the targeted label's IDs.                           |
+| Name        | Type   | In   | Description                                                             |
+| ----------- | ------ | ---- | ----------------------------------------------------------------------- |
+| name        | string | body | **Required**. The pack's name.                                          |
+| description | string | body | The pack's description.                                                 |
+| host_ids    | list   | body | A list containing the targeted host IDs.                                |
+| label_ids   | list   | body | A list containing the targeted label's IDs.                             |
 | team_ids    | list   | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
 
 #### Example
@@ -3546,13 +3575,13 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                           |
-| ----------- | ------- | ---- | --------------------------------------------------------------------- |
-| id          | integer | path | **Required.** The pack's id.                                          |
-| name        | string  | body | The pack's name.                                                      |
-| description | string  | body | The pack's description.                                               |
-| host_ids    | list    | body | A list containing the targeted host IDs.                              |
-| label_ids   | list    | body | A list containing the targeted label's IDs.                           |
+| Name        | Type    | In   | Description                                                             |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------- |
+| id          | integer | path | **Required.** The pack's id.                                            |
+| name        | string  | body | The pack's name.                                                        |
+| description | string  | body | The pack's description.                                                 |
+| host_ids    | list    | body | A list containing the targeted host IDs.                                |
+| label_ids   | list    | body | A list containing the targeted label's IDs.                             |
 | team_ids    | list    | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
 
 #### Example
@@ -4303,6 +4332,7 @@ Returns the spec for the specified pack by pack name.
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet. The following types of activity are included:
+
 - Created pack
 - Edited pack
 - Deleted pack
@@ -4312,8 +4342,8 @@ Returns a list of the activities that have been performed in Fleet. The followin
 - Deleted saved query
 - Applied query spec
 - Ran live query
-- Created team - *Available in Fleet Premium*
-- Deleted team - *Available in Fleet Premium*
+- Created team - _Available in Fleet Premium_
+- Deleted team - _Available in Fleet Premium_
 
 `GET /api/v1/fleet/activities`
 
@@ -4323,7 +4353,7 @@ Returns a list of the activities that have been performed in Fleet. The followin
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                             |
+| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
@@ -5074,12 +5104,12 @@ None.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                                                         |
-| ----------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                     |
-| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                           |
-| name        | string  | body | **Required.** The name of the invited user.                                                                                                         |
-| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                              |
+| Name        | Type    | In   | Description                                                                                                                                           |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                       |
+| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
+| name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
+| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
 | teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
@@ -5830,14 +5860,13 @@ _Available in Fleet Premium_
 
 ### Translate IDs
 
-
 `POST /api/v1/fleet/translate`
 
 #### Parameters
 
-| Name            | Type    | In    | Description                              |
-| --------------- | ------- | ----- | ---------------------------------------- |
-| list            | array   | body  | **Required** list of items to translate. |
+| Name | Type  | In   | Description                              |
+| ---- | ----- | ---- | ---------------------------------------- |
+| list | array | body | **Required** list of items to translate. |
 
 #### Example
 
@@ -5875,6 +5904,7 @@ _Available in Fleet Premium_
   ]
 }
 ```
+
 ##### Default response
 
 `Status: 200`
