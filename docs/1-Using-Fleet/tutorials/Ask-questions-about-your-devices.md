@@ -112,7 +112,7 @@ go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-s
 
 A package configured to point at your Fleet instance has now been generated in your local Orbit repository
 
-4. Navigate to the installer (use ```open .``` from macOS commandline,) and run the generated installer to enroll your device as a host in Fleet.
+4. Navigate to your generated package (use ```open .``` from macOS commandline,) then double click on the package, and finally complete the installation walkthrough to enroll your device as a host in Fleet.
 
 > It may take several seconds (≈30s) for your device to enroll. Refresh Fleet UI, and you should now see your local device in your list of hosts.
 
