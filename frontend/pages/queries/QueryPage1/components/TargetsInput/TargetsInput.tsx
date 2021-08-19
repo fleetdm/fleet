@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
+import { Row } from "react-table";
 
 import hostsAPI from "services/entities/hosts";
 import { IHost } from "interfaces/host";
@@ -8,7 +9,6 @@ import { IHost } from "interfaces/host";
 import Input from "components/forms/fields/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
-import { Row } from "react-table";
 
 interface IHostsQueryResponse {
   hosts: IHost[];

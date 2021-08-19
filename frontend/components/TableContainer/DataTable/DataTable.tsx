@@ -132,6 +132,14 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
 
+  const onSingleRowClick = useCallback((row) => {
+    if (disableMultiRowSelect) {
+      toggleAllRowsSelected(false);
+      row.toggleRowSelected();
+      onSelectSingleRow && onSelectSingleRow(row);
+    }
+  }, [disableMultiRowSelect]);
+
   const renderSelectedCount = (): JSX.Element => {
     return (
       <p>
@@ -289,13 +297,7 @@ const DataTable = ({
               return (
                 <tr className={rowStyles} {...row.getRowProps({
                   // @ts-ignore // TS complains about prop not existing
-                  onClick: () => {
-                    if (disableMultiRowSelect) {
-                      toggleAllRowsSelected(false);
-                      row.toggleRowSelected();
-                      onSelectSingleRow && onSelectSingleRow(row);
-                    }
-                  }
+                  onClick: () => onSingleRowClick(row)
                 })}>
                   {row.cells.map((cell) => {
                     return (
