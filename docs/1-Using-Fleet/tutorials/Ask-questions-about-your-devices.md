@@ -20,7 +20,7 @@ On this page you'll see 7 hosts by default. These hosts are simulated Linux devi
 
 ### How to ask questions about your devices
 
-With osquery and Fleet, you can ask a multitude of questions to help you manage, monitor, and identify threats on your devices, but if you are just starting out, and of unsure what to ask, Fleet comes baked in with a [query library](https://fleetdm.com/queries) of common questions.
+With osquery and Fleet, you can ask a multitude of questions to help you manage, monitor, and identify threats on your devices, but if you are just starting out, and unsure of what to ask, Fleet comes baked in with a [query library](https://fleetdm.com/queries) of common questions.
 
 So, let's start by asking the following questions about Fleet's 7 simulated Linux hosts:
 
