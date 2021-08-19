@@ -9,7 +9,7 @@ import {
   setSelectedTargetsQuery, // @ts-ignore
 } from "redux/nodes/components/QueryPages/actions";
 import targetsAPI from "services/entities/targets";
-import { ITarget, ITargetsResponse } from "interfaces/target";
+import { ITarget, ITargets, ITargetsResponse } from "interfaces/target";
 import { ICampaign } from "interfaces/campaign";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
@@ -78,47 +78,53 @@ const SelectTargets = ({
 
   useQuery(["targetsFromSearch", searchText], () => targetsAPI.loadAll({ query: searchText }), {
     refetchOnWindowFocus: false,
-    onSuccess: (data: ITargetsResponse) => {
-      const { hosts, labels, teams } = data.targets;
-      const allHosts = remove(labels, ({ display_text: text }) => text === "All Hosts");
-      const platforms = remove(labels, ({ label_type: type }) => type === "builtin");
-      const other = labels;
 
-      const linux = remove(platforms, ({ display_text: text }) => text.toLowerCase().includes('linux'));
-      // used later when we need to send info
-      setLinuxLabels(linux);
-      
-      // merge all linux OS
-      const mergedLinux = reduce(linux, (result, value) => {
-        if (isEmpty(result)) {
-          return { 
-            ...value, 
-            name: "Linux",
-            display_text: "Linux",
-            description: "All Linux hosts",
-            label_type: "custom_frontend",
-          };
-        }
+    // only retrieve the whole targets object once
+    // we will only update related hosts when a search query fires
+    select: (data: ITargetsResponse) => allHostsLabels ? data.targets.hosts : data.targets,
+    onSuccess: (data: IHost[] | ITargets) => {
+      if ("labels" in data) {
+        // this will only run once
+        const { hosts, labels, teams } = data as ITargets;
+        const allHosts = remove(labels, ({ display_text: text }) => text === "All Hosts");
+        const platforms = remove(labels, ({ label_type: type }) => type === "builtin");
+        const other = labels;
+  
+        const linux = remove(platforms, ({ display_text: text }) => text.toLowerCase().includes('linux'));
+        // used later when we need to send info
+        setLinuxLabels(linux);
         
-        result.count += value.count;
-        result.hosts_count += value.hosts_count;
-        return result;
-      }, {} as ILabel);
-      
-      platforms.push(mergedLinux);
-
-      setRelatedHosts(hosts);
-
-      // set once - FIX THIS
-      if (searchText === "") {
+        // merge all linux OS
+        const mergedLinux = reduce(linux, (result, value) => {
+          if (isEmpty(result)) {
+            return { 
+              ...value, 
+              name: "Linux",
+              display_text: "Linux",
+              description: "All Linux hosts",
+              label_type: "custom_frontend",
+            };
+          }
+          
+          result.count += value.count;
+          result.hosts_count += value.hosts_count;
+          return result;
+        }, {} as ILabel);
+        
+        platforms.push(mergedLinux);
+  
+        setRelatedHosts(hosts);
         setAllHostsLabels(allHosts);
         setPlatformLabels(platforms);
         setTeams(teams);
         setOtherLabels(other);
+  
+        const labelCount = allHosts.length + platforms.length + teams.length + other.length;
+        setInputTabIndex(labelCount || 0);
+      } else {
+        // this will always update as user types
+        setRelatedHosts(data as IHost[]);
       }
-
-      const labelCount = allHosts.length + platforms.length + teams.length + other.length;
-      setInputTabIndex(labelCount || 0);
     }
   });
 
