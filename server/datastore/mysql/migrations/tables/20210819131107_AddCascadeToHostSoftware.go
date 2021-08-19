@@ -3,6 +3,7 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -23,7 +24,9 @@ func Up_20210819131107(tx *sql.Tx) error {
 	for _, constraint := range constraints {
 		_, err = tx.Exec(fmt.Sprintf(`ALTER TABLE host_software DROP FOREIGN KEY %s;`, constraint))
 		if err != nil {
-			return errors.Wrapf(err, "dropping fk %s", constraint)
+			if !strings.Contains(err.Error(), "check that column/key exists") {
+				return errors.Wrapf(err, "dropping fk %s", constraint)
+			}
 		}
 	}
 
