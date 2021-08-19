@@ -247,7 +247,7 @@ const SelectTargets = ({
     forEach(value, (id) => {
       remove(targets, (target) => target.id === id);
     });
-    
+
     dispatch(setSelectedTargets([...targets]));
   };
 

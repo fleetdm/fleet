@@ -1,3 +1,5 @@
+/* eslint-disable react/prop-types */
+
 import React from "react";
 import { Cell, UseRowSelectInstanceProps } from "react-table";
 
@@ -19,31 +21,37 @@ interface ITargetHostsTableData {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateTableHeaders = (shouldShowSelectionHeader: boolean): IDataColumn[] => {
-  const selectionHeader = shouldShowSelectionHeader ? [
-    {
-      id: "selection",
-      Header: (cellProps: UseRowSelectInstanceProps<ITargetHostsTableData>): JSX.Element => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      Cell: (cellProps: Cell): JSX.Element => {
-        const props = cellProps.row.getToggleRowSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          onChange: () => cellProps.row.toggleRowSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      disableHidden: true,
-    },
-  ] : [];
-  
+export const generateTableHeaders = (
+  shouldShowSelectionHeader: boolean
+): IDataColumn[] => {
+  const selectionHeader = shouldShowSelectionHeader
+    ? [
+        {
+          id: "selection",
+          Header: (
+            cellProps: UseRowSelectInstanceProps<ITargetHostsTableData>
+          ): JSX.Element => {
+            const props = cellProps.getToggleAllRowsSelectedProps();
+            const checkboxProps = {
+              value: props.checked,
+              indeterminate: props.indeterminate,
+              onChange: () => cellProps.toggleAllRowsSelected(),
+            };
+            return <Checkbox {...checkboxProps} />;
+          },
+          Cell: (cellProps: Cell): JSX.Element => {
+            const props = cellProps.row.getToggleRowSelectedProps();
+            const checkboxProps = {
+              value: props.checked,
+              onChange: () => cellProps.row.toggleRowSelected(),
+            };
+            return <Checkbox {...checkboxProps} />;
+          },
+          disableHidden: true,
+        },
+      ]
+    : [];
+
   return [
     ...selectionHeader,
     {

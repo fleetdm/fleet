@@ -4,4 +4,4 @@ export type IDataColumn = Column & {
   title?: string;
   disableHidden?: boolean;
   disableSortBy?: boolean;
-}; 
+};

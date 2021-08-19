@@ -38,7 +38,7 @@ const TargetsInput = ({
     relatedHosts && pullAllBy(relatedHosts, selectedTargets, "hostname");
   const finalSelectedHostTargets =
     selectedTargets && filter(selectedTargets, "hostname");
-    
+
   return (
     <div className={baseClass}>
       <Input
