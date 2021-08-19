@@ -166,7 +166,18 @@ func (d *Datastore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
 		return nil, err
 	}
 
+	if err := d.updateTeamSchedule(team); err != nil {
+		return nil, err
+	}
+
 	return team, nil
+}
+
+func (d *Datastore) updateTeamSchedule(team *fleet.Team) error {
+	_, err := d.db.Exec(
+		`UPDATE packs SET name = ? WHERE pack_type = ?`, teamScheduleName(team), teamSchedulePackType(team),
+	)
+	return err
 }
 
 // ListTeams lists all teams with limit, sort and offset passed in with

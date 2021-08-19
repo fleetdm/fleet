@@ -441,7 +441,7 @@ func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
 	teamType := fmt.Sprintf("team-%d", teamID)
 	err = d.db.Get(pack, `SELECT * FROM packs WHERE pack_type = ?`, teamType)
 	if err == sql.ErrNoRows {
-		return d.insertNewTeamPack(teamID)
+		return d.insertNewTeamPack(t)
 	} else if err != nil {
 		return nil, errors.Wrap(err, "get pack")
 	}
@@ -453,14 +453,21 @@ func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
 	return pack, nil
 }
 
-func (d *Datastore) insertNewTeamPack(teamID uint) (*fleet.Pack, error) {
+func teamScheduleName(team *fleet.Team) string {
+	return fmt.Sprintf("Team schedule for: %s", team.Name)
+}
+
+func teamSchedulePackType(team *fleet.Team) string {
+	return fmt.Sprintf("team-%d", team.ID)
+}
+
+func (d *Datastore) insertNewTeamPack(team *fleet.Team) (*fleet.Pack, error) {
 	var packID uint
-	teamType := fmt.Sprintf("team-%d", teamID)
 	err := d.withTx(func(tx *sqlx.Tx) error {
 		res, err := tx.Exec(
 			`INSERT INTO packs (name, description, platform, pack_type) 
                    VALUES (?, 'Schedule additional queries for all hosts assigned to this team.', '',?)`,
-			teamType, teamType,
+			teamScheduleName(team), teamSchedulePackType(team),
 		)
 		if err != nil {
 			return err
@@ -472,7 +479,7 @@ func (d *Datastore) insertNewTeamPack(teamID uint) (*fleet.Pack, error) {
 		packID = uint(packId)
 		if _, err := tx.Exec(
 			`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, ?)`,
-			packID, fleet.TargetTeam, teamID,
+			packID, fleet.TargetTeam, team.ID,
 		); err != nil {
 			return errors.Wrap(err, "adding team id target to pack")
 		}
