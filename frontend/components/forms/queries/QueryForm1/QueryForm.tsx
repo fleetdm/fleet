@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { size } from "lodash";
 
-import { IQueryFormFields, IQueryFormData } from "interfaces/query";
+import { IQueryFormFields, IQueryFormData, IQuery } from "interfaces/query";
 
 // @ts-ignore
 import Form from "components/forms/Form"; // @ts-ignore
@@ -15,6 +15,7 @@ const baseClass = "query-form1";
 interface IQueryFormProps {
   baseError: string;
   fields: IQueryFormFields;
+  storedQuery: IQuery;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: (value: any) => void;
@@ -39,6 +40,7 @@ const validateQuerySQL = (query: string) => {
 const QueryForm = ({
   baseError,
   fields,
+  storedQuery,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -95,7 +97,7 @@ const QueryForm = ({
         <h1>{title}</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
         <FleetAce
-          value={value || "SELECT * FROM osquery_info"}
+          value={value || storedQuery.query}
           error={error || errors.query}
           label="Query:"
           name="query editor"

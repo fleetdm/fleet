@@ -19,6 +19,7 @@ import { ITarget } from "interfaces/target";
 // @ts-ignore
 import QueryProgressDetails from "components/queries/QueryProgressDetails"; // @ts-ignore
 import QueryResultsTable from "components/queries/QueryResultsTable";
+import { useEffect } from "react";
 
 interface IRunQueryProps {
   baseClass: string;
@@ -55,6 +56,10 @@ const RunQuery = ({
   const [isReady, setIsReady] = useState<boolean>(false);
   const [runQueryMilliseconds, setRunQueryMilliseconds] = useState<number>(0);
   const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
+  
+  useEffect(() => {
+    onRunQuery();
+  }, [])
   
   const removeSocket = () => {
     if (globalSocket) {
@@ -112,11 +117,11 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      const campaignResponse = await queryAPI.run({ query: sql, selected });
+      const { campaign: returnedCampaign } = await queryAPI.run({ query: sql, selected });
 
-      Fleet.websockets.queries.run(campaignResponse.id).then((socket: any) => {
+      Fleet.websockets.queries.run(returnedCampaign.id).then((socket: any) => {
         setupDistributedQuery(socket);
-        setCampaign(campaignResponse);
+        setCampaign(returnedCampaign);
         setQueryIsRunning(true);
 
         socket.onmessage = ({ data }: any) => {
@@ -131,10 +136,10 @@ const RunQuery = ({
           const {
             campaign: socketCampaign,
             queryIsRunning: socketQueryIsRunning,
-          } = campaignHelpers.updateCampaignState(socketData);
+          } = campaignHelpers.updateCampaignState(socketData)(previousSocketData);
+          
           socketCampaign && setCampaign(socketCampaign);
-          socketQueryIsRunning !== undefined &&
-            setQueryIsRunning(socketQueryIsRunning);
+          socketQueryIsRunning && setQueryIsRunning(socketQueryIsRunning);
 
           if (
             socketData.type === "status" &&

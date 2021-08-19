@@ -36,6 +36,41 @@ const PAGE_STEP = {
   RUN: "RUN",
 };
 
+const DEFAULT_QUERY = {
+  description: "",
+  name: "New query",
+  query: "SELECT * FROM osquery_info",
+  id: 0,
+  interval: 0,
+  last_excuted: "",
+  observer_can_run: false,
+  author_name: "",
+  updated_at: "",
+};
+
+const DEFAULT_CAMPAIGN = {
+  created_at: "",
+  errors: [],
+  hosts: [],
+  hosts_count: {
+    total: 0,
+    successful: 0,
+    failed: 0,
+  },
+  id: 0,
+  query_id: 0,
+  query_results: [],
+  status: "",
+  totals: {
+    count: 0,
+    missing_in_action: 0,
+    offline: 0,
+    online: 0,
+  },
+  updated_at: "",
+  user_id: 0,
+};
+
 const baseClass = "query-page";
 
 const QueryPage = ({
@@ -47,14 +82,14 @@ const QueryPage = ({
 }: IQueryPageProps) => {
   const dispatch = useDispatch();
 
-  const [step, setStep] = useState<string>(PAGE_STEP.TARGETS);
-  const [typedQueryBody, setTypedQueryBody] = useState<string>("");
-  const [campaign, setCampaign] = useState<ICampaign | null>(null);
+  const [step, setStep] = useState<string>(PAGE_STEP.EDITOR);
+  const [typedQueryBody, setTypedQueryBody] = useState<string>(DEFAULT_QUERY.query);
+  const [campaign, setCampaign] = useState<ICampaign | null>(DEFAULT_CAMPAIGN);
   const [queryIsRunning, setQueryIsRunning] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [liveQueryError, setLiveQueryError] = useState<string>("");
 
-  const { status, data: storedQuery, error } = useQuery<IQuery, Error>(
+  const { status, data: storedQuery = DEFAULT_QUERY, error } = useQuery<IQuery, Error>(
     "query",
     () => queryAPI.load(queryIdForEdit),
     {

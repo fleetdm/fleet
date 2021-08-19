@@ -104,6 +104,7 @@ const QueryEditor = ({
         // queryIsRunning={queryIsRunning}
         serverErrors={error || {}}
         // selectedOsqueryTable={selectedOsqueryTable}
+        storedQuery={storedQuery}
         title={storedQuery?.name || "New query"}
         hasSavePermissions={hasSavePermissions(currentUser)}
       />

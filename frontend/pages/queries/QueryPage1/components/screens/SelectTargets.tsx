@@ -197,7 +197,6 @@ const SelectTargets = ({
     </>
   );
 
-  const formattedTargets = formatSelectedTargetsForApi(selectedTargets);
   return (
     <div className={`${baseClass}__wrapper body-wrap`}>
       <h1>Select Targets</h1>
