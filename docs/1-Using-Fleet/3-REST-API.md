@@ -480,7 +480,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
-| team_id                 | integer  | query | _Available in Fleet Basic_ Filters the users to only include users in the specified team.     |
+| team_id                 | integer  | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.     |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -801,7 +801,7 @@ Flags the host details to be refetched the next time the host checks in for live
 
 ### Transfer hosts to a team
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `POST /api/v1/fleet/hosts/transfer`
 
@@ -835,7 +835,7 @@ _Available in Fleet Basic_
 
 ### Transfer hosts to a team by filter
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `POST /api/v1/fleet/hosts/transfer/filter`
 
@@ -1141,7 +1141,7 @@ Returns a list of the hosts that belong to the specified label.
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                              |
 | query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
-| team_id         | integer | query | _Available in Fleet Basic_ Filters the users to only include users in the specified team.                                     |
+| team_id         | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                     |
 
 #### Example
 
@@ -1433,7 +1433,7 @@ Returns a list of all enabled users
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| team_id         | string  | query | _Available in Fleet Basic_ Filters the users to only include users in the specified team.                                     |
+| team_id         | string  | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                     |
 
 #### Example
 
@@ -1507,7 +1507,7 @@ Creates a user account after an invited user provides registration information a
 | password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                     |
 | password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                       |
 | global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
-| teams                 | array  | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -1623,7 +1623,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
 | global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
-| teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -1774,7 +1774,7 @@ Returns all information about a specific user.
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
 | global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
-| teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -3500,7 +3500,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 | description | string | body | The pack's description.                                               |
 | host_ids    | list   | body | A list containing the targeted host IDs.                              |
 | label_ids   | list   | body | A list containing the targeted label's IDs.                           |
-| team_ids    | list   | body | _Available in Fleet Basic_ A list containing the targeted teams' IDs. |
+| team_ids    | list   | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -3553,7 +3553,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 | description | string  | body | The pack's description.                                               |
 | host_ids    | list    | body | A list containing the targeted host IDs.                              |
 | label_ids   | list    | body | A list containing the targeted label's IDs.                           |
-| team_ids    | list    | body | _Available in Fleet Basic_ A list containing the targeted teams' IDs. |
+| team_ids    | list    | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -4312,8 +4312,8 @@ Returns a list of the activities that have been performed in Fleet. The followin
 - Deleted saved query
 - Applied query spec
 - Ran live query
-- Created team - *Available in Fleet Basic*
-- Deleted team - *Available in Fleet Basic*
+- Created team - *Available in Fleet Premium*
+- Deleted team - *Available in Fleet Premium*
 
 `GET /api/v1/fleet/activities`
 
@@ -5080,7 +5080,7 @@ None.
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                           |
 | name        | string  | body | **Required.** The name of the invited user.                                                                                                         |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                              |
-| teams       | list    | body | _Available in Fleet Basic_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+| teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
 
@@ -5439,7 +5439,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ### List teams
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `GET /api/v1/fleet/teams`
 
@@ -5543,7 +5543,7 @@ _Available in Fleet Basic_
 
 ### Create team
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `POST /api/v1/fleet/teams`
 
@@ -5609,7 +5609,7 @@ _Available in Fleet Basic_
 
 ### Modify team
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `PATCH /api/v1/fleet/teams/{id}`
 
@@ -5802,7 +5802,7 @@ _Available in Fleet Basic_
 
 ### Delete team
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `DELETE /api/v1/fleet/teams/{id}`
 
