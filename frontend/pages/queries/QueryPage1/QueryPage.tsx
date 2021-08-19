@@ -123,7 +123,6 @@ const QueryPage = ({
       case TARGETS:
         const step2Opts = {
           baseClass,
-          typedQueryBody,
           selectedTargets: [...selectedTargets],
           campaign,
           isBasicTier,

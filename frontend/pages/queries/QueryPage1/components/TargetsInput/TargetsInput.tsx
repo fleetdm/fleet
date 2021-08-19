@@ -18,7 +18,10 @@ interface IHostsQueryResponse {
 
 interface ITargetsInputProps {
   tabIndex: number;
+  searchText: string;
+  relatedHosts: IHost[];
   selectedTargets: ITarget[];
+  setSearchText: (value: string) => void;
   handleRowSelect: (value: Row) => void;
 }
 
@@ -34,26 +37,27 @@ const EmptyChosenHosts = () => (
 
 const TargetsInput = ({
   tabIndex,
+  searchText,
+  relatedHosts,
   selectedTargets,
   handleRowSelect,
+  setSearchText,
 }: ITargetsInputProps) => {
-  const [searchText, setSearchText] = useState<string>("");
-  
-  const { 
-    status: hostsLoadedStatus, 
-    data: { hosts: loadedHosts } = {}, 
-    error: hostsLoadedError 
-  } = useQuery<IHostsQueryResponse, Error>(
-    ["hostsFromInput", searchText], 
-    () => hostsAPI.search(searchText), {
-      enabled: !!searchText,
-      refetchOnWindowFocus: false,
-    }
-  );
+  // const { 
+  //   status: hostsLoadedStatus, 
+  //   data: { hosts: loadedHosts } = {}, 
+  //   error: hostsLoadedError 
+  // } = useQuery<IHostsQueryResponse, Error>(
+  //   ["hostsFromInput", searchText], 
+  //   () => hostsAPI.search(searchText), {
+  //     enabled: !!searchText,
+  //     refetchOnWindowFocus: false,
+  //   }
+  // );
 
   // get the difference of all hosts returned vs hosts selected (inside selectedTargets)
   // so we can remove selected hosts from the dropdown table
-  const finalHosts = loadedHosts && xorBy(loadedHosts, selectedTargets, "uuid");
+  const finalHosts = relatedHosts && xorBy(relatedHosts, selectedTargets, "uuid");
   const tableHeaders = generateTableHeaders();
   return (
     <div className={baseClass}>
@@ -73,7 +77,7 @@ const TargetsInput = ({
           <TableContainer
             columns={tableHeaders}
             data={finalHosts}
-            isLoading={hostsLoadedStatus === "loading"}
+            isLoading={false}
             resultsTitle=""
             emptyComponent={EmptyHosts}
             showMarkAllPages={false}

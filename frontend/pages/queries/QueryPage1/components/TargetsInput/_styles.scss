@@ -8,6 +8,11 @@
     top: 70px;
     left: 0;
     z-index: 1;
+
+    .table-container {
+      max-height: 400px;
+      overflow: auto;
+    }
   }
   // hack because it's creating unwanted space
   .table-container {

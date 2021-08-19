@@ -29,7 +29,6 @@ interface ITargetPillSelectorProps {
 
 interface ISelectTargetsProps {
   baseClass: string;
-  typedQueryBody: string;
   selectedTargets: ITarget[];
   campaign: ICampaign | null;
   isBasicTier: boolean;
@@ -57,7 +56,6 @@ const TargetPillSelector = ({
 
 const SelectTargets = ({
   baseClass,
-  typedQueryBody,
   selectedTargets,
   campaign,
   isBasicTier,
@@ -75,11 +73,13 @@ const SelectTargets = ({
   const [otherLabels, setOtherLabels] = useState<ILabel[] | null>(null);
   const [selectedLabels, setSelectedLabels] = useState<any>([]);
   const [inputTabIndex, setInputTabIndex] = useState<number>(0);
+  const [searchText, setSearchText] = useState<string>("");
+  const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  useQuery("targets", () => targetsAPI.loadAll({ query: typedQueryBody }), {
+  useQuery(["targetsFromSearch", searchText], () => targetsAPI.loadAll({ query: searchText }), {
     refetchOnWindowFocus: false,
     onSuccess: (data: ITargetsResponse) => {
-      const { labels, teams } = data.targets;
+      const { hosts, labels, teams } = data.targets;
       const allHosts = remove(labels, ({ display_text: text }) => text === "All Hosts");
       const platforms = remove(labels, ({ label_type: type }) => type === "builtin");
       const other = labels;
@@ -107,10 +107,15 @@ const SelectTargets = ({
       
       platforms.push(mergedLinux);
 
-      setAllHostsLabels(allHosts);
-      setPlatformLabels(platforms);
-      setTeams(teams);
-      setOtherLabels(other);
+      setRelatedHosts(hosts);
+
+      // set once - FIX THIS
+      if (searchText === "") {
+        setAllHostsLabels(allHosts);
+        setPlatformLabels(platforms);
+        setTeams(teams);
+        setOtherLabels(other);
+      }
 
       const labelCount = allHosts.length + platforms.length + teams.length + other.length;
       setInputTabIndex(labelCount || 0);
@@ -195,7 +200,10 @@ const SelectTargets = ({
       /> */}
       <TargetsInput 
         tabIndex={inputTabIndex} 
+        searchText={searchText}
+        relatedHosts={[...relatedHosts]}
         selectedTargets={[...selectedTargets]}
+        setSearchText={setSearchText}
         handleRowSelect={handleRowSelect} 
       />
       <div className={`${baseClass}__button-wrap`}>
