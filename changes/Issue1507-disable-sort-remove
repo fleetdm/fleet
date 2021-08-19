@@ -1,1 +1,0 @@
-Add disableSortRemove property to to disable react-tables's default of three clicks "asc-desc-none" for column sort
