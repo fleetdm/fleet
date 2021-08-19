@@ -14,7 +14,7 @@ describe("Core tier - Admin user", () => {
 
   it("Can perform the appropriate core-tier admin actions", () => {
     cy.login("anna@organization.com", "user123#");
-    cy.visit("/hosts/manage");
+    cy.visit("/");
 
     // Ensure page is loaded
     cy.contains("All hosts");
