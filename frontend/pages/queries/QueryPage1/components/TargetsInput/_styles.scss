@@ -52,5 +52,9 @@
   }
   &__hosts-selected-table {
     margin-top: 8px;
+
+    button img {
+      transform: scale(0.5);
+    }
   }
 }

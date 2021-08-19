@@ -302,7 +302,7 @@ const DataTable = ({
                   className={rowStyles}
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
-                    onClick: () => onSingleRowClick(row),
+                    onClick: () => { disableMultiRowSelect && onSingleRowClick(row) },
                   })}
                 >
                   {row.cells.map((cell) => {

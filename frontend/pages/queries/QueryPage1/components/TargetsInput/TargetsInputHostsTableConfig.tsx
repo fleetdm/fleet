@@ -1,39 +1,51 @@
 import React from "react";
+import { Cell, UseRowSelectInstanceProps } from "react-table";
 
-import { IHost } from "interfaces/host";
+import { IDataColumn } from "interfaces/datatable_config";
 
+// @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
-
-interface ICellProps {
-  cell: {
-    value: any;
-  };
-  row: {
-    original: IHost;
-  };
-}
-
-interface IDataColumn {
-  title: string;
-  Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
+interface ITargetHostsTableData {
+  hostname: string;
+  status: string;
+  primary_ip: string;
+  primary_mac: string;
+  os_version: string;
+  osquery_version: string;
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateTableHeaders = (): IDataColumn[] => {
+export const generateTableHeaders = (shouldShowSelectionHeader: boolean): IDataColumn[] => {
+  const selectionHeader = shouldShowSelectionHeader ? [
+    {
+      id: "selection",
+      Header: (cellProps: UseRowSelectInstanceProps<ITargetHostsTableData>): JSX.Element => {
+        const props = cellProps.getToggleAllRowsSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          indeterminate: props.indeterminate,
+          onChange: () => cellProps.toggleAllRowsSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      Cell: (cellProps: Cell): JSX.Element => {
+        const props = cellProps.row.getToggleRowSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          onChange: () => cellProps.row.toggleRowSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      disableHidden: true,
+    },
+  ] : [];
+  
   return [
+    ...selectionHeader,
     {
       title: "Hostname",
       Header: "Hostname",

@@ -10,10 +10,6 @@ import Input from "components/forms/fields/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
 
-interface IHostsQueryResponse {
-  hosts: IHost[];
-}
-
 interface ITargetsInputProps {
   tabIndex: number;
   searchText: string;
@@ -21,11 +17,10 @@ interface ITargetsInputProps {
   selectedTargets: ITarget[];
   setSearchText: (value: string) => void;
   handleRowSelect: (value: Row) => void;
+  onPrimarySelectActionClick: (value: any) => void;
 }
 
 const baseClass = "targets-input";
-
-const EmptyHosts = () => <p>No hosts match the current search criteria.</p>;
 
 const TargetsInput = ({
   tabIndex,
@@ -34,13 +29,16 @@ const TargetsInput = ({
   selectedTargets,
   handleRowSelect,
   setSearchText,
+  onPrimarySelectActionClick,
 }: ITargetsInputProps) => {
-  const tableHeaders = generateTableHeaders();
+  const resultsDropdownTableHeaders = generateTableHeaders(false);
+  const selectedTableHeaders = generateTableHeaders(true);
+
   const finalRelatedHosts =
     relatedHosts && pullAllBy(relatedHosts, selectedTargets, "hostname");
   const finalSelectedHostTargets =
     selectedTargets && filter(selectedTargets, "hostname");
-
+    
   return (
     <div className={baseClass}>
       <Input
@@ -57,7 +55,7 @@ const TargetsInput = ({
       {finalRelatedHosts.length > 0 && (
         <div className={`${baseClass}__hosts-search-dropdown`}>
           <TableContainer
-            columns={tableHeaders}
+            columns={resultsDropdownTableHeaders}
             data={finalRelatedHosts}
             isLoading={false}
             resultsTitle=""
@@ -86,16 +84,19 @@ const TargetsInput = ({
       )}
       <div className={`${baseClass}__hosts-selected-table`}>
         <TableContainer
-          columns={tableHeaders}
+          resultsTitle=""
+          columns={selectedTableHeaders}
           data={finalSelectedHostTargets}
           isLoading={false}
-          resultsTitle=""
-          emptyComponent={() => <></>}
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disableCount
           disablePagination
-          disableMultiRowSelect
+          onPrimarySelectActionClick={onPrimarySelectActionClick}
+          primarySelectActionButtonVariant="text-link"
+          primarySelectActionButtonIcon="close"
+          primarySelectActionButtonText={"Remove"}
+          emptyComponent={() => <></>}
         />
       </div>
     </div>

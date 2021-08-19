@@ -241,6 +241,16 @@ const SelectTargets = ({
     dispatch(setSelectedTargets([...targets]));
   };
 
+  const removeHostsFromTargets = (value: number[]) => {
+    const targets = selectedTargets;
+
+    forEach(value, (id) => {
+      remove(targets, (target) => target.id === id);
+    });
+    
+    dispatch(setSelectedTargets([...targets]));
+  };
+
   const renderTargetEntityList = (
     header: string,
     entityList: ILabel[] | ITeam[]
@@ -278,6 +288,7 @@ const SelectTargets = ({
         selectedTargets={[...selectedTargets]}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
+        onPrimarySelectActionClick={removeHostsFromTargets}
       />
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
