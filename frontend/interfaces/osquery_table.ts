@@ -12,3 +12,16 @@ export default PropTypes.shape({
   name: PropTypes.string,
   platform: PropTypes.string,
 });
+
+interface ITableColumn {
+  description: string;
+  name: string;
+  type: string;
+}
+
+export interface IOsqueryTable {
+  columns: ITableColumn[];
+  description: string;
+  name: string;
+  platform: string;
+}

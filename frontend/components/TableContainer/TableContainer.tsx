@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import classnames from "classnames";
 import { useAsyncDebounce } from "react-table";
-import Button from "components/buttons/Button";
+
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import Pagination from "components/Pagination";
-// @ts-ignore
+import Button from "components/buttons/Button";
+import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
 import scrollToTop from "utilities/scroll_to_top";
 
 // @ts-ignore
@@ -33,7 +33,7 @@ interface ITableContainerProps {
   onActionButtonClick?: () => void;
   actionButtonText?: string;
   actionButtonIcon?: string;
-  actionButtonVariant?: string;
+  actionButtonVariant?: ButtonVariant;
   onQueryChange: (queryData: ITableQueryData) => void;
   inputPlaceHolder: string;
   disableActionButton?: boolean;
@@ -48,7 +48,7 @@ interface ITableContainerProps {
   wideSearch?: boolean;
   disablePagination?: boolean;
   disableCount?: boolean;
-  primarySelectActionButtonVariant?: string;
+  primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
@@ -79,7 +79,7 @@ const TableContainer = ({
   disableActionButton,
   actionButtonText,
   actionButtonIcon,
-  actionButtonVariant,
+  actionButtonVariant = "brand",
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
@@ -87,7 +87,7 @@ const TableContainer = ({
   wideSearch,
   disablePagination,
   disableCount,
-  primarySelectActionButtonVariant,
+  primarySelectActionButtonVariant = "brand",
   primarySelectActionButtonIcon,
   primarySelectActionButtonText,
   onPrimarySelectActionClick,

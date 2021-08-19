@@ -181,7 +181,7 @@ const TeamManagementPage = (): JSX.Element => {
         defaultSortDirection={"asc"}
         inputPlaceHolder={"Search"}
         actionButtonText={"Create team"}
-        actionButtonVariant={"primary"}
+        actionButtonVariant={"brand"}
         onActionButtonClick={toggleCreateTeamModal}
         onQueryChange={onQueryChange}
         resultsTitle={"teams"}

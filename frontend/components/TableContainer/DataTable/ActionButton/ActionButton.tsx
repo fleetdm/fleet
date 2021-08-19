@@ -3,6 +3,7 @@ import { kebabCase } from "lodash";
 
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
+import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "../../../buttons/Button";
 import CloseIcon from "../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import DeleteIcon from "../../../../../assets/images/icon-delete-vibrant-blue-12x14@2x.png";
@@ -13,7 +14,7 @@ export interface IActionButtonProps {
   buttonText: string;
   onActionButtonClick: (targetIds: number[]) => void | undefined;
   targetIds?: number[]; // TODO figure out undefined case
-  variant?: string;
+  variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   icon?: string;
   iconPosition?: string;
@@ -36,7 +37,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     buttonText,
     onActionButtonClick,
     targetIds = [],
-    variant,
+    variant = "brand",
     hideButton,
     icon,
     iconPosition,

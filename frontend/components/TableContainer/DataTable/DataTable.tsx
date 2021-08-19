@@ -2,10 +2,10 @@ import React, { useMemo, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTable, useSortBy, useRowSelect } from "react-table";
 import { kebabCase, noop } from "lodash";
-
-import useDeepEffect from "utilities/hooks/useDeepEffect";
+import { useDeepEffect } from "utilities/hooks";
 
 import Spinner from "components/loaders/Spinner";
+import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "../../buttons/Button";
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
@@ -24,7 +24,7 @@ interface IDataTableProps {
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
-  primarySelectActionButtonVariant?: string;
+  primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick: any; // TODO: an event type
