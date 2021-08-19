@@ -32,16 +32,14 @@ interface IDataColumn {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
+export const generateTableHeaders = (): IDataColumn[] => {
   return [
     {
       title: "Hostname",
       Header: "Hostname",
       disableSortBy: true,
       accessor: "hostname",
-      Cell: (cellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
       title: "Status",
@@ -77,4 +75,4 @@ const generateTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-export { generateTableHeaders };
+export default null;

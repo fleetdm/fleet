@@ -88,7 +88,9 @@ const QueryForm = ({
     onCreateQuery,
     setIsSaveModalOpen,
   };
-  const { query: { error, onChange, value } } = fields;
+  const {
+    query: { error, onChange, value },
+  } = fields;
   return (
     <>
       <form className={`${baseClass}__wrapper`}>

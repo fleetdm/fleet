@@ -64,10 +64,9 @@ class InputFieldWithIcon extends InputField {
     } = this.props;
     const { onInputChange, renderHint } = this;
 
-    const wrapperClasses = classnames(
-      baseClass,
-      { [`${baseClass}--icon-start`]: iconPosition && iconPosition === "start" }
-    );
+    const wrapperClasses = classnames(baseClass, {
+      [`${baseClass}--icon-start`]: iconPosition && iconPosition === "start",
+    });
 
     const inputClasses = classnames(
       `${baseClass}__input`,
@@ -75,7 +74,10 @@ class InputFieldWithIcon extends InputField {
       className,
       { [`${baseClass}__input--error`]: error },
       { [`${baseClass}__input--password`]: type === "password" && value },
-      { [`${baseClass}__input--icon-start`]: iconPosition && iconPosition === "start" }
+      {
+        [`${baseClass}__input--icon-start`]:
+          iconPosition && iconPosition === "start",
+      }
     );
 
     const iconClasses = classnames(

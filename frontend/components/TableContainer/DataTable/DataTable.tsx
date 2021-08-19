@@ -132,13 +132,16 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
 
-  const onSingleRowClick = useCallback((row) => {
-    if (disableMultiRowSelect) {
-      toggleAllRowsSelected(false);
-      row.toggleRowSelected();
-      onSelectSingleRow && onSelectSingleRow(row);
-    }
-  }, [disableMultiRowSelect]);
+  const onSingleRowClick = useCallback(
+    (row) => {
+      if (disableMultiRowSelect) {
+        toggleAllRowsSelected(false);
+        row.toggleRowSelected();
+        onSelectSingleRow && onSelectSingleRow(row);
+      }
+    },
+    [disableMultiRowSelect]
+  );
 
   const renderSelectedCount = (): JSX.Element => {
     return (
@@ -295,10 +298,13 @@ const DataTable = ({
                 "single-row": disableMultiRowSelect,
               });
               return (
-                <tr className={rowStyles} {...row.getRowProps({
-                  // @ts-ignore // TS complains about prop not existing
-                  onClick: () => onSingleRowClick(row)
-                })}>
+                <tr
+                  className={rowStyles}
+                  {...row.getRowProps({
+                    // @ts-ignore // TS complains about prop not existing
+                    onClick: () => onSingleRowClick(row),
+                  })}
+                >
                   {row.cells.map((cell) => {
                     return (
                       <td {...cell.getCellProps()}>{cell.render("Cell")}</td>

@@ -9,7 +9,7 @@ interface ITargetsProps {
   selected?: {
     hosts: IHost[];
     labels: ILabel[];
-  }
+  };
 }
 
 const defaultSelected = {
@@ -19,16 +19,16 @@ const defaultSelected = {
 
 export default {
   loadAll: ({
-    query = "", 
-    queryId = null, 
-    selected = defaultSelected
+    query = "",
+    queryId = null,
+    selected = defaultSelected,
   }: ITargetsProps) => {
     const { TARGETS } = endpoints;
-  
+
     return sendRequest("POST", TARGETS, {
       query,
       queryId,
       selected,
     });
   },
-}
+};

@@ -83,19 +83,20 @@ const QueryPage = ({
   const dispatch = useDispatch();
 
   const [step, setStep] = useState<string>(PAGE_STEP[1]);
-  const [typedQueryBody, setTypedQueryBody] = useState<string>(DEFAULT_QUERY.query);
+  const [typedQueryBody, setTypedQueryBody] = useState<string>(
+    DEFAULT_QUERY.query
+  );
   const [campaign, setCampaign] = useState<ICampaign | null>(DEFAULT_CAMPAIGN);
   const [queryIsRunning, setQueryIsRunning] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [liveQueryError, setLiveQueryError] = useState<string>("");
 
-  const { status, data: storedQuery = DEFAULT_QUERY, error } = useQuery<IQuery, Error>(
-    "query",
-    () => queryAPI.load(queryIdForEdit),
-    {
-      enabled: !!queryIdForEdit,
-    }
-  );
+  const { status, data: storedQuery = DEFAULT_QUERY, error } = useQuery<
+    IQuery,
+    Error
+  >("query", () => queryAPI.load(queryIdForEdit), {
+    enabled: !!queryIdForEdit,
+  });
   const { mutateAsync: createQuery } = useMutation((formData: IQueryFormData) =>
     queryAPI.create(formData)
   );
@@ -150,46 +151,49 @@ const QueryPage = ({
   };
 
   const renderScreen = () => {
+    const step1Opts = {
+      baseClass,
+      currentUser,
+      dispatch,
+      storedQuery,
+      createQuery,
+      error,
+      onOsqueryTableSelect,
+      goToSelectTargets,
+      setTypedQueryBody,
+    };
+
+    const step2Opts = {
+      baseClass,
+      selectedTargets: [...selectedTargets],
+      campaign,
+      isBasicTier,
+      queryIdForEdit,
+      goToQueryEditor,
+      goToRunQuery,
+      dispatch,
+    };
+
+    const step3Opts = {
+      baseClass,
+      typedQueryBody,
+      storedQuery,
+      campaign,
+      selectedTargets,
+      queryIsRunning,
+      setQueryIsRunning,
+      setCampaign,
+      dispatch,
+    };
+
     switch (step) {
       case PAGE_STEP[2]:
-        const step2Opts = {
-          baseClass,
-          selectedTargets: [...selectedTargets],
-          campaign,
-          isBasicTier,
-          queryIdForEdit,
-          goToQueryEditor,
-          goToRunQuery,
-          dispatch,
-        };
         return <SelectTargets {...step2Opts} />;
       case PAGE_STEP[3]:
-        const step3Opts = {
-          baseClass,
-          typedQueryBody,
-          storedQuery,
-          campaign,
-          selectedTargets,
-          queryIsRunning,
-          setQueryIsRunning,
-          setCampaign,
-          dispatch,
-        };
         return <RunQuery {...step3Opts} />;
       default:
-        const step1Opts = {
-          baseClass, 
-          currentUser, 
-          dispatch,
-          storedQuery,
-          createQuery,
-          error,
-          onOsqueryTableSelect,
-          goToSelectTargets,
-          setTypedQueryBody,
-        };
         return <QueryEditor {...step1Opts} />;
-    };
+    }
   };
 
   return (

@@ -14,7 +14,7 @@ export interface ITargets {
   hosts: IHost[];
   labels: ILabel[];
   teams: ITeam[];
-};
+}
 
 export interface ITargetsResponse {
   targets: ITargets;

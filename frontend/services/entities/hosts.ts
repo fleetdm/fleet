@@ -85,7 +85,7 @@ export default {
     } else {
       path = `${HOSTS}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
     }
-    
+
     return sendRequest("GET", path);
   },
   search: (searchText: string) => {

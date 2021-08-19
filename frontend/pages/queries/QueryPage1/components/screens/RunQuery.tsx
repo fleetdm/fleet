@@ -30,7 +30,7 @@ interface IRunQueryProps {
   setQueryIsRunning: (value: boolean) => void;
   setCampaign: (value: ICampaign | null) => void;
   dispatch: Dispatch;
-};
+}
 
 let runQueryInterval: any = null;
 let globalSocket: any = null;
@@ -55,11 +55,7 @@ const RunQuery = ({
   const [isReady, setIsReady] = useState<boolean>(false);
   const [runQueryMilliseconds, setRunQueryMilliseconds] = useState<number>(0);
   const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
-  
-  useEffect(() => {
-    onRunQuery();
-  }, [])
-  
+
   const removeSocket = () => {
     if (globalSocket) {
       globalSocket.close();
@@ -69,7 +65,7 @@ const RunQuery = ({
 
     return false;
   };
-  
+
   const setupDistributedQuery = (socket: any) => {
     globalSocket = socket;
     const update = () => {
@@ -101,12 +97,17 @@ const RunQuery = ({
 
     return false;
   };
-  
+
   const onRunQuery = debounce(async () => {
     const sql = typedQueryBody || storedQuery?.query;
 
     if (!sql) {
-      dispatch(renderFlash("error", "Something went wrong running your query. Please try again."));
+      dispatch(
+        renderFlash(
+          "error",
+          "Something went wrong running your query. Please try again."
+        )
+      );
       return false;
     }
 
@@ -116,7 +117,10 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      const { campaign: returnedCampaign } = await queryAPI.run({ query: sql, selected });
+      const { campaign: returnedCampaign } = await queryAPI.run({
+        query: sql,
+        selected,
+      });
 
       Fleet.websockets.queries.run(returnedCampaign.id).then((socket: any) => {
         setupDistributedQuery(socket);
@@ -135,7 +139,9 @@ const RunQuery = ({
           const {
             campaign: socketCampaign,
             queryIsRunning: socketQueryIsRunning,
-          } = campaignHelpers.updateCampaignState(socketData)(previousSocketData);
+          } = campaignHelpers.updateCampaignState(socketData)(
+            previousSocketData
+          );
 
           socketCampaign && setCampaign(socketCampaign);
           socketQueryIsRunning && setQueryIsRunning(socketQueryIsRunning);
@@ -166,6 +172,10 @@ const RunQuery = ({
       return false;
     }
   });
+
+  useEffect(() => {
+    onRunQuery();
+  }, []);
 
   const onStopQuery = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();

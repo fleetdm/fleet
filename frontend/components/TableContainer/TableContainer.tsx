@@ -175,7 +175,7 @@ const TableContainer = ({
       } else {
         onQueryChange(queryData);
       }
-  
+
       hasPageIndexChangedRef.current = false;
     }
   }, [

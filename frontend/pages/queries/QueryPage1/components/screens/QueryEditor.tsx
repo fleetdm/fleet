@@ -29,7 +29,7 @@ interface IQueryEditorProps {
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   setTypedQueryBody: (value: string) => void;
-};
+}
 
 const QueryEditor = ({
   baseClass,
