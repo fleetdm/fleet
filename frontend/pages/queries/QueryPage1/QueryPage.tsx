@@ -82,8 +82,7 @@ const QueryPage = ({
 }: IQueryPageProps) => {
   const dispatch = useDispatch();
 
-  // const [step, setStep] = useState<string>(PAGE_STEP[1]);
-  const [step, setStep] = useState<string>(PAGE_STEP[2]);
+  const [step, setStep] = useState<string>(PAGE_STEP[1]);
   const [typedQueryBody, setTypedQueryBody] = useState<string>(DEFAULT_QUERY.query);
   const [campaign, setCampaign] = useState<ICampaign | null>(DEFAULT_CAMPAIGN);
   const [queryIsRunning, setQueryIsRunning] = useState<boolean>(false);
