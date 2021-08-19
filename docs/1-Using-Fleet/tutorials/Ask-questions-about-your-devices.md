@@ -104,7 +104,7 @@ To add your own device to Fleet, you'll first need to install the osquery agent.
 3. With [fleetctl preview](http://www.fleetdm.com/get-started) still running, and [Go](https://golang.org/doc/install) 1.16 installed, run the following command (remembering to swap ```YOUR_FLEET_ENROLL_SECRET_HERE``` for the one you copied in the previous step:
 
 ``` 
-# From within the top-level directory of this repository…
+# From within the top-level directory of your cloned Orbit repository…
 # Generate a macOS installer pointed at your local Fleet
 go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE```
 ```
