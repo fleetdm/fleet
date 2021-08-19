@@ -4965,7 +4965,7 @@ Modifies the Fleet's configuration with the supplied information.
 }
 ```
 
-### Get global enroll secret(s)
+### Get enroll secrets
 
 Returns the valid global enroll secrets.
 
@@ -5000,7 +5000,7 @@ None.
 }
 ```
 
-### Modify enroll secret(s)
+### Modify enroll secrets
 
 Replaces the active global enroll secrets with the secrets specified.
 
