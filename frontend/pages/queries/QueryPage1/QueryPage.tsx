@@ -118,8 +118,6 @@ const QueryPage = ({
 
   const onOsqueryTableSelect = (tableName: string) => {
     dispatch(selectOsqueryTable(tableName));
-
-    return false;
   };
 
   const renderLiveQueryWarning = () => {
@@ -188,6 +186,7 @@ const QueryPage = ({
           storedQuery,
           createQuery,
           error,
+          onOsqueryTableSelect,
           goToSelectTargets,
           setTypedQueryBody,
         };

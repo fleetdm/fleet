@@ -20,7 +20,6 @@ interface IQueryFormProps {
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: (value: any) => void;
   onUpdate: (formData: IQueryFormData) => void;
-  queryIsRunning: boolean;
   title: string;
   hasSavePermissions: boolean;
 }
@@ -45,7 +44,6 @@ const QueryForm = ({
   onOsqueryTableSelect,
   goToSelectTargets,
   onUpdate,
-  queryIsRunning,
   title,
   hasSavePermissions,
 }: IQueryFormProps) => {
@@ -114,7 +112,7 @@ const QueryForm = ({
               className={`${baseClass}__save`}
               variant="brand"
               onClick={openSaveModal}
-              disabled={queryIsRunning}
+              disabled={false}
             >
               Save
             </Button>

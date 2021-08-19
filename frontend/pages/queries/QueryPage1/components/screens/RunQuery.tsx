@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dispatch } from "redux";
 import moment from "moment";
 import FileSaver from "file-saver";
@@ -19,7 +19,6 @@ import { ITarget } from "interfaces/target";
 // @ts-ignore
 import QueryProgressDetails from "components/queries/QueryProgressDetails"; // @ts-ignore
 import QueryResultsTable from "components/queries/QueryResultsTable";
-import { useEffect } from "react";
 
 interface IRunQueryProps {
   baseClass: string;
@@ -137,7 +136,7 @@ const RunQuery = ({
             campaign: socketCampaign,
             queryIsRunning: socketQueryIsRunning,
           } = campaignHelpers.updateCampaignState(socketData)(previousSocketData);
-          
+
           socketCampaign && setCampaign(socketCampaign);
           socketQueryIsRunning && setQueryIsRunning(socketQueryIsRunning);
 
@@ -238,12 +237,8 @@ const RunQuery = ({
         campaign={campaign}
         onExportQueryResults={onExportQueryResults}
         onExportErrorsResults={onExportErrorsResults}
-        // isQueryFullScreen={isQueryFullScreen}
-        // isQueryShrinking={isQueryShrinking}
-        // onToggleQueryFullScreen={onToggleQueryFullScreen}
         onRunQuery={onRunQuery}
         onStopQuery={onStopQuery}
-        // onTargetSelect={onTargetSelect}
         queryIsRunning={queryIsRunning}
         queryTimerMilliseconds={runQueryMilliseconds}
       />

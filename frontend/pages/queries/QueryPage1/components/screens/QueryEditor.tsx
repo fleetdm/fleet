@@ -26,6 +26,7 @@ interface IQueryEditorProps {
   storedQuery: IQuery | undefined;
   createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
   error: any;
+  onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   setTypedQueryBody: (value: string) => void;
 };
@@ -37,6 +38,7 @@ const QueryEditor = ({
   storedQuery,
   createQuery,
   error,
+  onOsqueryTableSelect,
   goToSelectTargets,
   setTypedQueryBody,
 }: IQueryEditorProps) => {
@@ -97,13 +99,9 @@ const QueryEditor = ({
         onCreateQuery={onSaveQueryFormSubmit}
         onChangeFunc={onChangeQueryFormField}
         goToSelectTargets={goToSelectTargets}
-        // onOsqueryTableSelect={onOsqueryTableSelect}
-        // onRunQuery={onRunQuery}
-        // onStopQuery={onStopQuery}
+        onOsqueryTableSelect={onOsqueryTableSelect}
         onUpdate={onUpdateQuery}
-        // queryIsRunning={queryIsRunning}
         serverErrors={error || {}}
-        // selectedOsqueryTable={selectedOsqueryTable}
         storedQuery={storedQuery}
         title={storedQuery?.name || "New query"}
         hasSavePermissions={hasSavePermissions(currentUser)}
