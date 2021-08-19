@@ -10,7 +10,7 @@ import { ITarget } from "interfaces/target";
 import Input from "components/forms/fields/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
-import { filter, pullAllBy } from "lodash";
+import { filter, isEmpty, pullAllBy } from "lodash";
 
 interface IHostsQueryResponse {
   hosts: IHost[];
@@ -63,7 +63,7 @@ const TargetsInput = ({
             data={finalRelatedHosts}
             isLoading={false}
             resultsTitle=""
-            emptyComponent={EmptyHosts}
+            emptyComponent={() => <></>}
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount={true}
@@ -71,6 +71,16 @@ const TargetsInput = ({
             disableMultiRowSelect={true}
             onSelectSingleRow={handleRowSelect}
           />
+        </div>
+      )}
+      {finalRelatedHosts.length === 0 && !isEmpty(searchText) && (
+        <div className={`${baseClass}__hosts-search-dropdown`}>
+          <div className="empty-search">
+            <div className="empty-search__inner">
+              <h4>No hosts match the current search criteria.</h4>
+              <p>Expecting to see hosts? Try again in a few seconds as the system catches up.</p>
+            </div>
+          </div>
         </div>
       )}
       <div className={`${baseClass}__hosts-selected-table`}>

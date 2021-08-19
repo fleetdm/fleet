@@ -50,8 +50,8 @@ const TargetPillSelector = ({
     onClick={(e) => onClick(entity)(e)}
   >
     <img alt="" src={isSelected ? CheckIcon : PlusIcon} />
-    {entity.display_text}
-    {entity.count}
+    <span className="selector-name">{entity.display_text}</span>
+    <span className="selector-count">{entity.count}</span>
   </button>
 );
 
@@ -214,7 +214,7 @@ const SelectTargets = ({
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect} 
       />
-      <div className={`${baseClass}__button-wrap`}>
+      <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
           onClick={goToQueryEditor}

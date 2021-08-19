@@ -31,9 +31,9 @@ interface IQueryPageProps {
 }
 
 const PAGE_STEP = {
-  EDITOR: "EDITOR",
-  TARGETS: "TARGETS",
-  RUN: "RUN",
+  1: "EDITOR",
+  2: "TARGETS",
+  3: "RUN",
 };
 
 const DEFAULT_QUERY = {
@@ -82,7 +82,8 @@ const QueryPage = ({
 }: IQueryPageProps) => {
   const dispatch = useDispatch();
 
-  const [step, setStep] = useState<string>(PAGE_STEP.EDITOR);
+  // const [step, setStep] = useState<string>(PAGE_STEP[1]);
+  const [step, setStep] = useState<string>(PAGE_STEP[2]);
   const [typedQueryBody, setTypedQueryBody] = useState<string>(DEFAULT_QUERY.query);
   const [campaign, setCampaign] = useState<ICampaign | null>(DEFAULT_CAMPAIGN);
   const [queryIsRunning, setQueryIsRunning] = useState<boolean>(false);
@@ -138,22 +139,20 @@ const QueryPage = ({
   };
 
   const goToQueryEditor = () => {
-    setStep(PAGE_STEP.EDITOR);
+    setStep(PAGE_STEP[1]);
   };
 
   const goToSelectTargets = () => {
-    setStep(PAGE_STEP.TARGETS);
+    setStep(PAGE_STEP[2]);
   };
 
   const goToRunQuery = () => {
-    setStep(PAGE_STEP.RUN);
+    setStep(PAGE_STEP[3]);
   };
 
   const renderScreen = () => {
-    const { TARGETS, RUN } = PAGE_STEP;
-
     switch (step) {
-      case TARGETS:
+      case PAGE_STEP[2]:
         const step2Opts = {
           baseClass,
           selectedTargets: [...selectedTargets],
@@ -165,7 +164,7 @@ const QueryPage = ({
           dispatch,
         };
         return <SelectTargets {...step2Opts} />;
-      case RUN:
+      case PAGE_STEP[3]:
         const step3Opts = {
           baseClass,
           typedQueryBody,

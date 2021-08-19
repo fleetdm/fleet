@@ -4,18 +4,37 @@
   
   &__hosts-search-dropdown {
     width: 100%;
-    min-height: 200px;
     position: absolute;
     top: 70px;
     left: 0;
     z-index: 1;
     background-color: $core-white;
-    box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
     border-radius: 0px 0px 8px 8px;
-
+    
     .table-container {
       max-height: 400px;
       overflow: auto;
+      box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
+      border-radius: 0px 0px 8px 8px;
+    }
+    .empty-search {
+      padding-top: 72px;
+      padding-bottom: 72px;
+      display: flex;
+      justify-content: center;
+      box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
+
+      &__inner {
+        h4 {
+          margin: 0;
+          margin-bottom: 16px;
+          font-size: $small;
+        }
+        p {
+          margin: 0;
+          font-size: $x-small;
+        }
+      }
     }
   }
   // hack because it's creating unwanted space
@@ -32,6 +51,6 @@
     }
   }
   &__hosts-selected-table {
-    margin-top: px-to-rem(8);
+    margin-top: 8px;
   }
 }
