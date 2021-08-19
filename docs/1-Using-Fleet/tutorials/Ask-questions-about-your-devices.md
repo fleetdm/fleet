@@ -91,7 +91,9 @@ Do any of the simulated, Linux hosts have a high severity vulnerable version of 
 
 To add your own device to Fleet, you'll first need to install the osquery agent. In this tutorial, we'll be using [Orbit](https://github.com/fleetdm/orbit), the recommended agent for Fleet.
 
-1. Make a clone of [Orbit's GitHub repository](https://github.com/fleetdm/orbit).
+1. Make a clone of [Orbit's GitHub repository](https://github.com/fleetdm/orbit). 
+
+> Take note on where your new Orbit directory is located on you device. Knowing this will be helpful when building the Orbit package in step 3.
 
 <img src="https://user-images.githubusercontent.com/78363703/130035034-7363ebe1-f89b-42af-9e88-24db867e8047.png" alt="Clone Orbit repository" width="300"/>
 
