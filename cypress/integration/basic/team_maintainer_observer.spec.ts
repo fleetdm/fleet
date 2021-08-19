@@ -141,9 +141,9 @@ describe("Basic tier - Team observer/maintainer user", () => {
       cy.findByText(/select a team for this new host/i).should("exist");
       cy.get(".Select").within(() => {
         cy.findByText(/select a team/i).click();
-        cy.findByText(/no team/i).should("exist");
+        cy.findByText(/no team/i).should("not.exist");
         // cy.findByText(/apples/i).should("exist");
-        // cy.findByText(/oranges/i).should("not exist");
+        // cy.findByText(/oranges/i).should("not.exist");
         // ^ TODO: Team maintainer has access to only their teams, team observer does not have access
       });
     });
