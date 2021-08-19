@@ -2516,7 +2516,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 {}
 ```
 
-### Check live query status
+### Live query health check
 
 Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 
@@ -2538,7 +2538,7 @@ None.
 {}
 ```
 
-### Check result store status
+### live query result store health check
 
 Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 
@@ -2562,61 +2562,9 @@ None.
 
 ### Run live query
 
-Run a live query.
-
-`POST /api/v1/fleet/queries/run`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                                                                |
-| -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query    | string  | body | The SQL if using a custom query.                                                                                                                           |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                |
-| selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
-
-One of `query` and `query_id` must be specified.
-
-#### Example with one host targeted by ID
-
-`POST /api/v1/fleet/queries/run`
-
-#### Example
-
-`GET /api/v1/fleet/status/live_query`
-
-##### Default response
-
-`Status: 200`
-
-```
-{}
-```
-
-### Check result store status
-
-`POST /api/v1/fleet/queries/run`
-
-`GET /api/v1/fleet/status/result_store`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/status/result_store`
-
-##### Default response
-
-`Status: 200`
-
-```
-{}
-```
-
-### Run live query
-
 Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
+
+After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
 `POST /api/v1/fleet/queries/run`
 
@@ -2710,7 +2658,9 @@ One of `query` and `query_id` must be specified.
 
 ### Run live query by name
 
-Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
+Runs the specified saved query as a live query on the specified targets. Returns a new live query campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
+
+After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
 `POST /api/v1/fleet/queries/run_by_names`
 
@@ -2810,7 +2760,9 @@ One of `query` and `query_id` must be specified.
 
 You can retrieve the results of a live query using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
 
-Before you retrieve the live query results, you must create a live query campaign by running the live query. See the documentation for the [Run live query](#run-live-query) endpoint to create a live query campaign.
+Before you retrieve the live query results, you must create a live query campaign by running the live query. Use the [Run live query](#run-live-query) or [Run live query by name](#run-live-query-by-name) endpoints to create a live query campaign.
+
+Note that live queries are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the query.
 
 `/api/v1/fleet/results/websockets`
 
@@ -2950,6 +2902,8 @@ o
 ### Retrieve live query results (SockJS)
 
 You can also retrieve live query results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
+
+Note that SockJS has been found to be substantially less reliable than the [standard WebSockets approach](#retrieve-live-query-results-standard-websocket-api).
 
 `/api/v1/fleet/results/`
 
