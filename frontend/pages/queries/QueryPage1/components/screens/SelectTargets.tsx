@@ -89,7 +89,7 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  useQuery(
+  const { status } = useQuery(
     ["targetsFromSearch", searchText, [...selectedTargets]], // triggers query on change
     () =>
       targetsAPI.loadAll({
@@ -193,9 +193,9 @@ const SelectTargets = ({
   ): void => {
     e.preventDefault();
     let labels = selectedLabels;
-    const targets = selectedTargets;
     let newTargets = null;
     let removed = [];
+    const targets = selectedTargets;
 
     if (entity.name === "Linux") {
       removed = remove(labels, ({ name }) => name.includes("Linux"));

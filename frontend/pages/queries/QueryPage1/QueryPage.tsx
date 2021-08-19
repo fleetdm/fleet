@@ -7,6 +7,11 @@ import Fleet from "fleet";
 import {
   selectOsqueryTable, // @ts-ignore
 } from "redux/nodes/components/QueryPages/actions";
+import {
+  QUERIES_PAGE_STEPS,
+  DEFAULT_QUERY,
+  DEFAULT_CAMPAIGN,
+} from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import permissionUtils from "utilities/permissions";
 import { IQueryFormData, IQuery } from "interfaces/query";
@@ -30,47 +35,6 @@ interface IQueryPageProps {
   isBasicTier: boolean;
 }
 
-const PAGE_STEP = {
-  1: "EDITOR",
-  2: "TARGETS",
-  3: "RUN",
-};
-
-const DEFAULT_QUERY = {
-  description: "",
-  name: "New query",
-  query: "SELECT * FROM osquery_info",
-  id: 0,
-  interval: 0,
-  last_excuted: "",
-  observer_can_run: false,
-  author_name: "",
-  updated_at: "",
-};
-
-const DEFAULT_CAMPAIGN = {
-  created_at: "",
-  errors: [],
-  hosts: [],
-  hosts_count: {
-    total: 0,
-    successful: 0,
-    failed: 0,
-  },
-  id: 0,
-  query_id: 0,
-  query_results: [],
-  status: "",
-  totals: {
-    count: 0,
-    missing_in_action: 0,
-    offline: 0,
-    online: 0,
-  },
-  updated_at: "",
-  user_id: 0,
-};
-
 const baseClass = "query-page";
 
 const QueryPage = ({
@@ -82,7 +46,7 @@ const QueryPage = ({
 }: IQueryPageProps) => {
   const dispatch = useDispatch();
 
-  const [step, setStep] = useState<string>(PAGE_STEP[1]);
+  const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [typedQueryBody, setTypedQueryBody] = useState<string>(
     DEFAULT_QUERY.query
   );
@@ -138,44 +102,35 @@ const QueryPage = ({
     );
   };
 
-  const goToQueryEditor = () => {
-    setStep(PAGE_STEP[1]);
-  };
-
-  const goToSelectTargets = () => {
-    setStep(PAGE_STEP[2]);
-  };
-
-  const goToRunQuery = () => {
-    setStep(PAGE_STEP[3]);
-  };
-
   const renderScreen = () => {
-    const step1Opts = {
+    const commonOpts = {
       baseClass,
-      currentUser,
       dispatch,
+    };
+
+    const step1Opts = {
+      ...commonOpts,
+      currentUser,
       storedQuery,
       createQuery,
       error,
       onOsqueryTableSelect,
-      goToSelectTargets,
+      goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
       setTypedQueryBody,
     };
 
     const step2Opts = {
-      baseClass,
+      ...commonOpts,
       selectedTargets: [...selectedTargets],
       campaign,
       isBasicTier,
       queryIdForEdit,
-      goToQueryEditor,
-      goToRunQuery,
-      dispatch,
+      goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
+      goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
     };
 
     const step3Opts = {
-      baseClass,
+      ...commonOpts,
       typedQueryBody,
       storedQuery,
       campaign,
@@ -183,13 +138,12 @@ const QueryPage = ({
       queryIsRunning,
       setQueryIsRunning,
       setCampaign,
-      dispatch,
     };
 
     switch (step) {
-      case PAGE_STEP[2]:
+      case QUERIES_PAGE_STEPS[2]:
         return <SelectTargets {...step2Opts} />;
-      case PAGE_STEP[3]:
+      case QUERIES_PAGE_STEPS[3]:
         return <RunQuery {...step3Opts} />;
       default:
         return <QueryEditor {...step1Opts} />;

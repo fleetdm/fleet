@@ -34,13 +34,13 @@ interface IQueryEditorProps {
 const QueryEditor = ({
   baseClass,
   currentUser,
-  dispatch,
   storedQuery,
-  createQuery,
   error,
+  createQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
   setTypedQueryBody,
+  dispatch,
 }: IQueryEditorProps) => {
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
     try {
