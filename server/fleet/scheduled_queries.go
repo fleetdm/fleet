@@ -13,6 +13,7 @@ type ScheduledQueryStore interface {
 	SaveScheduledQuery(sq *ScheduledQuery) (*ScheduledQuery, error)
 	DeleteScheduledQuery(id uint) error
 	ScheduledQuery(id uint) (*ScheduledQuery, error)
+	CleanupOrphanScheduledQueryStats() error
 }
 
 type ScheduledQueryService interface {

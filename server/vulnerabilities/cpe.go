@@ -66,22 +66,26 @@ func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 	}, nil
 }
 
-func syncCPEDatabase(client *http.Client, dbPath string) error {
-	nvdRelease, err := GetLatestNVDRelease(client)
-	if err != nil {
-		return err
-	}
-
-	stat, err := os.Stat(dbPath)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
+func syncCPEDatabase(client *http.Client, dbPath string, cpeDatabaseURLOverride string) error {
+	url := cpeDatabaseURLOverride
+	if url == "" {
+		nvdRelease, err := GetLatestNVDRelease(client)
+		if err != nil {
 			return err
 		}
-	} else if !nvdRelease.CreatedAt.After(stat.ModTime()) {
-		return nil
+
+		stat, err := os.Stat(dbPath)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+		} else if !nvdRelease.CreatedAt.After(stat.ModTime()) {
+			return nil
+		}
+		url = nvdRelease.CPEURL
 	}
 
-	req, err := http.NewRequest(http.MethodGet, nvdRelease.CPEURL, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
@@ -203,11 +207,16 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	return "", nil
 }
 
-func TranslateSoftwareToCPE(ds fleet.Datastore, vulnPath string, logger kitlog.Logger) error {
+func TranslateSoftwareToCPE(
+	ds fleet.Datastore,
+	vulnPath string,
+	logger kitlog.Logger,
+	cpeDatabaseURLOverride string,
+) error {
 	dbPath := path.Join(vulnPath, "cpe.sqlite")
 
 	client := &http.Client{}
-	if err := syncCPEDatabase(client, dbPath); err != nil {
+	if err := syncCPEDatabase(client, dbPath, cpeDatabaseURLOverride); err != nil {
 		return errors.Wrap(err, "sync cpe db")
 	}
 
