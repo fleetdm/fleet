@@ -35,7 +35,7 @@ func Up_20210819131107(tx *sql.Tx) error {
 		ADD FOREIGN KEY host_software_hosts_fk(host_id) REFERENCES hosts (id) ON DELETE CASCADE,
 		ADD FOREIGN KEY host_software_software_fk(software_id) REFERENCES software (id) ON DELETE CASCADE
 	`); err != nil {
-		return errors.Wrap(err, "add foreign key on pack_targets pack_id")
+		return errors.Wrap(err, "add fk on host_software hosts & software")
 	}
 
 	return nil
