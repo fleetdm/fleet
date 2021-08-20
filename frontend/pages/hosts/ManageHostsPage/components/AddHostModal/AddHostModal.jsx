@@ -30,12 +30,7 @@ class AddHostModal extends Component {
 
   constructor(props) {
     super(props);
-    this.state = {
-      fetchCertificateError: undefined,
-      selectedTeam: null,
-      globalSecrets: [],
-      selectedEnrollSecrets: [],
-    };
+
     this.userRole = {
       isAnyTeamMaintainer: permissionUtils.isAnyTeamMaintainer(
         this.props.currentUser
@@ -54,23 +49,35 @@ class AddHostModal extends Component {
     this.teamSecrets = Object.values(this.props.teams).map((team) => {
       return { id: team.id, name: team.name, secrets: team.secrets };
     });
+
+    this.state = {
+      fetchCertificateError: undefined,
+      selectedTeam: null,
+      globalSecrets: [],
+      selectedEnrollSecrets: [],
+    };
   }
 
   componentDidMount() {
     const { isGlobalAdmin, isGlobalMaintainer } = this.userRole;
 
-    if (isGlobalAdmin || isGlobalMaintainer) {
-      Fleet.config
-        .loadEnrollSecret()
-        .then((response) => {
-          this.setState({
-            globalSecrets: response.spec.secrets,
+    (() => {
+      if (isGlobalAdmin || isGlobalMaintainer) {
+        Fleet.config
+          .loadEnrollSecret()
+          .then((response) => {
+            this.setState({
+              globalSecrets: response.spec.secrets,
+              selectedTeam: { id: NO_TEAM_OPTION.value }, // Reset initial selectedTeam value to "no-team" in the case of global users
+            });
+          })
+          .catch((err) => {
+            console.log(err);
           });
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    }
+      } else {
+        this.setState({ selectedTeam: this.currentUserTeams[0] });
+      }
+    })();
 
     Fleet.config
       .loadCertificate()
@@ -119,6 +126,15 @@ class AddHostModal extends Component {
     }
   };
 
+  getSelectedEnrollSecrets = (selectedTeam) => {
+    if (selectedTeam.id === NO_TEAM_OPTION.value) {
+      return this.state.globalSecrets;
+    }
+    return (
+      this.teamSecrets.find((e) => e.id === selectedTeam.id)?.secrets || ""
+    );
+  };
+
   createTeamDropdownOptions = (currentUserTeams) => {
     const teamOptions = currentUserTeams.map((team) => {
       return {
@@ -133,15 +149,11 @@ class AddHostModal extends Component {
 
   render() {
     const { config, onReturnToApp } = this.props;
-    const {
-      fetchCertificateError,
-      selectedTeam,
-      selectedEnrollSecrets,
-      globalSecrets,
-    } = this.state;
+    const { fetchCertificateError, selectedTeam, globalSecrets } = this.state;
     const {
       createTeamDropdownOptions,
       currentUserTeams,
+      getSelectedEnrollSecrets,
       onChangeSelectTeam,
     } = this;
 
@@ -241,7 +253,9 @@ class AddHostModal extends Component {
                   />
                 ) : null}
                 {isBasicTier && selectedTeam && (
-                  <EnrollSecretTable secrets={selectedEnrollSecrets} />
+                  <EnrollSecretTable
+                    secrets={getSelectedEnrollSecrets(selectedTeam)}
+                  />
                 )}
                 {!isBasicTier && <EnrollSecretTable secrets={globalSecrets} />}
               </div>

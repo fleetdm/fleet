@@ -23,17 +23,10 @@ describe("Hosts page", () => {
 
       cy.contains("button", /add new host/i).click();
 
-      cy.get(".add-host-modal__secret-wrapper").within(() => {
-        // Check if select team dropdown is present
-        if (Cypress.$(".add-host-modal__team-dropdown-wrapper").length) {
-          cy.get(".Select-placeholder").click();
-          cy.get(".dropdown__option").first().click(); // click "No team" option in dropdown
-        }
-        cy.get('a[href*="showSecret"]').click();
-        cy.contains("a", /download/i)
-          .first()
-          .click();
-      });
+      cy.get('a[href*="showSecret"]').click();
+      cy.contains("a", /download/i)
+        .first()
+        .click();
 
       // Assert enroll secret downloaded matches the one displayed
       // NOTE: This test often fails when the Cypress downloads folder was not cleared properly
