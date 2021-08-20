@@ -96,6 +96,42 @@ func TestSaveHosts(t *testing.T) {
 	assert.Nil(t, host)
 }
 
+func TestDeleteHostWithSoftware(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		},
+	}
+	host.HostSoftware = soft
+	err = ds.SaveHostSoftware(host)
+	require.NoError(t, err)
+
+	err = ds.DeleteHost(host.ID)
+	require.NoError(t, err)
+
+	host, err = ds.Host(host.ID)
+	assert.NotNil(t, err)
+	assert.Nil(t, host)
+}
+
 func TestSaveHostPackStats(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()

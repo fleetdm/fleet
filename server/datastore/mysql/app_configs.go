@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/VividCortex/mysqlerr"
@@ -11,6 +13,8 @@ import (
 )
 
 func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
+	info.ApplyDefaultsForNewInstalls()
+
 	if err := d.SaveAppConfig(info); err != nil {
 		return nil, errors.Wrap(err, "new app config")
 	}
@@ -19,12 +23,21 @@ func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error
 }
 
 func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
-	info := &fleet.AppConfig{}
-	err := d.db.Get(info, "SELECT * FROM app_configs LIMIT 1")
-	if err != nil {
+	var info fleet.AppConfig
+	var bytes []byte
+	err := d.db.Get(&bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
+	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "selecting app config")
 	}
-	return info, nil
+	if err == sql.ErrNoRows {
+		return &fleet.AppConfig{}, nil
+	}
+
+	err = json.Unmarshal(bytes, &info)
+	if err != nil {
+		return nil, errors.Wrap(err, "unmarshaling config")
+	}
+	return &info, nil
 }
 
 func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
@@ -77,135 +90,32 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 		return err
 	}
 
-	if !eventSchedulerEnabled && info.HostExpiryEnabled {
+	expiryEnabled := info.HostExpirySettings.HostExpiryEnabled
+	expiryWindow := info.HostExpirySettings.HostExpiryWindow
+
+	if !eventSchedulerEnabled && expiryEnabled {
 		return errors.New("MySQL Event Scheduler must be enabled to configure Host Expiry.")
 	}
 
+	configBytes, err := json.Marshal(info)
+	if err != nil {
+		return errors.Wrap(err, "marshaling config")
+	}
+
 	return d.withTx(func(tx *sqlx.Tx) error {
-		if err := d.ManageHostExpiryEvent(tx, info.HostExpiryEnabled, info.HostExpiryWindow); err != nil {
+		if err := d.ManageHostExpiryEvent(tx, expiryEnabled, expiryWindow); err != nil {
 			return err
 		}
 
-		// Note that we hard code the ID column to 1, insuring that, if no rows
-		// exist, a row will be created with INSERT, if a row does exist the key
-		// will be violate uniqueness constraint and an UPDATE will occur
-		insertStatement := `
-		INSERT INTO app_configs (
-			id,
-			org_name,
-			org_logo_url,
-			server_url,
-			smtp_configured,
-			smtp_sender_address,
-			smtp_server,
-			smtp_port,
-			smtp_authentication_type,
-			smtp_enable_ssl_tls,
-			smtp_authentication_method,
-			smtp_domain,
-			smtp_user_name,
-			smtp_password,
-			smtp_verify_ssl_certs,
-			smtp_enable_start_tls,
-			entity_id,
-			issuer_uri,
-			idp_image_url,
-			metadata,
-			metadata_url,
-			idp_name,
-			enable_sso,
-			enable_sso_idp_login,
-			fim_interval,
-			fim_file_accesses,
-			host_expiry_enabled,
-			host_expiry_window,
-			live_query_disabled,
-			additional_queries,
-			agent_options,
-			enable_analytics,
-			vulnerability_databases_path,
-			enable_host_users,
-			enable_software_inventory
-		)
-		VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
-		ON DUPLICATE KEY UPDATE
-			org_name = VALUES(org_name),
-			org_logo_url = VALUES(org_logo_url),
-			server_url = VALUES(server_url),
-			smtp_configured = VALUES(smtp_configured),
-			smtp_sender_address = VALUES(smtp_sender_address),
-			smtp_server = VALUES(smtp_server),
-			smtp_port = VALUES(smtp_port),
-			smtp_authentication_type = VALUES(smtp_authentication_type),
-			smtp_enable_ssl_tls = VALUES(smtp_enable_ssl_tls),
-			smtp_authentication_method = VALUES(smtp_authentication_method),
-			smtp_domain = VALUES(smtp_domain),
-			smtp_user_name = VALUES(smtp_user_name),
-			smtp_password = VALUES(smtp_password),
-			smtp_verify_ssl_certs = VALUES(smtp_verify_ssl_certs),
-			smtp_enable_start_tls = VALUES(smtp_enable_start_tls),
-			entity_id = VALUES(entity_id),
-			issuer_uri = VALUES(issuer_uri),
-			idp_image_url = VALUES(idp_image_url),
-			metadata = VALUES(metadata),
-			metadata_url = VALUES(metadata_url),
-			idp_name = VALUES(idp_name),
-			enable_sso = VALUES(enable_sso),
-			enable_sso_idp_login = VALUES(enable_sso_idp_login),
-			fim_interval = VALUES(fim_interval),
-			fim_file_accesses = VALUES(fim_file_accesses),
-			host_expiry_enabled = VALUES(host_expiry_enabled),
-			host_expiry_window = VALUES(host_expiry_window),
-			live_query_disabled = VALUES(live_query_disabled),
-			additional_queries = VALUES(additional_queries),
-			agent_options = VALUES(agent_options),
-			enable_analytics = VALUES(enable_analytics),
-			vulnerability_databases_path = VALUES(vulnerability_databases_path),
-			enable_host_users = VALUES(enable_host_users),
-			enable_software_inventory = VALUES(enable_software_inventory)
-    `
-
-		_, err = tx.Exec(insertStatement,
-			info.OrgName,
-			info.OrgLogoURL,
-			info.ServerURL,
-			info.SMTPConfigured,
-			info.SMTPSenderAddress,
-			info.SMTPServer,
-			info.SMTPPort,
-			info.SMTPAuthenticationType,
-			info.SMTPEnableTLS,
-			info.SMTPAuthenticationMethod,
-			info.SMTPDomain,
-			info.SMTPUserName,
-			info.SMTPPassword,
-			info.SMTPVerifySSLCerts,
-			info.SMTPEnableStartTLS,
-			info.EntityID,
-			info.IssuerURI,
-			info.IDPImageURL,
-			info.Metadata,
-			info.MetadataURL,
-			info.IDPName,
-			info.EnableSSO,
-			info.EnableSSOIdPLogin,
-			info.FIMInterval,
-			info.FIMFileAccesses,
-			info.HostExpiryEnabled,
-			info.HostExpiryWindow,
-			info.LiveQueryDisabled,
-			info.AdditionalQueries,
-			info.AgentOptions,
-			info.EnableAnalytics,
-			info.VulnerabilityDatabasesPath,
-			info.EnableHostUsers,
-			info.EnableSoftwareInventory,
+		_, err := tx.Exec(
+			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+			configBytes,
 		)
 		if err != nil {
 			return err
 		}
 
-		if !info.EnableSSO {
+		if !info.SSOSettings.EnableSSO {
 			_, err = tx.Exec(`UPDATE users SET sso_enabled=false`)
 			if err != nil {
 				return err

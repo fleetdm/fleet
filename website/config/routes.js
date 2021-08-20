@@ -17,7 +17,7 @@ module.exports.routes = {
   'GET /company/contact':    { action:   'view-contact' },
   'GET /get-started':        { action:   'view-pricing' },
 
-  'GET /install':            'https://github.com/fleetdm/fleet/blob/main/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
+  'GET /install':            { action:   'view-get-started' },
   '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   '/company/about':          '/handbook', // FUTURE: brief "about" page explaining the origins of the company
 

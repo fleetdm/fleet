@@ -1,9 +1,10 @@
 package test
 
 import (
-	"github.com/fleetdm/fleet/v4/server"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"

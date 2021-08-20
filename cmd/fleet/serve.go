@@ -8,11 +8,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/logging"
 
 	"io/ioutil"
 	"net/http"
@@ -411,7 +409,7 @@ func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) 
 	if err != nil {
 		return err
 	}
-	if !ac.EnableAnalytics {
+	if !ac.ServerSettings.EnableAnalytics {
 		return nil
 	}
 
@@ -489,6 +487,10 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning carves", "details", err)
 		}
+		err = ds.CleanupOrphanScheduledQueryStats()
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning scheduled query stats", "details", err)
+		}
 
 		err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
 		if err != nil {
@@ -516,13 +518,13 @@ func cronVulnerabilities(
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
-	if ptr.StringValueOrZero(appConfig.VulnerabilityDatabasesPath) == "" &&
+	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
 		config.Vulnerabilities.DatabasesPath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return
 	}
 
-	vulnPath := ptr.StringValueOrZero(appConfig.VulnerabilityDatabasesPath)
+	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
 	if vulnPath == "" {
 		vulnPath = config.Vulnerabilities.DatabasesPath
 	}

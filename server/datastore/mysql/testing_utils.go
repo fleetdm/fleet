@@ -1,10 +1,11 @@
 package mysql
 
 import (
-	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"runtime"
 	"strings"
 	"testing"
@@ -16,59 +17,10 @@ import (
 )
 
 const (
-	schemaDbName = "schemadb"
-	dumpfile     = "/tmpfs/dump.sql"
 	testUsername = "root"
 	testPassword = "toor"
 	testAddress  = "localhost:3307"
 )
-
-func panicif(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-// initializeSchemaOrPanic initializes a database schema using the normal Fleet
-// migrations, then outputs the schema with mysqldump within the MySQL Docker
-// container.
-func initializeSchemaOrPanic() {
-	// Create the database (must use raw MySQL client to do this)
-	db, err := sql.Open(
-		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
-	)
-	panicif(err)
-	defer db.Close()
-	_, err = db.Exec("DROP DATABASE IF EXISTS schemadb; CREATE DATABASE schemadb;")
-	panicif(err)
-
-	// Create a datastore client in order to run migrations as usual
-	config := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
-		Address:  testAddress,
-		Database: schemaDbName,
-	}
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
-	panicif(err)
-	defer ds.Close()
-	panicif(ds.MigrateTables())
-
-	// Dump schema to dumpfile
-	if out, err := exec.Command(
-		"docker-compose", "exec", "-T", "mysql_test",
-		// Command run inside container
-		"mysqldump",
-		"-u"+testUsername, "-p"+testPassword,
-		"schemadb",
-		"--compact", "--skip-comments",
-		"--result-file="+dumpfile,
-	).CombinedOutput(); err != nil {
-		fmt.Println(string(out))
-		panicif(err)
-	}
-}
 
 func connectMySQL(t *testing.T, testName string) *Datastore {
 	config := config.MysqlConfig{
@@ -88,6 +40,13 @@ func connectMySQL(t *testing.T, testName string) *Datastore {
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
 func initializeDatabase(t *testing.T, testName string) *Datastore {
+	_, filename, _, _ := runtime.Caller(0)
+	base := path.Dir(filename)
+	schema, err := ioutil.ReadFile(path.Join(base, "schema.sql"))
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
 	// Load schema from dumpfile
 	if out, err := exec.Command(
 		"docker-compose", "exec", "-T", "mysql_test",
@@ -96,8 +55,8 @@ func initializeDatabase(t *testing.T, testName string) *Datastore {
 		"-u"+testUsername, "-p"+testPassword,
 		"-e",
 		fmt.Sprintf(
-			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; SOURCE %s;",
-			testName, testName, testName, dumpfile,
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+			testName, testName, testName, schema,
 		),
 	).CombinedOutput(); err != nil {
 		t.Error(err)

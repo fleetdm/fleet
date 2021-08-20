@@ -51,6 +51,7 @@ require (
 	github.com/mitchellh/gon v0.2.3
 	github.com/mna/redisc v1.2.1
 	github.com/oklog/run v1.1.0
+	github.com/oleiade/reflections v1.0.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
 	github.com/pkg/errors v0.9.1
