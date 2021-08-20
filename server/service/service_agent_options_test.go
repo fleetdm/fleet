@@ -23,7 +23,9 @@ func TestAgentOptionsForHost(t *testing.T) {
 		return &fleet.Team{AgentOptions: &opt}, nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"baz":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override2"}}}}`))}, nil
+		return &fleet.AppConfig{
+			AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"baz":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override2"}}}}`)),
+		}, nil
 	}
 
 	host := &fleet.Host{

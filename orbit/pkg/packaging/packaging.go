@@ -70,6 +70,9 @@ func copyFile(srcPath, dstPath string, perm os.FileMode) error {
 	if _, err := io.Copy(dst, src); err != nil {
 		return errors.Wrap(err, "copy src to dst")
 	}
+	if err := dst.Sync(); err != nil {
+		return errors.Wrap(err, "sync dst after copy")
+	}
 
 	return nil
 }

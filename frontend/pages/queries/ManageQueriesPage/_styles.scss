@@ -80,12 +80,30 @@
 
   .queries-list-wrapper {
     .data-table__table {
+      table-layout: fixed;
+
+      thead {
+        // Width for all columns except checkbox and "Name" columns
+        // For observers all columns except "Name" and "Author" columns
+        // Width calculation adjusts for each row's horizontal padding
+        th:not(:nth-child(1)):not(:nth-child(2)) {
+          width: calc(180px - (27px * 2));
+        }
+      }
+
       tbody {
         td {
-          white-space: normal !important;
-
-          button {
-            text-align: left;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        // Width and overflow behavior for the link in the "Name" column
+        td {
+          .button {
+            display: block;
+            text-align: start;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
         }
       }

@@ -90,7 +90,9 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 			team_id = ?,
 			primary_ip = ?,
 			primary_mac = ?,
-			refetch_requested = ?
+			refetch_requested = ?,
+			gigs_disk_space_available = ?,
+			percent_disk_space_available = ?
 		WHERE id = ?
 	`
 	_, err := d.db.Exec(sqlStatement,
@@ -125,6 +127,8 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 		host.PrimaryIP,
 		host.PrimaryMac,
 		host.RefetchRequested,
+		host.GigsDiskSpaceAvailable,
+		host.PercentDiskSpaceAvailable,
 		host.ID,
 	)
 	if err != nil {

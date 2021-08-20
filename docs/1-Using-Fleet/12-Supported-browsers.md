@@ -13,7 +13,7 @@ We test each browser on Windows whenever possible, because our engineering team 
 - Firefox 28
 - IE 11
 - Edge 16
-- Safari 13.x
+- Safari 13.x (macOS only)
 
 ### Mobile
 

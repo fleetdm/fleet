@@ -49,7 +49,7 @@ interface IUserTableData {
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
   actionSelectHandler: (value: string, user: IUser | IInvite) => void,
-  isBasicTier = false
+  isBasicTier: boolean
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {

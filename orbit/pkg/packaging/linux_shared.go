@@ -137,6 +137,9 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	if err := pkger.Package(info, out); err != nil {
 		return errors.Wrap(err, "write package")
 	}
+	if err := out.Sync(); err != nil {
+		return errors.Wrap(err, "sync output file")
+	}
 	log.Info().Str("path", filename).Msg("wrote package")
 
 	return nil

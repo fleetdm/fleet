@@ -31,7 +31,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var expectedDetailQueries = len(osquery_utils.GetDetailQueries(&fleet.AppConfig{EnableHostUsers: true}))
+// One of these queries is the disk space, only one of the two works in a platform
+var expectedDetailQueries = len(osquery_utils.GetDetailQueries(
+	&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})) - 1
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -50,7 +52,7 @@ func TestEnrollAgent(t *testing.T) {
 		}, nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	svc := newTestService(ds, nil, nil)
@@ -94,7 +96,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	svc := newTestService(ds, nil, nil)
@@ -251,7 +253,7 @@ func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AdditionalQueries: &additional, EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
 	}
 
 	mockClock := clock.NewMockClock()
@@ -329,7 +331,7 @@ func TestLabelQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
@@ -529,7 +531,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -706,7 +708,7 @@ func TestDetailQueries(t *testing.T) {
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -815,6 +817,12 @@ func TestDetailQueries(t *testing.T) {
       "type": "sometype",
       "groupname": "somegroup"
     }
+],
+"fleet_detail_query_disk_space_unix": [
+	{
+		"percent_disk_space_available": "56",
+		"gigs_disk_space_available": "277.0"
+	}
 ]
 }
 `
@@ -870,6 +878,9 @@ func TestDetailQueries(t *testing.T) {
 		GroupName: "somegroup",
 	}, gotHost.Users[0])
 
+	assert.Equal(t, 56.0, gotHost.PercentDiskSpaceAvailable)
+	assert.Equal(t, 277.0, gotHost.GigsDiskSpaceAvailable)
+
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"
 	host.DetailUpdatedAt = mockClock.Now()
@@ -895,8 +906,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds := &mock.Store{
 		AppConfigStore: mock.AppConfigStore{
 			AppConfigFunc: func() (*fleet.AppConfig, error) {
-				config := &fleet.AppConfig{}
-				return config, nil
+				return &fleet.AppConfig{}, nil
 			},
 		},
 	}
@@ -985,7 +995,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 
 	host := &fleet.Host{ID: 1, Platform: "windows"}
@@ -1635,7 +1645,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 		return &fleet.Host{ID: 42, Platform: "darwin", PrimaryIP: ip}, nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	ctx := hostctx.NewContext(context.Background(), *host)

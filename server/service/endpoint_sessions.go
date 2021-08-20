@@ -247,8 +247,8 @@ func makeCallbackSSOEndpoint(svc fleet.Service, urlPrefix string) endpoint.Endpo
 }
 
 type ssoSettingsResponse struct {
-	Settings *fleet.SSOSettings `json:"settings,omitempty"`
-	Err      error              `json:"error,omitempty"`
+	Settings *fleet.SessionSSOSettings `json:"settings,omitempty"`
+	Err      error                     `json:"error,omitempty"`
 }
 
 func (r ssoSettingsResponse) error() error { return r.Err }

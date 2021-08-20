@@ -261,7 +261,7 @@ func TestService_DeletePack(t *testing.T) {
 	require.NoError(t, err)
 
 	type fields struct {
-		ds               fleet.Datastore
+		ds fleet.Datastore
 	}
 	type args struct {
 		ctx  context.Context
@@ -307,7 +307,7 @@ func TestService_DeletePack(t *testing.T) {
 			wantErr: true,
 		},
 	}
-		for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := newTestService(tt.fields.ds, nil, nil)
 			if err := svc.DeletePack(tt.args.ctx, tt.args.name); (err != nil) != tt.wantErr {

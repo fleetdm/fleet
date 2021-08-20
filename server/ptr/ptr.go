@@ -11,6 +11,13 @@ func String(x string) *string {
 	return &x
 }
 
+func StringValueOrZero(x *string) string {
+	if x == nil {
+		return ""
+	}
+	return *x
+}
+
 // Int returns a pointer to the provided int.
 func Int(x int) *int {
 	return &x
