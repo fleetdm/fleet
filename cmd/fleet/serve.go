@@ -487,6 +487,10 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning carves", "details", err)
 		}
+		err = ds.CleanupOrphanScheduledQueryStats()
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning scheduled query stats", "details", err)
+		}
 
 		err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
 		if err != nil {

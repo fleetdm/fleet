@@ -1,1 +1,0 @@
-* add "-o" flag to convert command to ensure consistent output rather than relying on redirects (this was causing issues with file encodings)

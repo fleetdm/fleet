@@ -64,7 +64,7 @@ class HostSidePanel extends Component {
           type="all-hosts"
         />
 
-        <h3>Operating Systems</h3>
+        <h3>Operating systems</h3>
         <PanelGroup
           groupItems={hostPlatformLabels}
           onLabelClick={onLabelClick}
