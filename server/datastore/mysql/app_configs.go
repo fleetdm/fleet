@@ -25,7 +25,7 @@ func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error
 func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
 	var info fleet.AppConfig
 	var bytes []byte
-	err := d.db.Get(&bytes, `SELECT json_value FROM kv_json WHERE json_key="config" LIMIT 1`)
+	err := d.db.Get(&bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "selecting app config")
 	}
@@ -108,8 +108,8 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 		}
 
 		_, err := tx.Exec(
-			`INSERT INTO kv_json(json_key, json_value) VALUES(?, ?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
-			"config", configBytes,
+			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+			configBytes,
 		)
 		if err != nil {
 			return err

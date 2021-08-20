@@ -12,7 +12,7 @@ import (
 )
 
 type appConfigRequest struct {
-	Payload []byte
+	Payload json.RawMessage
 }
 
 type appConfigResponse struct {

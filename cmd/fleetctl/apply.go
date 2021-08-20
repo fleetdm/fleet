@@ -23,11 +23,13 @@ type specMetadata struct {
 }
 
 type specGroup struct {
-	Queries      []*fleet.QuerySpec
-	Teams        []*fleet.TeamSpec
-	Packs        []*fleet.PackSpec
-	Labels       []*fleet.LabelSpec
-	AppConfig    interface{} // This needs to be interface{} to allow for the patch logic
+	Queries []*fleet.QuerySpec
+	Teams   []*fleet.TeamSpec
+	Packs   []*fleet.PackSpec
+	Labels  []*fleet.LabelSpec
+	// This needs to be interface{} to allow for the patch logic. Otherwise we send a request that looks to the
+	// server like the user explicitly set the zero values.
+	AppConfig    interface{}
 	EnrollSecret *fleet.EnrollSecretSpec
 	UsersRoles   *fleet.UsersRoleSpec
 }
