@@ -133,7 +133,8 @@ func TestUserCreationWrongTeamErrors(t *testing.T) {
 	path := "/api/v1/fleet/users/admin"
 	expectedStatusCode := http.StatusUnprocessableEntity
 
-	resp := doReq(t, params, method, server, path, token, expectedStatusCode)
+	resp, closeFunc := doReq(t, params, method, server, path, token, expectedStatusCode)
+	defer closeFunc()
 	assertBodyContains(t, resp, `Error 1452: Cannot add or update a child row: a foreign key constraint fails`)
 }
 
@@ -145,7 +146,7 @@ func doReq(
 	path string,
 	token string,
 	expectedStatusCode int,
-) *http.Response {
+) (*http.Response, func()) {
 	j, err := json.Marshal(&params)
 	assert.Nil(t, err)
 
@@ -156,7 +157,10 @@ func doReq(
 	resp, err := client.Do(req)
 	require.Nil(t, err)
 	assert.Equal(t, expectedStatusCode, resp.StatusCode)
-	return resp
+	return resp, func() {
+		thisResp := resp
+		thisResp.Body.Close()
+	}
 }
 
 func doRawReq(
@@ -188,7 +192,8 @@ func doJSONReq(
 	expectedStatusCode int,
 	v interface{},
 ) {
-	resp := doReq(t, params, method, server, path, token, expectedStatusCode)
+	resp, closeFunc := doReq(t, params, method, server, path, token, expectedStatusCode)
+	defer closeFunc()
 	err := json.NewDecoder(resp.Body).Decode(v)
 	require.Nil(t, err)
 }
@@ -216,7 +221,8 @@ func TestQueryCreationLogsActivity(t *testing.T) {
 		Name:  ptr.String("user1"),
 		Query: ptr.String("select * from time;"),
 	}
-	doReq(t, params, "POST", server, "/api/v1/fleet/queries", token, http.StatusOK)
+	_, closeFunc := doReq(t, params, "POST", server, "/api/v1/fleet/queries", token, http.StatusOK)
+	defer closeFunc()
 	type activitiesRespose struct {
 		Activities []map[string]interface{} `json:"activities"`
 	}
@@ -249,7 +255,7 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 
 	spec := []byte(`
   host_expiry_settings:
-    host_expiry_enabled: false
+    host_expiry_enabled: true
     host_expiry_window: 0
   host_settings:
     additional_queries:
@@ -259,16 +265,15 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	applyConfig(t, spec, server, token)
 
 	spec = []byte(`
-  host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
   host_settings:
     enable_host_users: true
+    additional_queries: null
 `)
 	applyConfig(t, spec, server, token)
 
 	config := getConfig(t, server, token)
 	assert.Nil(t, config.HostSettings.AdditionalQueries)
+	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
 }
 
 func TestAppConfigUpdateInterval(t *testing.T) {
@@ -294,11 +299,12 @@ func TestAppConfigHasLogging(t *testing.T) {
 }
 
 func applyConfig(t *testing.T, spec []byte, server *httptest.Server, token string) {
-	var appConfigSpec fleet.AppConfigPayload
+	var appConfigSpec interface{}
 	err := yaml.Unmarshal(spec, &appConfigSpec)
 	require.NoError(t, err)
 
-	doReq(t, appConfigSpec, "PATCH", server, "/api/v1/fleet/config", token, http.StatusOK)
+	_, closeFunc := doReq(t, appConfigSpec, "PATCH", server, "/api/v1/fleet/config", token, http.StatusOK)
+	closeFunc()
 }
 
 func getConfig(t *testing.T, server *httptest.Server, token string) *appConfigResponse {
@@ -337,7 +343,8 @@ func TestUserRolesSpec(t *testing.T) {
 	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
 	require.NoError(t, err)
 
-	doReq(t, userRoleSpec, "POST", server, "/api/v1/fleet/users/roles/spec", token, http.StatusOK)
+	_, closeFunc := doReq(t, userRoleSpec, "POST", server, "/api/v1/fleet/users/roles/spec", token, http.StatusOK)
+	closeFunc()
 
 	user, err = ds.UserByEmail("user1@example.com")
 	require.NoError(t, err)
@@ -413,19 +420,22 @@ func TestTeamSpecs(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	_, server := RunServerForTestsWithDS(t, ds)
-	_, err := ds.NewTeam(&fleet.Team{
-		ID:          42,
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Tier: fleet.TierBasic})
+	token := getTestAdminToken(t, server)
+
+	// create a team through the service so it initializes the agent ops
+	team := &fleet.Team{
 		Name:        "team1",
 		Description: "desc team1",
-	})
-	require.NoError(t, err)
-	token := getTestAdminToken(t, server)
+	}
+	_, closeFunc := doReq(t, team, "POST", server, "/api/v1/fleet/teams", token, http.StatusOK)
+	defer closeFunc()
 
 	// updates a team
 	agentOpts := json.RawMessage(`{"config": {"foo": "bar"}, "overrides": {"platforms": {"darwin": {"foo": "override"}}}}`)
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team1", AgentOptions: &agentOpts}}}
-	doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
+	_, closeFunc = doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
+	defer closeFunc()
 
 	team, err := ds.TeamByName("team1")
 	require.NoError(t, err)
@@ -442,7 +452,8 @@ func TestTeamSpecs(t *testing.T) {
 	assert.Len(t, teams, 1)
 
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2"}}}
-	doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
+	_, closeFunc = doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
+	defer closeFunc()
 
 	teams, err = ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -453,11 +464,13 @@ func TestTeamSpecs(t *testing.T) {
 
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
 	assert.Len(t, team.Secrets, 0)
+	require.NotNil(t, team.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.AgentOptions))
 
 	// updates secrets
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
-	doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
+	_, closeFunc = doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
+	defer closeFunc()
 
 	team, err = ds.TeamByName("team2")
 	require.NoError(t, err)
@@ -648,8 +661,8 @@ func TestVulnerableSoftware(t *testing.T) {
 	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
 
 	path := fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID)
-	resp := doReq(t, nil, "GET", server, path, token, http.StatusOK)
-	defer resp.Body.Close()
+	resp, closeFunc := doReq(t, nil, "GET", server, path, token, http.StatusOK)
+	defer closeFunc()
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
 

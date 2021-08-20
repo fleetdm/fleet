@@ -31,7 +31,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var expectedDetailQueries = len(osquery_utils.GetDetailQueries(&fleet.AppConfig{EnableHostUsers: true}))
+var expectedDetailQueries = len(osquery_utils.GetDetailQueries(
+	&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}))
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -50,7 +51,7 @@ func TestEnrollAgent(t *testing.T) {
 		}, nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	svc := newTestService(ds, nil, nil)
@@ -94,7 +95,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	svc := newTestService(ds, nil, nil)
@@ -251,7 +252,7 @@ func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AdditionalQueries: &additional, EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
 	}
 
 	mockClock := clock.NewMockClock()
@@ -329,7 +330,7 @@ func TestLabelQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -532,7 +533,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -712,7 +713,7 @@ func TestDetailQueries(t *testing.T) {
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -901,8 +902,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds := &mock.Store{
 		AppConfigStore: mock.AppConfigStore{
 			AppConfigFunc: func() (*fleet.AppConfig, error) {
-				config := &fleet.AppConfig{}
-				return config, nil
+				return &fleet.AppConfig{}, nil
 			},
 		},
 	}
@@ -991,7 +991,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 
 	host := &fleet.Host{ID: 1, Platform: "windows"}
@@ -1641,7 +1641,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 		return &fleet.Host{ID: 42, Platform: "darwin", PrimaryIP: ip}, nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	ctx := hostctx.NewContext(context.Background(), *host)

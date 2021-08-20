@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"encoding/base64"
-	"github.com/fleetdm/fleet/v4/server"
 	"html/template"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -179,13 +180,14 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 	if err != nil {
 		return err
 	}
+
 	changeEmail := fleet.Email{
 		Subject: "Confirm Fleet Email Change",
 		To:      []string{email},
 		Config:  config,
 		Mailer: &mail.ChangeEmailMailer{
 			Token:    token,
-			BaseURL:  template.URL(config.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 	}
@@ -447,7 +449,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		To:      []string{user.Email},
 		Config:  config,
 		Mailer: &mail.PasswordResetMailer{
-			BaseURL:  template.URL(config.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 			Token:    token,
 		},

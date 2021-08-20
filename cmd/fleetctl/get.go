@@ -132,7 +132,7 @@ func printHost(c *cli.Context, host *service.HostResponse) error {
 	return printSpec(c, spec)
 }
 
-func printConfig(c *cli.Context, config *fleet.AppConfigPayload) error {
+func printConfig(c *cli.Context, config *fleet.AppConfig) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
 		Version: fleet.ApiVersion,
@@ -562,9 +562,9 @@ func getHostsCommand() *cli.Command {
 		Usage:   "List information about one or more hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:        "team",
-				Usage:       "filter hosts by team_id",
-				Required:    false,
+				Name:     "team",
+				Usage:    "filter hosts by team_id",
+				Required: false,
 			},
 			jsonFlag(),
 			yamlFlag(),
