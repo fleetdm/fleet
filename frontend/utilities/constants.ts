@@ -106,4 +106,4 @@ export const DEFAULT_CAMPAIGN_STATE = {
   targetsCount: 0,
   targetsError: null,
   campaign: { ...DEFAULT_CAMPAIGN },
-}
+};

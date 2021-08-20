@@ -32,8 +32,11 @@ export default {
   },
   run: async ({ query, selected }: { query: string; selected: any }) => {
     const { RUN_QUERY } = endpoints;
-    
-    const { campaign } = await sendRequest("POST", RUN_QUERY, { query, selected });
+
+    const { campaign } = await sendRequest("POST", RUN_QUERY, {
+      query,
+      selected,
+    });
     return {
       ...campaign,
       hosts_count: {
@@ -41,7 +44,7 @@ export default {
         failed: 0,
         total: 0,
       },
-    }; 
+    };
   },
   update: ({ id }: IQuery, updateParams: any) => {
     const { QUERIES } = endpoints;

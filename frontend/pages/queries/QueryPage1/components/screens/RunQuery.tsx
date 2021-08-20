@@ -13,7 +13,11 @@ import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
 import convertToCSV from "utilities/convert_to_csv";
-import { BASE_URL, DEFAULT_CAMPAIGN, DEFAULT_CAMPAIGN_STATE } from "utilities/constants"; // @ts-ignore
+import {
+  BASE_URL,
+  DEFAULT_CAMPAIGN,
+  DEFAULT_CAMPAIGN_STATE,
+} from "utilities/constants"; // @ts-ignore
 import local from "utilities/local"; // @ts-ignore
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
@@ -39,7 +43,9 @@ const RunQuery = ({
   dispatch,
 }: IRunQueryProps) => {
   const [isReady, setIsReady] = useState<boolean>(false);
-  const [campaignState, setCampaignState] = useState<ICampaignState>(DEFAULT_CAMPAIGN_STATE);
+  const [campaignState, setCampaignState] = useState<ICampaignState>(
+    DEFAULT_CAMPAIGN_STATE
+  );
   const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
 
   const ws = useRef(null);
@@ -60,7 +66,7 @@ const RunQuery = ({
     const update = () => {
       setCampaignState({
         ...campaignState,
-        runQueryMilliseconds: campaignState.runQueryMilliseconds + 1000
+        runQueryMilliseconds: campaignState.runQueryMilliseconds + 1000,
       });
     };
 
@@ -86,6 +92,62 @@ const RunQuery = ({
 
   const destroyCampaign = () => {
     setCampaignState(DEFAULT_CAMPAIGN_STATE);
+  };
+
+  const connectAndRunLiveQuery = (returnedCampaign: ICampaign) => {
+    let { current: websocket }: { current: WebSocket | null } = ws;
+    websocket = new SockJS(`${BASE_URL}/v1/fleet/results`, undefined, {});
+    websocket.onopen = () => {
+      setupDistributedQuery(websocket);
+      setCampaignState({
+        ...campaignState,
+        campaign: returnedCampaign,
+        queryIsRunning: true,
+      });
+
+      websocket?.send(
+        JSON.stringify({
+          type: "auth",
+          data: { token: local.getItem("auth_token") },
+        })
+      );
+      websocket?.send(
+        JSON.stringify({
+          type: "select_campaign",
+          data: { campaign_id: returnedCampaign.id },
+        })
+      );
+    };
+
+    websocket.onmessage = ({ data }: { data: string }) => {
+      const socketData = JSON.parse(data);
+
+      if (
+        previousSocketData.current &&
+        isEqual(socketData, previousSocketData.current)
+      ) {
+        return false;
+      }
+
+      previousSocketData.current = socketData;
+
+      const { campaign, queryIsRunning } = campaignHelpers.updateCampaignState(
+        socketData
+      )(campaignState);
+
+      setCampaignState({
+        ...campaignState,
+        campaign,
+        queryIsRunning,
+      });
+
+      if (
+        socketData.type === "status" &&
+        socketData.data.status === "finished"
+      ) {
+        return teardownDistributedQuery();
+      }
+    };
   };
 
   const onRunQuery = debounce(async () => {
@@ -133,62 +195,8 @@ const RunQuery = ({
 
     return () => {
       clearInterval(runQueryInterval.current);
-    }
+    };
   }, []);
-
-  const connectAndRunLiveQuery = (returnedCampaign: ICampaign) => {
-    let { current: websocket }: { current: WebSocket | null } = ws;
-      websocket = new SockJS(`${BASE_URL}/v1/fleet/results`, undefined, {});
-      websocket.onopen = () => {
-        setupDistributedQuery(websocket);
-        setCampaignState({
-          ...campaignState,
-          campaign: returnedCampaign,
-          queryIsRunning: true,
-        });
-
-        websocket?.send(
-          JSON.stringify({
-            type: "auth",
-            data: { token: local.getItem("auth_token") },
-          })
-        );
-        websocket?.send(
-          JSON.stringify({
-            type: "select_campaign",
-            data: { campaign_id: returnedCampaign.id },
-          })
-        );
-      };
-      
-      websocket.onmessage = ({ data }: { data: string }) => {
-        const socketData = JSON.parse(data);
-
-        if (previousSocketData.current && isEqual(socketData, previousSocketData.current)) {
-          return false;
-        }
-        
-        previousSocketData.current = socketData;
-
-        const {
-          campaign,
-          queryIsRunning,
-        } = campaignHelpers.updateCampaignState(socketData)(campaignState);
-        
-        setCampaignState({
-          ...campaignState,
-          campaign,
-          queryIsRunning,
-        });
-
-        if (
-          socketData.type === "status" &&
-          socketData.data.status === "finished"
-        ) {
-          return teardownDistributedQuery();
-        }
-      };
-  };
 
   const onStopQuery = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
