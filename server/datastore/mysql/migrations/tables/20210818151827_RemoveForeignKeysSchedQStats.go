@@ -12,22 +12,14 @@ func init() {
 }
 
 func Up_20210818151827(tx *sql.Tx) error {
-	rows, err := tx.Query(`SELECT DISTINCT CONSTRAINT_NAME, REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = 'scheduled_query_stats' AND CONSTRAINT_NAME <> 'PRIMARY'`)
+	referencedTables := map[string]struct{}{"hosts": {}, "scheduled_queries": {}}
+	table := "scheduled_query_stats"
+
+	constraints, err := constraintsForTable(tx, table, referencedTables)
 	if err != nil {
-		return errors.Wrap(err, "getting fk for scheduled_query_stats")
+		return err
 	}
-	var constraints []string
-	for rows.Next() {
-		var constraintName string
-		var referencedTable string
-		err := rows.Scan(&constraintName, &referencedTable)
-		if err != nil {
-			return errors.Wrap(err, "scanning fk for scheduled_query_stats")
-		}
-		if referencedTable == "hosts" || referencedTable == "scheduled_queries" {
-			constraints = append(constraints, constraintName)
-		}
-	}
+
 	if len(constraints) == 0 {
 		return errors.New("Found no constraints in scheduled_query_stats")
 	}
@@ -39,6 +31,27 @@ func Up_20210818151827(tx *sql.Tx) error {
 		}
 	}
 	return nil
+}
+
+func constraintsForTable(tx *sql.Tx, table string, referencedTables map[string]struct{}) ([]string, error) {
+	var constraints []string
+	query := `SELECT DISTINCT CONSTRAINT_NAME, REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = ? AND CONSTRAINT_NAME <> 'PRIMARY'`
+	rows, err := tx.Query(query, table)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting fk for scheduled_query_stats")
+	}
+	for rows.Next() {
+		var constraintName string
+		var referencedTable string
+		err := rows.Scan(&constraintName, &referencedTable)
+		if err != nil {
+			return nil, errors.Wrap(err, "scanning fk for scheduled_query_stats")
+		}
+		if _, ok := referencedTables[referencedTable]; ok {
+			constraints = append(constraints, constraintName)
+		}
+	}
+	return constraints, nil
 }
 
 func Down_20210818151827(tx *sql.Tx) error {
