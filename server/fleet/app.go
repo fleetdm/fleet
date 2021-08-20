@@ -166,6 +166,19 @@ type AppConfig struct {
 
 	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
+
+	WebhookSettings WebhookSettings `json:"webhook_settings"`
+}
+
+type WebhookSettings struct {
+	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
+}
+
+type HostStatusWebhookSettings struct {
+	Enable         bool    `json:"enable"`
+	DestinationURL string  `json:"destination_url"`
+	HostPercentage float64 `json:"host_percentage"`
+	DaysCount      int     `json:"days_count"`
 }
 
 func (ac *AppConfig) ApplyDefaultsForNewInstalls() {

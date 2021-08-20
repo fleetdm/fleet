@@ -1163,3 +1163,39 @@ func TestSaveUsers(t *testing.T) {
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }
+
+func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Duration(days) * 24 * time.Hour),
+		OsqueryHostID:   fmt.Sprintf("%d", i),
+		NodeKey:         fmt.Sprintf("%d", i),
+		UUID:            fmt.Sprintf("%d", i),
+		Hostname:        fmt.Sprintf("foo.local%d", i),
+		PrimaryIP:       fmt.Sprintf("192.168.1.%d", i),
+		PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-5%d", i),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+}
+
+func TestTotalAndUnseenHostsSince(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	addHostSeenLast(t, ds, 1, 0)
+
+	total, unseen, err := ds.TotalAndUnseenHostsSince(1)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Equal(t, 0, unseen)
+
+	addHostSeenLast(t, ds, 2, 2)
+	addHostSeenLast(t, ds, 3, 4)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(1)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, 2, unseen)
+}
