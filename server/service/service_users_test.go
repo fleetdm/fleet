@@ -55,11 +55,13 @@ func TestModifyUserEmail(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPPort:               1025,
-			SMTPConfigured:         true,
-			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@fleet.co",
-			SMTPAuthenticationType: fleet.AuthTypeNone,
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
+			},
 		}
 		return config, nil
 	}
@@ -100,11 +102,13 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPPort:               1025,
-			SMTPConfigured:         true,
-			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@fleet.co",
-			SMTPAuthenticationType: fleet.AuthTypeNone,
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
+			},
 		}
 		return config, nil
 	}
@@ -144,11 +148,13 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPPort:               1025,
-			SMTPConfigured:         true,
-			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@fleet.co",
-			SMTPAuthenticationType: fleet.AuthTypeNone,
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
+			},
 		}
 		return config, nil
 	}
@@ -188,11 +194,13 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPPort:               1025,
-			SMTPConfigured:         true,
-			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@fleet.co",
-			SMTPAuthenticationType: fleet.AuthTypeNone,
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
+			},
 		}
 		return config, nil
 	}

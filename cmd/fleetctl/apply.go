@@ -23,11 +23,13 @@ type specMetadata struct {
 }
 
 type specGroup struct {
-	Queries      []*fleet.QuerySpec
-	Teams        []*fleet.TeamSpec
-	Packs        []*fleet.PackSpec
-	Labels       []*fleet.LabelSpec
-	AppConfig    *fleet.AppConfigPayload
+	Queries []*fleet.QuerySpec
+	Teams   []*fleet.TeamSpec
+	Packs   []*fleet.PackSpec
+	Labels  []*fleet.LabelSpec
+	// This needs to be interface{} to allow for the patch logic. Otherwise we send a request that looks to the
+	// server like the user explicitly set the zero values.
+	AppConfig    interface{}
 	EnrollSecret *fleet.EnrollSecretSpec
 	UsersRoles   *fleet.UsersRoleSpec
 }
@@ -82,7 +84,7 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 				return nil, errors.New("config defined twice in the same file")
 			}
 
-			var appConfigSpec *fleet.AppConfigPayload
+			var appConfigSpec interface{}
 			if err := yaml.Unmarshal(s.Spec, &appConfigSpec); err != nil {
 				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
