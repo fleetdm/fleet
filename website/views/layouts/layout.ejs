@@ -55,7 +55,8 @@
   </head>
   <body>
     <div purpose="page-wrap">
-      <div style="max-width: 1248px; height: 94px;" class="<%= isHomepage ? 'homepage-header' : 'header' %> container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4" purpose="page-header">
+      <div class="<%= isHomepage ? 'homepage-header' : 'header' %>" purpose="page-header">
+        <div style="max-width: 1248px; height: 80px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
         <a href="/">
           <% /* The homepage-header on the homepage has a white fleet logo */ %>
           <% if (isHomepage) { %>
@@ -132,6 +133,7 @@
           </span>
         </div>
       </div>
+    </div>
 
       <%- body %>
 
