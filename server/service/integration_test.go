@@ -271,6 +271,17 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	assert.Nil(t, config.HostSettings.AdditionalQueries)
 }
 
+func TestAppConfigUpdateInterval(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	config := getConfig(t, server, token)
+	require.Equal(t, 1*time.Hour, config.UpdateInterval.OSQueryDetail)
+}
+
 func TestAppConfigHasLogging(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()

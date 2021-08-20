@@ -26,6 +26,8 @@ type appConfigResponse struct {
 	License               *fleet.LicenseInfo                  `json:"license,omitempty"`
 	VulnerabilitySettings *fleet.VulnerabilitySettingsPayload `json:"vulnerability_settings"`
 
+	UpdateInterval *fleet.UpdateIntervalConfig `json:"update_interval"`
+
 	// Logging is loaded on the fly rather than from the database.
 	Logging *fleet.Logging `json:"logging,omitempty"`
 	Err     error          `json:"error,omitempty"`
@@ -48,6 +50,10 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return nil, err
 		}
 		loggingConfig, err := svc.LoggingConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		updateIntervalConfig, err := svc.UpdateIntervalConfig(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -107,6 +113,7 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			AgentOptions:          agentOptions,
 			Logging:               loggingConfig,
 			VulnerabilitySettings: vulnerabilitySettings,
+			UpdateInterval:        updateIntervalConfig,
 		}
 		return response, nil
 	}
