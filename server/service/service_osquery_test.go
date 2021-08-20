@@ -718,6 +718,9 @@ func TestDetailQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
+	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
 
 	// With a new host, we should get the detail queries (and accelerated
 	// queries)
@@ -985,6 +988,9 @@ func TestDistributedQueryResults(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 
 	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.SaveHostFunc = func(host *fleet.Host) error {
@@ -1751,7 +1757,7 @@ func TestPolicyQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableHostUsers: true}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
