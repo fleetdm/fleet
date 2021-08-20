@@ -332,6 +332,15 @@
         }
       }
     }
+
+    .data-table__table {
+      table-layout: fixed;
+
+      td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
   }
 
   tbody {

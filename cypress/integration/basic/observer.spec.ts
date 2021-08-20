@@ -14,7 +14,7 @@ describe("Basic tier - Observer user", () => {
 
   it("Can perform the appropriate basic global observer actions", () => {
     cy.login("oliver@organization.com", "user123#");
-    cy.visit("/hosts/manage");
+    cy.visit("/");
 
     // Ensure page is loaded
     cy.contains("All hosts");
@@ -66,8 +66,6 @@ describe("Basic tier - Observer user", () => {
     cy.findByText(/you do not have permissions/i).should("exist");
     cy.visit("/schedule/manage");
     cy.findByText(/you do not have permissions/i).should("exist");
-
-    cy.visit("/hosts/manage");
 
     cy.contains(".table-container .data-table__table th", "Team").should(
       "be.visible"

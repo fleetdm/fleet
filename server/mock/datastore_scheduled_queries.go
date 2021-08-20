@@ -16,6 +16,8 @@ type DeleteScheduledQueryFunc func(id uint) error
 
 type ScheduledQueryFunc func(id uint) (*fleet.ScheduledQuery, error)
 
+type CleanupOrphanScheduledQueryStatsFunc func() error
+
 type ScheduledQueryStore struct {
 	ListScheduledQueriesInPackFunc        ListScheduledQueriesInPackFunc
 	ListScheduledQueriesInPackFuncInvoked bool
@@ -31,6 +33,9 @@ type ScheduledQueryStore struct {
 
 	ScheduledQueryFunc        ScheduledQueryFunc
 	ScheduledQueryFuncInvoked bool
+
+	CleanupOrphanScheduledQueryStatsFunc        CleanupOrphanScheduledQueryStatsFunc
+	CleanupOrphanScheduledQueryStatsFuncInvoked bool
 }
 
 func (s *ScheduledQueryStore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
@@ -56,4 +61,9 @@ func (s *ScheduledQueryStore) DeleteScheduledQuery(id uint) error {
 func (s *ScheduledQueryStore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
 	s.ScheduledQueryFuncInvoked = true
 	return s.ScheduledQueryFunc(id)
+}
+
+func (s *ScheduledQueryStore) CleanupOrphanScheduledQueryStats() error {
+	s.CleanupOrphanScheduledQueryStatsFuncInvoked = true
+	return s.CleanupOrphanScheduledQueryStatsFunc()
 }

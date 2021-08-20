@@ -13,7 +13,7 @@ const baseClass = "panel-group-item";
 
 const displayIcon = (name) => {
   switch (name) {
-    case "Darwin":
+    case "macOS":
       return <img src={darwinIcon} alt="Apple icon" />;
     case "Linux":
       return <img src={linuxIcon} alt="Linux icon" />;
