@@ -50,7 +50,6 @@ const QueryPage = ({
   const [typedQueryBody, setTypedQueryBody] = useState<string>(
     DEFAULT_QUERY.query
   );
-  const [campaign, setCampaign] = useState<ICampaign | null>(DEFAULT_CAMPAIGN);
   const [queryIsRunning, setQueryIsRunning] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [liveQueryError, setLiveQueryError] = useState<string>("");
@@ -122,7 +121,6 @@ const QueryPage = ({
     const step2Opts = {
       ...commonOpts,
       selectedTargets: [...selectedTargets],
-      campaign,
       isBasicTier,
       queryIdForEdit,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
@@ -133,11 +131,7 @@ const QueryPage = ({
       ...commonOpts,
       typedQueryBody,
       storedQuery,
-      campaign,
       selectedTargets,
-      queryIsRunning,
-      setQueryIsRunning,
-      setCampaign,
     };
 
     switch (step) {

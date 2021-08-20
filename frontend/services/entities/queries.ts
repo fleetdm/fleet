@@ -30,27 +30,18 @@ export default {
 
     return sendRequest("GET", QUERIES);
   },
-  run: ({ query, selected }: { query: string; selected: any }) => {
+  run: async ({ query, selected }: { query: string; selected: any }) => {
     const { RUN_QUERY } = endpoints;
-
-    return sendRequest("POST", RUN_QUERY, { query, selected });
-    // return client
-    //   .authenticatedPost(
-    //     client._endpoint(RUN_QUERY),
-    //     JSON.stringify({ query, selected })
-    //   )
-    //   .then((response) => {
-    //     const { campaign } = response;
-
-    //     return {
-    //       ...campaign,
-    //       hosts_count: {
-    //         successful: 0,
-    //         failed: 0,
-    //         total: 0,
-    //       },
-    //     };
-    //   });
+    
+    const { campaign } = await sendRequest("POST", RUN_QUERY, { query, selected });
+    return {
+      ...campaign,
+      hosts_count: {
+        successful: 0,
+        failed: 0,
+        total: 0,
+      },
+    }; 
   },
   update: ({ id }: IQuery, updateParams: any) => {
     const { QUERIES } = endpoints;

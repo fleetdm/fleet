@@ -11,11 +11,9 @@ import {
 import { formatSelectedTargetsForApi } from "fleet/helpers";
 import targetsAPI from "services/entities/targets";
 import { ITarget, ITargets, ITargetsAPIResponse } from "interfaces/target";
-import { ICampaign } from "interfaces/campaign";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
-import { useDeepEffect } from "utilities/hooks";
 
 // @ts-ignore
 import TargetsInput from "pages/queries/QueryPage1/components/TargetsInput";
@@ -34,7 +32,6 @@ interface ITargetPillSelectorProps {
 interface ISelectTargetsProps {
   baseClass: string;
   selectedTargets: ITarget[];
-  campaign: ICampaign | null;
   isBasicTier: boolean;
   queryIdForEdit: string | undefined;
   goToQueryEditor: () => void;
@@ -67,7 +64,6 @@ const TargetPillSelector = ({
 const SelectTargets = ({
   baseClass,
   selectedTargets,
-  campaign,
   isBasicTier,
   queryIdForEdit,
   goToQueryEditor,
@@ -182,7 +178,7 @@ const SelectTargets = ({
 
         setTargetsTotalCount(targetsCount);
         if (targetsCount > 0) {
-          setTargetsOnlinePercent(onlineCount / targetsCount);
+          setTargetsOnlinePercent(Math.round(onlineCount / targetsCount));
         }
       },
     }

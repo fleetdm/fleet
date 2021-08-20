@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dispatch } from "redux";
 import moment from "moment";
 import FileSaver from "file-saver";
 import { filter, isEqual } from "lodash";
+import SockJS from "sockjs-client";
 
 // @ts-ignore
 import Fleet from "fleet";
@@ -12,7 +13,9 @@ import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
 import convertToCSV from "utilities/convert_to_csv";
-import { ICampaign } from "interfaces/campaign";
+import { BASE_URL, DEFAULT_CAMPAIGN, DEFAULT_CAMPAIGN_STATE } from "utilities/constants"; // @ts-ignore
+import local from "utilities/local"; // @ts-ignore
+import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
@@ -24,78 +27,65 @@ interface IRunQueryProps {
   baseClass: string;
   typedQueryBody: string;
   storedQuery: IQuery | undefined;
-  campaign: ICampaign | null;
   selectedTargets: ITarget[];
-  queryIsRunning: boolean;
-  setQueryIsRunning: (value: boolean) => void;
-  setCampaign: (value: ICampaign | null) => void;
   dispatch: Dispatch;
 }
-
-let runQueryInterval: any = null;
-let globalSocket: any = null;
-let previousSocketData: any = null;
-
-const QUERY_RESULTS_OPTIONS = {
-  FULL_SCREEN: "FULL_SCREEN",
-  SHRINKING: "SHRINKING",
-};
 
 const RunQuery = ({
   baseClass,
   typedQueryBody,
   storedQuery,
-  campaign,
   selectedTargets,
-  queryIsRunning,
-  setQueryIsRunning,
-  setCampaign,
   dispatch,
 }: IRunQueryProps) => {
   const [isReady, setIsReady] = useState<boolean>(false);
-  const [runQueryMilliseconds, setRunQueryMilliseconds] = useState<number>(0);
+  const [campaignState, setCampaignState] = useState<ICampaignState>(DEFAULT_CAMPAIGN_STATE);
   const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
 
-  const removeSocket = () => {
-    if (globalSocket) {
-      globalSocket.close();
-      globalSocket = null;
-      previousSocketData = null;
-    }
+  const ws = useRef(null);
+  const runQueryInterval = useRef<any>(null);
+  const globalSocket = useRef<any>(null);
+  const previousSocketData = useRef<any>(null);
 
-    return false;
+  const removeSocket = () => {
+    if (globalSocket.current) {
+      globalSocket.current.close();
+      globalSocket.current = null;
+      previousSocketData.current = null;
+    }
   };
 
-  const setupDistributedQuery = (socket: any) => {
-    globalSocket = socket;
+  const setupDistributedQuery = (socket: WebSocket | null) => {
+    globalSocket.current = socket;
     const update = () => {
-      setRunQueryMilliseconds(runQueryMilliseconds + 1000);
+      setCampaignState({
+        ...campaignState,
+        runQueryMilliseconds: campaignState.runQueryMilliseconds + 1000
+      });
     };
 
-    if (!runQueryInterval) {
-      runQueryInterval = setInterval(update, 1000);
+    if (!runQueryInterval.current) {
+      runQueryInterval.current = setInterval(update, 1000);
     }
-
-    return false;
   };
 
   const teardownDistributedQuery = () => {
     if (runQueryInterval) {
-      clearInterval(runQueryInterval);
-      runQueryInterval = null;
+      clearInterval(runQueryInterval.current);
+      runQueryInterval.current = null;
     }
 
-    setQueryIsRunning(false);
-    setRunQueryMilliseconds(0);
+    setCampaignState({
+      ...campaignState,
+      queryIsRunning: false,
+      runQueryMilliseconds: 0,
+    });
+    setIsReady(true);
     removeSocket();
-
-    return false;
   };
 
   const destroyCampaign = () => {
-    setCampaign(null);
-
-    return false;
+    setCampaignState(DEFAULT_CAMPAIGN_STATE);
   };
 
   const onRunQuery = debounce(async () => {
@@ -112,50 +102,16 @@ const RunQuery = ({
     }
 
     const selected = formatSelectedTargetsForApi(selectedTargets);
-
     removeSocket();
     destroyCampaign();
 
     try {
-      const { campaign: returnedCampaign } = await queryAPI.run({
+      const returnedCampaign = await queryAPI.run({
         query: sql,
         selected,
       });
 
-      Fleet.websockets.queries.run(returnedCampaign.id).then((socket: any) => {
-        setupDistributedQuery(socket);
-        setCampaign(returnedCampaign);
-        setQueryIsRunning(true);
-
-        socket.onmessage = ({ data }: any) => {
-          const socketData = JSON.parse(data);
-
-          if (previousSocketData && isEqual(socketData, previousSocketData)) {
-            return false;
-          }
-
-          previousSocketData = socketData;
-
-          const {
-            campaign: socketCampaign,
-            queryIsRunning: socketQueryIsRunning,
-          } = campaignHelpers.updateCampaignState(socketData)(
-            previousSocketData
-          );
-
-          socketCampaign && setCampaign(socketCampaign);
-          socketQueryIsRunning && setQueryIsRunning(socketQueryIsRunning);
-
-          if (
-            socketData.type === "status" &&
-            socketData.data.status === "finished"
-          ) {
-            return teardownDistributedQuery();
-          }
-
-          return false;
-        };
-      });
+      connectAndRunLiveQuery(returnedCampaign);
     } catch (campaignError) {
       if (campaignError === "resource already created") {
         dispatch(
@@ -169,13 +125,70 @@ const RunQuery = ({
       }
 
       dispatch(renderFlash("error", campaignError));
-      return false;
     }
   });
 
   useEffect(() => {
     onRunQuery();
+
+    return () => {
+      clearInterval(runQueryInterval.current);
+    }
   }, []);
+
+  const connectAndRunLiveQuery = (returnedCampaign: ICampaign) => {
+    let { current: websocket }: { current: WebSocket | null } = ws;
+      websocket = new SockJS(`${BASE_URL}/v1/fleet/results`, undefined, {});
+      websocket.onopen = () => {
+        setupDistributedQuery(websocket);
+        setCampaignState({
+          ...campaignState,
+          campaign: returnedCampaign,
+          queryIsRunning: true,
+        });
+
+        websocket?.send(
+          JSON.stringify({
+            type: "auth",
+            data: { token: local.getItem("auth_token") },
+          })
+        );
+        websocket?.send(
+          JSON.stringify({
+            type: "select_campaign",
+            data: { campaign_id: returnedCampaign.id },
+          })
+        );
+      };
+      
+      websocket.onmessage = ({ data }: { data: string }) => {
+        const socketData = JSON.parse(data);
+
+        if (previousSocketData.current && isEqual(socketData, previousSocketData.current)) {
+          return false;
+        }
+        
+        previousSocketData.current = socketData;
+
+        const {
+          campaign,
+          queryIsRunning,
+        } = campaignHelpers.updateCampaignState(socketData)(campaignState);
+        
+        setCampaignState({
+          ...campaignState,
+          campaign,
+          queryIsRunning,
+        });
+
+        if (
+          socketData.type === "status" &&
+          socketData.data.status === "finished"
+        ) {
+          return teardownDistributedQuery();
+        }
+      };
+  };
 
   const onStopQuery = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -186,11 +199,11 @@ const RunQuery = ({
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (!campaign) {
+    if (!campaignState.campaign) {
       return false;
     }
 
-    const { query_results: queryResults } = campaign;
+    const { query_results: queryResults } = campaignState.campaign;
 
     if (queryResults) {
       const csv = convertToCSV(queryResults, (fields: string[]) => {
@@ -208,18 +221,16 @@ const RunQuery = ({
 
       FileSaver.saveAs(file);
     }
-
-    return false;
   };
 
   const onExportErrorsResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (!campaign) {
+    if (!campaignState.campaign) {
       return false;
     }
 
-    const { errors } = campaign;
+    const { errors } = campaignState.campaign;
 
     if (errors) {
       const csv = convertToCSV(errors, (fields: string[]) => {
@@ -237,9 +248,9 @@ const RunQuery = ({
 
       FileSaver.saveAs(file);
     }
-
-    return false;
   };
+
+  const { campaign, queryIsRunning, runQueryMilliseconds } = campaignState;
 
   if (isReady) {
     return (
