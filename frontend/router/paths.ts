@@ -14,6 +14,7 @@ export default {
   PACK: (pack: IPack): string => {
     return `${URL_PREFIX}/packs/${pack.id}`;
   },
+  MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
   EDIT_QUERY: (query: IQuery): string => {
     return `${URL_PREFIX}/queries/${query.id}`;
   },
