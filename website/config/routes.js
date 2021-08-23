@@ -56,6 +56,7 @@ module.exports.routes = {
 
   // Convenience
   '/documentation':              '/docs',
+  '/install':                    '/get-started',
   '/company':                    '/company/about',
   '/support':                    '/company/contact',
   '/contact':                    '/company/contact',
