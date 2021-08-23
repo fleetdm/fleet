@@ -1127,10 +1127,13 @@ const mapStateToProps = (state, ownProps) => {
   console.log(queryParams);
 
   // TODO validate queryParams
-  const { policy_id: policyId, policy_response: policyResponse } = queryParams;
+  const policyId = queryParams?.policy_id;
+  const policyResponse = queryParams?.policy_response;
 
   // TODO wire API and remove mock data
-  const activePolicy = MOCK_DATA.find((el) => el.id === parseInt(policyId, 10));
+  const activePolicy = policyId
+    ? MOCK_DATA.find((el) => el.id === parseInt(policyId, 10))
+    : {};
 
   const { active_label: activeLabel, label_id: labelID } = params;
   const selectedFilters = [];
