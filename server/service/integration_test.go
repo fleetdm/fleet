@@ -661,3 +661,39 @@ func TestVulnerableSoftware(t *testing.T) {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 }
+
+func TestSubmitStatusLog(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	token := getTestAdminToken(t, server)
+
+	_, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1234",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	req := submitLogsRequest{
+		NodeKey: "1234",
+		LogType: "status",
+		Data:    nil,
+	}
+	res := submitLogsResponse{}
+	doJSONReq(t, req, "POST", server, "/api/v1/osquery/log", token, http.StatusOK, &res)
+
+	logString := buf.String()
+	assert.Equal(t, 1, strings.Count(logString, "\"ip_addr\""))
+	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
+}
