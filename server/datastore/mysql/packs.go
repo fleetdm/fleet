@@ -454,7 +454,7 @@ func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
 }
 
 func teamScheduleName(team *fleet.Team) string {
-	return fmt.Sprintf("Team schedule for: %s", team.Name)
+	return fmt.Sprintf("Team: %s", team.Name)
 }
 
 func teamSchedulePackType(team *fleet.Team) string {
