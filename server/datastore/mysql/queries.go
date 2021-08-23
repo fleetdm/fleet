@@ -49,6 +49,7 @@ func (d *Datastore) ApplyQueries(authorID uint, queries []*fleet.Query) (err err
 	if err != nil {
 		return errors.Wrap(err, "prepare ApplyQueries insert")
 	}
+	defer stmt.Close()
 
 	for _, q := range queries {
 		if q.Name == "" {
