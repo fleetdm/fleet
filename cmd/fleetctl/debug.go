@@ -358,10 +358,12 @@ the default context used if none is explicitly specified.`,
 			if err != nil {
 				return err
 			}
+			configContext := c.String("context")
 			if addr != "" {
 				cc.Address = addr
 				// when an address is explicitly provided, we don't use any of the
 				// config's context values.
+				configContext = "none - using provided address"
 				cc.TLSSkipVerify = false
 				cc.RootCA = ""
 			}
@@ -388,7 +390,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			}
 
 			// print a summary of the address and TLS context that is investigated
-			fmt.Fprintf(c.App.Writer, "Debugging connection to %s; Configuration context: %s; ", baseURL.Hostname(), c.String("context"))
+			fmt.Fprintf(c.App.Writer, "Debugging connection to %s; Configuration context: %s; ", baseURL.Hostname(), configContext)
 			rootCA := "(system)"
 			if cc.RootCA != "" {
 				rootCA = cc.RootCA
