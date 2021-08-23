@@ -726,6 +726,12 @@ func TestGlobalPolicies(t *testing.T) {
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, qr.ID, policiesResponse.Policies[0].QueryID)
 
+	singlePolicyResponse := getPolicyByIDResponse{}
+	singlePolicyURL := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policiesResponse.Policies[0].ID)
+	doJSONReq(t, nil, "GET", server, singlePolicyURL, token, http.StatusOK, &singlePolicyResponse)
+	assert.Equal(t, qr.ID, singlePolicyResponse.Policy.QueryID)
+	assert.Equal(t, qr.Name, singlePolicyResponse.Policy.QueryName)
+
 	listHostsURL := fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
 	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)

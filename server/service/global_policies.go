@@ -84,6 +84,51 @@ func (svc Service) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, err
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Get by id
+/////////////////////////////////////////////////////////////////////////////////
+
+type getPolicyByIDRequest struct {
+	PolicyID uint `url:"policy_id"`
+}
+
+type getPolicyByIDResponse struct {
+	Policy *fleet.Policy `json:"policy"`
+	Err    error         `json:"error,omitempty"`
+}
+
+func (r getPolicyByIDResponse) error() error { return r.Err }
+
+func makeGetPolicyByIDEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
+	return newServer(
+		makeAuthenticatedServiceEndpoint(svc, getPolicyByIDEndpoint),
+		makeDecoder(getPolicyByIDRequest{}),
+		opts,
+	)
+}
+
+func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getPolicyByIDRequest)
+	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
+	if err != nil {
+		return getPolicyByIDResponse{Err: err}, nil
+	}
+	return getPolicyByIDResponse{Policy: policy}, nil
+}
+
+func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	policy, err := svc.ds.Policy(policyID)
+	if err != nil {
+		return nil, err
+	}
+
+	return policy, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Delete
 /////////////////////////////////////////////////////////////////////////////////
 

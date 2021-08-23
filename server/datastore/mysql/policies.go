@@ -31,6 +31,7 @@ func (ds *Datastore) Policy(id uint) (*fleet.Policy, error) {
 		`SELECT p.*, q.name as query_name FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE p.id=?`,
 		id,
 	)
+	// TODO: ADD COUNTS!!
 	if err != nil {
 		return nil, errors.Wrap(err, "getting policy")
 	}
@@ -73,7 +74,12 @@ func (ds *Datastore) ListGlobalPolicies() ([]*fleet.Policy, error) {
 	var policies []*fleet.Policy
 	err := ds.db.Select(
 		&policies,
-		`SELECT p.*, q.name as query_name FROM policies p JOIN queries q ON (p.query_id=q.id)`,
+		`SELECT 
+       		p.*, 
+       		q.name as query_name, 
+       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count, 
+       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count 
+		FROM policies p JOIN queries q ON (p.query_id=q.id)`,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing policies")

@@ -243,10 +243,6 @@ func TestSearchLabelsLimit(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
 
-	if db.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
-
 	all := &fleet.LabelSpec{
 		Name:      "All Hosts",
 		LabelType: fleet.LabelTypeBuiltIn,
@@ -543,10 +539,6 @@ func TestListUniqueHostsInLabels(t *testing.T) {
 func TestChangeLabelDetails(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
-
-	if db.Name() == "inmem" {
-		t.Skip("inmem is being deprecated")
-	}
 
 	label := fleet.LabelSpec{
 		ID:          1,

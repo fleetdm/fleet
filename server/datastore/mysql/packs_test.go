@@ -308,10 +308,6 @@ func TestListPacksForHost(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is deprecated")
-	}
-
 	mockClock := clock.NewMockClock()
 
 	l1 := &fleet.LabelSpec{

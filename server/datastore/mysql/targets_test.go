@@ -17,10 +17,6 @@ func TestCountHostsInTargets(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
-
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
@@ -168,10 +164,6 @@ func TestHostStatus(t *testing.T) {
 
 	test.AddAllHostsLabel(t, ds)
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
-
 	mockClock := clock.NewMockClock()
 
 	h, err := ds.EnrollHost("1", "key1", nil, 0)
@@ -232,10 +224,6 @@ func TestHostStatus(t *testing.T) {
 func TestHostIDsInTargets(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
-
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}

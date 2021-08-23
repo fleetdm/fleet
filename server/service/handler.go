@@ -687,6 +687,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 
 	handle("POST", "/api/v1/fleet/global/policies", makeGlobalPolicyEndpoint(svc, opts), "add_to_global_policy", r)
 	handle("GET", "/api/v1/fleet/global/policies", makeListGlobalPoliciesEndpoint(svc, opts), "list_global_policies", r)
+	handle("GET", "/api/v1/fleet/global/policies/{policy_id}", makeGetPolicyByIDEndpoint(svc, opts), "get_global_policy_by_id", r)
 	handle("POST", "/api/v1/fleet/global/policies/delete", makeDeleteGlobalPoliciesEndpoint(svc, opts), "delete_global_policies", r)
 }
 

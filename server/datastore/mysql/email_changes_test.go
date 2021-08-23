@@ -14,9 +14,6 @@ func TestChangeEmail(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
 	user := &fleet.User{
 		Password:   []byte("foobar"),
 		Email:      "bob@bob.com",

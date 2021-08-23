@@ -38,7 +38,7 @@ func Up_20210819143446(tx *sql.Tx) error {
 		);
 	`
 	policyMembershipView := `
-		CREATE OR REPLACE VIEW policy_membership AS select * from policy_membership_history where id in (select max(id) as max_id from policy_membership_history group by host_id);
+		CREATE OR REPLACE VIEW policy_membership AS select * from policy_membership_history where id in (select max(id) as id from policy_membership_history group by host_id, policy_id);
 	`
 	if _, err := tx.Exec(policiesTable); err != nil {
 		return errors.Wrap(err, "create policies table")

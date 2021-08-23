@@ -12,10 +12,6 @@ func TestMigrationStatus(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
-
 	require.Nil(t, ds.Drop())
 
 	status, err := ds.MigrationStatus()

@@ -105,9 +105,34 @@ func TestPolicyMembershipView(t *testing.T) {
 	assert.Equal(t, "query1", p.QueryName)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(host1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(host1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(host1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now()))
+
 	require.NoError(t, ds.RecordPolicyQueryExecutions(host2, map[uint]*bool{p.ID: nil}, time.Now()))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(host2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(host2, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now()))
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(host2, map[uint]*bool{p2.ID: nil}, time.Now()))
+
+	policies, err := ds.ListGlobalPolicies()
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+
+	assert.Equal(t, uint(2), policies[0].PassingHostCount)
+	assert.Equal(t, uint(0), policies[0].FailingHostCount)
+
+	assert.Equal(t, uint(0), policies[1].PassingHostCount)
+	assert.Equal(t, uint(0), policies[1].FailingHostCount)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(host1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(host2, map[uint]*bool{p2.ID: ptr.Bool(false)}, time.Now()))
+
+	policies, err = ds.ListGlobalPolicies()
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+
+	assert.Equal(t, uint(1), policies[0].PassingHostCount)
+	assert.Equal(t, uint(1), policies[0].FailingHostCount)
+
+	assert.Equal(t, uint(0), policies[1].PassingHostCount)
+	assert.Equal(t, uint(1), policies[1].FailingHostCount)
 }

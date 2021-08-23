@@ -502,7 +502,7 @@ func TestMigrations(t *testing.T) {
 	cmd := exec.Command(
 		"docker-compose", "exec", "-T", "mysql_test",
 		// Command run inside container
-		"mysqldump", "-u"+testUsername, "-p"+testPassword, "schemadb", "--compact", "--skip-comments",
+		"mysqldump", "-u"+testUsername, "-p"+testPassword, "TestMigrations", "--compact", "--skip-comments",
 	)
 	var stdoutBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
