@@ -12,10 +12,7 @@ import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
 import convertToCSV from "utilities/convert_to_csv";
-import {
-  BASE_URL,
-  DEFAULT_CAMPAIGN_STATE,
-} from "utilities/constants"; // @ts-ignore
+import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants"; // @ts-ignore
 import local from "utilities/local"; // @ts-ignore
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
@@ -122,17 +119,20 @@ const RunQuery = ({
       if (data === previousSocketData.current) {
         return false;
       }
-      
+
       previousSocketData.current = data;
       const socketData = JSON.parse(data);
       setCampaignState((prevCampaignState) => {
         return {
           ...prevCampaignState,
-          ...campaignHelpers.updateCampaignState(socketData)(prevCampaignState)
+          ...campaignHelpers.updateCampaignState(socketData)(prevCampaignState),
         };
       });
 
-      if (socketData.type === "status" && socketData.data.status === "finished") {
+      if (
+        socketData.type === "status" &&
+        socketData.data.status === "finished"
+      ) {
         return teardownDistributedQuery();
       }
     };
