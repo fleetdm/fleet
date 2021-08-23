@@ -483,7 +483,7 @@ func TestMigrations(t *testing.T) {
 	)
 	require.NoError(t, err)
 	defer db.Close()
-	_, err = db.Exec("DROP DATABASE IF EXISTS schemadb; CREATE DATABASE schemadb;")
+	_, err = db.Exec("DROP DATABASE IF EXISTS TestMigrations; CREATE DATABASE TestMigrations;")
 	require.NoError(t, err)
 
 	// Create a datastore client in order to run migrations as usual
@@ -491,7 +491,7 @@ func TestMigrations(t *testing.T) {
 		Username: testUsername,
 		Password: testPassword,
 		Address:  testAddress,
-		Database: "schemadb",
+		Database: "TestMigrations",
 	}
 	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
 	require.NoError(t, err)

@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
@@ -57,8 +56,8 @@ func (ds *Datastore) RecordPolicyQueryExecutions(host *fleet.Host, results map[u
 	}
 
 	query := fmt.Sprintf(
-		`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
-				VALUES %s ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`,
+		`INSERT INTO policy_membership_history (updated_at, policy_id, host_id, passes)
+				VALUES %s`,
 		strings.Join(bindvars, ","),
 	)
 
@@ -96,24 +95,19 @@ func (ds *Datastore) DeleteGlobalPolicies(ids []uint) ([]uint, error) {
 }
 
 func (ds *Datastore) PolicyQueriesForHost(_ *fleet.Host) (map[string]string, error) {
-	var rows *sql.Rows
-	var err error
-	rows, err = ds.db.Query(`SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id)`)
-	if err != nil && err != sql.ErrNoRows {
+	var rows []struct {
+		id    string `db:"id"`
+		query string `db:"query"`
+	}
+	err := ds.db.Select(&rows, `SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id)`)
+	if err != nil {
 		return nil, errors.Wrap(err, "selecting policies for host")
 	}
 
-	defer rows.Close()
 	results := map[string]string{}
 
-	for rows.Next() {
-		var id, query string
-
-		if err = rows.Scan(&id, &query); err != nil {
-			return nil, errors.Wrap(err, "scanning policy queries for host")
-		}
-
-		results[id] = query
+	for _, row := range rows {
+		results[row.id] = row.query
 	}
 
 	return results, nil

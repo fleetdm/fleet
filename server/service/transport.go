@@ -202,10 +202,6 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		pid := uint(id)
 		hopt.PolicyIDFilter = &pid
-
-		if hopt.TeamFilter != nil || hopt.StatusFilter != "" {
-			return hopt, errors.New("team_id or status cannot be specified alongside policy_id")
-		}
 	}
 
 	policy_response := r.URL.Query().Get("policy_response")
