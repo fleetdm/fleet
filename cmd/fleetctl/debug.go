@@ -350,6 +350,17 @@ the default context used if none is explicitly specified.`,
 					return errors.New("too many arguments")
 				}
 				addr = c.Args().First()
+
+				// when an address is provided, the --config and --context flags
+				// cannot be set.
+				if c.IsSet("config") {
+					return errors.New("the --config flag cannot be set when an <address> is provided")
+				}
+				if c.IsSet("context") {
+					return errors.New("the --context flag cannot be set when an <address> is provided")
+				}
+			} else if cert := getFleetCertificate(c); cert != "" {
+				return errors.New("the --fleet-certificate flag can only be set when an <address> is provided")
 			}
 
 			// ensure there is an address to debug (either from the config's context,
@@ -361,6 +372,7 @@ the default context used if none is explicitly specified.`,
 			configContext := c.String("context")
 			if addr != "" {
 				cc.Address = addr
+
 				// when an address is explicitly provided, we don't use any of the
 				// config's context values.
 				configContext = "none - using provided address"
@@ -377,8 +389,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 				cc.Address = "https://" + cc.Address
 			}
 
-			certPath := getFleetCertificate(c)
-			if certPath != "" {
+			if certPath := getFleetCertificate(c); certPath != "" {
 				// if a certificate is provided, use it as root CA
 				cc.RootCA = certPath
 				cc.TLSSkipVerify = false
