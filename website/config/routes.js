@@ -18,7 +18,6 @@ module.exports.routes = {
   'GET /get-started':        { action:   'view-get-started' },
   'GET /pricing':            { action: 'view-pricing'},
 
-  'GET /install':            { action:   'view-get-started' },
   '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   '/company/about':          '/handbook', // FUTURE: brief "about" page explaining the origins of the company
 
