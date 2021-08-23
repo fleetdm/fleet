@@ -30,6 +30,16 @@ func Up_20210819131107(tx *sql.Tx) error {
 		}
 	}
 
+	// Clear any orphan software and host_software
+	_, err = tx.Exec(`DELETE FROM host_software WHERE NOT EXISTS (select 1 from hosts h where h.id=host_software.host_id)`)
+	if err != nil {
+		return errors.Wrap(err, "clearing orphan host_software")
+	}
+	_, err = tx.Exec(`DELETE FROM software WHERE NOT EXISTS (select 1 from host_software hs where hs.software_id=software.id)`)
+	if err != nil {
+		return errors.Wrap(err, "clearing orphan software")
+	}
+
 	if _, err := tx.Exec(`
 		ALTER TABLE host_software
 		ADD FOREIGN KEY host_software_hosts_fk(host_id) REFERENCES hosts (id) ON DELETE CASCADE,

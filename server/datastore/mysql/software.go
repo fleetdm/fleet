@@ -213,9 +213,9 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 	sql := `
 		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe, 
 			IF(
-				JSON_ARRAYAGG(scv.cve) = JSON_ARRAYAGG(null), 
+				COUNT(scv.cve) = 0, 
 				null, 
-				JSON_ARRAYAGG(
+				GROUP_CONCAT(
 					JSON_OBJECT(
 						"cve", scv.cve, 
 						"details_link", CONCAT('https://nvd.nist.gov/vuln/detail/', scv.cve)
