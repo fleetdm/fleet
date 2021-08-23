@@ -697,7 +697,7 @@ export class HostDetailsPage extends Component {
                 </span>
               </div>
               {isBasicTier && hostTeam()}
-              {titleData.percent_disk_space_avaiable && (
+              {titleData.percent_disk_space_available && (
                 <div className="info__item info__item--title">
                   <span className="info__header">Disk Space</span>
                   <span className="info__data">
@@ -705,11 +705,12 @@ export class HostDetailsPage extends Component {
                       <div
                         className="info__disk-space-used"
                         style={{
-                          width: titleData.percent_disk_space_avaiable + "%",
+                          width:
+                            100 - titleData.percent_disk_space_available + "%",
                         }}
                       ></div>
                     </div>
-                    {titleData.gigs_disk_space_availabe} GB available
+                    {titleData.gigs_disk_space_available} GB available
                   </span>
                 </div>
               )}
