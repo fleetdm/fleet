@@ -1,13 +1,24 @@
 package mysql
 
 import (
-	"os"
+	"bytes"
+	"database/sql"
+	"fmt"
+	"io/ioutil"
+	"os/exec"
+	"path"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/VividCortex/mysqlerr"
+	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -15,14 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestMain(m *testing.M) {
-	if _, ok := os.LookupEnv("MYSQL_TEST"); ok {
-		// Initialize the schema once for the entire test run.
-		initializeSchemaOrPanic()
-	}
-	os.Exit(m.Run())
-}
 
 func TestSanitizeColumn(t *testing.T) {
 	t.Parallel()
@@ -470,4 +473,112 @@ func TestWhereOmitIDs(t *testing.T) {
 			assert.Equal(t, tt.expected, sql)
 		})
 	}
+}
+
+func TestMigrations(t *testing.T) {
+	// Create the database (must use raw MySQL client to do this)
+	db, err := sql.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+	)
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec("DROP DATABASE IF EXISTS schemadb; CREATE DATABASE schemadb;")
+	require.NoError(t, err)
+
+	// Create a datastore client in order to run migrations as usual
+	config := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Address:  testAddress,
+		Database: "schemadb",
+	}
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	require.NoError(t, err)
+	defer ds.Close()
+	require.NoError(t, ds.MigrateTables())
+
+	// Dump schema to dumpfile
+	cmd := exec.Command(
+		"docker-compose", "exec", "-T", "mysql_test",
+		// Command run inside container
+		"mysqldump", "-u"+testUsername, "-p"+testPassword, "schemadb", "--compact", "--skip-comments",
+	)
+	var stdoutBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+	require.NoError(t, cmd.Run())
+
+	require.NoError(t, err)
+	_, filename, _, _ := runtime.Caller(0)
+	base := path.Dir(filename)
+	require.NoError(t, ioutil.WriteFile(path.Join(base, "schema.sql"), stdoutBuf.Bytes(), 0o655))
+}
+
+func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
+	// Create the database (must use raw MySQL client to do this)
+	db, err := sql.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+	)
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec("DROP DATABASE IF EXISTS Test20210819131107_AddCascadeToHostSoftware; CREATE DATABASE Test20210819131107_AddCascadeToHostSoftware;")
+	require.NoError(t, err)
+
+	// Create a datastore client in order to run migrations as usual
+	config := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Address:  testAddress,
+		Database: "Test20210819131107_AddCascadeToHostSoftware",
+	}
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	require.NoError(t, err)
+	defer ds.Close()
+
+	for {
+		version, err := tables.MigrationClient.GetDBVersion(ds.db.DB)
+		require.NoError(t, err)
+
+		// break right before the the constraint migration
+		if version == 20210818182258 {
+			break
+		}
+		require.NoError(t, tables.MigrationClient.UpByOne(ds.db.DB, ""))
+	}
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	soft1 := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		},
+	}
+	host1.HostSoftware = soft1
+	soft2 := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		},
+	}
+	host2.HostSoftware = soft2
+	host2.Modified = true
+
+	require.NoError(t, ds.SaveHostSoftware(host1))
+	require.NoError(t, ds.SaveHostSoftware(host2))
+
+	require.NoError(t, ds.DeleteHost(host1.ID))
+
+	require.NoError(t, tables.MigrationClient.UpByOne(ds.db.DB, ""))
+
+	// Make sure we don't delete more than we need
+	hostCheck, err := ds.Host(host2.ID)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(hostCheck))
+	require.Len(t, hostCheck.Software, 3)
 }

@@ -5,7 +5,7 @@
 
   <p>This paragraph, and the content above it, are just here for reference.  The HTML generated from markdown is below.</p>
 
-  <%- partial('../../partials/built-from-markdown/handbook/README.ejs') %>
+  <%- partial(path.relative(path.dirname(__filename), path.resolve(sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
 
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

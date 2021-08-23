@@ -18,6 +18,8 @@ sudo npm install -g fleetctl
 sudo fleetctl preview
 ```
 
+> Windows users can omit `sudo`.
+
 The Fleet UI is now available at http://localhost:1337.
 
 #### Now what?

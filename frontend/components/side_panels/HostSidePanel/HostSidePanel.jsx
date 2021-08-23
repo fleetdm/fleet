@@ -8,6 +8,7 @@ import labelInterface from "interfaces/label";
 import PanelGroup from "components/side_panels/HostSidePanel/PanelGroup";
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
 import statusLabelsInterface from "interfaces/status_labels";
+import PlusIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 const baseClass = "host-side-panel";
 
@@ -63,15 +64,29 @@ class HostSidePanel extends Component {
           type="all-hosts"
         />
 
-        <h3>Operating Systems</h3>
+        <h3>Operating systems</h3>
         <PanelGroup
           groupItems={hostPlatformLabels}
           onLabelClick={onLabelClick}
           selectedFilter={selectedFilter}
           type="platform"
         />
-
-        <h3 className="title">Labels</h3>
+        <div className="title">
+          <div>
+            <h3>Labels</h3>
+          </div>
+          <div>
+            {canAddNewLabel && (
+              <Button
+                variant="text-icon"
+                onClick={onAddLabelClick}
+                className={`${baseClass}__add-label-btn`}
+              >
+                Add label <img src={PlusIcon} alt="Add label icon" />
+              </Button>
+            )}
+          </div>
+        </div>
         <div
           className={`${baseClass}__panel-group-item ${baseClass}__panel-group-item--filter`}
         >
@@ -89,15 +104,6 @@ class HostSidePanel extends Component {
           selectedFilter={selectedFilter}
           type="label"
         />
-        {canAddNewLabel ? (
-          <Button
-            variant="grey"
-            onClick={onAddLabelClick}
-            className={`${baseClass}__add-label-btn`}
-          >
-            Add new label
-          </Button>
-        ) : null}
       </SecondarySidePanelContainer>
     );
   }

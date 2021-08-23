@@ -11,6 +11,13 @@ $base-class: "panel-group-item";
   margin: 2px 0;
   border-radius: 8px;
 
+  img {
+    width: 16px;
+    height: 16px;
+    margin-right: $pad-xsmall;
+    vertical-align: sub;
+  }
+
   &.#{$base-class}--selected {
     font-weight: $bold;
     background-color: $ui-vibrant-blue-25;

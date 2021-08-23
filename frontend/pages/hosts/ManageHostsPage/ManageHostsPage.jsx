@@ -17,7 +17,6 @@ import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
 import osqueryTableInterface from "interfaces/osquery_table";
 import statusLabelsInterface from "interfaces/status_labels";
-import enrollSecretInterface from "interfaces/enroll_secret";
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
@@ -41,7 +40,7 @@ import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
-import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x12@2x.png";
+import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 
@@ -103,7 +102,6 @@ export class ManageHostsPage extends PureComponent {
     routeParams: PropTypes.objectOf(
       PropTypes.oneOfType([PropTypes.string, PropTypes.number])
     ),
-    enrollSecret: enrollSecretInterface,
     selectedFilters: PropTypes.arrayOf(PropTypes.string),
     selectedLabel: labelInterface,
     selectedTeam: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
@@ -221,12 +219,6 @@ export class ManageHostsPage extends PureComponent {
     evt.preventDefault();
     const { toggleAddHostModal } = this;
     toggleAddHostModal();
-  };
-
-  // The onChange method below is for the dropdown used in modals
-  onChangeTeam = (team) => {
-    const { dispatch } = this.props;
-    dispatch(teamActions.getEnrollSecrets(team));
   };
 
   // NOTE: this is called once on the initial rendering. The initial render of
@@ -707,7 +699,7 @@ export class ManageHostsPage extends PureComponent {
   renderAddHostModal = () => {
     const { toggleAddHostModal, onChangeTeam } = this;
     const { showAddHostModal } = this.state;
-    const { enrollSecret, config, canAddNewHosts, teams } = this.props;
+    const { config, currentUser, canAddNewHosts, teams } = this.props;
 
     if (!canAddNewHosts || !showAddHostModal) {
       return null;
@@ -723,8 +715,8 @@ export class ManageHostsPage extends PureComponent {
           teams={teams}
           onChangeTeam={onChangeTeam}
           onReturnToApp={toggleAddHostModal}
-          enrollSecret={enrollSecret}
           config={config}
+          currentUser={currentUser}
         />
       </Modal>
     );
@@ -1056,7 +1048,6 @@ const mapStateToProps = (state, ownProps) => {
 
   const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
-  const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
 
   const { loading: loadingHosts } = state.entities.hosts;
@@ -1090,7 +1081,6 @@ const mapStateToProps = (state, ownProps) => {
     labelErrors,
     labels,
     loadingLabels,
-    enrollSecret,
     selectedLabel,
     selectedOsqueryTable,
     statusLabels,

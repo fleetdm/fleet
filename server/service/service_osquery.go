@@ -40,8 +40,6 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logIPs(ctx)
-
 	if nodeKey == "" {
 		return nil, osqueryError{
 			message:     "authentication error: missing node key",
@@ -396,13 +394,13 @@ func (svc *Service) hostDetailQueries(host fleet.Host) (map[string]string, error
 	}
 
 	// Get additional queries
-	if config.AdditionalQueries == nil {
+	if config.HostSettings.AdditionalQueries == nil {
 		// No additional queries set
 		return queries, nil
 	}
 
 	var additionalQueries map[string]string
-	if err := json.Unmarshal(*config.AdditionalQueries, &additionalQueries); err != nil {
+	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
 		return nil, osqueryError{message: "unmarshal additional queries: " + err.Error()}
 	}
 

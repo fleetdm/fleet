@@ -1,3 +1,41 @@
+## Fleet 4.2.2 (Aug 18, 2021)
+
+* Add a new built in label "All Linux" to target all hosts that run any linux flavor.
+
+* Allow finer grained configuration of the vulnerability processing capabilities.
+
+* Fix performance issues when updating pack contents.
+
+* Fix a build issue that caused external network access to panic in certain Linux distros (Ubuntu).
+
+* Fix rendering of checkboxes in UI when modals appear.
+
+* Orbit: sync critical file writes to disk.
+
+* Add "-o" flag to fleetctl convert command to ensure consistent output rather than relying on shell redirection (this was causing issues with file encodings).
+
+* Fix table column wrapping for manage queries page.
+
+* Fix wrapping in Label pills.
+
+* Side panels in UI have a fresher look, Teams/Roles UI greyed out conditionally.
+
+* Improved sorting in UI tables.
+
+* Improve detection of CentOS in label membership.
+
+## Fleet 4.2.1 (Aug 14, 2021)
+
+* Fix a database issue with MariaDB 10.5.4.
+
+* Display updated team name after edit.
+
+* When a connection from a live query websocket is closed, Fleet now timeouts the receive and handles the different cases correctly to not hold the connection to Redis.
+
+* Read live query results from Redis in a thread safe manner.
+
+* Allow observers and maintainers to refetch a host in a team they belong to.
+
 ## Fleet 4.2.0 (Aug 11, 2021)
 
 * Add ability to simultaneously filter hosts by status (`online`, `offline`, `new`, `mia`) and by label on the **Hosts** page.

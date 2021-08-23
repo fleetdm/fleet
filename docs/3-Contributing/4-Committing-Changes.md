@@ -35,7 +35,7 @@ There are two ways to write CHANGELOG files:
 1. Having an individual responsible for writing the changes as part of the release process.
 2. Writing the changelog collaborately and whoever creates the release just collects the text and organizes the information rather than generating it.
 
-Fleet is currently doing 1. but if you are reading this it means we are already going with 2. In order to do so, we will start using the concept of changes files.
+Fleet is doing 2, using the concept of changes files.
 
 #### What is it?
 
@@ -55,7 +55,7 @@ As part of the release process, whoever is cutting the release will fold in the 
 
 As it's shown in the example above, the exact contents of the file should follow as much as possible the format that the entry will have in the CHANGELOG file. So the job of the person tagging the release is just copy and paste.
 
-All grammar checks and corrections should happen as part of the PR review. 
+All grammar checks and corrections should happen as part of the PR review.
 
 #### What does not need a changes file?
 

@@ -29,21 +29,15 @@ func (r setupResponse) error() error { return r.Err }
 
 func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		var (
-			admin         *fleet.User
-			config        *fleet.AppConfig
-			configPayload fleet.AppConfigPayload
-			err           error
-		)
 		req := request.(setupRequest)
+		config := &fleet.AppConfig{}
 		if req.OrgInfo != nil {
-			configPayload.OrgInfo = req.OrgInfo
+			config.OrgInfo = *req.OrgInfo
 		}
-		configPayload.ServerSettings = &fleet.ServerSettings{}
 		if req.ServerURL != nil {
-			configPayload.ServerSettings.ServerURL = req.ServerURL
+			config.ServerSettings.ServerURL = *req.ServerURL
 		}
-		config, err = svc.NewAppConfig(ctx, configPayload)
+		config, err := svc.NewAppConfig(ctx, *config)
 		if err != nil {
 			return setupResponse{Err: err}, nil
 		}
@@ -65,7 +59,7 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 		}
 		// Make the user an admin
 		adminPayload.GlobalRole = ptr.String(fleet.RoleAdmin)
-		admin, err = svc.CreateInitialUser(ctx, adminPayload)
+		admin, err := svc.CreateInitialUser(ctx, adminPayload)
 		if err != nil {
 			return setupResponse{Err: err}, nil
 		}
@@ -79,12 +73,9 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 			token = nil
 		}
 		return setupResponse{
-			Admin: admin,
-			OrgInfo: &fleet.OrgInfo{
-				OrgName:    &config.OrgName,
-				OrgLogoURL: &config.OrgLogoURL,
-			},
-			ServerURL: &config.ServerURL,
+			Admin:     admin,
+			OrgInfo:   &config.OrgInfo,
+			ServerURL: req.ServerURL,
 			Token:     token,
 		}, nil
 	}

@@ -23,7 +23,7 @@ builds:
     goarch:
       - amd64
     flags:
-      - -tags=full,fts5
+      - -tags=full,fts5,netgo
       - -trimpath
     ldflags:
       - -extldflags "-static"

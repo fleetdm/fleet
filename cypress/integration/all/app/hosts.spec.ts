@@ -19,17 +19,18 @@ describe("Hosts page", () => {
       },
     },
     () => {
-      cy.visit("/hosts/manage");
+      cy.visit("/");
 
       cy.contains("button", /add new host/i).click();
 
+      cy.get('a[href*="showSecret"]').click();
       cy.contains("a", /download/i)
         .first()
         .click();
 
-      cy.get('a[href*="showSecret"]').click();
-
       // Assert enroll secret downloaded matches the one displayed
+      // NOTE: This test often fails when the Cypress downloads folder was not cleared properly
+      // before each test run (seems to be related to issues with Cypress trashAssetsBeforeRun)
       cy.readFile(path.join(Cypress.config("downloadsFolder"), "secret.txt"), {
         timeout: 5000,
       }).then((contents) => {
@@ -40,7 +41,7 @@ describe("Hosts page", () => {
       // testing, but may vary by environment).
       cy.waitUntil(
         () => {
-          cy.visit("/hosts/manage");
+          cy.visit("/");
           return Cypress.$('button[title="Online"]').length > 0;
         },
         { timeout: 30000, interval: 1000 }

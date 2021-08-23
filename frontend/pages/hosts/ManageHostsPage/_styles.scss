@@ -56,12 +56,14 @@
     margin-top: $pad-medium;
 
     .title {
+      display: flex;
+      align-items: center;
       span {
         font-size: $x-small;
         font-weight: $bold;
       }
       button {
-        margin-left: 12px;
+        margin-left: $pad-small;
         padding: 0;
         height: auto;
 
@@ -178,7 +180,7 @@
           margin-top: 0 !important;
         }
       }
-      
+
       .Select-multi-value-wrapper {
         width: max-content; // move select arrow
         height: 20px;

@@ -24,7 +24,7 @@ interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick: any;
   onEditScheduledQueryClick: any;
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
-  toggleScheduleEditorModal: any;
+  toggleScheduleEditorModal: () => void;
   teamId: number;
 }
 interface IRootState {
@@ -137,8 +137,9 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search"
         searchable={false}
+        disablePagination
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
-        primarySelectActionButtonVariant="text-link"
+        primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="close"
         primarySelectActionButtonText={"Remove"}
         emptyComponent={NoScheduledQueries}

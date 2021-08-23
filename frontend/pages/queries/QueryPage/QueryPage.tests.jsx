@@ -15,7 +15,7 @@ import {
   hostStub,
   queryStub,
   labelStub,
-  userStub,
+  adminUserStub,
   configStub,
 } from "test/stubs";
 
@@ -62,7 +62,7 @@ describe("QueryPage - component", () => {
     // THIS WAS ADDED 5/24, not sure if it's correct
     auth: {
       user: {
-        ...userStub,
+        ...adminUserStub,
       },
     },
   };
@@ -229,7 +229,7 @@ describe("QueryPage - component", () => {
         },
       },
       auth: {
-        user: userStub,
+        user: adminUserStub,
       },
     });
     const page = mount(
@@ -280,7 +280,7 @@ describe("QueryPage - component", () => {
         query: { query: "select * from users" },
         selectedOsqueryTable: defaultSelectedOsqueryTable,
         selectedTargets: [hostStub],
-        currentUser: userStub,
+        currentUser: adminUserStub,
       };
       const Page = mount(<QueryPage {...props} />);
       const PageNode = Page.instance();
@@ -324,7 +324,7 @@ describe("QueryPage - component", () => {
           dispatch={noop}
           query={queryStub}
           selectedOsqueryTable={defaultSelectedOsqueryTable}
-          currentUser={userStub}
+          currentUser={adminUserStub}
         />
       );
       const filename = "query_results.csv";
@@ -369,7 +369,7 @@ describe("QueryPage - component", () => {
           dispatch={noop}
           query={queryStub}
           selectedOsqueryTable={defaultSelectedOsqueryTable}
-          currentUser={userStub}
+          currentUser={adminUserStub}
         />
       );
       Page.setState({ campaign });

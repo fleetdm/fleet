@@ -14,7 +14,7 @@ describe("Core tier - Observer user", () => {
 
   it("Can perform the appropriate core global observer actions", () => {
     cy.login("oliver@organization.com", "user123#");
-    cy.visit("/hosts/manage");
+    cy.visit("/");
 
     // Ensure page is loaded
     cy.contains("All hosts");
@@ -33,7 +33,7 @@ describe("Core tier - Observer user", () => {
     cy.visit("/hosts/manage");
     cy.findByText(/teams/i).should("not.exist");
     cy.contains("button", /add new host/i).should("not.exist");
-    cy.contains("button", /add new label/i).should("not.exist");
+    cy.contains("button", /add label/i).should("not.exist");
 
     // Host details page: No team UI, cannot delete or query
     cy.get("tbody").within(() => {
@@ -78,5 +78,13 @@ describe("Core tier - Observer user", () => {
     cy.findByText(/show sql/i).click();
     cy.get(".target-select").should("not.exist");
     cy.findByRole("button", { name: /run/i }).should("not.exist");
+
+    // On the Profile page, they should…
+    // See Observer in Role section, and no Team section
+    cy.visit("/profile");
+    cy.findByText(/teams/i).should("not.exist");
+    cy.findByText("Role")
+      .next()
+      .contains(/observer/i);
   });
 });
