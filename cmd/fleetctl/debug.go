@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -18,7 +20,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/fleetdm/fleet/v4/server/service"
 )
 
 func debugCommand() *cli.Command {
@@ -340,7 +341,6 @@ the default context used if none is explicitly specified.`,
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
-			debugFlag(),
 			fleetCertificateFlag(),
 		},
 		Action: func(c *cli.Context) error {
@@ -352,13 +352,18 @@ the default context used if none is explicitly specified.`,
 				addr = c.Args().First()
 			}
 
-			// ensure there is an address to debug
+			// ensure there is an address to debug (either from the config's context,
+			// or explicit)
 			cc, err := clientConfigFromCLI(c)
 			if err != nil {
 				return err
 			}
 			if addr != "" {
 				cc.Address = addr
+				// when an address is explicitly provided, we don't use any of the
+				// config's context values.
+				cc.TLSSkipVerify = false
+				cc.RootCA = ""
 			}
 			if cc.Address == "" {
 				return errors.New(`set the Fleet API address with: fleetctl config set --address https://localhost:8080
@@ -370,13 +375,19 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 				cc.Address = "https://" + cc.Address
 			}
 
-			fleet, err := unauthenticatedClientFromConfig(cc, getDebug(c))
+			certPath := getFleetCertificate(c)
+			if certPath != "" {
+				// if a certificate is provided, use it as root CA
+				cc.RootCA = certPath
+				cc.TLSSkipVerify = false
+			}
+
+			cli, baseURL, err := rawHTTPClientFromConfig(cc)
 			if err != nil {
 				return err
 			}
 
 			// print a summary of the address and TLS context that is investigated
-			baseURL := fleet.BaseURL()
 			fmt.Fprintf(c.App.Writer, "Debugging connection to %s; Configuration context: %s; ", baseURL.Hostname(), c.String("context"))
 			rootCA := "(system)"
 			if cc.RootCA != "" {
@@ -413,7 +424,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			// Check that the server responds with expected responses (by
 			// making a POST to /api/v1/osquery/enroll with an invalid
 			// secret).
-			if err := checkAPIEndpoint(c.Context, timeoutPerCheck, fleet); err != nil {
+			if err := checkAPIEndpoint(c.Context, timeoutPerCheck, baseURL, cli); err != nil {
 				return errors.Wrap(err, "Fail: agent API endpoint")
 			}
 			fmt.Fprintln(c.App.Writer, "Success: agent API endpoints are available.")
@@ -450,20 +461,36 @@ func dialHostPort(ctx context.Context, timeout time.Duration, addr string) error
 	return err
 }
 
-func checkAPIEndpoint(ctx context.Context, timeout time.Duration, client *service.Client) error {
+func checkAPIEndpoint(ctx context.Context, timeout time.Duration, baseURL *url.URL, client *http.Client) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	// make an enroll request with a deliberately invalid secret,
+	// to see if we get the expected error json payload.
 	var enrollRes struct {
 		Error       string `json:"error"`
 		NodeInvalid bool   `json:"node_invalid"`
 	}
-	// make an enroll request with a deliberately invalid secret,
-	// to see if we get the expected error json payload.
-	res, err := client.DoContext(ctx, "POST",
-		"/api/v1/osquery/enroll", "", map[string]string{
-			"enroll_secret": "--invalid--",
-		})
+	headers := map[string]string{
+		"Content-type": "application/json",
+		"Accept":       "application/json",
+	}
+
+	baseURL.Path = "/api/v1/osquery/enroll"
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		baseURL.String(),
+		bytes.NewBufferString(`{"enroll_secret": "--invalid--"}`),
+	)
+	if err != nil {
+		return errors.Wrap(err, "creating request object")
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	res, err := client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "request failed")
 	}

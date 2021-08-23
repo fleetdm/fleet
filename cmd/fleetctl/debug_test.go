@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -70,6 +69,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 
 		output := runAppForTest(t, []string{"debug", "connection", "--fleet-certificate", certPath})
 		// 4 successes: resolve host, dial address, certificate, check api endpoint
+		t.Log(output)
 		require.Equal(t, 4, strings.Count(output, "Success:"))
 	})
 
@@ -88,8 +88,10 @@ func TestDebugConnectionCommand(t *testing.T) {
 
 		buf, _, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath})
 		// 2 successes: resolve host, dial address
+		t.Log(buf.String())
 		require.Equal(t, 2, strings.Count(buf.String(), "Success:"))
 		// 1 failure: invalid certificate
+		t.Log(err)
 		require.Error(t, err)
 		require.Equal(t, 1, strings.Count(err.Error(), "Fail: certificate:"))
 	})
@@ -164,12 +166,13 @@ func TestDebugConnectionChecks(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		cli, err := service.NewClient(srv.URL, true, "", "")
+		os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+		cli, base, err := rawHTTPClientFromConfig(Context{Address: srv.URL, TLSSkipVerify: true})
 		require.NoError(t, err)
 		for i, c := range cases {
 			callCount = i
 			t.Run(fmt.Sprint(c.code), func(t *testing.T) {
-				err := checkAPIEndpoint(context.Background(), timeout, cli)
+				err := checkAPIEndpoint(context.Background(), timeout, base, cli)
 				if c.errContains == "" {
 					require.NoError(t, err)
 				} else {

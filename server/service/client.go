@@ -56,7 +56,7 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 
 		// add certs to pool
 		if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
-			return nil, errors.Wrap(err, "adding root CA")
+			return nil, errors.New("failed to add certificates to root CA pool")
 		}
 	} else if !insecureSkipVerify {
 		// Use only the system certs (doesn't work on Windows)
