@@ -5942,6 +5942,12 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/global/policies/{policy_id}`
 
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| policy_id          | integer | path | **Required.** The policy's ID.                                                                                  |
+
 #### Example
 
 `GET /api/v1/fleet/global/policies/1`
