@@ -674,3 +674,37 @@ func TestVulnerableSoftware(t *testing.T) {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 }
+
+func TestOsqueryEndpointsLogErrors(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	//token := getTestAdminToken(t, server)
+
+	_, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1234",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer([]byte(`{"node_key":"1234","log_type":"status","data":[}`))}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/osquery/log", requestBody)
+	client := &http.Client{}
+	_, err = client.Do(req)
+	require.Nil(t, err)
+
+	logString := buf.String()
+	assert.Equal(t, `{"err":"decoding JSON: invalid character '}' looking for beginning of value","level":"info","path":"/api/v1/osquery/log"}
+`, logString)
+}
