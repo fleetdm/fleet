@@ -45,8 +45,14 @@ func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	defer rows.Close()
+
 	if !rows.Next() {
-		return false, errors.New("Error detecting MySQL event scheduler status.")
+		err := errors.New("Error detecting MySQL event scheduler status.")
+		if rerr := rows.Err(); rerr != nil {
+			err = rerr
+		}
+		return false, err
 	}
 	var value string
 	if err := rows.Scan(&value); err != nil {

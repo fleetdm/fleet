@@ -245,7 +245,7 @@ FROM scheduled_query_stats sqs
 	JOIN scheduled_queries sq ON (sqs.scheduled_query_id = sq.id)
 	JOIN packs p ON (sq.pack_id = p.id)
 	JOIN queries q ON (sq.query_name = q.name)
-WHERE host_id = ?
+WHERE host_id = ? AND p.pack_type IS NULL
 `
 	var stats []fleet.ScheduledQueryStats
 	if err := d.db.Select(&stats, sql, host.ID); err != nil {
