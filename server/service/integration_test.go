@@ -743,3 +743,46 @@ func TestSubmitStatusLog(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(logString, "\"ip_addr\""))
 	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
 }
+
+func TestEnrollAgentLogsErrors(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+
+	_, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1234",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   "1234",
+		HostIdentifier: "4321",
+		HostDetails:    nil,
+	})
+	require.NoError(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/osquery/enroll", requestBody)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	parts := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	require.Len(t, parts, 1)
+	logData := make(map[string]json.RawMessage)
+	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
+	assert.Equal(t, json.RawMessage(`["enroll failed: no matching secret found"]`), logData["err"])
+}

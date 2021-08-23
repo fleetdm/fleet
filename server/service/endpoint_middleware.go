@@ -112,6 +112,24 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 	}
 }
 
+// logged wraps an endpoint and adds the error if the context supports it
+func logged(next endpoint.Endpoint) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		res, err := next(ctx, request)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return nil, err
+		}
+		if errResp, ok := res.(errorer); ok {
+			err = errResp.error()
+			if err != nil {
+				logging.WithErr(ctx, err)
+			}
+		}
+		return res, nil
+	}
+}
+
 // authViewer creates an authenticated viewer by validating the session key.
 func authViewer(ctx context.Context, sessionKey string, svc fleet.Service) (*viewer.Viewer, error) {
 	session, err := svc.GetSessionByKey(ctx, sessionKey)
