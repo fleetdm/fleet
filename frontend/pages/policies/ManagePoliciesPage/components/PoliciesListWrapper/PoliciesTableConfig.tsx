@@ -11,12 +11,9 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IPolicy } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
+import { PolicyResponse } from "utilities/constants";
 
 // TODO functions for paths math e.g., path={PATHS.MANAGE_HOSTS + getParams(cellProps.row.original)}
-enum PolicyResponse {
-  PASSING = "passing",
-  FAILING = "failing",
-}
 
 const TAGGED_TEMPLATES = {
   hostsByStatusRoute: (id: number, status: PolicyResponse) => {
@@ -108,7 +105,7 @@ const generateTableHeaders = (): IDataColumn[] => {
           path={
             PATHS.MANAGE_HOSTS +
             TAGGED_TEMPLATES.hostsByStatusRoute(
-              cellProps.row.original.query_id,
+              cellProps.row.original.id,
               PolicyResponse.PASSING
             )
           }
@@ -126,7 +123,7 @@ const generateTableHeaders = (): IDataColumn[] => {
           path={
             PATHS.MANAGE_HOSTS +
             TAGGED_TEMPLATES.hostsByStatusRoute(
-              cellProps.row.original.query_id,
+              cellProps.row.original.id,
               PolicyResponse.FAILING
             )
           }

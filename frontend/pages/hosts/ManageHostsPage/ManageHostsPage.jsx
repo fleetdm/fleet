@@ -2,7 +2,7 @@ import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
-import { find, isEmpty, reduce, trim, union } from "lodash";
+import { find, isEmpty, memoize, reduce, trim, union } from "lodash";
 
 import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
@@ -15,6 +15,7 @@ import TableContainer from "components/TableContainer";
 import labelInterface from "interfaces/label";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
+import { IPolicy } from "interfaces/policy";
 import osqueryTableInterface from "interfaces/osquery_table";
 import statusLabelsInterface from "interfaces/status_labels";
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
@@ -30,6 +31,9 @@ import deepDifference from "utilities/deep_difference";
 import hostClient from "services/entities/hosts";
 
 import permissionUtils from "utilities/permissions";
+import sortUtils from "utilities/sort";
+
+import { PolicyResponse } from "utilities/constants";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -38,11 +42,13 @@ import {
 import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
+import PoliciesFilter from "./components/PoliciesFilter";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
+import CloseIcon from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 
 const baseClass = "manage-hosts";
 
@@ -50,6 +56,37 @@ const NEW_LABEL_HASH = "#new_label";
 const EDIT_LABEL_HASH = "#edit_label";
 const ALL_HOSTS_LABEL = "all-hosts";
 const LABEL_SLUG_PREFIX = "labels/";
+
+const MOCK_DATA = [
+  {
+    id: 1,
+    query_id: 2,
+    query_name: `Gatekeeper enabled`,
+    passing_host_count: 2000,
+    failing_host_count: 300,
+  },
+  {
+    id: 4,
+    query_id: 5,
+    query_name: `google 2FA`,
+    passing_host_count: 1900,
+    failing_host_count: 400,
+  },
+  {
+    id: 3,
+    query_id: 4,
+    query_name: `Secondary disk encrypted`,
+    passing_host_count: 2100,
+    failing_host_count: 200,
+  },
+  {
+    id: 2,
+    query_id: 3,
+    query_name: `Primary disk encrypted`,
+    passing_host_count: 2300,
+    failing_host_count: 0,
+  },
+];
 
 const HOST_SELECT_STATUSES = [
   {
@@ -115,6 +152,9 @@ export class ManageHostsPage extends PureComponent {
     isOnGlobalTeam: PropTypes.bool,
     isBasicTier: PropTypes.bool,
     currentUser: userInterface,
+    policyId: PropTypes.number,
+    policyResponse: PolicyResponse,
+    activePolicy: IPolicy,
   };
 
   static defaultProps = {
@@ -148,6 +188,7 @@ export class ManageHostsPage extends PureComponent {
       isHostsLoading: false,
       isTeamsLoading: true,
       sortBy: [],
+      policiesFilter: null, // TODO decide whether this state is needed
     };
   }
 
@@ -441,8 +482,21 @@ export class ManageHostsPage extends PureComponent {
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
 
+  getSortedTeamOptions = memoize((teams) =>
+    teams
+      .map((team) => {
+        return {
+          disabled: false,
+          label: team.name,
+          value: team.id,
+        };
+      })
+      .sort((a, b) => sortUtils.caseInsensitiveAsc(b.label, a.label))
+  );
+
   generateTeamFilterDropdownOptions = (teams) => {
     const { currentUser, isOnGlobalTeam } = this.props;
+    const { getSortedTeamOptions } = this;
 
     let currentUserTeams = [];
     if (isOnGlobalTeam) {
@@ -459,26 +513,7 @@ export class ManageHostsPage extends PureComponent {
       },
     ];
 
-    const sortedCurrentUserTeamOptions = currentUserTeams
-      .map((team) => {
-        return {
-          disabled: false,
-          label: team.name,
-          value: team.id,
-        };
-      })
-      .sort((a, b) => {
-        const labelA = a.label.toUpperCase();
-        const labelB = b.label.toUpperCase();
-        if (labelA < labelB) {
-          return -1;
-        }
-        if (labelA > labelB) {
-          return 1;
-        }
-
-        return 0; // values are equal
-      });
+    const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
 
     return allTeamsOption.concat(sortedCurrentUserTeamOptions);
   };
@@ -558,6 +593,48 @@ export class ManageHostsPage extends PureComponent {
         isAllMatchingHostsSelected: !isAllMatchingHostsSelected,
       });
     }
+  };
+
+  handleChangePoliciesFilter = (selectedFilter) => {
+    const { dispatch } = this.props;
+    const { searchQuery } = this.state;
+    const { getNextLocationUrl, isValidPoliciesFilter, retrieveHosts } = this;
+    const { MANAGE_HOSTS } = PATHS;
+
+    // TODO validation for policy_id and policy_response?
+    // selectedFilter = isValidPoliciesFilter(selectedFilter)
+    //   ? selectedFilter
+    //   : null;
+
+    let nextLocation = getNextLocationUrl(
+      MANAGE_HOSTS,
+      "",
+      {},
+      { policy_response: selectedFilter }
+    );
+
+    if (!selectedFilter) {
+      nextLocation = nextLocation.replace(
+        `policy_id=${selectedFilter.policyId}&policy_response=${selectedFilter.policyId}`,
+        ""
+      );
+    }
+    // TODO test with 1690 to persist query params
+    // TODO confirm that sort order, pagination work as expected
+    // retrieveHosts({
+    //   teamId: selectedTeam,
+    //   selectedLabels: selectedFilters,
+    //   globalFilter: searchQuery,
+    // });
+    dispatch(push(nextLocation));
+  };
+
+  handleClearPoliciesFilter = () => {
+    const { dispatch } = this.props;
+    const { retrieveHosts } = this;
+    const { MANAGE_HOSTS } = PATHS;
+    dispatch(push(MANAGE_HOSTS));
+    retrieveHosts();
   };
 
   // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
@@ -671,6 +748,25 @@ export class ManageHostsPage extends PureComponent {
       </div>
     ) : (
       <h1>Hosts</h1>
+    );
+  };
+
+  renderPoliciesFilterBlock = () => {
+    const { activePolicy, policyId, policyResponse } = this.props;
+    const { handleClearPoliciesFilter, handleChangePoliciesFilter } = this;
+
+    return (
+      <div className={`${baseClass}__policies-filter-block`}>
+        <PoliciesFilter
+          policyId={policyId}
+          policyResponse={policyResponse}
+          onChange={handleChangePoliciesFilter}
+        />
+        <p>{activePolicy?.query_name}</p>
+        <Button onClick={handleClearPoliciesFilter} variant={"text-icon"}>
+          <img src={CloseIcon} alt="Remove policy filter" />
+        </Button>
+      </div>
     );
   };
 
@@ -796,14 +892,21 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderHeader = () => {
-    const { renderHeaderLabelBlock, renderTeamsFilterDropdown } = this;
-    const { isAddLabel, selectedLabel } = this.props;
+    const {
+      renderHeaderLabelBlock,
+      renderPoliciesFilterBlock,
+      renderTeamsFilterDropdown,
+    } = this;
+    const { policyId, selectedLabel } = this.props;
     const type = selectedLabel?.type;
+
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
           {renderTeamsFilterDropdown()}
-          {type !== "all" &&
+          {policyId && renderPoliciesFilterBlock()}
+          {!policyId &&
+            type !== "all" &&
             type !== "status" &&
             selectedLabel &&
             renderHeaderLabelBlock(selectedLabel)}
@@ -1016,10 +1119,18 @@ export class ManageHostsPage extends PureComponent {
 }
 
 const mapStateToProps = (state, ownProps) => {
+  console.log(ownProps);
   const { location, params, route, routeParams } = ownProps;
   const locationPath = location.path;
   const queryParams = location.query;
   const routeTemplate = route && route.path ? route.path : "";
+  console.log(queryParams);
+
+  // TODO validate queryParams
+  const { policy_id: policyId, policy_response: policyResponse } = queryParams;
+
+  // TODO wire API and remove mock data
+  const activePolicy = MOCK_DATA.find((el) => el.id === parseInt(policyId, 10));
 
   const { active_label: activeLabel, label_id: labelID } = params;
   const selectedFilters = [];
@@ -1095,6 +1206,9 @@ const mapStateToProps = (state, ownProps) => {
     teams,
     loadingTeams,
     selectedTeam,
+    policyId,
+    policyResponse,
+    activePolicy,
   };
 };
 

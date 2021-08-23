@@ -156,6 +156,10 @@
   }
 
   &__header {
+    min-width: 125px;
+  }
+
+  &__team-dropdown {
     .Select-control {
       background-color: #fff;
       border: 0 !important;
@@ -214,6 +218,18 @@
           }
         }
       }
+    }
+  }
+
+  &__policies-filter-block {
+    display: flex;
+    align-items: center;
+    padding-top: $pad-medium;
+
+    p {
+      font-size: $x-small;
+      font-weight: $bold;
+      padding-left: $pad-medium;
     }
   }
 }
