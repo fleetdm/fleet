@@ -667,7 +667,6 @@ export class HostDetailsPage extends Component {
         </div>
       );
     };
-
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
@@ -697,13 +696,17 @@ export class HostDetailsPage extends Component {
                 </span>
               </div>
               {isBasicTier && hostTeam()}
-              {titleData.percent_disk_space_available && (
+              {host.percent_disk_space_available && (
                 <div className="info__item info__item--title">
                   <span className="info__header">Disk Space</span>
                   <span className="info__data">
                     <div className="info__disk-space">
                       <div
-                        className="info__disk-space-used"
+                        className={
+                          titleData.percent_disk_space_available > 20
+                            ? "info__disk-space-used"
+                            : "info__disk-space-warning"
+                        }
                         style={{
                           width:
                             100 - titleData.percent_disk_space_available + "%",

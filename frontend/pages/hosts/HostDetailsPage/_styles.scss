@@ -53,6 +53,11 @@
         height: 100%;
       }
 
+      &__disk-space-used-warning {
+        background-color: $ui-warning;
+        height: 100%;
+      }
+
       &__header {
         color: $core-fleet-black;
         font-weight: $bold;
