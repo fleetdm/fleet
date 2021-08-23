@@ -48,14 +48,14 @@ export default PropTypes.shape({
   ),
   team_name: PropTypes.string,
   additional: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+  percent_disk_space_available: PropTypes.number,
+  gigs_disk_space_available: PropTypes.number,
   labels: PropTypes.arrayOf(labelInterface),
   packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
   status: PropTypes.string,
   display_text: PropTypes.string,
   users: PropTypes.arrayOf(hostUserInterface),
-  percent_disk_space_available: PropTypes.number,
-  gigs_disk_space_available: PropTypes.number,
 });
 
 export interface IHost {
@@ -99,12 +99,12 @@ export interface IHost {
   }[];
   team_name: string;
   additional: object; // eslint-disable-line @typescript-eslint/ban-types
+  percent_disk_space_available: number;
+  gigs_disk_space_available: number;
   labels: ILabel[];
   packs: IPack[];
   software: ISoftware[];
   status: string;
   display_text: string;
   users: IHostUser[];
-  percent_disk_space_available: number;
-  gigs_disk_space_available: number;
 }
