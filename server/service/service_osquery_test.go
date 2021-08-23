@@ -31,8 +31,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// One of these queries is the disk space, only one of the two works in a platform
 var expectedDetailQueries = len(osquery_utils.GetDetailQueries(
-	&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}))
+	&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})) - 1
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -825,6 +826,12 @@ func TestDetailQueries(t *testing.T) {
       "type": "sometype",
       "groupname": "somegroup"
     }
+],
+"fleet_detail_query_disk_space_unix": [
+	{
+		"percent_disk_space_available": "56",
+		"gigs_disk_space_available": "277.0"
+	}
 ]
 }
 `
@@ -879,6 +886,9 @@ func TestDetailQueries(t *testing.T) {
 		Type:      "sometype",
 		GroupName: "somegroup",
 	}, gotHost.Users[0])
+
+	assert.Equal(t, 56.0, gotHost.PercentDiskSpaceAvailable)
+	assert.Equal(t, 277.0, gotHost.GigsDiskSpaceAvailable)
 
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"

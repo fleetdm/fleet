@@ -96,6 +96,42 @@ func TestSaveHosts(t *testing.T) {
 	assert.Nil(t, host)
 }
 
+func TestDeleteHostWithSoftware(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		},
+	}
+	host.HostSoftware = soft
+	err = ds.SaveHostSoftware(host)
+	require.NoError(t, err)
+
+	err = ds.DeleteHost(host.ID)
+	require.NoError(t, err)
+
+	host, err = ds.Host(host.ID)
+	assert.NotNil(t, err)
+	assert.Nil(t, host)
+}
+
 func TestSaveHostPackStats(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -209,6 +245,88 @@ func TestSaveHostPackStats(t *testing.T) {
 	host, err = ds.Host(host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.PackStats, 2)
+}
+
+func TestIgnoresTeamPackStats(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	team, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(&team.ID, []uint{host.ID}))
+	tp, err := ds.EnsureTeamPack(team.ID)
+	require.NoError(t, err)
+
+	tpQuery := test.NewQuery(t, ds, "tp-time", "select * from time", 0, true)
+	tpSquery := test.NewScheduledQuery(t, ds, tp.ID, tpQuery.ID, 30, true, true, "time-scheduled")
+
+	// Pack and query must exist for stats to save successfully
+	pack1 := test.NewPack(t, ds, "test1")
+	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
+	stats1 := []fleet.ScheduledQueryStats{
+		{
+			ScheduledQueryName: squery1.Name,
+			ScheduledQueryID:   squery1.ID,
+			QueryName:          query1.Name,
+			PackName:           pack1.Name,
+			PackID:             pack1.ID,
+			AverageMemory:      8000,
+			Denylisted:         false,
+			Executions:         164,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+			OutputSize:         1337,
+			SystemTime:         150,
+			UserTime:           180,
+			WallTime:           0,
+		},
+	}
+	stats2 := []fleet.ScheduledQueryStats{
+		{
+			ScheduledQueryName: tpSquery.Name,
+			ScheduledQueryID:   tpSquery.ID,
+			QueryName:          tpQuery.Name,
+			PackName:           tp.Name,
+			PackID:             tp.ID,
+			AverageMemory:      8000,
+			Denylisted:         false,
+			Executions:         164,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+			OutputSize:         1337,
+			SystemTime:         150,
+			UserTime:           180,
+			WallTime:           0,
+		},
+	}
+
+	host.PackStats = []fleet.PackStats{
+		{PackName: "test1", QueryStats: stats1},
+		{PackName: teamScheduleName(team), QueryStats: stats2},
+	}
+
+	require.NoError(t, ds.SaveHost(host))
+
+	host, err = ds.Host(host.ID)
+	require.NoError(t, err)
+
+	require.Len(t, host.PackStats, 1)
+	assert.Equal(t, host.PackStats[0].PackName, "test1")
+	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats1)
 }
 
 func TestDeleteHost(t *testing.T) {

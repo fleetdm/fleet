@@ -41,8 +41,6 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logIPs(ctx)
-
 	if nodeKey == "" {
 		return nil, osqueryError{
 			message:     "authentication error: missing node key",

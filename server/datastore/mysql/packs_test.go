@@ -470,6 +470,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 	assert.Equal(t, tp.ID, packs[0].ID)
+	assert.Equal(t, teamScheduleName(team1), tp.Name)
 	assert.Equal(t, fmt.Sprintf("team-%d", team1.ID), *tp.Type)
 	assert.Equal(t, []uint{team1.ID}, tp.TeamIDs)
 
@@ -495,6 +496,54 @@ func TestEnsureTeamPack(t *testing.T) {
 
 	assert.Equal(t, fmt.Sprintf("team-%d", team2.ID), *tp2.Type)
 	assert.Equal(t, []uint{team2.ID}, tp2.TeamIDs)
+}
+
+func TestTeamNameChangesTeamSchedule(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	tp, err := ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+	firstName := teamScheduleName(team1)
+	assert.Equal(t, firstName, tp.Name)
+
+	team1.Name = "new name!!"
+	team1, err = ds.SaveTeam(team1)
+	require.NoError(t, err)
+
+	tp, err = ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, firstName, tp.Name)
+	assert.Equal(t, teamScheduleName(team1), tp.Name)
+}
+
+func TestTeamScheduleNamesMigrateToNewFormat(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// insert team pack by hand with the old naming scheme
+	_, err = ds.db.Exec(
+		"INSERT INTO packs(name, description, platform, disabled, pack_type) VALUES (?, ?, ?, ?, ?)",
+		teamSchedulePackType(team1), "desc", "windows", false, teamSchedulePackType(team1),
+	)
+	require.NoError(t, err)
+
+	tp, err := ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, teamSchedulePackType(team1), tp.Name)
+
+	require.NoError(t, ds.MigrateData())
+
+	tp, err = ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, teamSchedulePackType(team1), tp.Name)
+	require.Equal(t, teamScheduleName(team1), tp.Name)
 }
 
 func TestApplyPackSpecFailsOnTargetIDNull(t *testing.T) {
