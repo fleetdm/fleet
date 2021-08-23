@@ -33,6 +33,8 @@ type MysqlConfig struct {
 	MaxOpenConns    int    `yaml:"max_open_conns"`
 	MaxIdleConns    int    `yaml:"max_idle_conns"`
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
+	IAMAccess       bool
+	Region          string
 }
 
 // RedisConfig defines configs related to Redis
@@ -223,6 +225,8 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("mysql.max_open_conns", 50, "MySQL maximum open connection handles.")
 	man.addConfigInt("mysql.max_idle_conns", 50, "MySQL maximum idle connection handles.")
 	man.addConfigInt("mysql.conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused.")
+	man.addConfigBool("mysql.aws_iam_access", false, "Enable IAM access to MySQL, password will be ignored")
+	man.addConfigString("mysql.aws_region", "", "AWS Region for RDS DB")
 
 	// Redis
 	man.addConfigString("redis.address", "localhost:6379",
@@ -398,6 +402,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxOpenConns:    man.getConfigInt("mysql.max_open_conns"),
 			MaxIdleConns:    man.getConfigInt("mysql.max_idle_conns"),
 			ConnMaxLifetime: man.getConfigInt("mysql.conn_max_lifetime"),
+			IAMAccess:       man.getConfigBool("mysql.aws_iam_access"),
+			Region:          man.getConfigString("mysql.aws_region"),
 		},
 		Redis: RedisConfig{
 			Address:          man.getConfigString("redis.address"),

@@ -293,6 +293,32 @@ Maximum amount of time, in seconds, a connection may be reused.
   	conn_max_lifetime: 50
   ```
 
+###### `aws_iam_access`
+
+Enable [AWS IAM Access](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html)  for MySQL
+
+- Default value: `false`
+- Environment variable: `FLEET_MYSQL_AWS_IAM_ACCESS`
+- Config file format:
+
+  ```
+  mysql:
+  	aws_iam_access: true
+  ```
+
+###### `aws_region`
+
+The region your RDS cluster is in (for usage with `aws_iam_access`)
+
+- Default value: `""`
+- Environment variable: `FLEET_MYSQL_AWS_REGION`
+- Config file format:
+
+  ```
+  mysql:
+  	aws_region: us-east-1
+  ```
+
 ##### Redis
 
 ###### `redis_address`

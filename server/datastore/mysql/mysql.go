@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/rds/rdsutils"
 	"io/ioutil"
 	"net/url"
 	"regexp"
@@ -501,6 +503,16 @@ func registerTLS(config config.MysqlConfig) error {
 // generateMysqlConnectionString returns a MySQL connection string using the
 // provided configuration.
 func generateMysqlConnectionString(conf config.MysqlConfig) string {
+	if conf.IAMAccess {
+		sess := session.Must(session.NewSession())
+		creds := sess.Config.Credentials
+		authToken, err := rdsutils.BuildAuthToken(conf.Address, conf.Region, conf.Username, creds)
+		if err != nil {
+			panic(err)
+		}
+		return fmt.Sprintf("%s:%s@tcp(%s)/%s?tls=true&allowCleartextPasswords=true", conf.Username, authToken, conf.Address, conf.Database)
+	}
+
 	tz := url.QueryEscape("'-00:00'")
 	dsn := fmt.Sprintf(
 		"%s:%s@%s(%s)/%s?charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%s&clientFoundRows=true&allowNativePasswords=true",
