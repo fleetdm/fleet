@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { size } from "lodash";
 
-import { IQueryFormFields, IQueryFormData } from "interfaces/query";
+import { IQueryFormFields, IQueryFormData, IQuery } from "interfaces/query";
 
 // @ts-ignore
 import Form from "components/forms/Form"; // @ts-ignore
@@ -10,17 +10,16 @@ import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import NewQueryModal from "./NewQueryModal";
 
-const DEFAULT_QUERY = "SELECT * FROM osquery_info"; 
 const baseClass = "query-form1";
 
 interface IQueryFormProps {
   baseError: string;
   fields: IQueryFormFields;
+  storedQuery: IQuery;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
-  onRunQuery: (value: any) => void;
+  goToSelectTargets: (value: any) => void;
   onUpdate: (formData: IQueryFormData) => void;
-  queryIsRunning: boolean;
   title: string;
   hasSavePermissions: boolean;
 }
@@ -40,11 +39,11 @@ const validateQuerySQL = (query: string) => {
 const QueryForm = ({
   baseError,
   fields,
+  storedQuery,
   onCreateQuery,
   onOsqueryTableSelect,
-  onRunQuery,
+  goToSelectTargets,
   onUpdate,
-  queryIsRunning,
   title,
   hasSavePermissions,
 }: IQueryFormProps) => {
@@ -89,22 +88,23 @@ const QueryForm = ({
     onCreateQuery,
     setIsSaveModalOpen,
   };
-  const { query: { error, onChange, value } } = fields;
+  const {
+    query: { error, onChange, value },
+  } = fields;
   return (
     <>
       <form className={`${baseClass}__wrapper`}>
         <h1>{title}</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
         <FleetAce
-          value={value || DEFAULT_QUERY}
+          value={value || storedQuery.query}
           error={error || errors.query}
           label="Query:"
           name="query editor"
           onLoad={onLoad}
-          readOnly={queryIsRunning}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           onChange={onChange}
-          handleSubmit={onRunQuery}
+          handleSubmit={openSaveModal}
         />
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
@@ -114,7 +114,7 @@ const QueryForm = ({
               className={`${baseClass}__save`}
               variant="brand"
               onClick={openSaveModal}
-              disabled={queryIsRunning}
+              disabled={false}
             >
               Save
             </Button>
@@ -122,7 +122,7 @@ const QueryForm = ({
           <Button
             className={`${baseClass}__run`}
             variant="blue-green"
-            onClick={onRunQuery}
+            onClick={goToSelectTargets}
           >
             Run query
           </Button>

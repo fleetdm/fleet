@@ -49,3 +49,44 @@ export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "1.8.2 +", value: "1.8.2" },
   { label: "1.8.1 +", value: "1.8.1" },
 ];
+
+export const QUERIES_PAGE_STEPS = {
+  1: "EDITOR",
+  2: "TARGETS",
+  3: "RUN",
+};
+
+export const DEFAULT_QUERY = {
+  description: "",
+  name: "New query",
+  query: "SELECT * FROM osquery_info",
+  id: 0,
+  interval: 0,
+  last_excuted: "",
+  observer_can_run: false,
+  author_name: "",
+  updated_at: "",
+};
+
+export const DEFAULT_CAMPAIGN = {
+  created_at: "",
+  errors: [],
+  hosts: [],
+  hosts_count: {
+    total: 0,
+    successful: 0,
+    failed: 0,
+  },
+  id: 0,
+  query_id: 0,
+  query_results: [],
+  status: "",
+  totals: {
+    count: 0,
+    missing_in_action: 0,
+    offline: 0,
+    online: 0,
+  },
+  updated_at: "",
+  user_id: 0,
+};

@@ -19,6 +19,8 @@ export interface ITeam {
   id: number;
   host_count: number;
   user_count: number;
+  display_text?: string;
+  count?: number;
   // role value is included when the team is in the context of a user.
   role?: string;
   agent_options?: any;

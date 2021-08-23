@@ -18,8 +18,7 @@ const QueryProgressDetails = ({
   queryTimerMilliseconds,
   disableRun,
 }) => {
-  const { hosts_count: hostsCount } = campaign;
-  const { errors } = campaign;
+  const { hosts_count: hostsCount, errors } = campaign || {};
 
   const totalHostsOnline = get(campaign, ["totals", "online"], 0);
   const totalHostsOffline = get(campaign, ["totals", "offline"], 0);

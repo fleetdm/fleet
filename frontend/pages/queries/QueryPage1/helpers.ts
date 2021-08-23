@@ -1,3 +1,4 @@
+import { Dispatch } from "redux";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
 import { differenceWith, isEqual, uniqWith } from "lodash";
@@ -29,7 +30,7 @@ const comparator = (arrayVal: any, otherVal: any) => {
 };
 
 export const selectHosts = (
-  dispatch: any,
+  dispatch: Dispatch,
   { hosts = [], selectedTargets = [] }
 ) => {
   if (!hosts.length || !targetsChanged(hosts, selectedTargets)) {
@@ -43,7 +44,7 @@ export const selectHosts = (
   return false;
 };
 
-export const fetchHost = (dispatch: any, hostID: string) => {
+export const fetchHost = (dispatch: Dispatch, hostID: string) => {
   return dispatch(hostActions.load(hostID)).catch(() => {
     dispatch(push(PATHS.FLEET_500));
 
