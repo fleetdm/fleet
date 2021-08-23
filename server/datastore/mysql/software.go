@@ -213,7 +213,7 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 	sql := `
 		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe, 
 			IF(
-				GROUP_CONCAT(scv.cve) = null, 
+				COUNT(scv.cve) = 0, 
 				null, 
 				GROUP_CONCAT(
 					JSON_OBJECT(
