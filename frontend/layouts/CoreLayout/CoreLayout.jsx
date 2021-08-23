@@ -3,6 +3,9 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { logoutUser } from "redux/nodes/auth/actions";
 import { push } from "react-router-redux";
+import { TableContext } from "context/table";
+
+import { isEqual } from "lodash";
 
 import configInterface from "interfaces/config";
 import FlashMessage from "components/flash_messages/FlashMessage";
@@ -25,6 +28,25 @@ export class CoreLayout extends Component {
       message: PropTypes.string.isRequired,
     }).isRequired,
   };
+
+  componentWillReceiveProps(nextProps) {
+    const { notifications } = nextProps;
+    const table = this.context;
+
+    // on success of an action, the table will reset its checkboxes.
+    // setTimeout is to help with race conditions as table reloads
+    // in some instances (i.e. Manage Hosts)
+    if (!isEqual(this.props.notifications, notifications)) {
+      if (notifications.alertType === "success") {
+        setTimeout(() => {
+          table.setResetSelectedRows(true);
+          setTimeout(() => {
+            table.setResetSelectedRows(false);
+          }, 300);
+        }, 0);
+      }
+    }
+  }
 
   onLogoutUser = () => {
     const { dispatch } = this.props;
@@ -72,6 +94,8 @@ export class CoreLayout extends Component {
       return onRemoveFlash();
     };
   };
+
+  static contextType = TableContext;
 
   render() {
     const {

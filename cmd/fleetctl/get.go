@@ -132,7 +132,7 @@ func printHost(c *cli.Context, host *service.HostResponse) error {
 	return printSpec(c, spec)
 }
 
-func printConfig(c *cli.Context, config *fleet.AppConfigPayload) error {
+func printConfig(c *cli.Context, config *fleet.AppConfig) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
 		Version: fleet.ApiVersion,

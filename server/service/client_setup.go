@@ -18,7 +18,7 @@ func (c *Client) Setup(email, name, password, org string) (string, error) {
 			Password: &password,
 		},
 		OrgInfo: &fleet.OrgInfo{
-			OrgName: &org,
+			OrgName: org,
 		},
 		ServerURL: &c.addr,
 	}

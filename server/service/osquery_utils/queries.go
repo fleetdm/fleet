@@ -336,6 +336,22 @@ var detailQueries = map[string]DetailQuery{
 			return nil
 		},
 	},
+	"disk_space_unix": {
+		Query: `
+SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available, 
+       round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available 
+FROM mounts WHERE path = '/';`,
+		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
+		IngestFunc: ingestDiskSpace,
+	},
+	"disk_space_windows": {
+		Query: `
+SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available, 
+       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available 
+FROM logical_drives WHERE file_system = 'NTFS';`,
+		Platforms:  []string{"windows"},
+		IngestFunc: ingestDiskSpace,
+	},
 }
 
 var softwareMacOS = DetailQuery{
@@ -556,19 +572,39 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 	return nil
 }
 
+func ingestDiskSpace(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "ingestDiskSpace", "err",
+			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
+		return nil
+	}
+
+	var err error
+	host.GigsDiskSpaceAvailable, err = strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
+	host.PercentDiskSpaceAvailable, err = strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range detailQueries {
 		generatedMap[key] = query
 	}
 
-	if os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || (ac != nil && ac.EnableSoftwareInventory) {
+	softwareInventory := ac != nil && ac.HostSettings.EnableSoftwareInventory
+	if os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || softwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 	}
 
-	if ac != nil && ac.EnableHostUsers {
+	if ac != nil && ac.HostSettings.EnableHostUsers {
 		generatedMap["users"] = usersQuery
 	}
 

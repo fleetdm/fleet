@@ -8,9 +8,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw metricsMiddleware) SSOSettings(ctx context.Context) (settings *fleet.SSOSettings, err error) {
+func (mw metricsMiddleware) SSOSettings(ctx context.Context) (settings *fleet.SessionSSOSettings, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "SSOSettings", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "SessionSSOSettings", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())

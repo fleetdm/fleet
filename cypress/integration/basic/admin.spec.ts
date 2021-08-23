@@ -14,7 +14,7 @@ describe("Basic tier - Admin user", () => {
 
   it("Can perform the appropriate basic-tier admin actions", () => {
     cy.login("anna@organization.com", "user123#");
-    cy.visit("/hosts/manage");
+    cy.visit("/");
 
     // Ensure the hosts page is loaded
     cy.contains("All hosts");
@@ -30,7 +30,7 @@ describe("Basic tier - Admin user", () => {
     // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
     cy.get(".add-host-modal__team-dropdown-wrapper .Select-control").click();
 
-    cy.get(".add-host-modal__team-dropdown-wrapper").within(() => {
+    cy.get(".Select-menu-outer").within(() => {
       cy.findByText(/no team/i).should("exist");
       cy.findByText(/apples/i).should("exist");
       cy.findByText(/oranges/i).should("exist");

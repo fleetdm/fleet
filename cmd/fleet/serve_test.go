@@ -26,7 +26,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	defer ts.Close()
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableAnalytics: true}, nil
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
 	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
@@ -59,7 +59,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 	defer ts.Close()
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableAnalytics: true}, nil
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
 	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
@@ -88,7 +88,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	defer ts.Close()
 
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{EnableAnalytics: false}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)

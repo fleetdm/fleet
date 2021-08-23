@@ -44,7 +44,7 @@ To configure global agent options, head to **Settings > Organization settings > 
  
 ### Team level agent options
 
-`Applies only to Fleet Basic`
+`Applies only to Fleet Premium`
 
 ```
 ℹ️  In Fleet 4.0, Teams were introduced.

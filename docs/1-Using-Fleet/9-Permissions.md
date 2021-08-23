@@ -43,11 +43,11 @@ The following table depicts various permissions levels for each role.
 | Edit teams\*                                         |          |            | ✅    |
 | Add members to teams\*                               |          |            | ✅    |
 
-\*Applies only to Fleet Basic
+\*Applies only to Fleet Premium
 
 ## Team member permissions
 
-`Applies only to Fleet Basic`
+`Applies only to Fleet Premium`
 
 ```
 ℹ️  In Fleet 4.0, the Teams feature was introduced.

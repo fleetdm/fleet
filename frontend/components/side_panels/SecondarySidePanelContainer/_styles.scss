@@ -6,8 +6,4 @@
   overflow: auto;
   width: $sidepanel-width;
   padding: $pad-xxlarge;
-
-  @include breakpoint(smalldesk) {
-    width: $sidepanel-tablet-width;
-  }
 }

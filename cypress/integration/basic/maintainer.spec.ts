@@ -14,7 +14,7 @@ describe("Basic tier - Maintainer user", () => {
 
   it("Can perform the appropriate basic global maintainer actions", () => {
     cy.login("mary@organization.com", "user123#");
-    cy.visit("/hosts/manage");
+    cy.visit("/");
 
     // Ensure page is loaded
     cy.contains("All hosts");

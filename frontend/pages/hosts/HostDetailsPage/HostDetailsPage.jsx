@@ -385,7 +385,7 @@ export class HostDetailsPage extends Component {
   renderPacks = () => {
     const { host, isLoadingHost } = this.props;
     const { pack_stats } = host;
-    const wrapperClassName = `${baseClass}__table`;
+    const wrapperClassName = `${baseClass}__pack-table`;
     const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
@@ -402,18 +402,20 @@ export class HostDetailsPage extends Component {
               ) : (
                 <>
                   {!!pack.query_stats.length && (
-                    <TableContainer
-                      columns={tableHeaders}
-                      data={generatePackDataSet(pack.query_stats)}
-                      isLoading={isLoadingHost}
-                      onQueryChange={() => null}
-                      resultsTitle={"queries"}
-                      defaultSortHeader={"scheduled_query_name"}
-                      defaultSortDirection={"asc"}
-                      showMarkAllPages={false}
-                      disablePagination
-                      disableCount
-                    />
+                    <div className={`${wrapperClassName}`}>
+                      <TableContainer
+                        columns={tableHeaders}
+                        data={generatePackDataSet(pack.query_stats)}
+                        isLoading={isLoadingHost}
+                        onQueryChange={() => null}
+                        resultsTitle={"queries"}
+                        defaultSortHeader={"scheduled_query_name"}
+                        defaultSortDirection={"asc"}
+                        showMarkAllPages={false}
+                        disablePagination
+                        disableCount
+                      />
+                    </div>
                   )}
                 </>
               )}

@@ -13,7 +13,7 @@
 
 ## License key
 
-Need to test Fleet Basic features locally?
+Need to test Fleet Premium features locally?
 
 Use the `--dev_license` flag to use the default development license key.
 
@@ -125,14 +125,14 @@ E2E tests are run using Docker and Cypress.
 
 Make sure dependencies are up to date and the [Fleet binaries are built locally](./1-Building-Fleet.md).
 
-For Fleet Core tests:
+For Fleet Free tests:
 
 ```
 make e2e-reset-db
 make e2e-serve-core
 ```
 
-For Fleet Basic tests:
+For Fleet Premium tests:
 
 ```
 make e2e-reset-db
@@ -153,13 +153,13 @@ Tests can be run in interactive mode, or from the command line.
 
 #### Interactive
 
-For Fleet Core tests:
+For Fleet Free tests:
 
 ```
 yarn e2e-browser:core
 ```
 
-For Fleet Basic tests:
+For Fleet Premium tests:
 
 ```
 yarn e2e-browser:basic
@@ -169,13 +169,13 @@ Use the graphical UI controls to run and view tests.
 
 #### Command line
 
-For Fleet Core tests:
+For Fleet Free tests:
 
 ```
 yarn e2e-cli:core
 ```
 
-For Fleet Basic tests:
+For Fleet Premium tests:
 
 ```
 yarn e2e-cli:basic
@@ -242,13 +242,13 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
 
 Finally run one of the bash scripts located in the [/tools/api](../../tools/api/README.md) directory.
 
-The `fleet/create_core` script will generate an environment to roughly reflect an installation of Fleet Core. The script creates 3 users with different roles.
+The `fleet/create_core` script will generate an environment to roughly reflect an installation of Fleet Free. The script creates 3 users with different roles.
 
 ```
 ./tools/api/fleet/teams/create_core
 ```
 
-The `fleet/create_basic` script will generate an environment to roughly reflect an installation of Fleet Basic. The script will create 2 teams 4 users with different roles.
+The `fleet/create_basic` script will generate an environment to roughly reflect an installation of Fleet Premium. The script will create 2 teams 4 users with different roles.
 
 ```
 ./tools/api/fleet/teams/create_basic
