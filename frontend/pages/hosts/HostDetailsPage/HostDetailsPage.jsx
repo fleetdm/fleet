@@ -625,6 +625,8 @@ export class HostDetailsPage extends Component {
         "os_version",
         "enroll_secret_name",
         "detail_updated_at",
+        "percent_disk_space_available",
+        "gigs_disk_space_available",
       ])
     );
     const aboutData = normalizeEmptyValues(
@@ -665,6 +667,7 @@ export class HostDetailsPage extends Component {
         </div>
       );
     };
+
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
@@ -693,7 +696,23 @@ export class HostDetailsPage extends Component {
                   {titleData.status}
                 </span>
               </div>
-              {isBasicTier ? hostTeam() : null}
+              {isBasicTier && hostTeam()}
+              {titleData.percent_disk_space_avaiable && (
+                <div className="info__item info__item--title">
+                  <span className="info__header">Disk Space</span>
+                  <span className="info__data">
+                    <div className="info__disk-space">
+                      <div
+                        className="info__disk-space-used"
+                        style={{
+                          width: titleData.percent_disk_space_avaiable + "%",
+                        }}
+                      ></div>
+                    </div>
+                    {titleData.gigs_disk_space_availabe} GB available
+                  </span>
+                </div>
+              )}
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
                 <span className="info__data">

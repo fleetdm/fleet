@@ -54,6 +54,8 @@ export default PropTypes.shape({
   status: PropTypes.string,
   display_text: PropTypes.string,
   users: PropTypes.arrayOf(hostUserInterface),
+  percent_disk_space_available: PropTypes.number,
+  gigs_disk_space_available: PropTypes.number,
 });
 
 export interface IHost {
@@ -103,4 +105,6 @@ export interface IHost {
   status: string;
   display_text: string;
   users: IHostUser[];
+  percent_disk_space_available: number;
+  gigs_disk_space_available: number;
 }

@@ -38,6 +38,21 @@
         }
       }
 
+      &__disk-space {
+        display: inline-block;
+        height: 4px;
+        width: 50px;
+        background-color: $ui-fleet-blue-15;
+        border-radius: 2px;
+        margin-right: $pad-small;
+        overflow: hidden;
+      }
+
+      &__disk-space-used {
+        background-color: $ui-success;
+        height: 100%;
+      }
+
       &__header {
         color: $core-fleet-black;
         font-weight: $bold;
