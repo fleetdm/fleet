@@ -707,6 +707,6 @@ func TestSubmitStatusLog(t *testing.T) {
 	doJSONReq(t, req, "POST", server, "/api/v1/osquery/log", token, http.StatusOK, &res)
 
 	logString := buf.String()
-	assert.Equal(t, 1, strings.Count(logString, "ip_addr"))
+	assert.Equal(t, 1, strings.Count(logString, "\"ip_addr\""))
 	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
 }
