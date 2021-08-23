@@ -540,8 +540,8 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
 		}
 
-		if campaign.CreatedAt.After(svc.clock.Now().Add(-5 * time.Second)) {
-			// Give the client 5 seconds to connect before considering the
+		if campaign.CreatedAt.After(svc.clock.Now().Add(-1 * time.Minute)) {
+			// Give the client a minute to connect before considering the
 			// campaign orphaned
 			return osqueryError{message: "campaign waiting for listener (please retry)"}
 		}
@@ -558,7 +558,7 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 		}
 
 		// No need to record query completion in this case
-		return nil
+		return osqueryError{message: "campaign stopped"}
 	}
 
 	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(int(campaignID)), host.ID)
@@ -618,11 +618,13 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 			status, ok := statuses[query]
 			failed := ok && status != fleet.StatusOK
 			err = svc.ingestDistributedQuery(host, query, rows, failed, messages[query])
+
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}
 
 		if err != nil {
+			logging.WithErr(ctx, errors.New("error in live query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}
 	}
