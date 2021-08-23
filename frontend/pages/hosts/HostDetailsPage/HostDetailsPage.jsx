@@ -708,10 +708,11 @@ export class HostDetailsPage extends Component {
                             : "info__disk-space-warning"
                         }
                         style={{
-                          width:
-                            100 - titleData.percent_disk_space_available + "%",
+                          width: `${
+                            100 - titleData.percent_disk_space_available
+                          }%`,
                         }}
-                      ></div>
+                      />
                     </div>
                     {titleData.gigs_disk_space_available} GB available
                   </span>
