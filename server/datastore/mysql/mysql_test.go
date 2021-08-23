@@ -4,10 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os/exec"
-	"path"
-	"runtime"
 	"testing"
 	"time"
 
@@ -508,10 +505,7 @@ func TestMigrations(t *testing.T) {
 	cmd.Stdout = &stdoutBuf
 	require.NoError(t, cmd.Run())
 
-	require.NoError(t, err)
-	_, filename, _, _ := runtime.Caller(0)
-	base := path.Dir(filename)
-	require.NoError(t, ioutil.WriteFile(path.Join(base, "schema.sql"), stdoutBuf.Bytes(), 0o655))
+	require.NotEmpty(t, stdoutBuf.String())
 }
 
 func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
