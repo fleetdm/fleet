@@ -5938,6 +5938,30 @@ _Available in Fleet Premium_
 }
 ```
 
+### Get a global policy by ID
+
+`GET /api/v1/fleet/global/policies/{policy_id}`
+
+#### Example
+
+`GET /api/v1/fleet/global/policies/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+    "id": 1,
+    "query_id": 2,
+    "query_name": "Gatekeeper enabled",
+    "passing_host_count": 2000,
+    "failing_host_count": 300,
+  }
+}
+```
+
 ### Add a global policies
 
 `POST /api/v1/fleet/global/policies`
