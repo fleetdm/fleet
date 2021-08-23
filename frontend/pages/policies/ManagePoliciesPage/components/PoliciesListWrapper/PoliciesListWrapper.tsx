@@ -1,4 +1,5 @@
 import React from "react";
+import { noop } from "lodash";
 
 import Button from "components/buttons/Button";
 import { IPolicy } from "interfaces/policy";
@@ -56,8 +57,9 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
         columns={tableHeaders}
         data={generateDataSet(policiesList)}
         isLoading={isLoading}
-        defaultSortHeader={"query"}
-        defaultSortDirection={"desc"}
+        defaultSortHeader={"query_name"}
+        defaultSortDirection={"asc"}
+        manualSortBy
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disablePagination
@@ -66,6 +68,7 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
         primarySelectActionButtonIcon="close"
         primarySelectActionButtonText={"Remove"}
         emptyComponent={NoPolicies}
+        onQueryChange={noop}
       />
     </div>
   );

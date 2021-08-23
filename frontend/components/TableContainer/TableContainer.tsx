@@ -34,7 +34,7 @@ interface ITableContainerProps {
   actionButtonText?: string;
   actionButtonIcon?: string;
   actionButtonVariant?: string;
-  onQueryChange?: (queryData: ITableQueryData) => void;
+  onQueryChange: (queryData: ITableQueryData) => void;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   resultsTitle: string;

@@ -41,6 +41,10 @@ const AddPolicyModal = ({
     [setSelectedQuery]
   );
 
+  const handleSubmitAddPolicy = useCallback(() => {
+    onSubmit(selectedQuery);
+  }, [onSubmit, selectedQuery]);
+
   return (
     <Modal title={"Add a policy"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>
@@ -73,7 +77,7 @@ const AddPolicyModal = ({
             className={`${baseClass}__btn`}
             type="button"
             variant="brand"
-            onClick={onSubmit}
+            onClick={handleSubmitAddPolicy}
             disabled={!selectedQuery}
           >
             Add

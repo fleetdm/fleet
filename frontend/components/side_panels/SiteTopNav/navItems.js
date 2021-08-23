@@ -55,6 +55,15 @@ export default (currentUser) => {
         pathname: PATHS.MANAGE_SCHEDULE,
       },
     },
+    {
+      icon: "policies",
+      name: "Policies",
+      iconName: "policies",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
+        pathname: PATHS.MANAGE_POLICIES,
+      },
+    },
   ];
 
   if (permissionUtils.isGlobalAdmin(currentUser)) {

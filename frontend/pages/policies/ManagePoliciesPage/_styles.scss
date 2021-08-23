@@ -3,7 +3,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: $pad-xxlarge;
+    margin-bottom: $pad-small;
   }
 
   &__header {
@@ -41,7 +41,7 @@
   }
 
   &__description {
-    margin: 0 0 $pad-medium;
+    margin: 0;
     padding-top: $pad-xsmall;
 
     h2 {
@@ -74,6 +74,26 @@
 
   &__advanced-button {
     margin-right: $pad-medium;
+  }
+
+  &__sandbox-info {
+    margin-top: $pad-large;
+    margin-bottom: $pad-xxlarge;
+
+    p {
+      font-size: $x-small;
+      margin: 0;
+      margin-bottom: $pad-medium;
+    }
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    a {
+      color: $core-vibrant-blue;
+      text-decoration: none;
+    }
   }
 
   &__modal-buttons {

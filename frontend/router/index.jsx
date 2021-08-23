@@ -35,7 +35,7 @@ import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackPageWrapper from "components/packs/PackPageWrapper";
 import PackComposerPage from "pages/packs/PackComposerPage";
-// import PoliciesPageWrapper from "components/policies/PoliciesPageWrapper";
+import PoliciesPageWrapper from "components/policies/PoliciesPageWrapper";
 import QueryPage from "pages/queries/QueryPage";
 import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
@@ -112,8 +112,7 @@ const routes = (
                   <Route path="edit" component={EditPackPage} />
                 </Route>
               </Route>
-              {/* <Route path="policies" component={PoliciesPageWrapper}> */}
-              <Route path="policies">
+              <Route path="policies" component={PoliciesPageWrapper}>
                 <Route path="manage" component={ManagePoliciesPage} />
               </Route>
               <Route path="schedule" component={SchedulePageWrapper}>

@@ -2,12 +2,27 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
+import { memoize } from "lodash";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
+import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IPolicy } from "interfaces/policy";
+import PATHS from "router/paths";
+import sortUtils from "utilities/sort";
 
+// TODO functions for paths math e.g., path={PATHS.MANAGE_HOSTS + getParams(cellProps.row.original)}
+enum PolicyResponse {
+  PASSING = "passing",
+  FAILING = "failing",
+}
+
+const TAGGED_TEMPLATES = {
+  hostsByStatusRoute: (id: number, status: PolicyResponse) => {
+    return `?policy_id=${id}&policy_response=${status}`;
+  },
+};
 interface IHeaderProps {
   column: {
     title: string;
@@ -38,14 +53,14 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
-interface IPoliciesTableData {
-  name: string;
-  passing: number;
-  failing: number;
-  id: number;
-  query_id: number;
-  query_name: string;
-}
+// interface IPoliciesTableData {
+//   name: string;
+//   passing: number;
+//   failing: number;
+//   id: number;
+//   query_id: number;
+//   query_name: string;
+// }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -76,6 +91,7 @@ const generateTableHeaders = (): IDataColumn[] => {
       title: "Query",
       Header: "Query",
       disableSortBy: true,
+      // sortType: "caseInsensitive",
       accessor: "query_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
@@ -85,19 +101,36 @@ const generateTableHeaders = (): IDataColumn[] => {
       title: "Passing",
       Header: "Passing",
       disableSortBy: true,
-      sortType: "caseInsensitive",
-      accessor: "passing",
+      accessor: "passing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
+        <LinkCell
+          value={`${cellProps.cell.value} hosts`}
+          path={
+            PATHS.MANAGE_HOSTS +
+            TAGGED_TEMPLATES.hostsByStatusRoute(
+              cellProps.row.original.query_id,
+              PolicyResponse.PASSING
+            )
+          }
+        />
       ),
     },
     {
       title: "Failing",
       Header: "Failing",
       disableSortBy: true,
-      accessor: "failing",
+      accessor: "failing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
+        <LinkCell
+          value={`${cellProps.cell.value} hosts`}
+          path={
+            PATHS.MANAGE_HOSTS +
+            TAGGED_TEMPLATES.hostsByStatusRoute(
+              cellProps.row.original.query_id,
+              PolicyResponse.FAILING
+            )
+          }
+        />
       ),
     },
   ];
@@ -118,9 +151,12 @@ const generateTableHeaders = (): IDataColumn[] => {
 //   });
 // };
 
-const generateDataSet = (all_policies: IPolicy[]): IPoliciesTableData[] => {
+const generateDataSet = memoize((all_policies: IPolicy[]): IPolicy[] => {
+  all_policies = all_policies.sort((a, b) =>
+    sortUtils.caseInsensitiveAsc(b.query_name, a.query_name)
+  );
   //   return [...enhanceAllPoliciesData(all_policies)];
   return all_policies;
-};
+});
 
 export { generateTableHeaders, generateDataSet };

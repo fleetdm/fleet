@@ -13,7 +13,7 @@ import queryActions from "redux/nodes/entities/queries/actions";
 import { renderFlash } from "redux/nodes/notifications/actions";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
+import InfoBanner from "components/InfoBanner/InfoBanner";
 import PolicyError from "./components/PolicyError";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import AddPolicyModal from "./components/AddPolicyModal";
@@ -21,6 +21,40 @@ import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
 const baseClass = "manage-policies-page";
 
+const UPDATE_INTERVAL = "1hr"; // TODO pull osquery_detail_update_interval dynamically from config
+const DOCS_LINK =
+  "https://github.com/fleetdm/fleet/blob/fleet-v4.3.0/docs/2-Deploying/2-Configuration.md#osquery_detail_update_interval";
+
+const MOCK_DATA: IPolicy[] = [
+  {
+    id: 1,
+    query_id: 2,
+    query_name: `Gatekeeper enabled`,
+    passing_host_count: 2000,
+    failing_host_count: 300,
+  },
+  {
+    id: 4,
+    query_id: 5,
+    query_name: `google 2FA`,
+    passing_host_count: 1900,
+    failing_host_count: 400,
+  },
+  {
+    id: 3,
+    query_id: 4,
+    query_name: `Secondary disk encrypted`,
+    passing_host_count: 2100,
+    failing_host_count: 200,
+  },
+  {
+    id: 2,
+    query_id: 3,
+    query_name: `Primary disk encrypted`,
+    passing_host_count: 2300,
+    failing_host_count: 0,
+  },
+];
 interface IRootState {
   app: {
     config: IConfig;
@@ -35,8 +69,8 @@ interface IRootState {
 
 const renderTable = (
   policiesList: IPolicy[],
-  isLoadingError: boolean,
   isLoading: boolean,
+  isLoadingError: boolean,
   onRemovePoliciesClick: React.MouseEventHandler<HTMLButtonElement>,
   toggleAddPolicyModal: () => void
 ): JSX.Element => {
@@ -67,19 +101,22 @@ const ManagePolicyPage = (): JSX.Element => {
 
   const getPolicies = useCallback(async () => {
     setIsLoading(true);
-    try {
-      const response = await policiesAPI.loadAll();
-      console.log(response);
-      setPolicies(response.policies);
-    } catch (error) {
-      console.log(error);
-      dispatch(
-        renderFlash("error", "Sorry, we could not retrieve your policies.")
-      );
-      setIsLoadingError(true);
-    } finally {
-      setIsLoading(false);
-    }
+
+    setPolicies(MOCK_DATA);
+    setIsLoading(false);
+    // try {
+    //   const response = await policiesAPI.loadAll();
+    //   console.log(response);
+    //   setPolicies(response.policies);
+    // } catch (error) {
+    //   console.log(error);
+    //   dispatch(
+    //     renderFlash("error", "Sorry, we could not retrieve your policies.")
+    //   );
+    //   setIsLoadingError(true);
+    // } finally {
+    //   setIsLoading(false);
+    // }
   }, [dispatch]);
 
   useEffect(() => {
@@ -111,37 +148,33 @@ const ManagePolicyPage = (): JSX.Element => {
     [toggleRemovePoliciesModal]
   );
 
-  const onRemovePoliciesSubmit = useCallback(
-    (ids: number[]) => {
-      policiesAPI
-        .destroy(ids)
-        .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              `Successfully removed ${
-                ids.length === 1 ? "policy" : "policies"
-              }.`
-            )
-          );
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Unable to remove ${
-                ids.length === 1 ? "policy" : "policies"
-              }. Please try again.`
-            )
-          );
-        })
-        .finally(() => {
-          toggleRemovePoliciesModal();
-          getPolicies();
-        });
-    },
-    [dispatch, getPolicies, toggleRemovePoliciesModal]
-  );
+  const onRemovePoliciesSubmit = useCallback(() => {
+    const ids = selectedIds;
+    policiesAPI
+      .destroy(ids)
+      .then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            `Successfully removed ${ids.length === 1 ? "policy" : "policies"}.`
+          )
+        );
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            `Unable to remove ${
+              ids.length === 1 ? "policy" : "policies"
+            }. Please try again.`
+          )
+        );
+      })
+      .finally(() => {
+        toggleRemovePoliciesModal();
+        getPolicies();
+      });
+  }, [dispatch, getPolicies, selectedIds, toggleRemovePoliciesModal]);
 
   const onAddPolicySubmit = useCallback(
     (query_id: number) => {
@@ -172,13 +205,10 @@ const ManagePolicyPage = (): JSX.Element => {
               <h1 className={`${baseClass}__title`}>
                 <span>Policies</span>
               </h1>
-              <div className={`${baseClass}__description`}>
-                <p>Policy queries report which hosts are compliant.</p>
-              </div>
             </div>
           </div>
           {/* Hide CTA Buttons if no policy or policy error */}
-          {policies.length !== 0 && isLoadingError && (
+          {policies.length !== 0 && !isLoadingError && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -190,6 +220,21 @@ const ManagePolicyPage = (): JSX.Element => {
             </div>
           )}
         </div>
+        <div className={`${baseClass}__description`}>
+          <p>Policy queries report which hosts are compliant.</p>
+        </div>
+        {!isLoadingError && (
+          <InfoBanner className={`${baseClass}__sandbox-info`}>
+            <p>
+              Your policies are checked every <b>{UPDATE_INTERVAL}</b>. Check
+              out the Fleet documentation on{" "}
+              <a href={DOCS_LINK} target="_blank" rel="noreferrer">
+                <b>how to edit this frequency</b>
+              </a>
+              .
+            </p>
+          </InfoBanner>
+        )}
         <div>
           {renderTable(
             policies,
