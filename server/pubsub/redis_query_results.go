@@ -92,6 +92,11 @@ func pubSubForID(id uint) string {
 	return fmt.Sprintf("results_%d", id)
 }
 
+// Pool returns the redisc connection pool (used in tests).
+func (r *redisQueryResults) Pool() *redisc.Cluster {
+	return r.pool
+}
+
 func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) error {
 	conn := r.pool.Get()
 	defer conn.Close()
