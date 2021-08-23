@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { Dispatch } from "redux";
 import moment from "moment";
 import FileSaver from "file-saver";
-import { filter, isEqual } from "lodash";
+import { filter } from "lodash";
 import SockJS from "sockjs-client";
 
 // @ts-ignore
-import Fleet from "fleet";
 import { formatSelectedTargetsForApi } from "fleet/helpers"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
@@ -15,7 +14,6 @@ import debounce from "utilities/debounce"; // @ts-ignore
 import convertToCSV from "utilities/convert_to_csv";
 import {
   BASE_URL,
-  DEFAULT_CAMPAIGN,
   DEFAULT_CAMPAIGN_STATE,
 } from "utilities/constants"; // @ts-ignore
 import local from "utilities/local"; // @ts-ignore
@@ -43,10 +41,10 @@ const RunQuery = ({
   dispatch,
 }: IRunQueryProps) => {
   const [isReady, setIsReady] = useState<boolean>(false);
+  const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
   );
-  const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
 
   const ws = useRef(null);
   const runQueryInterval = useRef<any>(null);
@@ -64,10 +62,10 @@ const RunQuery = ({
   const setupDistributedQuery = (socket: WebSocket | null) => {
     globalSocket.current = socket;
     const update = () => {
-      setCampaignState({
-        ...campaignState,
-        runQueryMilliseconds: campaignState.runQueryMilliseconds + 1000,
-      });
+      setCampaignState((prevCampaignState) => ({
+        ...prevCampaignState,
+        runQueryMilliseconds: prevCampaignState.runQueryMilliseconds + 1000,
+      }));
     };
 
     if (!runQueryInterval.current) {
@@ -76,16 +74,16 @@ const RunQuery = ({
   };
 
   const teardownDistributedQuery = () => {
-    if (runQueryInterval) {
+    if (runQueryInterval.current) {
       clearInterval(runQueryInterval.current);
       runQueryInterval.current = null;
     }
 
-    setCampaignState({
-      ...campaignState,
+    setCampaignState((prevCampaignState) => ({
+      ...prevCampaignState,
       queryIsRunning: false,
       runQueryMilliseconds: 0,
-    });
+    }));
     setIsReady(true);
     removeSocket();
   };
@@ -99,11 +97,11 @@ const RunQuery = ({
     websocket = new SockJS(`${BASE_URL}/v1/fleet/results`, undefined, {});
     websocket.onopen = () => {
       setupDistributedQuery(websocket);
-      setCampaignState({
-        ...campaignState,
+      setCampaignState((prevCampaignState) => ({
+        ...prevCampaignState,
         campaign: returnedCampaign,
         queryIsRunning: true,
-      });
+      }));
 
       websocket?.send(
         JSON.stringify({
@@ -120,31 +118,21 @@ const RunQuery = ({
     };
 
     websocket.onmessage = ({ data }: { data: string }) => {
-      const socketData = JSON.parse(data);
-
-      if (
-        previousSocketData.current &&
-        isEqual(socketData, previousSocketData.current)
-      ) {
+      // string is easy to compare before converting to object
+      if (data === previousSocketData.current) {
         return false;
       }
-
-      previousSocketData.current = socketData;
-
-      const { campaign, queryIsRunning } = campaignHelpers.updateCampaignState(
-        socketData
-      )(campaignState);
-
-      setCampaignState({
-        ...campaignState,
-        campaign,
-        queryIsRunning,
+      
+      previousSocketData.current = data;
+      const socketData = JSON.parse(data);
+      setCampaignState((prevCampaignState) => {
+        return {
+          ...prevCampaignState,
+          ...campaignHelpers.updateCampaignState(socketData)(prevCampaignState)
+        };
       });
 
-      if (
-        socketData.type === "status" &&
-        socketData.data.status === "finished"
-      ) {
+      if (socketData.type === "status" && socketData.data.status === "finished") {
         return teardownDistributedQuery();
       }
     };
@@ -168,11 +156,7 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      const returnedCampaign = await queryAPI.run({
-        query: sql,
-        selected,
-      });
-
+      const returnedCampaign = await queryAPI.run({ query: sql, selected });
       connectAndRunLiveQuery(returnedCampaign);
     } catch (campaignError) {
       if (campaignError === "resource already created") {
@@ -192,10 +176,6 @@ const RunQuery = ({
 
   useEffect(() => {
     onRunQuery();
-
-    return () => {
-      clearInterval(runQueryInterval.current);
-    };
   }, []);
 
   const onStopQuery = (evt: React.MouseEvent<HTMLButtonElement>) => {
@@ -259,7 +239,6 @@ const RunQuery = ({
   };
 
   const { campaign, queryIsRunning, runQueryMilliseconds } = campaignState;
-
   if (isReady) {
     return (
       <QueryResultsTable
