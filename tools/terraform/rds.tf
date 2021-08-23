@@ -26,7 +26,6 @@ module "aurora_mysql" {
   engine_version = ""
   storage_encrypted      = true
   username               = "fleet"
-//  password               = "3VGM-B*k3VzBup-hYDXw"
   password               = random_password.database_password.result
   create_random_password = false
   database_name          = "fleet"

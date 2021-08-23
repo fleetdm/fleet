@@ -1,5 +1,4 @@
 data "aws_iam_policy_document" "fleet" {
-  // TODO other permissions such as write to kinesis or firehose
   statement {
     effect    = "Allow"
     actions   = ["cloudwatch:PutMetricData"]
