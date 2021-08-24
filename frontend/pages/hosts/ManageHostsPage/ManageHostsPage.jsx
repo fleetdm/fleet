@@ -35,6 +35,7 @@ import {
   generateVisibleTableColumns,
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
+import EnrollSecretModal from "./components/EnrollSecretModal";
 import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
@@ -109,6 +110,7 @@ export class ManageHostsPage extends PureComponent {
     statusLabels: statusLabelsInterface,
     loadingHosts: PropTypes.bool,
     canAddNewHosts: PropTypes.bool,
+    canEnrollHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
@@ -133,6 +135,7 @@ export class ManageHostsPage extends PureComponent {
     this.state = {
       labelQueryText: "",
       showAddHostModal: false,
+      showEnrollSecretModal: false,
       selectedHost: null,
       showDeleteLabelModal: false,
       showEditColumnsModal: false,
@@ -213,6 +216,12 @@ export class ManageHostsPage extends PureComponent {
   onCancelEditLabel = () => {
     const { dispatch, selectedFilters } = this.props;
     dispatch(push(`${PATHS.MANAGE_HOSTS}/${selectedFilters.join("/")}`));
+  };
+
+  onShowEnrollSecretClick = (evt) => {
+    evt.preventDefault();
+    const { toggleEnrollSecretModal } = this;
+    toggleEnrollSecretModal();
   };
 
   onAddHostClick = (evt) => {
@@ -533,6 +542,11 @@ export class ManageHostsPage extends PureComponent {
     }
   };
 
+  toggleEnrollSecretModal = () => {
+    const { showEnrollSecretModal } = this.state;
+    this.setState({ showEnrollSecretModal: !showEnrollSecretModal });
+  };
+
   toggleAddHostModal = () => {
     const { showAddHostModal } = this.state;
     this.setState({ showAddHostModal: !showAddHostModal });
@@ -691,6 +705,32 @@ export class ManageHostsPage extends PureComponent {
           hiddenColumns={hiddenColumns}
           onSaveColumns={this.onSaveColumns}
           onCancelColumns={this.onCancelColumns}
+        />
+      </Modal>
+    );
+  };
+
+  renderEnrollSecretModal = () => {
+    const { toggleEnrollSecretModal, onChangeTeam } = this;
+    const { showEnrollSecretModal } = this.state;
+    const { config, currentUser, canEnrollHosts, teams } = this.props;
+
+    if (!canEnrollHosts || !showEnrollSecretModal) {
+      return null;
+    }
+
+    return (
+      <Modal
+        title="Enroll secret"
+        onExit={toggleEnrollSecretModal}
+        className={`${baseClass}__enroll-secret-modal`}
+      >
+        <EnrollSecretModal
+          teams={teams}
+          onChangeTeam={onChangeTeam}
+          onReturnToApp={toggleEnrollSecretModal}
+          config={config}
+          currentUser={currentUser}
         />
       </Modal>
     );
@@ -973,10 +1013,12 @@ export class ManageHostsPage extends PureComponent {
       renderHeader,
       renderSidePanel,
       renderAddHostModal,
+      renderEnrollSecretModal,
       renderDeleteLabelModal,
       renderTable,
       renderEditColumnsModal,
       renderTransferHostModal,
+      onShowEnrollSecretClick,
       onAddHostClick,
     } = this;
     const {
@@ -984,6 +1026,7 @@ export class ManageHostsPage extends PureComponent {
       isEditLabel,
       loadingLabels,
       canAddNewHosts,
+      canEnrollHosts,
     } = this.props;
 
     return (
@@ -993,19 +1036,31 @@ export class ManageHostsPage extends PureComponent {
           <div className={`${baseClass} body-wrap`}>
             <div className="header-wrap">
               {renderHeader()}
-              {canAddNewHosts ? (
-                <Button
-                  onClick={onAddHostClick}
-                  className={`${baseClass}__add-hosts button button--brand`}
-                >
-                  <span>Add new host</span>
-                </Button>
-              ) : null}
+              <div className={`${baseClass} button-wrap`}>
+                {canEnrollHosts && (
+                  <Button
+                    onClick={onShowEnrollSecretClick}
+                    className={`${baseClass}__enroll-hosts button`}
+                    variant="inverse"
+                  >
+                    <span>Show enroll secret</span>
+                  </Button>
+                )}
+                {canAddNewHosts && (
+                  <Button
+                    onClick={onAddHostClick}
+                    className={`${baseClass}__add-hosts button button--brand`}
+                  >
+                    <span>Add new host</span>
+                  </Button>
+                )}
+              </div>
             </div>
             {renderTable()}
           </div>
         )}
         {!loadingLabels && renderSidePanel()}
+        {renderEnrollSecretModal()}
         {renderAddHostModal()}
         {renderEditColumnsModal()}
         {renderDeleteLabelModal()}
@@ -1063,6 +1118,10 @@ const mapStateToProps = (state, ownProps) => {
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser) ||
     permissionUtils.isAnyTeamMaintainer(currentUser);
+  const canEnrollHosts =
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser) ||
+    permissionUtils.isAnyTeamMaintainer(currentUser);
   const canAddNewLabels =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
@@ -1088,6 +1147,7 @@ const mapStateToProps = (state, ownProps) => {
     currentUser,
     loadingHosts,
     canAddNewHosts,
+    canEnrollHosts,
     canAddNewLabels,
     isGlobalAdmin,
     isOnGlobalTeam,
