@@ -31,6 +31,7 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 		fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
+	// See #1776
 	//if err != nil {
 	//	panic(err)
 	//}
