@@ -711,15 +711,9 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderEnrollSecretModal = () => {
-    const { toggleEnrollSecretModal, onChangeTeam } = this;
+    const { toggleEnrollSecretModal } = this;
     const { showEnrollSecretModal } = this.state;
-    const {
-      config,
-      canEnrollHosts,
-      teams,
-      selectedTeam,
-      isBasicTier,
-    } = this.props;
+    const { canEnrollHosts, teams, selectedTeam, isBasicTier } = this.props;
 
     if (!canEnrollHosts || !showEnrollSecretModal) {
       return null;
@@ -1126,7 +1120,7 @@ const mapStateToProps = (state, ownProps) => {
   const canEnrollHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser) ||
-    permissionUtils.isAnyTeamMaintainer(currentUser);
+    (permissionUtils.isAnyTeamMaintainer(currentUser) && selectedTeam !== 0);
   const canAddNewLabels =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);

@@ -37,6 +37,10 @@ describe("Core tier - Admin user", () => {
     cy.contains(/team/i).should("not.exist");
     cy.findByRole("button", { name: /done/i }).click();
 
+    // See the “Show enroll secret” button. A modal appears after the user selects the button
+    cy.contains("button", /show enroll secret/i).click();
+    cy.contains("button", /done/i).click();
+
     // See and select "add label"
     cy.findByRole("button", { name: /add label/i }).click();
     cy.findByRole("button", { name: /cancel/i }).click();

@@ -1,20 +1,25 @@
-import React, { useCallback, useState } from "react";
-import { Link } from "react-router";
-import PATHS from "router/paths";
-import permissionUtils from "utilities/permissions";
+import React from "react";
+import { useSelector } from "react-redux";
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import EnrollSecretTable from "components/config/EnrollSecretTable";
 import { ITeam } from "interfaces/team";
-import { IConfig } from "interfaces/config";
-import { IUser } from "interfaces/user";
+import { IEnrollSecret } from "interfaces/enroll_secret";
+// // @ts-ignore
+// import configActions from "redux/nodes/entities/config/actions";
 
 interface IEnrollSecretModal {
   selectedTeam: number;
   onReturnToApp: () => void;
   isBasicTier: boolean;
   teams: ITeam[];
+}
+
+interface IRootState {
+  app: {
+    enrollSecret: IEnrollSecret[];
+  };
 }
 
 const baseClass = "enroll-secret-modal";
@@ -25,43 +30,32 @@ const EnrollSecretModal = ({
   isBasicTier,
   teams,
 }: IEnrollSecretModal): JSX.Element => {
-  // const getSelectedEnrollSecrets = () => {
-  //   if (selectedTeam === 0) {
-  //     return this.state.globalSecrets;
-  //   }
-  //   return (
-  //     this.teamSecrets.find((e) => e.id === selectedTeam.id)?.secrets || ""
-  //   );
-  // };
+  const globalSecret = useSelector(
+    (state: IRootState) => state.app.enrollSecret
+  );
 
-  const team = () => {
-    if (selectedTeam === 0) {
-      return { name: "No team", secrets: [{ secret: "globalsecretshere" }] };
+  const renderTeam = () => {
+    if (typeof selectedTeam === "string") {
+      selectedTeam = parseInt(selectedTeam, 10);
     }
-    return teams.find((team) => team.id == selectedTeam);
-  };
 
-  // const getSelectedEnrollSecrets = () => {
-  //   if (selectedTeam === 0) {
-  //     // return this.state.globalSecrets;
-  //     return null;
-  //   }
-  //   return (
-  //     this.teamSecrets.find((e) => e.id === selectedTeam.id)?.secrets || ""
-  //   );
-  // };
+    if (selectedTeam === 0) {
+      return { name: "No team", secrets: globalSecret };
+    }
+    return teams.find((team) => team.id === selectedTeam);
+  };
 
   return (
     <Modal onExit={onReturnToApp} title={"Enroll secret"} className={baseClass}>
       <div className={baseClass}>
         <div className={`${baseClass}__description`}>
-          Use these secret(s) to enroll devices to <b>{team()?.name}</b>:
+          Use these secret(s) to enroll devices to <b>{renderTeam()?.name}</b>:
         </div>
         <div className={`${baseClass}__secret-wrapper`}>
-          {/* {isBasicTier && selectedTeam && (
-            <EnrollSecretTable secrets={getSelectedEnrollSecrets()} />
-          )} */}
-          {/* {!isBasicTier && <EnrollSecretTable secrets={team()?.secrets.secret} />} */}
+          {isBasicTier && <EnrollSecretTable secrets={renderTeam()?.secrets} />}
+          {!isBasicTier && (
+            <EnrollSecretTable secrets={renderTeam()?.secrets} />
+          )}
         </div>
         <div className={`${baseClass}__button-wrap`}>
           <Button onClick={onReturnToApp} className="button button--brand">
