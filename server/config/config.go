@@ -198,32 +198,36 @@ type FleetConfig struct {
 // addConfigs adds the configuration keys and default values that will be
 // filled into the FleetConfig struct
 func (man Manager) addConfigs() {
+	addMysqlConfig := func(prefix string) {
+		man.addConfigString(prefix+".protocol", "tcp",
+			"MySQL server communication protocol (tcp,unix,...)")
+		man.addConfigString(prefix+".address", "localhost:3306",
+			"MySQL server address (host:port)")
+		man.addConfigString(prefix+".username", "fleet",
+			"MySQL server username")
+		man.addConfigString(prefix+".password", "",
+			"MySQL server password (prefer env variable for security)")
+		man.addConfigString(prefix+".password_path", "",
+			"Path to file containg MySQL server password")
+		man.addConfigString(prefix+".database", "fleet",
+			"MySQL database name")
+		man.addConfigString(prefix+".tls_cert", "",
+			"MySQL TLS client certificate path")
+		man.addConfigString(prefix+".tls_key", "",
+			"MySQL TLS client key path")
+		man.addConfigString(prefix+".tls_ca", "",
+			"MySQL TLS server CA")
+		man.addConfigString(prefix+".tls_server_name", "",
+			"MySQL TLS server name")
+		man.addConfigString(prefix+".tls_config", "",
+			"MySQL TLS config value. Use skip-verify, true, false or custom key.")
+		man.addConfigInt(prefix+".max_open_conns", 50, "MySQL maximum open connection handles.")
+		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles.")
+		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused.")
+	}
 	// MySQL
-	man.addConfigString("mysql.protocol", "tcp",
-		"MySQL server communication protocol (tcp,unix,...)")
-	man.addConfigString("mysql.address", "localhost:3306",
-		"MySQL server address (host:port)")
-	man.addConfigString("mysql.username", "fleet",
-		"MySQL server username")
-	man.addConfigString("mysql.password", "",
-		"MySQL server password (prefer env variable for security)")
-	man.addConfigString("mysql.password_path", "",
-		"Path to file containg MySQL server password")
-	man.addConfigString("mysql.database", "fleet",
-		"MySQL database name")
-	man.addConfigString("mysql.tls_cert", "",
-		"MySQL TLS client certificate path")
-	man.addConfigString("mysql.tls_key", "",
-		"MySQL TLS client key path")
-	man.addConfigString("mysql.tls_ca", "",
-		"MySQL TLS server CA")
-	man.addConfigString("mysql.tls_server_name", "",
-		"MySQL TLS server name")
-	man.addConfigString("mysql.tls_config", "",
-		"MySQL TLS config value. Use skip-verify, true, false or custom key.")
-	man.addConfigInt("mysql.max_open_conns", 50, "MySQL maximum open connection handles.")
-	man.addConfigInt("mysql.max_idle_conns", 50, "MySQL maximum idle connection handles.")
-	man.addConfigInt("mysql.conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused.")
+	addMysqlConfig("mysql")
+	addMysqlConfig("mysql_read_replica")
 
 	// Redis
 	man.addConfigString("redis.address", "localhost:6379",
