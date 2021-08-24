@@ -692,13 +692,6 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.POST("/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
 }
 
-func handle(verb, path string, handler http.Handler, name string, r *mux.Router) {
-	r.Handle(
-		path,
-		handler,
-	).Methods(verb).Name(name)
-}
-
 // TODO: this duplicates the one in makeKitHandler
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
