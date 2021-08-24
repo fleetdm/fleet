@@ -214,7 +214,6 @@ type HostStatusWebhookSettings struct {
 
 func (ac *AppConfig) ApplyDefaultsForNewInstalls() {
 	ac.ServerSettings.EnableAnalytics = true
-	ac.HostSettings.EnableHostUsers = true
 	ac.SMTPSettings.SMTPPort = 587
 	ac.SMTPSettings.SMTPEnableStartTLS = true
 	ac.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
@@ -226,6 +225,7 @@ func (ac *AppConfig) ApplyDefaultsForNewInstalls() {
 }
 
 func (ac *AppConfig) ApplyDefaults() {
+	ac.HostSettings.EnableHostUsers = true
 	ac.WebhookSettings.Periodicity.Duration = 24 * time.Hour
 }
 

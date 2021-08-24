@@ -266,12 +266,19 @@ func TestAppConfigDefaults(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 24*time.Hour, ac.WebhookSettings.Periodicity.Duration)
 	require.False(t, ac.WebhookSettings.HostStatusWebhook.Enable)
+	require.True(t, ac.HostSettings.EnableHostUsers)
+	require.False(t, ac.HostSettings.EnableSoftwareInventory)
 
-	_, err = ds.db.Exec(insertAppConfigQuery, `{"webhook_settings": {"periodicity": "12h"}}`)
+	_, err = ds.db.Exec(
+		insertAppConfigQuery,
+		`{"webhook_settings": {"periodicity": "12h"}, "host_settings": {"enable_host_users": false}}`,
+	)
 	require.NoError(t, err)
 
 	ac, err = ds.AppConfig()
 	require.NoError(t, err)
 
 	require.Equal(t, 12*time.Hour, ac.WebhookSettings.Periodicity.Duration)
+	require.False(t, ac.HostSettings.EnableHostUsers)
+	require.False(t, ac.HostSettings.EnableSoftwareInventory)
 }
