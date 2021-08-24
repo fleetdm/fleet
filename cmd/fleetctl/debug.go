@@ -2,9 +2,15 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -12,7 +18,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 )
 
 func debugCommand() *cli.Command {
@@ -31,6 +38,7 @@ func debugCommand() *cli.Command {
 			debugGoroutineCommand(),
 			debugTraceCommand(),
 			debugArchiveCommand(),
+			debugConnectionCommand(),
 		},
 	}
 }
@@ -315,4 +323,212 @@ func debugArchiveCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+func debugConnectionCommand() *cli.Command {
+	const timeoutPerCheck = 10 * time.Second
+
+	return &cli.Command{
+		Name:      "connection",
+		ArgsUsage: "[<address>]",
+		Usage:     "Investigate the cause of a connection failure to the Fleet server.",
+		Description: `Run a number of checks to debug a connection failure to the Fleet
+server.
+
+If <address> is provided, this is the address that is investigated,
+otherwise the address of the provided context is used, with
+the default context used if none is explicitly specified.`,
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			fleetCertificateFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			var addr string
+			if narg := c.NArg(); narg > 0 {
+				if narg > 1 {
+					return errors.New("too many arguments")
+				}
+				addr = c.Args().First()
+
+				// when an address is provided, the --config and --context flags
+				// cannot be set.
+				if c.IsSet("config") {
+					return errors.New("the --config flag cannot be set when an <address> is provided")
+				}
+				if c.IsSet("context") {
+					return errors.New("the --context flag cannot be set when an <address> is provided")
+				}
+			} else if cert := getFleetCertificate(c); cert != "" {
+				return errors.New("the --fleet-certificate flag can only be set when an <address> is provided")
+			}
+
+			// ensure there is an address to debug (either from the config's context,
+			// or explicit)
+			cc, err := clientConfigFromCLI(c)
+			if err != nil {
+				return err
+			}
+			configContext := c.String("context")
+			if addr != "" {
+				cc.Address = addr
+
+				// when an address is explicitly provided, we don't use any of the
+				// config's context values.
+				configContext = "none - using provided address"
+				cc.TLSSkipVerify = false
+				cc.RootCA = ""
+			}
+			if cc.Address == "" {
+				return errors.New(`set the Fleet API address with: fleetctl config set --address https://localhost:8080
+or provide an <address> argument to debug: fleetctl debug connection localhost:8080`)
+			}
+
+			// it's ok if there is no scheme specified, add it automatically
+			if !strings.Contains(cc.Address, "://") {
+				cc.Address = "https://" + cc.Address
+			}
+
+			if certPath := getFleetCertificate(c); certPath != "" {
+				// if a certificate is provided, use it as root CA
+				cc.RootCA = certPath
+				cc.TLSSkipVerify = false
+			}
+
+			cli, baseURL, err := rawHTTPClientFromConfig(cc)
+			if err != nil {
+				return err
+			}
+
+			// print a summary of the address and TLS context that is investigated
+			fmt.Fprintf(c.App.Writer, "Debugging connection to %s; Configuration context: %s; ", baseURL.Hostname(), configContext)
+			rootCA := "(system)"
+			if cc.RootCA != "" {
+				rootCA = cc.RootCA
+			}
+			fmt.Fprintf(c.App.Writer, "Root CA: %s; ", rootCA)
+			tlsMode := "secure"
+			if cc.TLSSkipVerify {
+				tlsMode = "insecure"
+			}
+			fmt.Fprintf(c.App.Writer, "TLS: %s.\n", tlsMode)
+
+			// Check that the url's host resolves to an IP address or is otherwise
+			// a valid IP address directly.
+			if err := resolveHostname(c.Context, timeoutPerCheck, baseURL.Hostname()); err != nil {
+				return errors.Wrap(err, "Fail: resolve host")
+			}
+			fmt.Fprintf(c.App.Writer, "Success: can resolve host %s.\n", baseURL.Hostname())
+
+			// Attempt a raw TCP connection to host:port.
+			if err := dialHostPort(c.Context, timeoutPerCheck, baseURL.Host); err != nil {
+				return errors.Wrap(err, "Fail: dial server")
+			}
+			fmt.Fprintf(c.App.Writer, "Success: can dial server at %s.\n", baseURL.Host)
+
+			if cert := getFleetCertificate(c); cert != "" {
+				// Run some validations on the TLS certificate.
+				if err := checkFleetCert(c.Context, timeoutPerCheck, cert, baseURL.Host); err != nil {
+					return errors.Wrap(err, "Fail: certificate")
+				}
+				fmt.Fprintln(c.App.Writer, "Success: TLS certificate seems valid.")
+			}
+
+			// Check that the server responds with expected responses (by
+			// making a POST to /api/v1/osquery/enroll with an invalid
+			// secret).
+			if err := checkAPIEndpoint(c.Context, timeoutPerCheck, baseURL, cli); err != nil {
+				return errors.Wrap(err, "Fail: agent API endpoint")
+			}
+			fmt.Fprintln(c.App.Writer, "Success: agent API endpoints are available.")
+
+			return nil
+		},
+	}
+}
+
+func resolveHostname(ctx context.Context, timeout time.Duration, host string) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	var r net.Resolver
+	ips, err := r.LookupIP(ctx, "ip", host)
+	if err != nil {
+		return err
+	}
+	if len(ips) == 0 {
+		return errors.New("no address found for host")
+	}
+	return nil
+}
+
+func dialHostPort(ctx context.Context, timeout time.Duration, addr string) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", addr)
+	if err == nil {
+		conn.Close()
+	}
+	return err
+}
+
+func checkAPIEndpoint(ctx context.Context, timeout time.Duration, baseURL *url.URL, client *http.Client) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	// make an enroll request with a deliberately invalid secret,
+	// to see if we get the expected error json payload.
+	var enrollRes struct {
+		Error       string `json:"error"`
+		NodeInvalid bool   `json:"node_invalid"`
+	}
+	headers := map[string]string{
+		"Content-type": "application/json",
+		"Accept":       "application/json",
+	}
+
+	baseURL.Path = "/api/v1/osquery/enroll"
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		baseURL.String(),
+		bytes.NewBufferString(`{"enroll_secret": "--invalid--"}`),
+	)
+	if err != nil {
+		return errors.Wrap(err, "creating request object")
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "request failed")
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&enrollRes); err != nil {
+		return errors.Wrap(err, "invalid JSON")
+	}
+	if res.StatusCode != http.StatusUnauthorized || enrollRes.Error == "" || !enrollRes.NodeInvalid {
+		return fmt.Errorf("unexpected %d response", res.StatusCode)
+	}
+	return nil
+}
+
+func checkFleetCert(ctx context.Context, timeout time.Duration, certPath, addr string) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	certPool, err := certificate.LoadPEM(certPath)
+	if err != nil {
+		return err
+	}
+	if err := certificate.ValidateConnectionContext(ctx, certPool, "https://"+addr); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -2,6 +2,7 @@
 package certificate
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
@@ -21,7 +22,7 @@ func LoadPEM(path string) (*x509.CertPool, error) {
 	}
 
 	if ok := pool.AppendCertsFromPEM(contents); !ok {
-		return nil, errors.Errorf("no valid ceritificates found in %s", path)
+		return nil, errors.Errorf("no valid certificates found in %s", path)
 	}
 
 	return pool, nil
@@ -32,29 +33,39 @@ func LoadPEM(path string) (*x509.CertPool, error) {
 // not sufficient to verify authenticity of the server, but it can help to catch
 // certificate errors and provide more detailed messages to users.
 func ValidateConnection(pool *x509.CertPool, fleetURL string) error {
+	return ValidateConnectionContext(context.Background(), pool, fleetURL)
+}
+
+// ValidateConnectionContext is like ValidateConnection, but it accepts a
+// context that may specify a timeout or deadline for the TLS connection check.
+func ValidateConnectionContext(ctx context.Context, pool *x509.CertPool, fleetURL string) error {
 	parsed, err := url.Parse(fleetURL)
 	if err != nil {
 		return errors.Wrap(err, "parse url")
 	}
-	conn, err := tls.Dial("tcp", parsed.Host, &tls.Config{
-		ClientCAs:          pool,
-		InsecureSkipVerify: true,
-		VerifyConnection: func(state tls.ConnectionState) error {
-			if len(state.PeerCertificates) == 0 {
-				return errors.New("no peer certificates")
-			}
 
-			cert := state.PeerCertificates[0]
-			if _, err := cert.Verify(x509.VerifyOptions{
-				DNSName: parsed.Hostname(),
-				Roots:   pool,
-			}); err != nil {
-				return errors.Wrap(err, "verify certificate")
-			}
+	dialer := &tls.Dialer{
+		Config: &tls.Config{
+			RootCAs:            pool,
+			InsecureSkipVerify: true,
+			VerifyConnection: func(state tls.ConnectionState) error {
+				if len(state.PeerCertificates) == 0 {
+					return errors.New("no peer certificates")
+				}
 
-			return nil
+				cert := state.PeerCertificates[0]
+				if _, err := cert.Verify(x509.VerifyOptions{
+					DNSName: parsed.Hostname(),
+					Roots:   pool,
+				}); err != nil {
+					return errors.Wrap(err, "verify certificate")
+				}
+
+				return nil
+			},
 		},
-	})
+	}
+	conn, err := dialer.DialContext(ctx, "tcp", parsed.Host)
 	if err != nil {
 		return errors.Wrap(err, "dial for validate")
 	}

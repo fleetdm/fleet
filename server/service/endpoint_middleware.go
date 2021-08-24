@@ -25,11 +25,23 @@ func authenticatedHost(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 
 		host, err := svc.AuthenticateHost(ctx, nodeKey)
 		if err != nil {
+			logging.WithErr(ctx, err)
 			return nil, err
 		}
 
 		ctx = hostctx.NewContext(ctx, *host)
-		return next(ctx, request)
+		resp, err := next(ctx, request)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return nil, err
+		}
+		if errResp, ok := resp.(errorer); ok {
+			err = errResp.error()
+			if err != nil {
+				logging.WithErr(ctx, err)
+			}
+		}
+		return resp, nil
 	}
 }
 
@@ -95,6 +107,24 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		if err != nil {
 			logging.WithErr(ctx, err)
 			return nil, err
+		}
+		return res, nil
+	}
+}
+
+// logged wraps an endpoint and adds the error if the context supports it
+func logged(next endpoint.Endpoint) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		res, err := next(ctx, request)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return nil, err
+		}
+		if errResp, ok := res.(errorer); ok {
+			err = errResp.error()
+			if err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 		return res, nil
 	}

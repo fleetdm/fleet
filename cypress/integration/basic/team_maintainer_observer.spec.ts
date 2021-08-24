@@ -137,16 +137,13 @@ describe("Basic tier - Team observer/maintainer user", () => {
     cy.findByText(/add new host/i).click();
 
     // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
-    cy.get(".add-host-modal__team-dropdown-wrapper").within(() => {
-      cy.findByText(/select a team for this new host/i).should("exist");
-      cy.get(".Select").within(() => {
-        cy.findByText(/select a team/i).click();
-        cy.findByText(/no team/i).should("exist");
-        // cy.findByText(/apples/i).should("exist");
-        // cy.findByText(/oranges/i).should("not exist");
-        // ^ TODO: Team maintainer has access to only their teams, team observer does not have access
-      });
+    cy.get(".add-host-modal__team-dropdown-wrapper .Select-control").click();
+    cy.get(".Select-menu-outer").within(() => {
+      cy.findByText(/no team/i).should("not.exist");
+      cy.findByText(/apples/i).should("not.exist");
+      cy.findByText(/oranges/i).should("exist");
     });
+
     cy.findByRole("button", { name: /done/i }).click();
 
     // On the Host details page, they should…

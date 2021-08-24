@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf"
 	"github.com/urfave/cli/v2"

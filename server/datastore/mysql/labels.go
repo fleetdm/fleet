@@ -35,6 +35,7 @@ func (d *Datastore) ApplyLabelSpecs(specs []*fleet.LabelSpec) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "prepare ApplyLabelSpecs insert")
 		}
+		defer stmt.Close()
 
 		for _, s := range specs {
 			if s.Name == "" {
@@ -324,9 +325,11 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 
 		results[id] = query
 	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "iterating over returned rows")
+	}
 
 	return results, nil
-
 }
 
 func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, updated time.Time) error {
