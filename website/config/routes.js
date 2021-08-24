@@ -15,9 +15,9 @@ module.exports.routes = {
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
   'GET /':                   { action: 'view-homepage-or-redirect', locals: { isHomepage: true } },
   'GET /company/contact':    { action:   'view-contact' },
-  'GET /get-started':        { action:   'view-pricing' },
+  'GET /get-started':        { action:   'view-get-started' },
+  'GET /pricing':            { action: 'view-pricing'},
 
-  'GET /install':            { action:   'view-get-started' },
   '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   '/company/about':          '/handbook', // FUTURE: brief "about" page explaining the origins of the company
 
@@ -54,8 +54,8 @@ module.exports.routes = {
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
 
   // Convenience
-  '/pricing':                    '/get-started',
   '/documentation':              '/docs',
+  '/install':                    '/get-started',
   '/company':                    '/company/about',
   '/support':                    '/company/contact',
   '/contact':                    '/company/contact',
