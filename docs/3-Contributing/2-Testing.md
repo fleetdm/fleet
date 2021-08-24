@@ -31,7 +31,7 @@ Check out [the instructions in the `/tools/osquery` directory](../../tools/osque
 
 ## Test suite
 
-You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test` or `make lint`, using:
+You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
