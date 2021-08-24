@@ -81,9 +81,9 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 
 				WebhookSettings: config.WebhookSettings,
 			},
-			UpdateInterval:        updateIntervalConfig,
-			License: license,
-			Logging: loggingConfig,
+			UpdateInterval: updateIntervalConfig,
+			License:        license,
+			Logging:        loggingConfig,
 		}
 		return response, nil
 	}

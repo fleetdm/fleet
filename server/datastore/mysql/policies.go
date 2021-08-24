@@ -46,7 +46,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(host *fleet.Host, results map[u
 	// Sort the results to have generated SQL queries ordered to minimize
 	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
-	for policyID, _ := range results {
+	for policyID := range results {
 		orderedIDs = append(orderedIDs, policyID)
 	}
 	sort.Slice(orderedIDs, func(i, j int) bool { return orderedIDs[i] < orderedIDs[j] })
