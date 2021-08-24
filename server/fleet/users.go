@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -206,12 +207,4 @@ func (u *User) SetPassword(plaintext string, keySize, cost int) error {
 	u.Salt = salt
 	u.Password = hashed
 	return nil
-}
-
-// helper to convert a bool pointer false
-func falseIfNil(b *bool) bool {
-	if b == nil {
-		return false
-	}
-	return *b
 }

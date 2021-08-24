@@ -93,7 +93,7 @@ func migrateOptions(tx *sql.Tx) error {
 		INNER JOIN file_integrity_monitoring_files AS mf
 		ON (fim.id = mf.file_integrity_monitoring_id)
 	`
-	rows, err := txx.Query(query)
+	rows, err := txx.Query(query) //nolint
 	if err != nil && err != sql.ErrNoRows {
 		return errors.Wrap(err, "retrieving fim paths")
 	}

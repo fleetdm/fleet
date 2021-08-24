@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var mockCreatedAt time.Time = time.Now().UTC().Truncate(time.Second)
+var mockCreatedAt = time.Now().UTC().Truncate(time.Second)
 
 func TestCarveMetadata(t *testing.T) {
 	ds := CreateMySQLDS(t)

@@ -95,7 +95,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	orderKey := r.URL.Query().Get("order_key")
 	orderDirectionString := r.URL.Query().Get("order_direction")
 
-	var page int = 0
+	var page int
 	if pageString != "" {
 		page, err = strconv.Atoi(pageString)
 		if err != nil {
@@ -108,7 +108,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 
 	// We default to 0 for per_page so that not specifying any paging
 	// information gets all results
-	var perPage int = 0
+	var perPage int
 	if perPageString != "" {
 		perPage, err = strconv.Atoi(perPageString)
 		if err != nil {
@@ -230,17 +230,5 @@ func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interfac
 	}
 	var req getGenericSpecRequest
 	req.Name = name
-	return req, nil
-}
-
-type genericIDListRequest struct {
-	IDs []uint `json:"ids"`
-}
-
-func decodeGenericIDListRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req genericIDListRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
 	return req, nil
 }
