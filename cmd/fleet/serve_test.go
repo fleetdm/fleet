@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -94,4 +97,67 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.False(t, called)
+}
+
+type alwaysLocker struct{}
+
+func (m *alwaysLocker) Lock(name string, owner string, expiration time.Duration) (bool, error) {
+	return true, nil
+}
+func (m *alwaysLocker) Unlock(name string, owner string) error {
+	return nil
+}
+
+func TestCronWebhooks(t *testing.T) {
+	ds := new(mock.Store)
+
+	endpointCalled := int32(0)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&endpointCalled, 1)
+	}))
+	defer ts.Close()
+
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			WebhookSettings: fleet.WebhookSettings{
+				HostStatusWebhook: fleet.HostStatusWebhookSettings{
+					Enable:         true,
+					DestinationURL: ts.URL,
+					HostPercentage: 43,
+					DaysCount:      2,
+				},
+				Periodicity: 2 * time.Second,
+			},
+		}, nil
+	}
+
+	calledOnce := make(chan struct{})
+	calledTwice := make(chan struct{})
+	ds.TotalAndUnseenHostsSinceFunc = func(daysCount int) (int, int, error) {
+		defer func() {
+			select {
+			case <-calledOnce:
+				select {
+				case <-calledTwice:
+				default:
+					close(calledTwice)
+				}
+			default:
+				close(calledOnce)
+			}
+		}()
+		return 10, 6, nil
+	}
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	go cronWebhooks(ctx, ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), &alwaysLocker{}, "1234")
+
+	<-calledOnce
+	time.Sleep(1 * time.Second)
+	assert.Equal(t, int32(1), atomic.LoadInt32(&endpointCalled))
+	<-calledTwice
+	time.Sleep(1 * time.Second)
+	assert.GreaterOrEqual(t, int32(2), atomic.LoadInt32(&endpointCalled))
 }

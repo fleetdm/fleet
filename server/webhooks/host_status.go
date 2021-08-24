@@ -2,6 +2,7 @@ package webhooks
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -30,10 +31,24 @@ func TriggerHostStatusWebhook(
 	percentUnseen := float64(unseen) * 100.0 / float64(total)
 	if percentUnseen >= appConfig.WebhookSettings.HostStatusWebhook.HostPercentage {
 		url := appConfig.WebhookSettings.HostStatusWebhook.DestinationURL
-		// TODOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-		err2 := server.PostJSONWithTimeout(url)
-		if err2 != nil {
-			return err2
+
+		message := fmt.Sprintf(
+			"More than %.2f%% of your hosts have not checked into Fleet for more than %d days. "+
+				"You’ve been sent this message because the Host status webhook is enabled in your Fleet instance.",
+			percentUnseen, appConfig.WebhookSettings.HostStatusWebhook.DaysCount,
+		)
+		payload := map[string]interface{}{
+			"message": message,
+			"data": map[string]interface{}{
+				"unseen_hosts": unseen,
+				"total_hosts":  total,
+				"days_unseen":  appConfig.WebhookSettings.HostStatusWebhook.DaysCount,
+			},
+		}
+
+		err = server.PostJSONWithTimeout(ctx, url, &payload)
+		if err != nil {
+			return errors.Wrapf(err, "posting to %s", url)
 		}
 	}
 

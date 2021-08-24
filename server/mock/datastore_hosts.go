@@ -42,6 +42,8 @@ type AddHostsToTeamFunc func(teamID *uint, hostIDs []uint) error
 
 type SaveHostAdditionalFunc func(host *fleet.Host) error
 
+type TotalAndUnseenHostsSinceFunc func(daysCount int) (int, int, error)
+
 type HostStore struct {
 	NewHostFunc        NewHostFunc
 	NewHostFuncInvoked bool
@@ -90,6 +92,9 @@ type HostStore struct {
 
 	SaveHostAdditionalFunc        SaveHostAdditionalFunc
 	SaveHostAdditionalFuncInvoked bool
+
+	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
+	TotalAndUnseenHostsSinceFuncInvoked bool
 }
 
 func (s *HostStore) NewHost(host *fleet.Host) (*fleet.Host, error) {
@@ -170,4 +175,9 @@ func (s *HostStore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
 func (s *HostStore) SaveHostAdditional(host *fleet.Host) error {
 	s.SaveHostAdditionalFuncInvoked = true
 	return s.SaveHostAdditionalFunc(host)
+}
+
+func (s *HostStore) TotalAndUnseenHostsSince(daysCount int) (int, int, error) {
+	s.TotalAndUnseenHostsSinceFuncInvoked = true
+	return s.TotalAndUnseenHostsSinceFunc(daysCount)
 }

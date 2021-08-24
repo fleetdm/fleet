@@ -172,10 +172,11 @@ type AppConfig struct {
 
 type WebhookSettings struct {
 	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
+	Periodicity       time.Duration             `json:"periodicity"`
 }
 
 type HostStatusWebhookSettings struct {
-	Enable         bool    `json:"enable"`
+	Enable         bool    `json:"enable_host_status_webhook"`
 	DestinationURL string  `json:"destination_url"`
 	HostPercentage float64 `json:"host_percentage"`
 	DaysCount      int     `json:"days_count"`
@@ -190,6 +191,7 @@ func (ac *AppConfig) ApplyDefaultsForNewInstalls() {
 	ac.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
 	ac.SMTPSettings.SMTPVerifySSLCerts = true
 	ac.SMTPSettings.SMTPEnableTLS = true
+	ac.WebhookSettings.Periodicity = 24 * time.Hour
 }
 
 // OrgInfo contains general info about the organization using Fleet.

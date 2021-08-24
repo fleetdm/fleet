@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -22,14 +23,14 @@ func GenerateRandomText(keySize int) (string, error) {
 	return base64.StdEncoding.EncodeToString(key), nil
 }
 
-func PostJSONWithTimeout(url string, v interface{}) error {
+func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	jsonBytes, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return err
 	}

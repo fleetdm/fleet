@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -423,7 +421,7 @@ func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) 
 		return nil
 	}
 
-	err = server.PostJSONWithTimeout(url, stats)
+	err = server.PostJSONWithTimeout(context.Background(), url, stats)
 	if err != nil {
 		return err
 	}
@@ -569,7 +567,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		return
 	}
 
-	ticker := time.NewTicker(24 * time.Hour)
+	ticker := time.NewTicker(appConfig.WebhookSettings.Periodicity)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
 		select {
@@ -579,7 +577,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			break
 		}
-		if locked, err := locker.Lock(lockKeyWebhooks, identifier, 24*time.Hour); err != nil || !locked {
+		if locked, err := locker.Lock(lockKeyWebhooks, identifier, appConfig.WebhookSettings.Periodicity); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
