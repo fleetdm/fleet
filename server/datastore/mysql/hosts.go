@@ -355,12 +355,9 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
     `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	if opt.PolicyIDFilter == nil {
-		sql, params = filterHostsByStatus(sql, opt, params)
-		sql, params = filterHostsByTeam(sql, opt, params)
-	} else {
-		sql, params = filterHostsByPolicy(sql, opt, params)
-	}
+	sql, params = filterHostsByStatus(sql, opt, params)
+	sql, params = filterHostsByTeam(sql, opt, params)
+	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
