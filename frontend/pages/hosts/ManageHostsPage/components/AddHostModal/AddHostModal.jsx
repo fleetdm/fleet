@@ -128,8 +128,12 @@ class AddHostModal extends Component {
 
   getSelectedEnrollSecrets = (selectedTeam) => {
     if (selectedTeam.id === NO_TEAM_OPTION.value) {
+      console.log("this.state.globalSecrets", this.state.globalSecrets);
       return this.state.globalSecrets;
     }
+    console.log(
+      this.teamSecrets.find((e) => e.id === selectedTeam.id)?.secrets || ""
+    );
     return (
       this.teamSecrets.find((e) => e.id === selectedTeam.id)?.secrets || ""
     );

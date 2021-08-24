@@ -713,7 +713,13 @@ export class ManageHostsPage extends PureComponent {
   renderEnrollSecretModal = () => {
     const { toggleEnrollSecretModal, onChangeTeam } = this;
     const { showEnrollSecretModal } = this.state;
-    const { config, currentUser, canEnrollHosts, teams } = this.props;
+    const {
+      config,
+      canEnrollHosts,
+      teams,
+      selectedTeam,
+      isBasicTier,
+    } = this.props;
 
     if (!canEnrollHosts || !showEnrollSecretModal) {
       return null;
@@ -726,11 +732,10 @@ export class ManageHostsPage extends PureComponent {
         className={`${baseClass}__enroll-secret-modal`}
       >
         <EnrollSecretModal
+          selectedTeam={selectedTeam}
           teams={teams}
-          onChangeTeam={onChangeTeam}
           onReturnToApp={toggleEnrollSecretModal}
-          config={config}
-          currentUser={currentUser}
+          isBasicTier={isBasicTier}
         />
       </Modal>
     );
