@@ -168,7 +168,7 @@ const QueryResults = ({
     const filteredRows = filterArrayByHash(rows, resultsFilter);
 
     return filteredRows.map((row: any) => {
-      return <QueryResultsRow key={row.id} queryResult={row} />;
+      return <QueryResultsRow key={row.id || row.host_hostname} queryResult={row} />;
     });
   };
 
@@ -271,7 +271,7 @@ const QueryResults = ({
                 {NAV_TITLES.RESULTS}
               </Tab>
               <Tab disabled={!errors?.length}>
-                <span className="count">{errors?.length}</span>
+                <span className="count">{errors?.length || 0}</span>
                 {NAV_TITLES.ERRORS}
               </Tab>
             </TabList>

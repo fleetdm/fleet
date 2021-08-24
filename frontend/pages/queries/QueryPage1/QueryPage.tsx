@@ -144,13 +144,14 @@ const QueryPage = ({
     }
   };
 
+  const isFirstStep = step === QUERIES_PAGE_STEPS[1];
   return (
-    <div className={`${baseClass} has-sidebar`}>
+    <div className={`${baseClass} ${isFirstStep ? "has-sidebar" : ""}`}>
       <div className={`${baseClass}__content`}>
         {renderScreen()}
         {renderLiveQueryWarning()}
       </div>
-      {step === QUERIES_PAGE_STEPS[1] && (
+      {isFirstStep && (
         <QuerySidePanel
           onOsqueryTableSelect={onOsqueryTableSelect}
           selectedOsqueryTable={selectedOsqueryTable}
