@@ -393,3 +393,16 @@ The following options are available when configuring SMTP authentication:
   - `authmethod_cram_md5`
   - `authmethod_login`
   - `authmethod_plain`
+
+#### Webhooks
+
+##### Host Status
+
+The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts 
+are offline for the specified amount of time.
+
+- `webhook_settings.periodicity`: the interval at which to check for webhook conditions. Default: 24h
+- `webhook_settings.host_status_webhook.enable_host_status_webhook`: true or false. Defines whether the check for host status will run or not.
+- `webhook_settings.host_status_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
+- `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline  
+- `webhook_settings.host_status_webhook.days_count`: amount of days that hosts need to be offline for to count as part of the percentage.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/kolide/kit/version"
+	"github.com/pkg/errors"
 )
 
 // AppConfigStore contains method for saving and retrieving
@@ -170,9 +171,38 @@ type AppConfig struct {
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 }
 
+type Duration struct {
+	time.Duration
+}
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.String())
+}
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	switch value := v.(type) {
+	case float64:
+		d.Duration = time.Duration(value)
+		return nil
+	case string:
+		var err error
+		d.Duration, err = time.ParseDuration(value)
+		if err != nil {
+			return err
+		}
+		return nil
+	default:
+		return errors.New("invalid duration")
+	}
+}
+
 type WebhookSettings struct {
 	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
-	Periodicity       time.Duration             `json:"periodicity"`
+	Periodicity       Duration                  `json:"periodicity"`
 }
 
 type HostStatusWebhookSettings struct {
@@ -191,7 +221,10 @@ func (ac *AppConfig) ApplyDefaultsForNewInstalls() {
 	ac.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
 	ac.SMTPSettings.SMTPVerifySSLCerts = true
 	ac.SMTPSettings.SMTPEnableTLS = true
-	ac.WebhookSettings.Periodicity = 24 * time.Hour
+}
+
+func (ac *AppConfig) ApplyDefaults() {
+	ac.WebhookSettings.Periodicity.Duration = 24 * time.Hour
 }
 
 // OrgInfo contains general info about the organization using Fleet.
