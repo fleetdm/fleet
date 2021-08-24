@@ -567,7 +567,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		return
 	}
 
-	periodicity := appConfig.WebhookSettings.Periodicity.Duration
+	periodicity := appConfig.WebhookSettings.Periodicity.ValueOr(24 * time.Hour)
 	ticker := time.NewTicker(periodicity)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
@@ -587,6 +587,15 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig)
 		if err != nil {
 			level.Error(logger).Log("err", "triggering host status webhook", "details", err)
+		}
+
+		// Reread app config to be able to change periodicity somewhat on the fly
+		appConfig, err = ds.AppConfig()
+		if err != nil {
+			level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		} else {
+			periodicity = appConfig.WebhookSettings.Periodicity.ValueOr(24 * time.Hour)
+			ticker.Reset(periodicity)
 		}
 
 		level.Debug(logger).Log("loop", "done")

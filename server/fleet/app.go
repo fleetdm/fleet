@@ -179,6 +179,13 @@ func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
 }
 
+func (d Duration) ValueOr(t time.Duration) time.Duration {
+	if d.Duration == 0 {
+		return t
+	}
+	return d.Duration
+}
+
 func (d *Duration) UnmarshalJSON(b []byte) error {
 	var v interface{}
 	if err := json.Unmarshal(b, &v); err != nil {
