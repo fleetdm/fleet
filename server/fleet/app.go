@@ -221,6 +221,8 @@ func (ac *AppConfig) ApplyDefaultsForNewInstalls() {
 	ac.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
 	ac.SMTPSettings.SMTPVerifySSLCerts = true
 	ac.SMTPSettings.SMTPEnableTLS = true
+
+	ac.ApplyDefaults()
 }
 
 func (ac *AppConfig) ApplyDefaults() {

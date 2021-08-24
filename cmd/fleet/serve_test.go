@@ -126,7 +126,7 @@ func TestCronWebhooks(t *testing.T) {
 					HostPercentage: 43,
 					DaysCount:      2,
 				},
-				Periodicity: 2 * time.Second,
+				Periodicity: fleet.Duration{Duration: 2 * time.Second},
 			},
 		}, nil
 	}
