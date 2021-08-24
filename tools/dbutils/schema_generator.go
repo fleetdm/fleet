@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -39,7 +40,7 @@ func main() {
 	)
 	panicif(err)
 	defer db.Close()
-	_, err = db.Exec("DROP DATABASE IF EXISTS TestMigrations; CREATE DATABASE TestMigrations;")
+	_, err = db.Exec("DROP DATABASE IF EXISTS schemadb; CREATE DATABASE schemadb;")
 	panicif(err)
 
 	// Create a datastore client in order to run migrations as usual
@@ -47,18 +48,28 @@ func main() {
 		Username: testUsername,
 		Password: testPassword,
 		Address:  testAddress,
-		Database: "TestMigrations",
+		Database: "schemadb",
 	}
 	ds, err := mysql.New(config, clock.NewMockClock(), mysql.Logger(log.NewNopLogger()), mysql.LimitAttempts(1))
 	panicif(err)
 	defer ds.Close()
 	panicif(ds.MigrateTables())
 
+	// Set created_at/updated_at for migrations and app_config_json to prevent the schema from being changed every time
+	// This schema is to test anyway
+	fixedDate := time.Date(2020, 01, 01, 01, 01, 01, 01, time.UTC)
+	_, err = db.Exec(`USE schemadb`)
+	panicif(err)
+	_, err = db.Exec(`UPDATE app_config_json SET created_at = ?, updated_at = ?`, fixedDate, fixedDate)
+	panicif(err)
+	_, err = db.Exec(`UPDATE migration_status_tables SET tstamp = ?`, fixedDate)
+	panicif(err)
+
 	// Dump schema to dumpfile
 	cmd := exec.Command(
 		"docker-compose", "exec", "-T", "mysql_test",
 		// Command run inside container
-		"mysqldump", "-u"+testUsername, "-p"+testPassword, "TestMigrations", "--compact", "--skip-comments",
+		"mysqldump", "-u"+testUsername, "-p"+testPassword, "schemadb", "--compact", "--skip-comments",
 	)
 	var stdoutBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
