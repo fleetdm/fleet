@@ -25,15 +25,15 @@ func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.Live
 func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := fleet.LicenseInfo{Tier: "core"}
-	writer, err := logging.NewFilesystemLogWriter(
+	writer, _ := logging.NewFilesystemLogWriter(
 		fleetConfig.Filesystem.StatusLogFile,
 		kitlog.NewNopLogger(),
 		fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
-	if err != nil {
-		panic(err)
-	}
+	//if err != nil {
+	//	panic(err)
+	//}
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
 	if len(opts) > 0 && opts[0].Logger != nil {
