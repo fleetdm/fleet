@@ -177,7 +177,7 @@ type VulnerabilitiesConfig struct {
 // updated to set and retrieve the configurations as appropriate.
 type FleetConfig struct {
 	Mysql            MysqlConfig
-	MysqlReadReplica MysqlConfig
+	MysqlReadReplica MysqlConfig `yaml:"mysql_read_replica"`
 	Redis            RedisConfig
 	Server           ServerConfig
 	Auth             AuthConfig
@@ -198,36 +198,36 @@ type FleetConfig struct {
 // addConfigs adds the configuration keys and default values that will be
 // filled into the FleetConfig struct
 func (man Manager) addConfigs() {
-	addMysqlConfig := func(prefix string) {
+	addMysqlConfig := func(prefix, defaultAddr, usageSuffix string) {
 		man.addConfigString(prefix+".protocol", "tcp",
-			"MySQL server communication protocol (tcp,unix,...)")
-		man.addConfigString(prefix+".address", "localhost:3306",
-			"MySQL server address (host:port)")
+			"MySQL server communication protocol (tcp,unix,...)"+usageSuffix)
+		man.addConfigString(prefix+".address", defaultAddr,
+			"MySQL server address (host:port)"+usageSuffix)
 		man.addConfigString(prefix+".username", "fleet",
-			"MySQL server username")
+			"MySQL server username"+usageSuffix)
 		man.addConfigString(prefix+".password", "",
-			"MySQL server password (prefer env variable for security)")
+			"MySQL server password (prefer env variable for security)"+usageSuffix)
 		man.addConfigString(prefix+".password_path", "",
-			"Path to file containg MySQL server password")
+			"Path to file containg MySQL server password"+usageSuffix)
 		man.addConfigString(prefix+".database", "fleet",
-			"MySQL database name")
+			"MySQL database name"+usageSuffix)
 		man.addConfigString(prefix+".tls_cert", "",
-			"MySQL TLS client certificate path")
+			"MySQL TLS client certificate path"+usageSuffix)
 		man.addConfigString(prefix+".tls_key", "",
-			"MySQL TLS client key path")
+			"MySQL TLS client key path"+usageSuffix)
 		man.addConfigString(prefix+".tls_ca", "",
-			"MySQL TLS server CA")
+			"MySQL TLS server CA"+usageSuffix)
 		man.addConfigString(prefix+".tls_server_name", "",
-			"MySQL TLS server name")
+			"MySQL TLS server name"+usageSuffix)
 		man.addConfigString(prefix+".tls_config", "",
-			"MySQL TLS config value. Use skip-verify, true, false or custom key.")
-		man.addConfigInt(prefix+".max_open_conns", 50, "MySQL maximum open connection handles.")
-		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles.")
-		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused.")
+			"MySQL TLS config value"+usageSuffix+" Use skip-verify, true, false or custom key.")
+		man.addConfigInt(prefix+".max_open_conns", 50, "MySQL maximum open connection handles"+usageSuffix)
+		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
+		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
 	}
 	// MySQL
-	addMysqlConfig("mysql")
-	addMysqlConfig("mysql_read_replica")
+	addMysqlConfig("mysql", "localhost:3306", ".")
+	addMysqlConfig("mysql_read_replica", "", " for the read replica.")
 
 	// Redis
 	man.addConfigString("redis.address", "localhost:6379",
@@ -387,23 +387,28 @@ func (man Manager) addConfigs() {
 func (man Manager) LoadConfig() FleetConfig {
 	man.loadConfigFile()
 
+	loadMysqlConfig := func(prefix string) MysqlConfig {
+		return MysqlConfig{
+			Protocol:        man.getConfigString(prefix + ".protocol"),
+			Address:         man.getConfigString(prefix + ".address"),
+			Username:        man.getConfigString(prefix + ".username"),
+			Password:        man.getConfigString(prefix + ".password"),
+			PasswordPath:    man.getConfigString(prefix + ".password_path"),
+			Database:        man.getConfigString(prefix + ".database"),
+			TLSCert:         man.getConfigString(prefix + ".tls_cert"),
+			TLSKey:          man.getConfigString(prefix + ".tls_key"),
+			TLSCA:           man.getConfigString(prefix + ".tls_ca"),
+			TLSServerName:   man.getConfigString(prefix + ".tls_server_name"),
+			TLSConfig:       man.getConfigString(prefix + ".tls_config"),
+			MaxOpenConns:    man.getConfigInt(prefix + ".max_open_conns"),
+			MaxIdleConns:    man.getConfigInt(prefix + ".max_idle_conns"),
+			ConnMaxLifetime: man.getConfigInt(prefix + ".conn_max_lifetime"),
+		}
+	}
+
 	return FleetConfig{
-		Mysql: MysqlConfig{
-			Protocol:        man.getConfigString("mysql.protocol"),
-			Address:         man.getConfigString("mysql.address"),
-			Username:        man.getConfigString("mysql.username"),
-			Password:        man.getConfigString("mysql.password"),
-			PasswordPath:    man.getConfigString("mysql.password_path"),
-			Database:        man.getConfigString("mysql.database"),
-			TLSCert:         man.getConfigString("mysql.tls_cert"),
-			TLSKey:          man.getConfigString("mysql.tls_key"),
-			TLSCA:           man.getConfigString("mysql.tls_ca"),
-			TLSServerName:   man.getConfigString("mysql.tls_server_name"),
-			TLSConfig:       man.getConfigString("mysql.tls_config"),
-			MaxOpenConns:    man.getConfigInt("mysql.max_open_conns"),
-			MaxIdleConns:    man.getConfigInt("mysql.max_idle_conns"),
-			ConnMaxLifetime: man.getConfigInt("mysql.conn_max_lifetime"),
-		},
+		Mysql:            loadMysqlConfig("mysql"),
+		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
 			Address:          man.getConfigString("redis.address"),
 			Password:         man.getConfigString("redis.password"),
