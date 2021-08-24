@@ -131,12 +131,6 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	return c.http.Do(request)
 }
 
-// BaseURL returns the parsed base URL of the client as a value, so that the
-// internal URL cannot be modified.
-func (c *Client) BaseURL() url.URL {
-	return *c.baseURL
-}
-
 func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
 	return c.DoContext(context.Background(), verb, path, rawQuery, params)
 }
