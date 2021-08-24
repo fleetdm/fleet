@@ -6,6 +6,8 @@ linters:
     - govet
     - ineffassign
     - revive
+    - rowserrcheck
+    - sqlclosecheck
     - structcheck
     - typecheck
     - unconvert
