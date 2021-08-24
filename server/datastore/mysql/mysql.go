@@ -44,6 +44,9 @@ type Datastore struct {
 	logger log.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
+
+	// nil if no read replica
+	readReplicaConfig *config.MysqlConfig
 }
 
 type txFn func(*sqlx.Tx) error

@@ -176,22 +176,23 @@ type VulnerabilitiesConfig struct {
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
 type FleetConfig struct {
-	Mysql           MysqlConfig
-	Redis           RedisConfig
-	Server          ServerConfig
-	Auth            AuthConfig
-	App             AppConfig
-	Session         SessionConfig
-	Osquery         OsqueryConfig
-	Logging         LoggingConfig
-	Firehose        FirehoseConfig
-	Kinesis         KinesisConfig
-	Lambda          LambdaConfig
-	S3              S3Config
-	PubSub          PubSubConfig
-	Filesystem      FilesystemConfig
-	License         LicenseConfig
-	Vulnerabilities VulnerabilitiesConfig
+	Mysql            MysqlConfig
+	MysqlReadReplica MysqlConfig
+	Redis            RedisConfig
+	Server           ServerConfig
+	Auth             AuthConfig
+	App              AppConfig
+	Session          SessionConfig
+	Osquery          OsqueryConfig
+	Logging          LoggingConfig
+	Firehose         FirehoseConfig
+	Kinesis          KinesisConfig
+	Lambda           LambdaConfig
+	S3               S3Config
+	PubSub           PubSubConfig
+	Filesystem       FilesystemConfig
+	License          LicenseConfig
+	Vulnerabilities  VulnerabilitiesConfig
 }
 
 // addConfigs adds the configuration keys and default values that will be
