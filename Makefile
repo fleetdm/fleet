@@ -110,12 +110,12 @@ lint-js:
 	yarn lint
 
 lint-go:
-	go vet ./...
+	golangci-lint run
 
 lint: lint-go lint-js
 
 dump-test-schema:
-	go test -tags full,fts5,netgo -parallel 8 ./server/datastore/mysql/ -run TestMigrations
+	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 test-go: dump-test-schema
 	go test -tags full,fts5,netgo -parallel 8 ./...
@@ -238,7 +238,7 @@ e2e-setup:
 	./build/fleetctl user create --context e2e --email=sso_user@example.com --name "SSO user" --sso=true
 
 e2e-serve-core:
-	FLEET_SOFTWARE_INVENTORY=1 ./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642 
+	FLEET_SOFTWARE_INVENTORY=1 ./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
 e2e-serve-basic:
 	FLEET_SOFTWARE_INVENTORY=1 ./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642

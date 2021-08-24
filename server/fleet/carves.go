@@ -62,8 +62,8 @@ func (c CarveMetadata) AuthzType() string {
 	return "carve"
 }
 
-func (m *CarveMetadata) BlocksComplete() bool {
-	return m.MaxBlock == m.BlockCount-1
+func (c *CarveMetadata) BlocksComplete() bool {
+	return c.MaxBlock == c.BlockCount-1
 }
 
 type CarveListOptions struct {

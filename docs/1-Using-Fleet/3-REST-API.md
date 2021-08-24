@@ -481,6 +481,8 @@ This is the callback endpoint that the identity provider will use to send securi
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
+| policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -4788,6 +4790,9 @@ None.
       }
     }
   }
+  "update_interval": {
+    "osquery_detail": "1hr"
+  }
 }
 ```
 
@@ -5895,5 +5900,140 @@ _Available in Fleet Premium_
       }
     },
   ]
+}
+```
+
+## Global Schedule
+
+### List global policies
+
+`GET /api/v1/fleet/global/policies`
+
+#### Example
+
+`GET /api/v1/fleet/global/policies`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policies": [
+    {
+      "id": 1,
+      "query_id": 2,
+      "query_name": "Gatekeeper enabled",
+      "passing_host_count": 2000,
+      "failing_host_count": 300,
+    },
+    {
+      "id": 2,
+      "query_id": 3,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 2300,
+      "failing_host_count": 0,
+    }
+  ]
+}
+```
+
+### Get a global policy by ID
+
+`GET /api/v1/fleet/global/policies/{policy_id}`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| policy_id          | integer | path | **Required.** The policy's ID.                                                                                  |
+
+#### Example
+
+`GET /api/v1/fleet/global/policies/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+    "id": 1,
+    "query_id": 2,
+    "query_name": "Gatekeeper enabled",
+    "passing_host_count": 2000,
+    "failing_host_count": 300,
+  }
+}
+```
+
+### Add a global policies
+
+`POST /api/v1/fleet/global/policies`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                    |
+| -------- | ------- | ---- | ------------------------------ |
+| query_id | integer | body | **Required.** The query's ID.  |
+
+#### Example
+
+`POST /api/v1/fleet/global/policies`
+
+#### Request body
+
+```
+{
+  "query_id": 12
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+      "id": 2,
+      "query_id": 2,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 0,
+      "failing_host_count": 0,
+    },
+}
+```
+
+### Delete global policies
+
+`POST /api/v1/fleet/global/policies/delete`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                       |
+| -------- | ------- | ---- | ------------------------------------------------- |
+| ids      | list    | body | **Required.** The IDs of the policies to delete.  |
+
+#### Example
+
+`POST /api/v1/fleet/global/policies/delete`
+
+#### Request body
+
+```
+{
+  "ids": [ 1 ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "deleted": 1
 }
 ```

@@ -19,6 +19,7 @@ type Datastore interface {
 	SoftwareStore
 	ActivitiesStore
 	StatisticsStore
+	GlobalPoliciesStore
 
 	Name() string
 	Drop() error

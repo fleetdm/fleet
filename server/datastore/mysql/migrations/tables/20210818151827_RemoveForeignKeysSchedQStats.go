@@ -36,7 +36,7 @@ func Up_20210818151827(tx *sql.Tx) error {
 func constraintsForTable(tx *sql.Tx, table string, referencedTables map[string]struct{}) ([]string, error) {
 	var constraints []string
 	query := `SELECT DISTINCT CONSTRAINT_NAME, REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = ? AND CONSTRAINT_NAME <> 'PRIMARY'`
-	rows, err := tx.Query(query, table)
+	rows, err := tx.Query(query, table) //nolint
 	if err != nil {
 		return nil, errors.Wrap(err, "getting fk for scheduled_query_stats")
 	}

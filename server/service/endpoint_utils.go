@@ -70,6 +70,11 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 // IDs are expected to be uint, and can be optional by setting the tag as follows: `url:"some-id,optional"`
 // list-options are optional by default and it'll ignore the optional portion of the tag.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
+	if iface == nil {
+		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			return nil, nil
+		}
+	}
 	t := reflect.TypeOf(iface)
 	if t.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("makeDecoder only understands structs, not %T", iface))
@@ -129,6 +134,12 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 		}
 
 		return v.Interface(), nil
+	}
+}
+
+func makeNopDecoder() kithttp.DecodeRequestFunc {
+	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		return nil, nil
 	}
 }
 

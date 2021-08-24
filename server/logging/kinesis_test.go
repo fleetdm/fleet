@@ -43,10 +43,9 @@ func TestKinesisRetryableFailure(t *testing.T) {
 		assert.Equal(t, "foobar", *input.StreamName)
 		if callCount < 3 {
 			return nil, awserr.New(kinesis.ErrCodeProvisionedThroughputExceededException, "", nil)
-		} else {
-			// Returning a non-retryable error earlier helps keep this test faster
-			return nil, errors.New("generic error")
 		}
+		// Returning a non-retryable error earlier helps keep this test faster
+		return nil, errors.New("generic error")
 	}
 	k := &mock.KinesisMock{PutRecordsFunc: putFunc}
 	writer := makeKinesisWriterWithMock(k, "foobar")
@@ -142,22 +141,15 @@ func TestKinesisFailAllRecords(t *testing.T) {
 			return &kinesis.PutRecordsOutput{
 				FailedRecordCount: aws.Int64(1),
 				Records: []*kinesis.PutRecordsResultEntry{
-					&kinesis.PutRecordsResultEntry{
-						ErrorCode: aws.String("error"),
-					},
-					&kinesis.PutRecordsResultEntry{
-						ErrorCode: aws.String("error"),
-					},
-					&kinesis.PutRecordsResultEntry{
-						ErrorCode: aws.String("error"),
-					},
+					{ErrorCode: aws.String("error")},
+					{ErrorCode: aws.String("error")},
+					{ErrorCode: aws.String("error")},
 				},
 			}, nil
-		} else {
-			// Make test quicker by returning non-retryable error
-			// before all retries are exhausted.
-			return nil, errors.New("generic error")
 		}
+		// Make test quicker by returning non-retryable error
+		// before all retries are exhausted.
+		return nil, errors.New("generic error")
 	}
 
 	writer := makeKinesisWriterWithMock(k, "foobar")

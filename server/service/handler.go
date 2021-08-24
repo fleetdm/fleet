@@ -135,21 +135,21 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 			throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
 			makeLoginEndpoint(svc),
 		),
-		Logout: makeLogoutEndpoint(svc),
+		Logout: logged(makeLogoutEndpoint(svc)),
 		ForgotPassword: limiter.Limit(
 			throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})(
-			makeForgotPasswordEndpoint(svc),
+			logged(makeForgotPasswordEndpoint(svc)),
 		),
-		ResetPassword:        makeResetPasswordEndpoint(svc),
-		CreateUserWithInvite: makeCreateUserFromInviteEndpoint(svc),
-		VerifyInvite:         makeVerifyInviteEndpoint(svc),
-		InitiateSSO:          makeInitiateSSOEndpoint(svc),
-		CallbackSSO:          makeCallbackSSOEndpoint(svc, urlPrefix),
-		SSOSettings:          makeSSOSettingsEndpoint(svc),
+		ResetPassword:        logged(makeResetPasswordEndpoint(svc)),
+		CreateUserWithInvite: logged(makeCreateUserFromInviteEndpoint(svc)),
+		VerifyInvite:         logged(makeVerifyInviteEndpoint(svc)),
+		InitiateSSO:          logged(makeInitiateSSOEndpoint(svc)),
+		CallbackSSO:          logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
+		SSOSettings:          logged(makeSSOSettingsEndpoint(svc)),
 
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
-		PerformRequiredPasswordReset: canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc)),
+		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
 
 		// Standard user authentication routes
 		Me:                                    authenticatedUser(svc, makeGetSessionUserEndpoint(svc)),
@@ -242,7 +242,7 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		StatusLiveQuery:   authenticatedUser(svc, makeStatusLiveQueryEndpoint(svc)),
 
 		// Osquery endpoints
-		EnrollAgent: makeEnrollAgentEndpoint(svc),
+		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
 		// Authenticated osquery endpoints
 		GetClientConfig:               authenticatedHost(svc, makeGetClientConfigEndpoint(svc)),
 		GetDistributedQueries:         authenticatedHost(svc, makeGetDistributedQueriesEndpoint(svc)),
@@ -252,7 +252,7 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		// For some reason osquery does not provide a node key with the block
 		// data. Instead the carve session ID should be verified in the service
 		// method.
-		CarveBlock: makeCarveBlockEndpoint(svc),
+		CarveBlock: logged(makeCarveBlockEndpoint(svc)),
 	}
 }
 
@@ -685,6 +685,11 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.POST("/api/v1/fleet/team/{team_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
 	e.PATCH("/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
 	e.DELETE("/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
+
+	e.POST("/api/v1/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
+	e.GET("/api/v1/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
+	e.GET("/api/v1/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
+	e.POST("/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
 }
 
 func handle(verb, path string, handler http.Handler, name string, r *mux.Router) {

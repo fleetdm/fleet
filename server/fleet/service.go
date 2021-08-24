@@ -23,4 +23,5 @@ type Service interface {
 	GlobalScheduleService
 	TranslatorService
 	TeamScheduleService
+	GlobalPoliciesService
 }

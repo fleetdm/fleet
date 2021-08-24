@@ -1,0 +1,41 @@
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - gofmt
+    - govet
+    - ineffassign
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - structcheck
+    - typecheck
+    - unconvert
+    - unused
+
+linters-settings:
+  gofmt:
+    # simplify code: gofmt with `-s` option, true by default
+    simplify: false
+
+  revive:
+    ignoreGeneratedHeader: false
+    severity: "warning"
+    confidence: 0.8
+    errorCode: 0
+    warningCode: 0
+
+    rules:
+      - name: dot-imports
+      - name: error-return
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unreachable-code
+      - name: redefines-builtin-id

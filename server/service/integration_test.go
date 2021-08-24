@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -273,6 +274,17 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	config := getConfig(t, server, token)
 	assert.Nil(t, config.HostSettings.AdditionalQueries)
 	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
+}
+
+func TestAppConfigUpdateInterval(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	config := getConfig(t, server, token)
+	require.Equal(t, 1*time.Hour, config.UpdateInterval.OSQueryDetail)
 }
 
 func TestAppConfigHasLogging(t *testing.T) {
@@ -675,6 +687,114 @@ func TestVulnerableSoftware(t *testing.T) {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 }
 
+func TestGlobalPolicies(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	for i := 0; i < 3; i++ {
+		_, err := ds.NewHost(&fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	qr, err := ds.NewQuery(&fleet.Query{
+		Name:           "TestQuery",
+		Description:    "Some description",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+	})
+	require.NoError(t, err)
+
+	gpParams := globalPolicyRequest{QueryID: qr.ID}
+	gpResp := globalPolicyResponse{}
+	doJSONReq(t, gpParams, "POST", server, "/api/v1/fleet/global/policies", token, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+	assert.Equal(t, qr.ID, gpResp.Policy.QueryID)
+
+	policiesResponse := listGlobalPoliciesResponse{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/policies", token, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 1)
+	assert.Equal(t, qr.ID, policiesResponse.Policies[0].QueryID)
+
+	singlePolicyResponse := getPolicyByIDResponse{}
+	singlePolicyURL := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policiesResponse.Policies[0].ID)
+	doJSONReq(t, nil, "GET", server, singlePolicyURL, token, http.StatusOK, &singlePolicyResponse)
+	assert.Equal(t, qr.ID, singlePolicyResponse.Policy.QueryID)
+	assert.Equal(t, qr.Name, singlePolicyResponse.Policy.QueryName)
+
+	listHostsURL := fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
+	listHostsResp := listHostsResponse{}
+	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 3)
+
+	h1 := listHostsResp.Hosts[0]
+	h2 := listHostsResp.Hosts[1]
+
+	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 0)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
+
+	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 1)
+
+	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
+	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	doJSONReq(t, deletePolicyParams, "POST", server, "/api/v1/fleet/global/policies/delete", token, http.StatusOK, &deletePolicyResp)
+
+	policiesResponse = listGlobalPoliciesResponse{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/policies", token, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 0)
+}
+
+func TestOsqueryEndpointsLogErrors(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+
+	_, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1234",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer([]byte(`{"node_key":"1234","log_type":"status","data":[}`))}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/osquery/log", requestBody)
+	client := &http.Client{}
+	_, err = client.Do(req)
+	require.Nil(t, err)
+
+	logString := buf.String()
+	assert.Equal(t, `{"err":"decoding JSON: invalid character '}' looking for beginning of value","level":"info","path":"/api/v1/osquery/log"}
+`, logString)
+}
+
 func TestSubmitStatusLog(t *testing.T) {
 	buf := new(bytes.Buffer)
 	logger := log.NewJSONLogger(buf)
@@ -709,4 +829,47 @@ func TestSubmitStatusLog(t *testing.T) {
 	logString := buf.String()
 	assert.Equal(t, 1, strings.Count(logString, "\"ip_addr\""))
 	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
+}
+
+func TestEnrollAgentLogsErrors(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+
+	_, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1234",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   "1234",
+		HostIdentifier: "4321",
+		HostDetails:    nil,
+	})
+	require.NoError(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/osquery/enroll", requestBody)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	parts := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	require.Len(t, parts, 1)
+	logData := make(map[string]json.RawMessage)
+	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
+	assert.Equal(t, json.RawMessage(`["enroll failed: no matching secret found"]`), logData["err"])
 }

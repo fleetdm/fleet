@@ -93,7 +93,9 @@ func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fle
 		return teamScheduleQueryResponse{Err: err}, nil
 	}
 	_ = resp
-	return teamScheduleQueryResponse{}, nil
+	return teamScheduleQueryResponse{
+		Scheduled: resp,
+	}, nil
 }
 
 func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {

@@ -19,6 +19,7 @@ import "github.com/fleetdm/fleet/v4/server/fleet"
 //go:generate mockimpl -o datastore_targets.go "s *TargetStore" "fleet.TargetStore"
 //go:generate mockimpl -o datastore_teams.go "s *TeamStore" "fleet.TeamStore"
 //go:generate mockimpl -o datastore_users.go "s *UserStore" "fleet.UserStore"
+//go:generate mockimpl -o datastore_policies.go "s *GlobalPoliciesStore" "fleet.GlobalPoliciesStore"
 
 var _ fleet.Datastore = (*Store)(nil)
 
@@ -41,6 +42,7 @@ type Store struct {
 	SoftwareStore
 	ActivitiesStore
 	StatisticsStore
+	GlobalPoliciesStore
 }
 
 func (m *Store) Drop() error {

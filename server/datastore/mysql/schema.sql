@@ -23,7 +23,7 @@ CREATE TABLE `app_config_json` (
   UNIQUE KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `app_config_json` VALUES (1,'{\"org_info\": {\"org_name\": \"\", \"org_logo_url\": \"\"}, \"sso_settings\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"enable_sso\": false, \"issuer_uri\": \"\", \"metadata_url\": \"\", \"idp_image_url\": \"\", \"enable_sso_idp_login\": false}, \"agent_options\": {\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"host_settings\": {\"enable_host_users\": true, \"enable_software_inventory\": false}, \"smtp_settings\": {\"port\": 587, \"domain\": \"\", \"server\": \"\", \"password\": \"\", \"user_name\": \"\", \"configured\": false, \"enable_smtp\": false, \"enable_ssl_tls\": true, \"sender_address\": \"\", \"enable_start_tls\": true, \"verify_ssl_certs\": true, \"authentication_type\": \"0\", \"authentication_method\": \"0\"}, \"server_settings\": {\"server_url\": \"\", \"enable_analytics\": false, \"live_query_disabled\": false}, \"host_expiry_settings\": {\"host_expiry_window\": 0, \"host_expiry_enabled\": false}, \"vulnerability_settings\": {\"databases_path\": \"\"}}','2021-08-20 17:32:00','2021-08-20 17:32:00');
+INSERT INTO `app_config_json` VALUES (1,'{\"org_info\": {\"org_name\": \"\", \"org_logo_url\": \"\"}, \"sso_settings\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"enable_sso\": false, \"issuer_uri\": \"\", \"metadata_url\": \"\", \"idp_image_url\": \"\", \"enable_sso_idp_login\": false}, \"agent_options\": {\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"host_settings\": {\"enable_host_users\": true, \"enable_software_inventory\": false}, \"smtp_settings\": {\"port\": 587, \"domain\": \"\", \"server\": \"\", \"password\": \"\", \"user_name\": \"\", \"configured\": false, \"enable_smtp\": false, \"enable_ssl_tls\": true, \"sender_address\": \"\", \"enable_start_tls\": true, \"verify_ssl_certs\": true, \"authentication_type\": \"0\", \"authentication_method\": \"0\"}, \"server_settings\": {\"server_url\": \"\", \"enable_analytics\": false, \"live_query_disabled\": false}, \"host_expiry_settings\": {\"host_expiry_window\": 0, \"host_expiry_enabled\": false}, \"vulnerability_settings\": {\"databases_path\": \"\"}}','2020-01-01 01:01:01','2020-01-01 01:01:01');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `app_configs` (
@@ -311,9 +311,9 @@ CREATE TABLE `migration_status_tables` (
   `tstamp` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `migration_status_tables` VALUES (1,0,1,'2021-08-20 17:31:56'),(2,20161118193812,1,'2021-08-20 17:31:56'),(3,20161118211713,1,'2021-08-20 17:31:56'),(4,20161118212436,1,'2021-08-20 17:31:56'),(5,20161118212515,1,'2021-08-20 17:31:56'),(6,20161118212528,1,'2021-08-20 17:31:56'),(7,20161118212538,1,'2021-08-20 17:31:57'),(8,20161118212549,1,'2021-08-20 17:31:57'),(9,20161118212557,1,'2021-08-20 17:31:57'),(10,20161118212604,1,'2021-08-20 17:31:57'),(11,20161118212613,1,'2021-08-20 17:31:57'),(12,20161118212621,1,'2021-08-20 17:31:57'),(13,20161118212630,1,'2021-08-20 17:31:57'),(14,20161118212641,1,'2021-08-20 17:31:57'),(15,20161118212649,1,'2021-08-20 17:31:57'),(16,20161118212656,1,'2021-08-20 17:31:57'),(17,20161118212758,1,'2021-08-20 17:31:57'),(18,20161128234849,1,'2021-08-20 17:31:57'),(19,20161230162221,1,'2021-08-20 17:31:57'),(20,20170104113816,1,'2021-08-20 17:31:57'),(21,20170105151732,1,'2021-08-20 17:31:57'),(22,20170108191242,1,'2021-08-20 17:31:57'),(23,20170109094020,1,'2021-08-20 17:31:57'),(24,20170109130438,1,'2021-08-20 17:31:57'),(25,20170110202752,1,'2021-08-20 17:31:57'),(26,20170111133013,1,'2021-08-20 17:31:57'),(27,20170117025759,1,'2021-08-20 17:31:57'),(28,20170118191001,1,'2021-08-20 17:31:57'),(29,20170119234632,1,'2021-08-20 17:31:57'),(30,20170124230432,1,'2021-08-20 17:31:57'),(31,20170127014618,1,'2021-08-20 17:31:57'),(32,20170131232841,1,'2021-08-20 17:31:57'),(33,20170223094154,1,'2021-08-20 17:31:57'),(34,20170306075207,1,'2021-08-20 17:31:58'),(35,20170309100733,1,'2021-08-20 17:31:58'),(36,20170331111922,1,'2021-08-20 17:31:58'),(37,20170502143928,1,'2021-08-20 17:31:58'),(38,20170504130602,1,'2021-08-20 17:31:58'),(39,20170509132100,1,'2021-08-20 17:31:58'),(40,20170519105647,1,'2021-08-20 17:31:58'),(41,20170519105648,1,'2021-08-20 17:31:58'),(42,20170831234300,1,'2021-08-20 17:31:58'),(43,20170831234301,1,'2021-08-20 17:31:58'),(44,20170831234303,1,'2021-08-20 17:31:58'),(45,20171116163618,1,'2021-08-20 17:31:58'),(46,20171219164727,1,'2021-08-20 17:31:58'),(47,20180620164811,1,'2021-08-20 17:31:58'),(48,20180620175054,1,'2021-08-20 17:31:58'),(49,20180620175055,1,'2021-08-20 17:31:58'),(50,20191010101639,1,'2021-08-20 17:31:58'),(51,20191010155147,1,'2021-08-20 17:31:59'),(52,20191220130734,1,'2021-08-20 17:31:59'),(53,20200311140000,1,'2021-08-20 17:31:59'),(54,20200405120000,1,'2021-08-20 17:31:59'),(55,20200407120000,1,'2021-08-20 17:31:59'),(56,20200420120000,1,'2021-08-20 17:31:59'),(57,20200504120000,1,'2021-08-20 17:31:59'),(58,20200512120000,1,'2021-08-20 17:31:59'),(59,20200707120000,1,'2021-08-20 17:31:59'),(60,20201011162341,1,'2021-08-20 17:31:59'),(61,20201021104586,1,'2021-08-20 17:31:59'),(62,20201102112520,1,'2021-08-20 17:31:59'),(63,20201208121729,1,'2021-08-20 17:31:59'),(64,20201215091637,1,'2021-08-20 17:31:59'),(65,20210119174155,1,'2021-08-20 17:31:59'),(66,20210326182902,1,'2021-08-20 17:31:59'),(67,20210421112652,1,'2021-08-20 17:31:59'),(68,20210506095025,1,'2021-08-20 17:31:59'),(69,20210513115729,1,'2021-08-20 17:32:00'),(70,20210526113559,1,'2021-08-20 17:32:00'),(71,20210601000001,1,'2021-08-20 17:32:00'),(72,20210601000002,1,'2021-08-20 17:32:00'),(73,20210601000003,1,'2021-08-20 17:32:00'),(74,20210601000004,1,'2021-08-20 17:32:00'),(75,20210601000005,1,'2021-08-20 17:32:00'),(76,20210601000006,1,'2021-08-20 17:32:00'),(77,20210601000007,1,'2021-08-20 17:32:00'),(78,20210601000008,1,'2021-08-20 17:32:00'),(79,20210606151329,1,'2021-08-20 17:32:00'),(80,20210616163757,1,'2021-08-20 17:32:00'),(81,20210617174723,1,'2021-08-20 17:32:00'),(82,20210622160235,1,'2021-08-20 17:32:00'),(83,20210623100031,1,'2021-08-20 17:32:00'),(84,20210623133615,1,'2021-08-20 17:32:00'),(85,20210708143152,1,'2021-08-20 17:32:00'),(86,20210709124443,1,'2021-08-20 17:32:00'),(87,20210712155608,1,'2021-08-20 17:32:00'),(88,20210714102108,1,'2021-08-20 17:32:00'),(89,20210719153709,1,'2021-08-20 17:32:00'),(90,20210721171531,1,'2021-08-20 17:32:00'),(91,20210723135713,1,'2021-08-20 17:32:00'),(92,20210802135933,1,'2021-08-20 17:32:00'),(93,20210806112844,1,'2021-08-20 17:32:00'),(94,20210810095603,1,'2021-08-20 17:32:00'),(95,20210811150223,1,'2021-08-20 17:32:00'),(96,20210816141251,1,'2021-08-20 17:32:00'),(97,20210818151827,1,'2021-08-20 17:32:00'),(98,20210818182258,1,'2021-08-20 17:32:01'),(99,20210819131107,1,'2021-08-20 17:32:01');
+INSERT INTO `migration_status_tables` VALUES (1,0,1,'2020-01-01 01:01:01'),(2,20161118193812,1,'2020-01-01 01:01:01'),(3,20161118211713,1,'2020-01-01 01:01:01'),(4,20161118212436,1,'2020-01-01 01:01:01'),(5,20161118212515,1,'2020-01-01 01:01:01'),(6,20161118212528,1,'2020-01-01 01:01:01'),(7,20161118212538,1,'2020-01-01 01:01:01'),(8,20161118212549,1,'2020-01-01 01:01:01'),(9,20161118212557,1,'2020-01-01 01:01:01'),(10,20161118212604,1,'2020-01-01 01:01:01'),(11,20161118212613,1,'2020-01-01 01:01:01'),(12,20161118212621,1,'2020-01-01 01:01:01'),(13,20161118212630,1,'2020-01-01 01:01:01'),(14,20161118212641,1,'2020-01-01 01:01:01'),(15,20161118212649,1,'2020-01-01 01:01:01'),(16,20161118212656,1,'2020-01-01 01:01:01'),(17,20161118212758,1,'2020-01-01 01:01:01'),(18,20161128234849,1,'2020-01-01 01:01:01'),(19,20161230162221,1,'2020-01-01 01:01:01'),(20,20170104113816,1,'2020-01-01 01:01:01'),(21,20170105151732,1,'2020-01-01 01:01:01'),(22,20170108191242,1,'2020-01-01 01:01:01'),(23,20170109094020,1,'2020-01-01 01:01:01'),(24,20170109130438,1,'2020-01-01 01:01:01'),(25,20170110202752,1,'2020-01-01 01:01:01'),(26,20170111133013,1,'2020-01-01 01:01:01'),(27,20170117025759,1,'2020-01-01 01:01:01'),(28,20170118191001,1,'2020-01-01 01:01:01'),(29,20170119234632,1,'2020-01-01 01:01:01'),(30,20170124230432,1,'2020-01-01 01:01:01'),(31,20170127014618,1,'2020-01-01 01:01:01'),(32,20170131232841,1,'2020-01-01 01:01:01'),(33,20170223094154,1,'2020-01-01 01:01:01'),(34,20170306075207,1,'2020-01-01 01:01:01'),(35,20170309100733,1,'2020-01-01 01:01:01'),(36,20170331111922,1,'2020-01-01 01:01:01'),(37,20170502143928,1,'2020-01-01 01:01:01'),(38,20170504130602,1,'2020-01-01 01:01:01'),(39,20170509132100,1,'2020-01-01 01:01:01'),(40,20170519105647,1,'2020-01-01 01:01:01'),(41,20170519105648,1,'2020-01-01 01:01:01'),(42,20170831234300,1,'2020-01-01 01:01:01'),(43,20170831234301,1,'2020-01-01 01:01:01'),(44,20170831234303,1,'2020-01-01 01:01:01'),(45,20171116163618,1,'2020-01-01 01:01:01'),(46,20171219164727,1,'2020-01-01 01:01:01'),(47,20180620164811,1,'2020-01-01 01:01:01'),(48,20180620175054,1,'2020-01-01 01:01:01'),(49,20180620175055,1,'2020-01-01 01:01:01'),(50,20191010101639,1,'2020-01-01 01:01:01'),(51,20191010155147,1,'2020-01-01 01:01:01'),(52,20191220130734,1,'2020-01-01 01:01:01'),(53,20200311140000,1,'2020-01-01 01:01:01'),(54,20200405120000,1,'2020-01-01 01:01:01'),(55,20200407120000,1,'2020-01-01 01:01:01'),(56,20200420120000,1,'2020-01-01 01:01:01'),(57,20200504120000,1,'2020-01-01 01:01:01'),(58,20200512120000,1,'2020-01-01 01:01:01'),(59,20200707120000,1,'2020-01-01 01:01:01'),(60,20201011162341,1,'2020-01-01 01:01:01'),(61,20201021104586,1,'2020-01-01 01:01:01'),(62,20201102112520,1,'2020-01-01 01:01:01'),(63,20201208121729,1,'2020-01-01 01:01:01'),(64,20201215091637,1,'2020-01-01 01:01:01'),(65,20210119174155,1,'2020-01-01 01:01:01'),(66,20210326182902,1,'2020-01-01 01:01:01'),(67,20210421112652,1,'2020-01-01 01:01:01'),(68,20210506095025,1,'2020-01-01 01:01:01'),(69,20210513115729,1,'2020-01-01 01:01:01'),(70,20210526113559,1,'2020-01-01 01:01:01'),(71,20210601000001,1,'2020-01-01 01:01:01'),(72,20210601000002,1,'2020-01-01 01:01:01'),(73,20210601000003,1,'2020-01-01 01:01:01'),(74,20210601000004,1,'2020-01-01 01:01:01'),(75,20210601000005,1,'2020-01-01 01:01:01'),(76,20210601000006,1,'2020-01-01 01:01:01'),(77,20210601000007,1,'2020-01-01 01:01:01'),(78,20210601000008,1,'2020-01-01 01:01:01'),(79,20210606151329,1,'2020-01-01 01:01:01'),(80,20210616163757,1,'2020-01-01 01:01:01'),(81,20210617174723,1,'2020-01-01 01:01:01'),(82,20210622160235,1,'2020-01-01 01:01:01'),(83,20210623100031,1,'2020-01-01 01:01:01'),(84,20210623133615,1,'2020-01-01 01:01:01'),(85,20210708143152,1,'2020-01-01 01:01:01'),(86,20210709124443,1,'2020-01-01 01:01:01'),(87,20210712155608,1,'2020-01-01 01:01:01'),(88,20210714102108,1,'2020-01-01 01:01:01'),(89,20210719153709,1,'2020-01-01 01:01:01'),(90,20210721171531,1,'2020-01-01 01:01:01'),(91,20210723135713,1,'2020-01-01 01:01:01'),(92,20210802135933,1,'2020-01-01 01:01:01'),(93,20210806112844,1,'2020-01-01 01:01:01'),(94,20210810095603,1,'2020-01-01 01:01:01'),(95,20210811150223,1,'2020-01-01 01:01:01'),(96,20210816141251,1,'2020-01-01 01:01:01'),(97,20210818151827,1,'2020-01-01 01:01:01'),(98,20210818182258,1,'2020-01-01 01:01:01'),(99,20210819131107,1,'2020-01-01 01:01:01'),(100,20210819143446,1,'2020-01-01 01:01:01');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `network_interfaces` (
@@ -392,6 +392,45 @@ CREATE TABLE `password_reset_requests` (
   `user_id` int(10) unsigned NOT NULL,
   `token` varchar(1024) NOT NULL,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `policies` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `query_id` int(10) unsigned NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_policies_query_id` (`query_id`),
+  CONSTRAINT `policies_ibfk_1` FOREIGN KEY (`query_id`) REFERENCES `queries` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+/*!50001 CREATE VIEW `policy_membership` AS SELECT 
+ 1 AS `id`,
+ 1 AS `policy_id`,
+ 1 AS `host_id`,
+ 1 AS `passes`,
+ 1 AS `created_at`,
+ 1 AS `updated_at`*/;
+SET character_set_client = @saved_cs_client;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `policy_membership_history` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `policy_id` int(10) unsigned DEFAULT NULL,
+  `host_id` int(10) unsigned NOT NULL,
+  `passes` tinyint(1) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_policy_membership_passes` (`passes`),
+  KEY `idx_policy_membership_policy_id` (`policy_id`),
+  KEY `idx_policy_membership_host_id_passes` (`host_id`,`passes`),
+  CONSTRAINT `policy_membership_history_ibfk_1` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `policy_membership_history_ibfk_2` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -560,3 +599,16 @@ CREATE TABLE `users` (
   UNIQUE KEY `idx_user_unique_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!50001 DROP VIEW IF EXISTS `policy_membership`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `policy_membership` AS select `policy_membership_history`.`id` AS `id`,`policy_membership_history`.`policy_id` AS `policy_id`,`policy_membership_history`.`host_id` AS `host_id`,`policy_membership_history`.`passes` AS `passes`,`policy_membership_history`.`created_at` AS `created_at`,`policy_membership_history`.`updated_at` AS `updated_at` from `policy_membership_history` where `policy_membership_history`.`id` in (select max(`policy_membership_history`.`id`) AS `id` from `policy_membership_history` group by `policy_membership_history`.`host_id`,`policy_membership_history`.`policy_id`) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
