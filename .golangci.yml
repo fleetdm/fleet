@@ -1,0 +1,35 @@
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - gofmt
+    - govet
+    - ineffassign
+    - revive
+    - structcheck
+    - typecheck
+    - unconvert
+    - unused
+
+linters-settings:
+  revive:
+    ignoreGeneratedHeader: false
+    severity: "warning"
+    confidence: 0.8
+    errorCode: 0
+    warningCode: 0
+
+    rules:
+      - name: dot-imports
+      - name: error-return
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unreachable-code
+      - name: redefines-builtin-id
