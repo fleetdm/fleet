@@ -161,26 +161,12 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	if config.PasswordPath != "" && config.Password != "" {
-		return nil, errors.New("A MySQL password and a MySQL password file were provided - please specify only one")
+	if err := checkConfig(&config); err != nil {
+		return nil, err
 	}
-
-	// Check to see if the flag is populated
-	// Check if file exists on disk
-	// If file exists read contents
-	if config.PasswordPath != "" {
-		fileContents, err := ioutil.ReadFile(config.PasswordPath)
-		if err != nil {
-			return nil, err
-		}
-		config.Password = strings.TrimSpace(string(fileContents))
-	}
-
-	if config.TLSCA != "" {
-		config.TLSConfig = "custom"
-		err := registerTLS(config)
-		if err != nil {
-			return nil, errors.Wrap(err, "register TLS config for mysql")
+	if options.replicaConfig != nil {
+		if err := checkConfig(options.replicaConfig); err != nil {
+			return nil, errors.Wrap(err, "replica")
 		}
 	}
 
@@ -220,6 +206,32 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 
 	return ds, nil
+}
+
+func checkConfig(conf *config.MysqlConfig) error {
+	if conf.PasswordPath != "" && conf.Password != "" {
+		return errors.New("A MySQL password and a MySQL password file were provided - please specify only one")
+	}
+
+	// Check to see if the flag is populated
+	// Check if file exists on disk
+	// If file exists read contents
+	if conf.PasswordPath != "" {
+		fileContents, err := ioutil.ReadFile(conf.PasswordPath)
+		if err != nil {
+			return err
+		}
+		conf.Password = strings.TrimSpace(string(fileContents))
+	}
+
+	if conf.TLSCA != "" {
+		conf.TLSConfig = "custom"
+		err := registerTLS(*conf)
+		if err != nil {
+			return errors.Wrap(err, "register TLS config for mysql")
+		}
+	}
+	return nil
 }
 
 func (d *Datastore) Begin() (fleet.Transaction, error) {
