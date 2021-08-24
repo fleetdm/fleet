@@ -34,7 +34,7 @@ type LabelStore interface {
 	// results map is a map of label id -> whether or not the label
 	// matches. The time parameter is the timestamp to save with the query
 	// execution.
-	RecordLabelQueryExecutions(host *Host, results map[uint]bool, t time.Time) error
+	RecordLabelQueryExecutions(host *Host, results map[uint]*bool, t time.Time) error
 
 	// LabelsForHost returns the labels that the given host is in.
 	ListLabelsForHost(hid uint) ([]*Label, error)

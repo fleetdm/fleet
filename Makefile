@@ -115,7 +115,7 @@ lint-go:
 lint: lint-go lint-js
 
 dump-test-schema:
-	go test -tags full,fts5,netgo -parallel 8 ./server/datastore/mysql/ -run TestMigrations
+	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 test-go: dump-test-schema
 	go test -tags full,fts5,netgo -parallel 8 ./...

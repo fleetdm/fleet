@@ -16,10 +16,6 @@ func TestUnicode(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
-
 	l1 := fleet.LabelSpec{
 		ID:    1,
 		Name:  "測試",

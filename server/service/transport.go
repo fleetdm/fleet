@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
@@ -191,6 +192,28 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		tid := uint(id)
 		hopt.TeamFilter = &tid
+	}
+
+	policy_id := r.URL.Query().Get("policy_id")
+	if policy_id != "" {
+		id, err := strconv.Atoi(policy_id)
+		if err != nil {
+			return hopt, err
+		}
+		pid := uint(id)
+		hopt.PolicyIDFilter = &pid
+	}
+
+	policy_response := r.URL.Query().Get("policy_response")
+	if policy_response != "" {
+		var v *bool
+		switch policy_response {
+		case "passing":
+			v = ptr.Bool(true)
+		case "failing":
+			v = ptr.Bool(false)
+		}
+		hopt.PolicyResponseFilter = v
 	}
 
 	return hopt, nil

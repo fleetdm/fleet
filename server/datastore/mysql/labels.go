@@ -332,9 +332,9 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 	return results, nil
 }
 
-func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, updated time.Time) error {
+func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]*bool, updated time.Time) error {
 	// Sort the results to have generated SQL queries ordered to minimize
-	// deadlocks. See https://github.com/fleetdm/fleet/v4/issues/1146.
+	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
 	for labelID := range results {
 		orderedIDs = append(orderedIDs, labelID)
@@ -348,7 +348,7 @@ func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uin
 	removes := []uint{}
 	for _, labelID := range orderedIDs {
 		matches := results[labelID]
-		if matches {
+		if matches != nil && *matches {
 			// Add/update row
 			bindvars = append(bindvars, "(?,?,?)")
 			vals = append(vals, updated, labelID, host.ID)

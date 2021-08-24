@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -273,6 +274,17 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	config := getConfig(t, server, token)
 	assert.Nil(t, config.HostSettings.AdditionalQueries)
 	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
+}
+
+func TestAppConfigUpdateInterval(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	config := getConfig(t, server, token)
+	require.Equal(t, 1*time.Hour, config.UpdateInterval.OSQueryDetail)
 }
 
 func TestAppConfigHasLogging(t *testing.T) {
@@ -673,6 +685,81 @@ func TestVulnerableSoftware(t *testing.T) {
 	// ignoring other things like timestamps and things that are outside the cope of this ticket
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
+}
+
+func TestGlobalPolicies(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	token := getTestAdminToken(t, server)
+
+	for i := 0; i < 3; i++ {
+		_, err := ds.NewHost(&fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	qr, err := ds.NewQuery(&fleet.Query{
+		Name:           "TestQuery",
+		Description:    "Some description",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+	})
+	require.NoError(t, err)
+
+	gpParams := globalPolicyRequest{QueryID: qr.ID}
+	gpResp := globalPolicyResponse{}
+	doJSONReq(t, gpParams, "POST", server, "/api/v1/fleet/global/policies", token, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+	assert.Equal(t, qr.ID, gpResp.Policy.QueryID)
+
+	policiesResponse := listGlobalPoliciesResponse{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/policies", token, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 1)
+	assert.Equal(t, qr.ID, policiesResponse.Policies[0].QueryID)
+
+	singlePolicyResponse := getPolicyByIDResponse{}
+	singlePolicyURL := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policiesResponse.Policies[0].ID)
+	doJSONReq(t, nil, "GET", server, singlePolicyURL, token, http.StatusOK, &singlePolicyResponse)
+	assert.Equal(t, qr.ID, singlePolicyResponse.Policy.QueryID)
+	assert.Equal(t, qr.Name, singlePolicyResponse.Policy.QueryName)
+
+	listHostsURL := fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
+	listHostsResp := listHostsResponse{}
+	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 3)
+
+	h1 := listHostsResp.Hosts[0]
+	h2 := listHostsResp.Hosts[1]
+
+	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 0)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
+
+	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 1)
+
+	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
+	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	doJSONReq(t, deletePolicyParams, "POST", server, "/api/v1/fleet/global/policies/delete", token, http.StatusOK, &deletePolicyResp)
+
+	policiesResponse = listGlobalPoliciesResponse{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/policies", token, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 0)
 }
 
 func TestOsqueryEndpointsLogErrors(t *testing.T) {
