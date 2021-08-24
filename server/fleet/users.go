@@ -1,96 +1,11 @@
 package fleet
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"golang.org/x/crypto/bcrypt"
 )
-
-// UserStore contains methods for managing users in a datastore
-type UserStore interface {
-	NewUser(user *User) (*User, error)
-	ListUsers(opt UserListOptions) ([]*User, error)
-	UserByEmail(email string) (*User, error)
-	UserByID(id uint) (*User, error)
-	SaveUser(user *User) error
-	SaveUsers(users []*User) error
-	// DeleteUser permanently deletes the user identified by the provided ID.
-	DeleteUser(id uint) error
-	// PendingEmailChange creates a record with a pending email change for a user identified
-	// by uid. The change record is keyed by a unique token. The token is emailed to the user
-	// with a link that they can use to confirm the change.
-	PendingEmailChange(userID uint, newEmail, token string) error
-	// ConfirmPendingEmailChange will confirm new email address identified by token is valid.
-	// The new email will be written to user record. userID is the ID of the
-	// user whose e-mail is being changed.
-	ConfirmPendingEmailChange(userID uint, token string) (string, error)
-}
-
-// UserService contains methods for managing a Fleet User.
-type UserService interface {
-	// CreateUserWithInvite creates a new User from a request payload when there is
-	// already an existing invitation.
-	CreateUserFromInvite(ctx context.Context, p UserPayload) (user *User, err error)
-
-	// CreateUser allows an admin to create a new user without first creating
-	// and validating invite tokens.
-	CreateUser(ctx context.Context, p UserPayload) (user *User, err error)
-
-	// CreateInitialUser creates the first user, skipping authorization checks.
-	// If a user already exists this method should fail.
-	CreateInitialUser(ctx context.Context, p UserPayload) (user *User, err error)
-
-	// User returns a valid User given a User ID.
-	User(ctx context.Context, id uint) (user *User, err error)
-
-	// UserUnauthorized returns a valid User given a User ID, *skipping authorization checks*
-	//
-	// This method should only be used in middleware where there is not yet a viewer context and we need to load up a user to create that context.
-	UserUnauthorized(ctx context.Context, id uint) (user *User, err error)
-
-	// AuthenticatedUser returns the current user from the viewer context.
-	AuthenticatedUser(ctx context.Context) (user *User, err error)
-
-	// ListUsers returns all users.
-	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
-
-	// ChangePassword validates the existing password, and sets the new
-	// password. User is retrieved from the viewer context.
-	ChangePassword(ctx context.Context, oldPass, newPass string) error
-
-	// RequestPasswordReset generates a password reset request for the user
-	// specified by email. The request results in a token emailed to the
-	// user.
-	RequestPasswordReset(ctx context.Context, email string) (err error)
-
-	// RequirePasswordReset requires a password reset for the user
-	// specified by ID (if require is true). It deletes all of the user's
-	// sessions, and requires that their password be reset upon the next
-	// login. Setting require to false will take a user out of this state.
-	// The updated user is returned.
-	RequirePasswordReset(ctx context.Context, uid uint, require bool) (*User, error)
-
-	// PerformRequiredPasswordReset resets a password for a user that is in
-	// the required reset state. It must be called with the logged in
-	// viewer context of that user.
-	PerformRequiredPasswordReset(ctx context.Context, password string) (*User, error)
-
-	// ResetPassword validates the provided password reset token and
-	// updates the user's password.
-	ResetPassword(ctx context.Context, token, password string) (err error)
-
-	// ModifyUser updates a user's parameters given a UserPayload.
-	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
-
-	// DeleteUser permanently deletes the user identified by the provided ID.
-	DeleteUser(ctx context.Context, id uint) error
-
-	// ChangeUserEmail is used to confirm new email address and if confirmed,
-	// write the new email address to user.
-	ChangeUserEmail(ctx context.Context, token string) (string, error)
-}
 
 // User is the model struct that represents a Fleet user.
 type User struct {

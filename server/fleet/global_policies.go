@@ -1,28 +1,5 @@
 package fleet
 
-import (
-	"context"
-	"time"
-)
-
-type GlobalPoliciesService interface {
-	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
-	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
-	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
-	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
-}
-
-type GlobalPoliciesStore interface {
-	NewGlobalPolicy(queryID uint) (*Policy, error)
-	Policy(id uint) (*Policy, error)
-	RecordPolicyQueryExecutions(host *Host, results map[uint]*bool, updated time.Time) error
-
-	ListGlobalPolicies() ([]*Policy, error)
-	DeleteGlobalPolicies(ids []uint) ([]uint, error)
-
-	PolicyQueriesForHost(host *Host) (map[string]string, error)
-}
-
 type Policy struct {
 	ID               uint   `json:"id"`
 	QueryID          uint   `json:"query_id" db:"query_id"`

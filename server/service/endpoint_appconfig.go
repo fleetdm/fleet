@@ -79,9 +79,9 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				HostExpirySettings: hostExpirySettings,
 				AgentOptions:       agentOptions,
 			},
-			UpdateInterval:        updateIntervalConfig,
-			License: license,
-			Logging: loggingConfig,
+			UpdateInterval: updateIntervalConfig,
+			License:        license,
+			Logging:        loggingConfig,
 		}
 		return response, nil
 	}

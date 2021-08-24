@@ -1,10 +1,5 @@
 package fleet
 
-import (
-	"context"
-	"time"
-)
-
 type TargetSearchResults struct {
 	Hosts  []*Host
 	Labels []*Label
@@ -30,31 +25,6 @@ type TargetMetrics struct {
 	// NewHosts is the count of hosts that have enrolled in the last 24
 	// hours.
 	NewHosts uint `db:"new"`
-}
-
-type TargetService interface {
-	// SearchTargets will accept a search query, a slice of IDs of hosts to
-	// omit, and a slice of IDs of labels to omit, and it will return a set of
-	// targets (hosts and label) which match the supplied search query. If the
-	// query ID is provided and the referenced query allows observers to run,
-	// targets will include hosts that the user has observer role for.
-	SearchTargets(ctx context.Context, searchQuery string, queryID *uint, targets HostTargets) (*TargetSearchResults, error)
-
-	// CountHostsInTargets returns the metrics of the hosts in the provided
-	// label and explicit host IDs. If the query ID is provided and the
-	// referenced query allows observers to run, targets will include hosts that
-	// the user has observer role for.
-	CountHostsInTargets(ctx context.Context, queryID *uint, targets HostTargets) (*TargetMetrics, error)
-}
-
-type TargetStore interface {
-	// CountHostsInTargets returns the metrics of the hosts in the provided
-	// labels, teams, and explicit host IDs.
-	CountHostsInTargets(filter TeamFilter, targets HostTargets, now time.Time) (TargetMetrics, error)
-	// HostIDsInTargets returns the host IDs of the hosts in the provided
-	// labels, teams, and explicit host IDs. The returned host IDs should be
-	// sorted in ascending order.
-	HostIDsInTargets(filter TeamFilter, targets HostTargets) ([]uint, error)
 }
 
 // HostTargets is the set of targets for a campaign (live query). These
