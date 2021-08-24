@@ -135,4 +135,8 @@ func TestPolicyMembershipView(t *testing.T) {
 
 	assert.Equal(t, uint(0), policies[1].PassingHostCount)
 	assert.Equal(t, uint(1), policies[1].FailingHostCount)
+
+	policy, err := ds.Policy(policies[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, policies[0], policy)
 }
