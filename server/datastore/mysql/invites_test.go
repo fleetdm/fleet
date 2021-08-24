@@ -143,9 +143,8 @@ func TestInviteByToken(t *testing.T) {
 				require.NotNil(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
 				return
-			} else {
-				require.Nil(t, err)
 			}
+			require.Nil(t, err)
 			assert.NotEqual(t, invite.ID, 0)
 
 		})
@@ -178,9 +177,8 @@ func TestInviteByEmail(t *testing.T) {
 				require.NotNil(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
 				return
-			} else {
-				require.Nil(t, err)
 			}
+			require.Nil(t, err)
 			assert.NotEqual(t, invite.ID, 0)
 
 		})

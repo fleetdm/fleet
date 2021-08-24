@@ -168,15 +168,15 @@ type AppConfig struct {
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
 }
 
-func (ac *AppConfig) ApplyDefaultsForNewInstalls() {
-	ac.ServerSettings.EnableAnalytics = true
-	ac.HostSettings.EnableHostUsers = true
-	ac.SMTPSettings.SMTPPort = 587
-	ac.SMTPSettings.SMTPEnableStartTLS = true
-	ac.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
-	ac.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
-	ac.SMTPSettings.SMTPVerifySSLCerts = true
-	ac.SMTPSettings.SMTPEnableTLS = true
+func (c *AppConfig) ApplyDefaultsForNewInstalls() {
+	c.ServerSettings.EnableAnalytics = true
+	c.HostSettings.EnableHostUsers = true
+	c.SMTPSettings.SMTPPort = 587
+	c.SMTPSettings.SMTPEnableStartTLS = true
+	c.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
+	c.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
+	c.SMTPSettings.SMTPVerifySSLCerts = true
+	c.SMTPSettings.SMTPEnableTLS = true
 }
 
 // OrgInfo contains general info about the organization using Fleet.

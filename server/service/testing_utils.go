@@ -25,12 +25,16 @@ func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.Live
 func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := fleet.LicenseInfo{Tier: "core"}
-	writer, err := logging.NewFilesystemLogWriter(
+	writer, _ := logging.NewFilesystemLogWriter(
 		fleetConfig.Filesystem.StatusLogFile,
 		kitlog.NewNopLogger(),
 		fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
+	// See #1776
+	//if err != nil {
+	//	panic(err)
+	//}
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
 	if len(opts) > 0 && opts[0].Logger != nil {
@@ -53,6 +57,9 @@ func newTestBasicService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet
 		testConfig.Filesystem.EnableLogRotation,
 		testConfig.Filesystem.EnableLogCompression,
 	)
+	if err != nil {
+		panic(err)
+	}
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, clock.C, nil, lq, ds, license)
 	if err != nil {
@@ -75,6 +82,9 @@ func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq f
 		testConfig.Filesystem.EnableLogRotation,
 		testConfig.Filesystem.EnableLogCompression,
 	)
+	if err != nil {
+		panic(err)
+	}
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license)
 	if err != nil {

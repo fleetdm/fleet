@@ -351,59 +351,6 @@ func TestDeleteHost(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func testListHosts(t *testing.T, ds fleet.Datastore) {
-	hosts := []*fleet.Host{}
-	for i := 0; i < 10; i++ {
-		host, err := ds.NewHost(&fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			SeenTime:        time.Now(),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
-			UUID:            fmt.Sprintf("%d", i),
-			Hostname:        fmt.Sprintf("foo.local%d", i),
-		})
-		assert.Nil(t, err)
-		if err != nil {
-			return
-		}
-		hosts = append(hosts, host)
-	}
-
-	filter := fleet.TeamFilter{User: test.UserAdmin}
-	hosts2, err := ds.ListHosts(filter, fleet.HostListOptions{})
-	require.Nil(t, err)
-	assert.Equal(t, len(hosts), len(hosts2))
-
-	for _, host := range hosts2 {
-		i, err := strconv.Atoi(host.UUID)
-		assert.Nil(t, err)
-		assert.True(t, i >= 0)
-		assert.True(t, strings.HasPrefix(host.Hostname, "foo.local"))
-	}
-
-	// Test with logic for only a few hosts
-	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{PerPage: 4, Page: 0}})
-	require.Nil(t, err)
-	assert.Equal(t, 4, len(hosts2))
-
-	err = ds.DeleteHost(hosts[0].ID)
-	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{})
-	require.Nil(t, err)
-	assert.Equal(t, len(hosts)-1, len(hosts2))
-
-	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{})
-	require.Nil(t, err)
-	require.Equal(t, len(hosts2), len(hosts))
-
-	err = ds.SaveHost(hosts[0])
-	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(filter, fleet.HostListOptions{})
-	require.Nil(t, err)
-	require.Equal(t, hosts[0].ID, hosts2[0].ID)
-}
-
 func TestListHostsFilterAdditional(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
