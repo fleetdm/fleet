@@ -308,10 +308,6 @@ func TestListPacksForHost(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is deprecated")
-	}
-
 	mockClock := clock.NewMockClock()
 
 	l1 := &fleet.LabelSpec{
@@ -355,7 +351,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
-		map[uint]bool{l1.ID: true},
+		map[uint]*bool{l1.ID: ptr.Bool(true)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -368,7 +364,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
-		map[uint]bool{l1.ID: false, l2.ID: true},
+		map[uint]*bool{l1.ID: ptr.Bool(false), l2.ID: ptr.Bool(true)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -379,7 +375,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
-		map[uint]bool{l1.ID: true, l2.ID: true},
+		map[uint]*bool{l1.ID: ptr.Bool(true), l2.ID: ptr.Bool(true)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -392,7 +388,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h2,
-		map[uint]bool{l2.ID: true},
+		map[uint]*bool{l2.ID: ptr.Bool(true)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -403,7 +399,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
-		map[uint]bool{l2.ID: false},
+		map[uint]*bool{l2.ID: ptr.Bool(false)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)

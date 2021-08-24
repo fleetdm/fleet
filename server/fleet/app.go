@@ -57,6 +57,9 @@ type AppConfigService interface {
 
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)
+
+	// UpdateIntervalConfig returns the duration for different update intervals configured in osquery
+	UpdateIntervalConfig(ctx context.Context) (*UpdateIntervalConfig, error)
 }
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -344,6 +347,10 @@ type Logging struct {
 	Json   bool          `json:"json"`
 	Result LoggingPlugin `json:"result"`
 	Status LoggingPlugin `json:"status"`
+}
+
+type UpdateIntervalConfig struct {
+	OSQueryDetail time.Duration `json:"osquery_detail"`
 }
 
 type LoggingPlugin struct {
