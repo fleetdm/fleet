@@ -26,6 +26,7 @@ interface IQueryResultsProps {
 }
 
 const baseClass = "query-results";
+const CSV_QUERY_TITLE = "Query Results";
 const PAGE_TITLES = {
   RUNNING: "Querying selected hosts",
   FINISHED: "Query finished",
@@ -47,9 +48,7 @@ const QueryResults = ({
 
   const totalHostsOnline = get(campaign, ["totals", "online"], 0);
   const totalHostsOffline = get(campaign, ["totals", "offline"], 0);
-  const totalHostsCount = get(campaign, ["totals", "count"], 0);
   const totalRowsCount = get(campaign, ["query_results", "length"], 0);
-  const campaignIsEmpty = !hostsCount.successful && hostsCount.successful !== 0;
   const onlineTotalText = `${totalRowsCount} result${
     totalRowsCount === 1 ? "" : "s"
   }`;
@@ -58,7 +57,6 @@ const QueryResults = ({
   }`;
 
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
-  const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
   const [resultsFilter, setResultsFilter] = useState<{ [key: string]: any }>(
     {}
   );
@@ -67,9 +65,9 @@ const QueryResults = ({
 
   useEffect(() => {
     if (isQueryFinished) {
-      setPageTitle(PAGE_TITLES.RUNNING);
-    } else {
       setPageTitle(PAGE_TITLES.FINISHED);
+    } else {
+      setPageTitle(PAGE_TITLES.RUNNING);
     }
   }, [isQueryFinished]);
 
@@ -96,7 +94,7 @@ const QueryResults = ({
       });
 
       const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
-      const filename = `${csvQueryName} (${formattedTime}).csv`;
+      const filename = `${CSV_QUERY_TITLE} (${formattedTime}).csv`;
       const file = new global.window.File([csv], filename, {
         type: "text/csv",
       });
@@ -117,7 +115,7 @@ const QueryResults = ({
       });
 
       const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
-      const filename = `${csvQueryName} Errors (${formattedTime}).csv`;
+      const filename = `${CSV_QUERY_TITLE} Errors (${formattedTime}).csv`;
       const file = new global.window.File([csv], filename, {
         type: "text/csv",
       });
@@ -170,7 +168,7 @@ const QueryResults = ({
     const filteredRows = filterArrayByHash(rows, resultsFilter);
 
     return filteredRows.map((row: any) => {
-      return <QueryResultsRow queryResult={row} />;
+      return <QueryResultsRow key={row.id} queryResult={row} />;
     });
   };
 
@@ -264,14 +262,16 @@ const QueryResults = ({
           </span>
         </div>
       </div>
-      {isQueryFinished ? renderFinishedButtons : renderStopQueryButton}
+      {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}
       {isQueryFinished && (
         <div className={`${baseClass}__nav-header`}>
           <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
             <TabList>
-              <Tab data-text={NAV_TITLES.RESULTS}>{NAV_TITLES.RESULTS}</Tab>
-              <Tab data-text={NAV_TITLES.ERRORS} disabled={!errors?.length}>
-                <span>{errors?.length}</span>
+              <Tab className="react-tabs__tab no-count">
+                {NAV_TITLES.RESULTS}
+              </Tab>
+              <Tab disabled={!errors?.length}>
+                <span className="count">{errors?.length}</span>
                 {NAV_TITLES.ERRORS}
               </Tab>
             </TabList>
