@@ -31,7 +31,13 @@ Check out [the instructions in the `/tools/osquery` directory](../../tools/osque
 
 ## Test suite
 
-To execute the basic unit and integration tests, run the following from the root of the repository:
+You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test` or `make lint`, using:
+
+```
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
+```
+
+Make sure it is available in your PATH. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
 MYSQL_TEST=1 make test
