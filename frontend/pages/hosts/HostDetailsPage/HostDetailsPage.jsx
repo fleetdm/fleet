@@ -667,6 +667,36 @@ export class HostDetailsPage extends Component {
         </div>
       );
     };
+
+    console.log(host);
+    console.log(host.percent_disk_space_available);
+
+    const renderDiskSpace = () => {
+      if (
+        host.gigs_disk_space_available !== 0 ||
+        host.percent_disk_space_available !== 0
+      ) {
+        return (
+          <span className="info__data">
+            <div className="info__disk-space">
+              <div
+                className={
+                  titleData.percent_disk_space_available > 20
+                    ? "info__disk-space-used"
+                    : "info__disk-space-warning"
+                }
+                style={{
+                  width: `${100 - titleData.percent_disk_space_available}%`,
+                }}
+              />
+            </div>
+            {titleData.gigs_disk_space_available} GB available
+          </span>
+        );
+      }
+      return <span className="info__data">No data available</span>;
+    };
+
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
@@ -696,28 +726,10 @@ export class HostDetailsPage extends Component {
                 </span>
               </div>
               {isBasicTier && hostTeam()}
-              {host.percent_disk_space_available ? (
-                <div className="info__item info__item--title">
-                  <span className="info__header">Disk Space</span>
-                  <span className="info__data">
-                    <div className="info__disk-space">
-                      <div
-                        className={
-                          titleData.percent_disk_space_available > 20
-                            ? "info__disk-space-used"
-                            : "info__disk-space-warning"
-                        }
-                        style={{
-                          width: `${
-                            100 - titleData.percent_disk_space_available
-                          }%`,
-                        }}
-                      />
-                    </div>
-                    {titleData.gigs_disk_space_available} GB available
-                  </span>
-                </div>
-              ) : null}
+              <div className="info__item info__item--title">
+                <span className="info__header">Disk Space</span>
+                {renderDiskSpace()}
+              </div>
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
                 <span className="info__data">
