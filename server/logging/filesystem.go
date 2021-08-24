@@ -10,7 +10,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/go-kit/kit/log"
