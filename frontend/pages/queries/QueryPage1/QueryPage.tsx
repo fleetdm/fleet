@@ -150,10 +150,12 @@ const QueryPage = ({
         {renderScreen()}
         {renderLiveQueryWarning()}
       </div>
-      <QuerySidePanel
-        onOsqueryTableSelect={onOsqueryTableSelect}
-        selectedOsqueryTable={selectedOsqueryTable}
-      />
+      {step === QUERIES_PAGE_STEPS[1] && (
+        <QuerySidePanel
+          onOsqueryTableSelect={onOsqueryTableSelect}
+          selectedOsqueryTable={selectedOsqueryTable}
+        />
+      )}
     </div>
   );
 };
