@@ -137,12 +137,6 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	}
 }
 
-func makeNopDecoder() kithttp.DecodeRequestFunc {
-	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		return nil, nil
-	}
-}
-
 type UserAuthEndpointer struct {
 	svc  fleet.Service
 	opts []kithttp.ServerOption
