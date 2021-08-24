@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Dispatch } from "redux";
-import moment from "moment";
-import FileSaver from "file-saver";
-import { filter } from "lodash";
 import SockJS from "sockjs-client";
 
 // @ts-ignore
@@ -11,7 +8,6 @@ import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
-import convertToCSV from "utilities/convert_to_csv";
 import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants"; // @ts-ignore
 import local from "utilities/local"; // @ts-ignore
 import { ICampaign, ICampaignState } from "interfaces/campaign";
@@ -21,6 +17,7 @@ import { ITarget } from "interfaces/target";
 // @ts-ignore
 import QueryProgressDetails from "components/queries/QueryProgressDetails"; // @ts-ignore
 import QueryResultsTable from "components/queries/QueryResultsTable";
+import QueryResults from "../QueryResults";
 
 interface IRunQueryProps {
   baseClass: string;
@@ -37,8 +34,7 @@ const RunQuery = ({
   selectedTargets,
   dispatch,
 }: IRunQueryProps) => {
-  const [isReady, setIsReady] = useState<boolean>(false);
-  const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
+  const [isQueryFinished, setIsQueryFinished] = useState<boolean>(false);
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
   );
@@ -81,7 +77,7 @@ const RunQuery = ({
       queryIsRunning: false,
       runQueryMilliseconds: 0,
     }));
-    setIsReady(true);
+    setIsQueryFinished(true);
     removeSocket();
   };
 
@@ -184,83 +180,40 @@ const RunQuery = ({
     return teardownDistributedQuery();
   };
 
-  const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
-    evt.preventDefault();
-
-    if (!campaignState.campaign) {
-      return false;
-    }
-
-    const { query_results: queryResults } = campaignState.campaign;
-
-    if (queryResults) {
-      const csv = convertToCSV(queryResults, (fields: string[]) => {
-        const result = filter(fields, (f) => f !== "host_hostname");
-        result.unshift("host_hostname");
-
-        return result;
-      });
-
-      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
-      const filename = `${csvQueryName} (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    }
-  };
-
-  const onExportErrorsResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
-    evt.preventDefault();
-
-    if (!campaignState.campaign) {
-      return false;
-    }
-
-    const { errors } = campaignState.campaign;
-
-    if (errors) {
-      const csv = convertToCSV(errors, (fields: string[]) => {
-        const result = filter(fields, (f) => f !== "host_hostname");
-        result.unshift("host_hostname");
-
-        return result;
-      });
-
-      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
-      const filename = `${csvQueryName} Errors (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    }
-  };
-
   const { campaign, queryIsRunning, runQueryMilliseconds } = campaignState;
-  if (isReady) {
-    return (
-      <QueryResultsTable
-        campaign={campaign}
-        onExportQueryResults={onExportQueryResults}
-        onExportErrorsResults={onExportErrorsResults}
-        onRunQuery={onRunQuery}
-        onStopQuery={onStopQuery}
-        queryIsRunning={queryIsRunning}
-        queryTimerMilliseconds={runQueryMilliseconds}
-      />
-    );
-  }
+  // if (isQueryFinished) {
+  //   return (
+  //     <QueryResultsTable
+  //       campaign={campaign}
+  //       onExportQueryResults={onExportQueryResults}
+  //       onExportErrorsResults={onExportErrorsResults}
+  //       onRunQuery={onRunQuery}
+  //       onStopQuery={onStopQuery}
+  //       queryIsRunning={queryIsRunning}
+  //       queryTimerMilliseconds={runQueryMilliseconds}
+  //     />
+  //   );
+  // }
+
+  // return (
+  //   <QueryProgressDetails
+  //     campaign={campaign}
+  //     onRunQuery={onRunQuery}
+  //     onStopQuery={onStopQuery}
+  //     queryIsRunning={queryIsRunning}
+  //     queryTimerMilliseconds={runQueryMilliseconds}
+  //     disableRun={false}
+  //   />
+  // );
+  // return null;
 
   return (
-    <QueryProgressDetails
+    <QueryResults
       campaign={campaign}
       onRunQuery={onRunQuery}
       onStopQuery={onStopQuery}
-      queryIsRunning={queryIsRunning}
-      queryTimerMilliseconds={runQueryMilliseconds}
-      disableRun={false}
+      isQueryFinished={isQueryFinished}
+      dispatch={dispatch}
     />
   );
 };

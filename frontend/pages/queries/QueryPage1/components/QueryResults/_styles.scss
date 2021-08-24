@@ -1,0 +1,124 @@
+.query-results {
+  margin-top: $pad-large;
+  
+  @at-root &.query-results-table__full-screen {
+    float: left;
+  }
+
+  &__wrapper {
+    display: inline-block;
+    max-width: 420px;
+
+    em {
+      color: $core-fleet-blue;
+      font-size: 0.8em;
+    }
+  }
+
+  &__text-wrapper {
+    display: flex;
+    flex-direction: column;
+    font-size: $x-small;
+  }
+
+  &__text-online {
+    &:before {
+      background-color: $ui-success;
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      height: 8px;
+      margin-right: $pad-small;
+      width: 8px;
+    }
+  }
+
+  &__text-offline {
+    &:before {
+      background-color: $ui-fleet-black-25;
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      height: 8px;
+      margin-right: $pad-small;
+      width: 8px;
+    }
+  }
+
+  &__text-error {
+    &:before {
+      background-color: $ui-error;
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      height: 8px;
+      margin-right: $pad-small;
+      width: 8px;
+    }
+  }
+
+  &__text-results {
+    color: $core-fleet-blue;
+  }
+
+  &__btn-wrapper {
+    .button {
+      width: 80px;
+    }
+  }
+
+  &__nav-header {
+    padding-top: 15px;
+    position: sticky;
+    top: 0;
+    background-color: $core-white;
+    z-index: 2;
+  }
+  
+  .react-tabs {
+    .react-tabs__tab-list {
+      border-bottom: 1px solid $ui-gray;
+    }
+
+    &__tab {
+      font-size: $x-small;
+      border: none;
+      padding: 0 0 $pad-medium 0;
+      margin-left: $pad-xxlarge;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+
+      &:focus {
+        box-shadow: none;
+        outline: 0;
+      }
+
+      // Bolding text when the tab is active causes a layout shift
+      // so we add a hidden pseudo element with the same text string
+      &:before {
+        content: attr(data-text);
+        height: 0;
+        visibility: hidden;
+        overflow: hidden;
+        user-select: none;
+        pointer-events: none;
+        font-weight: $bold;
+      }
+
+      &:after {
+        background-color: transparent;
+      }
+
+      &:first-child {
+        margin-left: 0;
+      }
+    }
+
+    &__tab--selected,
+    &__tab--selected:focus {
+      font-weight: $bold;
+      border-bottom: 1px solid $core-vibrant-blue;
+    }
+  }
+}
