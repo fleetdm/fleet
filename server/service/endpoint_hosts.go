@@ -26,7 +26,7 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 	}, nil
 }
 
-// HostDetailresponse is the response struct that contains the full host information
+// HostDetailResponse is the response struct that contains the full host information
 // with the HostDetail details.
 type HostDetailResponse struct {
 	fleet.HostDetail
