@@ -14,6 +14,10 @@ linters:
     - unused
 
 linters-settings:
+  gofmt:
+    # simplify code: gofmt with `-s` option, true by default
+    simplify: false
+
   revive:
     ignoreGeneratedHeader: false
     severity: "warning"

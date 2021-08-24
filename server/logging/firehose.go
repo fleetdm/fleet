@@ -37,7 +37,7 @@ type firehoseLogWriter struct {
 
 func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stream string, logger log.Logger) (*firehoseLogWriter, error) {
 	conf := &aws.Config{
-		Region: &region,
+		Region:   &region,
 		Endpoint: &endpointURL, // empty string or nil will use default values
 	}
 

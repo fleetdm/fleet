@@ -26,13 +26,6 @@ func (mw validationMiddleware) ModifyAppConfig(ctx context.Context, p []byte) (*
 	return mw.Service.ModifyAppConfig(ctx, p)
 }
 
-func isSet(val *string) bool {
-	if val != nil {
-		return len(*val) > 0
-	}
-	return false
-}
-
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
 	if p.SSOSettings.EnableSSO {
 		if p.SSOSettings.Metadata == "" && p.SSOSettings.MetadataURL == "" {

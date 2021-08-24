@@ -123,9 +123,8 @@ func getConfigValue(configPath, context, key string) (interface{}, error) {
 	case "tls-skip-verify":
 		if currentContext.TLSSkipVerify {
 			return true, nil
-		} else {
-			return false, nil
 		}
+		return false, nil
 	case "url-prefix":
 		return currentContext.URLPrefix, nil
 	default:

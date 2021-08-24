@@ -35,7 +35,7 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 			Compress:   enableCompression,
 		}
 		appLogger = log.With(appLogger, "component", "osqueryd-logger")
-		sig := make(chan os.Signal)
+		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGHUP)
 		go func() {
 			for {

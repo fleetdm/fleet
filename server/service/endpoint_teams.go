@@ -18,7 +18,7 @@ type createTeamRequest struct {
 
 type teamResponse struct {
 	Team *fleet.Team `json:"team,omitempty"`
-	Err  error        `json:"error,omitempty"`
+	Err  error       `json:"error,omitempty"`
 }
 
 func (r teamResponse) error() error { return r.Err }
@@ -88,7 +88,7 @@ type listTeamsRequest struct {
 
 type listTeamsResponse struct {
 	Teams []fleet.Team `json:"teams"`
-	Err   error         `json:"error,omitempty"`
+	Err   error        `json:"error,omitempty"`
 }
 
 func (r listTeamsResponse) error() error { return r.Err }
@@ -204,7 +204,7 @@ type teamEnrollSecretsRequest struct {
 
 type teamEnrollSecretsResponse struct {
 	Secrets []*fleet.EnrollSecret `json:"secrets"`
-	Err     error                  `json:"error,omitempty"`
+	Err     error                 `json:"error,omitempty"`
 }
 
 func (r teamEnrollSecretsResponse) error() error { return r.Err }

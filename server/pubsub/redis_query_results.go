@@ -167,10 +167,9 @@ func receiveMessages(ctx context.Context, pool *redisc.Cluster, query fleet.Dist
 				if err, ok := msg.(net.Error); ok && err.Timeout() {
 					// We ignore timeouts, we just want them there to make sure we don't hang on Receiving
 					continue
-				} else {
-					// If an error occurred (i.e. connection was closed), then we should exit
-					return
 				}
+				// If an error occurred (i.e. connection was closed), then we should exit
+				return
 			case redis.Subscription:
 				// If the subscription count is 0, the ReadChannel call that invoked this goroutine has unsubscribed,
 				// and we can exit

@@ -170,7 +170,7 @@ func unmarshalQueryDetail(val interface{}) (QueryDetails, error) {
 	}
 	result = QueryDetails{
 		Query:    query,
-		Interval: OsQueryConfigInt(interval),
+		Interval: interval,
 		Removed:  removed,
 		Platform: platform,
 		Version:  version,

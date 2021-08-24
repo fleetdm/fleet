@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strconv"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
-	"net/http"
-	"strconv"
 )
 
 // erroer interface is implemented by response structs to encode business logic errors
@@ -52,10 +53,6 @@ type notFoundErrorInterface interface {
 type existsErrorInterface interface {
 	error
 	IsExists() bool
-}
-
-type causerInterface interface {
-	Cause() error
 }
 
 // encode error and status header to the client
