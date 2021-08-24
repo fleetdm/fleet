@@ -1192,3 +1192,61 @@ func TestSaveUsers(t *testing.T) {
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }
+
+func TestListHostsByPolicy(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(&fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
+	p, err := ds.NewGlobalPolicy(q.ID)
+	require.NoError(t, err)
+
+	// When policy response is null, we list all hosts that haven't reported at all for the policy, or errored out
+	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
+	require.NoError(t, err)
+	require.Len(t, hosts, 10)
+
+	h1 := hosts[0]
+	h2 := hosts[1]
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// Make one host pass the policy and another not pass
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now()))
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, h1.ID, hosts[0].ID)
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, h2.ID, hosts[0].ID)
+
+	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
+	require.NoError(t, err)
+	require.Len(t, hosts, 8)
+}

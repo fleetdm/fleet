@@ -143,7 +143,7 @@ type Datastore interface {
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
-	RecordLabelQueryExecutions(host *Host, results map[uint]bool, t time.Time) error
+	RecordLabelQueryExecutions(host *Host, results map[uint]*bool, t time.Time) error
 
 	// ListLabelsForHost returns the labels that the given host is in.
 	ListLabelsForHost(hid uint) ([]*Label, error)
@@ -331,6 +331,17 @@ type Datastore interface {
 
 	ShouldSendStatistics(frequency time.Duration) (StatisticsPayload, bool, error)
 	RecordStatisticsSent() error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// GlobalPoliciesStore interface {
+	NewGlobalPolicy(queryID uint) (*Policy, error)
+	Policy(id uint) (*Policy, error)
+	RecordPolicyQueryExecutions(host *Host, results map[uint]*bool, updated time.Time) error
+
+	ListGlobalPolicies() ([]*Policy, error)
+	DeleteGlobalPolicies(ids []uint) ([]uint, error)
+
+	PolicyQueriesForHost(host *Host) (map[string]string, error)
 
 	Name() string
 	Drop() error

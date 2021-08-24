@@ -238,6 +238,10 @@ type Logging struct {
 	Status LoggingPlugin `json:"status"`
 }
 
+type UpdateIntervalConfig struct {
+	OSQueryDetail time.Duration `json:"osquery_detail"`
+}
+
 type LoggingPlugin struct {
 	Plugin string      `json:"plugin"`
 	Config interface{} `json:"config"`

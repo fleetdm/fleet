@@ -42,6 +42,9 @@ type HostListOptions struct {
 	StatusFilter HostStatus
 	// TeamFilter selects the hosts for specified team
 	TeamFilter *uint
+
+	PolicyIDFilter       *uint
+	PolicyResponseFilter *bool
 }
 
 type HostUser struct {

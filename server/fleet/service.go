@@ -270,6 +270,9 @@ type Service interface {
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)
 
+	// UpdateIntervalConfig returns the duration for different update intervals configured in osquery
+	UpdateIntervalConfig(ctx context.Context) (*UpdateIntervalConfig, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteService contains methods for a service which deals with user invites.
 
@@ -382,4 +385,12 @@ type Service interface {
 		ctx context.Context, teamID uint, scheduledQueryID uint, q ScheduledQueryPayload,
 	) (*ScheduledQuery, error)
 	DeleteTeamScheduledQueries(ctx context.Context, teamID uint, id uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// GlobalPolicyService
+
+	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
+	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
+	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
+	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
 }

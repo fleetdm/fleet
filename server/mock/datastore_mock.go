@@ -10,6 +10,24 @@ import (
 
 var _ fleet.Datastore = (*DataStore)(nil)
 
+type NewCarveFunc func(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
+
+type UpdateCarveFunc func(metadata *fleet.CarveMetadata) error
+
+type CarveFunc func(carveId int64) (*fleet.CarveMetadata, error)
+
+type CarveBySessionIdFunc func(sessionId string) (*fleet.CarveMetadata, error)
+
+type CarveByNameFunc func(name string) (*fleet.CarveMetadata, error)
+
+type ListCarvesFunc func(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
+
+type NewBlockFunc func(metadata *fleet.CarveMetadata, blockId int64, data []byte) error
+
+type GetBlockFunc func(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error)
+
+type CleanupCarvesFunc func(now time.Time) (expired int, err error)
+
 type NewUserFunc func(user *fleet.User) (*fleet.User, error)
 
 type ListUsersFunc func(opt fleet.UserListOptions) ([]*fleet.User, error)
@@ -98,7 +116,7 @@ type ListLabelsFunc func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fle
 
 type LabelQueriesForHostFunc func(host *fleet.Host, cutoff time.Time) (map[string]string, error)
 
-type RecordLabelQueryExecutionsFunc func(host *fleet.Host, results map[uint]bool, t time.Time) error
+type RecordLabelQueryExecutionsFunc func(host *fleet.Host, results map[uint]*bool, t time.Time) error
 
 type ListLabelsForHostFunc func(hid uint) ([]*fleet.Label, error)
 
@@ -248,6 +266,18 @@ type ShouldSendStatisticsFunc func(frequency time.Duration) (fleet.StatisticsPay
 
 type RecordStatisticsSentFunc func() error
 
+type NewGlobalPolicyFunc func(queryID uint) (*fleet.Policy, error)
+
+type PolicyFunc func(id uint) (*fleet.Policy, error)
+
+type RecordPolicyQueryExecutionsFunc func(host *fleet.Host, results map[uint]*bool, updated time.Time) error
+
+type ListGlobalPoliciesFunc func() ([]*fleet.Policy, error)
+
+type DeleteGlobalPoliciesFunc func(ids []uint) ([]uint, error)
+
+type PolicyQueriesForHostFunc func(host *fleet.Host) (map[string]string, error)
+
 type NameFunc func() string
 
 type DropFunc func() error
@@ -260,25 +290,34 @@ type MigrationStatusFunc func() (fleet.MigrationStatus, error)
 
 type BeginFunc func() (fleet.Transaction, error)
 
-type NewCarveFunc func(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
-
-type UpdateCarveFunc func(metadata *fleet.CarveMetadata) error
-
-type CarveFunc func(carveId int64) (*fleet.CarveMetadata, error)
-
-type CarveBySessionIdFunc func(sessionId string) (*fleet.CarveMetadata, error)
-
-type CarveByNameFunc func(name string) (*fleet.CarveMetadata, error)
-
-type ListCarvesFunc func(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
-
-type NewBlockFunc func(metadata *fleet.CarveMetadata, blockId int64, data []byte) error
-
-type GetBlockFunc func(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error)
-
-type CleanupCarvesFunc func(now time.Time) (expired int, err error)
-
 type DataStore struct {
+	NewCarveFunc        NewCarveFunc
+	NewCarveFuncInvoked bool
+
+	UpdateCarveFunc        UpdateCarveFunc
+	UpdateCarveFuncInvoked bool
+
+	CarveFunc        CarveFunc
+	CarveFuncInvoked bool
+
+	CarveBySessionIdFunc        CarveBySessionIdFunc
+	CarveBySessionIdFuncInvoked bool
+
+	CarveByNameFunc        CarveByNameFunc
+	CarveByNameFuncInvoked bool
+
+	ListCarvesFunc        ListCarvesFunc
+	ListCarvesFuncInvoked bool
+
+	NewBlockFunc        NewBlockFunc
+	NewBlockFuncInvoked bool
+
+	GetBlockFunc        GetBlockFunc
+	GetBlockFuncInvoked bool
+
+	CleanupCarvesFunc        CleanupCarvesFunc
+	CleanupCarvesFuncInvoked bool
+
 	NewUserFunc        NewUserFunc
 	NewUserFuncInvoked bool
 
@@ -636,6 +675,24 @@ type DataStore struct {
 	RecordStatisticsSentFunc        RecordStatisticsSentFunc
 	RecordStatisticsSentFuncInvoked bool
 
+	NewGlobalPolicyFunc        NewGlobalPolicyFunc
+	NewGlobalPolicyFuncInvoked bool
+
+	PolicyFunc        PolicyFunc
+	PolicyFuncInvoked bool
+
+	RecordPolicyQueryExecutionsFunc        RecordPolicyQueryExecutionsFunc
+	RecordPolicyQueryExecutionsFuncInvoked bool
+
+	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
+	ListGlobalPoliciesFuncInvoked bool
+
+	DeleteGlobalPoliciesFunc        DeleteGlobalPoliciesFunc
+	DeleteGlobalPoliciesFuncInvoked bool
+
+	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
+	PolicyQueriesForHostFuncInvoked bool
+
 	NameFunc        NameFunc
 	NameFuncInvoked bool
 
@@ -653,33 +710,51 @@ type DataStore struct {
 
 	BeginFunc        BeginFunc
 	BeginFuncInvoked bool
+}
 
-	NewCarveFunc        NewCarveFunc
-	NewCarveFuncInvoked bool
+func (s *DataStore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+	s.NewCarveFuncInvoked = true
+	return s.NewCarveFunc(metadata)
+}
 
-	UpdateCarveFunc        UpdateCarveFunc
-	UpdateCarveFuncInvoked bool
+func (s *DataStore) UpdateCarve(metadata *fleet.CarveMetadata) error {
+	s.UpdateCarveFuncInvoked = true
+	return s.UpdateCarveFunc(metadata)
+}
 
-	CarveFunc        CarveFunc
-	CarveFuncInvoked bool
+func (s *DataStore) Carve(carveId int64) (*fleet.CarveMetadata, error) {
+	s.CarveFuncInvoked = true
+	return s.CarveFunc(carveId)
+}
 
-	CarveBySessionIdFunc        CarveBySessionIdFunc
-	CarveBySessionIdFuncInvoked bool
+func (s *DataStore) CarveBySessionId(sessionId string) (*fleet.CarveMetadata, error) {
+	s.CarveBySessionIdFuncInvoked = true
+	return s.CarveBySessionIdFunc(sessionId)
+}
 
-	CarveByNameFunc        CarveByNameFunc
-	CarveByNameFuncInvoked bool
+func (s *DataStore) CarveByName(name string) (*fleet.CarveMetadata, error) {
+	s.CarveByNameFuncInvoked = true
+	return s.CarveByNameFunc(name)
+}
 
-	ListCarvesFunc        ListCarvesFunc
-	ListCarvesFuncInvoked bool
+func (s *DataStore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+	s.ListCarvesFuncInvoked = true
+	return s.ListCarvesFunc(opt)
+}
 
-	NewBlockFunc        NewBlockFunc
-	NewBlockFuncInvoked bool
+func (s *DataStore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
+	s.NewBlockFuncInvoked = true
+	return s.NewBlockFunc(metadata, blockId, data)
+}
 
-	GetBlockFunc        GetBlockFunc
-	GetBlockFuncInvoked bool
+func (s *DataStore) GetBlock(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
+	s.GetBlockFuncInvoked = true
+	return s.GetBlockFunc(metadata, blockId)
+}
 
-	CleanupCarvesFunc        CleanupCarvesFunc
-	CleanupCarvesFuncInvoked bool
+func (s *DataStore) CleanupCarves(now time.Time) (expired int, err error) {
+	s.CleanupCarvesFuncInvoked = true
+	return s.CleanupCarvesFunc(now)
 }
 
 func (s *DataStore) NewUser(user *fleet.User) (*fleet.User, error) {
@@ -902,7 +977,7 @@ func (s *DataStore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 	return s.LabelQueriesForHostFunc(host, cutoff)
 }
 
-func (s *DataStore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, t time.Time) error {
+func (s *DataStore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]*bool, t time.Time) error {
 	s.RecordLabelQueryExecutionsFuncInvoked = true
 	return s.RecordLabelQueryExecutionsFunc(host, results, t)
 }
@@ -1277,6 +1352,36 @@ func (s *DataStore) RecordStatisticsSent() error {
 	return s.RecordStatisticsSentFunc()
 }
 
+func (s *DataStore) NewGlobalPolicy(queryID uint) (*fleet.Policy, error) {
+	s.NewGlobalPolicyFuncInvoked = true
+	return s.NewGlobalPolicyFunc(queryID)
+}
+
+func (s *DataStore) Policy(id uint) (*fleet.Policy, error) {
+	s.PolicyFuncInvoked = true
+	return s.PolicyFunc(id)
+}
+
+func (s *DataStore) RecordPolicyQueryExecutions(host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+	s.RecordPolicyQueryExecutionsFuncInvoked = true
+	return s.RecordPolicyQueryExecutionsFunc(host, results, updated)
+}
+
+func (s *DataStore) ListGlobalPolicies() ([]*fleet.Policy, error) {
+	s.ListGlobalPoliciesFuncInvoked = true
+	return s.ListGlobalPoliciesFunc()
+}
+
+func (s *DataStore) DeleteGlobalPolicies(ids []uint) ([]uint, error) {
+	s.DeleteGlobalPoliciesFuncInvoked = true
+	return s.DeleteGlobalPoliciesFunc(ids)
+}
+
+func (s *DataStore) PolicyQueriesForHost(host *fleet.Host) (map[string]string, error) {
+	s.PolicyQueriesForHostFuncInvoked = true
+	return s.PolicyQueriesForHostFunc(host)
+}
+
 func (s *DataStore) Name() string {
 	s.NameFuncInvoked = true
 	return s.NameFunc()
@@ -1305,49 +1410,4 @@ func (s *DataStore) MigrationStatus() (fleet.MigrationStatus, error) {
 func (s *DataStore) Begin() (fleet.Transaction, error) {
 	s.BeginFuncInvoked = true
 	return s.BeginFunc()
-}
-
-func (s *DataStore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
-	s.NewCarveFuncInvoked = true
-	return s.NewCarveFunc(metadata)
-}
-
-func (s *DataStore) UpdateCarve(metadata *fleet.CarveMetadata) error {
-	s.UpdateCarveFuncInvoked = true
-	return s.UpdateCarveFunc(metadata)
-}
-
-func (s *DataStore) Carve(carveId int64) (*fleet.CarveMetadata, error) {
-	s.CarveFuncInvoked = true
-	return s.CarveFunc(carveId)
-}
-
-func (s *DataStore) CarveBySessionId(sessionId string) (*fleet.CarveMetadata, error) {
-	s.CarveBySessionIdFuncInvoked = true
-	return s.CarveBySessionIdFunc(sessionId)
-}
-
-func (s *DataStore) CarveByName(name string) (*fleet.CarveMetadata, error) {
-	s.CarveByNameFuncInvoked = true
-	return s.CarveByNameFunc(name)
-}
-
-func (s *DataStore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
-	s.ListCarvesFuncInvoked = true
-	return s.ListCarvesFunc(opt)
-}
-
-func (s *DataStore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
-	s.NewBlockFuncInvoked = true
-	return s.NewBlockFunc(metadata, blockId, data)
-}
-
-func (s *DataStore) GetBlock(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
-	s.GetBlockFuncInvoked = true
-	return s.GetBlockFunc(metadata, blockId)
-}
-
-func (s *DataStore) CleanupCarves(now time.Time) (expired int, err error) {
-	s.CleanupCarvesFuncInvoked = true
-	return s.CleanupCarvesFunc(now)
 }
