@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"context"
 	"encoding/json"
 	"time"
 )
@@ -11,51 +10,6 @@ const (
 	RoleMaintainer = "maintainer"
 	RoleObserver   = "observer"
 )
-
-type TeamStore interface {
-	// NewTeam creates a new Team object in the store.
-	NewTeam(team *Team) (*Team, error)
-	// SaveTeam saves any changes to the team.
-	SaveTeam(team *Team) (*Team, error)
-	// Team retrieves the Team by ID.
-	Team(tid uint) (*Team, error)
-	// Team deletes the Team by ID.
-	DeleteTeam(tid uint) error
-	// TeamByName retrieves the Team by Name.
-	TeamByName(name string) (*Team, error)
-	// ListTeams lists teams with the ordering and filters in the provided
-	// options.
-	ListTeams(filter TeamFilter, opt ListOptions) ([]*Team, error)
-	// SearchTeams searches teams using the provided query and ommitting the
-	// provided existing selection.
-	SearchTeams(filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
-	// TeamEnrollSecrets lists the enroll secrets for the team.
-	TeamEnrollSecrets(teamID uint) ([]*EnrollSecret, error)
-}
-
-type TeamService interface {
-	// NewTeam creates a new team.
-	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
-	// ModifyTeam modifies an existing team (besides agent options).
-	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
-	// ModifyTeam modifies agent options for a team.
-	ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*Team, error)
-	// AddTeamUsers adds users to an existing team.
-	AddTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
-	// DeleteTeamUsers deletes users from an existing team.
-	DeleteTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
-	// DeleteTeam deletes an existing team.
-	DeleteTeam(ctx context.Context, id uint) error
-	// ListTeams lists teams with the ordering and filters in the provided
-	// options.
-	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
-	// ListTeams lists users on the team with the provided list options.
-	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
-	// TeamEnrollSecrets lists the enroll secrets for the team.
-	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
-	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
-	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
-}
 
 type TeamPayload struct {
 	Name        *string         `json:"name"`

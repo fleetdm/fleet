@@ -912,12 +912,9 @@ func TestDetailQueries(t *testing.T) {
 }
 
 func TestNewDistributedQueryCampaign(t *testing.T) {
-	ds := &mock.Store{
-		AppConfigStore: mock.AppConfigStore{
-			AppConfigFunc: func() (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{}, nil
-			},
-		},
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
 	}
 	rs := &mock.QueryResultStore{
 		HealthCheckFunc: func() error {
