@@ -219,21 +219,21 @@ type HostStatusWebhookSettings struct {
 	DaysCount      int     `json:"days_count"`
 }
 
-func (ac *AppConfig) ApplyDefaultsForNewInstalls() {
-	ac.ServerSettings.EnableAnalytics = true
-	ac.SMTPSettings.SMTPPort = 587
-	ac.SMTPSettings.SMTPEnableStartTLS = true
-	ac.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
-	ac.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
-	ac.SMTPSettings.SMTPVerifySSLCerts = true
-	ac.SMTPSettings.SMTPEnableTLS = true
+func (c *AppConfig) ApplyDefaultsForNewInstalls() {
+	c.ServerSettings.EnableAnalytics = true
+	c.SMTPSettings.SMTPPort = 587
+	c.SMTPSettings.SMTPEnableStartTLS = true
+	c.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
+	c.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
+	c.SMTPSettings.SMTPVerifySSLCerts = true
+	c.SMTPSettings.SMTPEnableTLS = true
 
-	ac.ApplyDefaults()
+	c.ApplyDefaults()
 }
 
-func (ac *AppConfig) ApplyDefaults() {
-	ac.HostSettings.EnableHostUsers = true
-	ac.WebhookSettings.Periodicity.Duration = 24 * time.Hour
+func (c *AppConfig) ApplyDefaults() {
+	c.HostSettings.EnableHostUsers = true
+	c.WebhookSettings.Periodicity.Duration = 24 * time.Hour
 }
 
 // OrgInfo contains general info about the organization using Fleet.

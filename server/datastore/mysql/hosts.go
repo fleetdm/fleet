@@ -852,14 +852,14 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 	return nil
 }
 
-func (ds *Datastore) TotalAndUnseenHostsSince(daysCount int) (int, int, error) {
+func (d *Datastore) TotalAndUnseenHostsSince(daysCount int) (int, int, error) {
 	var totalCount, unseenCount int
-	err := ds.db.QueryRow("SELECT count(*) FROM hosts").Scan(&totalCount)
+	err := d.db.QueryRow("SELECT count(*) FROM hosts").Scan(&totalCount)
 	if err != nil {
 		return 0, 0, errors.Wrap(err, "getting total host count")
 	}
 
-	err = ds.db.QueryRow(
+	err = d.db.QueryRow(
 		"SELECT count(*) FROM hosts WHERE DATEDIFF(CURRENT_DATE, seen_time) >= ?",
 		daysCount,
 	).Scan(&unseenCount)
