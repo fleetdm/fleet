@@ -668,9 +668,6 @@ export class HostDetailsPage extends Component {
       );
     };
 
-    console.log(host);
-    console.log(host.percent_disk_space_available);
-
     const renderDiskSpace = () => {
       if (
         host.gigs_disk_space_available !== 0 ||
