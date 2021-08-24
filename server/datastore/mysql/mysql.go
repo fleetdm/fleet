@@ -156,7 +156,9 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 
 	for _, setOpt := range opts {
-		setOpt(options)
+		if setOpt != nil {
+			setOpt(options)
+		}
 	}
 
 	if config.PasswordPath != "" && config.Password != "" {
@@ -210,14 +212,14 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 
 	ds := &Datastore{
-		db:     db,
-		logger: options.logger,
-		clock:  c,
-		config: config,
+		db:                db,
+		logger:            options.logger,
+		clock:             c,
+		config:            config,
+		readReplicaConfig: options.replicaConfig,
 	}
 
 	return ds, nil
-
 }
 
 func (d *Datastore) Begin() (fleet.Transaction, error) {
