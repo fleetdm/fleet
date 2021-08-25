@@ -510,9 +510,12 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		if err != nil {
 			panic(err)
 		}
-		return fmt.Sprintf("%s:%s@tcp(%s)/%s?tls=true&allowCleartextPasswords=true", conf.Username, authToken, conf.Address, conf.Database)
+		return generateRDSConnectionString(conf, authToken)
 	}
+	return generateConnectionString(conf)
+}
 
+func generateConnectionString(conf config.MysqlConfig) string {
 	tz := url.QueryEscape("'-00:00'")
 	dsn := fmt.Sprintf(
 		"%s:%s@%s(%s)/%s?charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%s&clientFoundRows=true&allowNativePasswords=true",
@@ -529,6 +532,16 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 	}
 
 	return dsn
+}
+
+func generateRDSConnectionString(conf config.MysqlConfig, authToken string) string {
+	tz := url.QueryEscape("'-00:00'")
+	return fmt.Sprintf("%s:%s@tcp(%s)/%s?tls=true&allowCleartextPasswords=true&charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%s&clientFoundRows=true&allowNativePasswords=true",
+		conf.Username,
+		authToken,
+		conf.Address,
+		conf.Database,
+		tz)
 }
 
 // isForeignKeyError checks if the provided error is a MySQL child foreign key

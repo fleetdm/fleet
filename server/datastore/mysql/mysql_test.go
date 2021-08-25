@@ -510,3 +510,62 @@ func TestMigrations(t *testing.T) {
 	base := path.Dir(filename)
 	require.NoError(t, ioutil.WriteFile(path.Join(base, "schema.sql"), stdoutBuf.Bytes(), 0o655))
 }
+
+func Test_generateConnectionString(t *testing.T) {
+	type args struct {
+		conf config.MysqlConfig
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "default",
+			args: args{conf: config.TestConfig().Mysql},
+			want: ":@()/?charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%27-00%3A00%27&clientFoundRows=true&allowNativePasswords=true",
+		},
+		{
+			name: "db username & password",
+			args: args{config.MysqlConfig{Username: "foo", Password: "bar", Database: "baz"}},
+			want: "foo:bar@()/baz?charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%27-00%3A00%27&clientFoundRows=true&allowNativePasswords=true",
+		},
+		{
+			name: "with tls",
+			args: args{config.MysqlConfig{Username: "foo", Password: "bar", Database: "baz", TLSConfig: "true"}},
+			want: "foo:bar@()/baz?charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%27-00%3A00%27&clientFoundRows=true&allowNativePasswords=true&tls=true",
+		},
+	}
+		for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := generateConnectionString(tt.args.conf); got != tt.want {
+				t.Errorf("generateConnectionString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_generateRDSConnectionString(t *testing.T) {
+	type args struct {
+		conf      config.MysqlConfig
+		authToken string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "default",
+			args: args{config.MysqlConfig{Username: "foo", Password: "bar", Database: "baz"}, "super_secure_signed_token"},
+			want: "foo:super_secure_signed_token@tcp()/baz?tls=true&allowCleartextPasswords=true&charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%27-00%3A00%27&clientFoundRows=true&allowNativePasswords=true",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := generateRDSConnectionString(tt.args.conf, tt.args.authToken); got != tt.want {
+				t.Errorf("generateRDSConnectionString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
