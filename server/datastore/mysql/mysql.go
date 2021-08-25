@@ -37,10 +37,20 @@ var (
 	columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
 )
 
+// dbReader is an interface that defines the methods required for reads.
+type dbReader interface {
+	sqlx.Queryer
+
+	Close() error
+	Rebind(string) string
+	Select(interface{}, string, ...interface{}) error
+	Get(interface{}, string, ...interface{}) error
+}
+
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
-	reader *sqlx.DB
+	reader dbReader // so it cannot be used to perform writes
 	writer *sqlx.DB
 
 	logger log.Logger
@@ -351,7 +361,8 @@ func (d *Datastore) HealthCheck() error {
 		return err
 	}
 	if d.readReplicaConfig != nil {
-		if _, err := d.reader.Exec("select 1"); err != nil {
+		var dst int
+		if err := d.reader.Get(&dst, "select 1"); err != nil {
 			return err
 		}
 	}

@@ -268,7 +268,7 @@ WHERE host_id = ? AND p.pack_type IS NULL
 	return nil
 }
 
-func (d *Datastore) loadHostUsers(db *sqlx.DB, host *fleet.Host) error {
+func (d *Datastore) loadHostUsers(db dbReader, host *fleet.Host) error {
 	sql := `SELECT id, username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
 	if err := db.Select(&host.Users, sql, host.ID); err != nil {
 		return errors.Wrap(err, "load pack stats")

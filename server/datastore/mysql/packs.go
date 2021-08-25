@@ -313,7 +313,7 @@ func (d *Datastore) replacePackTargets(tx *sqlx.Tx, pack *fleet.Pack) error {
 	return nil
 }
 
-func (d *Datastore) loadPackTargets(db *sqlx.DB, pack *fleet.Pack) error {
+func (d *Datastore) loadPackTargets(db dbReader, pack *fleet.Pack) error {
 	var targets []fleet.PackTarget
 	sql := `SELECT * FROM pack_targets WHERE pack_id = ?`
 	if err := db.Select(&targets, sql, pack.ID); err != nil {
