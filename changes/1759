@@ -1,0 +1,1 @@
+* Fix bug in which live queries would stop returning results if more than 5 seconds goes by without a result. This bug was introduced in 4.2.1.
