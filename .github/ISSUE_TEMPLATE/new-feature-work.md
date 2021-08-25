@@ -1,6 +1,6 @@
 ---
 name: 🎟  New feature work
-about: Specify engineering work required to add a new feature or enhancement in Fleet.
+about: Specify a planned, new feature in Fleet so that engineering can provide an estimation on the time required for implementation.
 title: ''
 labels: 'project'
 assignees: ''
