@@ -6,9 +6,6 @@ import Button from "components/buttons/Button";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-// // @ts-ignore
-// import configActions from "redux/nodes/entities/config/actions";
-
 interface IEnrollSecretModal {
   selectedTeam: number;
   onReturnToApp: () => void;
