@@ -15,6 +15,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDatastoreReplica(t *testing.T) {
+	// a bit unfortunate to create temp databases just for this - could be mixed
+	// with other tests when/if we move to subtests to minimize the number of
+	// databases created for tests (see #1805).
+
+	t.Run("noreplica", func(t *testing.T) {
+		ds := CreateMySQLDSWithOptions(t, nil)
+		defer ds.Close()
+		require.Equal(t, ds.reader, ds.writer)
+	})
+
+	t.Run("replica", func(t *testing.T) {
+		ds := CreateMySQLDSWithOptions(t, &DatastoreTestOptions{Replica: true})
+		defer ds.Close()
+		require.NotEqual(t, ds.reader, ds.writer)
+	})
+}
+
 func TestSanitizeColumn(t *testing.T) {
 	t.Parallel()
 
