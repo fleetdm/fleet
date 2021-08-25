@@ -670,8 +670,8 @@ export class HostDetailsPage extends Component {
 
     const renderDiskSpace = () => {
       if (
-        host.gigs_disk_space_available !== 0 ||
-        host.percent_disk_space_available !== 0
+        host.gigs_disk_space_available > 0 ||
+        host.percent_disk_space_available > 0
       ) {
         return (
           <span className="info__data">
