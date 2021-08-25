@@ -1,7 +1,7 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { push } from "react-router-redux";
+import { push, goBack } from "react-router-redux";
 import { find, isEmpty, omit } from "lodash";
 
 import Button from "components/buttons/Button";
@@ -31,6 +31,7 @@ import deepDifference from "utilities/deep_difference";
 import hostClient from "services/entities/hosts";
 
 import permissionUtils from "utilities/permissions";
+import { getNextLocationPath } from "./helpers";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -39,7 +40,6 @@ import {
 import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
-import { getNextLocationPath } from "./helpers";
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
@@ -116,8 +116,10 @@ export class ManageHostsPage extends PureComponent {
     canAddNewHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
+    loadingTeams: PropTypes.bool,
     isGlobalAdmin: PropTypes.bool,
     isOnGlobalTeam: PropTypes.bool,
+    isBasicTier: PropTypes.bool,
     currentUser: userInterface,
   };
 
@@ -133,6 +135,21 @@ export class ManageHostsPage extends PureComponent {
     const storedHiddenColumns = JSON.parse(
       localStorage.getItem("hostHiddenColumns")
     );
+
+    // Unpack sort params from url query string and use to initialize state of sortBy
+    // so that table component sort defaults will not override url params
+    const initialSortBy = (() => {
+      let id = DEFAULT_SORT_HEADER;
+      let direction = DEFAULT_SORT_DIRECTION;
+
+      if (this.props.queryParams) {
+        const { order_key, order_direction } = this.props.queryParams;
+        id = order_key || id;
+        direction = order_direction || direction;
+      }
+
+      return [{ id, direction }];
+    })();
 
     this.state = {
       labelQueryText: "",
@@ -150,10 +167,9 @@ export class ManageHostsPage extends PureComponent {
       searchQuery: "",
       hosts: [],
       isHostsLoading: true,
-      sortBy: [{ id: DEFAULT_SORT_HEADER, direction: DEFAULT_SORT_DIRECTION }],
-      isConfigLoaded: null,
-      isTeamsLoaded: null,
-      isBasicTier: null,
+      sortBy: initialSortBy,
+      isConfigLoaded: !isEmpty(this.props.config),
+      isTeamsLoaded: !isEmpty(this.props.teams),
     };
   }
 
@@ -163,34 +179,28 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentWillReceiveProps() {
-    const { config, dispatch } = this.props;
-    const { isConfigLoaded } = this.state;
-
+    const { config, dispatch, isBasicTier, loadingTeams } = this.props;
+    const { isConfigLoaded, isTeamsLoaded } = this.state;
     if (!isConfigLoaded && !isEmpty(config)) {
-      const isBasicTier = permissionUtils.isBasicTier(config);
-      if (isBasicTier) {
-        dispatch(teamActions.loadAll({}))
-          .then(() => {
-            this.setState({
-              isBasicTier,
-              isTeamsLoaded: true,
-            });
-          })
-          .catch((error) => {
-            renderFlash(
-              "error",
-              "An error occured loading teams. Please try again."
-            );
-            console.log(error);
-            this.setState({
-              isBasicTier,
-              isTeamsLoaded: false,
-            });
-          });
-      } else {
-        this.setState({ isBasicTier });
-      }
       this.setState({ isConfigLoaded: true });
+    }
+    if (isConfigLoaded && isBasicTier && !isTeamsLoaded && !loadingTeams) {
+      dispatch(teamActions.loadAll({}))
+        .then(() => {
+          this.setState({
+            isTeamsLoaded: true,
+          });
+        })
+        .catch((error) => {
+          renderFlash(
+            "error",
+            "An error occured loading teams. Please try again."
+          );
+          console.log(error);
+          this.setState({
+            isTeamsLoaded: false,
+          });
+        });
     }
   }
 
@@ -201,22 +211,13 @@ export class ManageHostsPage extends PureComponent {
   onAddLabelClick = (evt) => {
     evt.preventDefault();
     const { dispatch } = this.props;
-    const { setLastLocation } = this;
-
-    // persist url params in local state for routing back on submit/cancel
-    setLastLocation();
-
     dispatch(push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`));
   };
 
   onEditLabelClick = (evt) => {
     evt.preventDefault();
-    const { getLabelSelected, setLastLocation } = this;
+    const { getLabelSelected } = this;
     const { dispatch } = this.props;
-
-    // persist url params in local state for routing back on submit/cancel
-    setLastLocation();
-
     dispatch(
       push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}${EDIT_LABEL_HASH}`)
     );
@@ -244,18 +245,12 @@ export class ManageHostsPage extends PureComponent {
 
   onCancelAddLabel = () => {
     const { dispatch } = this.props;
-
-    // return user to previous location based on url params persisted in local state
-    dispatch(push(getNextLocationPath(this.state.lastLocation)));
-    this.setState({ lastLocation: null });
+    dispatch(goBack());
   };
 
   onCancelEditLabel = () => {
     const { dispatch } = this.props;
-
-    // return user to previous location based on url params persisted in local state
-    dispatch(push(getNextLocationPath(this.state.lastLocation)));
-    this.setState({ lastLocation: null });
+    dispatch(goBack());
   };
 
   onAddHostClick = (evt) => {
@@ -290,10 +285,12 @@ export class ManageHostsPage extends PureComponent {
 
     const teamId = getValidatedTeamId(selectedTeam);
 
-    let sortBy = [];
+    let sortBy = this.state.sortBy;
     if (sortHeader !== "") {
-      sortBy = [{ id: sortHeader, direction: sortDirection }];
-    } else {
+      sortBy = [
+        { id: sortHeader, direction: sortDirection || DEFAULT_SORT_DIRECTION },
+      ];
+    } else if (!sortBy.length) {
       sortBy = [{ id: DEFAULT_SORT_HEADER, direction: DEFAULT_SORT_DIRECTION }];
     }
     this.setState({
@@ -312,7 +309,7 @@ export class ManageHostsPage extends PureComponent {
       teamId,
     });
 
-    // rebuild queryParams to dispatch new browser location to react-router
+    // Rebuild queryParams to dispatch new browser location to react-router
     const queryParams = {};
     if (!isEmpty(searchQuery)) {
       queryParams.query = searchQuery;
@@ -349,17 +346,15 @@ export class ManageHostsPage extends PureComponent {
 
     return dispatch(labelActions.update(selectedLabel, updateAttrs))
       .then(() => {
-        // return user to previous location based on url params persisted in local state
-        dispatch(push(getNextLocationPath(this.state.lastLocation)));
-        this.setState({ lastLocation: null });
+        dispatch(goBack());
 
+        // TODO flash messages are not visible seemingly because of page renders
         dispatch(
           renderFlash(
             "success",
             "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
           )
         );
-
         return false;
       })
       .catch(() => false);
@@ -386,6 +381,8 @@ export class ManageHostsPage extends PureComponent {
 
     return dispatch(labelActions.create(formData)).then(() => {
       dispatch(push(PATHS.MANAGE_HOSTS));
+
+      // TODO flash messages are not visible seemingly because of page renders
       dispatch(
         renderFlash(
           "success",
@@ -509,17 +506,6 @@ export class ManageHostsPage extends PureComponent {
         : 0;
 
     return validatedTeamId;
-  };
-
-  setLastLocation = () => {
-    this.setState({
-      lastLocation: {
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate: this.props.routeTemplate,
-        routeParams: this.props.routeParams,
-        queryParams: this.props.queryParams,
-      },
-    });
   };
 
   generateTeamFilterDropdownOptions = (teams) => {
@@ -663,7 +649,6 @@ export class ManageHostsPage extends PureComponent {
         ? omit(queryParams, "team_id")
         : Object.assign({}, queryParams, { team_id: teamIdParam }),
     });
-
     dispatch(push(nextLocation));
   };
 
@@ -720,15 +705,19 @@ export class ManageHostsPage extends PureComponent {
 
   // TODO revisit UX for server errors for invalid team_id (e.g., team_id=0, team_id=null, team_id=foo, etc.)
   renderTeamsFilterDropdown = () => {
-    const { selectedTeam, teams } = this.props;
-    const { isBasicTier, isConfigLoaded, isTeamsLoaded } = this.state;
+    const { isBasicTier, selectedTeam, teams } = this.props;
+    const { isConfigLoaded, isTeamsLoaded } = this.state;
     const {
       generateTeamFilterDropdownOptions,
       getValidatedTeamId,
       handleChangeSelectedTeamFilter,
     } = this;
 
-    if (!isConfigLoaded || !isBasicTier || !isTeamsLoaded) {
+    if (!isConfigLoaded || (isBasicTier && !isTeamsLoaded)) {
+      return null;
+    }
+
+    if (!isBasicTier) {
       return <h1>Hosts</h1>;
     }
 
@@ -994,6 +983,7 @@ export class ManageHostsPage extends PureComponent {
       hosts,
       isHostsLoading,
       isConfigLoaded,
+      sortBy,
     } = this.state;
     const {
       onTableQueryChange,
@@ -1028,8 +1018,10 @@ export class ManageHostsPage extends PureComponent {
         data={hosts}
         isLoading={isHostsLoading}
         manualSortBy
-        defaultSortHeader={DEFAULT_SORT_HEADER}
-        defaultSortDirection={DEFAULT_SORT_DIRECTION}
+        defaultSortHeader={(sortBy[0] && sortBy[0].id) || DEFAULT_SORT_HEADER}
+        defaultSortDirection={
+          (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
+        }
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
@@ -1067,8 +1059,9 @@ export class ManageHostsPage extends PureComponent {
       isEditLabel,
       loadingLabels,
       canAddNewHosts,
+      isBasicTier,
     } = this.props;
-    const { isBasicTier, isConfigLoaded } = this.state;
+    const { isConfigLoaded, isTeamsLoaded } = this.state;
 
     return (
       <div className="has-sidebar">
@@ -1086,7 +1079,7 @@ export class ManageHostsPage extends PureComponent {
                 </Button>
               ) : null}
             </div>
-            {isConfigLoaded && isBasicTier !== null && renderTable()}
+            {isConfigLoaded && (!isBasicTier || isTeamsLoaded) && renderTable()}
           </div>
         )}
         {!loadingLabels && renderSidePanel()}
@@ -1135,10 +1128,8 @@ const mapStateToProps = (state, ownProps) => {
   const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
 
-  const { loading: loadingHosts } = state.entities.hosts;
-
-  const { loading: loadingTeams } = state.entities.teams;
   const teams = memoizedGetEntity(state.entities.teams.data);
+  const loadingTeams = state.entities.teams.loading;
 
   // If there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
   const selectedTeam = location.query?.team_id || 0;
@@ -1153,6 +1144,7 @@ const mapStateToProps = (state, ownProps) => {
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
   const isOnGlobalTeam = permissionUtils.isOnGlobalTeam(currentUser);
+  const isBasicTier = permissionUtils.isBasicTier(config);
 
   return {
     selectedFilters,
@@ -1171,11 +1163,11 @@ const mapStateToProps = (state, ownProps) => {
     statusLabels,
     config,
     currentUser,
-    loadingHosts,
     canAddNewHosts,
     canAddNewLabels,
     isGlobalAdmin,
     isOnGlobalTeam,
+    isBasicTier,
     teams,
     loadingTeams,
     selectedTeam,
