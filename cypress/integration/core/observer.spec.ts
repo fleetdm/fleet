@@ -29,11 +29,12 @@ describe("Core tier - Observer user", () => {
     cy.visit("/schedule/manage");
     cy.findByText(/you do not have permissions/i).should("exist");
 
-    // Host manage page: No team UI, cannot add host or label
+    // Host manage page: No team UI, cannot add host, add label, nor enroll secret
     cy.visit("/hosts/manage");
     cy.findByText(/teams/i).should("not.exist");
     cy.contains("button", /add new host/i).should("not.exist");
     cy.contains("button", /add label/i).should("not.exist");
+    cy.contains("button", /show enroll secret/i).should("not.exist");
 
     // Host details page: No team UI, cannot delete or query
     cy.get("tbody").within(() => {

@@ -1,58 +1,5 @@
 package fleet
 
-import (
-	"context"
-	"time"
-
-	"github.com/fleetdm/fleet/v4/server/websocket"
-)
-
-// CampaignStore defines the distributed query campaign related datastore
-// methods
-type CampaignStore interface {
-	// NewDistributedQueryCampaign creates a new distributed query campaign
-	NewDistributedQueryCampaign(camp *DistributedQueryCampaign) (*DistributedQueryCampaign, error)
-	// DistributedQueryCampaign loads a distributed query campaign by ID
-	DistributedQueryCampaign(id uint) (*DistributedQueryCampaign, error)
-	// SaveDistributedQueryCampaign updates an existing distributed query
-	// campaign
-	SaveDistributedQueryCampaign(camp *DistributedQueryCampaign) error
-	// DistributedQueryCampaignTargetIDs gets the IDs of the targets for
-	// the query campaign of the provided ID
-	DistributedQueryCampaignTargetIDs(id uint) (targets *HostTargets, err error)
-
-	// NewDistributedQueryCampaignTarget adds a new target to an existing
-	// distributed query campaign
-	NewDistributedQueryCampaignTarget(target *DistributedQueryCampaignTarget) (*DistributedQueryCampaignTarget, error)
-
-	// CleanupDistributedQueryCampaigns will clean and trim metadata for old
-	// distributed query campaigns. Any campaign in the QueryWaiting state will
-	// be moved to QueryComplete after one minute. Any campaign in the
-	// QueryRunning state will be moved to QueryComplete after one day. Times
-	// are from creation time. The now parameter makes this method easier to
-	// test. The return values indicate how many campaigns were expired and any error.
-	CleanupDistributedQueryCampaigns(now time.Time) (expired uint, err error)
-}
-
-// CampaignService defines the distributed query campaign related service
-// methods
-type CampaignService interface {
-	// NewDistributedQueryCampaign creates a new distributed query campaign with
-	// the provided query (or the query referenced by ID) and host/label targets
-	// (specified by name).
-	NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*DistributedQueryCampaign, error)
-
-	// NewDistributedQueryCampaign creates a new distributed query campaign
-	// with the provided query (or the query referenced by ID) and host/label targets
-	NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, targets HostTargets) (*DistributedQueryCampaign, error)
-
-	// StreamCampaignResults streams updates with query results and
-	// expected host totals over the provided websocket. Note that the type
-	// signature is somewhat inconsistent due to this being a streaming API
-	// and not the typical go-kit RPC style.
-	StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint)
-}
-
 // DistributedQueryStatus is the lifecycle status of a distributed query
 // campaign.
 type DistributedQueryStatus int

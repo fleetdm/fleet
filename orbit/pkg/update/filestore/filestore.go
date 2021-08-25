@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf/client"
 )

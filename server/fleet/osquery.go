@@ -1,28 +1,5 @@
 package fleet
 
-import (
-	"context"
-	"encoding/json"
-)
-
-type OsqueryService interface {
-	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error)
-	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, err error)
-	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
-	// GetDistributedQueries retrieves the distributed queries to run for
-	// the host in the provided context. These may be detail queries, label
-	// queries, or user-initiated distributed queries. A map from query
-	// name to query is returned. To enable the osquery "accelerated
-	// checkins" feature, a positive integer (number of seconds to activate
-	// for) should be returned. Returning 0 for this will not activate the
-	// feature.
-	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
-	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]OsqueryStatus, messages map[string]string) (err error)
-	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
-	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
-	//CarveBegin(ctx context.Context)
-}
-
 // OsqueryDistributedQueryResults represents the format of the results of an
 // osquery distributed query.
 type OsqueryDistributedQueryResults map[string][]map[string]string

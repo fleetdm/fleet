@@ -165,7 +165,7 @@ const ActivityFeed = (): JSX.Element => {
           Load more
         </Button>
       )}
-      {!isLoadingError && !isLoading && !showMore && (
+      {!isLoadingError && !isLoading && !isEmpty(activities) && !showMore && (
         <div className={`${baseClass}__no-more-activities`}>
           <p>You have no more recorded activity.</p>
         </div>

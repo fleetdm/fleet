@@ -1,0 +1,1 @@
+* Remove usage of JSON_ARRAYAGG since it's not supported in many different flavors of mysql 5.7.

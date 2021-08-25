@@ -1,9 +1,5 @@
 package fleet
 
-import (
-	"context"
-)
-
 const (
 	TranslatorTypeUserEmail = "user"
 	TranslatorTypeLabel     = "label"
@@ -19,8 +15,4 @@ type TranslatePayload struct {
 type StringIdentifierToIDPayload struct {
 	Identifier string `json:"identifier"`
 	ID         uint   `json:"id"`
-}
-
-type TranslatorService interface {
-	Translate(ctx context.Context, payloads []TranslatePayload) ([]TranslatePayload, error)
 }

@@ -8,12 +8,12 @@ func (e *Error) Error() string {
 	return e.Message
 }
 
-// implement fleet.NotFoundError
+// IsNotFound implements fleet.NotFoundError
 func (e *Error) IsNotFound() bool {
 	return true
 }
 
-// implement fleet.AlreadyExistsError
+// IsExists implements fleet.AlreadyExistsError
 func (e *Error) IsExists() bool {
 	return true
 }

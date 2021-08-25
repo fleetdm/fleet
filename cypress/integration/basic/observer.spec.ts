@@ -36,6 +36,9 @@ describe("Basic tier - Observer user", () => {
     });
     cy.contains("button", /transfer/i).should("not.exist");
 
+    // Not see the “Show enroll secret” button
+    cy.contains("button", /show enroll secret/i).should("not.exist");
+
     // Query pages: Can see team in select targets dropdown
     cy.visit("/queries/manage");
 

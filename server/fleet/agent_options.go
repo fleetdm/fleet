@@ -1,17 +1,8 @@
 package fleet
 
 import (
-	"context"
 	"encoding/json"
 )
-
-type AgentOptionsService interface {
-	// AgentOptionsForHost gets the agent options for the provided host.
-	//
-	// The host information should be used for filtering based on team,
-	// platform, etc.
-	AgentOptionsForHost(ctx context.Context, host *Host) (json.RawMessage, error)
-}
 
 type AgentOptions struct {
 	// Config is the base config options.

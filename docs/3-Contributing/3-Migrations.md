@@ -10,6 +10,8 @@ Database schemas are managed by a series of migrations defined in go code. We us
 
 Note: Once committed to the Fleet repo, table migrations should be considered immutable. Any changes to an existing table should take place in a new migration executing ALTERs.
 
+Also note that we don't use the `Down` part of the migrations anymore (older migrations did implement them). The `Down` function should just `return nil`, as we use forward-only migrations.
+
 From the project root run the following shell command:
 
 ``` bash

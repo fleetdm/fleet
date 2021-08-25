@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -9,56 +8,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 )
-
-type QueryStore interface {
-	// ApplyQueries applies a list of queries (likely from a yaml file) to
-	// the datastore. Existing queries are updated, and new queries are
-	// created.
-	ApplyQueries(authorID uint, queries []*Query) error
-
-	// NewQuery creates a new query object in thie datastore. The returned
-	// query should have the ID updated.
-	NewQuery(query *Query, opts ...OptionalArg) (*Query, error)
-	// SaveQuery saves changes to an existing query object.
-	SaveQuery(query *Query) error
-	// DeleteQuery deletes an existing query object.
-	DeleteQuery(name string) error
-	// DeleteQueries deletes the existing query objects with the provided IDs.
-	// The number of deleted queries is returned along with any error.
-	DeleteQueries(ids []uint) (uint, error)
-	// Query returns the query associated with the provided ID. Associated
-	// packs should also be loaded.
-	Query(id uint) (*Query, error)
-	// ListQueries returns a list of queries with the provided sorting and
-	// paging options. Associated packs should also be loaded.
-	ListQueries(opt ListOptions) ([]*Query, error)
-	// QueryByName looks up a query by name.
-	QueryByName(name string, opts ...OptionalArg) (*Query, error)
-}
-
-type QueryService interface {
-	// ApplyQuerySpecs applies a list of queries (creating or updating
-	// them as necessary)
-	ApplyQuerySpecs(ctx context.Context, specs []*QuerySpec) error
-	// GetQuerySpecs gets the YAML file representing all the stored queries.
-	GetQuerySpecs(ctx context.Context) ([]*QuerySpec, error)
-	// GetQuerySpec gets the spec for the query with the given name.
-	GetQuerySpec(ctx context.Context, name string) (*QuerySpec, error)
-
-	// ListQueries returns a list of saved queries. Note only saved queries
-	// should be returned (those that are created for distributed queries
-	// but not saved should not be returned).
-	ListQueries(ctx context.Context, opt ListOptions) ([]*Query, error)
-	GetQuery(ctx context.Context, id uint) (*Query, error)
-	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
-	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
-	DeleteQuery(ctx context.Context, name string) error
-	// For backwards compatibility with UI
-	DeleteQueryByID(ctx context.Context, id uint) error
-	// DeleteQueries deletes the existing query objects with the provided IDs.
-	// The number of deleted queries is returned along with any error.
-	DeleteQueries(ctx context.Context, ids []uint) (uint, error)
-}
 
 type QueryPayload struct {
 	Name           *string
