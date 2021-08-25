@@ -101,7 +101,7 @@ the way that the Fleet server works.
 				)
 			}
 
-			if license.Expiration.Before(time.Now()) {
+			if license != nil && license.Tier == fleet.TierBasic && license.Expiration.Before(time.Now()) {
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 

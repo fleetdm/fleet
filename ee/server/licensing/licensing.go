@@ -79,10 +79,6 @@ type licenseClaims struct {
 	Note    string `json:"note"`
 }
 
-func (l licenseClaims) VerifyExpiresAt(cmp int64, req bool) bool {
-	return true
-}
-
 func validate(token *jwt.Token) (*fleet.LicenseInfo, error) {
 	// token.IssuedAt, token.ExpiresAt, token.NotBefore already validated by JWT
 	// library.
