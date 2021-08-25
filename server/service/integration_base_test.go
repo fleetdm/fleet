@@ -266,22 +266,6 @@ func doRawReq(
 	return resp
 }
 
-func doJSONReq(
-	t *testing.T,
-	params interface{},
-	method string,
-	server *httptest.Server,
-	path string,
-	token string,
-	expectedStatusCode int,
-	v interface{},
-) {
-	resp, closeFunc := doReq(t, params, method, server, path, token, expectedStatusCode)
-	defer closeFunc()
-	err := json.NewDecoder(resp.Body).Decode(v)
-	require.Nil(t, err)
-}
-
 func assertBodyContains(t *testing.T, resp *http.Response, expectedError string) {
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
@@ -598,37 +582,37 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	require.Len(t, policiesResponse.Policies, 0)
 }
 
-func (s *integrationDSTestSuite) TestLicenseExpiration() {
-	testCases := []struct {
-		name             string
-		tier             string
-		expiration       time.Time
-		shouldHaveHeader bool
-	}{
-		{"basic expired", fleet.TierBasic, time.Now().Add(-24 * time.Hour), true},
-		{"basic not expired", fleet.TierBasic, time.Now().Add(24 * time.Hour), false},
-		{"core expired", fleet.TierCore, time.Now().Add(-24 * time.Hour), false},
-		{"core not expired", fleet.TierCore, time.Now().Add(24 * time.Hour), false},
-	}
-
-	createTestUsers(s.T(), s.ds)
-	for _, tt := range testCases {
-		s.Run(tt.name, func() {
-			t := s.T()
-
-			license := &fleet.LicenseInfo{Tier: tt.tier, Expiration: tt.expiration}
-			_, server := RunServerForTestsWithDS(t, s.ds, TestServerOpts{License: license, SkipCreateTestUsers: true})
-			defer server.Close()
-
-			token := getTestAdminToken(t, server)
-
-			resp, closeFunc := doReq(t, nil, "GET", server, "/api/v1/fleet/config", token, http.StatusOK)
-			defer closeFunc()
-			if tt.shouldHaveHeader {
-				require.Equal(t, fleet.HeaderLicenseValueExpired, resp.Header.Get(fleet.HeaderLicenseKey))
-			} else {
-				require.Equal(t, "", resp.Header.Get(fleet.HeaderLicenseKey))
-			}
-		})
-	}
-}
+//func (s *integrationDSTestSuite) TestLicenseExpiration() {
+//	testCases := []struct {
+//		name             string
+//		tier             string
+//		expiration       time.Time
+//		shouldHaveHeader bool
+//	}{
+//		{"basic expired", fleet.TierBasic, time.Now().Add(-24 * time.Hour), true},
+//		{"basic not expired", fleet.TierBasic, time.Now().Add(24 * time.Hour), false},
+//		{"core expired", fleet.TierCore, time.Now().Add(-24 * time.Hour), false},
+//		{"core not expired", fleet.TierCore, time.Now().Add(24 * time.Hour), false},
+//	}
+//
+//	createTestUsers(s.T(), s.ds)
+//	for _, tt := range testCases {
+//		s.Run(tt.name, func() {
+//			t := s.T()
+//
+//			license := &fleet.LicenseInfo{Tier: tt.tier, Expiration: tt.expiration}
+//			_, server := RunServerForTestsWithDS(t, s.ds, TestServerOpts{License: license, SkipCreateTestUsers: true})
+//			defer server.Close()
+//
+//			token := getTestAdminToken(t, server)
+//
+//			resp, closeFunc := doReq(t, nil, "GET", server, "/api/v1/fleet/config", token, http.StatusOK)
+//			defer closeFunc()
+//			if tt.shouldHaveHeader {
+//				require.Equal(t, fleet.HeaderLicenseValueExpired, resp.Header.Get(fleet.HeaderLicenseKey))
+//			} else {
+//				require.Equal(t, "", resp.Header.Get(fleet.HeaderLicenseKey))
+//			}
+//		})
+//	}
+//}
