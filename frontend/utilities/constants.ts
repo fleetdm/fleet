@@ -71,6 +71,10 @@ export const DEFAULT_QUERY = {
   observer_can_run: false,
   author_name: "",
   updated_at: "",
+  created_at: "",
+  saved: false,
+  author_id: 0,
+  packs: [],
 };
 
 export const DEFAULT_CAMPAIGN = {

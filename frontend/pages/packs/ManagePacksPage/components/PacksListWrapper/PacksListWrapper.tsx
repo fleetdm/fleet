@@ -6,14 +6,15 @@ import { IUser } from "interfaces/user";
 import permissionUtils from "utilities/permissions";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 
 const baseClass = "packs-list-wrapper";
 const noPacksClass = "no-packs";
 
 interface IPacksListWrapperProps {
   onRemovePackClick: any;
-  onEnablePackClick: any;
-  onDisablePackClick: any;
+  onEnablePackClick: (ids: number[]) => void | undefined;
+  onDisablePackClick: (ids: number[]) => void | undefined;
   packsList: IPack[];
 }
 
@@ -89,7 +90,7 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
 
   const tableHeaders = generateTableHeaders(isOnlyObserver);
 
-  const secondarySelectActions = [
+  const secondarySelectActions: IActionButtonProps[] = [
     {
       name: "enable",
       onActionButtonClick: onEnablePackClick,

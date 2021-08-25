@@ -36,8 +36,8 @@ interface IRootState {
 
 const renderTable = (
   onRemovePackClick: React.MouseEventHandler<HTMLButtonElement>,
-  onEnablePackClick: React.MouseEventHandler<HTMLButtonElement>,
-  onDisablePackClick: React.MouseEventHandler<HTMLButtonElement>,
+  onEnablePackClick: (ids: number[]) => void | undefined,
+  onDisablePackClick: (ids: number[]) => void | undefined,
   packsList: IPack[],
   packsErrors: any
 ): JSX.Element => {
