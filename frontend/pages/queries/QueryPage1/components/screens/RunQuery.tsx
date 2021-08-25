@@ -1,101 +1,137 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dispatch } from "redux";
-import moment from "moment";
-import FileSaver from "file-saver";
-import { filter, isEqual } from "lodash";
+import SockJS from "sockjs-client";
 
 // @ts-ignore
-import Fleet from "fleet";
 import { formatSelectedTargetsForApi } from "fleet/helpers"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
-import convertToCSV from "utilities/convert_to_csv";
-import { ICampaign } from "interfaces/campaign";
+import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants"; // @ts-ignore
+import local from "utilities/local"; // @ts-ignore
+import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
 // @ts-ignore
 import QueryProgressDetails from "components/queries/QueryProgressDetails"; // @ts-ignore
 import QueryResultsTable from "components/queries/QueryResultsTable";
+import QueryResults from "../QueryResults";
 
 interface IRunQueryProps {
   baseClass: string;
   typedQueryBody: string;
   storedQuery: IQuery | undefined;
-  campaign: ICampaign | null;
   selectedTargets: ITarget[];
-  queryIsRunning: boolean;
-  setQueryIsRunning: (value: boolean) => void;
-  setCampaign: (value: ICampaign | null) => void;
   dispatch: Dispatch;
 }
-
-let runQueryInterval: any = null;
-let globalSocket: any = null;
-let previousSocketData: any = null;
-
-const QUERY_RESULTS_OPTIONS = {
-  FULL_SCREEN: "FULL_SCREEN",
-  SHRINKING: "SHRINKING",
-};
 
 const RunQuery = ({
   baseClass,
   typedQueryBody,
   storedQuery,
-  campaign,
   selectedTargets,
-  queryIsRunning,
-  setQueryIsRunning,
-  setCampaign,
   dispatch,
 }: IRunQueryProps) => {
-  const [isReady, setIsReady] = useState<boolean>(false);
-  const [runQueryMilliseconds, setRunQueryMilliseconds] = useState<number>(0);
-  const [csvQueryName, setCsvQueryName] = useState<string>("Query Results");
+  const [isQueryFinished, setIsQueryFinished] = useState<boolean>(false);
+  const [campaignState, setCampaignState] = useState<ICampaignState>(
+    DEFAULT_CAMPAIGN_STATE
+  );
+
+  const ws = useRef(null);
+  const runQueryInterval = useRef<any>(null);
+  const globalSocket = useRef<any>(null);
+  const previousSocketData = useRef<any>(null);
 
   const removeSocket = () => {
-    if (globalSocket) {
-      globalSocket.close();
-      globalSocket = null;
-      previousSocketData = null;
+    if (globalSocket.current) {
+      globalSocket.current.close();
+      globalSocket.current = null;
+      previousSocketData.current = null;
     }
-
-    return false;
   };
 
-  const setupDistributedQuery = (socket: any) => {
-    globalSocket = socket;
+  const setupDistributedQuery = (socket: WebSocket | null) => {
+    globalSocket.current = socket;
     const update = () => {
-      setRunQueryMilliseconds(runQueryMilliseconds + 1000);
+      setCampaignState((prevCampaignState) => ({
+        ...prevCampaignState,
+        runQueryMilliseconds: prevCampaignState.runQueryMilliseconds + 1000,
+      }));
     };
 
-    if (!runQueryInterval) {
-      runQueryInterval = setInterval(update, 1000);
+    if (!runQueryInterval.current) {
+      runQueryInterval.current = setInterval(update, 1000);
     }
-
-    return false;
   };
 
   const teardownDistributedQuery = () => {
-    if (runQueryInterval) {
-      clearInterval(runQueryInterval);
-      runQueryInterval = null;
+    if (runQueryInterval.current) {
+      clearInterval(runQueryInterval.current);
+      runQueryInterval.current = null;
     }
 
-    setQueryIsRunning(false);
-    setRunQueryMilliseconds(0);
+    setCampaignState((prevCampaignState) => ({
+      ...prevCampaignState,
+      queryIsRunning: false,
+      runQueryMilliseconds: 0,
+    }));
+    setIsQueryFinished(true);
     removeSocket();
-
-    return false;
   };
 
   const destroyCampaign = () => {
-    setCampaign(null);
+    setCampaignState(DEFAULT_CAMPAIGN_STATE);
+  };
 
-    return false;
+  const connectAndRunLiveQuery = (returnedCampaign: ICampaign) => {
+    let { current: websocket }: { current: WebSocket | null } = ws;
+    websocket = new SockJS(`${BASE_URL}/v1/fleet/results`, undefined, {});
+    websocket.onopen = () => {
+      setupDistributedQuery(websocket);
+      setCampaignState((prevCampaignState) => ({
+        ...prevCampaignState,
+        campaign: returnedCampaign,
+        queryIsRunning: true,
+      }));
+
+      websocket?.send(
+        JSON.stringify({
+          type: "auth",
+          data: { token: local.getItem("auth_token") },
+        })
+      );
+      websocket?.send(
+        JSON.stringify({
+          type: "select_campaign",
+          data: { campaign_id: returnedCampaign.id },
+        })
+      );
+    };
+
+    websocket.onmessage = ({ data }: { data: string }) => {
+      // string is easy to compare before converting to object
+      if (data === previousSocketData.current) {
+        return false;
+      }
+
+      previousSocketData.current = data;
+      const socketData = JSON.parse(data);
+      setCampaignState((prevCampaignState) => {
+        return {
+          ...prevCampaignState,
+          ...campaignHelpers.updateCampaignState(socketData)(prevCampaignState),
+        };
+      });
+
+      if (
+        socketData.type === "status" &&
+        socketData.data.status === "finished"
+      ) {
+        return teardownDistributedQuery();
+      }
+    };
   };
 
   const onRunQuery = debounce(async () => {
@@ -112,50 +148,12 @@ const RunQuery = ({
     }
 
     const selected = formatSelectedTargetsForApi(selectedTargets);
-
     removeSocket();
     destroyCampaign();
 
     try {
-      const { campaign: returnedCampaign } = await queryAPI.run({
-        query: sql,
-        selected,
-      });
-
-      Fleet.websockets.queries.run(returnedCampaign.id).then((socket: any) => {
-        setupDistributedQuery(socket);
-        setCampaign(returnedCampaign);
-        setQueryIsRunning(true);
-
-        socket.onmessage = ({ data }: any) => {
-          const socketData = JSON.parse(data);
-
-          if (previousSocketData && isEqual(socketData, previousSocketData)) {
-            return false;
-          }
-
-          previousSocketData = socketData;
-
-          const {
-            campaign: socketCampaign,
-            queryIsRunning: socketQueryIsRunning,
-          } = campaignHelpers.updateCampaignState(socketData)(
-            previousSocketData
-          );
-
-          socketCampaign && setCampaign(socketCampaign);
-          socketQueryIsRunning && setQueryIsRunning(socketQueryIsRunning);
-
-          if (
-            socketData.type === "status" &&
-            socketData.data.status === "finished"
-          ) {
-            return teardownDistributedQuery();
-          }
-
-          return false;
-        };
-      });
+      const returnedCampaign = await queryAPI.run({ query: sql, selected });
+      connectAndRunLiveQuery(returnedCampaign);
     } catch (campaignError) {
       if (campaignError === "resource already created") {
         dispatch(
@@ -169,7 +167,6 @@ const RunQuery = ({
       }
 
       dispatch(renderFlash("error", campaignError));
-      return false;
     }
   });
 
@@ -183,86 +180,40 @@ const RunQuery = ({
     return teardownDistributedQuery();
   };
 
-  const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
-    evt.preventDefault();
+  const { campaign, queryIsRunning, runQueryMilliseconds } = campaignState;
+  // if (isQueryFinished) {
+  //   return (
+  //     <QueryResultsTable
+  //       campaign={campaign}
+  //       onExportQueryResults={onExportQueryResults}
+  //       onExportErrorsResults={onExportErrorsResults}
+  //       onRunQuery={onRunQuery}
+  //       onStopQuery={onStopQuery}
+  //       queryIsRunning={queryIsRunning}
+  //       queryTimerMilliseconds={runQueryMilliseconds}
+  //     />
+  //   );
+  // }
 
-    if (!campaign) {
-      return false;
-    }
-
-    const { query_results: queryResults } = campaign;
-
-    if (queryResults) {
-      const csv = convertToCSV(queryResults, (fields: string[]) => {
-        const result = filter(fields, (f) => f !== "host_hostname");
-        result.unshift("host_hostname");
-
-        return result;
-      });
-
-      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
-      const filename = `${csvQueryName} (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    }
-
-    return false;
-  };
-
-  const onExportErrorsResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
-    evt.preventDefault();
-
-    if (!campaign) {
-      return false;
-    }
-
-    const { errors } = campaign;
-
-    if (errors) {
-      const csv = convertToCSV(errors, (fields: string[]) => {
-        const result = filter(fields, (f) => f !== "host_hostname");
-        result.unshift("host_hostname");
-
-        return result;
-      });
-
-      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
-      const filename = `${csvQueryName} Errors (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    }
-
-    return false;
-  };
-
-  if (isReady) {
-    return (
-      <QueryResultsTable
-        campaign={campaign}
-        onExportQueryResults={onExportQueryResults}
-        onExportErrorsResults={onExportErrorsResults}
-        onRunQuery={onRunQuery}
-        onStopQuery={onStopQuery}
-        queryIsRunning={queryIsRunning}
-        queryTimerMilliseconds={runQueryMilliseconds}
-      />
-    );
-  }
+  // return (
+  //   <QueryProgressDetails
+  //     campaign={campaign}
+  //     onRunQuery={onRunQuery}
+  //     onStopQuery={onStopQuery}
+  //     queryIsRunning={queryIsRunning}
+  //     queryTimerMilliseconds={runQueryMilliseconds}
+  //     disableRun={false}
+  //   />
+  // );
+  // return null;
 
   return (
-    <QueryProgressDetails
+    <QueryResults
       campaign={campaign}
       onRunQuery={onRunQuery}
       onStopQuery={onStopQuery}
-      queryIsRunning={queryIsRunning}
-      queryTimerMilliseconds={runQueryMilliseconds}
-      disableRun={false}
+      isQueryFinished={isQueryFinished}
+      dispatch={dispatch}
     />
   );
 };

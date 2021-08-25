@@ -1,3 +1,8 @@
+import URL_PREFIX from "router/url_prefix";
+
+const { origin } = global.window.location;
+export const BASE_URL = `${origin}${URL_PREFIX}/api`;
+
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 3600, label: "Every hour" },
   { value: 21600, label: "Every 6 hours" },
@@ -89,4 +94,16 @@ export const DEFAULT_CAMPAIGN = {
   },
   updated_at: "",
   user_id: 0,
+};
+
+export const DEFAULT_CAMPAIGN_STATE = {
+  observerShowSql: false,
+  queryIsRunning: false,
+  queryPosition: {},
+  queryResultsToggle: null,
+  runQueryMilliseconds: 0,
+  selectRelatedHostTarget: false,
+  targetsCount: 0,
+  targetsError: null,
+  campaign: { ...DEFAULT_CAMPAIGN },
 };

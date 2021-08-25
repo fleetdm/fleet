@@ -28,6 +28,9 @@ export interface ICampaignQueryResult {
 }
 
 export interface ICampaign {
+  Metrics?: {
+    [key: string]: any;
+  };
   created_at: string;
   errors: any;
   hosts: IHost[];
@@ -48,4 +51,18 @@ export interface ICampaign {
   };
   updated_at: string;
   user_id: number;
+}
+
+export interface ICampaignState {
+  campaign: ICampaign;
+  observerShowSql: boolean;
+  queryIsRunning: boolean;
+  queryPosition: {
+    [key: string]: any;
+  };
+  queryResultsToggle: any;
+  runQueryMilliseconds: number;
+  selectRelatedHostTarget: boolean;
+  targetsCount: number;
+  targetsError: any;
 }
