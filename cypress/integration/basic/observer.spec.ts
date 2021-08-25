@@ -35,6 +35,9 @@ describe("Basic tier - Observer user", () => {
       cy.findByText("Team").should("exist");
     });
     cy.contains("button", /transfer/i).should("not.exist");
+    cy.contains("button", /delete/i).should("not.exist");
+    cy.contains("button", /query/i).click();
+    cy.contains("button", /create custom query/i).should("not.exist");
 
     // Query pages: Can see team in select targets dropdown
     cy.visit("/queries/manage");

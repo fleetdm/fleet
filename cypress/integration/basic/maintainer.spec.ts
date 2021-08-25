@@ -49,6 +49,9 @@ describe("Basic tier - Maintainer user", () => {
     cy.get(".transfer-action-btn").click();
     cy.findByText(/transferred to oranges/i).should("exist");
     cy.findByText(/team/i).next().contains("Oranges");
+    cy.contains("button", /delete/i).should("exist");
+    cy.contains("button", /query/i).click();
+    cy.contains("button", /create custom query/i).should("exist");
 
     // Query pages: Can see teams UI for create, edit, and run query
     cy.visit("/queries/manage");
