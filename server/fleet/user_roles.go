@@ -1,7 +1,5 @@
 package fleet
 
-import "context"
-
 const (
 	UserRolesKind = "user_roles"
 )
@@ -18,9 +16,4 @@ type UserRoleSpec struct {
 type TeamRoleSpec struct {
 	Name string `json:"team"`
 	Role string `json:"role"`
-}
-
-type UserRolesService interface {
-	// ApplyUserRolesSpecs applies a list of user global and team role changes
-	ApplyUserRolesSpecs(ctx context.Context, specs UsersRoleSpec) error
 }

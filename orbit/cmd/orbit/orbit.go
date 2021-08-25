@@ -13,13 +13,14 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v2"
-	"github.com/fleetdm/orbit/pkg/certificate"
-	"github.com/fleetdm/orbit/pkg/constant"
-	"github.com/fleetdm/orbit/pkg/database"
-	"github.com/fleetdm/orbit/pkg/insecure"
-	"github.com/fleetdm/orbit/pkg/osquery"
-	"github.com/fleetdm/orbit/pkg/update"
-	"github.com/fleetdm/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/database"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -114,7 +115,7 @@ func main() {
 
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
 		if logfile := c.String("log-file"); logfile != "" {
-			f, err := os.OpenFile(logfile, os.O_CREATE|os.O_APPEND, 0o600)
+			f, err := secure.OpenFile(logfile, os.O_CREATE|os.O_APPEND, 0o600)
 			if err != nil {
 				return errors.Wrap(err, "open logfile")
 			}
@@ -148,7 +149,7 @@ func main() {
 			}
 		}
 
-		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
+		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return errors.Wrap(err, "initialize root dir")
 		}
 

@@ -32,7 +32,6 @@ import {
   AccordionItemPanel,
 } from "react-accessible-accordion";
 
-import hostInterface from "interfaces/host";
 import {
   humanHostUptime,
   humanHostLastSeen,
@@ -55,15 +54,16 @@ import {
 import EmptySoftware from "./EmptySoftware";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
+import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
+import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
+import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
 
 const baseClass = "host-details";
 
 export class HostDetailsPage extends Component {
   static propTypes = {
-    host: hostInterface,
     hostID: PropTypes.string,
     dispatch: PropTypes.func,
-    isLoadingHost: PropTypes.bool,
     queries: PropTypes.arrayOf(queryInterface),
     queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     isGlobalAdmin: PropTypes.bool,
@@ -82,6 +82,8 @@ export class HostDetailsPage extends Component {
     super(props);
 
     this.state = {
+      host: {},
+      isLoadingHost: true,
       showDeleteHostModal: false,
       showQueryHostModal: false,
       showTransferHostModal: false,
@@ -102,9 +104,21 @@ export class HostDetailsPage extends Component {
     const { dispatch, hostID } = this.props;
     const { fetchHost } = helpers;
 
-    fetchHost(dispatch, hostID).then((host) =>
-      this.setState({ showRefetchLoadingSpinner: host.refetch_requested })
-    );
+    fetchHost(dispatch, hostID)
+      .then((host) => {
+        this.setState({
+          host,
+          showRefetchLoadingSpinner: host.refetch_requested,
+          isLoadingHost: false,
+        });
+      })
+      .catch((err) => {
+        console.log(err);
+        dispatch(
+          renderFlash("error", `Unable to load host. Please try again.`)
+        );
+        this.setState({ isLoadingHost: false });
+      });
     return false;
   }
 
@@ -125,7 +139,8 @@ export class HostDetailsPage extends Component {
   }
 
   onDestroyHost = () => {
-    const { dispatch, host } = this.props;
+    const { dispatch } = this.props;
+    const { host } = this.state;
     const { destroyHost } = helpers;
 
     destroyHost(dispatch, host).then(() => {
@@ -141,7 +156,8 @@ export class HostDetailsPage extends Component {
   };
 
   onRefetchHost = () => {
-    const { dispatch, host } = this.props;
+    const { dispatch } = this.props;
+    const { host } = this.state;
     const { refetchHost } = helpers;
 
     this.setState({ showRefetchLoadingSpinner: true });
@@ -170,6 +186,7 @@ export class HostDetailsPage extends Component {
   onTransferHostSubmit = (team) => {
     const { toggleTransferHostModal } = this;
     const { dispatch, hostID } = this.props;
+    const { fetchHost } = helpers;
     const teamId = team.id === "no-team" ? null : team.id;
 
     dispatch(hostActions.transferToTeam(teamId, [parseInt(hostID, 10)]))
@@ -180,7 +197,22 @@ export class HostDetailsPage extends Component {
             : `Host successfully transferred to  ${team.name}.`;
         dispatch(renderFlash("success", successMessage));
         // Update page with correct team
-        dispatch(hostActions.loadAll());
+        this.setState({ isLoadingHost: true });
+        fetchHost(dispatch, hostID)
+          .then((host) => {
+            this.setState({
+              host,
+              showRefetchLoadingSpinner: host.refetch_requested,
+              isLoadingHost: false,
+            });
+          })
+          .catch((err) => {
+            console.log(err);
+            dispatch(
+              renderFlash("error", `Unable to load host. Please try again.`)
+            );
+            this.setState({ isLoadingHost: false });
+          });
       })
       .catch(() => {
         dispatch(
@@ -193,7 +225,7 @@ export class HostDetailsPage extends Component {
 
   // Search functionality
   onQueryChange = (queryData) => {
-    const { host } = this.props;
+    const { host } = this.state;
     const {
       pageIndex,
       pageSize,
@@ -258,7 +290,7 @@ export class HostDetailsPage extends Component {
 
   renderDeleteHostModal = () => {
     const { showDeleteHostModal } = this.state;
-    const { host } = this.props;
+    const { host } = this.state;
     const { toggleDeleteHostModal, onDestroyHost } = this;
 
     if (!showDeleteHostModal) {
@@ -286,7 +318,7 @@ export class HostDetailsPage extends Component {
           <Button onClick={onDestroyHost} variant="alert">
             Delete
           </Button>
-          <Button onClick={toggleDeleteHostModal(null)} variant="inverse">
+          <Button onClick={toggleDeleteHostModal(null)} variant="inverse-alert">
             Cancel
           </Button>
         </div>
@@ -300,10 +332,10 @@ export class HostDetailsPage extends Component {
       toggleQueryHostModal,
       toggleTransferHostModal,
     } = this;
-    const { host, isOnlyObserver, canTransferTeam } = this.props;
+    const { isOnlyObserver, canTransferTeam } = this.props;
+    const { host } = this.state;
 
     const isOnline = host.status === "online";
-    const isOffline = host.status === "offline";
 
     // Hide action buttons for global and team only observers
     if (isOnlyObserver) {
@@ -315,20 +347,20 @@ export class HostDetailsPage extends Component {
         {canTransferTeam && (
           <Button
             onClick={toggleTransferHostModal()}
-            variant="inverse"
+            variant="text-icon"
             className={`${baseClass}__transfer-button`}
           >
-            Transfer
+            Transfer <img src={TransferIcon} alt="Transfer host icon" />
           </Button>
         )}
         <div data-tip data-for="query" data-tip-disable={isOnline}>
           <Button
             onClick={toggleQueryHostModal()}
-            variant="inverse"
-            disabled={isOffline}
+            variant="text-icon"
+            disabled={!isOnline}
             className={`${baseClass}__query-button`}
           >
-            Query
+            Query <img src={QueryIcon} alt="Query host icon" />
           </Button>
         </div>
         <ReactTooltip
@@ -342,8 +374,8 @@ export class HostDetailsPage extends Component {
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="active">
-          Delete
+        <Button onClick={toggleDeleteHostModal()} variant="text-icon">
+          Delete <img src={DeleteIcon} alt="Delete host icon" />
         </Button>
       </div>
     );
@@ -351,7 +383,7 @@ export class HostDetailsPage extends Component {
 
   renderLabels = () => {
     const { onLabelClick } = this;
-    const { host } = this.props;
+    const { host } = this.state;
     const { labels = [] } = host;
 
     const labelItems = labels.map((label) => {
@@ -381,10 +413,9 @@ export class HostDetailsPage extends Component {
   };
 
   renderPacks = () => {
-    const { host, isLoadingHost } = this.props;
-    const { pack_stats } = host;
-    const wrapperClassName = `${baseClass}__table`;
-
+    const { host, isLoadingHost } = this.state;
+    const pack_stats = host && host.pack_stats;
+    const wrapperClassName = `${baseClass}__pack-table`;
     const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
@@ -401,18 +432,20 @@ export class HostDetailsPage extends Component {
               ) : (
                 <>
                   {!!pack.query_stats.length && (
-                    <TableContainer
-                      columns={tableHeaders}
-                      data={generatePackDataSet(pack.query_stats)}
-                      isLoading={isLoadingHost}
-                      onQueryChange={() => null}
-                      resultsTitle={"queries"}
-                      defaultSortHeader={"scheduled_query_name"}
-                      defaultSortDirection={"asc"}
-                      showMarkAllPages={false}
-                      disablePagination
-                      disableCount
-                    />
+                    <div className={`${wrapperClassName}`}>
+                      <TableContainer
+                        columns={tableHeaders}
+                        data={generatePackDataSet(pack.query_stats)}
+                        isLoading={isLoadingHost}
+                        onQueryChange={() => null}
+                        resultsTitle={"queries"}
+                        defaultSortHeader={"scheduled_query_name"}
+                        defaultSortDirection={"asc"}
+                        showMarkAllPages={false}
+                        disablePagination
+                        disableCount
+                      />
+                    </div>
                   )}
                 </>
               )}
@@ -439,7 +472,7 @@ export class HostDetailsPage extends Component {
   };
 
   renderUsers = () => {
-    const { host } = this.props;
+    const { host } = this.state;
     const { users } = host;
     const wrapperClassName = `${baseClass}__table`;
 
@@ -480,8 +513,7 @@ export class HostDetailsPage extends Component {
   renderSoftware = () => {
     // const { EmptySoftware } = this;
     const { onQueryChange } = this;
-    const { softwareState } = this.state;
-    const { host, isLoadingHost } = this.props;
+    const { host, isLoadingHost, softwareState } = this.state;
 
     const tableHeaders = generateTableHeaders();
 
@@ -527,11 +559,11 @@ export class HostDetailsPage extends Component {
 
   renderRefetch = () => {
     const { onRefetchHost } = this;
-    const { host } = this.props;
+    const { host } = this.state;
     const { showRefetchLoadingSpinner } = this.state;
 
     const isOnline = host.status === "online";
-    const isOffline = host.status === "offline";
+
     return (
       <>
         <div
@@ -544,10 +576,10 @@ export class HostDetailsPage extends Component {
             className={`
               button
               button--unstyled
-              ${isOffline ? "refetch-offline" : ""} 
+              ${!isOnline ? "refetch-offline" : ""} 
               ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
-            disabled={isOffline}
+            disabled={!isOnline}
             onClick={onRefetchHost}
           >
             {showRefetchLoadingSpinner
@@ -572,8 +604,6 @@ export class HostDetailsPage extends Component {
 
   render() {
     const {
-      host,
-      isLoadingHost,
       dispatch,
       queries,
       queryErrors,
@@ -581,7 +611,12 @@ export class HostDetailsPage extends Component {
       isGlobalAdmin,
       teams,
     } = this.props;
-    const { showQueryHostModal, showTransferHostModal } = this.state;
+    const {
+      host,
+      isLoadingHost,
+      showQueryHostModal,
+      showTransferHostModal,
+    } = this.state;
     const {
       toggleQueryHostModal,
       toggleTransferHostModal,
@@ -622,6 +657,8 @@ export class HostDetailsPage extends Component {
         "os_version",
         "enroll_secret_name",
         "detail_updated_at",
+        "percent_disk_space_available",
+        "gigs_disk_space_available",
       ])
     );
     const aboutData = normalizeEmptyValues(
@@ -662,6 +699,33 @@ export class HostDetailsPage extends Component {
         </div>
       );
     };
+
+    const renderDiskSpace = () => {
+      if (
+        host.gigs_disk_space_available > 0 ||
+        host.percent_disk_space_available > 0
+      ) {
+        return (
+          <span className="info__data">
+            <div className="info__disk-space">
+              <div
+                className={
+                  titleData.percent_disk_space_available > 20
+                    ? "info__disk-space-used"
+                    : "info__disk-space-warning"
+                }
+                style={{
+                  width: `${100 - titleData.percent_disk_space_available}%`,
+                }}
+              />
+            </div>
+            {titleData.gigs_disk_space_available} GB available
+          </span>
+        );
+      }
+      return <span className="info__data">No data available</span>;
+    };
+
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
@@ -690,7 +754,11 @@ export class HostDetailsPage extends Component {
                   {titleData.status}
                 </span>
               </div>
-              {isBasicTier ? hostTeam() : null}
+              {isBasicTier && hostTeam()}
+              <div className="info__item info__item--title">
+                <span className="info__header">Disk Space</span>
+                {renderDiskSpace()}
+              </div>
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
                 <span className="info__data">
@@ -802,8 +870,6 @@ const mapStateToProps = (state, ownProps) => {
   const queryEntities = entityGetter(state).get("queries");
   const { entities: queries, errors: queryErrors } = queryEntities;
   const { host_id: hostID } = ownProps.params;
-  const host = entityGetter(state).get("hosts").findBy({ id: hostID });
-  const { loading: isLoadingHost } = state.entities.hosts;
   const config = state.app.config;
   const currentUser = state.auth.user;
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
@@ -816,9 +882,7 @@ const mapStateToProps = (state, ownProps) => {
       permissionUtils.isGlobalMaintainer(currentUser));
 
   return {
-    host,
     hostID,
-    isLoadingHost,
     queries,
     queryErrors,
     isGlobalAdmin,

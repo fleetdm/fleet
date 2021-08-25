@@ -2,7 +2,7 @@
 
 Fleet's [Orbit osquery updater](https://github.com/fleetdm/orbit) by default utilizes the public Fleet update repository.
 
-For users who would like to self-manage an update server, this capability is available with a Fleet Basic subscription.
+For users who would like to self-manage an update server, this capability is available with a Fleet Premium subscription.
 
 ## Securing updates
 
@@ -114,7 +114,7 @@ To update the timestamp metadata:
 fleetctl updates timestamp
 ```
 
-_This operation requires the `snapshot` and `timestamp` keys to be available, along with the corresponding passphrases. Best practice is to keep these keys "online" in a context where they can be used to update the metadata on an interval (via `cron`, AWS Lambda, etc.). This "online" context should be on a separate host from the static file server, to prevent leaking these less sensitive (though still sensitive) keys in the event the static file server is compromised._
+_This operation requires the `timestamp` key to be available, along with the corresponding passphrase. Best practice is to keep these keys "online" in a context where they can be used to update the metadata on an interval (via `cron`, AWS Lambda, etc.). This "online" context should be on a separate host from the static file server, to prevent leaking these less sensitive (though still sensitive) keys in the event the static file server is compromised._
 
 ### Building packages
 

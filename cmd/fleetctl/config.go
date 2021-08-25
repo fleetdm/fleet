@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -54,12 +55,15 @@ func contextFlag() cli.Flag {
 
 func makeConfigIfNotExists(fp string) error {
 	if _, err := os.Stat(filepath.Dir(fp)); errors.Is(err, os.ErrNotExist) {
-		if err := os.Mkdir(filepath.Dir(fp), 0700); err != nil {
+		if err := secure.MkdirAll(filepath.Dir(fp), 0700); err != nil {
 			return err
 		}
 	}
 
-	_, err := os.OpenFile(fp, os.O_RDONLY|os.O_CREATE, configFilePerms)
+	f, err := secure.OpenFile(fp, os.O_RDONLY|os.O_CREATE, configFilePerms)
+	if err == nil {
+		f.Close()
+	}
 	return err
 }
 
@@ -119,9 +123,8 @@ func getConfigValue(configPath, context, key string) (interface{}, error) {
 	case "tls-skip-verify":
 		if currentContext.TLSSkipVerify {
 			return true, nil
-		} else {
-			return false, nil
 		}
+		return false, nil
 	case "url-prefix":
 		return currentContext.URLPrefix, nil
 	default:

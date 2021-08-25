@@ -64,6 +64,7 @@ export class QueryPage extends Component {
       pathname: PropTypes.string,
     }),
     query: queryInterface,
+    queryId: PropTypes.number,
     selectedHosts: PropTypes.arrayOf(hostInterface),
     selectedOsqueryTable: osqueryTableInterface,
     selectedTargets: PropTypes.arrayOf(targetInterface),
@@ -258,6 +259,7 @@ export class QueryPage extends Component {
   onRunQuery = debounce(() => {
     const { queryText, targetsCount } = this.state;
     const { query } = this.props.query;
+    const query_id = parseInt(this.props.queryId, 10) || null;
     const sql = queryText || query;
     const { dispatch, selectedTargets } = this.props;
     const { error } = validateQuery(sql);
@@ -292,7 +294,7 @@ export class QueryPage extends Component {
     destroyCampaign();
 
     Fleet.queries
-      .run({ query: sql, selected })
+      .run({ query: sql, selected, query_id })
       .then((campaignResponse) => {
         return Fleet.websockets.queries
           .run(campaignResponse.id)
@@ -330,18 +332,12 @@ export class QueryPage extends Component {
           });
       })
       .catch((campaignError) => {
-        if (campaignError === "resource already created") {
-          dispatch(
-            renderFlash(
-              "error",
-              "A campaign with the provided query text has already been created"
-            )
-          );
+        console.log(campaignError);
+        // TODO Revisit after taking a deeper look at error handling related to the Fleet.entities
+        // and flash_messages components in light of issues with those in other instances,
+        // especially as it concerns async errors.
 
-          return false;
-        }
-
-        dispatch(renderFlash("error", campaignError));
+        dispatch(push("/500"));
 
         return false;
       });
@@ -868,6 +864,7 @@ const mapStateToProps = (state, ownProps) => {
     errors,
     loadingQueries,
     query,
+    queryId,
     selectedOsqueryTable,
     selectedHosts,
     selectedTargets,

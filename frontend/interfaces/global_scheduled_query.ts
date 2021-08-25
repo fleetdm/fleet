@@ -1,27 +1,37 @@
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
+  created_at: PropTypes.string,
+  updated_at: PropTypes.string,
   id: PropTypes.number.isRequired,
-  interval: PropTypes.number.isRequired,
+  pack_id: PropTypes.number,
   name: PropTypes.string.isRequired,
-  shard: PropTypes.number,
-  query: PropTypes.string.isRequired,
   query_id: PropTypes.number.isRequired,
-  removed: PropTypes.bool.isRequired,
+  query_name: PropTypes.string,
+  query: PropTypes.string.isRequired,
+  interval: PropTypes.number.isRequired,
   snapshot: PropTypes.bool.isRequired,
-  version: PropTypes.string,
+  removed: PropTypes.bool.isRequired,
   platform: PropTypes.string,
+  version: PropTypes.string,
+  shard: PropTypes.number,
+  denylist: PropTypes.bool,
 });
 
 export interface IGlobalScheduledQuery {
+  created_at: string;
+  updated_at: string;
   id: number;
-  interval: number;
+  pack_id: number;
   name: string;
-  shard?: number;
-  query: string;
   query_id: number;
-  removed: boolean;
+  query_name: string;
+  query: string;
+  interval: number;
   snapshot: boolean;
-  version?: string;
+  removed: boolean;
   platform?: string;
+  version?: string;
+  shard?: number;
+  denylist?: boolean;
 }

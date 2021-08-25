@@ -36,6 +36,9 @@ describe("Basic tier - Observer user", () => {
     });
     cy.contains("button", /transfer/i).should("not.exist");
 
+    // Not see the “Show enroll secret” button
+    cy.contains("button", /show enroll secret/i).should("not.exist");
+
     // Query pages: Can see team in select targets dropdown
     cy.visit("/queries/manage");
 
@@ -70,5 +73,15 @@ describe("Basic tier - Observer user", () => {
     cy.contains(".table-container .data-table__table th", "Team").should(
       "be.visible"
     );
+
+    // On the Profile page, they should…
+    // See Global in the Team section and Observer in the Role section
+    cy.visit("/profile");
+    cy.findByText(/team/i)
+      .next()
+      .contains(/apples/i);
+    cy.findByText("Role")
+      .next()
+      .contains(/observer/i);
   });
 });

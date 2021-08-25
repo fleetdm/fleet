@@ -2,6 +2,7 @@ describe("Teams flow", () => {
   beforeEach(() => {
     cy.setup();
     cy.login();
+    cy.viewport(1200, 660);
   });
 
   it("Create, edit, and delete a team successfully", () => {

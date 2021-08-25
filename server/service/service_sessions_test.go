@@ -1,12 +1,10 @@
 package service
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,16 +51,4 @@ func TestAuthenticate(t *testing.T) {
 				"access time should be set with current time at session creation")
 		})
 	}
-}
-
-type authViewerService struct {
-	fleet.Service
-}
-
-func (authViewerService) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
-	return &fleet.Session{}, nil
-}
-
-func (authViewerService) UserUnauthorized(ctx context.Context, uid uint) (*fleet.User, error) {
-	return &fleet.User{}, nil
 }

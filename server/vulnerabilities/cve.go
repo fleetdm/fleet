@@ -3,6 +3,7 @@ package vulnerabilities
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,12 +17,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/pkg/errors"
 )
 
-func syncCVEData(vulnPath string) error {
+func syncCVEData(vulnPath string, cveFeedURLPrefixOverride string) error {
 	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
 
 	source := nvd.NewSourceConfig()
+	if cveFeedURLPrefixOverride != "" {
+		parsed, err := url.Parse(cveFeedURLPrefixOverride)
+		if err != nil {
+			return errors.Wrap(err, "parsing cve feed url prefix override")
+		}
+		source.Host = parsed.Host
+		source.Scheme = parsed.Scheme
+	}
 
 	dfs := nvd.Sync{
 		Feeds:    []nvd.Syncer{cve},
@@ -35,8 +45,14 @@ func syncCVEData(vulnPath string) error {
 	return dfs.Do(ctx)
 }
 
-func TranslateCPEToCVE(ctx context.Context, ds fleet.Datastore, vulnPath string, logger kitlog.Logger) error {
-	err := syncCVEData(vulnPath)
+func TranslateCPEToCVE(
+	ctx context.Context,
+	ds fleet.Datastore,
+	vulnPath string,
+	logger kitlog.Logger,
+	cveFeedURLPrefixOverride string,
+) error {
+	err := syncCVEData(vulnPath, cveFeedURLPrefixOverride)
 	if err != nil {
 		return err
 	}

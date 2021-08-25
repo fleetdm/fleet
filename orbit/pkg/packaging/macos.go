@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/fleetdm/orbit/pkg/constant"
-	"github.com/fleetdm/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -30,11 +31,11 @@ func BuildPkg(opt Options) error {
 	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
-	if err := os.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create root dir")
 	}
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
-	if err := os.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create orbit dir")
 	}
 
@@ -121,7 +122,7 @@ func BuildPkg(opt Options) error {
 func writePackageInfo(opt Options, rootPath string) error {
 	// PackageInfo is metadata for the pkg
 	path := filepath.Join(rootPath, "flat", "base.pkg", "PackageInfo")
-	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "mkdir")
 	}
 
@@ -140,7 +141,7 @@ func writePackageInfo(opt Options, rootPath string) error {
 func writeScripts(opt Options, rootPath string) error {
 	// Postinstall script
 	path := filepath.Join(rootPath, "scripts", "postinstall")
-	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "mkdir")
 	}
 
@@ -159,7 +160,7 @@ func writeScripts(opt Options, rootPath string) error {
 func writeLaunchd(opt Options, rootPath string) error {
 	// launchd is the service mechanism on macOS
 	path := filepath.Join(rootPath, "Library", "LaunchDaemons", "com.fleetdm.orbit.plist")
-	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "mkdir")
 	}
 
@@ -178,7 +179,7 @@ func writeLaunchd(opt Options, rootPath string) error {
 func writeDistribution(opt Options, rootPath string) error {
 	// Distribution file is metadata for the pkg
 	path := filepath.Join(rootPath, "flat", "Distribution")
-	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "mkdir")
 	}
 
@@ -272,7 +273,7 @@ func xarBom(opt Options, rootPath string) error {
 
 func cpio(srcPath, dstPath string) error {
 	// This is the compression routine that is expected for pkg files.
-	dst, err := os.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0755)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return errors.Wrap(err, "open dst")
 	}
@@ -315,9 +316,9 @@ func cpio(srcPath, dstPath string) error {
 	if err != nil {
 		return errors.Wrap(err, "wait gzip")
 	}
-	err = dst.Close()
+	err = dst.Sync()
 	if err != nil {
-		return errors.Wrap(err, "close dst")
+		return errors.Wrap(err, "sync dst")
 	}
 
 	return nil

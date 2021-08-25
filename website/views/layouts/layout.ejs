@@ -22,7 +22,7 @@
     Google Fonts, etc. - above the «body» to prevent the page flickering when fonts
     load.) */ %>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700;800;900&family=Nunito:wght@300;400;500;600;700;800;900&display=swap&Source+Code+Pro&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,900&display=swap" rel="stylesheet">
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
     if (sails.config.environment === 'production') { %>
@@ -87,10 +87,10 @@
               <div class="d-flex flex-column mb-4">
                 <span style="font-weight: 700;" class="py-2 px-3">Get started</span>
                 <a class="mobile-menu-item py-2 px-3" target="_blank" href="/install" data-text="Try Fleet">Try Fleet</a>
-                <a class="mobile-menu-item py-2 px-3" target="_blank" href="/documentation" data-text="Documentation">Documentation</a>
-                <a class="mobile-menu-item py-2 px-3" target="_blank" href="/contribute" data-text="Contribute">Contribute</a>
+                <a class="mobile-menu-item py-2 px-3" href="/contribute" data-text="Contribute">Contribute</a>
                 <a class="mobile-menu-item py-2 px-3" target="_blank" href="/hall-of-fame" data-text="Hall of fame">Hall of fame</a>
               </div>
+              <a href="/docs" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style=" text-decoration: none; font-weight: 700;">Docs</a>
               <a href="/queries" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style=" text-decoration: none; font-weight: 700;">Queries</a>
               <a href="/pricing" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style=" text-decoration: none; font-weight: 700;">Pricing</a>
               <a href="/blog" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style=" text-decoration: none; font-weight: 700;">Blog</a>
@@ -105,17 +105,8 @@
           </div>
         </div>
         <div class="d-none d-lg-flex">
-          <div class="dropdown px-3 py-2 mr-4">
-            <button style="font-size: 16px; line-height: 23px; text-decoration: none;" class="header-btn btn btn-link p-0 m-0 dropdown-label" type="button" id="dropdownMenuButton">
-              Get started
-            </button>
-            <div style="border-radius: 8px;" class="dropdown-menu dropdown-container p-2" aria-labelledby="dropdownMenuButton">
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/install" data-text="Try Fleet">Try Fleet</a>
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/documentation" data-text="Documentation">Documentation</a>
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/contribute" data-text="Contribute">Contribute</a>
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/hall-of-fame" data-text="Hall of fame">Hall of fame</a>
-            </div>
-          </div>
+          <a href="/get-started" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Get started</a>
+          <a href="/docs" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Docs</a>
           <a href="/queries" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Queries</a>
           <a href="/pricing" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Pricing</a>
           <a target="_blank" href="/blog" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Blog</a>
@@ -140,12 +131,12 @@
           <div style="max-width: 1248px;" class="container-fluid d-flex flex-column flex-lg-row justify-content-center justify-content-lg-between px-3 px-md-4 pt-4 pb-0 mt-md-5 mb-lg-5">
           <div class="d-flex flex-grow-1 flex-column align-items-center">
             <div class="container-fluid d-block d-md-flex flex-md-row text-center justify-content-between justify-content-lg-end px-5 px-lg-0 pt-lg-3 pb-4 pb-md-0">
-              <a href="https://github.com/fleetdm/fleet/blob/main/README.md" class="d-block pr-lg-4 pb-4">Try Fleet</a>
-              <a href="https://github.com/fleetdm/fleet/tree/main/docs" class="d-block pr-lg-4 pb-4">Documentation</a>
+              <a href="/install" class="d-block pr-lg-4 pb-4">Try Fleet</a>
+              <a href="/docs" class="d-block pr-lg-4 pb-4">Documentation</a>
               <a href="/pricing" class="d-block pr-lg-4 pb-4">Pricing</a>
-              <a href="https://github.com/fleetdm/fleet/tree/main/docs/3-Contributing" class="d-block pr-lg-4 pb-4">Contribute</a>
-              <a href="https://medium.com/fleetdm" class="d-block pr-lg-4 pb-4">Blog</a>
-              <a href="https://github.com/fleetdm/fleet/pulse" class="d-block pb-4">Hall of fame</a>
+              <a href="/docs/contributing" class="d-block pr-lg-4 pb-4">Contribute</a>
+              <a href="/blog" class="d-block pr-lg-4 pb-4">Blog</a>
+              <a href="/hall-of-fame" class="d-block pb-4">Hall of fame</a>
             </div>
     
             <div class="container-fluid d-flex flex-column flex-md-row font-weight-bold justify-content-center justify-content-lg-end px-0 pt-3 pt-md-0">
@@ -154,7 +145,7 @@
                 Follow us on Twitter
               </a>
               <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" class="d-flex flex-nowrap justify-content-center align-items-center px-1 px-sm-5 pb-4 pb-lg-0">
-                <img alt="Slack logo" src="/images/logo-slack-28x28@2x.png" style="height: 25px; width: auto" class="mr-3"/>
+                <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png" style="height: 25px; width: auto" class="mr-3"/>
                 <span>Join the community<span purpose="join-the-community-on-slack-expanded-text"> on Slack</span></span>
               </a>
               <a href="https://github.com/fleetdm/fleet" class="d-flex flex-shrink-1 justify-content-center align-items-center px-0 pb-4 pb-lg-0">
@@ -213,6 +204,7 @@
     <script src="/dependencies/vue-router.js"></script>
     <script src="/dependencies/bootstrap-4/bootstrap-4.bundle.js"></script>
     <script src="/dependencies/cloud.js"></script>
+    <script src="/dependencies/highlight.min.js"></script>
     <script src="/dependencies/moment.js"></script>
     <script src="/dependencies/parasails.js"></script>
     <script src="/js/cloud.setup.js"></script>
@@ -223,15 +215,12 @@
     <script src="/js/components/modal.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
-    <script src="/js/pages/498.page.js"></script>
     <script src="/js/pages/account/account-overview.page.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/dashboard/welcome.page.js"></script>
-    <script src="/js/pages/docs-template.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
-    <script src="/js/pages/documentation.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>

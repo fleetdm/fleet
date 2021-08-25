@@ -90,7 +90,9 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 			team_id = ?,
 			primary_ip = ?,
 			primary_mac = ?,
-			refetch_requested = ?
+			refetch_requested = ?,
+			gigs_disk_space_available = ?,
+			percent_disk_space_available = ?
 		WHERE id = ?
 	`
 	_, err := d.db.Exec(sqlStatement,
@@ -125,6 +127,8 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 		host.PrimaryIP,
 		host.PrimaryMac,
 		host.RefetchRequested,
+		host.GigsDiskSpaceAvailable,
+		host.PercentDiskSpaceAvailable,
 		host.ID,
 	)
 	if err != nil {
@@ -162,14 +166,6 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 
 func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		sql := `
-			DELETE FROM scheduled_query_stats
-			WHERE host_id = ?
-		`
-		if _, err := tx.Exec(sql, host.ID); err != nil {
-			return errors.Wrap(err, "delete old stats")
-		}
-
 		// Bulk insert software entries
 		var args []interface{}
 		queryCount := 0
@@ -199,7 +195,7 @@ func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 		}
 
 		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
-		sql = fmt.Sprintf(`
+		sql := fmt.Sprintf(`
 			INSERT IGNORE INTO scheduled_query_stats (
 				scheduled_query_id,
 				host_id,
@@ -249,7 +245,7 @@ FROM scheduled_query_stats sqs
 	JOIN scheduled_queries sq ON (sqs.scheduled_query_id = sq.id)
 	JOIN packs p ON (sq.pack_id = p.id)
 	JOIN queries q ON (sq.query_name = q.name)
-WHERE host_id = ?
+WHERE host_id = ? AND p.pack_type IS NULL
 `
 	var stats []fleet.ScheduledQueryStats
 	if err := d.db.Select(&stats, sql, host.ID); err != nil {
@@ -347,12 +343,21 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 		    `
 	}
 
+	policyMembershipJoin := "JOIN policy_membership pm ON (h.id=pm.host_id)"
+	if opt.PolicyIDFilter == nil {
+		policyMembershipJoin = ""
+	} else if opt.PolicyResponseFilter == nil {
+		policyMembershipJoin = "LEFT " + policyMembershipJoin
+	}
 	sql += fmt.Sprintf(`FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		%s
 		WHERE TRUE AND %s
-    `, d.whereFilterHostsByTeams(filter, "h"),
+    `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
+	sql, params = filterHostsByTeam(sql, opt, params)
+	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
@@ -363,6 +368,25 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 	}
 
 	return hosts, nil
+}
+
+func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.TeamFilter != nil {
+		sql += ` AND h.team_id = ?`
+		params = append(params, *opt.TeamFilter)
+	}
+	return sql, params
+}
+
+func filterHostsByPolicy(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.PolicyIDFilter != nil && opt.PolicyResponseFilter != nil {
+		sql += ` AND pm.policy_id = ? AND pm.passes = ?`
+		params = append(params, *opt.PolicyIDFilter, *opt.PolicyResponseFilter)
+	} else if opt.PolicyIDFilter != nil && opt.PolicyResponseFilter == nil {
+		sql += ` AND (pm.policy_id = ? OR pm.policy_id IS NULL) AND pm.passes IS NULL`
+		params = append(params, *opt.PolicyIDFilter)
+	}
+	return sql, params
 }
 
 func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -601,8 +625,8 @@ func (d *Datastore) MarkHostsSeen(hostIDs []uint, t time.Time) error {
 		if err != nil {
 			return errors.Wrap(err, "sqlx in")
 		}
-		query = d.db.Rebind(query)
-		if _, err := d.db.Exec(query, args...); err != nil {
+		query = tx.Rebind(query)
+		if _, err := tx.Exec(query, args...); err != nil {
 			return errors.Wrap(err, "exec update")
 		}
 

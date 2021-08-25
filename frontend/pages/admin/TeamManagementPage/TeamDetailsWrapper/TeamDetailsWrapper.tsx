@@ -144,6 +144,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
       }
       dispatch(teamActions.update(team?.id, updatedAttrs))
         .then(() => {
+          dispatch(teamActions.loadAll({ perPage: 500 }));
           dispatch(renderFlash("success", "Team updated"));
           // TODO: error handling
         })

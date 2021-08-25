@@ -31,7 +31,11 @@ describe("Core tier - Maintainer user", () => {
     cy.findByText("select a team").should("not.exist");
     cy.contains("button", /done/i).click();
 
-    cy.contains("button", /add new label/i).click();
+    // See the “Show enroll secret” button. A modal appears after the user selects the button
+    cy.contains("button", /show enroll secret/i).click();
+    cy.contains("button", /done/i).click();
+
+    cy.contains("button", /add label/i).click();
     cy.contains("button", /cancel/i).click();
 
     // Host details page: No team UI, can delete and create new query
@@ -106,17 +110,13 @@ describe("Core tier - Maintainer user", () => {
 
     cy.visit("/packs/manage");
 
-    cy.findByText(/errors and crashes/i).click();
-
-    cy.findByRole("link", { name: /edit pack/i }).should("exist");
-
-    cy.get("#select-pack-1").check({ force: true });
+    cy.get(".fleet-checkbox__input").check({ force: true });
 
     cy.findByRole("button", { name: /delete/i }).click();
 
     // Can't figure out how attach findByRole onto modal button
     // Can't use findByText because delete button under modal
-    cy.get(".all-packs-page__modal-btn-wrap > .button--alert")
+    cy.get(".remove-pack-modal__btn-wrap > .button--alert")
       .contains("button", /delete/i)
       .click();
 
@@ -126,5 +126,13 @@ describe("Core tier - Maintainer user", () => {
 
     // Schedule page: Can create, edit, remove a schedule
     // TODO: Copy flow from queryflow.spec.ts here to ensure maintainers have access
+
+    // On the Profile page, they should…
+    // See Maintainer in Role section, and no Team section
+    cy.visit("/profile");
+    cy.findByText(/teams/i).should("not.exist");
+    cy.findByText("Role")
+      .next()
+      .contains(/maintainer/i);
   });
 });

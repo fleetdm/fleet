@@ -1,3 +1,73 @@
+## Fleet 4.2.2 (Aug 18, 2021)
+
+* Add a new built in label "All Linux" to target all hosts that run any linux flavor.
+
+* Allow finer grained configuration of the vulnerability processing capabilities.
+
+* Fix performance issues when updating pack contents.
+
+* Fix a build issue that caused external network access to panic in certain Linux distros (Ubuntu).
+
+* Fix rendering of checkboxes in UI when modals appear.
+
+* Orbit: sync critical file writes to disk.
+
+* Add "-o" flag to fleetctl convert command to ensure consistent output rather than relying on shell redirection (this was causing issues with file encodings).
+
+* Fix table column wrapping for manage queries page.
+
+* Fix wrapping in Label pills.
+
+* Side panels in UI have a fresher look, Teams/Roles UI greyed out conditionally.
+
+* Improved sorting in UI tables.
+
+* Improve detection of CentOS in label membership.
+
+## Fleet 4.2.1 (Aug 14, 2021)
+
+* Fix a database issue with MariaDB 10.5.4.
+
+* Display updated team name after edit.
+
+* When a connection from a live query websocket is closed, Fleet now timeouts the receive and handles the different cases correctly to not hold the connection to Redis.
+
+* Read live query results from Redis in a thread safe manner.
+
+* Allow observers and maintainers to refetch a host in a team they belong to.
+
+## Fleet 4.2.0 (Aug 11, 2021)
+
+* Add ability to simultaneously filter hosts by status (`online`, `offline`, `new`, `mia`) and by label on the **Hosts** page.
+
+* Add ability to filter hosts by team in the Fleet UI, fleetctl CLI tool, and Fleet API. *Available for Fleet Basic customers*.
+
+* Add ability to create a Team schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1). *Available for Fleet Basic customers*.
+
+* Add Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/13-Vulnerability-Processing.md#vulnerability-processing).
+
+* Add ability to see which logging destination is configured for Fleet in the Fleet UI. To see this information, head to the **Schedule** page and then select "Schedule a query." Configured logging destination information is also available in the `GET api/v1/fleet/config` API route.
+
+* Improve the `fleetctl preview` experience by downloading Fleet's standard query library and loading the queries into the Fleet UI.
+
+* Improve the user interface for the **Packs** page and **Queries** page in the Fleet UI.
+
+* Add ability to modify scheduled queries in your Schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1).
+
+* Add ability to disable the Users feature in Fleet by setting the new `enable_host_users` key to `true` in the `config` yaml, configuration file. For documentation on using configuration files in yaml syntax, check out the [Using yaml files in Fleet](https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/configuration-files#using-yaml-files-in-fleet) documentation.
+
+* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/2-Configuration.md#feature-flags).
+
+* Improve performance of inserting `pack_stats` in the database. The `pack_stats` information is used to display "Frequency" and "Last run" information for a specific host's scheduled queries. You can find this information on the **Host details** page.
+
+* Improve Fleet server logging so that it is more uniform.
+
+* Fix a bug in which a user with the Observer role was unable to run a live query.
+
+* Fix a bug that prevented the new **Home** page from being displayed in some Fleet instances.
+
+* Fix a bug that prevented accurate sorting issues across multiple pages on the **Hosts** page.
+
 ## Fleet 4.1.0 (Jul 26, 2021)
 
 The primary additions in Fleet 4.1.0 are the new Schedule and Activity feed features.
@@ -165,9 +235,9 @@ There are currently no known issues in this release. However, we recommend only 
 
 The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
 
-RBAC adds the ability to define a user's access to information and features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access. Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/5e40afa8ba28fc5cdee813dfca53b84ee0ee65cd/docs/1-Using-Fleet/8-Permissions.md) for a breakdown of the new user roles and their respective capabilities.
+RBAC adds the ability to define a user's access to information and features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access. Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/9-Permissions.md) for a breakdown of the new user roles and their respective capabilities.
 
-Teams adds the ability to separate hosts into exclusive groups. This way, users can easily observe and apply operations to consistent groups of hosts. Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/5e40afa8ba28fc5cdee813dfca53b84ee0ee65cd/docs/1-Using-Fleet/9-Teams.md).
+Teams adds the ability to separate hosts into exclusive groups. This way, users can easily observe and apply operations to consistent groups of hosts. Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md).
 
 There are several known issues that will be fixed for the stable release of Fleet 4.0.0. Therefore, we recommend only upgrading to Fleet 4.0.0 RC1 for testing purposes. Please file a GitHub issue for any issues discovered when testing Fleet 4.0.0!
 

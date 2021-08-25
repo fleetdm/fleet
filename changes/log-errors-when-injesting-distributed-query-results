@@ -1,1 +1,0 @@
-* Only log errors and try to process all distributed query results from hosts instead of erroring out.

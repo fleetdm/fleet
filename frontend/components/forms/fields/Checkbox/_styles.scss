@@ -1,4 +1,4 @@
-.kolide-checkbox {
+.fleet-checkbox {
   @include clearfix;
   position: relative;
   display: inline-block;
@@ -6,13 +6,13 @@
   &__input {
     opacity: 0;
 
-    &:focus + .kolide-checkbox__tick {
+    &:focus + .fleet-checkbox__tick {
       &::after {
         border-color: $core-vibrant-blue;
       }
     }
 
-    &:checked + .kolide-checkbox__tick {
+    &:checked + .fleet-checkbox__tick {
       &::after {
         background-color: $core-vibrant-blue;
         border: solid 2px $core-vibrant-blue;

@@ -143,14 +143,17 @@ const ActivityFeed = (): JSX.Element => {
     );
   };
 
+  const renderActivities = activities.map((activity: IActivity, i: number) =>
+    renderActivityBlock(activity, i)
+  );
   return (
     <div className={baseClass}>
       {isLoadingError && renderError()}
-      {!isLoadingError && !isLoading && isEmpty(activities)
-        ? renderNoActivities()
-        : activities.map((activity: IActivity, i: number) =>
-            renderActivityBlock(activity, i)
-          )}
+      {!isLoadingError && !isLoading && isEmpty(activities) ? (
+        renderNoActivities()
+      ) : (
+        <div>{renderActivities}</div>
+      )}
       {isLoading && <Spinner />}
       {!isLoadingError && !isEmpty(activities) && showMore && (
         <Button
@@ -162,7 +165,7 @@ const ActivityFeed = (): JSX.Element => {
           Load more
         </Button>
       )}
-      {!isLoadingError && !isLoading && !showMore && (
+      {!isLoadingError && !isLoading && !isEmpty(activities) && !showMore && (
         <div className={`${baseClass}__no-more-activities`}>
           <p>You have no more recorded activity.</p>
         </div>

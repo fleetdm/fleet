@@ -3,7 +3,7 @@
 
 Fleet supports the latest, stable releases of all major browsers and platforms. Specific minimum supported browser information is provided below.
 
-We test each browser on Windows whenever possible because out engineering team primarily uses macOS.
+We test each browser on Windows whenever possible, because our engineering team primarily uses macOS.
 
 **Note:** This information also applies to [fleetdm.com](https://www.fleetdm.com).
 
@@ -13,7 +13,7 @@ We test each browser on Windows whenever possible because out engineering team p
 - Firefox 28
 - IE 11
 - Edge 16
-- Safari 13.x
+- Safari 13.x (macOS only)
 
 ### Mobile
 

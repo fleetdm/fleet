@@ -108,7 +108,7 @@ func (d *Datastore) CleanupCarves(now time.Time) (int, error) {
 			return errors.Wrap(err, "IN for DELETE FROM carve_blocks")
 		}
 		stmt = tx.Rebind(stmt)
-		if _, err := d.db.Exec(stmt, args...); err != nil {
+		if _, err := tx.Exec(stmt, args...); err != nil {
 			return errors.Wrap(err, "delete carve blocks")
 		}
 
@@ -123,7 +123,7 @@ func (d *Datastore) CleanupCarves(now time.Time) (int, error) {
 			return errors.Wrap(err, "IN for UPDATE carve_metadata")
 		}
 		stmt = tx.Rebind(stmt)
-		if _, err := d.db.Exec(stmt, args...); err != nil {
+		if _, err := tx.Exec(stmt, args...); err != nil {
 			return errors.Wrap(err, "update carve_metadtata")
 		}
 

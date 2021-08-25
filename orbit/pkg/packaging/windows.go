@@ -7,9 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fleetdm/orbit/pkg/constant"
-	"github.com/fleetdm/orbit/pkg/packaging/wix"
-	"github.com/fleetdm/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -25,11 +26,11 @@ func BuildMSI(opt Options) error {
 	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
-	if err := os.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create root dir")
 	}
 	orbitRoot := filesystemRoot
-	if err := os.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create orbit dir")
 	}
 
@@ -92,7 +93,7 @@ func BuildMSI(opt Options) error {
 func writeWixFile(opt Options, rootPath string) error {
 	// PackageInfo is metadata for the pkg
 	path := filepath.Join(rootPath, "main.wxs")
-	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "mkdir")
 	}
 

@@ -7,7 +7,7 @@ describe("Label flow", () => {
   it("Create, edit, and delete a label successfully", () => {
     cy.visit("/hosts/manage");
 
-    cy.findByRole("button", { name: /add new label/i }).click();
+    cy.findByRole("button", { name: /add label/i }).click();
 
     // Using class selector because third party element doesn't work with Cypress Testing Selector Library
     cy.get(".ace_content")
@@ -40,9 +40,9 @@ describe("Label flow", () => {
       .click()
       .type("{selectall}{backspace}Select all usernames on Mac.");
 
-    cy.findByText(/select one/i).click();
+    cy.findByText(/select one/i).should("not.exist");
 
-    cy.findAllByText(/macos/i).click();
+    cy.findByText(/label platforms are immutable/i).should("exist");
 
     cy.findByRole("button", { name: /update label/i }).click();
 

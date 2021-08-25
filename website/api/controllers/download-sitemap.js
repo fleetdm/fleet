@@ -16,7 +16,6 @@ module.exports = {
   exits: {
     success: { outputFriendlyName: 'Sitemap (XML)', outputType: 'string' },
     badConfig: { responseType: 'badConfig' },
-    notFound: { responseType: 'notFound' }// « TODO: delete this and the code that calls it below when all pages are ready
   },
 
 
@@ -27,11 +26,6 @@ module.exports = {
       // and for the real thing to be served in production, while explicitly preventing the "whoops,
       // i deployed staging and search engine crawlers got fixated on the wrong sitemap" dilemma.
       throw new Error('Since this is the staging environment, prevented sitemap.xml from being served to avoid search engine accidents.');
-    }//•
-
-    if (sails.config.environment === 'production') {// TODO: Remove this once the pages are ready.
-      // Don't serve a sitemap until the pages actually work.
-      throw 'notFound';
     }
 
     if (!_.isObject(sails.config.builtStaticContent)) {
@@ -69,11 +63,9 @@ module.exports = {
     //  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╦═╗╔═╗╔╦╗  ╔╦╗╔═╗╦═╗╦╔═╔╦╗╔═╗╦ ╦╔╗╔
     //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝╠═╣║ ╦║╣ ╚═╗  ╠╣ ╠╦╝║ ║║║║  ║║║╠═╣╠╦╝╠╩╗ ║║║ ║║║║║║║
     //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝  ╚  ╩╚═╚═╝╩ ╩  ╩ ╩╩ ╩╩╚═╩ ╩═╩╝╚═╝╚╩╝╝╚╝
-    if (sails.config.environment === 'development') {
-      for (let pageInfo of sails.config.builtStaticContent.markdownPages) {
-        sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+pageInfo.url)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
-      }//∞
-    }
+    for (let pageInfo of sails.config.builtStaticContent.markdownPages) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+pageInfo.url)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
+    }//∞
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     sitemapXml += '</urlset>';
 

@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 type translatorRequest struct {
@@ -18,14 +16,6 @@ type translatorResponse struct {
 }
 
 func (r translatorResponse) error() error { return r.Err }
-
-func makeTranslatorEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, translatorEndpoint),
-		makeDecoder(translatorRequest{}),
-		opts,
-	)
-}
 
 func translatorEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*translatorRequest)

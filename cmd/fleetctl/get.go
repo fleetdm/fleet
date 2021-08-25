@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -131,7 +132,7 @@ func printHost(c *cli.Context, host *service.HostResponse) error {
 	return printSpec(c, spec)
 }
 
-func printConfig(c *cli.Context, config *fleet.AppConfigPayload) error {
+func printConfig(c *cli.Context, config *fleet.AppConfig) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
 		Version: fleet.ApiVersion,
@@ -560,6 +561,11 @@ func getHostsCommand() *cli.Command {
 		Aliases: []string{"host", "h"},
 		Usage:   "List information about one or more hosts",
 		Flags: []cli.Flag{
+			&cli.UintFlag{
+				Name:     "team",
+				Usage:    "filter hosts by team_id",
+				Required: false,
+			},
 			jsonFlag(),
 			yamlFlag(),
 			configFlag(),
@@ -575,7 +581,11 @@ func getHostsCommand() *cli.Command {
 			identifier := c.Args().First()
 
 			if identifier == "" {
-				hosts, err := client.GetHosts()
+				query := ""
+				if c.Uint("team") > 0 {
+					query = fmt.Sprintf("team_id=%d", c.Uint("team"))
+				}
+				hosts, err := client.GetHosts(query)
 				if err != nil {
 					return errors.Wrap(err, "could not list hosts")
 				}
@@ -726,7 +736,7 @@ func getCarveCommand() *cli.Command {
 			if stdout || outFile != "" {
 				out := os.Stdout
 				if outFile != "" {
-					f, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
+					f, err := secure.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
 					if err != nil {
 						return errors.Wrap(err, "open out file")
 					}

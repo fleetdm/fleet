@@ -7,6 +7,8 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "../../../buttons/Button";
 import CloseIcon from "../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import DeleteIcon from "../../../../../assets/images/icon-delete-vibrant-blue-12x14@2x.png";
+import CheckIcon from "../../../../../assets/images/icon-action-check-16x15@2x.png";
+import DisableIcon from "../../../../../assets/images/icon-action-disable-14x14@2x.png";
 
 const baseClass = "action-button";
 export interface IActionButtonProps {
@@ -53,6 +55,10 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
         return CloseIcon;
       case "delete":
         return DeleteIcon;
+      case "check":
+        return CheckIcon;
+      case "disable":
+        return DisableIcon;
       default:
         return null;
     }

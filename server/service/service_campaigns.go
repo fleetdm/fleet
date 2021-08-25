@@ -53,26 +53,35 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	}
 
 	var query *fleet.Query
+	var err error
 	if queryID != nil {
-		query, err := svc.ds.Query(*queryID)
+		query, err = svc.ds.Query(*queryID)
 		if err != nil {
 			return nil, err
 		}
 		queryString = query.Query
 	} else {
+		if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+			return nil, err
+		}
 		query = &fleet.Query{
 			Name:     fmt.Sprintf("distributed_%s_%d", vc.Email(), time.Now().Unix()),
 			Query:    queryString,
 			Saved:    false,
 			AuthorID: ptr.Uint(vc.UserID()),
 		}
+		err := query.ValidateSQL()
+		if err != nil {
+			return nil, err
+		}
+		query, err = svc.ds.NewQuery(query)
+		if err != nil {
+			return nil, errors.Wrap(err, "new query")
+		}
 	}
-	if err := query.ValidateSQL(); err != nil {
+
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRun); err != nil {
 		return nil, err
-	}
-	query, err := svc.ds.NewQuery(query)
-	if err != nil {
-		return nil, errors.Wrap(err, "new query")
 	}
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun}
@@ -87,7 +96,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	}
 
 	defer func() {
-		var numHosts uint = 0
+		var numHosts uint
 		if campaign != nil {
 			numHosts = campaign.Metrics.TotalHosts
 		}
@@ -176,7 +185,10 @@ type campaignStatus struct {
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
 	logging.WithExtras(ctx, "campaign_id", campaignID)
 
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRun); err != nil {
+	// Explicitly set ObserverCanRun: true in this check because we check that the user trying to
+	// read results is the same user that initiated the query. This means the observer check already
+	// happened with the actual value for this query.
+	if err := svc.authz.Authorize(ctx, &fleet.Query{ObserverCanRun: true}, fleet.ActionRun); err != nil {
 		level.Info(svc.logger).Log("err", "stream results authorization failed")
 		conn.WriteJSONError(authz.ForbiddenErrorMessage)
 		return
@@ -209,7 +221,10 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 	// Open the channel from which we will receive incoming query results
 	// (probably from the redis pubsub implementation)
-	readChan, err := svc.resultStore.ReadChannel(context.Background(), *campaign)
+	cancelCtx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	readChan, err := svc.resultStore.ReadChannel(cancelCtx, *campaign)
 	if err != nil {
 		conn.WriteJSONError(fmt.Sprintf("cannot open read channel for campaign %d ", campaignID))
 		return

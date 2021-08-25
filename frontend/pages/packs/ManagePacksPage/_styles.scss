@@ -1,0 +1,111 @@
+.manage-packs-page {
+  font-size: $x-small;
+
+  &__bulk-action-container {
+    display: flex;
+    align-items: center;
+  }
+
+  &__selected-count {
+    padding: 0 $pad-medium;
+  }
+
+  &__header-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__pack-count {
+    color: $core-fleet-black;
+    font-size: $x-small;
+    margin: 0;
+    padding: $pad-xlarge 0 0 0;
+  }
+
+  &__search-create-section {
+    position: relative;
+
+    input {
+      &[name="pack-filter"] {
+        width: 100%;
+        margin-top: $pad-large;
+        padding-left: 42px;
+      }
+    }
+
+    &::before {
+      display: inline-block;
+      position: absolute;
+      padding: 5px 0 0 0;
+      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
+      transform: scale(0.5);
+      top: 22px;
+      left: 8px;
+    }
+  }
+
+  &__title {
+    font-size: $large;
+
+    .fleeticon {
+      color: $core-fleet-blue;
+      margin-right: 15px;
+    }
+
+    .fleeticon-success-check {
+      color: $ui-success;
+    }
+
+    .fleeticon-offline {
+      color: $ui-error;
+    }
+
+    .fleeticon-mia {
+      color: $core-fleet-black;
+    }
+  }
+
+  &__description {
+    margin: 0 0 $pad-medium;
+    padding-top: $pad-xsmall;
+
+    h2 {
+      text-transform: uppercase;
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $small;
+    }
+
+    p {
+      color: $core-dark-blue-grey;
+      margin: 0;
+      font-size: $x-small;
+      font-style: italic;
+    }
+  }
+
+  &__wrapper {
+    padding: $pad-xxlarge 30px;
+  }
+
+  &__table {
+    color: $core-fleet-black;
+    font-size: $small;
+    width: 100%;
+  }
+
+  &__modal-btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+
+    .button {
+      margin-left: 15px;
+      width: 120px;
+    }
+  }
+
+  .button img {
+    transform: scale(0.5);
+  }
+}

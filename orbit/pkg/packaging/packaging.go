@@ -8,9 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fleetdm/orbit/pkg/constant"
-	"github.com/fleetdm/orbit/pkg/update"
-	"github.com/fleetdm/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -56,11 +57,11 @@ func copyFile(srcPath, dstPath string, perm os.FileMode) error {
 	}
 	defer src.Close()
 
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
 		return errors.Wrap(err, "create dst dir for copy")
 	}
 
-	dst, err := os.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, perm)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, perm)
 	if err != nil {
 		return errors.Wrap(err, "open dst for copy")
 	}
@@ -68,6 +69,9 @@ func copyFile(srcPath, dstPath string, perm os.FileMode) error {
 
 	if _, err := io.Copy(dst, src); err != nil {
 		return errors.Wrap(err, "copy src to dst")
+	}
+	if err := dst.Sync(); err != nil {
+		return errors.Wrap(err, "sync dst after copy")
 	}
 
 	return nil
@@ -105,7 +109,7 @@ func initializeUpdates(updateOpt update.Options) error {
 func writeSecret(opt Options, orbitRoot string) error {
 	// Enroll secret
 	path := filepath.Join(orbitRoot, "secret.txt")
-	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "mkdir")
 	}
 
@@ -117,15 +121,15 @@ func writeSecret(opt Options, orbitRoot string) error {
 }
 
 func chmodRecursive(path string, perm os.FileMode) error {
-		return filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
-			if err != nil {
-				return errors.Wrap(err, "walk error")
-			}
+	return filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return errors.Wrap(err, "walk error")
+		}
 
-			if err := os.Chmod(path, perm); err != nil {
-				return errors.Wrap(err, "chmod")
-			}
+		if err := os.Chmod(path, perm); err != nil {
+			return errors.Wrap(err, "chmod")
+		}
 
-			return nil
-		})
+		return nil
+	})
 }

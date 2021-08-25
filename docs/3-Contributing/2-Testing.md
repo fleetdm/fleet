@@ -13,7 +13,7 @@
 
 ## License key
 
-Need to test Fleet Basic features locally?
+Need to test Fleet Premium features locally?
 
 Use the `--dev_license` flag to use the default development license key.
 
@@ -31,10 +31,16 @@ Check out [the instructions in the `/tools/osquery` directory](../../tools/osque
 
 ## Test suite
 
-To execute the basic unit and integration tests, run the following from the root of the repository:
+You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```
-MYSQL_TEST=1 REDIS_TEST=1 make test
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
+```
+
+Make sure it is available in your PATH. To execute the basic unit and integration tests, run the following from the root of the repository:
+
+```
+MYSQL_TEST=1 make test
 ```
 
 It is a good idea to run `make test` before submitting a Pull Request.
@@ -91,14 +97,6 @@ To run MySQL integration tests set environment variables as follows:
 MYSQL_TEST=1 make test-go
 ```
 
-#### Redis tests
-
-To run Redis integration tests set environment variables as follows:
-
-```
-REDIS_TEST=1 make test-go
-```
-
 #### Email tests
 
 To run email related integration tests using MailHog set environment as follows:
@@ -133,14 +131,14 @@ E2E tests are run using Docker and Cypress.
 
 Make sure dependencies are up to date and the [Fleet binaries are built locally](./1-Building-Fleet.md).
 
-For Fleet Core tests:
+For Fleet Free tests:
 
 ```
 make e2e-reset-db
 make e2e-serve-core
 ```
 
-For Fleet Basic tests:
+For Fleet Premium tests:
 
 ```
 make e2e-reset-db
@@ -161,13 +159,13 @@ Tests can be run in interactive mode, or from the command line.
 
 #### Interactive
 
-For Fleet Core tests:
+For Fleet Free tests:
 
 ```
 yarn e2e-browser:core
 ```
 
-For Fleet Basic tests:
+For Fleet Premium tests:
 
 ```
 yarn e2e-browser:basic
@@ -177,13 +175,13 @@ Use the graphical UI controls to run and view tests.
 
 #### Command line
 
-For Fleet Core tests:
+For Fleet Free tests:
 
 ```
 yarn e2e-cli:core
 ```
 
-For Fleet Basic tests:
+For Fleet Premium tests:
 
 ```
 yarn e2e-cli:basic
@@ -250,13 +248,13 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
 
 Finally run one of the bash scripts located in the [/tools/api](../../tools/api/README.md) directory.
 
-The `fleet/create_core` script will generate an environment to roughly reflect an installation of Fleet Core. The script creates 3 users with different roles.
+The `fleet/create_core` script will generate an environment to roughly reflect an installation of Fleet Free. The script creates 3 users with different roles.
 
 ```
 ./tools/api/fleet/teams/create_core
 ```
 
-The `fleet/create_basic` script will generate an environment to roughly reflect an installation of Fleet Basic. The script will create 2 teams 4 users with different roles.
+The `fleet/create_basic` script will generate an environment to roughly reflect an installation of Fleet Premium. The script will create 2 teams 4 users with different roles.
 
 ```
 ./tools/api/fleet/teams/create_basic

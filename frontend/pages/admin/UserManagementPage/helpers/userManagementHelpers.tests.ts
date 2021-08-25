@@ -30,6 +30,7 @@ describe("userManagementHelpers module", () => {
 
       expect(updatedData).toEqual({
         email: "newemail@test.com",
+        global_role: "admin",
         teams: [updatedTeam, newTeam],
       });
     });

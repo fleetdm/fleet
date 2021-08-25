@@ -18,9 +18,10 @@ import (
 func TestInviteNewUserMock(t *testing.T) {
 	ms := new(mock.Store)
 	ms.UserByEmailFunc = mock.UserWithEmailNotFound()
-	ms.AppConfigFunc = mock.ReturnFakeAppConfig(&fleet.AppConfig{
-		ServerURL: "https://acme.co",
-	})
+	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://acme.co"}}, nil
+	}
+
 	ms.NewInviteFunc = func(i *fleet.Invite) (*fleet.Invite, error) {
 		return i, nil
 	}

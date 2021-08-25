@@ -1,0 +1,13 @@
+.remove-pack-modal {
+  font-size: $x-small;
+
+  &__btn-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: $pad-xxlarge;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+}

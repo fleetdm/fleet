@@ -108,7 +108,10 @@ func TestLabels(t *testing.T) {
 	assert.Len(t, labels, 1)
 
 	// Record a query execution
-	err = db.RecordLabelQueryExecutions(host, map[uint]bool{1: true, 2: false, 3: true, 4: false, 5: false}, baseTime)
+	err = db.RecordLabelQueryExecutions(
+		host, map[uint]*bool{
+			1: ptr.Bool(true), 2: ptr.Bool(false), 3: ptr.Bool(true), 4: ptr.Bool(false), 5: ptr.Bool(false),
+		}, baseTime)
 	assert.Nil(t, err)
 
 	host, err = db.Host(host.ID)
@@ -240,10 +243,6 @@ func TestSearchLabelsLimit(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
 
-	if db.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
-
 	all := &fleet.LabelSpec{
 		Name:      "All Hosts",
 		LabelType: fleet.LabelTypeBuiltIn,
@@ -321,7 +320,7 @@ func TestListHostsInLabel(t *testing.T) {
 	}
 
 	for _, h := range []*fleet.Host{h1, h2, h3} {
-		err = db.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
@@ -369,7 +368,7 @@ func TestListHostsInLabelAndStatus(t *testing.T) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	for _, h := range []*fleet.Host{h1, h2} {
-		err = db.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
@@ -385,6 +384,83 @@ func TestListHostsInLabelAndStatus(t *testing.T) {
 		require.Nil(t, err)
 		require.Len(t, hosts, 1)
 		assert.Equal(t, "bar.local", hosts[0].Hostname)
+	}
+}
+
+func TestListHostsInLabelAndTeamFilter(t *testing.T) {
+	db := CreateMySQLDS(t)
+	defer db.Close()
+
+	h1, err := db.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.Nil(t, err)
+
+	lastSeenTime := time.Now().Add(-1000 * time.Hour)
+	h2, err := db.NewHost(&fleet.Host{
+		DetailUpdatedAt: lastSeenTime,
+		LabelUpdatedAt:  lastSeenTime,
+		SeenTime:        lastSeenTime,
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		UUID:            "2",
+		Hostname:        "bar.local",
+	})
+	require.Nil(t, err)
+
+	l1 := &fleet.LabelSpec{
+		ID:    1,
+		Name:  "label foo",
+		Query: "query1",
+	}
+	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{l1})
+	require.Nil(t, err)
+
+	team1, err := db.NewTeam(&fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	team2, err := db.NewTeam(&fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	require.NoError(t, db.AddHostsToTeam(&team1.ID, []uint{h1.ID}))
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	for _, h := range []*fleet.Host{h1, h2} {
+		err = db.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
+		assert.Nil(t, err)
+	}
+
+	{
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline})
+		require.Nil(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, "foo.local", hosts[0].Hostname)
+	}
+
+	{
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA})
+		require.Nil(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, "bar.local", hosts[0].Hostname)
+	}
+
+	{
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID})
+		require.Nil(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, "foo.local", hosts[0].Hostname)
+	}
+
+	{
+		hosts, err := db.ListHostsInLabel(filter, l1.ID, fleet.HostListOptions{TeamFilter: &team2.ID})
+		require.Nil(t, err)
+		require.Len(t, hosts, 0)
 	}
 }
 
@@ -439,12 +515,12 @@ func TestListUniqueHostsInLabels(t *testing.T) {
 	require.Nil(t, err)
 
 	for i := 0; i < 3; i++ {
-		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]bool{l1.ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 	// host 2 executes twice
 	for i := 2; i < len(hosts); i++ {
-		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]bool{l2.ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
@@ -463,10 +539,6 @@ func TestListUniqueHostsInLabels(t *testing.T) {
 func TestChangeLabelDetails(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
-
-	if db.Name() == "inmem" {
-		t.Skip("inmem is being deprecated")
-	}
 
 	label := fleet.LabelSpec{
 		ID:          1,
@@ -599,4 +671,36 @@ func TestSaveLabel(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
+}
+
+func TestLabelQueriesForCentOSHost(t *testing.T) {
+	db := CreateMySQLDS(t)
+	defer db.Close()
+
+	host, err := db.EnrollHost("0", "0", nil, 0)
+	require.Nil(t, err, "enrollment should succeed")
+	host.Platform = "rhel"
+	host.OSVersion = "CentOS 6"
+	require.NoError(t, db.SaveHost(host))
+
+	label, err := db.NewLabel(&fleet.Label{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
+		},
+		ID:                  42,
+		Name:                "centos labe",
+		Query:               "select 1;",
+		Platform:            "centos",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	baseTime := time.Now().Add(-5 * time.Minute)
+
+	queries, err := db.LabelQueriesForHost(host, baseTime)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
 }

@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/fleetdm/orbit/pkg/constant"
-	"github.com/fleetdm/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/goreleaser/nfpm/v2"
 	"github.com/goreleaser/nfpm/v2/files"
 	"github.com/pkg/errors"
@@ -26,11 +27,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
-	if err := os.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create root dir")
 	}
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
-	if err := os.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create orbit dir")
 	}
 
@@ -127,7 +128,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	}
 	filename := pkger.ConventionalFileName(info)
 
-	out, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, constant.DefaultFileMode)
+	out, err := secure.OpenFile(filename, os.O_CREATE|os.O_RDWR, constant.DefaultFileMode)
 	if err != nil {
 		return errors.Wrap(err, "open output file")
 	}
@@ -136,6 +137,9 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	if err := pkger.Package(info, out); err != nil {
 		return errors.Wrap(err, "write package")
 	}
+	if err := out.Sync(); err != nil {
+		return errors.Wrap(err, "sync output file")
+	}
 	log.Info().Str("path", filename).Msg("wrote package")
 
 	return nil
@@ -143,7 +147,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 
 func writeSystemdUnit(opt Options, rootPath string) error {
 	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
-	if err := os.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create systemd dir")
 	}
 	if err := ioutil.WriteFile(
@@ -188,7 +192,7 @@ ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
 
 func writeEnvFile(opt Options, rootPath string) error {
 	envRoot := filepath.Join(rootPath, "etc", "default")
-	if err := os.MkdirAll(envRoot, constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(envRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create env dir")
 	}
 

@@ -37,8 +37,12 @@ describe("Core tier - Admin user", () => {
     cy.contains(/team/i).should("not.exist");
     cy.findByRole("button", { name: /done/i }).click();
 
-    // See and select "add new label"
-    cy.findByRole("button", { name: /new label/i }).click();
+    // See the “Show enroll secret” button. A modal appears after the user selects the button
+    cy.contains("button", /show enroll secret/i).click();
+    cy.contains("button", /done/i).click();
+
+    // See and select "add label"
+    cy.findByRole("button", { name: /add label/i }).click();
     cy.findByRole("button", { name: /cancel/i }).click();
 
     // On the Host details page, they should…
@@ -94,7 +98,7 @@ describe("Core tier - Admin user", () => {
     });
 
     cy.contains("a", /back to queries/i).click({ force: true });
-    cy.findByText(/cypress test query/i).click();
+    cy.findByText(/cypress test query/i).click({ force: true });
     cy.findByText(/edit & run query/i).should("exist");
 
     // On the Packs pages (manage, new, and edit), they should…
@@ -112,5 +116,11 @@ describe("Core tier - Admin user", () => {
     cy.findByText(/team/i).should("not.exist");
     cy.visit("/settings/teams");
     cy.findByText(/you do not have permissions/i).should("exist");
+
+    // On the Profile page, they should…
+    // See Admin in Role section, and no Team section
+    cy.visit("/profile");
+    cy.findByText(/teams/i).should("not.exist");
+    cy.findByText("Role").next().contains(/admin/i);
   });
 });

@@ -9,7 +9,8 @@
 - [Queries](#queries)
 - [Schedule](#schedule)
 - [Packs](#packs)
-- [Activities](#activities) 
+- [Policies](#policies)
+- [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
@@ -480,6 +481,9 @@ This is the callback endpoint that the identity provider will use to send securi
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
+| policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -598,90 +602,119 @@ The endpoint returns the host's installed `software` if the software inventory f
 
 ```
 {
-    "host": {
-        "created_at": "2021-01-19T18:04:12Z",
-        "updated_at": "2021-01-19T20:21:27Z",
-        "id": 121,
-        "detail_updated_at": "2021-01-19T20:04:22Z",
-        "label_updated_at": "2021-01-19T20:04:22Z",
-        "last_enrolled_at": "2021-01-19T18:04:12Z",
-        "seen_time": "2021-01-19T20:21:27Z",
-        "hostname": "259404d30eb6",
-        "uuid": "f01c4390-0000-0000-a1e5-14346a5724dc",
-        "platform": "ubuntu",
-        "osquery_version": "2.10.2",
-        "os_version": "Ubuntu 14.4.0",
-        "build": "",
-        "platform_like": "debian",
-        "code_name": "",
-        "uptime": 11202000000000,
-        "memory": 2085326848,
-        "cpu_type": "6",
-        "cpu_subtype": "142",
-        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-        "cpu_physical_cores": 4,
-        "cpu_logical_cores": 4,
-        "hardware_vendor": "",
-        "hardware_model": "",
-        "hardware_version": "",
-        "hardware_serial": "",
-        "computer_name": "259404d30eb6",
-        "primary_ip": "172.19.0.4",
-        "primary_mac": "02:42:ac:13:00:04",
-        "distributed_interval": 10,
-        "config_tls_refresh": 10,
-        "logger_tls_period": 10,
-        "additional": {},
-        "status": "offline",
-        "display_text": "259404d30eb6",
-        "team_id": null,
-        "team_name": null,
-        "labels": [
-          {
-            "created_at": "2021-01-14T16:37:24Z",
-            "updated_at": "2021-01-14T16:37:24Z",
-            "id": 6,
-            "name": "All Hosts",
-            "description": "All hosts which have enrolled in Fleet",
-            "query": "select 1;",
-            "label_type": "builtin",
-            "label_membership_type": "dynamic"
-          },
-          {
-            "created_at": "2021-01-14T16:37:24Z",
-            "updated_at": "2021-01-14T16:37:24Z",
-            "id": 7,
-            "name": "macOS",
-            "description": "All macOS hosts",
-            "query": "select 1 from os_version where platform = 'darwin';",
-            "label_type": "builtin",
-            "label_membership_type": "dynamic"
-          }
-        ],
-        "packs": [
-          {
-            "created_at": "2021-01-17T00:02:35Z",
-            "updated_at": "2021-01-17T00:02:35Z",
-            "id": 1,
-            "name": "osquery_monitoring"
-          }
-        ],
-        "pack_stats": null,
-        "software": [
-          {
-            "id": 1,
-            "name": "CentOS Linux $releasever - AppStream",
-            "version": "",
-            "source": "yum_packages",
-          },
-          {
-            "id": 2,
-            "name": "curl",
-            "version": "7.61.1",
-            "source": "rpm_packages",
-          },
-        ]
-    }
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "software": [
+      {
+        "id": 408,
+        "name": "osquery",
+        "version": "4.5.1",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 1146,
+        "name": "tar",
+        "version": "1.30",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      }
+    ],
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
+    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "platform": "rhel",
+    "osquery_version": "4.5.1",
+    "os_version": "CentOS Linux 8.3.2011",
+    "build": "",
+    "platform_like": "rhel",
+    "code_name": "",
+    "uptime": 210671000000000,
+    "memory": 16788398080,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "158",
+    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
+    "cpu_physical_cores": 12,
+    "cpu_logical_cores": 12,
+    "hardware_vendor": "",
+    "hardware_model": "",
+    "hardware_version": "",
+    "hardware_serial": "",
+    "computer_name": "23cfc9caacf0",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
+    "distributed_interval": 10,
+    "config_tls_refresh": 10,
+    "logger_tls_period": 10,
+    "team_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "additional": {},
+    "gigs_disk_space_available": 46.1,
+    "percent_disk_space_available": 73,
+    "users": [
+      {
+        "id": 98,
+        "uid": 0,
+        "username": "root",
+        "type": "",
+        "groupname": "root"
+      },
+      {
+        "id": 99,
+        "uid": 1,
+        "username": "bin",
+        "type": "",
+        "groupname": "bin"
+      },
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "select 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 9,
+        "name": "CentOS Linux",
+        "description": "All CentOS hosts",
+        "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 12,
+        "name": "All Linux",
+        "description": "All Linux distributions",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
+    ],
+    "packs": [],
+    "status": "online",
+    "display_text": "23cfc9caacf0"
+  }
 }
 ```
 
@@ -745,6 +778,8 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "display_text": "2ceca32fe484",
     "team_id": null,
     "team_name": null,
+    "gigs_disk_space_available": 45.86,
+    "percent_disk_space_available": 73,
     "pack_stats": null,
   }
 }
@@ -800,7 +835,7 @@ Flags the host details to be refetched the next time the host checks in for live
 
 ### Transfer hosts to a team
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `POST /api/v1/fleet/hosts/transfer`
 
@@ -834,7 +869,7 @@ _Available in Fleet Basic_
 
 ### Transfer hosts to a team by filter
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `POST /api/v1/fleet/hosts/transfer/filter`
 
@@ -937,18 +972,17 @@ Creates a dynamic label.
 
 ### Modify label
 
-Modifies the specified label. Note: Label queries are immutable. To change the query, you must delete the label and create a new label.
+Modifies the specified label. Note: Label queries and platforms are immutable. To change these, you must delete the label and create a new label.
 
 `PATCH /api/v1/fleet/labels/{id}`
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                                                                                                                                                  |
-| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id          | integer | path | **Required**. The label's id.                                                                                                                                                                                                                |
-| name        | string  | body | The label's name.                                                                                                                                                                                                                            |
-| description | string  | body | The label's description.                                                                                                                                                                                                                     |
-| platform    | string  | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
+| Name        | Type    | In   | Description                   |
+| ----------- | ------- | ---- | ----------------------------- |
+| id          | integer | path | **Required**. The label's id. |
+| name        | string  | body | The label's name.             |
+| description | string  | body | The label's description.      |
 
 #### Example
 
@@ -1139,7 +1173,9 @@ Returns a list of the hosts that belong to the specified label.
 | id              | integer | path  | **Required**. The label's id.                                                                                                 |
 | order_key       | string  | query | What to order results by. Can be any column in the hosts table.                                                               |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                              |
 | query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
+| team_id         | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                   |
 
 #### Example
 
@@ -1160,6 +1196,7 @@ Returns a list of the hosts that belong to the specified label.
       "label_updated_at": "2021-02-03T21:58:10Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
       "seen_time": "2021-02-03T21:58:20Z",
+      "refetch_requested": false,
       "hostname": "floobar42",
       "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
       "platform": "ubuntu",
@@ -1251,7 +1288,7 @@ If the `label_membership_type` is set to `dynamic`, the `query` property must al
 
 If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of hostnames.
 
-`POST /api/v1/fleet/specs/labels`
+`POST /api/v1/fleet/spec/labels`
 
 #### Parameters
 
@@ -1261,7 +1298,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 #### Example
 
-`POST /api/v1/fleet/specs/labels`
+`POST /api/v1/fleet/spec/labels`
 
 ##### Request body
 
@@ -1296,7 +1333,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ### Get labels specs
 
-`GET /api/v1/fleet/specs/labels`
+`GET /api/v1/fleet/spec/labels`
 
 #### Parameters
 
@@ -1430,7 +1467,7 @@ Returns a list of all enabled users
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| team_id         | string  | query | _Available in Fleet Basic_ Filters the users to only include users in the specified team.                                     |
+| team_id         | string  | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                   |
 
 #### Example
 
@@ -1453,11 +1490,10 @@ None.
       "id": 1,
       "name": "Jane Doe",
       "email": "janedoe@example.com",
-      "global_role": null,
-      "enabled": true,
       "force_password_reset": false,
       "gravatar_url": "",
       "sso_enabled": false,
+      "global_role": null,
       "api_only": false,
       "teams": [
         {
@@ -1497,15 +1533,15 @@ Creates a user account after an invited user provides registration information a
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                                                                                                                                                                                                                                                                                                            |
-| --------------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| email                 | string | body | **Required**. The email address of the user.                                                                                                                                                                                                                                                                                                           |
-| invite_token          | string | body | **Required**. Token provided to the user in the invitation email.                                                                                                                                                                                                                                                                                      |
-| name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                    |
-| password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                     |
-| password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                       |
-| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
-| teams                 | array  | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| Name                  | Type   | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| email                 | string | body | **Required**. The email address of the user.                                                                                                                                                                                                                                                                                                             |
+| invite_token          | string | body | **Required**. Token provided to the user in the invitation email.                                                                                                                                                                                                                                                                                        |
+| name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
+| password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
+| password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
+| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
+| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -1613,15 +1649,15 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                            |
-| ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                |
-| name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                        |
-| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                      |
-| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
-| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
-| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
-| teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                  |
+| name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
+| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
+| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
+| teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -1731,12 +1767,11 @@ Returns all information about a specific user.
     "id": 2,
     "name": "Jane Doe",
     "email": "janedoe@example.com",
-    "global_role": "admin",
-    "api_only": false,
-    "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "global_role": "admin",
+    "api_only": false,
     "teams": []
   }
 }
@@ -1764,16 +1799,16 @@ Returns all information about a specific user.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                            |
-| ----------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| id          | integer | path | **Required**. The user's id.                                                                                                                                                                                                                                                                                                                           |
-| name        | string  | body | The user's name.                                                                                                                                                                                                                                                                                                                                       |
-| position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                   |
-| email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                      |
-| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                            |
-| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                |
-| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                       |
-| teams       | array   | body | _Available in Fleet Basic_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id          | integer | path | **Required**. The user's id.                                                                                                                                                                                                                                                                                                                             |
+| name        | string  | body | The user's name.                                                                                                                                                                                                                                                                                                                                         |
+| position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                     |
+| email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                        |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
+| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
+| teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -2106,9 +2141,9 @@ Returns the query specified by ID.
     "description": "",
     "query": "select 1 from os_version where platform = \"centos\";",
     "saved": true,
+    "observer_can_run": true,
     "author_id": 1,
     "author_name": "John",
-    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2156,9 +2191,9 @@ Returns a list of all queries in the Fleet instance.
     "description": "query",
     "query": "SELECT * FROM osquery_info",
     "saved": true,
+    "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
-    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-05T21:13:04Z",
@@ -2179,9 +2214,9 @@ Returns a list of all queries in the Fleet instance.
     "description": "Report performance stats for each file in the query schedule.",
     "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
     "saved": true,
+    "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
-    "observer_can_run": true,
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2488,7 +2523,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 {}
 ```
 
-### Check live query status
+### Live query health check
 
 Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 
@@ -2510,7 +2545,7 @@ None.
 {}
 ```
 
-### Check result store status
+### live query result store health check
 
 Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 
@@ -2534,61 +2569,9 @@ None.
 
 ### Run live query
 
-Run a live query.
-
-`POST /api/v1/fleet/queries/run`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                                                                |
-| -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query    | string  | body | The SQL if using a custom query.                                                                                                                           |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                |
-| selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
-
-One of `query` and `query_id` must be specified.
-
-#### Example with one host targeted by ID
-
-`POST /api/v1/fleet/queries/run`
-
-#### Example
-
-`GET /api/v1/fleet/status/live_query`
-
-##### Default response
-
-`Status: 200`
-
-```
-{}
-```
-
-### Check result store status
-
-`POST /api/v1/fleet/queries/run`
-
-`GET /api/v1/fleet/status/result_store`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/status/result_store`
-
-##### Default response
-
-`Status: 200`
-
-```
-{}
-```
-
-### Run live query
-
 Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
+
+After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
 `POST /api/v1/fleet/queries/run`
 
@@ -2682,7 +2665,9 @@ One of `query` and `query_id` must be specified.
 
 ### Run live query by name
 
-Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
+Runs the specified saved query as a live query on the specified targets. Returns a new live query campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
+
+After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
 `POST /api/v1/fleet/queries/run_by_names`
 
@@ -2782,7 +2767,9 @@ One of `query` and `query_id` must be specified.
 
 You can retrieve the results of a live query using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
 
-Before you retrieve the live query results, you must create a live query campaign by running the live query. See the documentation for the [Run live query](#run-live-query) endpoint to create a live query campaign.
+Before you retrieve the live query results, you must create a live query campaign by running the live query. Use the [Run live query](#run-live-query) or [Run live query by name](#run-live-query-by-name) endpoints to create a live query campaign.
+
+Note that live queries are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the query.
 
 `/api/v1/fleet/results/websockets`
 
@@ -2922,6 +2909,8 @@ o
 ### Retrieve live query results (SockJS)
 
 You can also retrieve live query results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
+
+Note that SockJS has been found to be substantially less reliable than the [standard WebSockets approach](#retrieve-live-query-results-standard-websocket-api).
 
 `/api/v1/fleet/results/`
 
@@ -3082,6 +3071,10 @@ For those familiar with osquery query packs, Fleet's query schedule can be thoug
 
 None.
 
+#### Example
+
+`GET /api/v1/fleet/global/schedule`
+
 ##### Default response
 
 `Status: 200`
@@ -3101,6 +3094,8 @@ None.
       "interval": 120,
       "snapshot": true,
       "removed": null,
+      "platform": "",
+      "version": "",
       "shard": null,
       "denylist": null
     },
@@ -3116,6 +3111,8 @@ None.
       "interval": 86400,
       "snapshot": true,
       "removed": null,
+      "platform": "",
+      "version": "",
       "shard": null,
       "denylist": null
     }
@@ -3171,6 +3168,8 @@ None.
     "interval": 86400,
     "snapshot": true,
     "removed": null,
+    "platform": "",
+    "version": "",
     "shard": null,
     "denylist": null
   }
@@ -3255,6 +3254,7 @@ None.
 ---
 
 ### Team schedule
+
 - [Get team schedule](#get-team-schedule)
 - [Add query to team schedule](#add-query-to-team-schedule)
 - [Edit query in team schedule](#edit-query-in-team-schedule)
@@ -3300,6 +3300,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "query": "select * from arp_cache;",
       "interval": 120,
       "snapshot": true,
+      "platform": "",
+      "version": "",
       "removed": null,
       "shard": null,
       "denylist": null
@@ -3316,6 +3318,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 86400,
       "snapshot": true,
       "removed": null,
+      "platform": "",
+      "version": "",
       "shard": null,
       "denylist": null
     }
@@ -3438,10 +3442,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Parameters
 
-| Name               | Type    | In   | Description                                                                                                   |
-| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id            | integer | path | **Required.** The team's ID.                                                                                  |
-| scheduled_query_id | integer | path | **Required.** The scheduled query's ID.                                                                       |
+| Name               | Type    | In   | Description                             |
+| ------------------ | ------- | ---- | --------------------------------------- |
+| team_id            | integer | path | **Required.** The team's ID.            |
+| scheduled_query_id | integer | path | **Required.** The scheduled query's ID. |
 
 #### Example
 
@@ -3454,6 +3458,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 ```
 {}
 ```
+
 ---
 
 ## Packs
@@ -3479,13 +3484,13 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Parameters
 
-| Name        | Type   | In   | Description                                                           |
-| ----------- | ------ | ---- | --------------------------------------------------------------------- |
-| name        | string | body | **Required**. The pack's name.                                        |
-| description | string | body | The pack's description.                                               |
-| host_ids    | list   | body | A list containing the targeted host IDs.                              |
-| label_ids   | list   | body | A list containing the targeted label's IDs.                           |
-| team_ids    | list   | body | _Available in Fleet Basic_ A list containing the targeted teams' IDs. |
+| Name        | Type   | In   | Description                                                             |
+| ----------- | ------ | ---- | ----------------------------------------------------------------------- |
+| name        | string | body | **Required**. The pack's name.                                          |
+| description | string | body | The pack's description.                                                 |
+| host_ids    | list   | body | A list containing the targeted host IDs.                                |
+| label_ids   | list   | body | A list containing the targeted label's IDs.                             |
+| team_ids    | list   | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -3531,14 +3536,14 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                           |
-| ----------- | ------- | ---- | --------------------------------------------------------------------- |
-| id          | integer | path | **Required.** The pack's id.                                          |
-| name        | string  | body | The pack's name.                                                      |
-| description | string  | body | The pack's description.                                               |
-| host_ids    | list    | body | A list containing the targeted host IDs.                              |
-| label_ids   | list    | body | A list containing the targeted label's IDs.                           |
-| team_ids    | list    | body | _Available in Fleet Basic_ A list containing the targeted teams' IDs. |
+| Name        | Type    | In   | Description                                                             |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------- |
+| id          | integer | path | **Required.** The pack's id.                                            |
+| name        | string  | body | The pack's name.                                                        |
+| description | string  | body | The pack's description.                                                 |
+| host_ids    | list    | body | A list containing the targeted host IDs.                                |
+| label_ids   | list    | body | A list containing the targeted label's IDs.                             |
+| team_ids    | list    | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
 
 #### Example
 
@@ -3745,7 +3750,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 456,
       "snapshot": false,
       "removed": true,
-      "shard": null
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3759,7 +3767,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 677,
       "snapshot": true,
       "removed": false,
-      "shard": null
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3773,7 +3784,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "interval": 6667,
       "snapshot": true,
       "removed": false,
-      "shard": null
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
     },
   ]
 }
@@ -3874,7 +3888,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
     "removed": true,
     "platform": "windows",
     "version": "4.5.0",
-    "shard": 10
+    "shard": 10,
+    "denylist": null,
   }
 }
 ```
@@ -3988,7 +4003,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 456,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "windows",
+          "version": "4.5.0"
         },
         {
           "query": "new_title_for_my_query",
@@ -3996,7 +4013,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 677,
           "snapshot": true,
-          "removed": false
+          "removed": false,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "osquery_info",
@@ -4004,7 +4023,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 6667,
           "snapshot": true,
-          "removed": false
+          "removed": false,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "query1",
@@ -4012,7 +4033,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 7767,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "osquery_events",
@@ -4020,7 +4043,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 454,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "",
+          "version": ""
         },
         {
           "query": "osquery_events",
@@ -4028,7 +4053,9 @@ Returns the specs for all packs in the Fleet instance.
           "description": "",
           "interval": 120,
           "snapshot": false,
-          "removed": true
+          "removed": true,
+          "platform": "",
+          "version": ""
         }
       ]
     },
@@ -4047,7 +4074,10 @@ Returns the specs for all packs in the Fleet instance.
           "interval": 333,
           "snapshot": false,
           "removed": true,
-          "platform": "windows"
+          "platform": "windows",
+          "version": "4.5.0",
+          "shard": 10,
+          "denylist": null
         }
       ]
     },
@@ -4207,7 +4237,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 677,
         "snapshot": true,
-        "removed": false
+        "removed": false,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "osquery_info",
@@ -4215,7 +4247,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 6667,
         "snapshot": true,
-        "removed": false
+        "removed": false,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "query1",
@@ -4223,7 +4257,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 7767,
         "snapshot": false,
-        "removed": true
+        "removed": true,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "osquery_events",
@@ -4231,7 +4267,9 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 454,
         "snapshot": false,
-        "removed": true
+        "removed": true,
+        "platform": "",
+        "version": "",
       },
       {
         "query": "osquery_events",
@@ -4239,10 +4277,164 @@ Returns the spec for the specified pack by pack name.
         "description": "",
         "interval": 120,
         "snapshot": false,
-        "removed": true
+        "removed": true,
+        "platform": "",
+        "version": "",
       }
     ]
   }
+}
+```
+
+---
+
+## Policies
+
+- [List policies](#list-policies)
+- [Get policy by ID](#get-policy-by-id)
+- [Add policy](#add-policy)
+- [Remove policies](#remove-policies)
+
+`In Fleet 4.3.0, the Policies feature was introduced.`
+
+Policies allow you to see which hosts meet a certain standard.
+
+Policies in Fleet are defined by osquery queries.
+
+Host that return results for a policy's query are "Passing."
+
+Hosts that do not return results for a policy's query are "Failing."
+
+### List policies
+
+`GET /api/v1/fleet/global/policies`
+
+#### Example
+
+`GET /api/v1/fleet/global/policies`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policies": [
+    {
+      "id": 1,
+      "query_id": 2,
+      "query_name": "Gatekeeper enabled",
+      "passing_host_count": 2000,
+      "failing_host_count": 300,
+    },
+    {
+      "id": 2,
+      "query_id": 3,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 2300,
+      "failing_host_count": 0,
+    }
+  ]
+}
+```
+
+### Get policy by ID
+
+`GET /api/v1/fleet/global/policies/{id}`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| id          | integer | path | **Required.** The policy's ID.                                                                                  |
+
+#### Example
+
+`GET /api/v1/fleet/global/policies/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+    "id": 1,
+    "query_id": 2,
+    "query_name": "Gatekeeper enabled",
+    "passing_host_count": 2000,
+    "failing_host_count": 300,
+  }
+}
+```
+
+### Add policy
+
+`POST /api/v1/fleet/global/policies`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                    |
+| -------- | ------- | ---- | ------------------------------ |
+| query_id | integer | body | **Required.** The query's ID.  |
+
+#### Example
+
+`POST /api/v1/fleet/global/policies`
+
+#### Request body
+
+```
+{
+  "query_id": 12
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+      "id": 2,
+      "query_id": 2,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 0,
+      "failing_host_count": 0,
+    },
+}
+```
+
+### Remove policies
+
+`POST /api/v1/fleet/global/policies/delete`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                       |
+| -------- | ------- | ---- | ------------------------------------------------- |
+| ids      | list    | body | **Required.** The IDs of the policies to delete.  |
+
+#### Example
+
+`POST /api/v1/fleet/global/policies/delete`
+
+#### Request body
+
+```
+{
+  "ids": [ 1 ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "deleted": 1
 }
 ```
 
@@ -4253,6 +4445,7 @@ Returns the spec for the specified pack by pack name.
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet. The following types of activity are included:
+
 - Created pack
 - Edited pack
 - Deleted pack
@@ -4262,8 +4455,8 @@ Returns a list of the activities that have been performed in Fleet. The followin
 - Deleted saved query
 - Applied query spec
 - Ran live query
-- Created team - *Available in Fleet Basic*
-- Deleted team - *Available in Fleet Basic*
+- Created team - _Available in Fleet Premium_
+- Deleted team - _Available in Fleet Premium_
 
 `GET /api/v1/fleet/activities`
 
@@ -4273,7 +4466,7 @@ Returns a list of the activities that have been performed in Fleet. The followin
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                             |
+| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
@@ -4640,7 +4833,8 @@ None.
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
-    "live_query_disabled": false
+    "live_query_disabled": false,
+    "enable_analytics": true
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -4664,7 +4858,8 @@ None.
     "metadata": "",
     "metadata_url": "",
     "idp_name": "",
-    "enable_sso": false
+    "enable_sso": false,
+    "enable_sso_idp_login": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -4672,10 +4867,6 @@ None.
   },
   "host_settings": {
     "additional_queries": null
-  },
-  "license": {
-    "tier": "core",
-    "expiration": "0001-01-01T00:00:00Z"
   },
   "agent_options": {
     "spec": {
@@ -4699,6 +4890,65 @@ None.
       },
       "overrides": {}
     }
+  },
+  "license": {
+    "tier": "core",
+    "expiration": "0001-01-01T00:00:00Z"
+  },
+  "vulnerability_settings": null,
+  "logging": {
+      "debug": false,
+      "json": false,
+      "result": {
+          "plugin": "firehose",
+          "config": {
+              "region": "us-east-1",
+              "status_stream": "",
+              "result_stream": "result-topic"
+          }
+      },
+      "status": {
+          "plugin": "filesystem",
+          "config": {
+              "status_log_file": "foo_status",
+              "result_log_file": "",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+          }
+      }
+  }
+  "license": {
+    "tier": "core",
+    "organization": "fleet",
+    "device_count": 100,
+    "expiration": "2021-12-31T19:00:00-05:00",
+    "note": ""
+  },
+  "vulnerability_settings": null,
+  "logging": {
+    "debug": false,
+    "json": false,
+    "result": {
+        "plugin": "filesystem",
+        "config": {
+          "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+          "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+          "enable_log_rotation": false,
+          "enable_log_compression": false
+        }
+      },
+    "status": {
+      "plugin": "filesystem",
+      "config": {
+        "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+        "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+        "enable_log_rotation": false,
+        "enable_log_compression": false
+      }
+    }
+  }
+  "update_interval": {
+    "osquery_detail": "1hr"
   }
 }
 ```
@@ -4804,11 +5054,64 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "host_settings": {
     "additional_queries": null
+  },
+  "license": {
+    "tier": "core",
+    "expiration": "0001-01-01T00:00:00Z"
+  },
+  "license": {
+    "tier": "core",
+    "expiration": "0001-01-01T00:00:00Z"
+  },
+  "agent_options": {
+    "spec": {
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
+        },
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {}
+    }
+  },
+  "vulnerability_settings": null,
+  "logging": {
+      "debug": false,
+      "json": false,
+      "result": {
+          "plugin": "firehose",
+          "config": {
+              "region": "us-east-1",
+              "status_stream": "",
+              "result_stream": "result-topic"
+          }
+      },
+      "status": {
+          "plugin": "filesystem",
+          "config": {
+              "status_log_file": "foo_status",
+              "result_log_file": "",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+          }
+      }
   }
 }
 ```
 
-### Get global enroll secret(s)
+### Get enroll secrets
 
 Returns the valid global enroll secrets.
 
@@ -4832,20 +5135,18 @@ None.
     "secrets": [
       {
         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        "created_at": "2021-01-07T19:40:04Z",
-        "team_id": null
+        "created_at": "2021-01-07T19:40:04Z"
       },
       {
         "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On",
-        "created_at": "2021-01-04T21:18:07Z",
-        "team_id": null
+        "created_at": "2021-01-04T21:18:07Z"
       }
     ]
   }
 }
 ```
 
-### Modify enroll secret(s)
+### Modify enroll secrets
 
 Replaces the active global enroll secrets with the secrets specified.
 
@@ -4919,13 +5220,13 @@ None.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                                                                                                                                         |
-| ----------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                     |
-| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                           |
-| name        | string  | body | **Required.** The name of the invited user.                                                                                                         |
-| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                              |
-| teams       | list    | body | _Available in Fleet Basic_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+| Name        | Type    | In   | Description                                                                                                                                           |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                       |
+| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
+| name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
+| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
+| teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
 
@@ -4962,18 +5263,31 @@ None.
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 3,
+    "invited_by": 1
     "email": "john_appleseed@example.com",
     "name": "John",
     "sso_enabled": false,
     "teams": [
       {
-        "id": 2,
-        "role: "observer"
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
       },
       {
-        "id": 3,
-        "role: "maintainer"
-      },
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
     ]
   }
 }
@@ -5271,7 +5585,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ### List teams
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `GET /api/v1/fleet/teams`
 
@@ -5297,43 +5611,46 @@ _Available in Fleet Basic_
 {
   "teams: [
     {
-      "name": "workstations",
       "id": 1.
-      "user_ids": [],
-      "host_ids": [],
+      "created_at": "2021-07-28T15:58:21Z",
+      "name": "workstations",
+      "description": "",
+      "agent_options": {
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
+          },
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {}
+      },
       "user_count": 0,
       "host_count": 0,
-      "agent_options": {
-        "spec": {
-          "config": {
-            "options": {
-              "logger_plugin": "tls",
-              "pack_delimiter": "/",
-              "logger_tls_period": 10,
-              "distributed_plugin": "tls",
-              "disable_distributed": false,
-              "logger_tls_endpoint": "/api/v1/osquery/log",
-              "distributed_interval": 10,
-              "distributed_tls_max_attempts": 3
-            },
-            "decorators": {
-              "load": [
-                "SELECT uuid AS host_uuid FROM system_info;",
-                "SELECT hostname AS hostname FROM system_info;"
-              ]
-            }
-          },
-          "overrides": {}
+      "secrets": [
+        {
+          "secret": "",
+          "created_at": "2021-07-28T15:58:21Z",
+          "team_id": 10
         }
-      }
+      ]
     },
     {
-      "name": "servers",
       "id": 2,
-      "user_ids": [],
-      "host_ids": [],
-      "user_count": 0,
-      "host_count": 0,
+      "created_at": "2021-08-05T21:41:42Z",
+      "name": "servers",
+      "description": "",
       "agent_options": {
         "spec": {
           "config": {
@@ -5355,8 +5672,16 @@ _Available in Fleet Basic_
             }
           },
           "overrides": {}
+        },
+      "user_count": 0,
+      "host_count": 0,
+      "secrets": [
+        {
+          "secret": "+ncixtnZB+IE0OrbrkCLeul3U8LMVITd",
+          "created_at": "2021-08-05T21:41:42Z",
+          "team_id": 15
         }
-      }
+      ]
     }
   ]
 }
@@ -5364,7 +5689,7 @@ _Available in Fleet Basic_
 
 ### Create team
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `POST /api/v1/fleet/teams`
 
@@ -5430,7 +5755,7 @@ _Available in Fleet Basic_
 
 ### Modify team
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `PATCH /api/v1/fleet/teams/{id}`
 
@@ -5623,7 +5948,7 @@ _Available in Fleet Basic_
 
 ### Delete team
 
-_Available in Fleet Basic_
+_Available in Fleet Premium_
 
 `DELETE /api/v1/fleet/teams/{id}`
 
@@ -5651,14 +5976,13 @@ _Available in Fleet Basic_
 
 ### Translate IDs
 
-
 `POST /api/v1/fleet/translate`
 
 #### Parameters
 
-| Name            | Type    | In    | Description                              |
-| --------------- | ------- | ----- | ---------------------------------------- |
-| list            | array   | body  | **Required** list of items to translate. |
+| Name | Type  | In   | Description                              |
+| ---- | ----- | ---- | ---------------------------------------- |
+| list | array | body | **Required** list of items to translate. |
 
 #### Example
 
@@ -5696,6 +6020,7 @@ _Available in Fleet Basic_
   ]
 }
 ```
+
 ##### Default response
 
 `Status: 200`

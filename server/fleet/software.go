@@ -1,15 +1,12 @@
 package fleet
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 
-type SoftwareStore interface {
-	SaveHostSoftware(host *Host) error
-	LoadHostSoftware(host *Host) error
-	AllSoftwareWithoutCPEIterator() (SoftwareIterator, error)
-	AddCPEForSoftware(software Software, cpe string) error
-	AllCPEs() ([]string, error)
-	InsertCVEForCPE(cve string, cpes []string) error
-}
+	"github.com/pkg/errors"
+)
 
 type SoftwareCVE struct {
 	CVE         string `json:"cve" db:"cve"`
@@ -40,9 +37,21 @@ func (v *VulnerabilitiesSlice) Scan(src interface{}) error {
 	}
 	switch typed := src.(type) {
 	case []byte:
+		// MariaDB 10.5.4 compat fixes: first case is that the IF() doesn't seem to work as expected, so it returns
+		// the following as the null value
+		if bytes.Equal(typed, []byte(`{"cve": null, "details_link": null}`)) {
+			return nil
+		}
+		// MariaDB 10.5.4 compat fixes: second case JSON_ARRAYAGG is not very nice in this version, so when there's
+		// only one item in the array, it figures "you only need the one item in this case! here you go!". So we patch
+		// the object by making it an array
+		if len(typed) > 0 && typed[0] == '{' {
+			typed = []byte(fmt.Sprintf("[%s]", string(typed)))
+		}
+
 		err := json.Unmarshal(typed, v)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "src=%s", string(typed))
 		}
 	}
 	return nil

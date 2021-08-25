@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
@@ -95,7 +96,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	orderKey := r.URL.Query().Get("order_key")
 	orderDirectionString := r.URL.Query().Get("order_direction")
 
-	var page int = 0
+	var page int
 	if pageString != "" {
 		page, err = strconv.Atoi(pageString)
 		if err != nil {
@@ -108,7 +109,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 
 	// We default to 0 for per_page so that not specifying any paging
 	// information gets all results
-	var perPage int = 0
+	var perPage int
 	if perPageString != "" {
 		perPage, err = strconv.Atoi(perPageString)
 		if err != nil {
@@ -183,6 +184,38 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
+	team_id := r.URL.Query().Get("team_id")
+	if team_id != "" {
+		id, err := strconv.Atoi(team_id)
+		if err != nil {
+			return hopt, err
+		}
+		tid := uint(id)
+		hopt.TeamFilter = &tid
+	}
+
+	policy_id := r.URL.Query().Get("policy_id")
+	if policy_id != "" {
+		id, err := strconv.Atoi(policy_id)
+		if err != nil {
+			return hopt, err
+		}
+		pid := uint(id)
+		hopt.PolicyIDFilter = &pid
+	}
+
+	policy_response := r.URL.Query().Get("policy_response")
+	if policy_response != "" {
+		var v *bool
+		switch policy_response {
+		case "passing":
+			v = ptr.Bool(true)
+		case "failing":
+			v = ptr.Bool(false)
+		}
+		hopt.PolicyResponseFilter = v
+	}
+
 	return hopt, nil
 }
 
@@ -220,17 +253,5 @@ func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interfac
 	}
 	var req getGenericSpecRequest
 	req.Name = name
-	return req, nil
-}
-
-type genericIDListRequest struct {
-	IDs []uint `json:"ids"`
-}
-
-func decodeGenericIDListRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req genericIDListRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
 	return req, nil
 }

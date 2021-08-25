@@ -207,6 +207,7 @@ spec:
   detail_updated_at: "0001-01-01T00:00:00Z"
   display_text: test_host
   distributed_interval: 0
+  gigs_disk_space_available: 0
   hardware_model: ""
   hardware_serial: ""
   hardware_vendor: ""
@@ -220,6 +221,7 @@ spec:
   os_version: ""
   osquery_version: ""
   pack_stats: null
+  percent_disk_space_available: 0
   platform: ""
   platform_like: ""
   primary_ip: ""
@@ -233,9 +235,71 @@ spec:
   uptime: 0
   uuid: ""
 `
-	expectedJson := "{\"kind\":\"host\",\"apiVersion\":\"v1\",\"spec\":{\"created_at\":\"0001-01-01T00:00:00Z\",\"updated_at\":\"0001-01-01T00:00:00Z\",\"id\":0,\"detail_updated_at\":\"0001-01-01T00:00:00Z\",\"label_updated_at\":\"0001-01-01T00:00:00Z\",\"last_enrolled_at\":\"0001-01-01T00:00:00Z\",\"seen_time\":\"0001-01-01T00:00:00Z\",\"refetch_requested\":false,\"hostname\":\"test_host\",\"uuid\":\"\",\"platform\":\"\",\"osquery_version\":\"\",\"os_version\":\"\",\"build\":\"\",\"platform_like\":\"\",\"code_name\":\"\",\"uptime\":0,\"memory\":0,\"cpu_type\":\"\",\"cpu_subtype\":\"\",\"cpu_brand\":\"\",\"cpu_physical_cores\":0,\"cpu_logical_cores\":0,\"hardware_vendor\":\"\",\"hardware_model\":\"\",\"hardware_version\":\"\",\"hardware_serial\":\"\",\"computer_name\":\"test_host\",\"primary_ip\":\"\",\"primary_mac\":\"\",\"distributed_interval\":0,\"config_tls_refresh\":0,\"logger_tls_period\":0,\"team_id\":null,\"pack_stats\":null,\"team_name\":null,\"status\":\"mia\",\"display_text\":\"test_host\"}}\n"
+	expectedJson := "{\"kind\":\"host\",\"apiVersion\":\"v1\",\"spec\":{\"created_at\":\"0001-01-01T00:00:00Z\",\"updated_at\":\"0001-01-01T00:00:00Z\",\"id\":0,\"detail_updated_at\":\"0001-01-01T00:00:00Z\",\"label_updated_at\":\"0001-01-01T00:00:00Z\",\"last_enrolled_at\":\"0001-01-01T00:00:00Z\",\"seen_time\":\"0001-01-01T00:00:00Z\",\"refetch_requested\":false,\"hostname\":\"test_host\",\"uuid\":\"\",\"platform\":\"\",\"osquery_version\":\"\",\"os_version\":\"\",\"build\":\"\",\"platform_like\":\"\",\"code_name\":\"\",\"uptime\":0,\"memory\":0,\"cpu_type\":\"\",\"cpu_subtype\":\"\",\"cpu_brand\":\"\",\"cpu_physical_cores\":0,\"cpu_logical_cores\":0,\"hardware_vendor\":\"\",\"hardware_model\":\"\",\"hardware_version\":\"\",\"hardware_serial\":\"\",\"computer_name\":\"test_host\",\"primary_ip\":\"\",\"primary_mac\":\"\",\"distributed_interval\":0,\"config_tls_refresh\":0,\"logger_tls_period\":0,\"team_id\":null,\"pack_stats\":null,\"team_name\":null,\"gigs_disk_space_available\":0,\"percent_disk_space_available\":0,\"status\":\"mia\",\"display_text\":\"test_host\"}}\n"
 
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "hosts"}))
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "hosts", "--yaml"}))
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "hosts", "--json"}))
+}
+
+func TestGetConfig(t *testing.T) {
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
+
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			HostSettings:          fleet.HostSettings{EnableHostUsers: true},
+			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: config
+spec:
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  host_settings:
+    enable_host_users: true
+    enable_software_inventory: false
+  org_info:
+    org_logo_url: ""
+    org_name: ""
+  server_settings:
+    enable_analytics: false
+    live_query_disabled: false
+    server_url: ""
+  smtp_settings:
+    authentication_method: ""
+    authentication_type: ""
+    configured: false
+    domain: ""
+    enable_smtp: false
+    enable_ssl_tls: false
+    enable_start_tls: false
+    password: ""
+    port: 0
+    sender_address: ""
+    server: ""
+    user_name: ""
+    verify_ssl_certs: false
+  sso_settings:
+    enable_sso: false
+    enable_sso_idp_login: false
+    entity_id: ""
+    idp_image_url: ""
+    idp_name: ""
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: ""
+  vulnerability_settings:
+    databases_path: /some/path
+`
+	expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"}}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
 }

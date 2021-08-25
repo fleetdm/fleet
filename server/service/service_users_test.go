@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 
-	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -55,11 +54,13 @@ func TestModifyUserEmail(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPPort:               1025,
-			SMTPConfigured:         true,
-			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@fleet.co",
-			SMTPAuthenticationType: fleet.AuthTypeNone,
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
+			},
 		}
 		return config, nil
 	}
@@ -100,11 +101,13 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPPort:               1025,
-			SMTPConfigured:         true,
-			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@fleet.co",
-			SMTPAuthenticationType: fleet.AuthTypeNone,
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
+			},
 		}
 		return config, nil
 	}
@@ -144,11 +147,13 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPPort:               1025,
-			SMTPConfigured:         true,
-			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@fleet.co",
-			SMTPAuthenticationType: fleet.AuthTypeNone,
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
+			},
 		}
 		return config, nil
 	}
@@ -188,11 +193,13 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	}
 	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
-			SMTPPort:               1025,
-			SMTPConfigured:         true,
-			SMTPServer:             "127.0.0.1",
-			SMTPSenderAddress:      "xxx@fleet.co",
-			SMTPAuthenticationType: fleet.AuthTypeNone,
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPPort:               1025,
+				SMTPServer:             "127.0.0.1",
+				SMTPSenderAddress:      "xxx@fleet.co",
+			},
 		}
 		return config, nil
 	}
@@ -376,40 +383,6 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 
 // 	}
 // }
-
-func setupInvites(t *testing.T, ds fleet.Datastore, emails []string) map[string]*fleet.Invite {
-	invites := make(map[string]*fleet.Invite)
-	users := createTestUsers(t, ds)
-	mockClock := clock.NewMockClock()
-	for _, e := range emails {
-		invite, err := ds.NewInvite(&fleet.Invite{
-			InvitedBy: users["admin1"].ID,
-			Token:     e,
-			Email:     e,
-			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-				CreateTimestamp: fleet.CreateTimestamp{
-					CreatedAt: mockClock.Now(),
-				},
-			},
-		})
-		require.Nil(t, err)
-		invites[e] = invite
-	}
-	// add an expired invitation
-	invite, err := ds.NewInvite(&fleet.Invite{
-		InvitedBy: users["admin1"].ID,
-		Token:     "expired",
-		Email:     "expiredinvite@gmail.com",
-		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-			CreateTimestamp: fleet.CreateTimestamp{
-				CreatedAt: mockClock.Now().AddDate(-1, 0, 0),
-			},
-		},
-	})
-	require.Nil(t, err)
-	invites["expired"] = invite
-	return invites
-}
 
 func TestChangePassword(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)

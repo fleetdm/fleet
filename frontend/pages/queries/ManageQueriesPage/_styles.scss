@@ -38,6 +38,7 @@
 
   &__description {
     margin: 0 0 $pad-medium;
+    padding-top: $pad-xsmall;
 
     h2 {
       text-transform: uppercase;
@@ -47,7 +48,7 @@
     }
 
     p {
-      color: $core-fleet-blue;
+      color: $core-dark-blue-grey;
       margin: 0;
       font-size: $x-small;
       font-style: italic;
@@ -74,6 +75,38 @@
 
     .button:first-child {
       margin-right: $pad-medium;
+    }
+  }
+
+  .queries-list-wrapper {
+    .data-table__table {
+      table-layout: fixed;
+
+      thead {
+        // Width for all columns except checkbox and "Name" columns
+        // For observers all columns except "Name" and "Author" columns
+        // Width calculation adjusts for each row's horizontal padding
+        th:not(:nth-child(1)):not(:nth-child(2)) {
+          width: calc(180px - (27px * 2));
+        }
+      }
+
+      tbody {
+        td {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        // Width and overflow behavior for the link in the "Name" column
+        td {
+          .button {
+            display: block;
+            text-align: start;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+      }
     }
   }
 }

@@ -80,7 +80,7 @@ class QuerySidePanel extends Component {
     return (
       <SecondarySidePanelContainer className={baseClass}>
         <div className={`${baseClass}__choose-table`}>
-          <h2 className={`${baseClass}__header`}>Documentation</h2>
+          <h2 className={`${baseClass}__header`}>Tables</h2>
           {renderTableSelect()}
           <p className={`${baseClass}__description`}>{description}</p>
         </div>

@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf"
 	"github.com/urfave/cli/v2"
@@ -28,7 +29,7 @@ const (
 	// Expirations from
 	// https://github.com/theupdateframework/notary/blob/e87b31f46cdc5041403c64b7536df236d5e35860/docs/best_practices.md#expiration-prevention
 	// ~10 years
-	rootExpirationDuration = 10 * 365 * 24 * time.Hour
+	rootExpirationDuration = 10 * 365 * 24 * time.Hour //nolint:unused,deadcode
 	// ~3 years
 	targetsExpirationDuration = 3 * 365 * 24 * time.Hour
 	// ~3 years
@@ -87,6 +88,13 @@ func updatesInitFunc(c *cli.Context) error {
 	}
 	if len(meta) != 0 {
 		return errors.Errorf("repo already initialized: %s", path)
+	}
+	// Ensure no existing keys before initializing
+	if _, err := os.Stat(filepath.Join(path, "keys")); !errors.Is(err, os.ErrNotExist) {
+		if err == nil {
+			return errors.Errorf("keys directory already exists: %s", filepath.Join(path, "keys"))
+		}
+		return errors.Wrap(err, "failed to check existence of keys directory")
 	}
 
 	repo, err := tuf.NewRepo(store)
@@ -331,11 +339,11 @@ func copyTarget(srcPath, dstPath string) error {
 	}
 	defer src.Close()
 
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
 		return errors.Wrap(err, "create dst dir for copy")
 	}
 
-	dst, err := os.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0644)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return errors.Wrap(err, "open dst for copy")
 	}
@@ -402,6 +410,9 @@ func (p *passphraseHandler) getPassphrase(role string, confirm bool) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
+	if len(passphrase) == 0 {
+		return nil, errors.New("passphrase must not be empty")
+	}
 
 	// Store cache
 	p.cache[role] = passphrase
@@ -415,7 +426,7 @@ func (p *passphraseHandler) passphraseEnvName(role string) string {
 }
 
 func (p *passphraseHandler) getPassphraseFromEnv(role string) []byte {
-	if pass := os.Getenv(p.passphraseEnvName(role)); pass != "" {
+	if pass, ok := os.LookupEnv(p.passphraseEnvName(role)); ok {
 		return []byte(pass)
 	}
 
@@ -432,7 +443,7 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 		}
 
 		fmt.Printf("Enter %s key passphrase: ", role)
-		passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
+		passphrase, err := terminal.ReadPassword(syscall.Stdin)
 		fmt.Println()
 		if err != nil {
 			return nil, errors.Wrap(err, "read password")
@@ -443,7 +454,7 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 		}
 
 		fmt.Printf("Repeat %s key passphrase: ", role)
-		confirmation, err := terminal.ReadPassword(int(syscall.Stdin))
+		confirmation, err := terminal.ReadPassword(syscall.Stdin)
 		fmt.Println()
 		if err != nil {
 			return nil, errors.Wrap(err, "read password confirmation")

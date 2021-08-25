@@ -10,8 +10,9 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/fleetdm/orbit/pkg/constant"
-	"github.com/fleetdm/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
@@ -179,7 +180,7 @@ func (u *Updater) Get(target, channel string) (string, error) {
 func (u *Updater) Download(repoPath, localPath string) error {
 	staging := filepath.Join(u.opt.RootDirectory, stagingDir)
 
-	if err := os.MkdirAll(staging, constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(staging, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "initialize download dir")
 	}
 
@@ -189,7 +190,7 @@ func (u *Updater) Download(repoPath, localPath string) error {
 		return err
 	}
 
-	tmp, err := os.OpenFile(
+	tmp, err := secure.OpenFile(
 		filepath.Join(staging, filepath.Base(localPath)),
 		os.O_CREATE|os.O_WRONLY,
 		constant.DefaultExecutableMode,
@@ -205,7 +206,7 @@ func (u *Updater) Download(repoPath, localPath string) error {
 		return errors.Wrap(err, "chmod download")
 	}
 
-	if err := os.MkdirAll(filepath.Dir(localPath), constant.DefaultDirMode); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(localPath), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "initialize download dir")
 	}
 
@@ -255,7 +256,7 @@ func (u *Updater) initializeDirectories() error {
 	for _, dir := range []string{
 		u.pathFromRoot(binDir),
 	} {
-		err := os.MkdirAll(dir, constant.DefaultDirMode)
+		err := secure.MkdirAll(dir, constant.DefaultDirMode)
 		if err != nil {
 			return errors.Wrap(err, "initialize directories")
 		}

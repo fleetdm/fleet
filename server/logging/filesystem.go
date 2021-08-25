@@ -10,6 +10,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/go-kit/kit/log"
@@ -34,7 +35,7 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 			Compress:   enableCompression,
 		}
 		appLogger = log.With(appLogger, "component", "osqueryd-logger")
-		sig := make(chan os.Signal)
+		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGHUP)
 		go func() {
 			for {
@@ -101,7 +102,7 @@ func (l *rawLogWriter) Write(b []byte) (int, error) {
 		return 0, errors.New("filesystemLogWriter: can't write to closed file")
 	}
 	if _, statErr := os.Stat(l.file.Name()); errors.Is(statErr, os.ErrNotExist) {
-		f, err := os.OpenFile(l.file.Name(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+		f, err := secure.OpenFile(l.file.Name(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 		if err != nil {
 			return 0, errors.Wrapf(err, "create file for filesystemLogWriter %s", l.file.Name())
 		}

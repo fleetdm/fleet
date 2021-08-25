@@ -1,8 +1,11 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -102,14 +105,14 @@ func TestListPacks(t *testing.T) {
 	err := ds.ApplyPackSpecs([]*fleet.PackSpec{p1})
 	require.Nil(t, err)
 
-	packs, err := ds.ListPacks(fleet.ListOptions{})
+	packs, err := ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: false})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 
 	err = ds.ApplyPackSpecs([]*fleet.PackSpec{p1, p2})
 	require.Nil(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{})
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: false})
 	require.Nil(t, err)
 	assert.Len(t, packs, 2)
 }
@@ -305,10 +308,6 @@ func TestListPacksForHost(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is deprecated")
-	}
-
 	mockClock := clock.NewMockClock()
 
 	l1 := &fleet.LabelSpec{
@@ -352,7 +351,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
-		map[uint]bool{l1.ID: true},
+		map[uint]*bool{l1.ID: ptr.Bool(true)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -365,7 +364,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
-		map[uint]bool{l1.ID: false, l2.ID: true},
+		map[uint]*bool{l1.ID: ptr.Bool(false), l2.ID: ptr.Bool(true)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -376,7 +375,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
-		map[uint]bool{l1.ID: true, l2.ID: true},
+		map[uint]*bool{l1.ID: ptr.Bool(true), l2.ID: ptr.Bool(true)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -389,7 +388,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h2,
-		map[uint]bool{l2.ID: true},
+		map[uint]*bool{l2.ID: ptr.Bool(true)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -400,7 +399,7 @@ func TestListPacksForHost(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
-		map[uint]bool{l2.ID: false},
+		map[uint]*bool{l2.ID: ptr.Bool(false)},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -418,14 +417,14 @@ func TestEnsureGlobalPack(t *testing.T) {
 
 	test.AddAllHostsLabel(t, ds)
 
-	packs, err := ds.ListPacks(fleet.ListOptions{})
+	packs, err := ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 0)
 
 	gp, err := ds.EnsureGlobalPack()
 	require.Nil(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{})
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 	assert.Equal(t, gp.ID, packs[0].ID)
@@ -439,7 +438,7 @@ func TestEnsureGlobalPack(t *testing.T) {
 	_, err = ds.EnsureGlobalPack()
 	require.Nil(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{})
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 	assert.Equal(t, gp.ID, packs[0].ID)
@@ -450,7 +449,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	packs, err := ds.ListPacks(fleet.ListOptions{})
+	packs, err := ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 0)
 
@@ -463,17 +462,18 @@ func TestEnsureTeamPack(t *testing.T) {
 	tp, err := ds.EnsureTeamPack(team1.ID)
 	require.NoError(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{})
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 	assert.Equal(t, tp.ID, packs[0].ID)
+	assert.Equal(t, teamScheduleName(team1), tp.Name)
 	assert.Equal(t, fmt.Sprintf("team-%d", team1.ID), *tp.Type)
 	assert.Equal(t, []uint{team1.ID}, tp.TeamIDs)
 
 	_, err = ds.EnsureTeamPack(team1.ID)
 	require.NoError(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{})
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 1)
 	assert.Equal(t, tp.ID, packs[0].ID)
@@ -484,7 +484,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	tp2, err := ds.EnsureTeamPack(team2.ID)
 	require.NoError(t, err)
 
-	packs, err = ds.ListPacks(fleet.ListOptions{})
+	packs, err = ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 2)
 	assert.Equal(t, tp.ID, packs[0].ID)
@@ -492,6 +492,54 @@ func TestEnsureTeamPack(t *testing.T) {
 
 	assert.Equal(t, fmt.Sprintf("team-%d", team2.ID), *tp2.Type)
 	assert.Equal(t, []uint{team2.ID}, tp2.TeamIDs)
+}
+
+func TestTeamNameChangesTeamSchedule(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	tp, err := ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+	firstName := teamScheduleName(team1)
+	assert.Equal(t, firstName, tp.Name)
+
+	team1.Name = "new name!!"
+	team1, err = ds.SaveTeam(team1)
+	require.NoError(t, err)
+
+	tp, err = ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, firstName, tp.Name)
+	assert.Equal(t, teamScheduleName(team1), tp.Name)
+}
+
+func TestTeamScheduleNamesMigrateToNewFormat(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// insert team pack by hand with the old naming scheme
+	_, err = ds.db.Exec(
+		"INSERT INTO packs(name, description, platform, disabled, pack_type) VALUES (?, ?, ?, ?, ?)",
+		teamSchedulePackType(team1), "desc", "windows", false, teamSchedulePackType(team1),
+	)
+	require.NoError(t, err)
+
+	tp, err := ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, teamSchedulePackType(team1), tp.Name)
+
+	require.NoError(t, ds.MigrateData())
+
+	tp, err = ds.EnsureTeamPack(team1.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, teamSchedulePackType(team1), tp.Name)
+	require.Equal(t, teamScheduleName(team1), tp.Name)
 }
 
 func TestApplyPackSpecFailsOnTargetIDNull(t *testing.T) {
@@ -512,4 +560,137 @@ func TestApplyPackSpecFailsOnTargetIDNull(t *testing.T) {
 	// Should error due to unkown label target id
 	err := ds.ApplyPackSpecs(specs)
 	require.Error(t, err)
+}
+
+func randomPackStatsForHost(hostID, packID uint, scheduledQueries []*fleet.ScheduledQuery) *fleet.Host {
+	var queryStats []fleet.ScheduledQueryStats
+
+	amount := rand.Intn(5000)
+
+	for i := 0; i < amount; i++ {
+		sq := scheduledQueries[rand.Intn(len(scheduledQueries))]
+		queryStats = append(queryStats, fleet.ScheduledQueryStats{
+			ScheduledQueryName: sq.Name,
+			ScheduledQueryID:   sq.ID,
+			QueryName:          sq.QueryName,
+			Description:        sq.Description,
+			PackID:             packID,
+			AverageMemory:      rand.Intn(100),
+			Denylisted:         false,
+			Executions:         rand.Intn(100),
+			Interval:           rand.Intn(100),
+			LastExecuted:       time.Now(),
+			OutputSize:         rand.Intn(1000),
+			SystemTime:         rand.Intn(1000),
+			UserTime:           rand.Intn(1000),
+			WallTime:           rand.Intn(1000),
+		})
+	}
+	return &fleet.Host{
+		ID: hostID,
+		PackStats: []fleet.PackStats{
+			{
+				PackID:     packID,
+				QueryStats: queryStats,
+			},
+		},
+	}
+}
+
+func TestPackApplyStatsNotLocking(t *testing.T) {
+	t.Skip("This can be too much for the test db if you're running all tests")
+
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	specs := setupPackSpecsTest(t, ds)
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				pack, _, err := ds.PackByName("test_pack")
+				require.NoError(t, err)
+				schedQueries, err := ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
+				require.NoError(t, err)
+
+				require.NoError(t, ds.saveHostPackStats(randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+			}
+		}
+	}()
+
+	time.Sleep(1 * time.Second)
+	for i := 0; i < 1000; i++ {
+		require.NoError(t, ds.ApplyPackSpecs(specs))
+		time.Sleep(77 * time.Millisecond)
+	}
+
+	cancelFunc()
+}
+
+func TestPackApplyStatsNotLockingTryTwo(t *testing.T) {
+	t.Skip("This can be too much for the test db if you're running all tests")
+
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	setupPackSpecsTest(t, ds)
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	for i := 0; i < 2; i++ {
+		go func() {
+			ms := rand.Intn(100)
+			if ms == 0 {
+				ms = 10
+			}
+			ticker := time.NewTicker(time.Duration(ms) * time.Millisecond)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					pack, _, err := ds.PackByName("test_pack")
+					require.NoError(t, err)
+					schedQueries, err := ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
+					require.NoError(t, err)
+
+					require.NoError(t, ds.saveHostPackStats(randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+				}
+			}
+		}()
+	}
+
+	time.Sleep(60 * time.Second)
+
+	cancelFunc()
 }

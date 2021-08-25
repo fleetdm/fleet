@@ -1,8 +1,11 @@
 package vulnerabilities
 
 import (
+	"compress/gzip"
 	"errors"
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"strings"
@@ -13,6 +16,7 @@ import (
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,14 +35,14 @@ func TestCpeFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 
 	// checking an non existent version returns empty
-	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product.app", Version: "2.3.4", Source: "apps"})
+	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", Source: "apps"})
 	require.NoError(t, err)
 	require.Equal(t, "", cpe)
 
 	// checking a version that exists works
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product.app", Version: "1.2.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", Source: "apps"})
 	require.NoError(t, err)
-	require.Equal(t, "cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*", cpe)
+	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
 	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"})
@@ -65,7 +69,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	}
 
 	// first time, db doesn't exist, so it downloads
-	err = syncCPEDatabase(client, dbPath)
+	err = syncCPEDatabase(client, dbPath, "")
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -89,7 +93,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = syncCPEDatabase(client, dbPath)
+	err = syncCPEDatabase(client, dbPath, "")
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -110,7 +114,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = syncCPEDatabase(client, dbPath)
+	err = syncCPEDatabase(client, dbPath, "")
 	require.NoError(t, err)
 
 	stat, err = os.Stat(dbPath)
@@ -179,11 +183,34 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
-	err = TranslateSoftwareToCPE(ds, tempDir)
+	err = TranslateSoftwareToCPE(ds, tempDir, kitlog.NewNopLogger(), "")
 	require.NoError(t, err)
 	assert.Equal(t, []string{
-		"cpe:2.3:a:vendor:product:1.2.3:*:*:*:*:macos:*:*",
+		"cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
 		"cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*",
 	}, cpes)
 	assert.True(t, iterator.closed)
+}
+
+func TestSyncsCPEFromURL(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		zw := gzip.NewWriter(w)
+
+		_, err := zw.Write([]byte("Hello world!"))
+		require.NoError(t, err)
+		err = zw.Close()
+		require.NoError(t, err)
+	}))
+	defer ts.Close()
+
+	client := &http.Client{}
+	tempDir := t.TempDir()
+	dbPath := path.Join(tempDir, "cpe.sqlite")
+
+	err := syncCPEDatabase(client, dbPath, ts.URL)
+	require.NoError(t, err)
+
+	stored, err := ioutil.ReadFile(dbPath)
+	require.NoError(t, err)
+	assert.Equal(t, "Hello world!", string(stored))
 }

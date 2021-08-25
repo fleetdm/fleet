@@ -1,29 +1,31 @@
 import PropTypes from "prop-types";
+import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 
 export default PropTypes.shape({
+  id: PropTypes.number.isRequired,
+  created_at: PropTypes.string,
+  name: PropTypes.string.isRequired,
   description: PropTypes.string,
-  name: PropTypes.string,
-  id: PropTypes.number,
-  hosts: PropTypes.number,
-  members: PropTypes.number,
-  role: PropTypes.string,
   agent_options: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+  role: PropTypes.string, // role value is included when the team is in the context of a user
+  user_count: PropTypes.number,
+  host_count: PropTypes.number,
+  secrets: PropTypes.arrayOf(enrollSecretInterface),
 });
 
 /**
  * The shape of a team entity
  */
 export interface ITeam {
-  description: string;
-  name: string;
   id: number;
-  host_count: number;
-  user_count: number;
-  display_text?: string;
-  count?: number;
-  // role value is included when the team is in the context of a user.
-  role?: string;
+  created_at?: string;
+  name: string;
+  description: string;
   agent_options?: any;
+  user_count: number;
+  host_count: number;
+  secrets?: IEnrollSecret[];
+  role?: string; // role value is included when the team is in the context of a user
 }
 
 /**

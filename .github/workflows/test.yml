@@ -174,24 +174,5 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        MYSQL_TEST=1 REDIS_TEST=1 make test-go
+        MYSQL_TEST=1 make test-go
 
-
-  lint-go:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        go-version: ['^1.16.0']
-    runs-on: ${{ matrix.os }}
-
-    steps:
-    - name: Install Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: ${{ matrix.go-version }}
-    - name: Checkout Code
-      uses: actions/checkout@v2
-
-    - name: Run Go Linting
-      run: |
-        make lint-go
