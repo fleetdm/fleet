@@ -34,9 +34,8 @@ func loadPublicKey() (*ecdsa.PublicKey, error) {
 
 	if pub, ok := pub.(*ecdsa.PublicKey); ok {
 		return pub, nil
-	} else {
-		return nil, errors.Errorf("%T is not *ecdsa.PublicKey", pub)
 	}
+	return nil, errors.Errorf("%T is not *ecdsa.PublicKey", pub)
 }
 
 // LoadLicense loads and validates the license key.

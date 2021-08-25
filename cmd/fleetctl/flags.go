@@ -3,8 +3,9 @@ package main
 import "github.com/urfave/cli/v2"
 
 const (
-	outfileFlagName = "outfile"
-	debugFlagName   = "debug"
+	outfileFlagName          = "outfile"
+	debugFlagName            = "debug"
+	fleetCertificateFlagName = "fleet-certificate"
 )
 
 func outfileFlag() cli.Flag {
@@ -30,4 +31,16 @@ func debugFlag() cli.Flag {
 
 func getDebug(c *cli.Context) bool {
 	return c.Bool(debugFlagName)
+}
+
+func fleetCertificateFlag() cli.Flag {
+	return &cli.StringFlag{
+		Name:    fleetCertificateFlagName,
+		EnvVars: []string{"FLEET_CERTIFICATE"},
+		Usage:   "Path of the TLS fleet certificate, can be used to provide additional connection debugging information",
+	}
+}
+
+func getFleetCertificate(c *cli.Context) string {
+	return c.String(fleetCertificateFlagName)
 }

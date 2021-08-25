@@ -67,11 +67,10 @@ func TestFirehoseRetryableFailure(t *testing.T) {
 		assert.Equal(t, "foobar", *input.DeliveryStreamName)
 		if callCount < 3 {
 			return nil, awserr.New(firehose.ErrCodeServiceUnavailableException, "", nil)
-		} else {
-			// Returning a non-retryable error earlier helps keep
-			// this test faster
-			return nil, errors.New("generic error")
 		}
+		// Returning a non-retryable error earlier helps keep
+		// this test faster
+		return nil, errors.New("generic error")
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
@@ -167,22 +166,15 @@ func TestFirehoseFailAllRecords(t *testing.T) {
 			return &firehose.PutRecordBatchOutput{
 				FailedPutCount: aws.Int64(1),
 				RequestResponses: []*firehose.PutRecordBatchResponseEntry{
-					&firehose.PutRecordBatchResponseEntry{
-						ErrorCode: aws.String("error"),
-					},
-					&firehose.PutRecordBatchResponseEntry{
-						ErrorCode: aws.String("error"),
-					},
-					&firehose.PutRecordBatchResponseEntry{
-						ErrorCode: aws.String("error"),
-					},
+					{ErrorCode: aws.String("error")},
+					{ErrorCode: aws.String("error")},
+					{ErrorCode: aws.String("error")},
 				},
 			}, nil
-		} else {
-			// Make test quicker by returning non-retryable error
-			// before all retries are exhausted.
-			return nil, errors.New("generic error")
 		}
+		// Make test quicker by returning non-retryable error
+		// before all retries are exhausted.
+		return nil, errors.New("generic error")
 	}
 
 	writer := makeFirehoseWriterWithMock(f, "foobar")

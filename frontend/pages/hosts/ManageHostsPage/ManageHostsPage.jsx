@@ -17,7 +17,6 @@ import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
 import osqueryTableInterface from "interfaces/osquery_table";
 import statusLabelsInterface from "interfaces/status_labels";
-import enrollSecretInterface from "interfaces/enroll_secret";
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
@@ -37,6 +36,7 @@ import {
   generateVisibleTableColumns,
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
+import EnrollSecretModal from "./components/EnrollSecretModal";
 import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
@@ -107,13 +107,13 @@ export class ManageHostsPage extends PureComponent {
     routeParams: PropTypes.objectOf(
       PropTypes.oneOfType([PropTypes.string, PropTypes.number])
     ),
-    enrollSecret: enrollSecretInterface,
     selectedFilters: PropTypes.arrayOf(PropTypes.string),
     selectedLabel: labelInterface,
     selectedTeam: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
     canAddNewHosts: PropTypes.bool,
+    canEnrollHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
     loadingTeams: PropTypes.bool,
@@ -154,6 +154,7 @@ export class ManageHostsPage extends PureComponent {
     this.state = {
       labelQueryText: "",
       showAddHostModal: false,
+      showEnrollSecretModal: false,
       selectedHost: null,
       showDeleteLabelModal: false,
       showEditColumnsModal: false,
@@ -253,16 +254,16 @@ export class ManageHostsPage extends PureComponent {
     dispatch(goBack());
   };
 
+  onShowEnrollSecretClick = (evt) => {
+    evt.preventDefault();
+    const { toggleEnrollSecretModal } = this;
+    toggleEnrollSecretModal();
+  };
+
   onAddHostClick = (evt) => {
     evt.preventDefault();
     const { toggleAddHostModal } = this;
     toggleAddHostModal();
-  };
-
-  // The onChange method below is for the dropdown used in modals
-  onChangeTeam = (team) => {
-    const { dispatch } = this.props;
-    dispatch(teamActions.getEnrollSecrets(team));
   };
 
   // NOTE: this is called once on the initial rendering. The initial render of
@@ -624,6 +625,11 @@ export class ManageHostsPage extends PureComponent {
     }
   };
 
+  toggleEnrollSecretModal = () => {
+    const { showEnrollSecretModal } = this.state;
+    this.setState({ showEnrollSecretModal: !showEnrollSecretModal });
+  };
+
   toggleAddHostModal = () => {
     const { showAddHostModal } = this.state;
     this.setState({ showAddHostModal: !showAddHostModal });
@@ -796,10 +802,35 @@ export class ManageHostsPage extends PureComponent {
     );
   };
 
+  renderEnrollSecretModal = () => {
+    const { toggleEnrollSecretModal } = this;
+    const { showEnrollSecretModal } = this.state;
+    const { canEnrollHosts, teams, selectedTeam, isBasicTier } = this.props;
+
+    if (!canEnrollHosts || !showEnrollSecretModal) {
+      return null;
+    }
+
+    return (
+      <Modal
+        title="Enroll secret"
+        onExit={toggleEnrollSecretModal}
+        className={`${baseClass}__enroll-secret-modal`}
+      >
+        <EnrollSecretModal
+          selectedTeam={selectedTeam}
+          teams={teams}
+          onReturnToApp={toggleEnrollSecretModal}
+          isBasicTier={isBasicTier}
+        />
+      </Modal>
+    );
+  };
+
   renderAddHostModal = () => {
     const { toggleAddHostModal, onChangeTeam } = this;
     const { showAddHostModal } = this.state;
-    const { enrollSecret, config, canAddNewHosts, teams } = this.props;
+    const { config, currentUser, canAddNewHosts, teams } = this.props;
 
     if (!canAddNewHosts || !showAddHostModal) {
       return null;
@@ -815,8 +846,8 @@ export class ManageHostsPage extends PureComponent {
           teams={teams}
           onChangeTeam={onChangeTeam}
           onReturnToApp={toggleAddHostModal}
-          enrollSecret={enrollSecret}
           config={config}
+          currentUser={currentUser}
         />
       </Modal>
     );
@@ -1082,10 +1113,12 @@ export class ManageHostsPage extends PureComponent {
       renderHeader,
       renderSidePanel,
       renderAddHostModal,
+      renderEnrollSecretModal,
       renderDeleteLabelModal,
       renderTable,
       renderEditColumnsModal,
       renderTransferHostModal,
+      onShowEnrollSecretClick,
       onAddHostClick,
     } = this;
     const {
@@ -1094,6 +1127,7 @@ export class ManageHostsPage extends PureComponent {
       loadingLabels,
       canAddNewHosts,
       isBasicTier,
+      canEnrollHosts,
     } = this.props;
     const { isConfigLoaded, isTeamsLoaded } = this.state;
 
@@ -1104,19 +1138,31 @@ export class ManageHostsPage extends PureComponent {
           <div className={`${baseClass} body-wrap`}>
             <div className="header-wrap">
               {renderHeader()}
-              {canAddNewHosts ? (
-                <Button
-                  onClick={onAddHostClick}
-                  className={`${baseClass}__add-hosts button button--brand`}
-                >
-                  <span>Add new host</span>
-                </Button>
-              ) : null}
+              <div className={`${baseClass} button-wrap`}>
+                {canEnrollHosts && (
+                  <Button
+                    onClick={onShowEnrollSecretClick}
+                    className={`${baseClass}__enroll-hosts button`}
+                    variant="inverse"
+                  >
+                    <span>Show enroll secret</span>
+                  </Button>
+                )}
+                {canAddNewHosts && (
+                  <Button
+                    onClick={onAddHostClick}
+                    className={`${baseClass}__add-hosts button button--brand`}
+                  >
+                    <span>Add new host</span>
+                  </Button>
+                )}
+              </div>
             </div>
             {isConfigLoaded && (!isBasicTier || isTeamsLoaded) && renderTable()}
           </div>
         )}
         {!loadingLabels && renderSidePanel()}
+        {renderEnrollSecretModal()}
         {renderAddHostModal()}
         {renderEditColumnsModal()}
         {renderDeleteLabelModal()}
@@ -1159,7 +1205,6 @@ const mapStateToProps = (state, ownProps) => {
 
   const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
-  const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
 
   const teams = memoizedGetEntity(state.entities.teams.data);
@@ -1173,6 +1218,10 @@ const mapStateToProps = (state, ownProps) => {
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser) ||
     permissionUtils.isAnyTeamMaintainer(currentUser);
+  const canEnrollHosts =
+    permissionUtils.isGlobalAdmin(currentUser) ||
+    permissionUtils.isGlobalMaintainer(currentUser) ||
+    (permissionUtils.isAnyTeamMaintainer(currentUser) && selectedTeam !== 0);
   const canAddNewLabels =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
@@ -1191,13 +1240,13 @@ const mapStateToProps = (state, ownProps) => {
     labelErrors,
     labels,
     loadingLabels,
-    enrollSecret,
     selectedLabel,
     selectedOsqueryTable,
     statusLabels,
     config,
     currentUser,
     canAddNewHosts,
+    canEnrollHosts,
     canAddNewLabels,
     isGlobalAdmin,
     isOnGlobalTeam,
