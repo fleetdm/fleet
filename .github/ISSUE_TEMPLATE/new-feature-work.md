@@ -2,7 +2,7 @@
 name: 🎟  New feature work
 about: Specify a planned, new feature in Fleet so that engineering can provide an estimation on the time required for implementation.
 title: ''
-labels: 'project'
+labels: 'needs estimation'
 assignees: ''
 
 ---
