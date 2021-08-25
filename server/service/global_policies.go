@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -22,14 +20,6 @@ type globalPolicyResponse struct {
 }
 
 func (r globalPolicyResponse) error() error { return r.Err }
-
-func makeGlobalPolicyEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, globalPolicyEndpoint),
-		makeDecoder(globalPolicyRequest{}),
-		opts,
-	)
-}
 
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*globalPolicyRequest)
@@ -58,14 +48,6 @@ type listGlobalPoliciesResponse struct {
 }
 
 func (r listGlobalPoliciesResponse) error() error { return r.Err }
-
-func makeListGlobalPoliciesEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, listGlobalPoliciesEndpoint),
-		makeNopDecoder(),
-		opts,
-	)
-}
 
 func listGlobalPoliciesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (interface{}, error) {
 	resp, err := svc.ListGlobalPolicies(ctx)
@@ -97,14 +79,6 @@ type getPolicyByIDResponse struct {
 }
 
 func (r getPolicyByIDResponse) error() error { return r.Err }
-
-func makeGetPolicyByIDEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, getPolicyByIDEndpoint),
-		makeDecoder(getPolicyByIDRequest{}),
-		opts,
-	)
-}
 
 func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getPolicyByIDRequest)
@@ -142,14 +116,6 @@ type deleteGlobalPoliciesResponse struct {
 }
 
 func (r deleteGlobalPoliciesResponse) error() error { return r.Err }
-
-func makeDeleteGlobalPoliciesEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, deleteGlobalPoliciesEndpoint),
-		makeDecoder(deleteGlobalPoliciesRequest{}),
-		opts,
-	)
-}
 
 func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*deleteGlobalPoliciesRequest)
