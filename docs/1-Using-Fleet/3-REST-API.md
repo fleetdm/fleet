@@ -9,6 +9,7 @@
 - [Queries](#queries)
 - [Schedule](#schedule)
 - [Packs](#packs)
+- [Policies](#policies)
 - [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -4287,6 +4288,158 @@ Returns the spec for the specified pack by pack name.
 
 ---
 
+## Policies
+
+- [List policies](#list-policies)
+- [Get policy by ID](#get-policy-by-id)
+- [Add policy](#add-policy)
+- [Remove policies](#remove-policies)
+
+`In Fleet 4.3.0, the Policies feature was introduced.`
+
+Policies allow you to see which hosts meet a certain standard.
+
+Policies in Fleet are defined by osquery queries.
+
+Host that return results for a policy's query are "Passing."
+
+Hosts that do not return results for a policy's query are "Failing."
+
+### List policies
+
+`GET /api/v1/fleet/global/policies`
+
+#### Example
+
+`GET /api/v1/fleet/global/policies`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policies": [
+    {
+      "id": 1,
+      "query_id": 2,
+      "query_name": "Gatekeeper enabled",
+      "passing_host_count": 2000,
+      "failing_host_count": 300,
+    },
+    {
+      "id": 2,
+      "query_id": 3,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 2300,
+      "failing_host_count": 0,
+    }
+  ]
+}
+```
+
+### Get policy by ID
+
+`GET /api/v1/fleet/global/policies/{id}`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| id          | integer | path | **Required.** The policy's ID.                                                                                  |
+
+#### Example
+
+`GET /api/v1/fleet/global/policies/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+    "id": 1,
+    "query_id": 2,
+    "query_name": "Gatekeeper enabled",
+    "passing_host_count": 2000,
+    "failing_host_count": 300,
+  }
+}
+```
+
+### Add policy
+
+`POST /api/v1/fleet/global/policies`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                    |
+| -------- | ------- | ---- | ------------------------------ |
+| query_id | integer | body | **Required.** The query's ID.  |
+
+#### Example
+
+`POST /api/v1/fleet/global/policies`
+
+#### Request body
+
+```
+{
+  "query_id": 12
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+      "id": 2,
+      "query_id": 2,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 0,
+      "failing_host_count": 0,
+    },
+}
+```
+
+### Remove policies
+
+`POST /api/v1/fleet/global/policies/delete`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                       |
+| -------- | ------- | ---- | ------------------------------------------------- |
+| ids      | list    | body | **Required.** The IDs of the policies to delete.  |
+
+#### Example
+
+`POST /api/v1/fleet/global/policies/delete`
+
+#### Request body
+
+```
+{
+  "ids": [ 1 ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "deleted": 1
+}
+```
+
+---
+
 ## Activities
 
 ### List activities
@@ -5904,140 +6057,5 @@ _Available in Fleet Premium_
       }
     },
   ]
-}
-```
-
-## Global Schedule
-
-### List global policies
-
-`GET /api/v1/fleet/global/policies`
-
-#### Example
-
-`GET /api/v1/fleet/global/policies`
-
-##### Default response
-
-`Status: 200`
-
-```
-{
-  "policies": [
-    {
-      "id": 1,
-      "query_id": 2,
-      "query_name": "Gatekeeper enabled",
-      "passing_host_count": 2000,
-      "failing_host_count": 300,
-    },
-    {
-      "id": 2,
-      "query_id": 3,
-      "query_name": "Primary disk encrypted",
-      "passing_host_count": 2300,
-      "failing_host_count": 0,
-    }
-  ]
-}
-```
-
-### Get a global policy by ID
-
-`GET /api/v1/fleet/global/policies/{policy_id}`
-
-#### Parameters
-
-| Name               | Type    | In   | Description                                                                                                   |
-| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| policy_id          | integer | path | **Required.** The policy's ID.                                                                                  |
-
-#### Example
-
-`GET /api/v1/fleet/global/policies/1`
-
-##### Default response
-
-`Status: 200`
-
-```
-{
-  "policy": {
-    "id": 1,
-    "query_id": 2,
-    "query_name": "Gatekeeper enabled",
-    "passing_host_count": 2000,
-    "failing_host_count": 300,
-  }
-}
-```
-
-### Add a global policies
-
-`POST /api/v1/fleet/global/policies`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                    |
-| -------- | ------- | ---- | ------------------------------ |
-| query_id | integer | body | **Required.** The query's ID.  |
-
-#### Example
-
-`POST /api/v1/fleet/global/policies`
-
-#### Request body
-
-```
-{
-  "query_id": 12
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```
-{
-  "policy": {
-      "id": 2,
-      "query_id": 2,
-      "query_name": "Primary disk encrypted",
-      "passing_host_count": 0,
-      "failing_host_count": 0,
-    },
-}
-```
-
-### Delete global policies
-
-`POST /api/v1/fleet/global/policies/delete`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                       |
-| -------- | ------- | ---- | ------------------------------------------------- |
-| ids      | list    | body | **Required.** The IDs of the policies to delete.  |
-
-#### Example
-
-`POST /api/v1/fleet/global/policies/delete`
-
-#### Request body
-
-```
-{
-  "ids": [ 1 ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```
-{
-  "deleted": 1
 }
 ```
