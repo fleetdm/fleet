@@ -49,7 +49,6 @@ describe("Basic tier - Maintainer user", () => {
     cy.get(".transfer-action-btn").click();
     cy.findByText(/transferred to oranges/i).should("exist");
     cy.findByText(/team/i).next().contains("Oranges");
-    cy.contains("button", /transfer/i).should("not.exist");
     cy.contains("button", /delete/i).should("exist");
     cy.contains("button", /query/i).click();
     cy.contains("button", /create custom query/i).should("exist");
