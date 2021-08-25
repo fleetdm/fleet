@@ -66,14 +66,20 @@ func initializeDatabase(t *testing.T, testName string) *Datastore {
 	return connectMySQL(t, testName)
 }
 
-func CreateMySQLDS(t *testing.T) *Datastore {
+// DatastoreTestOptions configures how the test datastore is created
+// by CreateMySQLDSWithOptions.
+type DatastoreTestOptions struct {
+	Replica bool
+}
+
+func createMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
 
 	t.Parallel()
 
-	pc, _, _, ok := runtime.Caller(1)
+	pc, _, _, ok := runtime.Caller(2)
 	details := runtime.FuncForPC(pc)
 	if !ok || details == nil {
 		t.FailNow()
@@ -84,4 +90,12 @@ func CreateMySQLDS(t *testing.T) *Datastore {
 	)
 	cleanName = strings.ReplaceAll(cleanName, ".", "_")
 	return initializeDatabase(t, cleanName)
+}
+
+func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+	return createMySQLDSWithOptions(t, opts)
+}
+
+func CreateMySQLDS(t *testing.T) *Datastore {
+	return createMySQLDSWithOptions(t, nil)
 }
