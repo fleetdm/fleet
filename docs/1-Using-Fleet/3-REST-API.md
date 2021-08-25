@@ -657,6 +657,8 @@ The endpoint returns the host's installed `software` if the software inventory f
     "pack_stats": null,
     "team_name": null,
     "additional": {},
+    "gigs_disk_space_available": 46.1,
+    "percent_disk_space_available": 73,
     "users": [
       {
         "id": 98,
@@ -775,6 +777,8 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "display_text": "2ceca32fe484",
     "team_id": null,
     "team_name": null,
+    "gigs_disk_space_available": 45.86,
+    "percent_disk_space_available": 73,
     "pack_stats": null,
   }
 }
