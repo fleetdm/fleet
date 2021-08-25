@@ -57,7 +57,7 @@ func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 		v, _ := err.(*jwt.ValidationError)
 
 		// if the ONLY error is that it's expired, then we ignore it
-		if v.Errors != jwt.ValidationErrorExpired {
+		if v == nil || v.Errors != jwt.ValidationErrorExpired {
 			return nil, errors.Wrap(err, "parse license")
 		}
 		parsedToken.Valid = true

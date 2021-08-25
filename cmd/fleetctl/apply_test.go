@@ -146,7 +146,6 @@ func TestApplyTeamSpecs(t *testing.T) {
 
 	tmpFile, err := ioutil.TempFile(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
 
 	tmpFile.WriteString(`
 ---
