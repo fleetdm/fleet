@@ -4287,8 +4287,8 @@ Returns the spec for the specified pack by pack name.
 ## Policies
 
 - [List policies](#list-policies)
-- [Get a policy by ID](#get-a-policy-by-id)
-- [Add a policy](#add-a-policy)
+- [Get policy by ID](#get-policy-by-id)
+- [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
@@ -4297,9 +4297,9 @@ Policies allow you to see which hosts meet a certain standard.
 
 Policies in Fleet are defined by osquery queries.
 
-Host that return results for a Policy's query are "Passing."
+Host that return results for a policy's query are "Passing."
 
-Hosts that do not return results for a Policy's query are "Failing."
+Hosts that do not return results for a policy's query are "Failing."
 
 ### List policies
 
@@ -4334,7 +4334,7 @@ Hosts that do not return results for a Policy's query are "Failing."
 }
 ```
 
-### Get a policy by ID
+### Get policy by ID
 
 `GET /api/v1/fleet/global/policies/{id}`
 
@@ -4364,7 +4364,7 @@ Hosts that do not return results for a Policy's query are "Failing."
 }
 ```
 
-### Add a policy
+### Add policy
 
 `POST /api/v1/fleet/global/policies`
 
