@@ -1,6 +1,7 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import classnames from "classnames";
+import TableProvider from "context/table";
 
 import { QueryClient, QueryClientProvider } from "react-query";
 
@@ -40,7 +41,9 @@ const App = ({ children }: IAppProps) => {
   const wrapperStyles = classnames("wrapper");
   return (
     <QueryClientProvider client={queryClient}>
-      <div className={wrapperStyles}>{children}</div>;
+      <TableProvider>
+        <div className={wrapperStyles}>{children}</div>
+      </TableProvider>
     </QueryClientProvider>
   );
 };
