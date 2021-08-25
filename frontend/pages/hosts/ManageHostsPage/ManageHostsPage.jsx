@@ -357,7 +357,12 @@ export class ManageHostsPage extends PureComponent {
         );
         return false;
       })
-      .catch(() => false);
+      .catch((err) => {
+        console.log(err);
+        dispatch(
+          renderFlash("error", "Could not create label. Please try again.")
+        );
+      });
   };
 
   onLabelClick = (selectedLabel) => {
@@ -379,30 +384,59 @@ export class ManageHostsPage extends PureComponent {
   onSaveAddLabel = (formData) => {
     const { dispatch } = this.props;
 
-    return dispatch(labelActions.create(formData)).then(() => {
-      dispatch(push(PATHS.MANAGE_HOSTS));
+    return dispatch(labelActions.create(formData))
+      .then(() => {
+        dispatch(push(PATHS.MANAGE_HOSTS));
 
-      // TODO flash messages are not visible seemingly because of page renders
-      dispatch(
-        renderFlash(
-          "success",
-          "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
-        )
-      );
-      return false;
-    });
+        // TODO flash messages are not visible seemingly because of page renders
+        dispatch(
+          renderFlash(
+            "success",
+            "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
+          )
+        );
+        return false;
+      })
+      .catch((err) => {
+        console.log(err);
+        dispatch(
+          renderFlash("error", "Could not create label. Please try again.")
+        );
+      });
   };
 
   onDeleteLabel = () => {
     const { toggleDeleteLabelModal } = this;
-    const { dispatch, selectedLabel } = this.props;
+    const {
+      dispatch,
+      routeTemplate,
+      routeParams,
+      queryParams,
+      selectedLabel,
+    } = this.props;
     const { MANAGE_HOSTS } = PATHS;
 
-    return dispatch(labelActions.destroy(selectedLabel)).then(() => {
-      toggleDeleteLabelModal();
-      dispatch(push(MANAGE_HOSTS));
-      return false;
-    });
+    return dispatch(labelActions.destroy(selectedLabel))
+      .then(() => {
+        toggleDeleteLabelModal();
+        dispatch(
+          push(
+            getNextLocationPath({
+              pathPrefix: MANAGE_HOSTS,
+              routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+              routeParams,
+              queryParams,
+            })
+          )
+        );
+        return false;
+      })
+      .catch((err) => {
+        console.log(err);
+        dispatch(
+          renderFlash("error", "Could not delete label. Please try again.")
+        );
+      });
   };
 
   onTransferToTeamClick = (selectedHostIds) => {
