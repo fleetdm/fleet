@@ -100,7 +100,8 @@ spec:
 }
 
 func TestApplyTeamSpecs(t *testing.T) {
-	server, ds := runServerWithMockedDS(t, service.TestServerOpts{Tier: fleet.TierBasic})
+	license := &fleet.LicenseInfo{Tier: fleet.TierBasic, Expiration: time.Now().Add(24 * time.Hour)}
+	server, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
 	defer server.Close()
 
 	teamsByName := map[string]*fleet.Team{
@@ -143,7 +144,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "*.yml")
+	tmpFile, err := ioutil.TempFile(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 

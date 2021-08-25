@@ -54,7 +54,13 @@ func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 		},
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "parse license")
+		v, _ := err.(*jwt.ValidationError)
+
+		// if the ONLY error is that it's expired, then we ignore it
+		if v.Errors != jwt.ValidationErrorExpired {
+			return nil, errors.Wrap(err, "parse license")
+		}
+		parsedToken.Valid = true
 	}
 
 	license, err := validate(parsedToken)
@@ -71,6 +77,10 @@ type licenseClaims struct {
 	Tier    string `json:"tier"`
 	Devices int    `json:"devices"`
 	Note    string `json:"note"`
+}
+
+func (l licenseClaims) VerifyExpiresAt(cmp int64, req bool) bool {
+	return true
 }
 
 func validate(token *jwt.Token) (*fleet.LicenseInfo, error) {
