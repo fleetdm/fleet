@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+
 interface IEnrollSecretModal {
   selectedTeam: number;
   onReturnToApp: () => void;
