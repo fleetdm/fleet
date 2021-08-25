@@ -161,32 +161,6 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 	return ds, usersMap, server
 }
 
-func getTestAdminToken(t *testing.T, server *httptest.Server) string {
-	testUser := testUsers["admin1"]
-
-	params := loginRequest{
-		Email:    testUser.Email,
-		Password: testUser.PlaintextPassword,
-	}
-	j, err := json.Marshal(&params)
-	assert.Nil(t, err)
-
-	requestBody := &nopCloser{bytes.NewBuffer(j)}
-	resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
-	require.Nil(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var jsn = struct {
-		User  *fleet.User         `json:"user"`
-		Token string              `json:"token"`
-		Err   []map[string]string `json:"errors,omitempty"`
-	}{}
-	err = json.NewDecoder(resp.Body).Decode(&jsn)
-	require.Nil(t, err)
-
-	return jsn.Token
-}
-
 func TestNoHeaderErrorsDifferently(t *testing.T) {
 	_, _, server := setupAuthTest(t)
 

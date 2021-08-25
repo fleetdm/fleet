@@ -82,6 +82,8 @@ func CreateMySQLDS(t *testing.T) *Datastore {
 	cleanName := strings.ReplaceAll(
 		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
 	)
+	cleanName = strings.ReplaceAll(cleanName, "(*", "")
+	cleanName = strings.ReplaceAll(cleanName, ")", "")
 	cleanName = strings.ReplaceAll(cleanName, ".", "_")
 	return initializeDatabase(t, cleanName)
 }
