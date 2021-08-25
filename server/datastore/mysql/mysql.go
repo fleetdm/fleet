@@ -40,7 +40,9 @@ var (
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
-	db     *sqlx.DB
+	reader *sqlx.DB
+	writer *sqlx.DB
+
 	logger log.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
@@ -70,7 +72,7 @@ func retryableError(err error) bool {
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 	operation := func() error {
-		tx, err := d.db.Beginx()
+		tx, err := d.writer.Beginx()
 		if err != nil {
 			return errors.Wrap(err, "create transaction")
 		}
@@ -119,7 +121,7 @@ func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 
 // withTx provides a common way to commit/rollback a txFn
 func (d *Datastore) withTx(fn txFn) (err error) {
-	tx, err := d.db.Beginx()
+	tx, err := d.writer.Beginx()
 	if err != nil {
 		return errors.Wrap(err, "create transaction")
 	}
@@ -170,35 +172,21 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	dsn := generateMysqlConnectionString(config)
-	db, err := sqlx.Open("mysql", dsn)
+	dbWriter, err := newDB(&config, options)
 	if err != nil {
 		return nil, err
 	}
-
-	db.SetMaxIdleConns(config.MaxIdleConns)
-	db.SetMaxOpenConns(config.MaxOpenConns)
-	db.SetConnMaxLifetime(time.Second * time.Duration(config.ConnMaxLifetime))
-
-	var dbError error
-	for attempt := 0; attempt < options.maxAttempts; attempt++ {
-		dbError = db.Ping()
-		if dbError == nil {
-			// we're connected!
-			break
+	dbReader := dbWriter
+	if options.replicaConfig != nil {
+		dbReader, err = newDB(options.replicaConfig, options)
+		if err != nil {
+			return nil, err
 		}
-		interval := time.Duration(attempt) * time.Second
-		options.logger.Log("mysql", fmt.Sprintf(
-			"could not connect to db: %v, sleeping %v", dbError, interval))
-		time.Sleep(interval)
-	}
-
-	if dbError != nil {
-		return nil, dbError
 	}
 
 	ds := &Datastore{
-		db:                db,
+		writer:            dbWriter,
+		reader:            dbReader,
 		logger:            options.logger,
 		clock:             c,
 		config:            config,
@@ -206,6 +194,36 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 
 	return ds, nil
+}
+
+func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
+	dsn := generateMysqlConnectionString(*conf)
+	db, err := sqlx.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	db.SetMaxIdleConns(conf.MaxIdleConns)
+	db.SetMaxOpenConns(conf.MaxOpenConns)
+	db.SetConnMaxLifetime(time.Second * time.Duration(conf.ConnMaxLifetime))
+
+	var dbError error
+	for attempt := 0; attempt < opts.maxAttempts; attempt++ {
+		dbError = db.Ping()
+		if dbError == nil {
+			// we're connected!
+			break
+		}
+		interval := time.Duration(attempt) * time.Second
+		opts.logger.Log("mysql", fmt.Sprintf(
+			"could not connect to db: %v, sleeping %v", dbError, interval))
+		time.Sleep(interval)
+	}
+
+	if dbError != nil {
+		return nil, dbError
+	}
+	return db, nil
 }
 
 func checkConfig(conf *config.MysqlConfig) error {
@@ -235,7 +253,7 @@ func checkConfig(conf *config.MysqlConfig) error {
 }
 
 func (d *Datastore) Begin() (fleet.Transaction, error) {
-	return d.db.Beginx()
+	return d.writer.Beginx()
 }
 
 func (d *Datastore) Name() string {
@@ -243,11 +261,11 @@ func (d *Datastore) Name() string {
 }
 
 func (d *Datastore) MigrateTables() error {
-	return tables.MigrationClient.Up(d.db.DB, "")
+	return tables.MigrationClient.Up(d.writer.DB, "")
 }
 
 func (d *Datastore) MigrateData() error {
-	return data.MigrationClient.Up(d.db.DB, "")
+	return data.MigrationClient.Up(d.writer.DB, "")
 }
 
 func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
@@ -260,7 +278,7 @@ func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
 		return 0, errors.Wrap(err, "missing tables migrations")
 	}
 
-	currentTablesVersion, err := tables.MigrationClient.GetDBVersion(d.db.DB)
+	currentTablesVersion, err := tables.MigrationClient.GetDBVersion(d.writer.DB)
 	if err != nil {
 		return 0, errors.Wrap(err, "cannot get table migration status")
 	}
@@ -270,7 +288,7 @@ func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
 		return 0, errors.Wrap(err, "missing data migrations")
 	}
 
-	currentDataVersion, err := data.MigrationClient.GetDBVersion(d.db.DB)
+	currentDataVersion, err := data.MigrationClient.GetDBVersion(d.writer.DB)
 	if err != nil {
 		return 0, errors.Wrap(err, "cannot get data migration status")
 	}
@@ -300,11 +318,11 @@ func (d *Datastore) Drop() error {
 		WHERE TABLE_SCHEMA = ?;
 	`
 
-	if err := d.db.Select(&tables, sql, d.config.Database); err != nil {
+	if err := d.writer.Select(&tables, sql, d.config.Database); err != nil {
 		return err
 	}
 
-	tx, err := d.db.Begin()
+	tx, err := d.writer.Begin()
 	if err != nil {
 		return err
 	}
@@ -329,13 +347,27 @@ func (d *Datastore) Drop() error {
 
 // HealthCheck returns an error if the MySQL backend is not healthy.
 func (d *Datastore) HealthCheck() error {
-	_, err := d.db.Exec("select 1")
-	return err
+	if _, err := d.writer.Exec("select 1"); err != nil {
+		return err
+	}
+	if d.readReplicaConfig != nil {
+		if _, err := d.reader.Exec("select 1"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Close frees resources associated with underlying mysql connection
 func (d *Datastore) Close() error {
-	return d.db.Close()
+	err := d.writer.Close()
+	if d.readReplicaConfig != nil {
+		errRead := d.reader.Close()
+		if err == nil {
+			err = errRead
+		}
+	}
+	return err
 }
 
 func sanitizeColumn(col string) string {

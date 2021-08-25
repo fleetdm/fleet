@@ -121,8 +121,10 @@ func TestSearchLike(t *testing.T) {
 func mockDatastore(t *testing.T) (sqlmock.Sqlmock, *Datastore) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
+	dbmock := sqlx.NewDb(db, "sqlmock")
 	ds := &Datastore{
-		db:     sqlx.NewDb(db, "sqlmock"),
+		writer: dbmock,
+		reader: dbmock,
 		logger: log.NewNopLogger(),
 	}
 

@@ -205,7 +205,7 @@ func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.P
 			WHERE name = ?
 	`
 	var pack fleet.Pack
-	err := d.db.Get(&pack, sqlStatement, name)
+	err := d.reader.Get(&pack, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -213,7 +213,7 @@ func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.P
 		return nil, false, errors.Wrap(err, "fetch pack by name")
 	}
 
-	if err := d.loadPackTargets(&pack); err != nil {
+	if err := d.loadPackTargets(d.reader, &pack); err != nil {
 		return nil, false, err
 	}
 
@@ -313,10 +313,10 @@ func (d *Datastore) replacePackTargets(tx *sqlx.Tx, pack *fleet.Pack) error {
 	return nil
 }
 
-func (d *Datastore) loadPackTargets(pack *fleet.Pack) error {
+func (d *Datastore) loadPackTargets(db *sqlx.DB, pack *fleet.Pack) error {
 	var targets []fleet.PackTarget
 	sql := `SELECT * FROM pack_targets WHERE pack_id = ?`
-	if err := d.db.Select(&targets, sql, pack.ID); err != nil {
+	if err := db.Select(&targets, sql, pack.ID); err != nil {
 		return errors.Wrap(err, "select pack targets")
 	}
 
@@ -371,14 +371,14 @@ func (d *Datastore) DeletePack(name string) error {
 func (d *Datastore) Pack(pid uint) (*fleet.Pack, error) {
 	query := `SELECT * FROM packs WHERE id = ?`
 	pack := &fleet.Pack{}
-	err := d.db.Get(pack, query, pid)
+	err := d.reader.Get(pack, query, pid)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Pack").WithID(pid)
 	} else if err != nil {
 		return nil, errors.Wrap(err, "get pack")
 	}
 
-	if err := d.loadPackTargets(pack); err != nil {
+	if err := d.loadPackTargets(d.reader, pack); err != nil {
 		return nil, err
 	}
 
@@ -388,14 +388,15 @@ func (d *Datastore) Pack(pid uint) (*fleet.Pack, error) {
 // EnsureGlobalPack gets or inserts a pack with type global
 func (d *Datastore) EnsureGlobalPack() (*fleet.Pack, error) {
 	pack := &fleet.Pack{}
-	err := d.db.Get(pack, `SELECT * FROM packs WHERE pack_type = 'global'`)
+	// read from primary as we will create the pack if it doesn't exist
+	err := d.writer.Get(pack, `SELECT * FROM packs WHERE pack_type = 'global'`)
 	if err == sql.ErrNoRows {
 		return d.insertNewGlobalPack()
 	} else if err != nil {
 		return nil, errors.Wrap(err, "get pack")
 	}
 
-	if err := d.loadPackTargets(pack); err != nil {
+	if err := d.loadPackTargets(d.writer, pack); err != nil {
 		return nil, err
 	}
 
@@ -439,14 +440,15 @@ func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
 	}
 
 	teamType := fmt.Sprintf("team-%d", teamID)
-	err = d.db.Get(pack, `SELECT * FROM packs WHERE pack_type = ?`, teamType)
+	// read from primary as we will create the team pack if it doesn't exist
+	err = d.writer.Get(pack, `SELECT * FROM packs WHERE pack_type = ?`, teamType)
 	if err == sql.ErrNoRows {
 		return d.insertNewTeamPack(t)
 	} else if err != nil {
 		return nil, errors.Wrap(err, "get pack")
 	}
 
-	if err := d.loadPackTargets(pack); err != nil {
+	if err := d.loadPackTargets(d.writer, pack); err != nil {
 		return nil, err
 	}
 
@@ -465,7 +467,7 @@ func (d *Datastore) insertNewTeamPack(team *fleet.Team) (*fleet.Pack, error) {
 	var packID uint
 	err := d.withTx(func(tx *sqlx.Tx) error {
 		res, err := tx.Exec(
-			`INSERT INTO packs (name, description, platform, pack_type) 
+			`INSERT INTO packs (name, description, platform, pack_type)
                    VALUES (?, 'Schedule additional queries for all hosts assigned to this team.', '',?)`,
 			teamScheduleName(team), teamSchedulePackType(team),
 		)
@@ -499,13 +501,13 @@ func (d *Datastore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) 
 		query = `SELECT * FROM packs`
 	}
 	var packs []*fleet.Pack
-	err := d.db.Select(&packs, appendListOptionsToSQL(query, opt.ListOptions))
+	err := d.reader.Select(&packs, appendListOptionsToSQL(query, opt.ListOptions))
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing packs")
 	}
 
 	for _, pack := range packs {
-		if err := d.loadPackTargets(pack); err != nil {
+		if err := d.loadPackTargets(d.reader, pack); err != nil {
 			return nil, err
 		}
 	}
@@ -541,7 +543,7 @@ func (d *Datastore) ListPacksForHost(hid uint) ([]*fleet.Pack, error) {
 	`
 
 	packs := []*fleet.Pack{}
-	if err := d.db.Select(&packs, query, fleet.TargetLabel, hid, fleet.TargetHost, hid, fleet.TargetTeam, hid); err != nil && err != sql.ErrNoRows {
+	if err := d.reader.Select(&packs, query, fleet.TargetLabel, hid, fleet.TargetHost, hid, fleet.TargetTeam, hid); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing hosts in pack")
 	}
 	return packs, nil

@@ -206,7 +206,7 @@ func (d *Datastore) insertNewInstalledHostSoftware(
 }
 
 func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Software, error) {
-	selectFunc := d.db.Select
+	selectFunc := d.reader.Select
 	if tx != nil {
 		selectFunc = tx.Select
 	}
@@ -305,7 +305,7 @@ func (d *Datastore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, err
 	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
-	rows, err := d.db.Queryx(sql) //nolint:sqlclosecheck
+	rows, err := d.reader.Queryx(sql) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
@@ -314,7 +314,7 @@ func (d *Datastore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, err
 
 func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error {
 	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
-	if _, err := d.db.Exec(sql, software.ID, cpe); err != nil {
+	if _, err := d.writer.Exec(sql, software.ID, cpe); err != nil {
 		return errors.Wrap(err, "insert software cpe")
 	}
 	return nil
@@ -323,7 +323,7 @@ func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error
 func (d *Datastore) AllCPEs() ([]string, error) {
 	sql := `SELECT cpe FROM software_cpe`
 	var cpes []string
-	err := d.db.Select(&cpes, sql)
+	err := d.reader.Select(&cpes, sql)
 	if err != nil {
 		return nil, errors.Wrap(err, "loads cpes")
 	}
@@ -337,7 +337,7 @@ func (d *Datastore) InsertCVEForCPE(cve string, cpes []string) error {
 	for _, cpe := range cpes {
 		args = append(args, cpe, cve)
 	}
-	_, err := d.db.Exec(sql, args...)
+	_, err := d.writer.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "insert software cve")
 	}
