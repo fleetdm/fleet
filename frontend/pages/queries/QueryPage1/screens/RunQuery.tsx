@@ -14,10 +14,7 @@ import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
-// @ts-ignore
-import QueryProgressDetails from "components/queries/QueryProgressDetails"; // @ts-ignore
-import QueryResultsTable from "components/queries/QueryResultsTable";
-import QueryResults from "../QueryResults";
+import QueryResults from "../components/QueryResults";
 
 interface IRunQueryProps {
   baseClass: string;
@@ -180,33 +177,7 @@ const RunQuery = ({
     return teardownDistributedQuery();
   };
 
-  const { campaign, queryIsRunning, runQueryMilliseconds } = campaignState;
-  // if (isQueryFinished) {
-  //   return (
-  //     <QueryResultsTable
-  //       campaign={campaign}
-  //       onExportQueryResults={onExportQueryResults}
-  //       onExportErrorsResults={onExportErrorsResults}
-  //       onRunQuery={onRunQuery}
-  //       onStopQuery={onStopQuery}
-  //       queryIsRunning={queryIsRunning}
-  //       queryTimerMilliseconds={runQueryMilliseconds}
-  //     />
-  //   );
-  // }
-
-  // return (
-  //   <QueryProgressDetails
-  //     campaign={campaign}
-  //     onRunQuery={onRunQuery}
-  //     onStopQuery={onStopQuery}
-  //     queryIsRunning={queryIsRunning}
-  //     queryTimerMilliseconds={runQueryMilliseconds}
-  //     disableRun={false}
-  //   />
-  // );
-  // return null;
-
+  const { campaign } = campaignState;
   return (
     <QueryResults
       campaign={campaign}

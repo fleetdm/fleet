@@ -18,8 +18,8 @@ import { IHost } from "interfaces/host";
 // @ts-ignore
 import TargetsInput from "pages/queries/QueryPage1/components/TargetsInput";
 import Button from "components/buttons/Button";
-import PlusIcon from "../../../../../../assets/images/icon-plus-purple-32x32@2x.png";
-import CheckIcon from "../../../../../../assets/images/icon-check-purple-32x32@2x.png";
+import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
+import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
 
 interface ITargetPillSelectorProps {
   entity: ILabel | ITeam;

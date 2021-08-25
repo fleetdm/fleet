@@ -3,14 +3,11 @@ import { connect, useDispatch } from "react-redux";
 import { useQuery, useMutation } from "react-query";
 
 // @ts-ignore
-import Fleet from "fleet";
-import {
-  selectOsqueryTable, // @ts-ignore
-} from "redux/nodes/components/QueryPages/actions";
+import Fleet from "fleet"; // @ts-ignore
+import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
 import {
   QUERIES_PAGE_STEPS,
   DEFAULT_QUERY,
-  DEFAULT_CAMPAIGN,
 } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import permissionUtils from "utilities/permissions";
@@ -18,14 +15,13 @@ import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 import { IOsqueryTable } from "interfaces/osquery_table";
 import { IUser } from "interfaces/user";
-import { ICampaign } from "interfaces/campaign";
 
 // @ts-ignore
 import WarningBanner from "components/WarningBanner"; // @ts-ignore
 import QuerySidePanel from "components/side_panels/QuerySidePanel"; // @ts-ignore
-import QueryEditor from "pages/queries/QueryPage1/components/screens/QueryEditor";
-import SelectTargets from "pages/queries/QueryPage1/components/screens/SelectTargets";
-import RunQuery from "pages/queries/QueryPage1/components/screens/RunQuery";
+import QueryEditor from "pages/queries/QueryPage1/screens/QueryEditor";
+import SelectTargets from "pages/queries/QueryPage1/screens/SelectTargets";
+import RunQuery from "pages/queries/QueryPage1/screens/RunQuery";
 
 interface IQueryPageProps {
   queryIdForEdit: string;
