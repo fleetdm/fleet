@@ -10,7 +10,7 @@ import { filter, get, keys, omit } from "lodash";
 import PATHS from "router/paths"; // @ts-ignore
 import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
 import filterArrayByHash from "utilities/filter_array_by_hash";
-import { ICampaign } from "interfaces/campaign";
+import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
 
 import Button from "components/buttons/Button"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
@@ -57,7 +57,7 @@ const QueryResults = ({
   }`;
 
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
-  const [resultsFilter, setResultsFilter] = useState<{ [key: string]: any }>(
+  const [resultsFilter, setResultsFilter] = useState<{ [key: string]: string }>(
     {}
   );
   const [activeColumn, setActiveColumn] = useState<string>("");
@@ -72,7 +72,7 @@ const QueryResults = ({
   }, [isQueryFinished]);
 
   const onFilterAttribute = (attribute: string) => {
-    return (value: any) => {
+    return (value: string) => {
       setResultsFilter({
         ...resultsFilter,
         [attribute]: value,
@@ -146,7 +146,7 @@ const QueryResults = ({
     );
   };
 
-  const renderTableHeaderRow = (rows: any) => {
+  const renderTableHeaderRow = (rows: ICampaignQueryResult[]) => {
     if (!rows) {
       return false;
     }
@@ -164,12 +164,12 @@ const QueryResults = ({
     );
   };
 
-  const renderTableRows = (rows: any) => {
+  const renderTableRows = (rows: ICampaignQueryResult[]) => {
     const filteredRows = filterArrayByHash(rows, resultsFilter);
 
-    return filteredRows.map((row: any) => {
+    return filteredRows.map((row: ICampaignQueryResult) => {
       return (
-        <QueryResultsRow key={row.id || row.host_hostname} queryResult={row} />
+        <QueryResultsRow key={row.uuid || row.host_hostname} queryResult={row} />
       );
     });
   };

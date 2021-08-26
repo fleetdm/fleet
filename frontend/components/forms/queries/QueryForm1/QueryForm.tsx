@@ -19,7 +19,7 @@ interface IQueryFormProps {
   storedQuery: IQuery;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
-  goToSelectTargets: (value: any) => void;
+  goToSelectTargets: () => void;
   onUpdate: (formData: IQueryFormData) => void;
   title: string;
   hasSavePermissions: boolean;

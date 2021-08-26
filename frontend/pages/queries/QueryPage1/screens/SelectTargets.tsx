@@ -208,7 +208,7 @@ const SelectTargets = ({
 
       // now prepare the labels data
       const linuxFakeIndex = labels.findIndex(
-        ({ name }: any) => name === "Linux"
+        ({ name }: ILabel) => name === "Linux"
       );
       if (linuxFakeIndex > -1) {
         // use the official linux labels instead

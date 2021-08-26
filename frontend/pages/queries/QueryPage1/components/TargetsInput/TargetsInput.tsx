@@ -17,7 +17,7 @@ interface ITargetsInputProps {
   selectedTargets: ITarget[];
   setSearchText: (value: string) => void;
   handleRowSelect: (value: Row) => void;
-  onPrimarySelectActionClick: (value: any) => void;
+  onPrimarySelectActionClick: (value: number[]) => void;
 }
 
 const baseClass = "targets-input";
