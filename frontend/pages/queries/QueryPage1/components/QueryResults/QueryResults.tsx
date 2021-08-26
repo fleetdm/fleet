@@ -168,7 +168,9 @@ const QueryResults = ({
     const filteredRows = filterArrayByHash(rows, resultsFilter);
 
     return filteredRows.map((row: any) => {
-      return <QueryResultsRow key={row.id || row.host_hostname} queryResult={row} />;
+      return (
+        <QueryResultsRow key={row.id || row.host_hostname} queryResult={row} />
+      );
     });
   };
 

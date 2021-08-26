@@ -4,9 +4,10 @@ import { useSelector } from "react-redux";
 import { IPack } from "interfaces/pack";
 import { IUser } from "interfaces/user";
 import permissionUtils from "utilities/permissions";
+
 import TableContainer from "components/TableContainer";
-import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
+import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 
 const baseClass = "packs-list-wrapper";
 const noPacksClass = "no-packs";

@@ -2,9 +2,9 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import AceEditor from "react-ace";
 import classnames from "classnames";
-import "brace/mode/sql";
-import "brace/ext/linking";
-import "brace/ext/language_tools";
+import "ace-builds/src-noconflict/mode-sql";
+import "ace-builds/src-noconflict/ext-linking";
+import "ace-builds/src-noconflict/ext-language_tools";
 
 import "./mode";
 import "./theme";

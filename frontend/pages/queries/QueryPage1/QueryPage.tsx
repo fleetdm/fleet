@@ -5,10 +5,7 @@ import { useQuery, useMutation } from "react-query";
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
-import {
-  QUERIES_PAGE_STEPS,
-  DEFAULT_QUERY,
-} from "utilities/constants";
+import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import permissionUtils from "utilities/permissions";
 import { IQueryFormData, IQuery } from "interfaces/query";

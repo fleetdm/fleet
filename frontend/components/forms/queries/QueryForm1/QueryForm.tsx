@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { size } from "lodash";
+import { IAceEditor } from "react-ace/lib/types";
 
 import { IQueryFormFields, IQueryFormData, IQuery } from "interfaces/query";
 
@@ -50,12 +51,14 @@ const QueryForm = ({
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
 
-  const onLoad = (editor: any) => {
+  const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
     });
 
-    editor.on("linkClick", (data: any) => {
+    // @ts-expect-error
+    // the string "linkClick" is not officially in the lib but we need it
+    editor.on("linkClick", (data: EditorSession) => {
       const { type, value } = data.token;
 
       if (type === "osquery-token") {
