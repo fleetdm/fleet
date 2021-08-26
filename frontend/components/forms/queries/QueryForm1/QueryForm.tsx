@@ -26,6 +26,7 @@ interface IQueryFormProps {
   goToSelectTargets: () => void;
   onUpdate: (formData: IQueryFormData) => void;
   onOpenSchemaSidebar: () => void;
+  renderLiveQueryWarning: () => JSX.Element | null;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -52,6 +53,7 @@ const QueryForm = ({
   goToSelectTargets,
   onUpdate,
   onOpenSchemaSidebar,
+  renderLiveQueryWarning,
 }: IQueryFormProps) => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
@@ -90,9 +92,9 @@ const QueryForm = ({
   };
 
   const renderLabelComponent = (): JSX.Element | null => {
-    // if (!showOpenSchemaActionText) {
-    //   return null;
-    // }
+    if (!showOpenSchemaActionText) {
+      return null;
+    }
 
     return (
       <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
@@ -132,6 +134,7 @@ const QueryForm = ({
           onChange={onChange}
           handleSubmit={openSaveModal}
         />
+        {renderLiveQueryWarning()}
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >

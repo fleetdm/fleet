@@ -20,7 +20,7 @@ import helpers from "pages/queries/QueryPage/helpers";
 import hostInterface from "interfaces/host";
 import Button from "components/buttons/Button";
 import FleetAce from "components/FleetAce";
-import WarningBanner from "components/WarningBanner";
+// import WarningBanner from "components/WarningBanner";
 import QueryForm from "components/forms/queries/QueryForm";
 import osqueryTableInterface from "interfaces/osquery_table";
 import queryActions from "redux/nodes/entities/queries/actions";

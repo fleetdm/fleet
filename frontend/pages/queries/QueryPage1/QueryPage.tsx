@@ -14,11 +14,12 @@ import { IOsqueryTable } from "interfaces/osquery_table";
 import { IUser } from "interfaces/user";
 
 // @ts-ignore
-import WarningBanner from "components/WarningBanner";
+// import WarningBanner from "components/WarningBanner";
 import QuerySidePanel from "components/side_panels/QuerySidePanel"; // @ts-ignore
 import QueryEditor from "pages/queries/QueryPage1/screens/QueryEditor";
 import SelectTargets from "pages/queries/QueryPage1/screens/SelectTargets";
 import RunQuery from "pages/queries/QueryPage1/screens/RunQuery";
+import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IQueryPageProps {
   queryIdForEdit: string;
@@ -45,37 +46,33 @@ const QueryPage = ({
   );
   const [queryIsRunning, setQueryIsRunning] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-  const [liveQueryError, setLiveQueryError] = useState<string>("");
+  const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [
     showOpenSchemaActionText,
     setShowOpenSchemaActionText,
   ] = useState<boolean>(false);
 
-  const { status, data: storedQuery = DEFAULT_QUERY, error } = useQuery<
-    IQuery,
-    Error
-  >("query", () => queryAPI.load(queryIdForEdit), {
+  const { 
+    status, 
+    data: storedQuery = DEFAULT_QUERY, 
+    error 
+  } = useQuery<IQuery, Error>("query", () => queryAPI.load(queryIdForEdit), {
     enabled: !!queryIdForEdit,
   });
+  
   const { mutateAsync: createQuery } = useMutation((formData: IQueryFormData) =>
     queryAPI.create(formData)
   );
 
   useEffect(() => {
-    const checkLiveQuery = () => {
-      Fleet.status.live_query().catch((response: any) => {
-        try {
-          const liveError = response.message.errors[0].reason;
-          setLiveQueryError(liveError);
-        } catch (e) {
-          const liveError = `Unknown error: ${e}`;
-          setLiveQueryError(liveError);
-        }
+    const detectIsFleetQueryRunnable = () => {
+      Fleet.status.live_query().catch(() => {
+        setIsLiveQueryRunnable(false);
       });
     };
 
-    checkLiveQuery();
+    detectIsFleetQueryRunnable();
   }, []);
 
   useEffect(() => {
@@ -94,20 +91,20 @@ const QueryPage = ({
     setIsSidebarOpen(true);
   };
 
-  const renderLiveQueryWarning = () => {
-    if (!liveQueryError) {
-      return false;
+  const renderLiveQueryWarning = (): JSX.Element | null => {
+    if (isLiveQueryRunnable) {
+      return null;
     }
 
     return (
-      <WarningBanner className={`${baseClass}__warning`} shouldShowWarning>
-        <h2 className={`${baseClass}__warning-title`}>
-          Live query request failed
-        </h2>
-        <p>
-          <span>Error:</span> {liveQueryError}
-        </p>
-      </WarningBanner>
+      <div className={`${baseClass}__warning`}>
+        <div className={`${baseClass}__message`}>
+          <p>
+            Fleet is unable to run a live query. Refresh the page or log in again. 
+            If this keeps happening please <a target="_blank" rel="noopener noreferrer" href="https://github.com/fleetdm/fleet/issues/new/choose">file an issue <img alt="" src={ExternalURLIcon} /></a>
+          </p>
+        </div>
+      </div>
     );
   };
 
@@ -128,6 +125,7 @@ const QueryPage = ({
       goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
       setTypedQueryBody,
       onOpenSchemaSidebar,
+      renderLiveQueryWarning,
     };
 
     const step2Opts = {
@@ -157,15 +155,11 @@ const QueryPage = ({
   };
 
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
+  const sidebarClass = isFirstStep && isSidebarOpen && "has-sidebar";
   return (
-    <div
-      className={`${baseClass} ${
-        isFirstStep && isSidebarOpen ? "has-sidebar" : ""
-      }`}
-    >
+    <div className={`${baseClass} ${sidebarClass}`}>
       <div className={`${baseClass}__content`}>
         {renderScreen()}
-        {renderLiveQueryWarning()}
       </div>
       {isFirstStep && isSidebarOpen && (
         <QuerySidePanel

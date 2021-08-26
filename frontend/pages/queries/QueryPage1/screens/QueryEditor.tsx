@@ -28,6 +28,7 @@ interface IQueryEditorProps {
   goToSelectTargets: () => void;
   setTypedQueryBody: (value: string) => void;
   onOpenSchemaSidebar: () => void;
+  renderLiveQueryWarning: () => JSX.Element | null;
 }
 
 const QueryEditor = ({
@@ -42,6 +43,7 @@ const QueryEditor = ({
   setTypedQueryBody,
   dispatch,
   onOpenSchemaSidebar,
+  renderLiveQueryWarning,
 }: IQueryEditorProps) => {
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
     try {
@@ -108,6 +110,7 @@ const QueryEditor = ({
         hasSavePermissions={hasSavePermissions(currentUser)}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}
+        renderLiveQueryWarning={renderLiveQueryWarning}
       />
     </div>
   );
