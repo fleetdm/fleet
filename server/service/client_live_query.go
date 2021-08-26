@@ -1,8 +1,10 @@
 package service
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
+	"flag"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -69,6 +71,10 @@ func (h *LiveQueryResultsHandler) Close() error {
 
 // LiveQuery creates a new live query and begins streaming results.
 func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
+	return c.LiveQueryWithContext(context.Background(), query, labels, hosts)
+}
+
+func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
 	req := createDistributedQueryCampaignByNamesRequest{
 		QuerySQL: query,
 		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
@@ -105,6 +111,9 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 
 	wssURL := *c.baseURL
 	wssURL.Scheme = "wss"
+	if flag.Lookup("test.v") != nil {
+		wssURL.Scheme = "ws"
+	}
 	wssURL.Path = c.urlPrefix + "/api/v1/fleet/results/websocket"
 	conn, _, err := dialer.Dial(wssURL.String(), nil)
 	if err != nil {
@@ -137,6 +146,12 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 	go func() {
 		defer conn.Close()
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			msg := struct {
 				Type string          `json:"type"`
 				Data json.RawMessage `json:"data"`
@@ -144,6 +159,9 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 			err := conn.ReadJSON(&msg)
 			if err != nil {
 				resHandler.errors <- errors.Wrap(err, "receive ws message")
+				if errors.Is(err, websocket.ErrCloseSent) {
+					return
+				}
 			}
 
 			switch msg.Type {
