@@ -113,7 +113,7 @@ fleet serve --config /tmp/fleet.yml
 
 Note that all option names can be converted consistently from flag name to environment variable and visa-versa. For example, the `--mysql_address` flag would be the `FLEET_MYSQL_ADDRESS`. Further, specifying the `mysql_address` option in the config would follow the pattern:
 
-```
+```yaml
 mysql:
   address: 127.0.0.1:3306
 ```
@@ -132,7 +132,7 @@ The address of the MySQL server which Fleet should connect to. Include the hostn
 - Environment variable: `FLEET_MYSQL_ADDRESS`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	address: localhost:3306
   ```
@@ -145,7 +145,7 @@ The name of the MySQL database which Fleet will use.
 - Environment variable: `FLEET_MYSQL_DATABASE`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	database: fleet
   ```
@@ -158,7 +158,7 @@ The username to use when connecting to the MySQL instance.
 - Environment variable: `FLEET_MYSQL_USERNAME`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	username: fleet
   ```
@@ -171,7 +171,7 @@ The password to use when connecting to the MySQL instance.
 - Environment variable: `FLEET_MYSQL_PASSWORD`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	password: fleet
   ```
@@ -184,7 +184,7 @@ File path to a file that contains the password to use when connecting to the MyS
 - Environment variable: `FLEET_MYSQL_PASSWORD_PATH`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	password_path: '/run/secrets/fleetdm-mysql-password'
   ```
@@ -197,7 +197,7 @@ The path to a PEM encoded certificate of MYSQL's CA for client certificate authe
 - Environment variable: `FLEET_MYSQL_TLS_CA`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	tls_ca: /path/to/server-ca.pem
   ```
@@ -210,7 +210,7 @@ The path to a PEM encoded certificate use for tls authentication.
 - Environment variable: `FLEET_MYSQL_TLS_CERT`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	tls_cert: /path/to/certificate.pem
   ```
@@ -223,7 +223,7 @@ The path to a PEM encoded private key use for tls authentication.
 - Environment variable: `FLEET_MYSQL_TLS_KEY`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	tls_key: /path/to/key.pem
   ```
@@ -236,7 +236,7 @@ The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN valu
 - Environment variable: `FLEET_MYSQL_TLS_CONFIG`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	tls_config: true
   ```
@@ -249,7 +249,7 @@ The server name or IP address used by the client certificate.
 - Environment variable: `FLEET_MYSQL_TLS_SERVER_NAME`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	servername: 127.0.0.1
   ```
@@ -262,7 +262,7 @@ Maximum open connections to database
 - Environment variable: `FLEET_MYSQL_MAX_OPEN_CONNS`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	max_open_conns: 50
   ```
@@ -275,7 +275,7 @@ Maximum idle connections to database. This value should be equal to or less than
 - Environment variable: `FLEET_MYSQL_MAX_IDLE_CONNS`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	max_idle_conns: 50
   ```
@@ -288,7 +288,7 @@ Maximum amount of time, in seconds, a connection may be reused.
 - Environment variable: `FLEET_MYSQL_CONN_MAX_LIFETIME`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	conn_max_lifetime: 50
   ```
@@ -301,7 +301,7 @@ Enable [AWS IAM Access](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/U
 - Environment variable: `FLEET_MYSQL_IAM_ACCESS`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	iam_access: true
   ```
@@ -314,7 +314,7 @@ The region your RDS cluster is in (for usage with `iam_access`)
 - Environment variable: `FLEET_MYSQL_REGION`
 - Config file format:
 
-  ```
+  ```yaml
   mysql:
   	region: us-east-1
   ```
@@ -329,7 +329,7 @@ The address of the Redis server which Fleet should connect to. Include the hostn
 - Environment variable: `FLEET_REDIS_ADDRESS`
 - Config file format:
 
-  ```
+  ```yaml
   redis:
   	address: 127.0.0.1:7369
   ```
@@ -342,7 +342,7 @@ The password to use when connecting to the Redis instance.
 - Environment variable: `FLEET_REDIS_PASSWORD`
 - Config file format:
 
-  ```
+  ```yaml
   redis:
   	password: foobar
   ```
@@ -355,7 +355,7 @@ The database to use when connecting to the Redis instance.
 - Environment variable: `FLEET_REDIS_DATABASE`
 - Config file format:
 
-  ```
+  ```yaml
   redis:
     database: 14
   ```
@@ -368,7 +368,7 @@ Whether or not to duplicate Live Query results to another Redis channel named `L
 - Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
 - Config file format:
 
-  ```
+  ```yaml
   redis:
     duplicate_results: true
   ```
@@ -383,7 +383,7 @@ The address to serve the Fleet webserver.
 - Environment variable: `FLEET_SERVER_ADDRESS`
 - Config file format:
 
-  ```
+  ```yaml
   server:
   	address: 0.0.0.0:443
   ```
@@ -398,7 +398,7 @@ See [TLS certificate considerations](./1-Installation.md#tls-certificate-conside
 - Environment variable: `FLEET_SERVER_CERT`
 - Config file format:
 
-  ```
+  ```yaml
   server:
   	cert: /tmp/fleet.crt
   ```
@@ -411,7 +411,7 @@ The TLS key to use when terminating TLS.
 - Environment variable: `FLEET_SERVER_KEY`
 - Config file format:
 
-  ```
+  ```yaml
   server:
   	key: /tmp/fleet.key
   ```
@@ -424,7 +424,7 @@ Whether or not the server should be served over TLS.
 - Environment variable: `FLEET_SERVER_TLS`
 - Config file format:
 
-  ```
+  ```yaml
   server:
   	tls: false
   ```
@@ -437,7 +437,7 @@ Configures the TLS settings for compatibility with various user agents. Options 
 - Environment variable: `FLEET_SERVER_TLS_COMPATIBILITY`
 - Config file format:
 
-  ```
+  ```yaml
   server:
   	tls_compatibility: intermediate
   ```
@@ -452,7 +452,7 @@ Note that some other configurations may need to be changed when modifying the UR
 - Environment variable: `FLEET_SERVER_URL_PREFIX`
 - Config file format:
 
-  ```
+  ```yaml
   server:
   	url_prefix: /apps/fleet
   ```
@@ -467,7 +467,7 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
 - Environment variable: `FLEET_SERVER_KEEPALIVE`
 - Config file format:
 
-  ```
+  ```yaml
   server:
   	keepalive: true
   ```
@@ -482,7 +482,7 @@ The bcrypt cost to use when hashing user passwords.
 - Environment variable: `FLEET_AUTH_BCRYPT_COST`
 - Config file format:
 
-  ```
+  ```yaml
   auth:
   	bcrypt_cost: 14
   ```
@@ -495,7 +495,7 @@ The key size of the salt which is generated when hashing user passwords.
 - Environment variable: `FLEET_AUTH_SALT_KEY_SIZE`
 - Config file format:
 
-  ```
+  ```yaml
   auth:
   	salt_key_size: 36
   ```
@@ -510,7 +510,7 @@ Size of generated app tokens.
 - Environment variable: `FLEET_APP_TOKEN_KEY_SIZE`
 - Config file format:
 
-  ```
+  ```yaml
   app:
   	token_key_size: 36
   ```
@@ -523,7 +523,7 @@ How long invite tokens should be valid for.
 - Environment variable: `FLEET_APP_INVITE_TOKEN_VALIDITY_PERIOD`
 - Config file format:
 
-  ```
+  ```yaml
   app:
   	invite_token_validity_period: 1d
   ```
@@ -538,7 +538,7 @@ The license key provided to Fleet customers which provides access to Fleet Premi
 - Environment variable: `FLEET_LICENSE_KEY`
 - Config file format:
 
-  ```
+  ```yaml
   license:
     key: foobar
   ```
@@ -553,7 +553,7 @@ The size of the session key.
 - Environment variable: `FLEET_SESSION_KEY_SIZE`
 - Config file format:
 
-  ```
+  ```yaml
   session:
   	key_size: 48
   ```
@@ -568,7 +568,7 @@ Valid time units are `s`, `m`, `h`.
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
 
-  ```
+  ```yaml
   session:
   	duration: 24h
   ```
@@ -583,7 +583,7 @@ The size of the node key which is negotiated with `osqueryd` clients.
 - Environment variable: `FLEET_OSQUERY_NODE_KEY_SIZE`
 - Config file format:
 
-  ```
+  ```yaml
   osquery:
   	node_key_size: 36
   ```
@@ -602,7 +602,7 @@ Users that have duplicate UUIDs in their environment can benefit from setting th
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
 - Config file format:
 
-  ```
+  ```yaml
   osquery:
   	host_identifier: uuid
   ```
@@ -617,7 +617,7 @@ This flag can be used to control load on the database in scenarios in which many
 - Environment variable: `FLEET_OSQUERY_ENROLL_COOLDOWN`
 - Config file format:
 
-  ```
+  ```yaml
   osquery:
   	enroll_cooldown: 1m
   ```
@@ -634,7 +634,7 @@ Valid time units are `s`, `m`, `h`.
 - Environment variable: `FLEET_OSQUERY_LABEL_UPDATE_INTERVAL`
 - Config file format:
 
-  ```
+  ```yaml
   osquery:
   	label_update_interval: 30m
   ```
@@ -651,7 +651,7 @@ Valid time units are `s`, `m`, `h`.
 - Environment variable: `FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL`
 - Config file format:
 
-  ```
+  ```yaml
   osquery:
   	detail_update_interval: 30m
   ```
@@ -666,7 +666,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
 - Config file format:
 
-  ```
+  ```yaml
   osquery:
   	status_log_plugin: firehose
   ```
@@ -681,7 +681,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
 - Config file format:
 
-  ```
+  ```yaml
   osquery:
   	result_log_plugin: firehose
   ```
@@ -696,7 +696,7 @@ Whether or not to enable debug logging.
 - Environment variable: `FLEET_LOGGING_DEBUG`
 - Config file format:
 
-  ```
+  ```yaml
   logging:
   	debug: true
   ```
@@ -709,7 +709,7 @@ Whether or not to log in JSON.
 - Environment variable: `FLEET_LOGGING_JSON`
 - Config file format:
 
-  ```
+  ```yaml
   logging:
   	json: true
   ```
@@ -722,7 +722,7 @@ Whether or not to log the welcome banner.
 - Environment variable: `FLEET_LOGGING_DISABLE_BANNER`
 - Config file format:
 
-  ```
+  ```yaml
   logging:
   	disable_banner: true
   ```
@@ -739,7 +739,7 @@ The path which osquery status logs will be logged to.
 - Environment variable: `FLEET_FILESYSTEM_STATUS_LOG_FILE`
 - Config file format:
 
-  ```
+  ```yaml
   filesystem:
   	status_log_file: /var/log/osquery/status.log
   ```
@@ -754,7 +754,7 @@ The path which osquery result logs will be logged to.
 - Environment variable: `FLEET_FILESYSTEM_RESULT_LOG_FILE`
 - Config file format:
 
-  ```
+  ```yaml
   filesystem:
   	result_log_file: /var/log/osquery/result.log
   ```
@@ -770,7 +770,7 @@ rotated when files reach a size of 500 Mb or an age of 28 days.
 - Environment variable: `FLEET_FILESYSTEM_ENABLE_LOG_ROTATION`
 - Config file format:
 
-  ```
+  ```yaml
   filesystem:
      enable_log_rotation: true
   ```
@@ -785,7 +785,7 @@ This flag will cause the rotated logs to be compressed with gzip.
 - Environment variable: `FLEET_FILESYSTEM_ENABLE_LOG_COMPRESSION`
 - Config file format:
 
-  ```
+  ```yaml
   filesystem:
      enable_log_compression: true
   ```
@@ -802,7 +802,7 @@ AWS region to use for Firehose connection
 - Environment variable: `FLEET_FIREHOSE_REGION`
 - Config file format:
 
-  ```
+  ```yaml
   firehose:
   	region: ca-central-1
   ```
@@ -819,7 +819,7 @@ AWS access key ID to use for Firehose authentication.
 - Environment variable: `FLEET_FIREHOSE_ACCESS_KEY_ID`
 - Config file format:
 
-  ```
+  ```yaml
   firehose:
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
@@ -834,7 +834,7 @@ AWS secret access key to use for Firehose authentication.
 - Environment variable: `FLEET_FIREHOSE_SECRET_ACCESS_KEY`
 - Config file format:
 
-  ```
+  ```yaml
   firehose:
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
@@ -850,7 +850,7 @@ AWS STS role ARN to use for Firehose authentication.
 - Environment variable: `FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
-  ```
+  ```yaml
   firehose:
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
   ```
@@ -865,7 +865,7 @@ Name of the Firehose stream to write osquery status logs received from clients.
 - Environment variable: `FLEET_FIREHOSE_STATUS_STREAM`
 - Config file format:
 
-  ```
+  ```yaml
   firehose:
   	status_stream: osquery_status
   ```
@@ -886,7 +886,7 @@ Name of the Firehose stream to write osquery result logs received from clients.
 - Environment variable: `FLEET_FIREHOSE_RESULT_STREAM`
 - Config file format:
 
-  ```
+  ```yaml
   firehose:
   	result_stream: osquery_result
   ```
@@ -909,7 +909,7 @@ AWS region to use for Kinesis connection
 - Environment variable: `FLEET_KINESIS_REGION`
 - Config file format:
 
-  ```
+  ```yaml
   kinesis:
   	region: ca-central-1
   ```
@@ -930,7 +930,7 @@ AWS access key ID to use for Kinesis authentication.
 - Environment variable: `FLEET_KINESIS_ACCESS_KEY_ID`
 - Config file format:
 
-  ```
+  ```yaml
   kinesis:
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
@@ -946,7 +946,7 @@ AWS secret access key to use for Kinesis authentication.
 - Environment variable: `FLEET_KINESIS_SECRET_ACCESS_KEY`
 - Config file format:
 
-  ```
+  ```yaml
   kinesis:
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
@@ -962,7 +962,7 @@ AWS STS role ARN to use for Kinesis authentication.
 - Environment variable: `FLEET_KINESIS_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
-  ```
+  ```yaml
   kinesis:
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
   ```
@@ -977,7 +977,7 @@ Name of the Kinesis stream to write osquery status logs received from clients.
 - Environment variable: `FLEET_KINESIS_STATUS_STREAM`
 - Config file format:
 
-  ```
+  ```yaml
   kinesis:
   	status_stream: osquery_status
   ```
@@ -998,7 +998,7 @@ Name of the Kinesis stream to write osquery result logs received from clients.
 - Environment variable: `FLEET_KINESIS_RESULT_STREAM`
 - Config file format:
 
-  ```
+  ```yaml
   kinesis:
   	result_stream: osquery_result
   ```
@@ -1021,7 +1021,7 @@ AWS region to use for Lambda connection
 - Environment variable: `FLEET_LAMBDA_REGION`
 - Config file format:
 
-  ```
+  ```yaml
   lambda:
   	region: ca-central-1
   ```
@@ -1042,7 +1042,7 @@ AWS access key ID to use for Lambda authentication.
 - Environment variable: `FLEET_LAMBDA_ACCESS_KEY_ID`
 - Config file format:
 
-  ```
+  ```yaml
   lambda:
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
@@ -1058,7 +1058,7 @@ AWS secret access key to use for Lambda authentication.
 - Environment variable: `FLEET_LAMBDA_SECRET_ACCESS_KEY`
 - Config file format:
 
-  ```
+  ```yaml
   lambda:
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
@@ -1074,7 +1074,7 @@ AWS STS role ARN to use for Lambda authentication.
 - Environment variable: `FLEET_LAMBDA_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
-  ```
+  ```yaml
   lambda:
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
   ```
@@ -1089,7 +1089,7 @@ Name of the Lambda function to write osquery status logs received from clients.
 - Environment variable: `FLEET_LAMBDA_STATUS_FUNCTION`
 - Config file format:
 
-  ```
+  ```yaml
   lambda:
   	status_function: statusFunction
   ```
@@ -1109,7 +1109,7 @@ Name of the Lambda function to write osquery result logs received from clients.
 - Environment variable: `FLEET_LAMBDA_RESULT_FUNCTION`
 - Config file format:
 
-  ```
+  ```yaml
   lambda:
   	result_function: resultFunction
   ```
@@ -1135,7 +1135,7 @@ for authentication with the service.
 - Environment variable: `FLEET_PUBSUB_PROJECT`
 - Config file format:
 
-  ```
+  ```yaml
   pubsub:
     project: my-gcp-project
   ```
@@ -1150,7 +1150,7 @@ The identifier of the pubsub topic that client results will be published to.
 - Environment variable: `FLEET_PUBSUB_RESULT_TOPIC`
 - Config file format:
 
-  ```
+  ```yaml
   pubsub:
     result_topic: osquery_result
   ```
@@ -1165,7 +1165,7 @@ The identifier of the pubsub topic that osquery status logs will be published to
 - Environment variable: `FLEET_PUBSUB_STATUS_TOPIC`
 - Config file format:
 
-  ```
+  ```yaml
   pubsub:
     status_topic: osquery_status
   ```
@@ -1187,7 +1187,7 @@ This feature is useful when combined with [subscription filters](https://cloud.g
 - Environment variable: `FLEET_PUBSUB_ADD_ATTRIBUTES`
 - Config file format:
 
-  ```
+  ```yaml
   pubsub:
     status_topic: osquery_status
   ```
@@ -1202,7 +1202,7 @@ Name of the S3 bucket to use to store file carves.
 - Environment variable: `FLEET_S3_BUCKET`
 - Config file format:
 
-  ```
+  ```yaml
   s3:
   	bucket: some-carve-bucket
   ```
@@ -1217,7 +1217,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 - Environment variable: `FLEET_S3_PREFIX`
 - Config file format:
 
-  ```
+  ```yaml
   s3:
   	prefix: carves-go-here/
   ```
@@ -1235,7 +1235,7 @@ The IAM identity used in this context must be allowed to perform the following a
 - Environment variable: `FLEET_S3_ACCESS_KEY_ID`
 - Config file format:
 
-  ```
+  ```yaml
   s3:
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
@@ -1248,7 +1248,7 @@ AWS secret access key to use for S3 authentication.
 - Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
 - Config file format:
 
-  ```
+  ```yaml
   s3:
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
@@ -1261,7 +1261,7 @@ AWS STS role ARN to use for S3 authentication.
 - Environment variable: `FLEET_S3_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
-  ```
+  ```yaml
   s3:
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
@@ -1276,7 +1276,7 @@ The path specified needs to exist and fleet needs to be able to read and write t
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
 - Config file format:
 
-  ```
+  ```yaml
   vulnerabilities:
   	databases_path: /some/path
   ```
@@ -1289,7 +1289,7 @@ How often vulnerabilities are checked.
 - Environment variable: `FLEET_VULNERABILITIES_PERIODICITY`
 - Config file format:
 
-  ```
+  ```yaml
   vulnerabilities:
   	periodicity: 1hr
   ```
@@ -1302,7 +1302,7 @@ URL to fetch the CPE dictionary database from. Some users want to control where 
 - Environment variable: `FLEET_VULNERABILITIES_CPE_DATABASE_URL`
 - Config file format:
 
-  ```
+  ```yaml
   vulnerabilities:
   	cpe_database_url: ""
   ```
@@ -1315,7 +1315,7 @@ Similarly to the CPE dictionary, we allow users to define where to get the CVE f
 - Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`
 - Config file format:
 
-  ```
+  ```yaml
   vulnerabilities:
   	cve_database_url: ""
   ```
@@ -1328,7 +1328,7 @@ When running multiple instances of the Fleet server, by default, one of them dyn
 - Environment variable: `FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS`
 - Config file format:
 
-  ```
+  ```yaml
   vulnerabilities:
   	current_instance_checks: yes
   ```
