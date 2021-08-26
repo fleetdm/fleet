@@ -106,8 +106,8 @@ func (ds *Datastore) DeleteGlobalPolicies(ids []uint) ([]uint, error) {
 
 func (ds *Datastore) PolicyQueriesForHost(_ *fleet.Host) (map[string]string, error) {
 	var rows []struct {
-		id    string `db:"id"`
-		query string `db:"query"`
+		Id    string `db:"id"`
+		Query string `db:"query"`
 	}
 	err := ds.db.Select(&rows, `SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id)`)
 	if err != nil {
@@ -117,7 +117,7 @@ func (ds *Datastore) PolicyQueriesForHost(_ *fleet.Host) (map[string]string, err
 	results := map[string]string{}
 
 	for _, row := range rows {
-		results[row.id] = row.query
+		results[row.Id] = row.Query
 	}
 
 	return results, nil
