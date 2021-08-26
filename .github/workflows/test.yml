@@ -143,36 +143,4 @@ jobs:
       run: |
         yarn prettier:check
 
-  test-go:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        go-version: ['^1.16.0']
-    runs-on: ${{ matrix.os }}
-
-    steps:
-    - name: Install Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: ${{ matrix.go-version }}
-    - name: Checkout Code
-      uses: actions/checkout@v2
-
-    # Pre-starting dependencies here means they are ready to go when we need them.
-    - name: Start Infra Dependencies
-      # Use & to background this
-      run: docker-compose up -d mysql_test redis &
-
-    # It seems faster not to cache Go dependencies
-    - name: Install Go Dependencies
-      run: make deps-go
-
-    - name: Generate static files
-      run: |
-        export PATH=$PATH:~/go/bin
-        make generate-go
-
-    - name: Run Go Tests
-      run: |
-        MYSQL_TEST=1 make test-go
 
