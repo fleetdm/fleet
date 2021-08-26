@@ -7,6 +7,7 @@ import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 
 import CloseIcon from "../../../../assets/images/icon-close-white-16x16@2x.png";
+import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 
 const baseClass = "flash-message";
 
@@ -68,7 +69,10 @@ const FlashMessage = ({
             className={`${baseClass}__remove ${baseClass}__remove--${alertType} button--unstyled`}
             onClick={onRemoveFlash}
           >
-            <img src={CloseIcon} alt="close icon" />
+            <img
+              src={alertType === "warning-filled" ? CloseIconBlack : CloseIcon}
+              alt="close icon"
+            />
           </button>
         </div>
       </div>
