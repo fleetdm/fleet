@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-import notificationInterface from "interfaces/notification";
+import { INotifications } from "interfaces/notification";
+// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 
@@ -11,14 +12,25 @@ import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x
 
 const baseClass = "flash-message";
 
+interface IFlashMessage {
+  fullWidth: boolean;
+  notification: INotifications;
+  onRemoveFlash: () => void;
+  onUndoActionClick: (
+    value: Function
+  ) => (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
+  className?: string;
+}
+
 const FlashMessage = ({
   fullWidth,
   notification,
   onRemoveFlash,
   onUndoActionClick,
-}) => {
+  className,
+}: IFlashMessage) => {
   const { alertType, isVisible, message, undoAction } = notification;
-  const klass = classnames(baseClass, `${baseClass}--${alertType}`, {
+  const klass = classnames(baseClass, className, `${baseClass}--${alertType}`, {
     [`${baseClass}--full-width`]: fullWidth,
   });
 
@@ -78,13 +90,6 @@ const FlashMessage = ({
       </div>
     </div>
   );
-};
-
-FlashMessage.propTypes = {
-  fullWidth: PropTypes.bool,
-  notification: notificationInterface,
-  onRemoveFlash: PropTypes.func,
-  onUndoActionClick: PropTypes.func,
 };
 
 export default FlashMessage;

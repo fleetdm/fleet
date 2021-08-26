@@ -170,6 +170,7 @@ export class CoreLayout extends Component {
           {persistentFlash.showFlash && (
             <PersistentFlash message={persistentFlash.message} />
           )}
+          {/* TODO: This will need a transition from redux to context API */}
           {expirationNotification && showExpirationFlashMessage && (
             <FlashMessage
               fullWidth={fullWidthFlash}
@@ -182,6 +183,7 @@ export class CoreLayout extends Component {
             notification={notifications}
             onRemoveFlash={onRemoveFlash}
             onUndoActionClick={onUndoActionClick}
+            className="app-flash"
           />
           {children}
         </div>

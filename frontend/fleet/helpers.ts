@@ -560,10 +560,11 @@ export const humanQueryLastRun = (lastRun: string): string => {
 };
 
 export const licenseExpirationWarning = (expiration: string): boolean => {
-  if (moment(moment()).isAfter(expiration)) {
-    return true;
-  }
-  return false;
+  // if (moment(moment()).isAfter(expiration)) {
+  //   return true;
+  // }
+  // return false;
+  return true; // hardcoded
 };
 
 export const secondsToHms = (d: number): string => {

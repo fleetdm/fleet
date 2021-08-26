@@ -48,8 +48,8 @@ describe("CoreLayout - layouts", () => {
     expect(appWithFlash.length).toEqual(1);
     expect(appWithoutFlash.length).toEqual(1);
 
-    expect(appWithFlash.find("FlashMessage").html()).toBeTruthy();
-    expect(appWithoutFlash.find("FlashMessage").html()).toBeFalsy();
+    expect(appWithFlash.find(".app-flash").html()).toBeTruthy();
+    expect(appWithoutFlash.find(".app-flash").html()).toBeFalsy();
   });
 
   it("renders the PersistentFlash component when showFlash is true", () => {
