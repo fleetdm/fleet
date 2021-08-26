@@ -14,9 +14,9 @@ module.exports.routes = {
   //  ║║║║╣ ╠╩╗╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
   'GET /':                   { action: 'view-homepage-or-redirect', locals: { isHomepage: true } },
-  'GET /company/contact':    { action:   'view-contact' },
-  'GET /get-started':        { action:   'view-get-started' },
-  'GET /pricing':            { action: 'view-pricing'},
+  'GET /company/contact':    { action: 'view-contact' },
+  'GET /get-started':        { action: 'view-get-started' },
+  'GET /pricing':            { action: 'view-pricing' },
 
   '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   '/company/about':          '/handbook', // FUTURE: brief "about" page explaining the origins of the company
@@ -44,9 +44,18 @@ module.exports.routes = {
   //  ┌─  ┌─┐┌─┐┬─┐  ┌┐ ┌─┐┌─┐┬┌─┬ ┬┌─┐┬─┐┌┬┐┌─┐  ┌─┐┌─┐┌┬┐┌─┐┌─┐┌┬┐  ─┐
   //  │   ├┤ │ │├┬┘  ├┴┐├─┤│  ├┴┐│││├─┤├┬┘ ││└─┐  │  │ ││││├─┘├─┤ │    │
   //  └─  └  └─┘┴└─  └─┘┴ ┴└─┘┴ ┴└┴┘┴ ┴┴└──┴┘└─┘  └─┘└─┘┴ ┴┴  ┴ ┴ ┴o  ─┘
-  // Use these redirects for deprecated/legacy links, so that they go to an appropriate new place instead of just being broken when docs/etc move or get renamed.
-  // > Note that these redirects take precedence over less specific wildcard routes like '/docs/*' and '/handbook/*'
-
+  // Add redirects here for deprecated/legacy links, so that they go to an appropriate new place instead of just being broken when pages move or get renamed.
+  //
+  // For example:
+  // If we were going to change fleetdm.com/company/about to fleetdm.com/company/story, we might do something like:
+  // ```
+  // 'GET /company/about': '/company/story',
+  // ```
+  //
+  // Or another example, if we were to rename a doc page:
+  // ```
+  // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
+  // ```
   'GET /docs/using-fleet/some-deprecated-link-like-this': '/docs/using-fleet/supported-browsers',// « this is just an example to show how
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
