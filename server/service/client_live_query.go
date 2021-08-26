@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -24,8 +23,6 @@ type LiveQueryResultsHandler struct {
 	results chan fleet.DistributedQueryResult
 	totals  atomic.Value // real type: targetTotals
 	status  atomic.Value // real type: campaignStatus
-
-	conn *websocket.Conn
 }
 
 func NewLiveQueryResultsHandler() *LiveQueryResultsHandler {
@@ -137,7 +134,6 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 
 	resHandler := NewLiveQueryResultsHandler()
 	go func() {
-		defer fmt.Println("EXIT")
 		defer conn.Close()
 		for {
 			msg := struct {
