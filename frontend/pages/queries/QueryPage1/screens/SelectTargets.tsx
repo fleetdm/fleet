@@ -74,7 +74,7 @@ const SelectTargets = ({
     null
   );
   const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
-  const [targetsError, setTargetsError] = useState<string | null>(null);
+  const [hasFetchError, setHasFetchError] = useState<boolean>(false);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
   const [linuxLabels, setLinuxLabels] = useState<ILabel[] | null>(null);
@@ -85,7 +85,7 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  const { status } = useQuery(
+  const { status: isTargetsLoading } = useQuery(
     ["targetsFromSearch", searchText, [...selectedTargets]], // triggers query on change
     () =>
       targetsAPI.loadAll({
@@ -110,6 +110,9 @@ const SelectTargets = ({
               targetsCount: data.targets_count,
               onlineCount: data.targets_online,
             },
+      onError: () => {
+        setHasFetchError(true);
+      },
       onSuccess: ({
         results,
         targetsCount,
@@ -176,6 +179,7 @@ const SelectTargets = ({
           setRelatedHosts([...results] as IHost[]);
         }
 
+        setHasFetchError(false);
         setTargetsTotalCount(targetsCount);
         if (targetsCount > 0) {
           setTargetsOnlinePercent(Math.round(onlineCount / targetsCount));
@@ -281,7 +285,9 @@ const SelectTargets = ({
         tabIndex={inputTabIndex}
         searchText={searchText}
         relatedHosts={[...relatedHosts]}
+        isTargetsLoading={isTargetsLoading === "loading"}
         selectedTargets={[...selectedTargets]}
+        hasFetchError={hasFetchError}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
         onPrimarySelectActionClick={removeHostsFromTargets}
