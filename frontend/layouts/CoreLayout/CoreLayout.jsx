@@ -155,8 +155,6 @@ export class CoreLayout extends Component {
     const { onLogoutUser, onNavItemClick } = this;
     const { pathname } = global.window.location;
 
-    console.log(config);
-
     return (
       <div className="app-wrap">
         <nav className="site-nav">
