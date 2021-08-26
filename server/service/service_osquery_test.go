@@ -1175,7 +1175,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 		ID: 42,
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{
-				CreatedAt: mockClock.Now().Add(-30 * time.Second),
+				CreatedAt: mockClock.Now().Add(-2 * time.Minute),
 			},
 		},
 	}
@@ -1211,7 +1211,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 		ID: 42,
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{
-				CreatedAt: mockClock.Now().Add(-30 * time.Second),
+				CreatedAt: mockClock.Now().Add(-2 * time.Minute),
 			},
 		},
 	}
@@ -1248,7 +1248,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 		ID: 42,
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{
-				CreatedAt: mockClock.Now().Add(-30 * time.Second),
+				CreatedAt: mockClock.Now().Add(-2 * time.Minute),
 			},
 		},
 	}
@@ -1264,7 +1264,8 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 	host := fleet.Host{ID: 1}
 
 	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "campaign stopped")
 	lq.AssertExpectations(t)
 }
 
@@ -1338,7 +1339,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 		return []*fleet.Pack{}, nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		initHost       fleet.Host
 		finalHost      fleet.Host
 		configOptions  json.RawMessage
@@ -1470,7 +1471,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 			assert.Equal(t, tt.saveHostCalled, saveHostCalled)
 		})
 	}
-
 }
 
 type notFoundError struct{}
@@ -1698,7 +1698,8 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 		}, nil
 	}
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
-		User: &fleet.User{ID: 0, GlobalRole: ptr.String(fleet.RoleObserver)}})
+		User: &fleet.User{ID: 0, GlobalRole: ptr.String(fleet.RoleObserver)},
+	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
 	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {

@@ -288,6 +288,11 @@ type LicenseInfo struct {
 	Note string `json:"note,omitempty"`
 }
 
+const (
+	HeaderLicenseKey          = "X-Fleet-License"
+	HeaderLicenseValueExpired = "Expired"
+)
+
 type Logging struct {
 	Debug  bool          `json:"debug"`
 	Json   bool          `json:"json"`

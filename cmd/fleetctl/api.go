@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -22,7 +23,7 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 		return nil, err
 	}
 
-	return unauthenticatedClientFromConfig(cc, getDebug(c))
+	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer)
 }
 
 func clientFromCLI(c *cli.Context) (*service.Client, error) {
@@ -56,9 +57,12 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	return fleet, nil
 }
 
-func unauthenticatedClientFromConfig(cc Context, debug bool) (*service.Client, error) {
+func unauthenticatedClientFromConfig(cc Context, debug bool, w io.Writer) (*service.Client, error) {
+	options := []service.ClientOption{service.SetClientWriter(w)}
+
 	if flag.Lookup("test.v") != nil {
-		return service.NewClient(os.Getenv("FLEET_SERVER_ADDRESS"), true, "", "")
+		return service.NewClient(
+			os.Getenv("FLEET_SERVER_ADDRESS"), true, "", "", options...)
 	}
 
 	if cc.Address == "" {
@@ -69,7 +73,6 @@ func unauthenticatedClientFromConfig(cc Context, debug bool) (*service.Client, e
 		return nil, errors.New("Windows clients must configure rootca (secure) or tls-skip-verify (insecure)")
 	}
 
-	var options []service.ClientOption
 	if debug {
 		options = append(options, service.EnableClientDebug())
 	}

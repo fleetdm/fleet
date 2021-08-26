@@ -2,11 +2,9 @@ package service
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kithttp "github.com/go-kit/kit/transport/http"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -21,14 +19,6 @@ type getTeamScheduleResponse struct {
 }
 
 func (r getTeamScheduleResponse) error() error { return r.Err }
-
-func makeGetTeamScheduleEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, getTeamScheduleEndpoint),
-		makeDecoder(getTeamScheduleRequest{}),
-		opts,
-	)
-}
 
 func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getTeamScheduleRequest)
@@ -73,14 +63,6 @@ type teamScheduleQueryResponse struct {
 }
 
 func (r teamScheduleQueryResponse) error() error { return r.Err }
-
-func makeTeamScheduleQueryEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, teamScheduleQueryEndpoint),
-		makeDecoder(teamScheduleQueryRequest{}),
-		opts,
-	)
-}
 
 func uintValueOrZero(v *uint) uint {
 	if v == nil {
@@ -147,14 +129,6 @@ type modifyTeamScheduleResponse struct {
 
 func (r modifyTeamScheduleResponse) error() error { return r.Err }
 
-func makeModifyTeamScheduleEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, modifyTeamScheduleEndpoint),
-		makeDecoder(modifyTeamScheduleRequest{}),
-		opts,
-	)
-}
-
 func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*modifyTeamScheduleRequest)
 	resp, err := svc.ModifyTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID, req.ScheduledQueryPayload)
@@ -195,14 +169,6 @@ type deleteTeamScheduleResponse struct {
 }
 
 func (r deleteTeamScheduleResponse) error() error { return r.Err }
-
-func makeDeleteTeamScheduleEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, deleteTeamScheduleEndpoint),
-		makeDecoder(deleteTeamScheduleRequest{}),
-		opts,
-	)
-}
 
 func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*deleteTeamScheduleRequest)
