@@ -22,18 +22,19 @@ import (
 // Linux.
 func BuildPkg(opt Options) error {
 	// Initialize directories
-
-	tmpDir, err := ioutil.TempDir("", "orbit-package")
+	dir, err := os.UserHomeDir()
 	if err != nil {
-		return errors.Wrap(err, "failed to create temp dir")
+		return errors.Wrap(err, "user home directory")
 	}
-	defer os.RemoveAll(tmpDir)
-	log.Debug().Str("path", tmpDir).Msg("created temp dir")
+	packageDir := filepath.Join(dir, ".orbit", "orbit-package")
+	//defer os.RemoveAll(packageDir)
 
-	filesystemRoot := filepath.Join(tmpDir, "root")
+
+	filesystemRoot := filepath.Join(packageDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create root dir")
 	}
+	log.Debug().Str("path", packageDir).Msg("created temp dir")
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create orbit dir")
@@ -57,13 +58,13 @@ func BuildPkg(opt Options) error {
 
 	// Write files
 
-	if err := writePackageInfo(opt, tmpDir); err != nil {
+	if err := writePackageInfo(opt, packageDir); err != nil {
 		return errors.Wrap(err, "write PackageInfo")
 	}
-	if err := writeDistribution(opt, tmpDir); err != nil {
+	if err := writeDistribution(opt, packageDir); err != nil {
 		return errors.Wrap(err, "write Distribution")
 	}
-	if err := writeScripts(opt, tmpDir); err != nil {
+	if err := writeScripts(opt, packageDir); err != nil {
 		return errors.Wrap(err, "write postinstall")
 	}
 	if err := writeSecret(opt, orbitRoot); err != nil {
@@ -91,11 +92,11 @@ func BuildPkg(opt Options) error {
 
 	// Build package
 
-	if err := xarBom(opt, tmpDir); err != nil {
+	if err := xarBom(opt, packageDir); err != nil {
 		return errors.Wrap(err, "build pkg")
 	}
 
-	generatedPath := filepath.Join(tmpDir, "orbit.pkg")
+	generatedPath := filepath.Join(packageDir, "orbit.pkg")
 
 	if len(opt.SignIdentity) != 0 {
 		log.Info().Str("identity", opt.SignIdentity).Msg("productsign package")

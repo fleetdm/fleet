@@ -18,18 +18,18 @@ import (
 
 func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	// Initialize directories
-
-	tmpDir, err := ioutil.TempDir("", "orbit-package")
+	dir, err := os.UserHomeDir()
 	if err != nil {
-		return errors.Wrap(err, "failed to create temp dir")
+		return errors.Wrap(err, "user home directory")
 	}
-	defer os.RemoveAll(tmpDir)
-	log.Debug().Str("path", tmpDir).Msg("created temp dir")
+	packageDir := filepath.Join(dir, ".orbit", "orbit-package")
+	defer os.RemoveAll(packageDir)
 
-	filesystemRoot := filepath.Join(tmpDir, "root")
+	filesystemRoot := filepath.Join(packageDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create root dir")
 	}
+	log.Debug().Str("path", packageDir).Msg("created temp dir")
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create orbit dir")
@@ -61,7 +61,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 		return errors.Wrap(err, "write env file")
 	}
 
-	postInstallPath := filepath.Join(tmpDir, "postinstall.sh")
+	postInstallPath := filepath.Join(packageDir, "postinstall.sh")
 	if err := writePostInstall(opt, postInstallPath); err != nil {
 		return errors.Wrap(err, "write postinstall script")
 	}
