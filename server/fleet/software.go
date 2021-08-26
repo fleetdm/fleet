@@ -8,15 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type SoftwareStore interface {
-	SaveHostSoftware(host *Host) error
-	LoadHostSoftware(host *Host) error
-	AllSoftwareWithoutCPEIterator() (SoftwareIterator, error)
-	AddCPEForSoftware(software Software, cpe string) error
-	AllCPEs() ([]string, error)
-	InsertCVEForCPE(cve string, cpes []string) error
-}
-
 type SoftwareCVE struct {
 	CVE         string `json:"cve" db:"cve"`
 	DetailsLink string `json:"details_link" db:"details_link"`
