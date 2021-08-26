@@ -15,7 +15,6 @@ import TableContainer from "components/TableContainer";
 import labelInterface from "interfaces/label";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
-import { IPolicy } from "interfaces/policy";
 import osqueryTableInterface from "interfaces/osquery_table";
 import statusLabelsInterface from "interfaces/status_labels";
 import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
@@ -123,7 +122,6 @@ export class ManageHostsPage extends PureComponent {
     canEnrollHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
-    loadingTeams: PropTypes.bool,
     isGlobalAdmin: PropTypes.bool,
     isOnGlobalTeam: PropTypes.bool,
     isBasicTier: PropTypes.bool,
@@ -180,16 +178,15 @@ export class ManageHostsPage extends PureComponent {
       sortBy: initialSortBy,
       isConfigLoaded: !isEmpty(this.props.config),
       isTeamsLoaded: !isEmpty(this.props.teams),
+      isTeamsLoading: false,
       policyName: null,
     };
   }
 
   componentDidMount() {
-    const { dispatch, isBasicTier, policyId } = this.props;
+    const { dispatch, policyId } = this.props;
     dispatch(getLabels());
-    if (isBasicTier) {
-      dispatch(teamActions.loadAll({}));
-    }
+
     if (policyId) {
       policiesClient
         .load(policyId)
@@ -199,23 +196,24 @@ export class ManageHostsPage extends PureComponent {
         })
         .catch((err) => {
           console.log(err);
-          dispatch(
-            renderFlash(
-              "error",
-              "Sorry, we could not retrieve the policy name."
-            )
-          );
+          // dispatch(
+          //   renderFlash(
+          //     "error",
+          //     "Sorry, we could not retrieve the policy name."
+          //   )
+          // );
         });
     }
   }
 
   componentWillReceiveProps() {
-    const { config, dispatch, isBasicTier, loadingTeams } = this.props;
-    const { isConfigLoaded, isTeamsLoaded } = this.state;
+    const { config, dispatch, isBasicTier } = this.props;
+    const { isConfigLoaded, isTeamsLoaded, isTeamsLoading } = this.state;
     if (!isConfigLoaded && !isEmpty(config)) {
       this.setState({ isConfigLoaded: true });
     }
-    if (isConfigLoaded && isBasicTier && !isTeamsLoaded && !loadingTeams) {
+    if (isConfigLoaded && isBasicTier && !isTeamsLoaded && !isTeamsLoading) {
+      this.setState({ isTeamsLoading: true });
       dispatch(teamActions.loadAll({}))
         .then(() => {
           this.setState({
@@ -230,6 +228,11 @@ export class ManageHostsPage extends PureComponent {
           console.log(error);
           this.setState({
             isTeamsLoaded: false,
+          });
+        })
+        .finally(() => {
+          this.setState({
+            isTeamsLoading: false,
           });
         });
     }
@@ -361,6 +364,12 @@ export class ManageHostsPage extends PureComponent {
     }
     if (teamId) {
       queryParams.team_id = teamId;
+    }
+    if (policyId) {
+      queryParams.policy_id = policyId;
+    }
+    if (policyResponse) {
+      queryParams.policy_response = policyResponse;
     }
 
     dispatch(
@@ -625,7 +634,7 @@ export class ManageHostsPage extends PureComponent {
 
     options = {
       ...options,
-      team_id: getValidatedTeamId(options.teamId),
+      teamId: getValidatedTeamId(options.teamId),
     };
 
     try {
@@ -690,46 +699,78 @@ export class ManageHostsPage extends PureComponent {
   };
 
   handleChangePoliciesFilter = (policyResponse) => {
-    const { dispatch, policyId, selectedFilters, selectedTeam } = this.props;
-    const { searchQuery } = this.state;
-    const { getNextLocationUrl, retrieveHosts } = this;
-    const { MANAGE_HOSTS } = PATHS;
+    const {
+      dispatch,
+      policyId,
+      routeTemplate,
+      routeParams,
+      queryParams,
+      selectedFilters,
+      selectedTeam,
+    } = this.props;
+    const { searchQuery, sortBy } = this.state;
+    const { retrieveHosts } = this;
 
-    // TODO test with 1690 to persist query params
-    // TODO confirm that sort order, pagination work as expected
     retrieveHosts({
-      teamId: selectedTeam,
-      selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       policyId,
       policyResponse,
+      selectedLabels: selectedFilters,
+      sortBy,
+      teamId: selectedTeam,
     });
 
     dispatch(
       push(
-        getNextLocationUrl(
-          MANAGE_HOSTS,
-          "",
-          {},
-          { policy_response: policyResponse }
-        )
+        getNextLocationPath({
+          pathPrefix: PATHS.MANAGE_HOSTS,
+          routeTemplate,
+          routeParams,
+          queryParams: Object.assign({}, queryParams, {
+            policy_id: policyId,
+            policy_response: policyResponse,
+          }),
+        })
       )
     );
   };
 
   handleClearPoliciesFilter = () => {
-    const { dispatch } = this.props;
+    const {
+      dispatch,
+      routeTemplate,
+      routeParams,
+      queryParams,
+      selectedFilters,
+      selectedTeam,
+    } = this.props;
+    const { searchQuery, sortBy } = this.state;
     const { retrieveHosts } = this;
-    const { MANAGE_HOSTS } = PATHS;
-    dispatch(push(MANAGE_HOSTS)); // TODO persist any query params?
-    retrieveHosts();
+
+    retrieveHosts({
+      globalFilter: searchQuery,
+      selectedLabels: selectedFilters,
+      sortBy,
+      teamId: selectedTeam,
+    });
+    dispatch(
+      push(
+        getNextLocationPath({
+          pathPrefix: PATHS.MANAGE_HOSTS,
+          routeTemplate,
+          routeParams,
+          queryParams: omit(queryParams, ["policy_id", "policy_response"]),
+        })
+      )
+    );
   };
 
   // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
-  // TODO confirm that sort order, pagination work as expected
   handleChangeSelectedTeamFilter = (selectedTeam) => {
     const {
       dispatch,
+      policyId,
+      policyResponse,
       selectedFilters,
       routeTemplate,
       routeParams,
@@ -741,13 +782,13 @@ export class ManageHostsPage extends PureComponent {
 
     const teamIdParam = getValidatedTeamId(selectedTeam);
 
-    // TODO confirm interplay with policies
-    // TODO confirm that sort order, pagination work as expected
     const hostsOptions = {
       teamId: teamIdParam,
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       sortBy,
+      policyId,
+      policyResponse,
     };
     retrieveHosts(hostsOptions);
 
@@ -762,10 +803,8 @@ export class ManageHostsPage extends PureComponent {
     dispatch(push(nextLocation));
   };
 
-  // TODO confirm interplay with policies filter
   handleLabelChange = ({ slug }) => {
-    const { dispatch, selectedFilters, selectedTeam } = this.props;
-    const { getValidatedTeamId } = this;
+    const { dispatch, queryParams, selectedFilters } = this.props;
     const { MANAGE_HOSTS } = PATHS;
     const isAllHosts = slug === ALL_HOSTS_LABEL;
     const newFilters = [...selectedFilters];
@@ -791,18 +830,24 @@ export class ManageHostsPage extends PureComponent {
       }
     }
 
-    let nextLocation = isAllHosts
-      ? MANAGE_HOSTS
-      : `${MANAGE_HOSTS}/${newFilters.join("/")}`;
-
-    const teamIdParam = getValidatedTeamId(selectedTeam);
-    if (teamIdParam) {
-      nextLocation += `?team_id=${teamIdParam}`;
+    //  Non-status labels are not compatible with policies so omit policy params from next location
+    let newQueryParams = queryParams;
+    if (newFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) {
+      newQueryParams = omit(newQueryParams, ["policy_id", "policy_response"]);
     }
-    dispatch(push(nextLocation));
+
+    dispatch(
+      push(
+        getNextLocationPath({
+          pathPrefix: isAllHosts
+            ? MANAGE_HOSTS
+            : `${MANAGE_HOSTS}/${newFilters.join("/")}`,
+          queryParams: newQueryParams,
+        })
+      )
+    );
   };
 
-  // TODO confirm interplay with policies filter?
   handleStatusDropdownChange = (statusName) => {
     const { handleLabelChange } = this;
     const { labels } = this.props;
@@ -815,7 +860,6 @@ export class ManageHostsPage extends PureComponent {
     handleLabelChange(selected);
   };
 
-  // TODO revisit UX for server errors for invalid team_id (e.g., team_id=0, team_id=null, team_id=foo, etc.)
   renderTeamsFilterDropdown = () => {
     const { isBasicTier, selectedTeam, teams } = this.props;
     const { isConfigLoaded, isTeamsLoaded } = this.state;
@@ -1286,7 +1330,6 @@ const mapStateToProps = (state, ownProps) => {
   const queryParams = location.query;
   const routeTemplate = route && route.path ? route.path : "";
 
-  // TODO validate queryParams?
   const policyId = queryParams?.policy_id;
   const policyResponse = queryParams?.policy_response;
 
@@ -1320,7 +1363,6 @@ const mapStateToProps = (state, ownProps) => {
   const config = state.app.config;
 
   const teams = memoizedGetEntity(state.entities.teams.data);
-  const loadingTeams = state.entities.teams.loading;
 
   // If there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
   const selectedTeam = location.query?.team_id || 0;
@@ -1364,7 +1406,6 @@ const mapStateToProps = (state, ownProps) => {
     isOnGlobalTeam,
     isBasicTier,
     teams,
-    loadingTeams,
     selectedTeam,
     policyId,
     policyResponse,
