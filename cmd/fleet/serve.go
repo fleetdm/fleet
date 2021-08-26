@@ -64,6 +64,8 @@ func createServeCmd(configManager config.Manager) *cobra.Command {
 	dev := false
 	// Whether to enable development Fleet Basic license
 	devLicense := false
+	// Whether to enable development Fleet Basic license with an expired license
+	devExpiredLicense := false
 
 	serveCmd := &cobra.Command{
 		Use:   "serve",
@@ -86,6 +88,9 @@ the way that the Fleet server works.
 			if devLicense {
 				// This license key is valid for development only
 				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw"
+			} else if devExpiredLicense {
+				// An expired license key
+				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
 			}
 
 			license, err := licensing.LoadLicense(config.License.Key)
@@ -94,6 +99,10 @@ the way that the Fleet server works.
 					err,
 					"failed to load license - for help use https://fleetdm.com/contact",
 				)
+			}
+
+			if license != nil && license.Tier == fleet.TierBasic && license.Expiration.Before(time.Now()) {
+				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
 			var logger kitlog.Logger
@@ -379,6 +388,7 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug endpoints")
 	serveCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
 	serveCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
+	serveCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 
 	return serveCmd
 }

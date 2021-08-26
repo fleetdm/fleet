@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -512,6 +513,19 @@ func logRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWrit
 	}
 }
 
+func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.ResponseWriter) context.Context {
+	return func(ctx context.Context, w http.ResponseWriter) context.Context {
+		license, err := svc.License(ctx)
+		if err != nil || license == nil {
+			return ctx
+		}
+		if license.Tier == fleet.TierBasic && license.Expiration.Before(time.Now()) {
+			w.Header().Set(fleet.HeaderLicenseKey, fleet.HeaderLicenseValueExpired)
+		}
+		return ctx
+	}
+}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
 func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
 	fleetAPIOptions := []kithttp.ServerOption{
@@ -524,6 +538,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(logger),
+			checkLicenseExpiration(svc),
 		),
 	}
 
