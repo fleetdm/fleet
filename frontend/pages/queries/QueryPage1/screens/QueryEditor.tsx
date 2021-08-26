@@ -19,13 +19,15 @@ import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.p
 interface IQueryEditorProps {
   baseClass: string;
   currentUser: IUser;
-  dispatch: Dispatch;
   storedQuery: IQuery | undefined;
-  createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
   error: any;
+  showOpenSchemaActionText: boolean;
+  dispatch: Dispatch;
+  createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   setTypedQueryBody: (value: string) => void;
+  onOpenSchemaSidebar: () => void;
 }
 
 const QueryEditor = ({
@@ -33,11 +35,13 @@ const QueryEditor = ({
   currentUser,
   storedQuery,
   error,
+  showOpenSchemaActionText,
   createQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
   setTypedQueryBody,
   dispatch,
+  onOpenSchemaSidebar,
 }: IQueryEditorProps) => {
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
     try {
@@ -102,6 +106,8 @@ const QueryEditor = ({
         storedQuery={storedQuery}
         title={storedQuery?.name || "New query"}
         hasSavePermissions={hasSavePermissions(currentUser)}
+        showOpenSchemaActionText={showOpenSchemaActionText}
+        onOpenSchemaSidebar={onOpenSchemaSidebar}
       />
     </div>
   );

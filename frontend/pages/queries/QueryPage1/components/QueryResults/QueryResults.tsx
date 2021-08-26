@@ -169,7 +169,10 @@ const QueryResults = ({
 
     return filteredRows.map((row: ICampaignQueryResult) => {
       return (
-        <QueryResultsRow key={row.uuid || row.host_hostname} queryResult={row} />
+        <QueryResultsRow
+          key={row.uuid || row.host_hostname}
+          queryResult={row}
+        />
       );
     });
   };

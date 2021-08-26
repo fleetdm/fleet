@@ -10,6 +10,7 @@ import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import NewQueryModal from "./NewQueryModal";
+import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form1";
 
@@ -17,12 +18,14 @@ interface IQueryFormProps {
   baseError: string;
   fields: IQueryFormFields;
   storedQuery: IQuery;
+  title: string;
+  hasSavePermissions: boolean;
+  showOpenSchemaActionText: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onUpdate: (formData: IQueryFormData) => void;
-  title: string;
-  hasSavePermissions: boolean;
+  onOpenSchemaSidebar: () => void;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -41,12 +44,14 @@ const QueryForm = ({
   baseError,
   fields,
   storedQuery,
+  title,
+  hasSavePermissions,
+  showOpenSchemaActionText,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
   onUpdate,
-  title,
-  hasSavePermissions,
+  onOpenSchemaSidebar,
 }: IQueryFormProps) => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
@@ -84,6 +89,21 @@ const QueryForm = ({
     valid && setIsSaveModalOpen(true);
   };
 
+  const renderLabelComponent = (): JSX.Element | null => {
+    // if (!showOpenSchemaActionText) {
+    //   return null;
+    // }
+
+    return (
+      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+        <>
+          <img alt="" src={InfoIcon} />
+          Show schema
+        </>
+      </Button>
+    );
+  };
+
   const modalProps = {
     baseClass,
     fields,
@@ -103,6 +123,9 @@ const QueryForm = ({
           value={value || storedQuery.query}
           error={error || errors.query}
           label="Query:"
+          labelActionComponent={
+            showOpenSchemaActionText && renderLabelComponent()
+          }
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}

@@ -28,7 +28,7 @@ interface IQueryPageProps {
   isBasicTier: boolean;
 }
 
-const baseClass = "query-page";
+const baseClass = "query-page1";
 
 const QueryPage = ({
   queryIdForEdit,
@@ -46,6 +46,11 @@ const QueryPage = ({
   const [queryIsRunning, setQueryIsRunning] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [liveQueryError, setLiveQueryError] = useState<string>("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [
+    showOpenSchemaActionText,
+    setShowOpenSchemaActionText,
+  ] = useState<boolean>(false);
 
   const { status, data: storedQuery = DEFAULT_QUERY, error } = useQuery<
     IQuery,
@@ -73,8 +78,20 @@ const QueryPage = ({
     checkLiveQuery();
   }, []);
 
+  useEffect(() => {
+    setShowOpenSchemaActionText(!isSidebarOpen);
+  }, [isSidebarOpen]);
+
   const onOsqueryTableSelect = (tableName: string) => {
     dispatch(selectOsqueryTable(tableName));
+  };
+
+  const onCloseSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
+  const onOpenSchemaSidebar = () => {
+    setIsSidebarOpen(true);
   };
 
   const renderLiveQueryWarning = () => {
@@ -104,11 +121,13 @@ const QueryPage = ({
       ...commonOpts,
       currentUser,
       storedQuery,
-      createQuery,
+      showOpenSchemaActionText,
       error,
+      createQuery,
       onOsqueryTableSelect,
       goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
       setTypedQueryBody,
+      onOpenSchemaSidebar,
     };
 
     const step2Opts = {
@@ -139,15 +158,20 @@ const QueryPage = ({
 
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
   return (
-    <div className={`${baseClass} ${isFirstStep ? "has-sidebar" : ""}`}>
+    <div
+      className={`${baseClass} ${
+        isFirstStep && isSidebarOpen ? "has-sidebar" : ""
+      }`}
+    >
       <div className={`${baseClass}__content`}>
         {renderScreen()}
         {renderLiveQueryWarning()}
       </div>
-      {isFirstStep && (
+      {isFirstStep && isSidebarOpen && (
         <QuerySidePanel
           onOsqueryTableSelect={onOsqueryTableSelect}
           selectedOsqueryTable={selectedOsqueryTable}
+          onClose={onCloseSidebar}
         />
       )}
     </div>

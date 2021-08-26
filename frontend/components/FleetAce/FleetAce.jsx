@@ -17,6 +17,7 @@ class FleetAce extends Component {
     fontSize: PropTypes.number,
     handleSubmit: PropTypes.func,
     label: PropTypes.string,
+    labelActionComponent: PropTypes.element,
     name: PropTypes.string,
     onChange: PropTypes.func,
     onLoad: PropTypes.func,
@@ -36,11 +37,21 @@ class FleetAce extends Component {
   };
 
   renderLabel = () => {
-    const { error, label } = this.props;
+    const { error, label, labelActionComponent } = this.props;
 
     const labelClassName = classnames(`${baseClass}__label`, {
       [`${baseClass}__label--error`]: error,
+      [`${baseClass}__label--with-action`]: !!labelActionComponent,
     });
+
+    if (labelActionComponent) {
+      return (
+        <div className={labelClassName}>
+          <p>{error || label}</p>
+          {labelActionComponent}
+        </div>
+      );
+    }
 
     return <p className={labelClassName}>{error || label}</p>;
   };

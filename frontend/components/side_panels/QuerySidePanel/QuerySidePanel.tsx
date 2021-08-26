@@ -11,10 +11,12 @@ import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
 import AppleIcon from "../../../../assets/images/icon-apple-dark-20x20@2x.png";
 import LinuxIcon from "../../../../assets/images/icon-linux-dark-20x20@2x.png";
 import WindowsIcon from "../../../../assets/images/icon-windows-dark-20x20@2x.png";
+import CloseIcon from "../../../../assets/images/icon-close-black-50-8x8@2x.png";
 
 interface IQuerySidePanel {
   selectedOsqueryTable: IOsqueryTable;
   onOsqueryTableSelect: (tableName: string) => void;
+  onClose: () => void;
 }
 
 const baseClass = "query-side-panel";
@@ -22,6 +24,7 @@ const baseClass = "query-side-panel";
 const QuerySidePanel = ({
   selectedOsqueryTable,
   onOsqueryTableSelect,
+  onClose,
 }: IQuerySidePanel) => {
   const displayTypeForDataType = (dataType: string) => {
     switch (dataType) {
@@ -35,7 +38,7 @@ const QuerySidePanel = ({
         return dataType;
     }
   };
-  
+
   const onSelectTable = (value: string) => {
     onOsqueryTableSelect(value);
   };
@@ -76,12 +79,19 @@ const QuerySidePanel = ({
   const iconClasses = classnames([`${baseClass}__icon`], "icon");
   return (
     <SecondarySidePanelContainer className={baseClass}>
+      <div
+        role="button"
+        className={`${baseClass}__close-button`}
+        tabIndex={0}
+        onClick={onClose}
+      >
+        <img alt="Close sidebar" src={CloseIcon} />
+      </div>
       <div className={`${baseClass}__choose-table`}>
         <h2 className={`${baseClass}__header`}>Tables</h2>
         {renderTableSelect()}
         <p className={`${baseClass}__description`}>{description}</p>
       </div>
-
       <div className={`${baseClass}__os-availability`}>
         <h2 className={`${baseClass}__header`}>OS Availability</h2>
         <ul className={`${baseClass}__platforms`}>
@@ -133,7 +143,6 @@ const QuerySidePanel = ({
           })}
         </ul>
       </div>
-
       <div className={`${baseClass}__columns`}>
         <h2 className={`${baseClass}__header`}>Columns</h2>
         <ul className={`${baseClass}__column-list`}>{renderColumns()}</ul>
