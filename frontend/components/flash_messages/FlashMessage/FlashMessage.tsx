@@ -17,7 +17,7 @@ interface IFlashMessage {
   notification: INotifications;
   onRemoveFlash: () => void;
   onUndoActionClick: (
-    value: Function
+    value: () => void
   ) => (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
 }
 
