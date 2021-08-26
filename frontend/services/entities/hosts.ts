@@ -14,6 +14,8 @@ interface IHostLoadOptions {
   globalFilter: string;
   sortBy: ISortOption[];
   teamId: number;
+  policyId: number;
+  policyResponse: string;
 }
 
 export default {
@@ -43,6 +45,9 @@ export default {
     const globalFilter = options?.globalFilter || "";
     const sortBy = options?.sortBy || [];
     const teamId = options?.teamId || null;
+    const policyId = options?.policyId || null;
+    const policyResponse = options?.policyResponse || null;
+
 
     // TODO: add this query param logic to client class
     const pagination = `page=${page}&per_page=${perPage}`;
@@ -92,6 +97,11 @@ export default {
       path += `&team_id=${teamId}`;
     }
 
+    if (!label && policyId) {
+      path += `&policy_id=${policyId}`;
+      path += `&policy_response=${policyResponse || "passing"}`; // TODO confirm whether there should be a default if there is an id but no response sepcified
+    }
+
     return sendRequest("GET", path);
   },
   transferToTeam: (teamId: number | null, hostIds: number[]) => {
@@ -102,6 +112,8 @@ export default {
       hosts: hostIds,
     });
   },
+
+  // TODO confirm interplay with policies
   transferToTeamByFilter: (
     teamId: number | null,
     query: string,

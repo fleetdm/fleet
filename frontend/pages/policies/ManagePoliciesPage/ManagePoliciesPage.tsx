@@ -5,12 +5,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { IConfig } from "interfaces/config";
 import { IQuery } from "interfaces/query";
 import { IPolicy } from "interfaces/policy";
-// @ts-ignore
+
+import configAPI from "services/entities/config";
 import policiesAPI from "services/entities/policies";
 // @ts-ignore
 import queryActions from "redux/nodes/entities/queries/actions";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
+
+import { inMilliseconds, secondsToHms } from "fleet/helpers";
 
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -21,40 +24,8 @@ import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
 const baseClass = "manage-policies-page";
 
-const UPDATE_INTERVAL = "1hr"; // TODO pull osquery_detail_update_interval dynamically from config
 const DOCS_LINK =
   "https://github.com/fleetdm/fleet/blob/fleet-v4.3.0/docs/2-Deploying/2-Configuration.md#osquery_detail_update_interval";
-
-const MOCK_DATA: IPolicy[] = [
-  {
-    id: 1,
-    query_id: 2,
-    query_name: `Gatekeeper enabled`,
-    passing_host_count: 2000,
-    failing_host_count: 300,
-  },
-  {
-    id: 4,
-    query_id: 5,
-    query_name: `google 2FA`,
-    passing_host_count: 1900,
-    failing_host_count: 400,
-  },
-  {
-    id: 3,
-    query_id: 4,
-    query_name: `Secondary disk encrypted`,
-    passing_host_count: 2100,
-    failing_host_count: 200,
-  },
-  {
-    id: 2,
-    query_id: 3,
-    query_name: `Primary disk encrypted`,
-    passing_host_count: 2300,
-    failing_host_count: 0,
-  },
-];
 interface IRootState {
   app: {
     config: IConfig;
@@ -91,44 +62,64 @@ const renderTable = (
 const ManagePolicyPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
+  const queries = useSelector((state: IRootState) => state.entities.queries);
+  const queriesList = Object.values(queries.data);
+
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[] | never[]>([]);
 
+  const [updateInterval, setUpdateInterval] = useState<string>(
+    "update interval"
+  );
   const [policies, setPolicies] = useState<IPolicy[] | never[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingError, setIsLoadingError] = useState(false);
 
   const getPolicies = useCallback(async () => {
     setIsLoading(true);
+    try {
+      const response = await policiesAPI.loadAll();
+      console.log(response);
+      setPolicies(response.policies);
+    } catch (error) {
+      console.log(error);
+      dispatch(
+        renderFlash("error", "Sorry, we could not retrieve your policies.")
+      );
+      setIsLoadingError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dispatch]);
 
-    setPolicies(MOCK_DATA);
-    setIsLoading(false);
-    // try {
-    //   const response = await policiesAPI.loadAll();
-    //   console.log(response);
-    //   setPolicies(response.policies);
-    // } catch (error) {
-    //   console.log(error);
-    //   dispatch(
-    //     renderFlash("error", "Sorry, we could not retrieve your policies.")
-    //   );
-    //   setIsLoadingError(true);
-    // } finally {
-    //   setIsLoading(false);
-    // }
+  const getInterval = useCallback(async () => {
+    try {
+      const response = await configAPI.loadAll();
+      console.log(response);
+      const interval = secondsToHms(
+        inMilliseconds(response.update_interval.osquery_detail) / 1000
+      );
+      setUpdateInterval(interval);
+    } catch (error) {
+      console.log(error);
+      dispatch(
+        renderFlash(
+          "error",
+          "Sorry, we could not retrieve your update interval."
+        )
+      );
+    }
   }, [dispatch]);
 
   useEffect(() => {
     getPolicies();
-  }, [getPolicies]);
+    getInterval();
+  }, [getInterval, getPolicies]);
 
   useEffect(() => {
     dispatch(queryActions.loadAll());
   }, [dispatch]);
-
-  const allQueries = useSelector((state: IRootState) => state.entities.queries);
-  const allQueriesList = Object.values(allQueries.data);
 
   const toggleAddPolicyModal = useCallback(() => {
     setShowAddPolicyModal(!showAddPolicyModal);
@@ -138,7 +129,6 @@ const ManagePolicyPage = (): JSX.Element => {
     setShowRemovePoliciesModal(!showRemovePoliciesModal);
   }, [showRemovePoliciesModal, setShowRemovePoliciesModal]);
 
-  // TODO does this need to be a callback?
   // TODO typing for mouse event?
   const onRemovePoliciesClick = useCallback(
     (selectedTableIds: any): void => {
@@ -226,8 +216,8 @@ const ManagePolicyPage = (): JSX.Element => {
         {!isLoadingError && (
           <InfoBanner className={`${baseClass}__sandbox-info`}>
             <p>
-              Your policies are checked every <b>{UPDATE_INTERVAL}</b>. Check
-              out the Fleet documentation on{" "}
+              Your policies are checked every <b>{updateInterval.trim()}</b>.
+              Check out the Fleet documentation on{" "}
               <a href={DOCS_LINK} target="_blank" rel="noreferrer">
                 <b>how to edit this frequency</b>
               </a>
@@ -248,7 +238,7 @@ const ManagePolicyPage = (): JSX.Element => {
           <AddPolicyModal
             onCancel={toggleAddPolicyModal}
             onSubmit={onAddPolicySubmit}
-            allQueries={allQueriesList}
+            allQueries={queriesList}
           />
         )}
         {showRemovePoliciesModal && (

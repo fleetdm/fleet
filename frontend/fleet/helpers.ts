@@ -508,7 +508,7 @@ const inGigaBytes = (bytes: number): string => {
   return (bytes / BYTES_PER_GIGABYTE).toFixed(1);
 };
 
-const inMilliseconds = (nanoseconds: number): number => {
+export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
@@ -635,6 +635,7 @@ export default {
   humanHostDetailUpdated,
   hostTeamName,
   humanQueryLastRun,
+  inMilliseconds,
   secondsToHms,
   secondsToDhms,
   labelSlug,

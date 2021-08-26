@@ -14,21 +14,15 @@ export default {
 
     return sendRequest("POST", path, { ids });
   },
-  //   load: (id: string) => {
-  //     const { POLICIES } = endpoints;
-  //     const path = `${POLICIES}/${id}`;
+  load: (id: number) => {
+    const { POLICIES } = endpoints;
+    const path = `${POLICIES}/${id}`;
 
-  //     return sendRequest("GET", path);
-  //   },
+    return sendRequest("GET", path);
+  },
   loadAll: () => {
     const { POLICIES } = endpoints;
 
     return sendRequest("GET", POLICIES);
   },
-  //   update: (id: number, updateParams: IPolicy) => {
-  //     const { POLICIES } = endpoints;
-  //     const path = `${POLICIES}/${id}`;
-
-  //     return sendRequest("PATCH", path, JSON.stringify(updateParams));
-  //   },
 };

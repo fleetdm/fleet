@@ -29,6 +29,7 @@ import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
 
 import hostClient from "services/entities/hosts";
+import policiesClient from "services/entities/policies";
 
 import permissionUtils from "utilities/permissions";
 import sortUtils from "utilities/sort";
@@ -145,7 +146,6 @@ export class ManageHostsPage extends PureComponent {
     selectedTeam: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
-    loadingHosts: PropTypes.bool,
     canAddNewHosts: PropTypes.bool,
     canEnrollHosts: PropTypes.bool,
     canAddNewLabels: PropTypes.bool,
@@ -156,7 +156,6 @@ export class ManageHostsPage extends PureComponent {
     currentUser: userInterface,
     policyId: PropTypes.number,
     policyResponse: PolicyResponse,
-    activePolicy: IPolicy,
   };
 
   static defaultProps = {
@@ -191,15 +190,32 @@ export class ManageHostsPage extends PureComponent {
       isHostsLoading: false,
       isTeamsLoading: true,
       sortBy: [],
-      policiesFilter: null, // TODO decide whether this state is needed
+      policyName: null,
     };
   }
 
   componentDidMount() {
-    const { dispatch, isBasicTier } = this.props;
+    const { dispatch, isBasicTier, policyId } = this.props;
     dispatch(getLabels());
     if (isBasicTier) {
       dispatch(teamActions.loadAll({}));
+    }
+    if (policyId) {
+      policiesClient
+        .load(policyId)
+        .then((response) => {
+          const { query_name: policyName } = response.policy;
+          this.setState({ policyName });
+        })
+        .catch((err) => {
+          console.log(err);
+          dispatch(
+            renderFlash(
+              "error",
+              "Sorry, we could not retrieve the policy name."
+            )
+          );
+        });
     }
   }
 
@@ -281,7 +297,12 @@ export class ManageHostsPage extends PureComponent {
     sortDirection,
   }) => {
     const { retrieveHosts } = this;
-    const { selectedFilters, selectedTeam } = this.props;
+    const {
+      policyId,
+      policyResponse,
+      selectedFilters,
+      selectedTeam,
+    } = this.props;
 
     let sortBy = [];
     if (sortHeader !== "") {
@@ -301,6 +322,8 @@ export class ManageHostsPage extends PureComponent {
       globalFilter: searchQuery,
       sortBy,
       teamId: selectedTeam,
+      policyId,
+      policyResponse,
     });
   };
 
@@ -379,7 +402,14 @@ export class ManageHostsPage extends PureComponent {
       getStatusSelected,
       retrieveHosts,
     } = this;
-    const { dispatch, selectedFilters, selectedLabel } = this.props;
+    const {
+      dispatch,
+      selectedFilters,
+      selectedLabel,
+      selectedTeam,
+      policyId,
+      policyResponse,
+    } = this.props;
     const {
       selectedHostIds,
       isAllMatchingHostsSelected,
@@ -418,6 +448,9 @@ export class ManageHostsPage extends PureComponent {
           selectedLabels: selectedFilters,
           globalFilter: searchQuery,
           sortBy,
+          teamId: selectedTeam,
+          policyId,
+          policyResponse,
         });
       })
       .catch(() => {
@@ -609,45 +642,39 @@ export class ManageHostsPage extends PureComponent {
     }
   };
 
-  handleChangePoliciesFilter = (selectedFilter) => {
-    const { dispatch } = this.props;
+  handleChangePoliciesFilter = (policyResponse) => {
+    const { dispatch, policyId, selectedFilters, selectedTeam } = this.props;
     const { searchQuery } = this.state;
-    const { getNextLocationUrl, isValidPoliciesFilter, retrieveHosts } = this;
+    const { getNextLocationUrl, retrieveHosts } = this;
     const { MANAGE_HOSTS } = PATHS;
 
-    // TODO validation for policy_id and policy_response?
-    // selectedFilter = isValidPoliciesFilter(selectedFilter)
-    //   ? selectedFilter
-    //   : null;
-
-    let nextLocation = getNextLocationUrl(
-      MANAGE_HOSTS,
-      "",
-      {},
-      { policy_response: selectedFilter }
-    );
-
-    if (!selectedFilter) {
-      nextLocation = nextLocation.replace(
-        `policy_id=${selectedFilter.policyId}&policy_response=${selectedFilter.policyId}`,
-        ""
-      );
-    }
     // TODO test with 1690 to persist query params
     // TODO confirm that sort order, pagination work as expected
-    // retrieveHosts({
-    //   teamId: selectedTeam,
-    //   selectedLabels: selectedFilters,
-    //   globalFilter: searchQuery,
-    // });
-    dispatch(push(nextLocation));
+    retrieveHosts({
+      teamId: selectedTeam,
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+      policyId,
+      policyResponse,
+    });
+
+    dispatch(
+      push(
+        getNextLocationUrl(
+          MANAGE_HOSTS,
+          "",
+          {},
+          { policy_response: policyResponse }
+        )
+      )
+    );
   };
 
   handleClearPoliciesFilter = () => {
     const { dispatch } = this.props;
     const { retrieveHosts } = this;
     const { MANAGE_HOSTS } = PATHS;
-    dispatch(push(MANAGE_HOSTS));
+    dispatch(push(MANAGE_HOSTS)); // TODO persist any query params?
     retrieveHosts();
   };
 
@@ -672,6 +699,7 @@ export class ManageHostsPage extends PureComponent {
       nextLocation = nextLocation.replace(`team_id=${selectedTeamId}`, "");
     }
 
+    // TODO confirm interplay with policies
     // TODO confirm that sort order, pagination work as expected
     retrieveHosts({
       teamId: selectedTeam,
@@ -681,7 +709,8 @@ export class ManageHostsPage extends PureComponent {
     dispatch(push(nextLocation));
   };
 
-  handleLabelChange = ({ slug, type }) => {
+  // TODO confirm interplay with policies filter
+  handleLabelChange = ({ slug }) => {
     const { dispatch, selectedFilters, selectedTeam } = this.props;
     const { isValidSelectedTeamId } = this;
     const { MANAGE_HOSTS } = PATHS;
@@ -722,6 +751,7 @@ export class ManageHostsPage extends PureComponent {
     dispatch(push(nextLocation));
   };
 
+  // TODO confirm interplay with policies filter?
   handleStatusDropdownChange = (statusName) => {
     const { handleLabelChange } = this;
     const { labels } = this.props;
@@ -766,7 +796,8 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderPoliciesFilterBlock = () => {
-    const { activePolicy, policyId, policyResponse } = this.props;
+    const { policyId, policyResponse } = this.props;
+    const { policyName } = this.state;
     const { handleClearPoliciesFilter, handleChangePoliciesFilter } = this;
 
     return (
@@ -776,7 +807,7 @@ export class ManageHostsPage extends PureComponent {
           policyResponse={policyResponse}
           onChange={handleChangePoliciesFilter}
         />
-        <p>{activePolicy?.query_name}</p>
+        <p>{policyName}</p>
         <Button onClick={handleClearPoliciesFilter} variant={"text-icon"}>
           <img src={CloseIcon} alt="Remove policy filter" />
         </Button>
@@ -931,18 +962,25 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderHeader = () => {
-    const {
-      renderHeaderLabelBlock,
-      renderPoliciesFilterBlock,
-      renderTeamsFilterDropdown,
-    } = this;
-    const { policyId, selectedLabel } = this.props;
-    const type = selectedLabel?.type;
+    const { renderTeamsFilterDropdown } = this;
 
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
           {renderTeamsFilterDropdown()}
+        </div>
+      </div>
+    );
+  };
+
+  renderLabelOrPolicyBlock = () => {
+    const { renderHeaderLabelBlock, renderPoliciesFilterBlock } = this;
+    const { policyId, selectedLabel } = this.props;
+    const type = selectedLabel?.type;
+
+    if (policyId || selectedLabel) {
+      return (
+        <div className={`${baseClass}__labels-policies-wrap`}>
           {policyId && renderPoliciesFilterBlock()}
           {!policyId &&
             type !== "all" &&
@@ -950,8 +988,8 @@ export class ManageHostsPage extends PureComponent {
             selectedLabel &&
             renderHeaderLabelBlock(selectedLabel)}
         </div>
-      </div>
-    );
+      );
+    }
   };
 
   renderForm = () => {
@@ -1113,6 +1151,7 @@ export class ManageHostsPage extends PureComponent {
     const {
       renderForm,
       renderHeader,
+      renderLabelOrPolicyBlock,
       renderSidePanel,
       renderAddHostModal,
       renderEnrollSecretModal,
@@ -1158,6 +1197,7 @@ export class ManageHostsPage extends PureComponent {
                 )}
               </div>
             </div>
+            {renderLabelOrPolicyBlock()}
             {renderTable()}
           </div>
         )}
@@ -1173,21 +1213,14 @@ export class ManageHostsPage extends PureComponent {
 }
 
 const mapStateToProps = (state, ownProps) => {
-  console.log(ownProps);
   const { location, params, route, routeParams } = ownProps;
   const locationPath = location.path;
   const queryParams = location.query;
   const routeTemplate = route && route.path ? route.path : "";
-  console.log(queryParams);
 
-  // TODO validate queryParams
+  // TODO validate queryParams?
   const policyId = queryParams?.policy_id;
   const policyResponse = queryParams?.policy_response;
-
-  // TODO wire API and remove mock data
-  const activePolicy = policyId
-    ? MOCK_DATA.find((el) => el.id === parseInt(policyId, 10))
-    : {};
 
   const { active_label: activeLabel, label_id: labelID } = params;
   const selectedFilters = [];
@@ -1270,7 +1303,6 @@ const mapStateToProps = (state, ownProps) => {
     selectedTeam,
     policyId,
     policyResponse,
-    activePolicy,
   };
 };
 
