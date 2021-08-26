@@ -45,7 +45,7 @@ const QueryEditor = ({
       dispatch(push(PATHS.EDIT_QUERY(query)));
       dispatch(renderFlash("success", "Query created!"));
     } catch (createError) {
-      console.log(createError);
+      console.error(createError);
       dispatch(
         renderFlash(
           "error",
@@ -66,7 +66,7 @@ const QueryEditor = ({
       await queryAPI.update(storedQuery, updatedQuery);
       dispatch(renderFlash("success", "Query updated!"));
     } catch (updateError) {
-      console.log(updateError);
+      console.error(updateError);
       dispatch(
         renderFlash(
           "error",
