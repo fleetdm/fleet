@@ -14,7 +14,7 @@ import { IOsqueryTable } from "interfaces/osquery_table";
 import { IUser } from "interfaces/user";
 
 // @ts-ignore
-import WarningBanner from "components/WarningBanner"; // @ts-ignore
+import WarningBanner from "components/WarningBanner";
 import QuerySidePanel from "components/side_panels/QuerySidePanel"; // @ts-ignore
 import QueryEditor from "pages/queries/QueryPage1/screens/QueryEditor";
 import SelectTargets from "pages/queries/QueryPage1/screens/SelectTargets";
