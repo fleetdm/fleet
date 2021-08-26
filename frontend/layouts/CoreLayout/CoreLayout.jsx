@@ -30,6 +30,7 @@ const expirationMessage = (
     .
   </>
 );
+
 export class CoreLayout extends Component {
   static propTypes = {
     children: PropTypes.node,
@@ -48,12 +49,12 @@ export class CoreLayout extends Component {
     super(props);
 
     this.state = {
-      showExpirationFlashMessage: true,
+      showExpirationFlashMessage: false,
     };
   }
 
   componentWillReceiveProps(nextProps) {
-    const { notifications } = nextProps;
+    const { notifications, config } = nextProps;
     const table = this.context;
 
     // on success of an action, the table will reset its checkboxes.
@@ -69,6 +70,10 @@ export class CoreLayout extends Component {
         }, 0);
       }
     }
+
+    this.setState({
+      showExpirationFlashMessage: licenseExpirationWarning(config.expiration),
+    });
   }
 
   onLogoutUser = () => {
@@ -146,7 +151,7 @@ export class CoreLayout extends Component {
 
     const expirationNotification = {
       alertType: "warning-filled",
-      isVisible: licenseExpirationWarning(config.expiration),
+      isVisible: true,
       message: expirationMessage,
     };
 
@@ -170,8 +175,7 @@ export class CoreLayout extends Component {
           {persistentFlash.showFlash && (
             <PersistentFlash message={persistentFlash.message} />
           )}
-          {/* TODO: This will need a transition from redux to context API */}
-          {expirationNotification && showExpirationFlashMessage && (
+          {showExpirationFlashMessage && (
             <FlashMessage
               fullWidth={fullWidthFlash}
               notification={expirationNotification}
@@ -183,7 +187,6 @@ export class CoreLayout extends Component {
             notification={notifications}
             onRemoveFlash={onRemoveFlash}
             onUndoActionClick={onUndoActionClick}
-            className="app-flash"
           />
           {children}
         </div>

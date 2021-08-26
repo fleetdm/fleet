@@ -19,7 +19,6 @@ interface IFlashMessage {
   onUndoActionClick: (
     value: Function
   ) => (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
-  className?: string;
 }
 
 const FlashMessage = ({
@@ -27,10 +26,9 @@ const FlashMessage = ({
   notification,
   onRemoveFlash,
   onUndoActionClick,
-  className,
 }: IFlashMessage) => {
   const { alertType, isVisible, message, undoAction } = notification;
-  const klass = classnames(baseClass, className, `${baseClass}--${alertType}`, {
+  const klass = classnames(baseClass, `${baseClass}--${alertType}`, {
     [`${baseClass}--full-width`]: fullWidth,
   });
 
