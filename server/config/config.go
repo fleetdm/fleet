@@ -19,12 +19,12 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Protocol        string
-	Address         string
-	Username        string
-	Password        string
+	Protocol        string `yaml:"protocol"`
+	Address         string `yaml:"address"`
+	Username        string `yaml:"username"`
+	Password        string `yaml:"password"`
 	PasswordPath    string `yaml:"password_path"`
-	Database        string
+	Database        string `yaml:"database"`
 	TLSCert         string `yaml:"tls_cert"`
 	TLSKey          string `yaml:"tls_key"`
 	TLSCA           string `yaml:"tls_ca"`
@@ -33,17 +33,17 @@ type MysqlConfig struct {
 	MaxOpenConns    int    `yaml:"max_open_conns"`
 	MaxIdleConns    int    `yaml:"max_idle_conns"`
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
-	IAMAccess       bool
-	Region          string
+	IAMAccess       bool   `yaml:"iam_access"`
+	Region          string `yaml:"region"`
 }
 
 // RedisConfig defines configs related to Redis
 type RedisConfig struct {
-	Address          string
-	Password         string
-	Database         int
-	UseTLS           bool `yaml:"use_tls"`
-	DuplicateResults bool `yaml:"duplicate_results"`
+	Address          string `yaml:"address"`
+	Password         string `yaml:"password"`
+	Database         int    `yaml:"database"`
+	UseTLS           bool   `yaml:"use_tls"`
+	DuplicateResults bool   `yaml:"duplicate_results"`
 }
 
 const (
@@ -54,10 +54,10 @@ const (
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
-	Address    string
-	Cert       string
-	Key        string
-	TLS        bool
+	Address    string `yaml:"address"`
+	Cert       string `yaml:"cert"`
+	Key        string `yaml:"key"`
+	TLS        bool   `yaml:"tls"`
 	TLSProfile string `yaml:"tls_compatibility"`
 	URLPrefix  string `yaml:"url_prefix"`
 	Keepalive  bool   `yaml:"keepalive"`
@@ -77,8 +77,8 @@ type AppConfig struct {
 
 // SessionConfig defines configs related to user sessions
 type SessionConfig struct {
-	KeySize  int `yaml:"key_size"`
-	Duration time.Duration
+	KeySize  int           `yaml:"key_size"`
+	Duration time.Duration `yaml:"duration"`
 }
 
 // OsqueryConfig defines configs related to osquery
@@ -97,14 +97,14 @@ type OsqueryConfig struct {
 
 // LoggingConfig defines configs related to logging
 type LoggingConfig struct {
-	Debug         bool
-	JSON          bool
+	Debug         bool `yaml:"debug"`
+	JSON          bool `yaml:"json"`
 	DisableBanner bool `yaml:"disable_banner"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
 type FirehoseConfig struct {
-	Region           string
+	Region           string `yaml:"region"`
 	EndpointURL      string `yaml:"endpoint_url"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
@@ -115,7 +115,7 @@ type FirehoseConfig struct {
 
 // KinesisConfig defines configs for the AWS Kinesis logging plugin
 type KinesisConfig struct {
-	Region           string
+	Region           string `yaml:"region"`
 	EndpointURL      string `yaml:"endpoint_url"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
@@ -126,7 +126,7 @@ type KinesisConfig struct {
 
 // LambdaConfig defines configs for the AWS Lambda logging plugin
 type LambdaConfig struct {
-	Region           string
+	Region           string `yaml:"region"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
@@ -136,8 +136,8 @@ type LambdaConfig struct {
 
 // S3Config defines config to enable file carving storage to an S3 bucket
 type S3Config struct {
-	Bucket           string
-	Prefix           string
+	Bucket           string `yaml:"bucket"`
+	Prefix           string `yaml:"prefix"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
@@ -145,7 +145,7 @@ type S3Config struct {
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
-	Project       string `json:"project"`
+	Project       string `json:"project" yaml:"project"`
 	StatusTopic   string `json:"status_topic" yaml:"status_topic"`
 	ResultTopic   string `json:"result_topic" yaml:"result_topic"`
 	AddAttributes bool   `json:"add_attributes" yaml:"add_attributes"`
@@ -225,8 +225,8 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("mysql.max_open_conns", 50, "MySQL maximum open connection handles.")
 	man.addConfigInt("mysql.max_idle_conns", 50, "MySQL maximum idle connection handles.")
 	man.addConfigInt("mysql.conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused.")
-	man.addConfigBool("mysql.aws_iam_access", false, "Enable IAM access to MySQL, password will be ignored")
-	man.addConfigString("mysql.aws_region", "", "AWS Region for RDS DB")
+	man.addConfigBool("mysql.iam_access", false, "Enable IAM access to MySQL, password will be ignored")
+	man.addConfigString("mysql.region", "", "AWS Region for RDS DB")
 
 	// Redis
 	man.addConfigString("redis.address", "localhost:6379",
@@ -402,8 +402,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxOpenConns:    man.getConfigInt("mysql.max_open_conns"),
 			MaxIdleConns:    man.getConfigInt("mysql.max_idle_conns"),
 			ConnMaxLifetime: man.getConfigInt("mysql.conn_max_lifetime"),
-			IAMAccess:       man.getConfigBool("mysql.aws_iam_access"),
-			Region:          man.getConfigString("mysql.aws_region"),
+			IAMAccess:       man.getConfigBool("mysql.iam_access"),
+			Region:          man.getConfigString("mysql.region"),
 		},
 		Redis: RedisConfig{
 			Address:          man.getConfigString("redis.address"),
