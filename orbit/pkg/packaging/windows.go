@@ -55,6 +55,12 @@ func BuildMSI(opt Options) error {
 	if err := writeSecret(opt, orbitRoot); err != nil {
 		return errors.Wrap(err, "write enroll secret")
 	}
+	
+	if opt.FleetCertificate != "" {
+		if err := writeCertificate(opt, orbitRoot); err != nil {
+			return errors.Wrap(err, "write fleet certificate")
+		}
+	}
 
 	if err := writeWixFile(opt, tmpDir); err != nil {
 		return errors.Wrap(err, "write wix file")
