@@ -7,13 +7,14 @@ import (
 )
 
 var opt packaging.Options
+
 func packageCommand() *cli.Command {
 	return &cli.Command{
-		Name:                   "package",
-		Aliases:                nil,
-		Usage:                  "Create an Orbit installer package",
-		Description:            "An easy way to create fully boot-strapped installer packages for Windows, macOS, or Linux",
-		Flags:                  []cli.Flag{
+		Name:        "package",
+		Aliases:     nil,
+		Usage:       "Create an Orbit installer package",
+		Description: "An easy way to create fully boot-strapped installer packages for Windows, macOS, or Linux",
+		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "type",
 				Usage:    "Type of package to build",

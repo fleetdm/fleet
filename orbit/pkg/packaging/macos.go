@@ -27,8 +27,7 @@ func BuildPkg(opt Options) error {
 		return errors.Wrap(err, "user home directory")
 	}
 	packageDir := filepath.Join(dir, ".orbit", "orbit-package")
-	//defer os.RemoveAll(packageDir)
-
+	defer os.RemoveAll(packageDir)
 
 	filesystemRoot := filepath.Join(packageDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
