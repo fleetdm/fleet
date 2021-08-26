@@ -1,6 +1,9 @@
 package service
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -8,6 +11,7 @@ import (
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -223,4 +227,22 @@ func testStdoutPluginConfig() config.FleetConfig {
 	c.Osquery.ResultLogPlugin = "stdout"
 	c.Osquery.StatusLogPlugin = "stdout"
 	return c
+}
+
+func assertBodyContains(t *testing.T, resp *http.Response, expectedError string) {
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	require.Nil(t, err)
+	bodyString := string(bodyBytes)
+	assert.Contains(t, bodyString, expectedError)
+}
+
+func getJSON(r *http.Response, target interface{}) error {
+	return json.NewDecoder(r.Body).Decode(target)
+}
+
+func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, message string) {
+	err := &fleet.Error{}
+	require.Nil(t, getJSON(resp, err))
+	assert.Equal(t, code, err.Code)
+	assert.Equal(t, message, err.Message)
 }

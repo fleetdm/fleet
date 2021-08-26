@@ -85,3 +85,12 @@ func CreateMySQLDS(t *testing.T) *Datastore {
 	cleanName = strings.ReplaceAll(cleanName, ".", "_")
 	return initializeDatabase(t, cleanName)
 }
+
+func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
+	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
+		t.Skip("MySQL tests are disabled")
+	}
+
+	t.Parallel()
+	return initializeDatabase(t, name)
+}

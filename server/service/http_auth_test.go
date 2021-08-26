@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -229,10 +228,3 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 }
 `, string(bodyBytes))
 }
-
-// an io.ReadCloser for new request body
-type nopCloser struct {
-	io.Reader
-}
-
-func (nopCloser) Close() error { return nil }
