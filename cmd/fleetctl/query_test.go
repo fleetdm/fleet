@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLiveQuery(t *testing.T) {
@@ -41,7 +42,7 @@ func TestLiveQuery(t *testing.T) {
 		return []uint{1}, nil
 	}
 	ds.CountHostsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
-		return fleet.TargetMetrics{TotalHosts: 1}, nil
+		return fleet.TargetMetrics{TotalHosts: 1, OnlineHosts: 1}, nil
 	}
 	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
@@ -69,5 +70,27 @@ func TestLiveQuery(t *testing.T) {
 		return &fleet.Query{}, nil
 	}
 
-	assert.Equal(t, "", runAppForTest(t, []string{"query", "--hosts", "1234", "--query", "select 42, * from time"}))
+	go func() {
+		time.Sleep(2 * time.Second)
+		require.NoError(t, rs.WriteResult(
+			fleet.DistributedQueryResult{
+				DistributedQueryCampaignID: 321,
+				Rows:                       []map[string]string{{"bing": "fds"}},
+				Host: fleet.Host{
+					ID: 99,
+					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+						UpdateTimestamp: fleet.UpdateTimestamp{
+							UpdatedAt: time.Now().UTC(),
+						},
+					},
+					DetailUpdatedAt: time.Now().UTC(),
+					Hostname:        "somehostname",
+				},
+			},
+		))
+	}()
+
+	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_hostname":"somehostname"}]}
+`
+	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--hosts", "1234", "--query", "select 42, * from time"}))
 }

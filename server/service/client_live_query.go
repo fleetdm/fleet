@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -58,13 +59,6 @@ func (h *LiveQueryResultsHandler) Status() *campaignStatus {
 	s := h.status.Load()
 	if s != nil {
 		return s.(*campaignStatus)
-	}
-	return nil
-}
-
-func (h *LiveQueryResultsHandler) Close() error {
-	if h.conn != nil {
-		return h.conn.Close()
 	}
 	return nil
 }
@@ -138,31 +132,37 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 	})
 	if err != nil {
 		_ = conn.Close()
-		return nil, errors.Wrap(err, "auth for results")
+		return nil, errors.Wrap(err, "selecting results")
 	}
 
 	resHandler := NewLiveQueryResultsHandler()
-	resHandler.conn = conn
 	go func() {
+		defer fmt.Println("EXIT")
 		defer conn.Close()
 		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
 			msg := struct {
 				Type string          `json:"type"`
 				Data json.RawMessage `json:"data"`
 			}{}
-			err := conn.ReadJSON(&msg)
-			if err != nil {
-				resHandler.errors <- errors.Wrap(err, "receive ws message")
-				if errors.Is(err, websocket.ErrCloseSent) {
-					return
+
+			doneReadingChan := make(chan error)
+
+			go func() {
+				doneReadingChan <- conn.ReadJSON(&msg)
+			}()
+
+			select {
+			case <-ctx.Done():
+				return
+			case err := <-doneReadingChan:
+				if err != nil {
+					resHandler.errors <- errors.Wrap(err, "receive ws message")
+					if errors.Is(err, websocket.ErrCloseSent) {
+						return
+					}
 				}
 			}
+			close(doneReadingChan)
 
 			switch msg.Type {
 			case "result":
