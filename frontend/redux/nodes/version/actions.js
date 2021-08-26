@@ -1,4 +1,4 @@
-import Kolide from "kolide";
+import Fleet from "fleet";
 
 export const VERSION_FAILURE = "VERSION_FAILURE";
 export const VERSION_START = "VERSION_START";
@@ -18,7 +18,7 @@ export const getVersion = () => {
   return (dispatch) => {
     dispatch(loadVersion);
 
-    return Kolide.version
+    return Fleet.version
       .load()
       .then((version) => {
         dispatch(versionSuccess(version));

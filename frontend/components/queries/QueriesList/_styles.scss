@@ -6,6 +6,19 @@
   margin-top: $pad-medium;
   overflow: scroll;
 
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-left: 7px;
+    }
+  }
+
   &__table {
     border-collapse: collapse;
     width: 100%;
@@ -22,17 +35,21 @@
         font-size: $x-small;
         font-weight: $bold;
         text-align: left;
-        padding: 15px 10px;
+        padding: $pad-medium $pad-large;
 
         &:nth-child(1) {
-          width: 20px;
+          width: 30px;
         }
+      }
+
+      th + th {
+        border-left: 1px solid $ui-fleet-blue-15;
       }
     }
 
     tbody {
       td {
-        padding: 0 10px;
+        padding: 0 $pad-large;
         margin: 0;
         white-space: nowrap;
         overflow: hidden;

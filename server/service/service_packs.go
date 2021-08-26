@@ -2,32 +2,92 @@ package service
 
 import (
 	"context"
-
-	"github.com/fleetdm/fleet/server/kolide"
+	"fmt"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (svc service) ApplyPackSpecs(ctx context.Context, specs []*kolide.PackSpec) error {
-	return svc.ds.ApplyPackSpecs(specs)
+func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) ([]*fleet.PackSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	packs, err := svc.ds.ListPacks(fleet.PackListOptions{IncludeSystemPacks: true})
+	if err != nil {
+		return nil, err
+	}
+
+	namePacks := make(map[string]*fleet.Pack, len(packs))
+	for _, pack := range packs {
+		namePacks[pack.Name] = pack
+	}
+
+	var result []*fleet.PackSpec
+
+	// loop over incoming specs filtering out possible edits to Global or Team Packs
+	for _, spec := range specs {
+		// see for known limitations https://github.com/fleetdm/fleet/pull/1558#discussion_r684218301
+		// check to see if incoming spec is already in the list of packs
+		if p, ok := namePacks[spec.Name]; ok {
+			// as long as pack is editable, we'll apply it
+			if p.EditablePackType() {
+				result = append(result, spec)
+			}
+		} else {
+			// incoming spec is new, let's apply it
+			result = append(result, spec)
+		}
+	}
+
+	if err := svc.ds.ApplyPackSpecs(result); err != nil {
+		return nil, err
+	}
+
+	return result, svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAppliedSpecPack,
+		&map[string]interface{}{},
+	)
 }
 
-func (svc service) GetPackSpecs(ctx context.Context) ([]*kolide.PackSpec, error) {
+func (svc *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.GetPackSpecs()
 }
 
-func (svc service) GetPackSpec(ctx context.Context, name string) (*kolide.PackSpec, error) {
+func (svc *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.GetPackSpec(name)
 }
 
-func (svc service) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {
+func (svc *Service) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListPacks(opt)
 }
 
-func (svc service) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) {
+func (svc *Service) GetPack(ctx context.Context, id uint) (*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.Pack(id)
 }
 
-func (svc service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.Pack, error) {
-	var pack kolide.Pack
+func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	var pack fleet.Pack
 
 	if p.Name != nil {
 		pack.Name = *p.Name
@@ -43,6 +103,18 @@ func (svc service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.P
 
 	if p.Disabled != nil {
 		pack.Disabled = *p.Disabled
+	}
+
+	if p.HostIDs != nil {
+		pack.HostIDs = *p.HostIDs
+	}
+
+	if p.LabelIDs != nil {
+		pack.LabelIDs = *p.LabelIDs
+	}
+
+	if p.TeamIDs != nil {
+		pack.TeamIDs = *p.TeamIDs
 	}
 
 	_, err := svc.ds.NewPack(&pack)
@@ -50,38 +122,32 @@ func (svc service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.P
 		return nil, err
 	}
 
-	if p.HostIDs != nil {
-		for _, hostID := range *p.HostIDs {
-			err = svc.AddHostToPack(ctx, hostID, pack.ID)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	if p.LabelIDs != nil {
-		for _, labelID := range *p.LabelIDs {
-			err = svc.AddLabelToPack(ctx, labelID, pack.ID)
-			if err != nil {
-				return nil, err
-			}
-		}
+	if err := svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeCreatedPack,
+		&map[string]interface{}{"pack_id": pack.ID, "pack_name": pack.Name},
+	); err != nil {
+		return nil, err
 	}
 
 	return &pack, nil
 }
 
-func (svc service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload) (*kolide.Pack, error) {
+func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload) (*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	pack, err := svc.ds.Pack(id)
 	if err != nil {
 		return nil, err
 	}
 
-	if p.Name != nil {
+	if p.Name != nil && pack.EditablePackType() {
 		pack.Name = *p.Name
 	}
 
-	if p.Description != nil {
+	if p.Description != nil && pack.EditablePackType() {
 		pack.Description = *p.Description
 	}
 
@@ -93,150 +159,86 @@ func (svc service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload
 		pack.Disabled = *p.Disabled
 	}
 
+	if p.HostIDs != nil && pack.EditablePackType() {
+		pack.HostIDs = *p.HostIDs
+	}
+
+	if p.LabelIDs != nil && pack.EditablePackType() {
+		pack.LabelIDs = *p.LabelIDs
+	}
+
+	if p.TeamIDs != nil && pack.EditablePackType() {
+		pack.TeamIDs = *p.TeamIDs
+	}
+
 	err = svc.ds.SavePack(pack)
 	if err != nil {
 		return nil, err
 	}
 
-	// we must determine what hosts are attached to this pack. then, given
-	// our new set of host_ids, we will mutate the database to reflect the
-	// desired state.
-	if p.HostIDs != nil {
-
-		// first, let's retrieve the total set of hosts
-		hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		// it will be efficient to create a data structure with constant time
-		// lookups to determine whether or not a host is already added
-		existingHosts := map[uint]bool{}
-		for _, host := range hosts {
-			existingHosts[host] = true
-		}
-
-		// we will also make a constant time lookup map for the desired set of
-		// hosts as well.
-		desiredHosts := map[uint]bool{}
-		for _, hostID := range *p.HostIDs {
-			desiredHosts[hostID] = true
-		}
-
-		// if the request declares a host ID but the host is not already
-		// associated with the pack, we add it
-		for _, hostID := range *p.HostIDs {
-			if !existingHosts[hostID] {
-				err = svc.AddHostToPack(ctx, hostID, pack.ID)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		// if the request does not declare the ID of a host which currently
-		// exists, we delete the existing relationship
-		for hostID := range existingHosts {
-			if !desiredHosts[hostID] {
-				err = svc.RemoveHostFromPack(ctx, hostID, pack.ID)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-	}
-
-	// we must determine what labels are attached to this pack. then, given
-	// our new set of label_ids, we will mutate the database to reflect the
-	// desired state.
-	if p.LabelIDs != nil {
-
-		// first, let's retrieve the total set of labels
-		labels, err := svc.ListLabelsForPack(ctx, pack.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		// it will be efficient to create a data structure with constant time
-		// lookups to determine whether or not a label is already added
-		existingLabels := map[uint]bool{}
-		for _, label := range labels {
-			existingLabels[label.ID] = true
-		}
-
-		// we will also make a constant time lookup map for the desired set of
-		// labels as well.
-		desiredLabels := map[uint]bool{}
-		for _, labelID := range *p.LabelIDs {
-			desiredLabels[labelID] = true
-		}
-
-		// if the request declares a label ID but the label is not already
-		// associated with the pack, we add it
-		for _, labelID := range *p.LabelIDs {
-			if !existingLabels[labelID] {
-				err = svc.AddLabelToPack(ctx, labelID, pack.ID)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		// if the request does not declare the ID of a label which currently
-		// exists, we delete the existing relationship
-		for labelID := range existingLabels {
-			if !desiredLabels[labelID] {
-				err = svc.RemoveLabelFromPack(ctx, labelID, pack.ID)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
+	if err := svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedPack,
+		&map[string]interface{}{"pack_id": pack.ID, "pack_name": pack.Name},
+	); err != nil {
+		return nil, err
 	}
 
 	return pack, err
 }
 
-func (svc service) DeletePack(ctx context.Context, name string) error {
-	return svc.ds.DeletePack(name)
+func (svc *Service) DeletePack(ctx context.Context, name string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	pack, _, err := svc.ds.PackByName(name)
+	if err != nil {
+		return err
+	}
+	// if there is a pack by this name, ensure it is not type Global or Team
+	if pack != nil && !pack.EditablePackType() {
+		return fmt.Errorf("cannot delete pack_type %s", *pack.Type)
+	}
+
+	if err := svc.ds.DeletePack(name); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedPack,
+		&map[string]interface{}{"pack_name": name},
+	)
 }
 
-func (svc service) DeletePackByID(ctx context.Context, id uint) error {
+func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	pack, err := svc.ds.Pack(id)
 	if err != nil {
 		return err
 	}
-	return svc.ds.DeletePack(pack.Name)
+	if pack != nil && !pack.EditablePackType() {
+		return fmt.Errorf("cannot delete pack_type %s", *pack.Type)
+	}
+	if err := svc.ds.DeletePack(pack.Name); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedPack,
+		&map[string]interface{}{"pack_name": pack.Name},
+	)
 }
 
-func (svc service) AddLabelToPack(ctx context.Context, lid, pid uint) error {
-	return svc.ds.AddLabelToPack(lid, pid)
-}
+func (svc *Service) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 
-func (svc service) RemoveLabelFromPack(ctx context.Context, lid, pid uint) error {
-	return svc.ds.RemoveLabelFromPack(lid, pid)
-}
-
-func (svc service) AddHostToPack(ctx context.Context, hid, pid uint) error {
-	return svc.ds.AddHostToPack(hid, pid)
-}
-
-func (svc service) RemoveHostFromPack(ctx context.Context, hid, pid uint) error {
-	return svc.ds.RemoveHostFromPack(hid, pid)
-}
-
-func (svc service) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {
-	return svc.ds.ListLabelsForPack(pid)
-}
-
-func (svc service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
-	return svc.ds.ListHostsInPack(pid, opt)
-}
-
-func (svc service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
-	return svc.ds.ListExplicitHostsInPack(pid, opt)
-}
-
-func (svc service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pack, error) {
 	return svc.ds.ListPacksForHost(hid)
 }

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
 // ApplyAppConfig sends the application config to be applied to the Fleet instance.
-func (c *Client) ApplyAppConfig(payload *kolide.AppConfigPayload) error {
+func (c *Client) ApplyAppConfig(payload interface{}) error {
 	response, err := c.AuthenticatedDo("PATCH", "/api/v1/fleet/config", "", payload)
 	if err != nil {
 		return errors.Wrap(err, "PATCH /api/v1/fleet/config")
@@ -37,7 +37,7 @@ func (c *Client) ApplyAppConfig(payload *kolide.AppConfigPayload) error {
 }
 
 // GetAppConfig fetches the application config from the server API
-func (c *Client) GetAppConfig() (*kolide.AppConfigPayload, error) {
+func (c *Client) GetAppConfig() (*fleet.AppConfig, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/config", "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/fleet/config")
@@ -52,7 +52,7 @@ func (c *Client) GetAppConfig() (*kolide.AppConfigPayload, error) {
 		)
 	}
 
-	var responseBody *kolide.AppConfigPayload
+	var responseBody *fleet.AppConfig
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
 		return nil, errors.Wrap(err, "decode get config response")
@@ -61,17 +61,8 @@ func (c *Client) GetAppConfig() (*kolide.AppConfigPayload, error) {
 	return responseBody, nil
 }
 
-// GetServerSettings fetches the server settings from the server API
-func (c *Client) GetServerSettings() (*kolide.ServerSettings, error) {
-	appConfig, err := c.GetAppConfig()
-	if err != nil {
-		return nil, errors.Wrap(err, "get server settings")
-	}
-	return appConfig.ServerSettings, nil
-}
-
 // GetEnrollSecretSpec fetches the enroll secrets stored on the server
-func (c *Client) GetEnrollSecretSpec() (*kolide.EnrollSecretSpec, error) {
+func (c *Client) GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/spec/enroll_secret", "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/fleet/spec/enroll_secret")
@@ -100,7 +91,7 @@ func (c *Client) GetEnrollSecretSpec() (*kolide.EnrollSecretSpec, error) {
 }
 
 // ApplyEnrollSecretSpec applies the enroll secrets.
-func (c *Client) ApplyEnrollSecretSpec(spec *kolide.EnrollSecretSpec) error {
+func (c *Client) ApplyEnrollSecretSpec(spec *fleet.EnrollSecretSpec) error {
 	req := applyEnrollSecretSpecRequest{Spec: spec}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/spec/enroll_secret", "", req)
 	if err != nil {

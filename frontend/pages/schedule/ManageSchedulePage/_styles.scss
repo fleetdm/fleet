@@ -1,0 +1,177 @@
+.manage-schedule-page {
+  &__header-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $pad-xxlarge;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+
+    .form-field {
+      margin-bottom: 0;
+    }
+  }
+
+  &__text {
+    margin-right: $pad-large;
+  }
+
+  &__title {
+    font-size: $large;
+
+    .fleeticon {
+      color: $core-fleet-blue;
+      margin-right: 15px;
+    }
+
+    .fleeticon-success-check {
+      color: $ui-success;
+    }
+
+    .fleeticon-offline {
+      color: $ui-error;
+    }
+
+    .fleeticon-mia {
+      color: $core-fleet-black;
+    }
+  }
+
+  &__description {
+    margin: 0 0 $pad-medium;
+    padding-top: $pad-xsmall;
+
+    h2 {
+      text-transform: uppercase;
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $small;
+    }
+
+    p {
+      color: $core-dark-blue-grey;
+      margin: 0;
+      font-size: $x-small;
+      font-style: italic;
+    }
+  }
+
+  &__action-button-container {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .button {
+    font-size: $x-small;
+
+    img {
+      transform: scale(0.5);
+    }
+  }
+
+  &__advanced-button {
+    margin-right: $pad-medium;
+  }
+
+  &__modal-buttons {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+
+    .button:first-child {
+      margin-right: $pad-medium;
+    }
+  }
+
+  &__team-dropdown {
+    border: 0 !important;
+    position: relative;
+
+    :hover {
+      cursor: pointer !important;
+    }
+
+    &.is-focused {
+      .Select-control {
+        border: 0 !important;
+        height: 32px;
+      }
+    }
+
+    .Select-menu-outer {
+      position: absolute;
+      left: -12px;
+      border-radius: 6px;
+    }
+  }
+
+  .Select.is-open {
+    .Select-value-label {
+      color: $core-vibrant-blue !important;
+    }
+  }
+
+  &__header {
+    .Select-control {
+      background-color: #fff;
+      border: 0 !important;
+      border-radius: none;
+      position: none;
+      width: max-content; // move select arrow
+      height: 20px;
+
+      &:hover {
+        box-shadow: none;
+      }
+
+      &:hover .Select-value-label {
+        color: $core-vibrant-blue !important;
+      }
+
+      .Select-arrow-zone {
+        padding-left: $pad-small;
+
+        .Select-arrow {
+          top: 1px !important;
+          margin-top: 0 !important;
+        }
+      }
+      .Select-multi-value-wrapper {
+        width: max-content; // move select arrow
+        height: 20px;
+        margin-bottom: $pad-xsmall;
+
+        .Select-input {
+          display: none !important;
+        }
+
+        .Select-value {
+          position: relative; // move select arrow
+          display: inline-block; // move select arrow
+          line-height: 28px;
+          padding: 0;
+          border: 0 !important;
+          background-color: #fff !important;
+          right: 0;
+          left: 0;
+          bottom: 0;
+          top: 0;
+
+          &.is-focused {
+            border: 0 !important;
+          }
+          :hover {
+            border: 0 !important;
+          }
+
+          .Select-value-label {
+            font-size: $large !important;
+          }
+        }
+      }
+    }
+  }
+}

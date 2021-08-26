@@ -90,7 +90,7 @@ describe("ResetPasswordForm - component", () => {
 
     expect(submitSpy).not.toHaveBeenCalled();
     expect(form.state().errors).toMatchObject({
-      new_password_confirmation: "Passwords Do Not Match",
+      new_password_confirmation: "Passwords do not match",
     });
   });
 
@@ -110,8 +110,7 @@ describe("ResetPasswordForm - component", () => {
 
     expect(submitSpy).not.toHaveBeenCalled();
     expect(form.state().errors).toMatchObject({
-      new_password:
-        "Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol",
+      new_password: "Password must meet the criteria below",
     });
   });
 });

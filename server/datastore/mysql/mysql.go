@@ -9,17 +9,19 @@ import (
 	"io/ioutil"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/datastore/mysql/migrations/data"
-	"github.com/fleetdm/fleet/server/datastore/mysql/migrations/tables"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -35,30 +37,13 @@ var (
 	columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
 )
 
-// Datastore is an implementation of kolide.Datastore interface backed by
+// Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
 	db     *sqlx.DB
 	logger log.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
-}
-
-type dbfunctions interface {
-	Exec(query string, args ...interface{}) (sql.Result, error)
-	Get(dest interface{}, query string, args ...interface{}) error
-	Select(dest interface{}, query string, args ...interface{}) error
-}
-
-func (d *Datastore) getTransaction(opts []kolide.OptionalArg) dbfunctions {
-	var result dbfunctions = d.db
-	for _, opt := range opts {
-		switch t := opt().(type) {
-		case dbfunctions:
-			result = t
-		}
-	}
-	return result
 }
 
 type txFn func(*sqlx.Tx) error
@@ -127,6 +112,37 @@ func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 5 * time.Second
 	return backoff.Retry(operation, bo)
+}
+
+// withTx provides a common way to commit/rollback a txFn
+func (d *Datastore) withTx(fn txFn) (err error) {
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return errors.Wrap(err, "create transaction")
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			if err := tx.Rollback(); err != nil {
+				d.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+			}
+			panic(p)
+		}
+	}()
+
+	if err := fn(tx); err != nil {
+		rbErr := tx.Rollback()
+		if rbErr != nil && rbErr != sql.ErrTxDone {
+			return errors.Wrapf(err, "got err '%s' rolling back after err", rbErr.Error())
+		}
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "commit transaction")
+	}
+
+	return nil
 }
 
 // New creates an MySQL datastore.
@@ -201,7 +217,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 
 }
 
-func (d *Datastore) Begin() (kolide.Transaction, error) {
+func (d *Datastore) Begin() (fleet.Transaction, error) {
 	return d.db.Beginx()
 }
 
@@ -217,7 +233,7 @@ func (d *Datastore) MigrateData() error {
 	return data.MigrationClient.Up(d.db.DB, "")
 }
 
-func (d *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {
+func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
 		return 0, errors.New("unexpected nil migrations list")
 	}
@@ -244,14 +260,14 @@ func (d *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {
 
 	switch {
 	case currentDataVersion == 0 && currentTablesVersion == 0:
-		return kolide.NoMigrationsCompleted, nil
+		return fleet.NoMigrationsCompleted, nil
 
 	case currentTablesVersion != lastTablesMigration.Version ||
 		currentDataVersion != lastDataMigration.Version:
-		return kolide.SomeMigrationsCompleted, nil
+		return fleet.SomeMigrationsCompleted, nil
 
 	default:
-		return kolide.AllMigrationsCompleted, nil
+		return fleet.AllMigrationsCompleted, nil
 	}
 }
 
@@ -309,10 +325,10 @@ func sanitizeColumn(col string) string {
 	return columnCharsRegexp.ReplaceAllString(col, "")
 }
 
-func appendListOptionsToSQL(sql string, opts kolide.ListOptions) string {
+func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
 	if opts.OrderKey != "" {
 		direction := "ASC"
-		if opts.OrderDirection == kolide.OrderDescending {
+		if opts.OrderDirection == fleet.OrderDescending {
 			direction = "DESC"
 		}
 		orderKey := sanitizeColumn(opts.OrderKey)
@@ -335,6 +351,117 @@ func appendListOptionsToSQL(sql string, opts kolide.ListOptions) string {
 	}
 
 	return sql
+}
+
+// whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
+// clause to render only the appropriate teams.
+//
+// filter provides the filtering parameters that should be used. hostKey is the
+// name/alias of the hosts table to use in generating the SQL.
+func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey string) string {
+	if filter.User == nil {
+		// This is likely unintentional, however we would like to return no
+		// results rather than panicking or returning some other error. At least
+		// log.
+		level.Info(d.logger).Log("err", "team filter missing user")
+		return "FALSE"
+	}
+
+	if filter.User.GlobalRole != nil {
+		switch *filter.User.GlobalRole {
+
+		case fleet.RoleAdmin, fleet.RoleMaintainer:
+			return "TRUE"
+
+		case fleet.RoleObserver:
+			if filter.IncludeObserver {
+				return "TRUE"
+			}
+			return "FALSE"
+
+		default:
+			// Fall through to specific teams
+		}
+	}
+
+	// Collect matching teams
+	var idStrs []string
+	for _, team := range filter.User.Teams {
+		if team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer ||
+			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+		}
+	}
+
+	if len(idStrs) == 0 {
+		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	return fmt.Sprintf("%s.team_id IN (%s)", hostKey, strings.Join(idStrs, ","))
+}
+
+// whereFilterTeams returns the appropriate condition to use in the WHERE
+// clause to render only the appropriate teams.
+//
+// filter provides the filtering parameters that should be used. hostKey is the
+// name/alias of the teams table to use in generating the SQL.
+func (d *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) string {
+	if filter.User == nil {
+		// This is likely unintentional, however we would like to return no
+		// results rather than panicking or returning some other error. At least
+		// log.
+		level.Info(d.logger).Log("err", "team filter missing user")
+		return "FALSE"
+	}
+
+	if filter.User.GlobalRole != nil {
+		switch *filter.User.GlobalRole {
+
+		case fleet.RoleAdmin, fleet.RoleMaintainer:
+			return "TRUE"
+
+		case fleet.RoleObserver:
+			if filter.IncludeObserver {
+				return "TRUE"
+			}
+			return "FALSE"
+
+		default:
+			// Fall through to specific teams
+		}
+	}
+
+	// Collect matching teams
+	var idStrs []string
+	for _, team := range filter.User.Teams {
+		if team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer ||
+			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+		}
+	}
+
+	if len(idStrs) == 0 {
+		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	return fmt.Sprintf("%s.id IN (%s)", teamKey, strings.Join(idStrs, ","))
+}
+
+// whereOmitIDs returns the appropriate condition to use in the WHERE
+// clause to omit the provided IDs from the selection.
+func (d *Datastore) whereOmitIDs(colName string, omit []uint) string {
+	if len(omit) == 0 {
+		return "TRUE"
+	}
+
+	var idStrs []string
+	for _, id := range omit {
+		idStrs = append(idStrs, strconv.Itoa(int(id)))
+	}
+
+	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
 }
 
 // registerTLS adds client certificate configuration to the mysql connection.
@@ -407,7 +534,7 @@ func isChildForeignKeyError(err error) bool {
 //
 // The input columns must be sanitized if they are provided by the user.
 func searchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
-	if len(columns) == 0 {
+	if len(columns) == 0 || len(match) == 0 {
 		return sql, params
 	}
 

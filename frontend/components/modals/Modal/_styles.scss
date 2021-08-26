@@ -9,7 +9,7 @@
   }
 
   &__content {
-    margin-top: 10px;
+    margin-top: $pad-large;
     font-size: $x-small;
 
     .input-field {
@@ -19,18 +19,17 @@
 
   &__ex {
     text-decoration: none;
+    padding-left: $pad-xsmall;
 
-    .button {
+    .button::after {
       content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
-      width: 17px;
-      height: 17px;
+      transform: scale(0.5);
       border-radius: 0px;
     }
 
-    .button:hover {
+    .button:hover::after {
       content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
-      width: 17px;
-      height: 17px;
+      transform: scale(0.5);
       border-radius: 0px;
     }
   }
@@ -39,10 +38,16 @@
     font-size: $large;
     font-weight: $regular;
     text-align: left;
-    padding-bottom: 15px;
+    padding-bottom: $pad-xsmall;
     border-bottom: 1px solid $ui-fleet-blue-15;
     display: flex;
     justify-content: space-between;
+
+    span {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
   }
 
   &__modal_container {

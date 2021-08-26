@@ -20,6 +20,6 @@ func Up_20170519105647(tx *sql.Tx) error {
 }
 
 func Down_20170519105647(tx *sql.Tx) error {
-	_, err := tx.Exec("ALTER TABLE `kolide`.`decorators` DROP COLUMN `name` ;")
+	_, err := tx.Exec("ALTER TABLE `decorators` DROP COLUMN `name` ;")
 	return err
 }

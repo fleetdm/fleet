@@ -1,0 +1,125 @@
+project_name: fleet
+
+monorepo:
+  tag_prefix: fleet-
+  dir: .
+
+before:
+  hooks:
+    - make deps
+    - make generate
+
+# gomod:
+#   proxy: true
+
+builds:
+  - id: fleet
+    dir: ./cmd/fleet/
+    binary: fleet
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+    goarch:
+      - amd64
+    flags:
+      - -tags=full,fts5,netgo
+      - -trimpath
+    ldflags:
+      - -extldflags "-static"
+      - -X github.com/kolide/kit/version.appName={{ .ArtifactName }}
+      - -X github.com/kolide/kit/version.version={{ .Version }}
+      - -X github.com/kolide/kit/version.branch={{ .Branch }}
+      - -X github.com/kolide/kit/version.revision={{ .FullCommit }}
+      - -X github.com/kolide/kit/version.buildDate={{ time "2006-01-02" }}
+      - -X github.com/kolide/kit/version.buildUser={{ .Env.USER }}
+
+  - id: fleetctl
+    dir: ./cmd/fleetctl/
+    binary: fleetctl
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+    flags:
+      - -trimpath
+    ldflags:
+      - -X github.com/kolide/kit/version.appName={{ .ArtifactName }}
+      - -X github.com/kolide/kit/version.version={{ .Version }}
+      - -X github.com/kolide/kit/version.branch={{ .Branch }}
+      - -X github.com/kolide/kit/version.revision={{ .FullCommit }}
+      - -X github.com/kolide/kit/version.buildDate={{ time "2006-01-02" }}
+      - -X github.com/kolide/kit/version.buildUser={{ .Env.USER }}
+
+archives:
+  - id: fleet
+    builds:
+      - fleet
+    name_template: fleet_v{{.Version}}_{{.Os}}
+    replacements:
+      darwin: macos
+    format_overrides:
+      - goos: windows
+        format: zip
+    wrap_in_directory: true
+
+  - id: fleetctl
+    builds:
+      - fleetctl
+    name_template: fleetctl_v{{.Version}}_{{.Os}}
+    replacements:
+      darwin: macos
+    wrap_in_directory: true
+
+  - id: fleetctl-zip
+    builds:
+      - fleetctl
+    name_template: fleetctl_v{{.Version}}_{{.Os}}
+    format: zip
+    replacements:
+      darwin: macos
+    wrap_in_directory: true
+
+dockers:
+  - goos: linux
+    goarch: amd64
+    ids:
+      - fleet
+      - fleetctl
+    dockerfile: tools/docker/fleet.Dockerfile
+    image_templates:
+      - 'fleetdm/fleet:latest'
+      - 'fleetdm/fleet:{{ .Tag }}'
+      - 'fleetdm/fleet:{{ .Tag }}'
+      - 'fleetdm/fleet:v{{ .Major }}'
+
+  - goos: linux
+    goarch: amd64
+    ids:
+      - fleetctl
+    dockerfile: tools/docker/fleetctl.Dockerfile
+    image_templates:
+      - 'fleetdm/fleetctl:latest'
+      - 'fleetdm/fleetctl:{{ .Tag }}'
+      - 'fleetdm/fleetctl:{{ .Tag }}'
+      - 'fleetdm/fleetctl:v{{ .Major }}'
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-untagged"
+
+changelog:
+  skip: true
+
+release:
+  github:
+    owner: fleetdm
+    name: fleet
+  draft: true
+  prerelease: auto

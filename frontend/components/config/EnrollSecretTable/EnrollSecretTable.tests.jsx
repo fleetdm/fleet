@@ -9,15 +9,15 @@ import EnrollSecretTable, {
 describe("EnrollSecretTable", () => {
   const defaultProps = {
     secrets: [
-      { name: "foo", secret: "foo_secret", active: true },
-      { name: "bar", secret: "bar_secret", active: true },
-      { name: "inactive", secret: "inactive", active: false },
+      { secret: "foo_secret" },
+      { secret: "bar_secret" },
+      { secret: "baz_secret" },
     ],
   };
 
   it("renders properly filtered rows", () => {
     const table = shallow(<EnrollSecretTable {...defaultProps} />);
-    expect(table.find("EnrollSecretRow").length).toEqual(2);
+    expect(table.find("EnrollSecretRow").length).toEqual(3);
   });
 
   it("renders text when empty", () => {

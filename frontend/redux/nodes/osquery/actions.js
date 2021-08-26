@@ -1,5 +1,5 @@
 import yaml from "js-yaml";
-import Kolide from "kolide";
+import Fleet from "fleet";
 
 export const OSQUERY_OPTIONS_FAILURE = "OSQUERY_OPTIONS_FAILURE";
 export const OSQUERY_OPTIONS_START = "OSQUERY_OPTIONS_START";
@@ -15,30 +15,11 @@ export const osqueryOptionsFailure = (errors) => {
   return { type: OSQUERY_OPTIONS_FAILURE, payload: { errors } };
 };
 
-export const getOsqueryOptions = () => {
+export const updateOsqueryOptions = (osqueryOptionsData, endpoint) => {
   return (dispatch) => {
     dispatch(loadOsqueryOptions);
-
-    return Kolide.osqueryOptions
-      .loadAll()
-      .then((osqueryOptions) => {
-        dispatch(osqueryOptionsSuccess(osqueryOptions));
-
-        return osqueryOptions;
-      })
-      .catch((errors) => {
-        dispatch(osqueryOptionsFailure(errors));
-
-        throw errors;
-      });
-  };
-};
-
-export const updateOsqueryOptions = (osqueryOptionsData) => {
-  return (dispatch) => {
-    dispatch(loadOsqueryOptions);
-    return Kolide.osqueryOptions
-      .update(osqueryOptionsData)
+    return Fleet.osqueryOptions
+      .update(osqueryOptionsData, endpoint)
       .then((osqueryOptions) => {
         const yamlOptions = yaml.safeLoad(osqueryOptionsData.osquery_options);
         dispatch(osqueryOptionsSuccess(yamlOptions));
@@ -54,6 +35,5 @@ export const updateOsqueryOptions = (osqueryOptionsData) => {
 };
 
 export default {
-  getOsqueryOptions,
   updateOsqueryOptions,
 };

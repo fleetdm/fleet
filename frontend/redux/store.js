@@ -1,6 +1,5 @@
 import { applyMiddleware, compose, createStore } from "redux";
 import { browserHistory } from "react-router";
-import { loadingBarMiddleware } from "react-redux-loading-bar";
 import { routerMiddleware } from "react-router-redux";
 import thunkMiddleware from "redux-thunk";
 
@@ -14,10 +13,7 @@ const appliedMiddleware = applyMiddleware(
   thunkMiddleware,
   routerMiddleware(browserHistory),
   authMiddleware,
-  redirectMiddleware,
-  loadingBarMiddleware({
-    promiseTypeSuffixes: ["REQUEST", "SUCCESS", "FAILURE"],
-  })
+  redirectMiddleware
 );
 
 const composeEnhancers =

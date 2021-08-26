@@ -1,0 +1,19 @@
+.reset-sessions-modal {
+  margin-top: $pad-large;
+
+  p {
+    margin-bottom: 40px;
+    font-size: $small;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+
+  &__btn {
+    height: 38px;
+    margin-bottom: 5px;
+    margin-left: 15px;
+  }
+}

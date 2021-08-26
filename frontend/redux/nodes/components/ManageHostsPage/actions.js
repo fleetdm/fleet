@@ -1,4 +1,4 @@
-import Kolide from "kolide";
+import Fleet from "fleet";
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import hostActions from "redux/nodes/entities/hosts/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
@@ -26,7 +26,7 @@ export const getStatusLabelCountsSuccess = (statusLabelCounts) => {
 };
 
 export const silentGetStatusLabelCounts = (dispatch) => {
-  return Kolide.statusLabels
+  return Fleet.statusLabels
     .getCounts()
     .then((counts) => {
       dispatch(getStatusLabelCountsSuccess(counts));
@@ -45,7 +45,7 @@ export const silentGetStatusLabelCounts = (dispatch) => {
 export const getStatusLabelCounts = (dispatch) => {
   dispatch(loadStatusLabelCounts);
 
-  return Kolide.statusLabels
+  return Fleet.statusLabels
     .getCounts()
     .then((counts) => {
       dispatch(getStatusLabelCountsSuccess(counts));
@@ -66,20 +66,20 @@ export const getLabels = () => (dispatch) => {
   dispatch(silentGetStatusLabelCounts);
 };
 
-export const getHostTableData = (
+export const getHosts = ({
   page,
   perPage,
   selectedLabel,
   globalFilter,
-  sortBy
-) => (dispatch) => {
+  sortBy,
+}) => (dispatch) => {
   dispatch(
-    hostActions.loadAll(page, perPage, selectedLabel, globalFilter, sortBy)
+    hostActions.loadAll({ page, perPage, selectedLabel, globalFilter, sortBy })
   );
 };
 
 export default {
   getStatusLabelCounts,
   silentGetStatusLabelCounts,
-  getHostTableData,
+  getHostTableData: getHosts,
 };

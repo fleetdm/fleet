@@ -19,13 +19,13 @@ func TestDecodeCreateUserRequest(t *testing.T) {
 
 		params := r.(createUserRequest)
 		assert.Equal(t, "foo", *params.payload.Name)
-		assert.Equal(t, "foo@kolide.co", *params.payload.Email)
+		assert.Equal(t, "foo@fleet.co", *params.payload.Email)
 	}).Methods("POST")
 
 	var body bytes.Buffer
 	body.Write([]byte(`{
         "name": "foo",
-        "email": "foo@kolide.co"
+        "email": "foo@fleet.co"
     }`))
 
 	router.ServeHTTP(
@@ -104,14 +104,14 @@ func TestDecodeModifyUserRequest(t *testing.T) {
 
 		params := r.(modifyUserRequest)
 		assert.Equal(t, "foo", *params.payload.Name)
-		assert.Equal(t, "foo@kolide.co", *params.payload.Email)
+		assert.Equal(t, "foo@fleet.co", *params.payload.Email)
 		assert.Equal(t, uint(1), params.ID)
 	}).Methods("PATCH")
 
 	var body bytes.Buffer
 	body.Write([]byte(`{
         "name": "foo",
-        "email": "foo@kolide.co"
+        "email": "foo@fleet.co"
     }`))
 
 	request := httptest.NewRequest("PATCH", "/api/v1/fleet/users/1", &body)

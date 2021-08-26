@@ -68,7 +68,7 @@ class SelectTargetsInput extends Component {
         onOpen={onOpen}
         onFocus={onFocus}
         onInputChange={handleInputChange}
-        placeholder="Label Name, Host Name, IP Address, etc."
+        placeholder="Label name, host name, IP address, etc."
         resetValue={[]}
         scrollMenuIntoView={false}
         tabSelectsValue={false}

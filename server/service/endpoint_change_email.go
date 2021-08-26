@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -18,7 +18,7 @@ type changeEmailResponse struct {
 
 func (r changeEmailResponse) error() error { return r.Err }
 
-func makeChangeEmailEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeChangeEmailEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(changeEmailRequest)
 		newEmailAddress, err := svc.ChangeUserEmail(ctx, req.Token)

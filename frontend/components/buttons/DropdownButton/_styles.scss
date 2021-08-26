@@ -32,7 +32,7 @@
     display: block;
 
     .button {
-      color: $core-fleet-black;
+      color: $core-fleet-blue;
       text-transform: none;
       text-align: left;
       font-weight: $regular;
@@ -46,8 +46,8 @@
       letter-spacing: -0.5px;
 
       &:hover {
-        background-color: $core-vibrant-blue;
-        color: $core-white;
+        background-color: $ui-vibrant-blue-10;
+        color: $core-fleet-blue;
       }
     }
   }

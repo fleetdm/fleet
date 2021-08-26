@@ -14,6 +14,7 @@ module.exports.policies = {
 
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
+  'webhooks/*': true,
   'account/logout': true,
   'view-homepage-or-redirect': true,
   'view-faq': true,
@@ -28,5 +29,6 @@ module.exports.policies = {
   'docs/*': true,
   'handbook/*': true,
   'download-sitemap': true,
+  'view-transparency': true,
 
 };

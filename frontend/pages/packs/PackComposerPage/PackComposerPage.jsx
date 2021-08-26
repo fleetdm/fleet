@@ -4,10 +4,13 @@ import { connect } from "react-redux";
 import { noop } from "lodash";
 import { push } from "react-router-redux";
 
+import { renderFlash } from "redux/nodes/notifications/actions";
+
 import packActions from "redux/nodes/entities/packs/actions";
 import PackForm from "components/forms/packs/PackForm";
 import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";
 import PATHS from "router/paths";
+import permissionUtils from "utilities/permissions";
 
 const baseClass = "pack-composer";
 
@@ -17,6 +20,7 @@ export class PackComposerPage extends Component {
     serverErrors: PropTypes.shape({
       base: PropTypes.string,
     }),
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -50,17 +54,24 @@ export class PackComposerPage extends Component {
     const { dispatch } = this.props;
     const { visitPackPage } = this;
 
-    return dispatch(create(formData)).then((pack) => {
-      const { id: packID } = pack;
+    return dispatch(create(formData))
+      .then((pack) => {
+        const { id: packID } = pack;
 
-      return visitPackPage(packID);
-    });
+        return visitPackPage(packID);
+      })
+      .then(() => {
+        dispatch(renderFlash("success", `Pack successfully created.`));
+      })
+      .catch(() => {
+        dispatch(renderFlash("error", "Unable to create pack."));
+      });
   };
 
   render() {
     const { handleSubmit, onFetchTargets } = this;
     const { selectedTargetsCount } = this.state;
-    const { serverErrors } = this.props;
+    const { serverErrors, isBasicTier } = this.props;
 
     return (
       <div className="has-sidebar">
@@ -70,6 +81,7 @@ export class PackComposerPage extends Component {
           onFetchTargets={onFetchTargets}
           selectedTargetsCount={selectedTargetsCount}
           serverErrors={serverErrors}
+          isBasicTier={isBasicTier}
         />
         <PackInfoSidePanel />
       </div>
@@ -79,8 +91,9 @@ export class PackComposerPage extends Component {
 
 const mapStateToProps = (state) => {
   const { errors: serverErrors } = state.entities.packs;
+  const isBasicTier = permissionUtils.isBasicTier(state.app.config);
 
-  return { serverErrors };
+  return { serverErrors, isBasicTier };
 };
 
 export default connect(mapStateToProps)(PackComposerPage);

@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -13,20 +13,20 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type createUserRequest struct {
-	payload kolide.UserPayload
+	payload fleet.UserPayload
 }
 
 type createUserResponse struct {
-	User *kolide.User `json:"user,omitempty"`
-	Err  error        `json:"error,omitempty"`
+	User *fleet.User `json:"user,omitempty"`
+	Err  error       `json:"error,omitempty"`
 }
 
 func (r createUserResponse) error() error { return r.Err }
 
-func makeCreateUserWithInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCreateUserFromInviteEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createUserRequest)
-		user, err := svc.CreateUserWithInvite(ctx, req.payload)
+		user, err := svc.CreateUserFromInvite(ctx, req.payload)
 		if err != nil {
 			return createUserResponse{Err: err}, nil
 		}
@@ -38,7 +38,7 @@ func makeCreateUserWithInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
 // Create User
 ////////////////////////////////////////////////////////////////////////////////
 
-func makeCreateUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCreateUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createUserRequest)
 		user, err := svc.CreateUser(ctx, req.payload)
@@ -58,13 +58,13 @@ type getUserRequest struct {
 }
 
 type getUserResponse struct {
-	User *kolide.User `json:"user,omitempty"`
-	Err  error        `json:"error,omitempty"`
+	User *fleet.User `json:"user,omitempty"`
+	Err  error       `json:"error,omitempty"`
 }
 
 func (r getUserResponse) error() error { return r.Err }
 
-func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getUserRequest)
 		user, err := svc.User(ctx, req.ID)
@@ -75,53 +75,7 @@ func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 	}
 }
 
-type adminUserRequest struct {
-	ID    uint `json:"id"`
-	Admin bool `json:"admin"`
-}
-
-type adminUserResponse struct {
-	User *kolide.User `json:"user,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r adminUserResponse) error() error { return r.Err }
-
-func makeAdminUserEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(adminUserRequest)
-		user, err := svc.ChangeUserAdmin(ctx, req.ID, req.Admin)
-		if err != nil {
-			return adminUserResponse{Err: err}, nil
-		}
-		return adminUserResponse{User: user}, nil
-	}
-}
-
-type enableUserRequest struct {
-	ID      uint `json:"id"`
-	Enabled bool `json:"enabled"`
-}
-
-type enableUserResponse struct {
-	User *kolide.User `json:"user,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r enableUserResponse) error() error { return r.Err }
-
-func makeEnableUserEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(enableUserRequest)
-		user, err := svc.ChangeUserEnabled(ctx, req.ID, req.Enabled)
-		if err != nil {
-			return enableUserResponse{Err: err}, nil
-		}
-		return enableUserResponse{User: user}, nil
-	}
-}
-
-func makeGetSessionUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetSessionUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		user, err := svc.AuthenticatedUser(ctx)
 		if err != nil {
@@ -136,17 +90,17 @@ func makeGetSessionUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listUsersRequest struct {
-	ListOptions kolide.ListOptions
+	ListOptions fleet.UserListOptions
 }
 
 type listUsersResponse struct {
-	Users []kolide.User `json:"users"`
-	Err   error         `json:"error,omitempty"`
+	Users []fleet.User `json:"users"`
+	Err   error        `json:"error,omitempty"`
 }
 
 func (r listUsersResponse) error() error { return r.Err }
 
-func makeListUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListUsersEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listUsersRequest)
 		users, err := svc.ListUsers(ctx, req.ListOptions)
@@ -154,7 +108,7 @@ func makeListUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listUsersResponse{Err: err}, nil
 		}
 
-		resp := listUsersResponse{Users: []kolide.User{}}
+		resp := listUsersResponse{Users: []fleet.User{}}
 		for _, user := range users {
 			resp.Users = append(resp.Users, *user)
 		}
@@ -177,7 +131,7 @@ type changePasswordResponse struct {
 
 func (r changePasswordResponse) error() error { return r.Err }
 
-func makeChangePasswordEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeChangePasswordEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(changePasswordRequest)
 		err := svc.ChangePassword(ctx, req.OldPassword, req.NewPassword)
@@ -200,7 +154,7 @@ type resetPasswordResponse struct {
 
 func (r resetPasswordResponse) error() error { return r.Err }
 
-func makeResetPasswordEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeResetPasswordEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(resetPasswordRequest)
 		err := svc.ResetPassword(ctx, req.PasswordResetToken, req.NewPassword)
@@ -214,17 +168,17 @@ func makeResetPasswordEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type modifyUserRequest struct {
 	ID      uint
-	payload kolide.UserPayload
+	payload fleet.UserPayload
 }
 
 type modifyUserResponse struct {
-	User *kolide.User `json:"user,omitempty"`
-	Err  error        `json:"error,omitempty"`
+	User *fleet.User `json:"user,omitempty"`
+	Err  error       `json:"error,omitempty"`
 }
 
 func (r modifyUserResponse) error() error { return r.Err }
 
-func makeModifyUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeModifyUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyUserRequest)
 		user, err := svc.ModifyUser(ctx, req.ID, req.payload)
@@ -233,6 +187,31 @@ func makeModifyUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		return modifyUserResponse{User: user}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete User
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteUserRequest struct {
+	ID uint `json:"id"`
+}
+
+type deleteUserResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteUserResponse) error() error { return r.Err }
+
+func makeDeleteUserEndpoint(svc fleet.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deleteUserRequest)
+		err := svc.DeleteUser(ctx, req.ID)
+		if err != nil {
+			return deleteUserResponse{Err: err}, nil
+		}
+		return deleteUserResponse{}, nil
 	}
 }
 
@@ -246,13 +225,13 @@ type performRequiredPasswordResetRequest struct {
 }
 
 type performRequiredPasswordResetResponse struct {
-	User *kolide.User `json:"user,omitempty"`
-	Err  error        `json:"error,omitempty"`
+	User *fleet.User `json:"user,omitempty"`
+	Err  error       `json:"error,omitempty"`
 }
 
 func (r performRequiredPasswordResetResponse) error() error { return r.Err }
 
-func makePerformRequiredPasswordResetEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makePerformRequiredPasswordResetEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(performRequiredPasswordResetRequest)
 		user, err := svc.PerformRequiredPasswordReset(ctx, req.Password)
@@ -273,13 +252,13 @@ type requirePasswordResetRequest struct {
 }
 
 type requirePasswordResetResponse struct {
-	User *kolide.User `json:"user,omitempty"`
-	Err  error        `json:"error,omitempty"`
+	User *fleet.User `json:"user,omitempty"`
+	Err  error       `json:"error,omitempty"`
 }
 
 func (r requirePasswordResetResponse) error() error { return r.Err }
 
-func makeRequirePasswordResetEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeRequirePasswordResetEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(requirePasswordResetRequest)
 		user, err := svc.RequirePasswordReset(ctx, req.ID, req.Require)
@@ -305,7 +284,7 @@ type forgotPasswordResponse struct {
 func (r forgotPasswordResponse) error() error { return r.Err }
 func (r forgotPasswordResponse) status() int  { return http.StatusAccepted }
 
-func makeForgotPasswordEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeForgotPasswordEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(forgotPasswordRequest)
 		// Any error returned by the service should not be returned to the

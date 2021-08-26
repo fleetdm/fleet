@@ -6,21 +6,26 @@ import FileSaver from "file-saver";
 import { clone, filter, includes, isEqual, merge } from "lodash";
 import moment from "moment";
 import { push } from "react-router-redux";
+import { Link } from "react-router";
 
-import Kolide from "kolide";
+import Fleet from "fleet";
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
 import convertToCSV from "utilities/convert_to_csv";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
+import permissionUtils from "utilities/permissions";
 import entityGetter from "redux/utilities/entityGetter";
-import { formatSelectedTargetsForApi } from "kolide/helpers";
+import { formatSelectedTargetsForApi } from "fleet/helpers";
 import helpers from "pages/queries/QueryPage/helpers";
 import hostInterface from "interfaces/host";
+import Button from "components/buttons/Button";
+import FleetAce from "components/FleetAce";
 import WarningBanner from "components/WarningBanner";
 import QueryForm from "components/forms/queries/QueryForm";
 import osqueryTableInterface from "interfaces/osquery_table";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
+import userInterface from "interfaces/user";
 import QueryPageSelectTargets from "components/queries/QueryPageSelectTargets";
 import QueryResultsTable from "components/queries/QueryResultsTable";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -33,6 +38,7 @@ import {
 import targetInterface from "interfaces/target";
 import validateQuery from "components/forms/validators/validate_query";
 import PATHS from "router/paths";
+import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "query-page";
 const DEFAULT_CAMPAIGN = {
@@ -57,12 +63,15 @@ export class QueryPage extends Component {
       pathname: PropTypes.string,
     }),
     query: queryInterface,
+    queryId: PropTypes.number,
     selectedHosts: PropTypes.arrayOf(hostInterface),
     selectedOsqueryTable: osqueryTableInterface,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     title: PropTypes.string,
     requestHost: PropTypes.bool,
     hostId: PropTypes.string,
+    currentUser: userInterface,
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -83,6 +92,7 @@ export class QueryPage extends Component {
       queryResultsToggle: null,
       queryPosition: {},
       selectRelatedHostTarget: true,
+      observerShowSql: false,
     };
 
     this.csvQueryName = "Query Results";
@@ -91,7 +101,7 @@ export class QueryPage extends Component {
   componentWillMount() {
     const { dispatch, selectedHosts, selectedTargets } = this.props;
 
-    Kolide.status.live_query().catch((response) => {
+    Fleet.status.live_query().catch((response) => {
       try {
         const error = response.message.errors[0].reason;
         this.setState({ liveQueryError: error });
@@ -228,6 +238,7 @@ export class QueryPage extends Component {
 
   onFetchTargets = (query, targetResponse) => {
     const { dispatch } = this.props;
+
     const { targets_count: targetsCount } = targetResponse;
 
     dispatch(setSelectedTargetsQuery(query));
@@ -247,6 +258,7 @@ export class QueryPage extends Component {
   onRunQuery = debounce(() => {
     const { queryText, targetsCount } = this.state;
     const { query } = this.props.query;
+    const query_id = parseInt(this.props.queryId, 10) || null;
     const sql = queryText || query;
     const { dispatch, selectedTargets } = this.props;
     const { error } = validateQuery(sql);
@@ -280,10 +292,10 @@ export class QueryPage extends Component {
     removeSocket();
     destroyCampaign();
 
-    Kolide.queries
-      .run({ query: sql, selected })
+    Fleet.queries
+      .run({ query: sql, selected, query_id })
       .then((campaignResponse) => {
-        return Kolide.websockets.queries
+        return Fleet.websockets.queries
           .run(campaignResponse.id)
           .then((socket) => {
             this.setupDistributedQuery(socket);
@@ -319,18 +331,12 @@ export class QueryPage extends Component {
           });
       })
       .catch((campaignError) => {
-        if (campaignError === "resource already created") {
-          dispatch(
-            renderFlash(
-              "error",
-              "A campaign with the provided query text has already been created"
-            )
-          );
+        console.log(campaignError);
+        // TODO Revisit after taking a deeper look at error handling related to the Fleet.entities
+        // and flash_messages components in light of issues with those in other instances,
+        // especially as it concerns async errors.
 
-          return false;
-        }
-
-        dispatch(renderFlash("error", campaignError));
+        dispatch(push("/500"));
 
         return false;
       });
@@ -391,8 +397,6 @@ export class QueryPage extends Component {
       window,
     } = global;
     const { queryResultsToggle, queryPosition } = this.state;
-    const { dispatch } = this.props;
-    window.scrollTo(0, 0);
     const {
       parentNode: { parentNode: parent },
     } = evt.currentTarget;
@@ -530,11 +534,14 @@ export class QueryPage extends Component {
       return false;
     }
 
-    const message = `Live query disabled due to error: ${liveQueryError}`;
-
     return (
       <WarningBanner className={`${baseClass}__warning`} shouldShowWarning>
-        {message}
+        <h2 className={`${baseClass}__warning-title`}>
+          Live query request failed
+        </h2>
+        <p>
+          <span>Error:</span> {liveQueryError}
+        </p>
       </WarningBanner>
     );
   };
@@ -597,7 +604,8 @@ export class QueryPage extends Component {
       runQueryMilliseconds,
       liveQueryError,
     } = this.state;
-    const { selectedTargets } = this.props;
+    const { selectedTargets, isBasicTier } = this.props;
+    const queryId = this.props.query.id;
 
     return (
       <QueryPageSelectTargets
@@ -612,6 +620,8 @@ export class QueryPage extends Component {
         targetsCount={targetsCount}
         queryTimerMilliseconds={runQueryMilliseconds}
         disableRun={liveQueryError !== undefined}
+        queryId={queryId}
+        isBasicTier={isBasicTier}
       />
     );
   };
@@ -636,16 +646,157 @@ export class QueryPage extends Component {
       query,
       selectedOsqueryTable,
       title,
+      currentUser,
     } = this.props;
+    const { hasSavePermissions, showDropdown } = helpers;
+
+    const queryId = this.props.query.id;
 
     if (loadingQueries) {
       return false;
     }
 
+    const QuerySql = () => (
+      <div id="results" className="search-results">
+        <FleetAce
+          fontSize={12}
+          name="query-details"
+          readOnly
+          showGutter
+          value={query.query}
+          wrapperClassName={`${baseClass}__query-preview`}
+          wrapEnabled
+        />
+      </div>
+    );
+
+    // Shows and hides SQL for Restricted UI
+    const editDisabledSql = () => {
+      const toggleSql = () =>
+        this.setState((prevState) => ({
+          observerShowSql: !prevState.observerShowSql,
+        }));
+      return (
+        <div>
+          <Button variant="unstyled" className="sql-button" onClick={toggleSql}>
+            {this.state.observerShowSql ? "Hide SQL" : "Show SQL"}
+          </Button>
+          {this.state.observerShowSql ? <QuerySql /> : null}
+        </div>
+      );
+    };
+
+    // Team maintainer: Create and run new query, but not save
+    if (permissionUtils.isAnyTeamMaintainer(currentUser)) {
+      // Team maintainer: Existing query
+      if (queryId) {
+        return (
+          <div className={`${baseClass}__content`}>
+            <div className={`${baseClass}__observer-query-view body-wrap`}>
+              <div className={`${baseClass}__observer-query-details`}>
+                <Link
+                  to={PATHS.MANAGE_QUERIES}
+                  className={`${baseClass}__back-link`}
+                >
+                  <img src={BackChevron} alt="back chevron" id="back-chevron" />
+                  <span>Back to queries</span>
+                </Link>
+                <h1>{query.name}</h1>
+                <p>{query.description}</p>
+                {editDisabledSql()}
+              </div>
+              {renderLiveQueryWarning()}
+              {renderTargetsInput()}
+              {renderResultsTable()}
+            </div>
+          </div>
+        );
+      }
+
+      // Team maintainer: New query
+      return (
+        <div className={`${baseClass} has-sidebar`}>
+          <div className={`${baseClass}__content`}>
+            <div className={`${baseClass}__form body-wrap`}>
+              <Link
+                to={PATHS.MANAGE_QUERIES}
+                className={`${baseClass}__back-link`}
+              >
+                <img src={BackChevron} alt="back chevron" id="back-chevron" />
+                <span>Back to queries</span>
+              </Link>
+              <QueryForm
+                formData={query}
+                handleSubmit={onSaveQueryFormSubmit}
+                onChangeFunc={onChangeQueryFormField}
+                onOsqueryTableSelect={onOsqueryTableSelect}
+                onRunQuery={onRunQuery}
+                onStopQuery={onStopQuery}
+                onUpdate={onUpdateQuery}
+                queryIsRunning={queryIsRunning}
+                serverErrors={errors}
+                selectedOsqueryTable={selectedOsqueryTable}
+                title={title}
+                hasSavePermissions={hasSavePermissions(currentUser)}
+              />
+            </div>
+            {renderLiveQueryWarning()}
+            {renderTargetsInput()}
+            {renderResultsTable()}
+          </div>
+          <QuerySidePanel
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            onTextEditorInputChange={onTextEditorInputChange}
+            selectedOsqueryTable={selectedOsqueryTable}
+          />
+        </div>
+      );
+    }
+
+    // Global Observer or Team Maintainer or Team Observer: Restricted UI
+    if (
+      permissionUtils.isGlobalObserver(currentUser) ||
+      !permissionUtils.isOnGlobalTeam(currentUser)
+    ) {
+      return (
+        <div className={`${baseClass}__content`}>
+          <div className={`${baseClass}__observer-query-view body-wrap`}>
+            <div className={`${baseClass}__observer-query-details`}>
+              <Link
+                to={PATHS.MANAGE_QUERIES}
+                className={`${baseClass}__back-link`}
+              >
+                <img src={BackChevron} alt="back chevron" id="back-chevron" />
+                <span>Back to queries</span>
+              </Link>
+              <h1>{query.name}</h1>
+              <p>{query.description}</p>
+              {editDisabledSql()}
+            </div>
+            {showDropdown(query, currentUser) && (
+              <div>
+                {renderLiveQueryWarning()}
+                {renderTargetsInput()}
+                {renderResultsTable()}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Global Admin or Global Maintainer: Full functionality
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__form body-wrap`}>
+            <Link
+              to={PATHS.MANAGE_QUERIES}
+              className={`${baseClass}__back-link`}
+            >
+              <img src={BackChevron} alt="back chevron" id="back-chevron" />
+              <span>Back to queries</span>
+            </Link>
             <QueryForm
               formData={query}
               handleSubmit={onSaveQueryFormSubmit}
@@ -658,6 +809,7 @@ export class QueryPage extends Component {
               serverErrors={errors}
               selectedOsqueryTable={selectedOsqueryTable}
               title={title}
+              hasSavePermissions={hasSavePermissions(currentUser)}
             />
           </div>
           {renderLiveQueryWarning()}
@@ -676,13 +828,13 @@ export class QueryPage extends Component {
 
 const mapStateToProps = (state, ownProps) => {
   const stateEntities = entityGetter(state);
-  const { id: queryID } = ownProps.params;
-  const query = entityGetter(state).get("queries").findBy({ id: queryID });
+  const { id: queryId } = ownProps.params;
+  const query = entityGetter(state).get("queries").findBy({ id: queryId });
   const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors, loading: loadingQueries } = state.entities.queries;
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
-  const title = queryID ? "Edit query" : "New query";
+  const title = queryId ? "Edit & run query" : "Custom query";
   let selectedHosts = [];
 
   if (((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {
@@ -702,17 +854,24 @@ const mapStateToProps = (state, ownProps) => {
     .get("hosts")
     .findBy({ id: parseInt(hostId, 10) });
   const requestHost = hostId !== undefined && relatedHost === undefined;
+  const currentUser = state.auth.user;
+  const config = state.app.config;
+
+  const isBasicTier = permissionUtils.isBasicTier(config);
 
   return {
     errors,
     loadingQueries,
     query,
+    queryId,
     selectedOsqueryTable,
     selectedHosts,
     selectedTargets,
     requestHost,
     hostId,
     title,
+    currentUser,
+    isBasicTier,
   };
 };
 

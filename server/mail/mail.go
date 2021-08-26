@@ -11,22 +11,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/bindata"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/bindata"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func NewService() kolide.MailService {
+func NewService() fleet.MailService {
 	return &mailService{}
 }
 
 type mailService struct{}
 
 type sender interface {
-	sendMail(e kolide.Email, msg []byte) error
+	sendMail(e fleet.Email, msg []byte) error
 }
 
-func Test(mailer kolide.MailService, e kolide.Email) error {
+func Test(mailer fleet.MailService, e fleet.Email) error {
 	mailBody, err := getMessageBody(e)
 	if err != nil {
 		return errors.Wrap(err, "failed to get message body")
@@ -50,7 +50,7 @@ const (
 	PortTLS = 587
 )
 
-func getMessageBody(e kolide.Email) ([]byte, error) {
+func getMessageBody(e fleet.Email) ([]byte, error) {
 	body, err := e.Mailer.Message()
 	if err != nil {
 		return nil, errors.Wrap(err, "get mailer message")
@@ -58,13 +58,13 @@ func getMessageBody(e kolide.Email) ([]byte, error) {
 	mime := `MIME-version: 1.0;` + "\r\n"
 	content := `Content-Type: text/html; charset="UTF-8";` + "\r\n"
 	subject := "Subject: " + e.Subject + "\r\n"
-	from := "From: " + e.Config.SMTPSenderAddress + "\r\n"
+	from := "From: " + e.Config.SMTPSettings.SMTPSenderAddress + "\r\n"
 	msg := []byte(subject + from + mime + content + "\r\n" + string(body) + "\r\n")
 	return msg, nil
 }
 
-func (m mailService) SendEmail(e kolide.Email) error {
-	if !e.Config.SMTPConfigured {
+func (m mailService) SendEmail(e fleet.Email) error {
+	if !e.Config.SMTPSettings.SMTPConfigured {
 		return fmt.Errorf("email not configured")
 	}
 	msg, err := getMessageBody(e)
@@ -116,33 +116,40 @@ func (l *loginauth) Next(fromServer []byte, more bool) (toServer []byte, err err
 	}
 }
 
-func smtpAuth(e kolide.Email) (smtp.Auth, error) {
-	if e.Config.SMTPAuthenticationType != kolide.AuthTypeUserNamePassword {
+func smtpAuth(e fleet.Email) (smtp.Auth, error) {
+	if e.Config.SMTPSettings.SMTPAuthenticationType != fleet.AuthTypeNameUserNamePassword {
 		return nil, nil
 	}
+
+	username := e.Config.SMTPSettings.SMTPUserName
+	password := e.Config.SMTPSettings.SMTPPassword
+	server := e.Config.SMTPSettings.SMTPServer
+	authMethod := e.Config.SMTPSettings.SMTPAuthenticationMethod
+
 	var auth smtp.Auth
-	switch e.Config.SMTPAuthenticationMethod {
-	case kolide.AuthMethodCramMD5:
-		auth = smtp.CRAMMD5Auth(e.Config.SMTPUserName, e.Config.SMTPPassword)
-	case kolide.AuthMethodPlain:
-		auth = smtp.PlainAuth("", e.Config.SMTPUserName, e.Config.SMTPPassword, e.Config.SMTPServer)
-	case kolide.AuthMethodLogin:
-		auth = LoginAuth(e.Config.SMTPUserName, e.Config.SMTPPassword, e.Config.SMTPServer)
+	switch authMethod {
+	case fleet.AuthMethodNameCramMD5:
+		auth = smtp.CRAMMD5Auth(username, password)
+	case fleet.AuthMethodNamePlain:
+		auth = smtp.PlainAuth("", username, password, server)
+	case fleet.AuthMethodNameLogin:
+		auth = LoginAuth(username, password, server)
 	default:
-		return nil, fmt.Errorf("unknown SMTP auth type '%d'", e.Config.SMTPAuthenticationMethod)
+		return nil, fmt.Errorf("unknown SMTP auth type '%s'", authMethod)
 	}
 	return auth, nil
 }
 
-func (m mailService) sendMail(e kolide.Email, msg []byte) error {
-	smtpHost := fmt.Sprintf("%s:%d", e.Config.SMTPServer, e.Config.SMTPPort)
+func (m mailService) sendMail(e fleet.Email, msg []byte) error {
+	smtpHost := fmt.Sprintf(
+		"%s:%d", e.Config.SMTPSettings.SMTPServer, e.Config.SMTPSettings.SMTPPort)
 	auth, err := smtpAuth(e)
 	if err != nil {
 		return errors.Wrap(err, "failed to get smtp auth")
 	}
 
-	if e.Config.SMTPAuthenticationMethod == kolide.AuthMethodCramMD5 {
-		err = smtp.SendMail(smtpHost, auth, e.Config.SMTPSenderAddress, e.To, msg)
+	if e.Config.SMTPSettings.SMTPAuthenticationMethod == fleet.AuthMethodNameCramMD5 {
+		err = smtp.SendMail(smtpHost, auth, e.Config.SMTPSettings.SMTPSenderAddress, e.To, msg)
 		if err != nil {
 			return errors.Wrap(err, "failed to send mail. cramd5 auth method")
 		}
@@ -154,11 +161,12 @@ func (m mailService) sendMail(e kolide.Email, msg []byte) error {
 		return errors.Wrap(err, "could not dial smtp host")
 	}
 	defer client.Close()
-	if e.Config.SMTPEnableStartTLS {
+
+	if e.Config.SMTPSettings.SMTPEnableStartTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
 			config := &tls.Config{
-				ServerName:         e.Config.SMTPServer,
-				InsecureSkipVerify: !e.Config.SMTPVerifySSLCerts,
+				ServerName:         e.Config.SMTPSettings.SMTPServer,
+				InsecureSkipVerify: !e.Config.SMTPSettings.SMTPVerifySSLCerts,
 			}
 			if err = client.StartTLS(config); err != nil {
 				return errors.Wrap(err, "startTLS error")
@@ -170,7 +178,7 @@ func (m mailService) sendMail(e kolide.Email, msg []byte) error {
 			return errors.Wrap(err, "client auth error")
 		}
 	}
-	if err = client.Mail(e.Config.SMTPSenderAddress); err != nil {
+	if err = client.Mail(e.Config.SMTPSettings.SMTPSenderAddress); err != nil {
 		return errors.Wrap(err, "could not issue mail to provided address")
 	}
 	for _, recip := range e.To {

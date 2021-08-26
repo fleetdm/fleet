@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -87,7 +87,7 @@ func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
 
 		params := r.(submitDistributedQueryResultsRequest)
 		assert.Equal(t, "key", params.NodeKey)
-		assert.Equal(t, kolide.OsqueryDistributedQueryResults{
+		assert.Equal(t, fleet.OsqueryDistributedQueryResults{
 			"id1": {
 				{"col1": "val1", "col2": "val2"},
 				{"col1": "val3", "col2": "val4"},
@@ -97,7 +97,7 @@ func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
 			},
 			"id3": {},
 		}, params.Results)
-		assert.Equal(t, map[string]kolide.OsqueryStatus{"id1": 0, "id3": 1}, params.Statuses)
+		assert.Equal(t, map[string]fleet.OsqueryStatus{"id1": 0, "id3": 1}, params.Statuses)
 	}).Methods("POST")
 
 	// Note we explicitly test the case that requires using the shim

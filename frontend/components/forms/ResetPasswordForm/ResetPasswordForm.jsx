@@ -30,6 +30,9 @@ class ResetPasswordForm extends Component {
           placeholder="New password"
           className={`${baseClass}__input`}
           type="password"
+          hint={[
+            "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+          ]}
         />
         <InputFieldWithIcon
           {...fields.new_password_confirmation}

@@ -15,50 +15,68 @@ module.exports.routes = {
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
   'GET /':                   { action: 'view-homepage-or-redirect', locals: { isHomepage: true } },
   'GET /company/contact':    { action:   'view-contact' },
-  'GET /get-started':        { action:   'view-pricing' },
+  'GET /get-started':        { action:   'view-get-started' },
+  'GET /pricing':            { action: 'view-pricing'},
 
-  'GET /install':            'https://github.com/fleetdm/fleet/blob/master/README.md', // « FUTURE: When ready, bring back { action:   'view-get-started' }
-  '/documentation':          'https://github.com/fleetdm/fleet/tree/master/docs',
   '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
-  '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
+  '/company/about':          '/handbook', // FUTURE: brief "about" page explaining the origins of the company
 
   'GET /queries':            { action: 'view-query-library' },
   'GET /queries/:slug':      { action: 'view-query-detail' },
 
-  '/contribute':             'https://github.com/fleetdm/fleet/tree/master/docs/4-Contribution',
+  'GET /docs/?*':            { skipAssets: false, action: 'docs/view-basic-documentation' },// handles /docs and /docs/foo/bar
+  // 'GET /handbook/?*':        { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
+  'GET /handbook':           'https://github.com/fleetdm/fleet/tree/main/handbook',// TODO: Bring back the above when styles are ready
+
+  '/contribute':             '/docs/contribute',
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
-  '/legal/terms': 'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
-  '/security': 'https://github.com/fleetdm/fleet/security/policy',
+  '/legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
+  '/security':               'https://github.com/fleetdm/fleet/security/policy',
 
-  '/blog':           'https://medium.com/fleetdm',
+  'GET /transparency':       { action: 'view-transparency' },
 
-  'GET /apply': 'https://fleet-device-management.breezy.hr',
+  'GET /apply':              'https://fleet-device-management.breezy.hr',
 
+
+  //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
+  //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
+  //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
+  //  ┌─  ┌─┐┌─┐┬─┐  ┌┐ ┌─┐┌─┐┬┌─┬ ┬┌─┐┬─┐┌┬┐┌─┐  ┌─┐┌─┐┌┬┐┌─┐┌─┐┌┬┐  ─┐
+  //  │   ├┤ │ │├┬┘  ├┴┐├─┤│  ├┴┐│││├─┤├┬┘ ││└─┐  │  │ ││││├─┘├─┤ │    │
+  //  └─  └  └─┘┴└─  └─┘┴ ┴└─┘┴ ┴└┴┘┴ ┴┴└──┴┘└─┘  └─┘└─┘┴ ┴┴  ┴ ┴ ┴o  ─┘
+  // Use these redirects for deprecated/legacy links, so that they go to an appropriate new place instead of just being broken when docs/etc move or get renamed.
+  // > Note that these redirects take precedence over less specific wildcard routes like '/docs/*' and '/handbook/*'
+
+  'GET /docs/using-fleet/some-deprecated-link-like-this': '/docs/using-fleet/supported-browsers',// « this is just an example to show how
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
 
   // Convenience
-  '/pricing':                    '/get-started',
+  '/documentation':              '/docs',
+  '/install':                    '/get-started',
   '/company':                    '/company/about',
   '/support':                    '/company/contact',
   '/contact':                    '/company/contact',
   '/legal':                      '/legal/terms',
   '/terms':                      '/legal/terms',
-  // '/logout':                  '/api/v1/account/logout',
+
+  // Sitemap
+  'GET /sitemap.xml':            { action: 'download-sitemap' },
+
+  // Blog
+  '/blog':                       'https://blog.fleetdm.com',
 
   // Legacy (to avoid breaking links)
   '/try-fleet':                  '/get-started',
-
-  // Sitemap
-  'GET /sitemap.xml': { action: 'download-sitemap' },
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
   //  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
-  // …
+  'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
+  '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

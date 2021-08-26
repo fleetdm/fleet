@@ -5,16 +5,16 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/contexts/token"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 )
 
 type debugAuthenticationMiddleware struct {
-	service kolide.Service
-	jwtKey  string
+	service fleet.Service
 }
 
 // Authenticate the user and ensure the account is not disabled.
@@ -26,7 +26,7 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 			return
 		}
 		ctx := token.NewContext(context.Background(), bearer)
-		v, err := authViewer(ctx, m.jwtKey, bearer, m.service)
+		v, err := authViewer(ctx, string(bearer), m.service)
 		if err != nil {
 			http.Error(w, "Invalid authentication", http.StatusUnauthorized)
 			return
@@ -42,7 +42,7 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 }
 
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
-func MakeDebugHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.Logger) http.Handler {
+func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger) http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -54,7 +54,6 @@ func MakeDebugHandler(svc kolide.Service, config config.KolideConfig, logger kit
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,
-		jwtKey:  config.Auth.JwtKey,
 	}
 	r.Use(mw.Middleware)
 

@@ -13,7 +13,7 @@ class UserMenu extends Component {
     user: PropTypes.shape({
       gravatarURL: PropTypes.string,
       name: PropTypes.string,
-      username: PropTypes.string.isRequired,
+      email: PropTypes.string.isRequired,
       position: PropTypes.string,
     }).isRequired,
   };
@@ -35,7 +35,7 @@ class UserMenu extends Component {
         label: "Documentation",
         onClick: () =>
           window.open(
-            "https://github.com/fleetdm/fleet/blob/master/docs/README.md",
+            "https://github.com/fleetdm/fleet/blob/main/docs/README.md",
             "_blank"
           ),
       },

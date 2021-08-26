@@ -1,64 +1,25 @@
 package mock
 
-//go:generate mockimpl -o datastore_users.go "s *UserStore" "kolide.UserStore"
-//go:generate mockimpl -o datastore_invites.go "s *InviteStore" "kolide.InviteStore"
-//go:generate mockimpl -o datastore_appconfig.go "s *AppConfigStore" "kolide.AppConfigStore"
-//go:generate mockimpl -o datastore_labels.go "s *LabelStore" "kolide.LabelStore"
-//go:generate mockimpl -o datastore_options.go "s *OptionStore" "kolide.OptionStore"
-//go:generate mockimpl -o datastore_packs.go "s *PackStore" "kolide.PackStore"
-//go:generate mockimpl -o datastore_hosts.go "s *HostStore" "kolide.HostStore"
-//go:generate mockimpl -o datastore_fim.go "s *FileIntegrityMonitoringStore" "kolide.FileIntegrityMonitoringStore"
-//go:generate mockimpl -o datastore_osquery_options.go "s *OsqueryOptionsStore" "kolide.OsqueryOptionsStore"
-//go:generate mockimpl -o datastore_scheduled_queries.go "s *ScheduledQueryStore" "kolide.ScheduledQueryStore"
-//go:generate mockimpl -o datastore_queries.go "s *QueryStore" "kolide.QueryStore"
-//go:generate mockimpl -o datastore_query_results.go "s *QueryResultStore" "kolide.QueryResultStore"
-//go:generate mockimpl -o datastore_campaigns.go "s *CampaignStore" "kolide.CampaignStore"
-//go:generate mockimpl -o datastore_sessions.go "s *SessionStore" "kolide.SessionStore"
+import "github.com/fleetdm/fleet/v4/server/fleet"
 
-import "github.com/fleetdm/fleet/server/kolide"
+//go:generate mockimpl -o datastore_mock.go "s *DataStore" "fleet.Datastore"
+//go:generate mockimpl -o datastore_query_results.go "s *QueryResultStore" "fleet.QueryResultStore"
 
-var _ kolide.Datastore = (*Store)(nil)
+var _ fleet.Datastore = (*Store)(nil)
 
 type Store struct {
-	kolide.PasswordResetStore
-	TargetStore
-	SessionStore
-	CampaignStore
-	ScheduledQueryStore
-	OsqueryOptionsStore
-	AppConfigStore
-	HostStore
-	InviteStore
-	LabelStore
-	PackStore
-	UserStore
-	QueryStore
-	QueryResultStore
-	CarveStore
-	SoftwareStore
+	DataStore
 }
 
-func (m *Store) Drop() error {
-	return nil
-}
-func (m *Store) MigrateTables() error {
-	return nil
-}
-func (m *Store) MigrateData() error {
-	return nil
-}
-func (m *Store) MigrationStatus() (kolide.MigrationStatus, error) {
-	return 0, nil
-}
-func (m *Store) Name() string {
-	return "mock"
-}
+func (m *Store) Drop() error                                     { return nil }
+func (m *Store) MigrateTables() error                            { return nil }
+func (m *Store) MigrateData() error                              { return nil }
+func (m *Store) MigrationStatus() (fleet.MigrationStatus, error) { return 0, nil }
+func (m *Store) Name() string                                    { return "mock" }
 
 type mockTransaction struct{}
 
 func (m *mockTransaction) Commit() error   { return nil }
 func (m *mockTransaction) Rollback() error { return nil }
 
-func (m *Store) Begin() (kolide.Transaction, error) {
-	return &mockTransaction{}, nil
-}
+func (m *Store) Begin() (fleet.Transaction, error) { return &mockTransaction{}, nil }

@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -16,13 +16,13 @@ type getQueryRequest struct {
 }
 
 type getQueryResponse struct {
-	Query *kolide.Query `json:"query,omitempty"`
-	Err   error         `json:"error,omitempty"`
+	Query *fleet.Query `json:"query,omitempty"`
+	Err   error        `json:"error,omitempty"`
 }
 
 func (r getQueryResponse) error() error { return r.Err }
 
-func makeGetQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getQueryRequest)
 		query, err := svc.GetQuery(ctx, req.ID)
@@ -37,17 +37,17 @@ func makeGetQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 // List Queries
 ////////////////////////////////////////////////////////////////////////////////
 type listQueriesRequest struct {
-	ListOptions kolide.ListOptions
+	ListOptions fleet.ListOptions
 }
 
 type listQueriesResponse struct {
-	Queries []kolide.Query `json:"queries"`
-	Err     error          `json:"error,omitempty"`
+	Queries []fleet.Query `json:"queries"`
+	Err     error         `json:"error,omitempty"`
 }
 
 func (r listQueriesResponse) error() error { return r.Err }
 
-func makeListQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListQueriesEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listQueriesRequest)
 		queries, err := svc.ListQueries(ctx, req.ListOptions)
@@ -55,7 +55,7 @@ func makeListQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listQueriesResponse{Err: err}, nil
 		}
 
-		resp := listQueriesResponse{Queries: []kolide.Query{}}
+		resp := listQueriesResponse{Queries: []fleet.Query{}}
 		for _, query := range queries {
 			resp.Queries = append(resp.Queries, *query)
 		}
@@ -68,17 +68,17 @@ func makeListQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type createQueryRequest struct {
-	payload kolide.QueryPayload
+	payload fleet.QueryPayload
 }
 
 type createQueryResponse struct {
-	Query *kolide.Query `json:"query,omitempty"`
-	Err   error         `json:"error,omitempty"`
+	Query *fleet.Query `json:"query,omitempty"`
+	Err   error        `json:"error,omitempty"`
 }
 
 func (r createQueryResponse) error() error { return r.Err }
 
-func makeCreateQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCreateQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createQueryRequest)
 		query, err := svc.NewQuery(ctx, req.payload)
@@ -95,17 +95,17 @@ func makeCreateQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type modifyQueryRequest struct {
 	ID      uint
-	payload kolide.QueryPayload
+	payload fleet.QueryPayload
 }
 
 type modifyQueryResponse struct {
-	Query *kolide.Query `json:"query,omitempty"`
-	Err   error         `json:"error,omitempty"`
+	Query *fleet.Query `json:"query,omitempty"`
+	Err   error        `json:"error,omitempty"`
 }
 
 func (r modifyQueryResponse) error() error { return r.Err }
 
-func makeModifyQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeModifyQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyQueryRequest)
 		query, err := svc.ModifyQuery(ctx, req.ID, req.payload)
@@ -130,7 +130,7 @@ type deleteQueryResponse struct {
 
 func (r deleteQueryResponse) error() error { return r.Err }
 
-func makeDeleteQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteQueryRequest)
 		err := svc.DeleteQuery(ctx, req.Name)
@@ -155,7 +155,7 @@ type deleteQueryByIDResponse struct {
 
 func (r deleteQueryByIDResponse) error() error { return r.Err }
 
-func makeDeleteQueryByIDEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteQueryByIDEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteQueryByIDRequest)
 		err := svc.DeleteQueryByID(ctx, req.ID)
@@ -181,7 +181,7 @@ type deleteQueriesResponse struct {
 
 func (r deleteQueriesResponse) error() error { return r.Err }
 
-func makeDeleteQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteQueriesEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteQueriesRequest)
 		deleted, err := svc.DeleteQueries(ctx, req.IDs)
@@ -193,11 +193,11 @@ func makeDeleteQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Apply Query Specs
+// Apply Query Spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyQuerySpecsRequest struct {
-	Specs []*kolide.QuerySpec `json:"specs"`
+	Specs []*fleet.QuerySpec `json:"specs"`
 }
 
 type applyQuerySpecsResponse struct {
@@ -206,7 +206,7 @@ type applyQuerySpecsResponse struct {
 
 func (r applyQuerySpecsResponse) error() error { return r.Err }
 
-func makeApplyQuerySpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeApplyQuerySpecsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(applyQuerySpecsRequest)
 		err := svc.ApplyQuerySpecs(ctx, req.Specs)
@@ -218,17 +218,17 @@ func makeApplyQuerySpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Query Specs
+// Get Query Spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type getQuerySpecsResponse struct {
-	Specs []*kolide.QuerySpec `json:"specs"`
-	Err   error               `json:"error,omitempty"`
+	Specs []*fleet.QuerySpec `json:"specs"`
+	Err   error              `json:"error,omitempty"`
 }
 
 func (r getQuerySpecsResponse) error() error { return r.Err }
 
-func makeGetQuerySpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetQuerySpecsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		specs, err := svc.GetQuerySpecs(ctx)
 		if err != nil {
@@ -243,13 +243,13 @@ func makeGetQuerySpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getQuerySpecResponse struct {
-	Spec *kolide.QuerySpec `json:"specs,omitempty"`
-	Err  error             `json:"error,omitempty"`
+	Spec *fleet.QuerySpec `json:"specs,omitempty"`
+	Err  error            `json:"error,omitempty"`
 }
 
 func (r getQuerySpecResponse) error() error { return r.Err }
 
-func makeGetQuerySpecEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetQuerySpecEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getGenericSpecRequest)
 		spec, err := svc.GetQuerySpec(ctx, req.Name)

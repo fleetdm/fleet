@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
 	"github.com/pkg/errors"
@@ -94,7 +93,7 @@ func migrateOptions(tx *sql.Tx) error {
 		INNER JOIN file_integrity_monitoring_files AS mf
 		ON (fim.id = mf.file_integrity_monitoring_id)
 	`
-	rows, err := txx.Query(query)
+	rows, err := txx.Query(query) //nolint
 	if err != nil && err != sql.ErrNoRows {
 		return errors.Wrap(err, "retrieving fim paths")
 	}
@@ -153,7 +152,7 @@ func migrateOptions(tx *sql.Tx) error {
 			override_type, override_identifier, options
 		) VALUES (?, ?, ?)
 	`
-	if _, err = txx.Exec(query, kolide.OptionOverrideTypeDefault, "", string(confJSON)); err != nil {
+	if _, err = txx.Exec(query, 0, "", string(confJSON)); err != nil {
 		return errors.Wrap(err, "saving converted options")
 	}
 

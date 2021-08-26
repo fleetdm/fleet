@@ -19,7 +19,7 @@
       text-decoration: none;
     }
 
-    .kolidecon {
+    .fleeticon {
       font-size: 8px;
       margin: 0 20px;
       vertical-align: 4px;
@@ -37,6 +37,7 @@
   }
 
   &__form-nav-list {
+    position: -webkit-sticky;
     position: sticky;
     // this is the spacing needed to make the sticky form nav position correctly when scrolling
     // TODO: find a way to calculate these sticky positions this and use variables.
@@ -55,6 +56,10 @@
     a {
       color: $core-fleet-black;
       text-decoration: none;
+
+      &:hover {
+        color: $core-vibrant-blue;
+      }
     }
   }
 }

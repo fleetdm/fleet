@@ -1,0 +1,193 @@
+#!/bin/bash
+
+# This script creates 3 teams and 12 users with various roles.
+
+source $FLEET_ENV_PATH
+
+# Create teams
+create_team_endpoint="api/v1/fleet/teams"
+
+# Create Client Platform Engineering
+data='{
+  "name": "Client Platform Engineering"
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_team_endpoint" -d "$data" --insecure
+
+# Security Engineering
+data='{
+  "name": "Security Engineering"
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_team_endpoint" -d "$data" --insecure
+
+# Site Reliability Engineering
+data='{
+  "name": "Site Reliability Engineering"
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_team_endpoint" -d "$data" --insecure
+
+# Create users
+create_user_endpoint="api/v1/fleet/users/admin"
+
+# Create Andre Verot
+data='{
+  "name": "Andre Verot",
+  "email": "andre@thecompany.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 1,
+      "role": "observer"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Joanne Jackson
+data='{
+  "name": "Joanne Jackson",
+  "email": "jo@thecompany.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 2,
+      "role": "maintainer"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Cheryl Gardner
+data='{
+  "name": "Cheryl Gardner",
+  "email": "cheryl87@domain.tld",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 3,
+      "role": "observer"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Lisa Walsh
+data='{
+  "name": "Lisa Walsh",
+  "email": "lisa_walsh@domain.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 1,
+      "role": "observer"
+    },
+    {
+      "id": 2,
+      "role": "maintainer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Christopher Mitchell
+data='{
+  "name": "Christopher Mitchell",
+  "email": "christopher98@thecompany.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": "admin"
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Kai Boucher
+data='{
+  "name": "Kai Boucher",
+  "email": "boucher_@thecompany.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Henry Lewis
+data='{
+  "name": "Henry Lewis",
+  "email": "henry.lewis@thecompany.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 1,
+      "role": "observer"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Shintaro Sato
+data='{
+  "name": "Shintaro Sato",
+  "email": "shin-sato@thecompany.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 1,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "observer"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Rosie Thomas
+data='{
+  "name": "Rosie Thomas",
+  "email": "rosie@thecompany.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": "maintainer"
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Pat Moreno
+data='{
+  "name": "Pat Moreno",
+  "email": "pat-moreno@thecompany.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Mohammad Patel
+data='{
+  "name": "Mohammad Patel",
+  "email": "mo-patel@thecompany.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": "observer"
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure

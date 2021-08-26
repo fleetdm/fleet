@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
-	ws "github.com/fleetdm/fleet/server/websocket"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 
+	ws "github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 )
@@ -18,7 +18,7 @@ import (
 // incoming stream of live query results.
 type LiveQueryResultsHandler struct {
 	errors  chan error
-	results chan kolide.DistributedQueryResult
+	results chan fleet.DistributedQueryResult
 	totals  atomic.Value // real type: targetTotals
 	status  atomic.Value // real type: campaignStatus
 
@@ -28,7 +28,7 @@ type LiveQueryResultsHandler struct {
 func NewLiveQueryResultsHandler() *LiveQueryResultsHandler {
 	return &LiveQueryResultsHandler{
 		errors:  make(chan error),
-		results: make(chan kolide.DistributedQueryResult),
+		results: make(chan fleet.DistributedQueryResult),
 	}
 }
 
@@ -39,7 +39,7 @@ func (h *LiveQueryResultsHandler) Errors() <-chan error {
 }
 
 // Results returns a read channel including any received results
-func (h *LiveQueryResultsHandler) Results() <-chan kolide.DistributedQueryResult {
+func (h *LiveQueryResultsHandler) Results() <-chan fleet.DistributedQueryResult {
 	return h.results
 }
 
@@ -70,7 +70,7 @@ func (h *LiveQueryResultsHandler) Close() error {
 // LiveQuery creates a new live query and begins streaming results.
 func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
 	req := createDistributedQueryCampaignByNamesRequest{
-		Query:    query,
+		QuerySQL: query,
 		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
 	}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/queries/run_by_names", "", req)
@@ -148,7 +148,7 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 
 			switch msg.Type {
 			case "result":
-				var res kolide.DistributedQueryResult
+				var res fleet.DistributedQueryResult
 				if err := json.Unmarshal(msg.Data, &res); err != nil {
 					resHandler.errors <- errors.Wrap(err, "unmarshal results")
 				}

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/v4/server/config"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -16,7 +16,7 @@ func createConfigDumpCmd(configManager config.Manager) *cobra.Command {
 		Long: `
 Dump the parsed configuration in yaml format.
 
-Kolide retrieves configuration options from many locations, and it can be
+Fleet retrieves configuration options from many locations, and it can be
 useful to see the result of merging those configs.
 
 The following precedence is used when reading configs:

@@ -3,10 +3,10 @@ import validatePresence from "components/forms/validators/validate_presence";
 
 const validate = (formData) => {
   const errors = {};
-  const { password, username } = formData;
+  const { password, email } = formData;
 
-  if (!validatePresence(username)) {
-    errors.username = "Username or email field must be completed";
+  if (!validatePresence(email)) {
+    errors.email = "Email field must be completed";
   }
 
   if (!validatePresence(password)) {

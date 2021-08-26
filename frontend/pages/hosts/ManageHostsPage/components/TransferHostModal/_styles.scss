@@ -1,0 +1,44 @@
+.transfer-host-modal {
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+    margin-top: $pad-xxlarge;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+
+  &__team-link {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
+  .Select {
+    .Select-control {
+      cursor: pointer;
+      
+      &:hover .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
+    }
+
+    .Select-arrow {
+      margin-top: 7px;
+    }
+
+    &:not(.is-open) {
+      .Select-control:hover .Select-arrow {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      }
+    }
+
+    &.is-open {
+      .Select-control .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
+    }
+  }
+}

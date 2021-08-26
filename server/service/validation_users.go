@@ -5,27 +5,27 @@ import (
 	"errors"
 	"unicode"
 
-	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	invalid := &invalidArgumentError{}
-	if p.Username == nil {
-		invalid.Append("username", "missing required argument")
+func (mw validationMiddleware) CreateUserFromInvite(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	invalid := &fleet.InvalidArgumentError{}
+	if p.Name == nil {
+		invalid.Append("name", "Full name missing required argument")
 	} else {
-		if *p.Username == "" {
-			invalid.Append("username", "cannot be empty")
+		if *p.Name == "" {
+			invalid.Append("name", "Full name cannot be empty")
 		}
 	}
 
 	// we don't need a password for single sign on
 	if p.SSOInvite == nil || !*p.SSOInvite {
 		if p.Password == nil {
-			invalid.Append("password", "missing required argument")
+			invalid.Append("password", "Password missing required argument")
 		} else {
 			if *p.Password == "" {
-				invalid.Append("password", "cannot be empty")
+				invalid.Append("password", "Password cannot be empty")
 			}
 			if err := validatePasswordRequirements(*p.Password); err != nil {
 				invalid.Append("password", err.Error())
@@ -34,59 +34,63 @@ func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolid
 	}
 
 	if p.Email == nil {
-		invalid.Append("email", "missing required argument")
+		invalid.Append("email", "Email missing required argument")
 	} else {
 		if *p.Email == "" {
-			invalid.Append("email", "cannot be empty")
+			invalid.Append("email", "Email cannot be empty")
 		}
 	}
 
 	if p.InviteToken == nil {
-		invalid.Append("invite_token", "missing required argument")
+		invalid.Append("invite_token", "Invite token missing required argument")
 	} else {
 		if *p.InviteToken == "" {
-			invalid.Append("invite_token", "cannot be empty")
+			invalid.Append("invite_token", "Invite token cannot be empty")
 		}
 	}
 
 	if invalid.HasErrors() {
 		return nil, invalid
 	}
-	return mw.Service.CreateUserWithInvite(ctx, p)
+	return mw.Service.CreateUserFromInvite(ctx, p)
 }
 
-func (mw validationMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	invalid := &invalidArgumentError{}
-	if p.Username == nil {
-		invalid.Append("username", "missing required argument username")
+func (mw validationMiddleware) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	invalid := &fleet.InvalidArgumentError{}
+	if p.Name == nil {
+		invalid.Append("name", "Full name missing required argument")
 	} else {
-		if *p.Username == "" {
-			invalid.Append("username", "username cannot be empty")
+		if *p.Name == "" {
+			invalid.Append("name", "Full name cannot be empty")
 		}
 	}
 
 	// we don't need a password for single sign on
 	if (p.SSOInvite == nil || !*p.SSOInvite) && (p.SSOEnabled == nil || !*p.SSOEnabled) {
 		if p.Password == nil {
-			invalid.Append("password", "missing required argument password")
+			invalid.Append("password", "Password missing required argument")
 		} else {
 			if *p.Password == "" {
-				invalid.Append("password", "password cannot be empty")
+				invalid.Append("password", "Password cannot be empty")
 			}
 			// Skip password validation in the case of admin created users
 		}
 	}
 
+	if p.SSOEnabled != nil && *p.SSOEnabled && p.Password != nil && len(*p.Password) > 0 {
+		invalid.Append("password", "not allowed for SSO users")
+	}
+
 	if p.Email == nil {
-		invalid.Append("email", "missing required argument email")
+		invalid.Append("email", "Email missing required argument")
 	} else {
 		if *p.Email == "" {
-			invalid.Append("email", "email cannot be empty")
+			invalid.Append("email", "Email cannot be empty")
 		}
 	}
 
 	if p.InviteToken != nil {
-		invalid.Append("invite_token", "invite_token should not be specified with admin user creation")
+		invalid.Append("invite_token", "Invite token should not be specified with admin user creation")
 	}
 
 	if invalid.HasErrors() {
@@ -95,29 +99,23 @@ func (mw validationMiddleware) CreateUser(ctx context.Context, p kolide.UserPayl
 	return mw.Service.CreateUser(ctx, p)
 }
 
-func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
-	invalid := &invalidArgumentError{}
-	if p.Username != nil {
-		if *p.Username == "" {
-			invalid.Append("username", "cannot be empty")
-		}
-	}
-
+func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
+	invalid := &fleet.InvalidArgumentError{}
 	if p.Name != nil {
 		if *p.Name == "" {
-			invalid.Append("name", "cannot be empty")
+			invalid.Append("name", "Full name cannot be empty")
 		}
 	}
 
 	if p.Email != nil {
 		if *p.Email == "" {
-			invalid.Append("email", "cannot be empty")
+			invalid.Append("email", "Email cannot be empty")
 		}
 		// if the user is not an admin, or if an admin is changing their own email
 		// address a password is required,
 		if passwordRequiredForEmailChange(ctx, userID, invalid) {
 			if p.Password == nil {
-				invalid.Append("password", "cannot be empty if email is changed")
+				invalid.Append("password", "Password cannot be empty if email is changed")
 			}
 		}
 	}
@@ -128,33 +126,23 @@ func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p ko
 	return mw.Service.ModifyUser(ctx, userID, p)
 }
 
-func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *invalidArgumentError) bool {
+func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *fleet.InvalidArgumentError) bool {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		invalid.Append("viewer", "not present")
+		invalid.Append("viewer", "Viewer not present")
 		return false
 	}
 	// if a user is changing own email need a password no matter what
-	if vc.UserID() == uid {
-		return true
-	}
-	// if an admin is changing another users email no password needed
-	if vc.CanPerformAdminActions() {
-		return false
-	}
-	// should never get here because a non admin can't change the email of another
-	// user
-	invalid.Append("auth", "this user can't change another user's email")
-	return false
+	return vc.UserID() == uid
 }
 
 func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newPass string) error {
-	invalid := &invalidArgumentError{}
+	invalid := &fleet.InvalidArgumentError{}
 	if oldPass == "" {
-		invalid.Append("old_password", "cannot be empty")
+		invalid.Append("old_password", "Old password cannot be empty")
 	}
 	if newPass == "" {
-		invalid.Append("new_password", "cannot be empty")
+		invalid.Append("new_password", "New password cannot be empty")
 	}
 
 	if err := validatePasswordRequirements(newPass); err != nil {
@@ -168,12 +156,12 @@ func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newP
 }
 
 func (mw validationMiddleware) ResetPassword(ctx context.Context, token, password string) error {
-	invalid := &invalidArgumentError{}
+	invalid := &fleet.InvalidArgumentError{}
 	if token == "" {
-		invalid.Append("token", "cannot be empty field")
+		invalid.Append("token", "Token cannot be empty field")
 	}
 	if password == "" {
-		invalid.Append("new_password", "cannot be empty field")
+		invalid.Append("new_password", "New password cannot be empty field")
 	}
 	if err := validatePasswordRequirements(password); err != nil {
 		invalid.Append("new_password", err.Error())
@@ -209,5 +197,5 @@ func validatePasswordRequirements(password string) error {
 		return nil
 	}
 
-	return errors.New("password does not meet validation requirements")
+	return errors.New("Password does not meet validation requirements")
 }

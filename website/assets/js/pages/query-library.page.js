@@ -6,32 +6,35 @@ parasails.registerPage('query-library', {
     inputTextValue: '',
     inputTimers: {},
     searchString: '', // The user input string to be searched against the query library
-    selectedPurpose: 'all', // Initially set to all, the user may select a different option to filter queries by purpose (e.g., "all queries", "information", "detection")
-    selectedPlatform: 'all', // Initially set to all, the user may select a different option to filter queries by platform (e.g., "all platforms", "macOS", "Windows", "Linux")
+    selectedPurpose: 'all queries', // Initially set to all, the user may select a different option to filter queries by purpose (e.g., "all queries", "information", "detection")
+    selectedPlatform: 'all platforms', // Initially set to all, the user may select a different option to filter queries by platform (e.g., "all platforms", "macOS", "Windows", "Linux")
   },
 
   computed: {
     filteredQueries: function () {
-      return _.filter(this.queries, (query) => this.isIncluded(query.platforms, this.selectedPlatform) && this.isIncluded(query.purpose, this.selectedPurpose));
+      return this.queries.filter(
+        (query) =>
+          this._isIncluded(query.platforms, this.selectedPlatform) &&
+          this._isIncluded(query.purpose, this.selectedPurpose)
+      );
     },
 
     searchResults: function () {
-      return this.search(this.filteredQueries, this.searchString);
+      return this._search(this.filteredQueries, this.searchString);
     },
 
     queriesList: function () {
       return this.searchResults;
-    }
-
+    },
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
-  beforeMount: function() {
+  beforeMount: function () {
     //…
   },
-  mounted: async function() {
+  mounted: async function () {
     //…
   },
 
@@ -39,30 +42,48 @@ parasails.registerPage('query-library', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    clickSelectPurpose(purpose) {
+      this.selectedPurpose = purpose;
+    },
 
-    isIncluded: function (queryProperty, selectedOption) {
-      if (selectedOption.startsWith('all') || selectedOption === '') {
-        return true;
+    clickSelectPlatform(platform) {
+      this.selectedPlatform = platform;
+    },
+
+    clickCard: function (querySlug) {
+      window.location = '/queries/' + querySlug; // we can trust the query slug is url-safe
+    },
+
+    clickAvatar: function (contributor) {
+      window.location = contributor.htmlUrl;
+    },
+
+    getAvatarUrl: function (contributorData) {
+      return contributorData ? contributorData.avatarUrl : '';
+    },
+
+    getContributorsString: function (contributors) {
+      if (!contributors) {
+        return;
       }
-      if (_.isArray(queryProperty)) {
-        queryProperty = queryProperty.join(', ');
+      const displayName = (contributorData) => {
+        if (contributorData) {
+          return !contributorData.name
+            ? contributorData.handle
+            : contributorData.name;
+        }
+      };
+      let contributorString = displayName(contributors[0]);
+      if (contributors.length > 2) {
+        contributorString += ` and ${contributors.length - 1} others`;
       }
-      return _.isString(queryProperty) && queryProperty.toLowerCase().includes(selectedOption.toLowerCase());
+      if (contributors.length === 2) {
+        contributorString += ` and ${displayName(contributors[1])}`;
+      }
+      return contributorString;
     },
 
-    search: function (library, searchString) {
-      const searchTerms = _.isString(searchString) ? searchString.toLowerCase().split(' ') : [];
-      return library.filter((item) => {
-        const description = _.isString(item.description)  ? item.description.toLowerCase() : '';
-        return _.some(searchTerms, (term) => description.includes(term));
-      });
-    },
-
-    setSearchString: function () {
-      this.searchString = this.inputTextValue;
-    },
-
-    delayInput: function(callback, ms, label) {
+    delayInput: function (callback, ms, label) {
       let inputTimers = this.inputTimers;
       return function () {
         label = label || 'defaultTimer';
@@ -71,10 +92,41 @@ parasails.registerPage('query-library', {
       };
     },
 
-    clickCard: function (querySlug) {
-      window.location = '/queries/' + querySlug;// we can trust the query slug is url-safe
+    setSearchString: function () {
+      this.searchString = this.inputTextValue;
     },
 
-  }
+    _search: function (queries, searchString) {
+      if (_.isEmpty(searchString)) {
+        return queries;
+      }
+
+      const normalize = (value) => _.isString(value) ? value.toLowerCase() : '';
+      const searchTerms = normalize(searchString).split(' ');
+
+      return queries.filter((query) => {
+        let textToSearch = normalize(query.name) + ', ' + normalize(query.description);
+        if (query.contributors) {
+          query.contributors.forEach((contributor) => {
+            textToSearch += ', ' + normalize(contributor.name) + ', ' + normalize(contributor.handle);
+          });
+        }
+        return (searchTerms.some((term) => textToSearch.includes(term)));
+      });
+    },
+
+    _isIncluded: function (data, selectedOption) {
+      if (selectedOption.startsWith('all') || selectedOption === '') {
+        return true;
+      }
+      if (_.isArray(data)) {
+        data = data.join(', ');
+      }
+      return (
+        _.isString(data) && data.toLowerCase().includes(selectedOption.toLowerCase())
+      );
+    },
+
+  },
 
 });

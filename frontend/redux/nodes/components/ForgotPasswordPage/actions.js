@@ -1,4 +1,4 @@
-import Kolide from "kolide";
+import Fleet from "fleet";
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 
 export const CLEAR_FORGOT_PASSWORD_ERRORS = "CLEAR_FORGOT_PASSWORD_ERRORS";
@@ -32,7 +32,7 @@ export const forgotPasswordAction = (formData) => {
   return (dispatch) => {
     dispatch(forgotPasswordRequestAction);
 
-    return Kolide.users
+    return Fleet.users
       .forgotPassword(formData)
       .then(() => {
         const { email } = formData;

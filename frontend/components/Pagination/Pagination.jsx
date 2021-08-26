@@ -2,7 +2,7 @@ import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 
 import Button from "components/buttons/Button";
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 
 const baseClass = "pagination";
 
@@ -37,14 +37,14 @@ class Pagination extends PureComponent {
           disabled={this.disablePrev()}
           onClick={() => onPaginationChange(currentPage - 1)}
         >
-          <KolideIcon name="chevronleft" /> Prev
+          <FleetIcon name="chevronleft" /> Previous
         </Button>
         <Button
           variant="unstyled"
           disabled={this.disableNext()}
           onClick={() => onPaginationChange(currentPage + 1)}
         >
-          Next <KolideIcon name="chevronright" />
+          Next <FleetIcon name="chevronright" />
         </Button>
       </div>
     );

@@ -3,19 +3,33 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (svc service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+// Scheduled queries are currently authorized the same as packs.
+
+func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListScheduledQueriesInPack(id, opts)
 }
 
-func (svc service) GetScheduledQuery(ctx context.Context, id uint) (*kolide.ScheduledQuery, error) {
+func (svc *Service) GetScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ScheduledQuery(id)
 }
 
-func (svc service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+func (svc *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	// Fill in the name with query name if it is unset (because the UI
 	// doesn't provide a way to set it)
 	if sq.Name == "" {
@@ -24,7 +38,7 @@ func (svc service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery)
 			return nil, errors.Wrap(err, "lookup name for query")
 		}
 
-		packQueries, err := svc.ds.ListScheduledQueriesInPack(sq.PackID, kolide.ListOptions{})
+		packQueries, err := svc.ds.ListScheduledQueriesInPack(sq.PackID, fleet.ListOptions{})
 		if err != nil {
 			return nil, errors.Wrap(err, "find existing scheduled queries")
 		}
@@ -43,7 +57,7 @@ func (svc service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery)
 }
 
 // Add "-1" suffixes to the query name until it is unique
-func findNextNameForQuery(name string, scheduled []*kolide.ScheduledQuery) string {
+func findNextNameForQuery(name string, scheduled []*fleet.ScheduledQuery) string {
 	for _, q := range scheduled {
 		if name == q.Name {
 			return findNextNameForQuery(name+"-1", scheduled)
@@ -52,7 +66,11 @@ func findNextNameForQuery(name string, scheduled []*kolide.ScheduledQuery) strin
 	return name
 }
 
-func (svc service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.ScheduledQueryPayload) (*kolide.ScheduledQuery, error) {
+func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	sq, err := svc.GetScheduledQuery(ctx, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting scheduled query to modify")
@@ -98,6 +116,10 @@ func (svc service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.S
 	return svc.ds.SaveScheduledQuery(sq)
 }
 
-func (svc service) DeleteScheduledQuery(ctx context.Context, id uint) error {
+func (svc *Service) DeleteScheduledQuery(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DeleteScheduledQuery(id)
 }

@@ -1,5 +1,4 @@
 #query-library {
-
   h2 {
     padding: 0px 30px 0px 30px;
   }
@@ -14,7 +13,6 @@
     font-size: 16px;
     line-height: 22px;
     padding: 0px 30px 0px 30px;
-
   }
 
   a {
@@ -22,27 +20,166 @@
     color: @core-vibrant-blue;
   }
 
-  select {
-    color: @core-vibrant-blue;
-    border: none;
+  img {
+    &.logo {
+      height: 16px;
+      width: 16px;
+    }
+    &.search {
+      transform: scale(0.5);
+    }
   }
 
   input {
-    max-width: 176px;
+    &::placeholder {
+      font-size: 16px;
+      line-height: 24px;
+    }
+  }
+
+  .input-group {
+    &.search {
+      width: 250px;
+    }
+  }
+
+  .input-group-text {
+    color: #8b8fa2;
+    border-color: #c5c7d1;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+  }
+
+  .form-control {
+    font-size: 16px;
+    border-color: #c5c7d1;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    &:focus {
+      border: 1px solid #c5c7d1;
+    }
+  }
+
+  .btn-secondary:not(:disabled):not(.disabled):active:focus, .btn-secondary:not(:disabled):not(.disabled).active:focus, .show > .btn-secondary.dropdown-toggle:focus {
+    box-shadow: none;
+  }
+
+  .btn-secondary {
+    font-family: Nunito;
+    color: @core-vibrant-blue;
+    background-color: transparent;
+    border: 0;
+    cursor: pointer;
+    &:focus {
+      border: 0;
+      box-shadow: none;
+    }
+  }
+
+  .filters {
+    height: 54px;
+    p {
+      font-family: Nunito;
+      font-size: 16px;
+      line-height: 25px;
+    }
+  }
+
+  .dropdown-menu {
+    left: 0px;
+    width: 180px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .dropdown-item {
+    padding: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    &:hover {
+      background-color: lightness(@core-vibrant-blue, 10%);
+      margin-right: 15px;
+    }
+  }
+  .dropdown-toggle::after {
+    margin-left: 4px;
+    vertical-align: 3px;
+    border-top: 5px solid;
+    border-right: 5px solid transparent;
+    border-bottom: 0;
+    border-left: 5px solid transparent;
+  }
+
+  select {
+    color: @core-vibrant-blue;
+    border: 0px;
+    outline: 0;
+    &:focus {
+      border: 0px;
+    }
+    &.select-purpose {
+      width: 102px;
+    }
+    &.select-platform {
+      width: 118px;
+    }
+    &.mobile {
+      height: 50px;
+      width: 100%;
+      margin-right: 0;
+      margin-left: 0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+  }
+
+  .library {
+    max-width: 960px;
+    margin-top: 80px;
+    margin-bottom: 0;
+  }
+
+  .description {
+    padding: 0px 30px 0px 30px;
+    p {
+      font-size: 16px;
+      line-height: 25px;
+    }
+  }
+
+  .select-mobile-border {
+    height: 54px;
+    width: 100%;
+    margin-right: 0;
+    margin-left: 0;
+    border: 1px solid #c5c7d1;
+    border-radius: 8px;
+    padding-right: 15px;
+  }
+
+  .select-mobile {
+    padding-left: 30px;
+    padding-right: 30px;
+    padding-bottom: 12px;
+  }
+
+  .search-mobile {
+    padding-left: 30px;
+    padding-right: 30px;
+    padding-bottom: 12px;
   }
 
   .filter-and-search-bar {
-    margin-left: 30px;
-    margin-right: 30px;
+    padding-left: 45px;
+    padding-right: 45px;
+    margin-bottom: 0;
+    min-height: 54px;
   }
 
   .contributors, .platforms {
-
     p {
       font-size: 13px;
       line-height: 20px;
     }
-
   }
 
   .row {
@@ -50,15 +187,20 @@
     align-items: center;
   }
 
+  .divider {
+    margin-left: 30px;
+    margin-right: 30px;
+    border-bottom: 1px solid;
+    border-color: #e2e4ea;
+  }
+
   .card.results {
     box-shadow: none;
     border: none;
     border-radius: 8px;
-    border-bottom: 1px solid;
-    border-color: #E2E4EA;
 
     &:hover {
-      background-color: #F1F0FF;
+      background-color: #f1f0ff;
       cursor: pointer;
     }
   }
@@ -69,11 +211,63 @@
     border-color: @ui-off-white;
     box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
     margin-bottom: 90px;
-
+    width: 100%;
   }
 
   .card-body {
     padding: 30px;
+    padding-top: 24px;
+    padding-bottom: 24px;
   }
 
+  .avatar-frame {
+    width: 21px;
+    height: 21px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 50%;
+    &:hover {
+      cursor: pointer;
+    }
+
+    img {
+      display: inline;
+      margin: 0 auto;
+      height: 100%;
+      width: auto;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .library {
+      max-width: 720px;
+      margin-top: 60px;
+    }
+    .results {
+      margin-top: 16px;
+    }
+  }
+
+  @media (max-width: 575px) {
+    h2 {
+      font-size: 28px;
+      line-height: 36px;
+    }
+
+    .library {
+      max-width: none;
+      margin-bottom: 0px;
+    }
+
+    .results {
+      margin-top: 16px;
+    }
+
+    .contributors, .platforms {
+      p {
+        font-size: 13px;
+        line-height: 20px;
+      }
+    }
+  }
 }

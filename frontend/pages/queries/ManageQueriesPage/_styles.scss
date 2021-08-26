@@ -1,89 +1,112 @@
 .manage-queries-page {
-  &__delete-queries-btn {
-    font-size: 15px;
-    font-weight: $regular;
-  }
-
   &__header-wrap {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    margin-bottom: $pad-xxlarge;
   }
 
-  &__ctas {
-    flex-grow: 1;
-    text-align: right;
-  }
-
-  &__query-count {
-    color: $core-fleet-black;
-    font-size: $x-small;
-    font-weight: $bold;
-    margin: 0 12px 0 0;
-    display: inline-block;
-  }
-
-  &__filter-and-cta {
+  &__header {
     display: flex;
-    margin-bottom: $pad-small;
-
-    .form-field {
-      margin: 0;
-    }
-
-    input {
-      &[name="query-filter"] {
-        width: 100%;
-        margin-top: $pad-large;
-      }
-    }
+    align-items: center;
   }
 
-  &__filter-queries {
-    flex-grow: 1;
-    position: relative;
-
-    .input-field {
-      padding-left: 42px;
-    }
-
-    .kolidecon {
-      position: absolute;
-      top: 36px;
-      left: 9px;
-      font-size: 18px;
-      color: $ui-gray;
-    }
+  &__text {
+    margin-right: $pad-large;
   }
 
   &__title {
-    margin: 0 0 12px;
-  }
+    font-size: $large;
 
-  &__wrapper {
-    padding: $pad-xxlarge 30px;
-  }
+    .fleeticon {
+      color: $core-fleet-blue;
+      margin-right: 15px;
+    }
 
-  &__modal-btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
+    .fleeticon-success-check {
+      color: $ui-success;
+    }
 
-    .button {
-      margin-left: 15px;
-      width: 120px;
+    .fleeticon-offline {
+      color: $ui-error;
+    }
+
+    .fleeticon-mia {
+      color: $core-fleet-black;
     }
   }
 
-  &__empty-label {
-    font-size: $medium;
-    font-weight: $bold;
-    padding: 20px 20px 0;
-    margin: $pad-large 0;
+  &__description {
+    margin: 0 0 $pad-medium;
+    padding-top: $pad-xsmall;
+
+    h2 {
+      text-transform: uppercase;
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $small;
+    }
+
+    p {
+      color: $core-dark-blue-grey;
+      margin: 0;
+      font-size: $x-small;
+      font-style: italic;
+    }
   }
 
-  &__empty-description {
-    font-size: $small;
-    font-style: italic;
-    padding: 0 20px;
-    margin: 0;
+  &__action-button-container {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .button {
+    font-size: $x-small;
+
+    img {
+      transform: scale(0.5);
+    }
+  }
+
+  &__modal-buttons {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+
+    .button:first-child {
+      margin-right: $pad-medium;
+    }
+  }
+
+  .queries-list-wrapper {
+    .data-table__table {
+      table-layout: fixed;
+
+      thead {
+        // Width for all columns except checkbox and "Name" columns
+        // For observers all columns except "Name" and "Author" columns
+        // Width calculation adjusts for each row's horizontal padding
+        th:not(:nth-child(1)):not(:nth-child(2)) {
+          width: calc(180px - (27px * 2));
+        }
+      }
+
+      tbody {
+        td {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        // Width and overflow behavior for the link in the "Name" column
+        td {
+          .button {
+            display: block;
+            text-align: start;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+      }
+    }
   }
 }

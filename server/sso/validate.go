@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/beevik/etree"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	rtvalidator "github.com/mattermost/xml-roundtrip-validator"
 	"github.com/pkg/errors"
 	dsig "github.com/russellhaering/goxmldsig"
@@ -18,8 +18,8 @@ import (
 )
 
 type Validator interface {
-	ValidateSignature(auth kolide.Auth) (kolide.Auth, error)
-	ValidateResponse(auth kolide.Auth) error
+	ValidateSignature(auth fleet.Auth) (fleet.Auth, error)
+	ValidateResponse(auth fleet.Auth) error
 }
 
 type validator struct {
@@ -67,7 +67,7 @@ func NewValidator(metadata Metadata, opts ...func(v *validator)) (Validator, err
 	return &v, nil
 }
 
-func (v *validator) ValidateResponse(auth kolide.Auth) error {
+func (v *validator) ValidateResponse(auth fleet.Auth) error {
 	info := auth.(*resp)
 	// make sure response is current
 	onOrAfter, err := time.Parse(time.RFC3339, info.response.Assertion.Conditions.NotOnOrAfter)
@@ -91,7 +91,7 @@ func (v *validator) ValidateResponse(auth kolide.Auth) error {
 	return nil
 }
 
-func (v *validator) ValidateSignature(auth kolide.Auth) (kolide.Auth, error) {
+func (v *validator) ValidateSignature(auth fleet.Auth) (fleet.Auth, error) {
 	info := auth.(*resp)
 	status, err := info.status()
 	if err != nil {

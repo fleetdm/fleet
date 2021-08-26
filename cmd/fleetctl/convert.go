@@ -3,31 +3,44 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
-func specGroupFromPack(name string, inputPack kolide.PermissivePackContent) (*specGroup, error) {
+func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*specGroup, error) {
 	specs := &specGroup{
-		Queries: []*kolide.QuerySpec{},
-		Packs:   []*kolide.PackSpec{},
-		Labels:  []*kolide.LabelSpec{},
+		Queries: []*fleet.QuerySpec{},
+		Packs:   []*fleet.PackSpec{},
+		Labels:  []*fleet.LabelSpec{},
 	}
 
-	pack := &kolide.PackSpec{
+	pack := &fleet.PackSpec{
 		Name: name,
 	}
 
-	for name, query := range inputPack.Queries {
-		spec := &kolide.QuerySpec{
+	// this ensures order is consistent in output
+	keys := make([]string, len(inputPack.Queries))
+	i := 0
+	for k := range inputPack.Queries {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+
+	for _, name := range keys {
+		query := inputPack.Queries[name]
+		spec := &fleet.QuerySpec{
 			Name:        name,
 			Description: query.Description,
 			Query:       query.Query,
@@ -48,7 +61,7 @@ func specGroupFromPack(name string, inputPack kolide.PermissivePackContent) (*sp
 		}
 
 		specs.Queries = append(specs.Queries, spec)
-		pack.Queries = append(pack.Queries, kolide.PackSpecQuery{
+		pack.Queries = append(pack.Queries, fleet.PackSpecQuery{
 			Name:        name,
 			QueryName:   name,
 			Interval:    interval,
@@ -68,7 +81,8 @@ func specGroupFromPack(name string, inputPack kolide.PermissivePackContent) (*sp
 
 func convertCommand() *cli.Command {
 	var (
-		flFilename string
+		flFilename     string
+		outputFilename string
 	)
 	return &cli.Command{
 		Name:      "convert",
@@ -83,6 +97,13 @@ func convertCommand() *cli.Command {
 				Value:       "",
 				Destination: &flFilename,
 				Usage:       "A file to apply",
+			},
+			&cli.StringFlag{
+				Name:        "o",
+				EnvVars:     []string{"OUTPUT_FILENAME"},
+				Value:       "",
+				Destination: &outputFilename,
+				Usage:       "The name of the file to output converted results",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -104,7 +125,7 @@ func convertCommand() *cli.Command {
 
 			var specs *specGroup
 
-			var pack kolide.PermissivePackContent
+			var pack fleet.PermissivePackContent
 			if err := json.Unmarshal(b, &pack); err != nil {
 				return err
 			}
@@ -119,6 +140,16 @@ func convertCommand() *cli.Command {
 				return errors.New("could not parse files")
 			}
 
+			var w io.Writer = os.Stdout
+			if outputFilename != "" {
+				file, err := os.Create(outputFilename)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+				w = file
+			}
+
 			for _, pack := range specs.Packs {
 				spec, err := json.Marshal(pack)
 				if err != nil {
@@ -126,8 +157,8 @@ func convertCommand() *cli.Command {
 				}
 
 				meta := specMetadata{
-					Kind:    kolide.PackKind,
-					Version: kolide.ApiVersion,
+					Kind:    fleet.PackKind,
+					Version: fleet.ApiVersion,
 					Spec:    spec,
 				}
 
@@ -136,8 +167,8 @@ func convertCommand() *cli.Command {
 					return err
 				}
 
-				fmt.Println("---")
-				fmt.Print(string(out))
+				fmt.Fprintln(w, "---")
+				fmt.Fprint(w, string(out))
 			}
 
 			for _, query := range specs.Queries {
@@ -147,8 +178,8 @@ func convertCommand() *cli.Command {
 				}
 
 				meta := specMetadata{
-					Kind:    kolide.QueryKind,
-					Version: kolide.ApiVersion,
+					Kind:    fleet.QueryKind,
+					Version: fleet.ApiVersion,
 					Spec:    spec,
 				}
 
@@ -157,8 +188,8 @@ func convertCommand() *cli.Command {
 					return err
 				}
 
-				fmt.Println("---")
-				fmt.Print(string(out))
+				fmt.Fprintln(w, "---")
+				fmt.Fprint(w, string(out))
 			}
 
 			return nil

@@ -7,7 +7,7 @@ import Button from "components/buttons/Button";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import helpers from "./helpers";
 
-const formFields = ["name", "username", "password", "password_confirmation"];
+const formFields = ["name", "password", "password_confirmation"];
 const { validate } = helpers;
 
 class ConfirmInviteForm extends Component {
@@ -16,7 +16,6 @@ class ConfirmInviteForm extends Component {
     className: PropTypes.string,
     fields: PropTypes.shape({
       name: formFieldInterface.isRequired,
-      username: formFieldInterface.isRequired,
       password: formFieldInterface.isRequired,
       password_confirmation: formFieldInterface.isRequired,
     }).isRequired,
@@ -33,9 +32,8 @@ class ConfirmInviteForm extends Component {
           <InputFieldWithIcon
             {...fields.name}
             autofocus
-            placeholder="Full Name"
+            placeholder="Full name"
           />
-          <InputFieldWithIcon {...fields.username} placeholder="Username" />
           <InputFieldWithIcon
             {...fields.password}
             placeholder="Password"

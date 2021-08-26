@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -13,11 +13,11 @@ import (
 
 type getScheduledQueriesInPackRequest struct {
 	ID          uint
-	ListOptions kolide.ListOptions
+	ListOptions fleet.ListOptions
 }
 
 type scheduledQueryResponse struct {
-	kolide.ScheduledQuery
+	fleet.ScheduledQuery
 }
 
 type getScheduledQueriesInPackResponse struct {
@@ -27,7 +27,7 @@ type getScheduledQueriesInPackResponse struct {
 
 func (r getScheduledQueriesInPackResponse) error() error { return r.Err }
 
-func makeGetScheduledQueriesInPackEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetScheduledQueriesInPackEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getScheduledQueriesInPackRequest)
 		resp := getScheduledQueriesInPackResponse{Scheduled: []scheduledQueryResponse{}}
@@ -62,7 +62,7 @@ type getScheduledQueryResponse struct {
 
 func (r getScheduledQueryResponse) error() error { return r.Err }
 
-func makeGetScheduledQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetScheduledQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getScheduledQueryRequest)
 
@@ -101,11 +101,11 @@ type scheduleQueryResponse struct {
 
 func (r scheduleQueryResponse) error() error { return r.Err }
 
-func makeScheduleQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeScheduleQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(scheduleQueryRequest)
 
-		scheduled, err := svc.ScheduleQuery(ctx, &kolide.ScheduledQuery{
+		scheduled, err := svc.ScheduleQuery(ctx, &fleet.ScheduledQuery{
 			PackID:   req.PackID,
 			QueryID:  req.QueryID,
 			Interval: req.Interval,
@@ -130,7 +130,7 @@ func makeScheduleQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type modifyScheduledQueryRequest struct {
 	ID      uint
-	payload kolide.ScheduledQueryPayload
+	payload fleet.ScheduledQueryPayload
 }
 
 type modifyScheduledQueryResponse struct {
@@ -140,7 +140,7 @@ type modifyScheduledQueryResponse struct {
 
 func (r modifyScheduledQueryResponse) error() error { return r.Err }
 
-func makeModifyScheduledQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeModifyScheduledQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyScheduledQueryRequest)
 
@@ -171,7 +171,7 @@ type deleteScheduledQueryResponse struct {
 
 func (r deleteScheduledQueryResponse) error() error { return r.Err }
 
-func makeDeleteScheduledQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteScheduledQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteScheduledQueryRequest)
 

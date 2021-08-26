@@ -10,14 +10,14 @@ import (
 	"github.com/kolide/osquery-go/plugin/logger"
 	"github.com/pkg/errors"
 
-	"github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/health"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/health"
 )
 
 // launcherWrapper wraps the TLS interface.
 type launcherWrapper struct {
-	tls            kolide.OsqueryService
+	tls            fleet.OsqueryService
 	logger         log.Logger
 	healthCheckers map[string]health.Checker
 }
@@ -112,11 +112,11 @@ func (svc *launcherWrapper) PublishResults(ctx context.Context, nodeKey string, 
 		return "", "", invalid, err
 	}
 
-	osqueryResults := make(kolide.OsqueryDistributedQueryResults, len(results))
-	statuses := make(map[string]kolide.OsqueryStatus, len(results))
+	osqueryResults := make(fleet.OsqueryDistributedQueryResults, len(results))
+	statuses := make(map[string]fleet.OsqueryStatus, len(results))
 
 	for _, result := range results {
-		statuses[result.QueryName] = kolide.OsqueryStatus(result.Status)
+		statuses[result.QueryName] = fleet.OsqueryStatus(result.Status)
 		osqueryResults[result.QueryName] = result.Rows
 	}
 
@@ -136,7 +136,7 @@ func (svc *launcherWrapper) CheckHealth(ctx context.Context) (int32, error) {
 
 // authenticateHost verifies the host node key using the TLS API and returns back a
 // context which includes the host as a context value.
-// In the kolide.OsqueryService authentication is done via endpoint middleware, but all launcher endpoints require
+// In the fleet.OsqueryService authentication is done via endpoint middleware, but all launcher endpoints require
 // an explicit return for NodeInvalid, so we check in this helper method instead.
 func (svc *launcherWrapper) authenticateHost(ctx context.Context, nodeKey string) (context.Context, bool, error) {
 	node, err := svc.tls.AuthenticateHost(ctx, nodeKey)

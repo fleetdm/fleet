@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 )
 
@@ -40,12 +41,12 @@ const (
 
 type redisLiveQuery struct {
 	// connection pool
-	pool *redis.Pool
+	pool *redisc.Cluster
 }
 
 // NewRedisQueryResults creats a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisLiveQuery(pool *redis.Pool) *redisLiveQuery {
+func NewRedisLiveQuery(pool *redisc.Cluster) *redisLiveQuery {
 	return &redisLiveQuery{pool: pool}
 }
 

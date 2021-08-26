@@ -1,209 +1,267 @@
 <div id="homepage" v-cloak>
-  <div class="hero-banner">
-    <div style="background-repeat: no-repeat;" class="hero-bg">
-      <div style="max-width: 1260px; padding-top: 167px;" class="prop-statement container-fluid px-4 px-sm-5">
-        <div style="max-width: 500px" class="prop-statement__container mx-auto mx-sm-0">
-          <h1 class="prop-statement__header mb-4">Open source<br/><span class="d-sm-none">&nbsp;</span>endpoint visibility.</h1>
-          <p class="prop-statement__paragraph mb-4">Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS.  Quickly deploy <a style="color:#fff; font-weight:bold;" target="_blank" href="https://osquery.io/">osquery</a> and scale your fleet to 100,000+ devices on top of a stable core technology.</p>
-          <div class="mb-4">
-            <div class="d-inline-block mr-3 mr-lg-4">
-              <img title="macOS" alt="apple logo" src="/images/os-macos-31x35@2x.png" style="width: 31px;" class="d-block mx-auto h-100"/>
+
+  <div style="max-height: 1096px;">
+    <div style="padding-top: 114px" class="hero-banner">
+      <div class="hero-clouds">
+        <div class="container-lg">
+          <div class="container-fluid text-center pt-3 pt-sm-5">
+            <h1>
+              Open source <br>
+              device management.
+            </h1>
+            <h6 style="max-width: 580px;" class="mx-auto mt-3 mb-0">
+              Quickly deploy <a style="color: white; text-decoration-line: underline;" href="https://osquery.io/">osquery</a> and scale your fleet to 100,000+ devices on top of a stable core technology.
+            </h6>
+            <div style="max-width: 480px;" class="mt-5 mx-auto mb-0 d-sm-flex">
+              <a style="max-width: 280px" class="d-sm-flex align-items-center justify-content-center btn btn-block btn-primary px-3 px-sm-5 py-3 mx-auto" href="/get-started">Get started with Fleet</a>
+              <a target="_blank" style="font-size: 20px; color: white; text-decoration: none; font-weight: 700;" class="d-sm-flex align-items-center justify-content-center btn btn-link px-3 py-3" href="https://www.youtube.com/watch?v=dg1dwGQMaLw">
+                <span>Watch video</span>
+                <svg class="ml-2" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M16 32C24.8366 32 32 24.8366 32 16C32 7.16344 24.8366 0 16 0C7.16344 0 0 7.16344 0 16C0 24.8366 7.16344 32 16 32ZM11.3333 8.66667L24.2091 16.2091L11.3333 23.7516L11.3333 8.66667Z" fill="white"/>
+                </svg>
+              </a>
+          </div>
+            <img alt="Fleet ctl terminal and Fleet UI" src="/images/fleetctl@2x.png" style="max-width: 810px; height: auto;" class="w-100 py-3 py-sm-5 mx-auto" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-fluid justify-content center px-0 py-0">
+    <div style="max-width: 720px;" class="d-none d-sm-flex text-center mx-auto">
+      <h3 class="text-center pt-3 pb-5 mx-auto mb-3">Ask questions about your servers, and laptops. Whatever their operating system, wherever they live.</h3>
+    </div>
+    <div style="max-width: 960px;" class="container-fluid justify-content-center">
+      <div class="container d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center px-0 pt-3 pb-5 mb-lg-4">
+        <div class="container text-center text-lg-left px-0 pb-5 pb-lg-0">
+          <h3>
+            Inventory management
+          </h3>
+          <p>
+            Track and segment your enrolled hosts. Search by important details, and zoom in on individual targets.
+          </p>
+          <div class="container d-flex justify-content-center justify-content-lg-start align-items-center px-0">
+            <img alt="macOS logo" src="/images/os-macos-black-31x35@2x.png" style="width: auto; height: 36px;" class="mr-4" />
+            <img alt="Windows logo" src="/images/os-windows-black-38x36@2x.png" style="width: auto; height: 36px;" class="mr-4" />
+            <img alt="Linux logo" src="/images/os-linux-black-32x36@2x.png" style="width: auto; height: 36px;" />
+          </div>
+        </div>
+        <div style="max-width: 488px;" class="container d-flex px-2 px-sm-0 pb-5 pb-lg-0">
+          <img alt="Fleet UI" src="images/feature-inventory-management-488x305@2x.png" class="w-100 h-100 m-lg-0" />
+        </div>
+      </div>
+      <div class="container d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center px-0 pt-3 pb-5 mb-lg-4">
+        <div style="max-width: 380px;" class="container text-center text-lg-left px-0 pb-5 pb-lg-0 m-0">
+          <h3>
+            Share with any team
+          </h3>
+          <p>
+            Collect and share useful information for ops teams, security teams, help desk, and more.
+          </p>
+        </div>
+        <div style="max-width: 459px;" class="container d-flex order-lg-first px-2 px-sm-0 pb-5 pb-lg-0 m-0">
+          <img alt="Fleet UI" src="images/feature-share-with-any-team-459x312@2x.png" class="w-100 h-100 m-lg-0"/>
+        </div>
+      </div>
+      <div class="container d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center px-0 pt-3 pb-5 mb-lg-4">
+        <div class="container text-center text-lg-left px-0 pb-5 pb-lg-0 m-0">
+            <h3>
+              Deployment
+            </h3>
+            <p class="pb-4 mb-0">
+              Fleet is self-hosted and self-managed, and can be run within your own data centers or in the cloud.
+            </p>
+          <div class="d-block align-items-center">
+            <div class="d-inline-block mr-4">
+              <img title="Kubernetes" alt="kubernetes logo" src="/images/icon-kubernetes-37x36@2x.png" style="width: auto; height: 36px;" class="d-block mx-auto"/>
             </div>
-            <div class="d-inline-block mr-3 mr-lg-4">
-              <img title="CentOS Linux" alt="CentOS logo" src="/images/os-centos-37x36@2x.png" style="width: 37px;" class="d-block mx-auto h-100"/>
-            </div>
-            <div class="d-inline-block mr-3 mr-lg-4">
-              <img title="Ubuntu Linux" alt="Ubuntu logo" src="/images/os-ubuntu-34x36@2x.png" style="width: 34px;" class="d-block mx-auto h-100"/>
-            </div>
-            <div class="d-inline-block mr-3 mr-lg-4">
-              <img title="Windows" alt="windows logo" src="/images/os-windows-37x36@2x.png" style="width: 37px;" class="d-block mx-auto h-100"/>
+            <div class="d-inline-block mr-4">
+              <img title="AWS" alt="aws logo" src="/images/icon-aws-60x36@2x.png" style="width: auto; height: 36px;" lass="d-block mx-auto"/>
             </div>
             <div class="d-inline-block">
-              <img title="Other Linux distros, like Debian" alt="linux logo" src="/images/os-linux-32x36@2x.png" style="width: 32px;" class="d-block mx-auto h-100"/>
+              <img title="Google cloud" alt="google cloud logo" src="/images/icon-google-cloud-46x36@2x.png" style="width: auto; height: 36px;" class="d-block mx-auto"/>
             </div>
           </div>
-          <a class="btn btn-block btn-lg btn-primary mb-5" href="/get-started">Get started with Fleet</a>
+        </div>
+        <div style="max-width: 489px;" class="container d-flex px-2 px-sm-0 pb-5 pb-lg-0">
+          <img alt="Fleet UI" src="images/feature-deployment-489x278@2x.png" class="w-100 h-100 m-lg-0"/>
         </div>
       </div>
     </div>
-  </div>
-
-  <div style="max-width: 1260px" class="container-fluid pb-5 px-4 px-sm-5 mx-auto">
-    <div class="text-center py-5">
-      <h2 class="my-5">Every device in your enterprise.</h2>
-      <p style="max-width: 640px;" class="pb-5 mb-0 mx-auto">Keep track of servers and containers wherever they live: on your own hardware, in Amazon/Azure/Google clouds, or a little bit of each.  Write scripts with <span style="font-family: 'Source Code Pro', monospace; font-size: 14px;">fleetctl</span> and design scheduled queries to integrate alerts and dashboards across your enterprise. Run on your own hardware or deploy in any cloud.</p>
-      <div class="mb-5">
-        <div class="d-inline-block mr-2 mr-sm-5">
-          <img title="Kubernetes" alt="kubernetes logo" src="/images/deploy-kubernetes-64x62@2x.png" style="width: 64px;" class="d-block mx-auto h-100"/>
+    <div class="container-sm justify-content-center m-0 mb-5">
+      <div style="max-width: 566px;" class="text-center px-2 px-sm-0 mx-auto">
+        <h3 class="mb-3">Collect and push predictable data</h3>
+        <p>
+          Write scripts with fleetctl and design scheduled queries to integrate alerts and dashboards across your enterprise.
+        </p>
+      </div>
+      <div class="log-destination-grid container d-flex flex-wrap justify-content-center p-0 pt-4 mx-auto">
+        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+          <img alt="filesystem icon" src="/images/icon-log-destination-filesystem-48x48@2x.png"/>
+          <p class="font-weight-bold m-0 ml-3">Filesystem</p>
         </div>
-        <div class="d-inline-block mr-2 mr-sm-5">
-          <img title="AWS" alt="aws logo" src="/images/deploy-aws-99x60@2x.png" style="width: 99px;" class="d-block mx-auto h-100"/>
+        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+          <img alt="Splunk logo" src="/images/icon-log-destination-splunk-48x48@2x.png"/>
+          <p class="font-weight-bold m-0 ml-3">Splunk</p>
         </div>
-        <div class="d-inline-block">
-          <img title="Google cloud" alt="google cloud logo" src="/images/deploy-google-cloud-75x60@2x.png" style="width: 75px;" class="d-block mx-auto h-100"/>
+        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+          <img alt="AWS Kinesis logo" src="/images/icon-log-destination-firehose-40x48@2x.png"/>
+          <p class="font-weight-bold m-0 ml-3">AWS Kinesis</p>
+        </div>
+        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+          <img alt="Google Cloud Platform PubSub logo" src="/images/icon-log-destination-pubsub-53x48@2x.png"/>
+          <p class="font-weight-bold m-0 ml-3">GCP PubSub</p>
+        </div>
+        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+          <img alt="AWS Lambda logo" src="/images/icon-log-destination-lambda-48x48@2x.png"/>
+          <p class="font-weight-bold m-0 ml-3">AWS Lambda</p>
+        </div>
+        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+          <img alt="Elastic logo" src="/images/icon-log-destination-elastic-48x48@2x.png"/>
+          <p class="font-weight-bold m-0 ml-3">Elastic</p>
+        </div>
+        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+          <img alt="Sumo Logic logo" src="/images/icon-log-destination-sumo-48x48@2x.png"/>
+          <p class="font-weight-bold m-0 ml-3">Sumo Logic</p>
+        </div>
+        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+          <img alt="Graylog logo" src="/images/icon-log-destination-graylog-48x48@2x.png"/>
+          <p class="font-weight-bold m-0 ml-3">Graylog</p>
         </div>
       </div>
-      <img alt="Fleet ctl terminal and Fleet UI" src="/images/fleetctl-900x580@2x.png" style="max-width: 900px; height: auto;" class="w-100 my-4 mx-auto" />
+      <div class="btn-toolbar justify-content-center px-5 px-sm-0 pt-3 pb-5">
+        <a
+          style="max-width: 220px"
+          class="btn btn-block btn-md btn-primary mx-4"
+          href="/get-started"
+        >
+          Get started
+        </a>
+        <a
+          style="max-width: 220px"
+          class="btn btn-block btn-lg btn-white pl-0 m-0"
+          purpose="animated-arrow-button"
+          target="_blank"
+          href="https://calendly.com/fleetdm/demo"
+          >Schedule a demo
+        </a>
+      </div>
     </div>
   </div>
-
-  <div style="background-color: #F2F7F9;">
-    <div style="max-width: 1260px;" class="container-fluid py-5 px-4 px-sm-5 mx-auto">
-      <div class="text-center py-5">
-        <h2 class="mb-5">Send device data to any log destination.</h2>
-        <p style="max-width: 866px;" class="mx-auto">Fleet makes it easier to query and track your servers, containers, and laptops.  It extends <a style="color:#6a67fe; text-decoration: underline;" target="_blank" href="https://osquery.io/">osquery</a> to answer questions about multiple devices at the same time and provides log streams that enable automated threat detection.</p>
-      </div>
-      <div class="log-destinations-container pb-5">
-        <div class="log-destination-card">
-          <img alt="filesystem log destination" src="/images/log-destination-filesystem@2x.png" style="width: 80px; height: 80px;"/>
-          <h6>Filesystem</h6>
-        </div>
-        <div class="log-destination-card">
-          <img alt="Splunk log destination" src="/images/log-destination-splunk@2x.png" style="width: 80px; height: 80px;"/>
-          <h6>Splunk</h6>
-        </div>
-        <div class="log-destination-card">
-          <img alt="AWS Kinesis Firehose log destination" src="/images/log-destination-firehose@2x.png" style="width: 80px; height: 80px;"/>
-          <h6>AWS Kinesis Firehose</h6>
-        </div>
-        <div class="log-destination-card">
-          <img alt="GCP PubSub log destination" src="/images/log-destination-pubsub@2x.png" style="width: 80px; height: 80px;"/>
-          <h6>GCP PubSub</h6>
-        </div>
-        <div class="log-destination-card">
-          <img alt="AWS Lambda log destination" src="/images/log-destination-lambda@2x.png" style="width: 80px; height: 80px;"/>
-          <h6>AWS Lambda</h6>
-        </div>
-      </div>
-      <div style="max-width: 1000px" class="pt-5 mx-auto">
-        <div class="row pb-5">
-          <div class="col-md">
-            <div style="max-width: 510px;" class="pr-md-5">
-              <h2 style="max-width: 400px" class="mb-4">Your hosted universe, all in one flexible app.</h2>
-              <p class="mb-5">Organizations large and small use osquery with Fleet every day to stay secure and compliant.  That’s good news, since it means there are lots of other developers and security practitioners talking about Fleet, dreaming up features, and contributing patches.  Let’s stop reinventing the wheel and build the future of device management together.</p>
-              <a target="_blank" href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" class="btn btn-block btn-lg btn-info mb-5">Meet the Fleet<span purpose="meet-the-fleet-community-expanded-text"> community</span></a>
+    
+  <div style="background: #F4F6FA;">
+    <div class="container-lg text-center justify-content-center py-5 mx-auto mt-5">
+      <h3 class="px-4 mt-5 mb-3">Community driven, and built on open core technology.</h3>
+      <p style="max-width: 860px" class="px-3 px-xs-5 px-md-4 mx-auto">
+        That’s good news, since it means there are lots of other developers and security practicioners talking about Fleet, dreaming up features, and contributing patches.
+      </p>
+      <div class="tweets d-flex flex-wrap justify-content-center align-items-start px-2 pt-3 pt-lg-5 pb-5 mx-auto">
+        <div class="tweet container">
+          <div class="mb-4">
+            <a href="https://twitter.com/osquery"><img width="140" height="36" alt="osquery logo" src="/images/social-proof-logo-osquery-140x36@2x.png"/></a>
+          </div>
+          <p class="pb-2 mb-1">It’s great to see the new release of Fleet containing some really cool new features that make <a href="https://twitter.com/osquery">@osquery</a> much more usable in practical environments. I’m really impressed with the work that <a href="https://twitter.com/thezachw">@thezachw</a> and crew are doing at <a href="https://twitter.com/fleetctl">@fleetctl</a>.</p>
+          <div class="row px-3 pt-2">
+            <div>
+              <p class="font-weight-bold m-0">Mike Arpaia</p>
+              <p class="m-0">Creator of <a href="https://twitter.com/osquery">@osquery</a></p>
             </div>
           </div>
-          <div class="col-md pt-4">
-            <p style="padding-left: 32px;" class="position-relative mt-3 mb-4">
-              <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-              Query everything, or specific <span class="font-weight-bold">groups</span> of devices
-            </p>
-            <p style="padding-left: 32px;" class="position-relative mb-4">
-              <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute" />
-              Capture files and forensic records with <span class="font-weight-bold">file carving</span>
-            </p>
-            <p style="padding-left: 32px;" class="position-relative mb-4">
-              <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute" />
-              Enterprise single sign-on <span class="font-weight-bold">(SSO)</span> with SAML
-            </p>
-            <p style="padding-left: 32px;" class="position-relative mb-4">
-              <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-              Deploy, manage, and <span class="font-weight-bold">configure osquery</span> at scale
-            </p>
-            <p style="padding-left: 32px;" class="position-relative mb-4">
-              <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-              Run the Fleet control server on <span class="font-weight-bold">any infrastructure</span>
-            </p>
-            <p style="padding-left: 32px;" class="position-relative mb-4">
-              <img alt="a circle with a checkmark" src="/images/check-circle-16x16@2x.png" style="width: 16px; height: 16px; left: 0; top: 4px;" class="position-absolute"/>
-              Open core license <span class="font-weight-bold">(MIT)</span>
-            </p>
+        </div>
+        <div class="tweet container">
+          <div class="mb-4">
+            <a href="https://twitter.com/Wayfair"><img width="136" height="32" alt="Wayfair logo" src="/images/social-proof-logo-wayfair-136x32@2x.png"/></a>
+          </div>
+          <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/osquery">#osquery</a> is one of the best tools out there and <a href="https://twitter.com/hashtag/fleetdm">#fleetdm</a> makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin.</p>
+          <p>I have used it on 15k servers and it’s really scalable.</p>
+          <div class="row px-3 pt-2">
+            <div>
+              <p class="font-weight-bold m-0">Ahmed Elshaer</p>
+              <p class="m-0">DFIR, Blue Teaming, SecOps <a href="https://twitter.com/Wayfair">@wayfair</a></p>
+              </div>
+          </div>        
+        </div>
+        <div class="tweet container">
+          <div class="mb-4">
+            <a href="https://twitter.com/comcast"><img width="107" height="38" alt="Versia logo" src="/images/social-proof-logo-comcast-107x38.png"/></a>
+          </div>
+          <p class="pb-2 mb-1">With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.</p>
+          <div class="row px-3 pt-2">
+            <div>
+              <p class="font-weight-bold m-0">Abubakar Yousafzai</p>
+              <p class="m-0">Security Software Development & Engineering <a href="https://twitter.com/comcast">@Comcast</a></p>
+            </div>
+          </div>
+        </div>
+        <div class="tweet container">
+          <div class="mb-4">
+            <a href="https://twitter.com/Uber"><img width="87" height="38" alt="Uber logo" src="/images/social-proof-logo-uber-87x38@2x.png"/></a>
+          </div>
+          <p class="pb-2 mb-1">Exciting. This is a team that listens to feedback.</p>
+          <div class="row px-3 pt-2">
+            <div>
+              <p class="font-weight-bold m-0">Erik Gomez</p>
+              <p class="m-0">Staff Software Engineer <a href="https://twitter.com/Uber">@Uber</a></p>
+            </div>
+          </div>
+        </div>
+        <div class="tweet container">
+          <div class="mb-4">
+            <a href="https://twitter.com/Square"><img width="131" height="38" alt="Square logo" src="/images/social-proof-logo-square-131x38@2x.png"/></a>
+          </div>
+          <p class="pb-2 mb-1">Mad props to how easy making a deploy pkg of Orbit was. I wish everyone made stuff that easy.</p>
+          <div class="row px-3 pt-2">
+            <div>
+              <p class="font-weight-bold m-0">Wesley Whetstone</p>
+              <p class="m-0">CPE <a href="https://twitter.com/Square">@Square</a></p>
+            </div>
+          </div>
+        </div>
+        <div class="tweet container">
+          <div class="mb-4">
+            <a href="https://twitter.com/atlassian"><img width="162" height="20" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-162x20@2x.png"/></a>
+          </div>
+          <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/fleet">#Fleet</a>’s come a long way - to now being the top open-source <a href="https://twitter.com/hashtag/fleet">#osquery</a> manager. Just in the past 6 months.</p>
+          <div class="row px-3 pt-2">
+            <div>
+              <p class="font-weight-bold m-0">Brendan Shaklovitz</p>
+              <p class="m-0">Senior SRE <a href="https://twitter.com/atlassian">@Atlassian</a></p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-  <div style="max-width: 1260px;" class="container-fluid pt-5 pb-4 px-4 px-sm-5 mx-auto">
-    <div style="max-width: 800px" class="py-5 mx-auto">
-      <div style="max-width: 760px; padding-left: 38px" class="position-relative mx-auto">
-        <!-- <span style="font-size: 48px; line-height: 60px; left: 0; top: 0;" class="quote-mark position-absolute">“</span> -->
-        <p style="font-size: 24px;" class="text-center">&ldquo;I've been using Fleet to manage thousands of hosts running osquery: deploying, developing better queries, and getting the most out of osquery logs.&rdquo;</p>
-        <p style="color: #676A7A" class="mb-4 text-center">Brendan Shaklovitz, Site Reliability Engineer</p>
-        <img style="height: 24px; width: 194px;" class="mt-4 d-block ml-auto mr-auto" alt="Atlassian logo" src="/images/logo-atlassian-194x24@2x.png" />
-      </div>
-    </div>
-    <div class="btn-toolbar justify-content-center pt-1">
-      <a
-        style="max-width: 250px"
-        class="btn btn-block btn-md btn-primary my-3 mx-2"
-        href="/get-started"
-      >
-        Get started
-      </a>
-      <a
-        style="max-width: 250px"
-        class="btn btn-block btn-lg btn-white my-3 mx-2"
-        purpose="animated-arrow-button"
-        target="_blank"
-        href="https://calendly.com/fleetdm/demo"
-        >Schedule a demo
-      </a>
-    </div>
-  </div>
-  <div style="max-width: 1260px;" class="container-fluid pt-5 px-4 px-sm-5 mx-auto">
-    <% /*
-    <div style="max-width: 800px; color: #fff;" class="py-5 mx-auto">
-      <h2 class="text-center mb-4">FAQ</h2>
-      <div class="mb-5">
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-          <p id="faq__question1" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer1" class="collapse" aria-labelledby="faq__question1">
-            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-          </p>
+      
+      <div>
+        <h3 class="px-4 mb-3">From small businesses to large enterprises.</h3>
+        <p class="px-4">
+          Teams use osquery with Fleet every day to stay secure and compliant.
+        </p>
+        <div class="logos container d-flex flex-wrap justify-content-center align-items-center pb-2 pb-md-5">
+          <img alt="The logo of a significant contributor, production user, and/or customer of Fleet" style="width: 160px; height: auto;" class="px-3 my-3" src="/images/logo-gusto-140x58@2x.png"/>
+          <img alt="The logo of a significant contributor, production user, and/or customer of Fleet" style="width: 160px; height: auto;" class="px-3 my-3" src="/images/logo-duo-93x47@2x.png"/>
+          <img alt="The logo of a significant contributor, production user, and/or customer of Fleet" style="width: 160px; height: auto;" class="px-3 my-3" src="/images/logo-cisco-117x70@2x.png"/>
+          <img alt="The logo of a significant contributor, production user, and/or customer of Fleet" style="width: 160px; height: auto;" class="px-3 my-3" src="/images/logo-adarga-112x32@2x.png"/>
         </div>
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-          <p id="faq__question2" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer2" aria-controls="faq__answer2">
-            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer2" class="collapse" aria-labelledby="faq__question2">
-            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-          <p id="faq__question3" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer3" aria-controls="faq__answer3">
-            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer3" class="collapse" aria-labelledby="faq__question3">
-            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-          <p id="faq__question4" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer4" aria-controls="faq__answer4">
-            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
-            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-          <p id="faq__question5" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer5" aria-controls="faq__answer5">
-            Mauris viverra tempus nisl, sed varius leo volutpat sit amet?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer5" class="collapse" aria-labelledby="faq__question5">
-            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-right: 20px;" class="position-relative">
-          <p id="faq__question6" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer6" aria-controls="faq__answer6">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer6" class="collapse" aria-labelledby="faq__question6">
-            Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
-          </p>
+        <div class="btn-toolbar justify-content-center px-5 px-sm-0 pt-3 pb-5 mb-md-5">
+          <a
+            style="max-width: 220px"
+            class="btn btn-block btn-md btn-primary mx-4"
+            href="/get-started"
+          >
+            Get started
+          </a>
+          <a
+            style="max-width: 220px"
+            class="btn btn-block btn-lg btn-white pl-0 m-0"
+            purpose="animated-arrow-button"
+            target="_blank"
+            href="https://calendly.com/fleetdm/demo"
+            >Schedule a demo
+          </a>
         </div>
       </div>
-      <h2 class="text-center pt-3 mb-4">Still got questions? Get in touch.</h2>
-      <button style="max-width: 242px;" class="btn btn-block btn-lg btn-info my-3 mb-4 mx-auto" @click="clickChatButton()">Contact us</button>
-    </div> */ %>
+    </div>
   </div>
 </div>
 

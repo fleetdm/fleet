@@ -28,7 +28,7 @@ func TestConfigRoundtrip(t *testing.T) {
 	// values to be verified on the roundtrip. Note that bools are always
 	// set to true, which could false positive if the default value is
 	// true.
-	original := &KolideConfig{}
+	original := &FleetConfig{}
 	v := reflect.ValueOf(original)
 	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
 		conf_v := v.Elem().Field(conf_index)
@@ -39,11 +39,8 @@ func TestConfigRoundtrip(t *testing.T) {
 				switch conf_v.Type().Field(key_index).Name {
 				case "TLSProfile":
 					// we have to explicitly set value for this key as it will only
-					// accept old, intermediate, or modern
-
-					// TODO #271 use TLSProfileIntermediate to ensure that the
-					// non-default option gets set here.
-					key_v.SetString(TLSProfileIntermediate)
+					// accept intermediate or modern
+					key_v.SetString(TLSProfileModern)
 				default:
 					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
 				}

@@ -1,0 +1,192 @@
+.data-table-container {
+  position: relative;
+
+  .data-table {
+    &__wrapper {
+      position: relative;
+      border: solid 1px $ui-fleet-blue-15;
+      border-radius: 6px;
+      margin-top: $pad-small;
+      box-shadow: inset -8px 0 17px -10px #e8edf4;
+    }
+
+    &__table {
+      position: relative;
+      width: 100%;
+      border-collapse: collapse;
+      color: $core-fleet-black;
+      font-size: $x-small;
+    }
+
+    tr {
+      border-bottom: 1px solid $ui-fleet-blue-15;
+
+      &:last-child {
+        border-bottom: 0;
+      }
+
+      // override styles of checkbox data cells
+      .form-field--checkbox {
+        margin-bottom: 0;
+
+        .fleet-checkbox__label {
+          padding-left: 0;
+        }
+      }
+    }
+
+    thead {
+      background-color: $ui-off-white;
+      color: $core-fleet-black;
+      text-align: left;
+      border-bottom: 1px solid $ui-fleet-blue-15;
+
+      th {
+        padding: $pad-medium 27px;
+        white-space: nowrap;
+        border-right: 1px solid $ui-fleet-blue-15;
+
+        &:first-child {
+          border-top-left-radius: 6px;
+        }
+
+        &:first-child:not([title="Toggle SortBy"]) {
+          width: 20px;
+        }
+
+        &:last-child {
+          border-right: none;
+          border-top-right-radius: 6px;
+          max-width: 140px;
+        }
+      }
+    }
+
+    .Select.is-focused:not(.is-open) > .Select-control {
+      border: none;
+      box-shadow: none;
+    }
+
+    .Select.is-open {
+      .Select-arrow {
+        margin-top: 4px;
+        margin-bottom: -2px;
+      }
+      .Select-placeholder {
+        margin-top: 1px;
+      }
+    }
+
+    .Select-arrow {
+      margin-top: 3px;
+    }
+
+    .Select-control:hover {
+      box-shadow: none;
+    }
+
+    .Select-placeholder {
+      font-size: 14px;
+      margin-top: 2px;
+      padding-left: 0;
+    }
+
+    .active-selection {
+      position: absolute;
+      top: 0px;
+      width: 100%;
+      border: 0;
+      border-radius: 6px;
+
+      &__container {
+        padding: 0 27px;
+      }
+
+      &__inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        p {
+          margin: 0 $pad-medium 0 0;
+          font-weight: $regular;
+
+          span {
+            font-weight: $bold;
+          }
+        }
+
+        button {
+          margin-right: $pad-medium;
+        }
+      }
+
+      &__inner-left,
+      &__inner-right {
+        display: flex;
+        align-items: center;
+      }
+    }
+
+    tbody {
+      td {
+        padding: 0px 27px;
+        white-space: nowrap;
+        height: 40px;
+
+        // form-field wraps the dropdown menu
+        .form-field {
+          margin: 0;
+        }
+        .Select-control {
+          background-color: $core-white;
+          border: none;
+        }
+      }
+    }
+
+    &__hostname {
+      color: $core-fleet-black;
+    }
+
+    &__status {
+      color: $core-fleet-blue;
+      text-transform: capitalize;
+
+      &:before {
+        border-radius: 100%;
+        content: " ";
+        display: inline-block;
+        height: 8px;
+        margin-right: $pad-small;
+        width: 8px;
+        margin-bottom: 1px;
+      }
+
+      &--online:before,
+      &--enabled:before {
+        background-color: $ui-success;
+      }
+
+      &--offline:before,
+      &--disabled:before,
+      &--mia:before {
+        background-color: $ui-offline;
+      }
+
+      &--mia {
+        text-transform: uppercase;
+      }
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: rgba(255, 255, 255, 0.8);
+      z-index: 1;
+    }
+  }
+}

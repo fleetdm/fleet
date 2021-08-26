@@ -1,0 +1,1 @@
+* Fix permissions for building MSI when packaging as root user. Fixes fleetdm/fleet#1424

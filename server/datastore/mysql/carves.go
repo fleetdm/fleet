@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetadata, error) {
+func (d *Datastore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	stmt := `INSERT INTO carve_metadata (
 		host_id,
 		created_at,
@@ -57,7 +57,7 @@ func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetad
 
 // UpdateCarve updates the carve metadata in database
 // Only max_block and expired are updatable
-func (d *Datastore) UpdateCarve(metadata *kolide.CarveMetadata) error {
+func (d *Datastore) UpdateCarve(metadata *fleet.CarveMetadata) error {
 	stmt := `
 		UPDATE carve_metadata SET
 			max_block = ?,
@@ -108,7 +108,7 @@ func (d *Datastore) CleanupCarves(now time.Time) (int, error) {
 			return errors.Wrap(err, "IN for DELETE FROM carve_blocks")
 		}
 		stmt = tx.Rebind(stmt)
-		if _, err := d.db.Exec(stmt, args...); err != nil {
+		if _, err := tx.Exec(stmt, args...); err != nil {
 			return errors.Wrap(err, "delete carve blocks")
 		}
 
@@ -123,7 +123,7 @@ func (d *Datastore) CleanupCarves(now time.Time) (int, error) {
 			return errors.Wrap(err, "IN for UPDATE carve_metadata")
 		}
 		stmt = tx.Rebind(stmt)
-		if _, err := d.db.Exec(stmt, args...); err != nil {
+		if _, err := tx.Exec(stmt, args...); err != nil {
 			return errors.Wrap(err, "update carve_metadtata")
 		}
 
@@ -154,7 +154,7 @@ const carveSelectFields = `
 			max_block
 `
 
-func (d *Datastore) Carve(carveId int64) (*kolide.CarveMetadata, error) {
+func (d *Datastore) Carve(carveId int64) (*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata
@@ -162,7 +162,7 @@ func (d *Datastore) Carve(carveId int64) (*kolide.CarveMetadata, error) {
 		carveSelectFields,
 	)
 
-	var metadata kolide.CarveMetadata
+	var metadata fleet.CarveMetadata
 	if err := d.db.Get(&metadata, stmt, carveId); err != nil {
 		return nil, errors.Wrap(err, "get carve by ID")
 	}
@@ -170,7 +170,7 @@ func (d *Datastore) Carve(carveId int64) (*kolide.CarveMetadata, error) {
 	return &metadata, nil
 }
 
-func (d *Datastore) CarveBySessionId(sessionId string) (*kolide.CarveMetadata, error) {
+func (d *Datastore) CarveBySessionId(sessionId string) (*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata
@@ -178,7 +178,7 @@ func (d *Datastore) CarveBySessionId(sessionId string) (*kolide.CarveMetadata, e
 		carveSelectFields,
 	)
 
-	var metadata kolide.CarveMetadata
+	var metadata fleet.CarveMetadata
 	if err := d.db.Get(&metadata, stmt, sessionId); err != nil {
 		return nil, errors.Wrap(err, "get carve by session ID")
 	}
@@ -186,7 +186,7 @@ func (d *Datastore) CarveBySessionId(sessionId string) (*kolide.CarveMetadata, e
 	return &metadata, nil
 }
 
-func (d *Datastore) CarveByName(name string) (*kolide.CarveMetadata, error) {
+func (d *Datastore) CarveByName(name string) (*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata
@@ -194,7 +194,7 @@ func (d *Datastore) CarveByName(name string) (*kolide.CarveMetadata, error) {
 		carveSelectFields,
 	)
 
-	var metadata kolide.CarveMetadata
+	var metadata fleet.CarveMetadata
 	if err := d.db.Get(&metadata, stmt, name); err != nil {
 		return nil, errors.Wrap(err, "get carve by name")
 	}
@@ -202,7 +202,7 @@ func (d *Datastore) CarveByName(name string) (*kolide.CarveMetadata, error) {
 	return &metadata, nil
 }
 
-func (d *Datastore) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
+func (d *Datastore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata`,
@@ -212,7 +212,7 @@ func (d *Datastore) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMeta
 		stmt += ` WHERE NOT expired `
 	}
 	stmt = appendListOptionsToSQL(stmt, opt.ListOptions)
-	carves := []*kolide.CarveMetadata{}
+	carves := []*fleet.CarveMetadata{}
 	if err := d.db.Select(&carves, stmt); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "list carves")
 	}
@@ -220,7 +220,7 @@ func (d *Datastore) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMeta
 	return carves, nil
 }
 
-func (d *Datastore) NewBlock(metadata *kolide.CarveMetadata, blockId int64, data []byte) error {
+func (d *Datastore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
 	stmt := `
 		INSERT INTO carve_blocks (
 			metadata_id,
@@ -246,7 +246,7 @@ func (d *Datastore) NewBlock(metadata *kolide.CarveMetadata, blockId int64, data
 	return nil
 }
 
-func (d *Datastore) GetBlock(metadata *kolide.CarveMetadata, blockId int64) ([]byte, error) {
+func (d *Datastore) GetBlock(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
 	stmt := `
 		SELECT data
 		FROM carve_blocks

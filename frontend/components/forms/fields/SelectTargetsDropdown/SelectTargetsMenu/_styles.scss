@@ -1,16 +1,17 @@
 .target-list {
   &__type {
     padding: 0 8px $pad-xsmall;
-    margin: $pad-xxlarge 0 0;
-    text-transform: uppercase;
+    margin: $pad-medium 0 0;
     font-weight: $bold;
-    font-size: $xx-small;
+    font-size: $x-small;
     color: $core-fleet-black;
-    letter-spacing: 0.5px;
     border-bottom: 1px solid $ui-fleet-blue-15;
 
+    &::first-letter {
+      text-transform: uppercase;
+    }
     &:first-child {
-      margin: 0;
+      margin: $pad-large 0 $pad-small 0;
     }
   }
 
@@ -21,9 +22,20 @@
     min-height: 500px;
     position: relative;
     z-index: 2;
-    padding: $pad-large $pad-medium;
+    padding: 0 $pad-large;
     border-right: 1px solid $ui-fleet-blue-15;
     background-color: $core-white;
+  }
+
+  &__no-hosts {
+    font-size: $x-small;
+    padding: $pad-large;
+  }
+
+  &__no-hosts-heading {
+    font-weight: $bold;
+    font-size: $small;
+    padding-bottom: $pad-medium;
   }
 
   &__spotlight {

@@ -1,0 +1,144 @@
+.homepage {
+  align-self: center;
+  width: 100%;
+  max-width: 900px;
+
+  h2 {
+    font-size: $small;
+    font-weight: $regular;
+    margin: 0;
+  }
+
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
+  #link-arrow {
+    transform: scale(0.5);
+    margin-bottom: -4px;
+  }
+
+  &__wrapper {
+    padding: $pad-xxlarge 0 0;
+  }
+
+  &__header-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $pad-xxlarge;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+  }
+
+  &__title {
+    font-size: $large;
+
+    .fleeticon {
+      color: $core-fleet-blue;
+      margin-right: 15px;
+    }
+
+    .fleeticon-success-check {
+      color: $ui-success;
+    }
+
+    .fleeticon-offline {
+      color: $ui-error;
+    }
+
+    .fleeticon-mia {
+      color: $core-fleet-black;
+    }
+  }
+
+  &__section {
+    width: 95%;
+    max-width: 800px;
+    margin: auto;
+    margin-bottom: $pad-xlarge;
+  }
+
+  &__section-title {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: $pad-small;
+    border-bottom: solid 1px $ui-fleet-blue-15;
+    margin-bottom: $pad-large;
+  }
+
+  &__section-details {
+    font-size: $x-small;
+  }
+
+  // For future use
+
+  // .ace-fleet {
+  //   margin-bottom: $pad-medium;
+  // }
+
+  //   &__label-actions {
+  //     button {
+  //       &:first-child {
+  //         margin-right: $pad-medium;
+  //       }
+  //     }
+  //   }
+
+  //   &__description {
+  //     margin: 0 0 $pad-medium;
+
+  //     h2 {
+  //       text-transform: uppercase;
+  //       color: $core-fleet-black;
+  //       font-weight: $regular;
+  //       font-size: $small;
+  //     }
+
+  //     p {
+  //       color: $core-fleet-blue;
+  //       margin: 0;
+  //       font-size: $x-small;
+  //       font-style: italic;
+  //     }
+  //   }
+
+  //   &__toggle-view {
+  //     .fleeticon {
+  //       width: 24px;
+  //       height: 24px;
+  //       margin-left: 12px;
+  //       fill: $ui-gray;
+  //     }
+
+  //     &--active {
+  //       .fleeticon {
+  //         fill: $core-fleet-purple;
+  //       }
+  //     }
+  //   }
+
+  //   .data-table-container {
+  //     .data-table {
+  //       &__wrapper {
+  //         overflow-x: scroll;
+  //       }
+  //     }
+  //   }
+
+  //   &__modal-buttons {
+  //     width: 100%;
+  //     display: flex;
+  //     justify-content: flex-end;
+
+  //     .button:first-child {
+  //       margin-right: $pad-medium;
+  //     }
+  //   }
+}

@@ -38,9 +38,33 @@
         }
       }
 
+      &__disk-space {
+        display: inline-block;
+        height: 4px;
+        width: 50px;
+        background-color: $ui-fleet-blue-15;
+        border-radius: 2px;
+        margin-right: $pad-small;
+        overflow: hidden;
+      }
+
+      &__disk-space-used {
+        background-color: $ui-success;
+        height: 100%;
+      }
+
+      &__disk-space-warning {
+        background-color: $ui-warning;
+        height: 100%;
+      }
+
       &__header {
         color: $core-fleet-black;
         font-weight: $bold;
+      }
+
+      &__no-team {
+        color: $ui-fleet-black-50;
       }
     }
 
@@ -171,6 +195,10 @@
     }
   }
 
+  .button img {
+    transform: scale(0.5);
+  }
+
   .about,
   .osquery {
     .info {
@@ -220,7 +248,8 @@
       }
     }
 
-    &--offline {
+    &--offline,
+    &--mia {
       &:before {
         background-color: $ui-fleet-black-25;
         border-radius: 100%;
@@ -231,6 +260,10 @@
         width: 8px;
       }
     }
+
+    &--mia {
+      text-transform: uppercase;
+    }
   }
 
   &__action-button-container {
@@ -238,8 +271,9 @@
     align-items: flex-start;
   }
 
-  &__query-button {
-    margin-right: 12px;
+  &__query-button,
+  &__transfer-button {
+    margin-right: $pad-large;
   }
 
   &__modal {
@@ -299,6 +333,32 @@
 
       &:last-child {
         border-right: none;
+      }
+    }
+  }
+
+  .section--software {
+    th {
+      &:first-child {
+        border-right: none;
+        width: 16px;
+        padding-right: 0px;
+      }
+    }
+    tr {
+      td {
+        &:first-child {
+          padding-right: 0px;
+        }
+      }
+    }
+
+    .data-table__table {
+      table-layout: fixed;
+
+      td {
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
   }
@@ -371,7 +431,7 @@
   }
 
   .accordion__panel {
-    padding: 20px;
+    padding: 0;
     animation: fadein 0.35s ease-in;
   }
 
@@ -386,6 +446,36 @@
 
     100% {
       opacity: 1;
+    }
+  }
+
+  &__pack-table {
+    .table-container__header {
+      display: none;
+    }
+
+    .data-table__table {
+      table-layout: fixed;
+
+      thead {
+        // Width for all columns except the "Query name" column
+        // Width calculation adjusts for each row's horizontal padding
+        th {
+          width: calc(160px - 27px * 2);
+        }
+
+        // Width for the "Query name" column
+        th:nth-child(1) {
+          width: auto !important;
+        }
+      }
+
+      tbody {
+        td {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
     }
   }
 }

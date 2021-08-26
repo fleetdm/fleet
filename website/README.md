@@ -13,10 +13,20 @@ Run the following commands to test the site locally:
 npm install -g sails
 cd website/
 npm install
+sails run scripts/build-static-content.js
 sails lift
 ```
 
 Your local copy of the website is now running at [http://localhost:2024](http://localhost:2024)!
+
+
+## Wipe the production database
+I hope you know what you're doing.  The easiest kind of database schema migration:
+```sh
+sails_datastores__default__url='REAL_DB_URI_HERE' sails run wipe
+```
+
+Then when you see the sailboat, hit `CTRL+C` to exit.  All done!
 
 
 ## Bugs

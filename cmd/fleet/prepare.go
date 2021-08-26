@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/datastore/mysql"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/spf13/cobra"
 )
 
@@ -53,11 +53,11 @@ To setup Fleet infrastructure, use one of the available commands.
 			}
 
 			switch status {
-			case kolide.AllMigrationsCompleted:
+			case fleet.AllMigrationsCompleted:
 				fmt.Println("Migrations already completed. Nothing to do.")
 				return
 
-			case kolide.SomeMigrationsCompleted:
+			case fleet.SomeMigrationsCompleted:
 				if !noPrompt {
 					fmt.Printf("################################################################################\n" +
 						"# WARNING:\n" +

@@ -3,7 +3,7 @@
   align-items: stretch;
 
   h1 {
-    margin: 0 0 30px;
+    margin: 0 0 $pad-xlarge;
   }
 
   h2 {
@@ -17,13 +17,14 @@
   }
 
   &__additional {
-    width: 350px;
-    max-width: 350px;
-    min-width: 350px;
+    width: 340px;
+    max-width: 340px;
+    min-width: 340px;
     box-sizing: border-box;
-    padding: 30px;
-    background-color: $ui-light-grey;
+    padding: $pad-xxlarge;
+    background-color: $core-white;
     min-height: 100vh;
+    border-left: solid 1px $ui-fleet-blue-15;
   }
 
   &__change-avatar {
@@ -51,7 +52,7 @@
   &__description {
     font-size: $x-small;
     font-style: italic;
-    margin: 4px 0;
+    margin: $pad-xsmall 0;
   }
 
   &__avatar {
@@ -64,7 +65,7 @@
   &__more-info-detail {
     color: $core-fleet-black;
 
-    .kolidecon {
+    .fleeticon {
       color: $ui-gray;
       font-size: 18px;
       margin-right: 11px;
@@ -79,6 +80,10 @@
     font-size: $x-small;
     font-style: italic;
     margin: 4px 0 $pad-large;
+  }
+
+  &__confirm-update {
+    margin-bottom: $pad-medium;
   }
 
   &__reveal-secret {
@@ -105,16 +110,32 @@
     justify-content: flex-end;
   }
 
-  &__secret-copy-icon {
+  .buttons {
+    display: flex;
+    align-items: center;
     position: absolute;
-    top: 8px;
-    right: 10px;
-    font-size: 18px;
-    color: $core-vibrant-blue;
+    right: 16px;
+    transform: translateY(80%);
+    height: 16px;
 
-    &:active {
-      top: 8px;
+    span {
+      font-weight: $regular;
     }
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+
+    img {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &__secret-copy-icon {
+    color: $core-vibrant-blue;
+    margin-left: $pad-small;
   }
 
   &__secret-input {
@@ -122,7 +143,7 @@
       border-radius: 2px;
       background-color: $ui-off-white;
       border-color: $ui-fleet-blue-15;
-      padding-right: 36px;
+      padding-right: 90px;
       font-family: "SourceCodePro", $monospace;
 
       &[type="password"] {
@@ -136,5 +157,9 @@
     text-align: center;
     display: block;
     margin-top: $pad-xxlarge;
+  }
+
+  .grey-cell {
+    color: $ui-fleet-black-25;
   }
 }

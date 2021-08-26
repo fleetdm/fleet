@@ -1,0 +1,59 @@
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      decorators:
+        load:
+          - SELECT uuid AS host_uuid FROM system_info;
+          - SELECT hostname AS hostname FROM system_info;
+      options:
+        disable_distributed: false
+        distributed_interval: 10
+        distributed_plugin: tls
+        distributed_tls_max_attempts: 3
+        logger_plugin: tls
+        logger_tls_endpoint: /api/v1/osquery/log
+        logger_tls_period: 10
+        pack_delimiter: /
+    overrides: {}
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  host_settings:
+    additional_queries: null
+    enable_host_users: true
+    enable_software_inventory: true
+  org_info:
+    org_logo_url: ""
+    org_name: org
+  server_settings:
+    enable_analytics: true
+    live_query_disabled: false
+    server_url: https://localhost:8080
+  smtp_settings:
+    authentication_method: authmethod_plain
+    authentication_type: authtype_username_password
+    configured: false
+    domain: ""
+    enable_smtp: false
+    enable_ssl_tls: true
+    enable_start_tls: true
+    password: "********"
+    port: 587
+    sender_address: ""
+    server: ""
+    user_name: ""
+    verify_ssl_certs: true
+  sso_settings:
+    enable_sso: false
+    enable_sso_idp_login: false
+    entity_id: ""
+    idp_image_url: ""
+    idp_name: ""
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: ""
+  vulnerability_settings:
+    databases_path: /tmp/vulndbs

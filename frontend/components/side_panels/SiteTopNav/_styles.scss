@@ -1,0 +1,102 @@
+.site-nav-item {
+  position: relative;
+  transition: color 200ms ease-in-out;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  max-height: 50px;
+
+  &:hover {
+    background-color: $core-fleet-black;
+  }
+
+  &--multiple.site-nav-item--active {
+    background-color: transparent;
+    border-right: 0;
+
+    &:hover {
+      background-color: transparent;
+    }
+
+    .site-nav-item__link {
+      border-right: 3px solid $core-vibrant-blue;
+      background-color: $core-fleet-black;
+    }
+  }
+
+  &__icon {
+    position: relative;
+    font-size: $large;
+    margin-right: $pad-small;
+    width: 16px;
+    height: 16px;
+    vertical-align: sub;
+  }
+
+  .logo {
+    @include size(48px);
+    border-radius: 20%;
+    padding: 0;
+    margin: -12px -15px 0;
+  }
+
+  &__name {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    vertical-align: middle;
+    font-weight: $regular;
+    font-size: $x-small;
+
+    // Bolding text when the button is active causes a layout shift
+    // so we add a hidden pseudo element with the same text string
+    &:before {
+      content: attr(data-text);
+      height: 0;
+      visibility: hidden;
+      overflow: hidden;
+      user-select: none;
+      pointer-events: none;
+      font-weight: $bold;
+    }
+  }
+
+  a {
+    color: $core-white;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+  }
+
+  &--active {
+    border-bottom: 3px solid $core-vibrant-blue;
+    background-color: $core-fleet-black;
+
+    &:hover {
+      background-color: $core-fleet-black;
+    }
+
+    .site-nav-item__name {
+      font-weight: $bold;
+    }
+  }
+}
+
+.logo {
+  transform: scale(0.5);
+}
+
+.site-nav-container {
+  flex-grow: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.site-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+}

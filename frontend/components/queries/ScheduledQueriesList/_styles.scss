@@ -14,11 +14,15 @@
       background-color: $ui-off-white;
       border-bottom: 1px solid $ui-fleet-blue-15;
 
+      th + th {
+        border-left: 1px solid $ui-fleet-blue-15;
+      }
+
       th {
         font-size: $x-small;
         font-weight: $bold;
         text-align: left;
-        padding: 15px 10px;
+        padding: $pad-medium $pad-large;
 
         .form-field {
           margin: 0;
@@ -30,20 +34,17 @@
         }
 
         &:nth-child(2) {
-          width: calc(46% - 20px);
+          width: calc(49% - 20px);
         }
 
-        &:nth-child(3) {
-          width: 18%;
+        &:nth-child(3),
+        &:nth-child(7) {
+          width: 8%;
         }
-
-        &:nth-child(4) {
-          width: 18%;
-        }
-
-        &:nth-child(5) {
-          width: 18%;
-          text-align: center;
+        &:nth-child(4),
+        &:nth-child(5),
+        &:nth-child(6) {
+          width: 12%;
         }
 
         &:last-child {
@@ -54,8 +55,12 @@
     }
 
     tbody {
+      p {
+        font-size: $x-small;
+      }
+
       td {
-        padding: 0 10px;
+        padding: 0 $pad-large;
         margin: 0;
 
         .form-field {
@@ -69,7 +74,7 @@
 
         &:nth-child(2) {
           font-size: $x-small;
-          font-weight: $bold;
+          font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
           text-align: left;
@@ -100,10 +105,10 @@
           font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
-          text-align: center;
+          text-align: left;
           color: $core-fleet-black;
 
-          .kolidecon {
+          .fleeticon {
             font-size: 18px;
           }
         }
@@ -122,16 +127,23 @@
   }
 
   &__first-query {
-    padding: 30px 15px 100px;
+    padding: 0 $pad-xxlarge 100px;
     text-align: left;
+
+    &-cta {
+      text-align: left;
+      font-size: $x-small;
+      font-weight: $bold;
+      color: $core-vibrant-blue;
+    }
 
     h1 {
       color: $core-fleet-black;
       font-size: $large;
       font-weight: $regular;
       line-height: 1.96;
-      letter-spacing: -0.5px;
       margin: 0;
+      margin-top: $pad-xxlarge;
     }
 
     h2 {
@@ -144,7 +156,7 @@
     }
 
     p {
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $regular;
       line-height: 2.5;
       color: $core-fleet-black;
@@ -159,7 +171,7 @@
 
     li {
       margin-left: 15px;
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $regular;
       line-height: 2.5;
       color: $core-fleet-black;

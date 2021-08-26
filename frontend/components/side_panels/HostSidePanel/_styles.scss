@@ -1,6 +1,5 @@
 .host-side-panel {
   color: $core-fleet-black;
-  padding: 14px 20px 22px;
 
   .input-icon-field {
     margin-top: 0;
@@ -22,8 +21,12 @@
   }
 
   &__add-label-btn {
-    width: 100%;
-    margin-top: $pad-large;
+    color: $core-vibrant-blue !important;
+    align-self: right;
+
+    img {
+      margin-left: $pad-xsmall;
+    }
   }
 
   &__panel-group-item {
@@ -33,18 +36,28 @@
     &--filter {
       position: relative;
 
-      .kolidecon {
+      &::before {
+        display: inline-block;
         position: absolute;
-        top: 10px;
-        left: 12px;
-        font-size: $medium;
-        color: $core-fleet-blue;
+        padding: 5px 0 0 0; // centers spin
+        content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
+        transform: scale(0.5);
+        height: 20px;
+        top: 3px;
+        left: 8px;
       }
     }
+  }
 
-    .title {
-      padding-left: 20px;
-      font-size: $small;
+  .title {
+    font-size: $small;
+    display: flex;
+    justify-content: space-between;
+
+    button {
+      position: relative;
+      top: 12px;
+      padding: 0 $pad-xsmall;
     }
   }
 

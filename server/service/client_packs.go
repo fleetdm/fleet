@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
 // ApplyPacks sends the list of Packs to be applied (upserted) to the
 // Fleet instance.
-func (c *Client) ApplyPacks(specs []*kolide.PackSpec) error {
+func (c *Client) ApplyPacks(specs []*fleet.PackSpec) error {
 	req := applyPackSpecsRequest{Specs: specs}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/spec/packs", "", req)
 	if err != nil {
@@ -41,7 +41,7 @@ func (c *Client) ApplyPacks(specs []*kolide.PackSpec) error {
 }
 
 // GetPack retrieves information about a pack
-func (c *Client) GetPack(name string) (*kolide.PackSpec, error) {
+func (c *Client) GetPack(name string) (*fleet.PackSpec, error) {
 	verb, path := "GET", "/api/v1/fleet/spec/packs/"+url.PathEscape(name)
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
@@ -75,7 +75,7 @@ func (c *Client) GetPack(name string) (*kolide.PackSpec, error) {
 }
 
 // GetPacks retrieves the list of all Packs.
-func (c *Client) GetPacks() ([]*kolide.PackSpec, error) {
+func (c *Client) GetPacks() ([]*fleet.PackSpec, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/spec/packs", "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/fleet/spec/packs")

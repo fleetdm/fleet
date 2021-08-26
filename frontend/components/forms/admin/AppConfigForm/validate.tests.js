@@ -4,7 +4,7 @@ describe("AppConfigForm - validations", () => {
   const validFormData = {
     org_name: "The Gnar Co.",
     authentication_type: "username_password",
-    kolide_server_url: "https://gnar.dog",
+    server_url: "https://gnar.dog",
     sender_address: "hi@gnar.dog",
     enable_smtp: true,
     server: "192.168.99.100",
@@ -33,16 +33,16 @@ describe("AppConfigForm - validations", () => {
     });
   });
 
-  it("validates presence of the kolide_server_url field", () => {
+  it("validates presence of the server_url field", () => {
     const invalidFormData = {
       ...validFormData,
-      kolide_server_url: "",
+      server_url: "",
     };
 
     expect(validate(invalidFormData)).toEqual({
       valid: false,
       errors: {
-        kolide_server_url: "Fleet Server URL must be present",
+        server_url: "Fleet Server URL must be present",
       },
     });
   });

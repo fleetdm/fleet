@@ -9,16 +9,19 @@ Includes resources for setting up and configuring Fleet via the fleetctl CLI
 ### [REST API](./3-REST-API.md) 
 Provides resources for working with Fleet's API and includes example code for endpoints
 
-### [Osquery logs](./4-Osquery-logs.md) 
+### [Adding hosts](./4-Adding-hosts.md) 
+Provides resources for enrolling your hosts to Fleet
+
+### [Osquery logs](./5-Osquery-logs.md) 
 Includes documentation on the plugin options for working with osquery logs
 
-### [Monitoring Fleet](./5-Monitoring-Fleet.md) 
+### [Monitoring Fleet](./6-Monitoring-Fleet.md) 
 Provides documentation for load balancer health checks and working with Fleet server metrics and performance 
 
-### [Security best practices](./6-Security-best-practices.md) 
+### [Security best practices](./7-Security-best-practices.md) 
 Includes resources for ways to mitigate against the OWASP top 10 issues
 
-### [Updating Fleet](./7-Updating-Fleet.md) 
+### [Updating Fleet](./8-Updating-Fleet.md) 
 Includes a guide for how to update and run new versions of Fleet
 
 ### [FAQ](./FAQ.md) 

@@ -4,6 +4,29 @@
     width: 100%;
   }
 
+  &__label-platform {
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $core-fleet-black;
+    padding-bottom: $pad-large;
+
+    p {
+      padding-bottom: $pad-small;
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+
+    .title {
+      font-weight: $bold;
+    }
+
+    .hint {
+      color: $core-fleet-blue;
+      padding-top: $pad-small;
+    }
+
+  }
+
   &__button-wrap {
     display: flex;
     justify-content: flex-end;
@@ -19,7 +42,7 @@
   }
 
   &__cancel-btn {
-    margin-right: 14px;
+    margin-right: $pad-medium;
   }
 
   &__save-btn {

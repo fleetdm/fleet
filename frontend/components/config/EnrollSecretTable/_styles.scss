@@ -7,7 +7,7 @@
       position: relative;
       font-size: $x-small;
       font-weight: $bold;
-      margin-top: 8px;
+      margin-top: $pad-small;
     }
 
     .input-field {
@@ -23,6 +23,7 @@
 
   &__secret-copy-icon {
     color: $core-vibrant-blue;
+    margin-left: $pad-small;
     margin-right: $pad-medium;
   }
 
@@ -31,7 +32,7 @@
     align-items: center;
     position: absolute;
     right: 16px;
-    transform: translateY(100%);
+    transform: translateY(80%);
     height: 16px;
 
     span {

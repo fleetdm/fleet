@@ -1,5 +1,6 @@
 import { mount } from "enzyme";
 
+import { configStub } from "test/stubs";
 import { connectedComponent, reduxMockStore } from "test/helpers";
 import ConnectedPacksComposerPage from "./PackComposerPage";
 
@@ -8,6 +9,7 @@ describe("PackComposerPage - component", () => {
     entities: {
       packs: {},
     },
+    app: { config: configStub },
   });
   it("renders", () => {
     const page = mount(

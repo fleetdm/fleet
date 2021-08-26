@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	hostctx "github.com/fleetdm/fleet/server/contexts/host"
-	"github.com/fleetdm/fleet/server/kolide"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
@@ -16,7 +16,10 @@ const (
 	maxBlockSize = 256 * 1024 * 1024      // 256MB
 )
 
-func (svc service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayload) (*kolide.CarveMetadata, error) {
+func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayload) (*fleet.CarveMetadata, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
@@ -46,8 +49,8 @@ func (svc service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayl
 	}
 
 	now := time.Now().UTC()
-	carve := &kolide.CarveMetadata{
-		Name:       fmt.Sprintf("%s-%s-%s", host.HostName, now.Format(time.RFC3339), payload.RequestId),
+	carve := &fleet.CarveMetadata{
+		Name:       fmt.Sprintf("%s-%s-%s", host.Hostname, now.Format(time.RFC3339), payload.RequestId),
 		HostId:     host.ID,
 		BlockCount: payload.BlockCount,
 		BlockSize:  payload.BlockSize,
@@ -66,7 +69,10 @@ func (svc service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayl
 	return carve, nil
 }
 
-func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayload) error {
+func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayload) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
 	// Note host did not authenticate via node key. We need to authenticate them
 	// by the session ID and request ID
 	carve, err := svc.carveStore.CarveBySessionId(payload.SessionId)
@@ -99,15 +105,27 @@ func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayl
 	return nil
 }
 
-func (svc service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetadata, error) {
+func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.carveStore.Carve(id)
 }
 
-func (svc service) ListCarves(ctx context.Context, opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
+func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.carveStore.ListCarves(opt)
 }
 
-func (svc service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
+func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	metadata, err := svc.carveStore.Carve(carveId)
 	if err != nil {
 		return nil, errors.Wrap(err, "get carve by name")

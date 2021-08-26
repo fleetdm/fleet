@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
 // ApplyLabels sends the list of Labels to be applied (upserted) to the
 // Fleet instance.
-func (c *Client) ApplyLabels(specs []*kolide.LabelSpec) error {
+func (c *Client) ApplyLabels(specs []*fleet.LabelSpec) error {
 	req := applyLabelSpecsRequest{Specs: specs}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/spec/labels", "", req)
 	if err != nil {
@@ -41,7 +41,7 @@ func (c *Client) ApplyLabels(specs []*kolide.LabelSpec) error {
 }
 
 // GetLabel retrieves information about a label by name
-func (c *Client) GetLabel(name string) (*kolide.LabelSpec, error) {
+func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 	verb, path := "GET", "/api/v1/fleet/spec/labels/"+url.PathEscape(name)
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
@@ -75,7 +75,7 @@ func (c *Client) GetLabel(name string) (*kolide.LabelSpec, error) {
 }
 
 // GetLabels retrieves the list of all Labels.
-func (c *Client) GetLabels() ([]*kolide.LabelSpec, error) {
+func (c *Client) GetLabels() ([]*fleet.LabelSpec, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/spec/labels", "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/fleet/spec/labels")

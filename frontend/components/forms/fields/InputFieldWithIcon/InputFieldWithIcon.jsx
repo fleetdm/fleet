@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import InputField from "../InputField";
 
 const baseClass = "input-icon-field";
@@ -19,6 +19,7 @@ class InputFieldWithIcon extends InputField {
     tabIndex: PropTypes.number,
     type: PropTypes.string,
     className: PropTypes.string,
+    disabled: PropTypes.bool,
   };
 
   renderHeading = () => {
@@ -57,6 +58,7 @@ class InputFieldWithIcon extends InputField {
       tabIndex,
       type,
       value,
+      disabled,
     } = this.props;
     const { onInputChange, renderHint } = this;
 
@@ -89,8 +91,9 @@ class InputFieldWithIcon extends InputField {
           tabIndex={tabIndex}
           type={type}
           value={value}
+          disabled={disabled}
         />
-        {iconName && <KolideIcon name={iconName} className={iconClasses} />}
+        {iconName && <FleetIcon name={iconName} className={iconClasses} />}
         {renderHint()}
       </div>
     );

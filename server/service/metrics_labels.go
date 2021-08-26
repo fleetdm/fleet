@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw metricsMiddleware) ModifyLabel(ctx context.Context, id uint, p kolide.ModifyLabelPayload) (*kolide.Label, error) {
+func (mw metricsMiddleware) ModifyLabel(ctx context.Context, id uint, p fleet.ModifyLabelPayload) (*fleet.Label, error) {
 	var (
-		lic *kolide.Label
+		lic *fleet.Label
 		err error
 	)
 	defer func(begin time.Time) {

@@ -57,7 +57,7 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 		Destination:                 destinationURL,
 		IssueInstant:                time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 		Version:                     samlVersion,
-		ProviderName:                "Kolide",
+		ProviderName:                "Fleet",
 		Issuer: Issuer{
 			XMLName: xml.Name{
 				Local: "saml:Issuer",

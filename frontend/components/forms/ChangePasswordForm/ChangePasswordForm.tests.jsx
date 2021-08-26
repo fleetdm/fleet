@@ -105,8 +105,7 @@ describe("ChangePasswordForm - component", () => {
     expect(handleSubmitSpy).not.toHaveBeenCalled();
 
     expect(component.state("errors")).toMatchObject({
-      new_password:
-        "Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol",
+      new_password: "Password must meet the criteria below",
     });
   });
 });

@@ -19,7 +19,7 @@ describe("QueryPageWrapper - helpers", () => {
     const bearerToken = "abc123";
 
     beforeEach(() => {
-      global.localStorage.setItem("KOLIDE::auth_token", bearerToken);
+      global.localStorage.setItem("FLEET::auth_token", bearerToken);
     });
 
     describe("when the API call is successful", () => {
@@ -39,7 +39,7 @@ describe("QueryPageWrapper - helpers", () => {
     });
 
     describe("when the API call is unsuccessful", () => {
-      it("pushes to the new query page", (done) => {
+      it("pushes to the manage queries page", (done) => {
         queryMocks.load.invalid(bearerToken, queryID);
         const mockStore = reduxMockStore();
 
@@ -51,7 +51,7 @@ describe("QueryPageWrapper - helpers", () => {
           expect(locationChangeAction).toBeTruthy();
           expect(locationChangeAction.payload).toEqual({
             method: "push",
-            args: ["/queries/new"],
+            args: ["/queries/manage"],
           });
 
           done();
@@ -70,10 +70,22 @@ describe("QueryPageWrapper - helpers", () => {
             });
 
             expect(flashMessageAction).toBeTruthy();
-            expect(flashMessageAction.payload).toMatchObject({
-              alertType: "error",
-              message: "Resource not found",
-            });
+
+            if (
+              flashMessageAction.payload.message.includes(
+                "no rows in result set"
+              )
+            ) {
+              expect(flashMessageAction.payload).toMatchObject({
+                alertType: "error",
+                message: "The query you requested does not exist in Fleet.",
+              });
+            } else {
+              expect(flashMessageAction.payload).toMatchObject({
+                alertType: "error",
+                message: "Resource not found",
+              });
+            }
 
             done();
           })

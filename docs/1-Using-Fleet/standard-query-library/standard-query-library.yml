@@ -17,6 +17,7 @@ spec:
   description: Retrieves the OpenSSL version.
   query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
   purpose: Detection
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -26,6 +27,7 @@ spec:
   description: Gatekeeper tries to ensure only trusted software is run on a mac machine.
   query: SELECT * FROM gatekeeper WHERE assessments_enabled = 0;
   purpose: Detection
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -36,6 +38,7 @@ spec:
   query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
   purpose: Detection
   remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
+  contributors: mike-j-thomas
 ---
 apiVersion: v1
 kind: query
@@ -65,6 +68,7 @@ spec:
   description: Retrieve application, system, and mobile app crash logs.
   query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -72,8 +76,9 @@ spec:
   name: Get installed Chrome Extensions
   platforms: macOS, Linux, Windows, FreeBSD
   description: List installed Chrome Extensions for all users.
-  query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
+  query: SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -83,6 +88,7 @@ spec:
   description: Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -92,6 +98,7 @@ spec:
   description: Get the installed homebrew package database.
   query: SELECT * FROM homebrew_packages;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -101,6 +108,7 @@ spec:
   description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -110,6 +118,7 @@ spec:
   description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -119,6 +128,7 @@ spec:
   description: Retrieves the list of installed Safari Extensions for all users in the target system.
   query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -128,6 +138,7 @@ spec:
   description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -137,6 +148,7 @@ spec:
   description:
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -146,6 +158,7 @@ spec:
   description: Displays the percentage of free space available on the primary disk partition.
   query: SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -155,6 +168,7 @@ spec:
   description: Shows system mounted devices and filesystems (not process specific).
   query: SELECT device, device_alias, path, type, blocks_size FROM mounts;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -164,6 +178,7 @@ spec:
   description: Shows system mounted devices and filesystems (not process specific).
   query: SELECT * FROM os_version;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -173,6 +188,7 @@ spec:
   description: Shows information about the host platform
   query: SELECT vendor, version, date, revision from platform_info;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -182,6 +198,7 @@ spec:
   description: Shows applications and binaries set as user/login startup items.
   query: SELECT * FROM startup_items;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -191,6 +208,7 @@ spec:
   description: Get a list of system logins and logouts.
   query: SELECT * FROM last;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -210,6 +228,7 @@ spec:
   description: Shows the system uptime.
   query: SELECT * FROM uptime;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -219,6 +238,7 @@ spec:
   description: Shows all USB devices that are actively plugged into the host system.
   query: SELECT * FROM usb_devices;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -228,6 +248,7 @@ spec:
   description: Shows information about the wifi network that a host is currently connected to.
   query: SELECT * FROM wifi_status;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -237,6 +258,7 @@ spec:
   description:
   query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -288,6 +310,7 @@ spec:
   description: suid binaries in common locations.
   query: SELECT * FROM suid_bin;
   purpose: Informational
+  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -393,3 +416,33 @@ spec:
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
   purpose: Informational
   contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect Windows print spooler remote code execution vulnerability
+  platforms: Windows
+  description: Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.
+  query: SELECT CASE cnt WHEN 2 THEN "TRUE" ELSE "FALSE" END "Vulnerable" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;
+  purpose: Detection
+  contributors: maravedi
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get local users and their privileges
+  platforms: macOS, Linux, Windows
+  description: Collects the local user accounts and their respective user group.
+  query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
+  purpose: Informational
+  contributors: noahtalerman
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Find deleted files from disk
+  platforms: Linux, macOS, Windows
+  description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching process to mask presence.
+  query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
+  purpose: Incident response
+  contributors: alphabrevity

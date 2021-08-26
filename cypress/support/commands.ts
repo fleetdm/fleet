@@ -1,4 +1,5 @@
 import "@testing-library/cypress/add-commands";
+import "cypress-wait-until";
 
 // ***********************************************
 // This example commands.js shows you how to
@@ -30,12 +31,12 @@ Cypress.Commands.add("setup", () => {
   cy.exec("make e2e-reset-db e2e-setup", { timeout: 20000 });
 });
 
-Cypress.Commands.add("login", (username, password) => {
-  username ||= "test";
-  password ||= "admin123#";
-  cy.request("POST", "/api/v1/fleet/login", { username, password }).then(
+Cypress.Commands.add("login", (email, password) => {
+  email ||= "admin@example.com";
+  password ||= "user123#";
+  cy.request("POST", "/api/v1/fleet/login", { email, password }).then(
     (resp) => {
-      window.localStorage.setItem("KOLIDE::auth_token", resp.body.token);
+      window.localStorage.setItem("FLEET::auth_token", resp.body.token);
     }
   );
 });
@@ -46,10 +47,42 @@ Cypress.Commands.add("logout", () => {
     method: "POST",
     body: {},
     auth: {
-      bearer: window.localStorage.getItem("KOLIDE::auth_token"),
+      bearer: window.localStorage.getItem("FLEET::auth_token"),
     },
   }).then(() => {
-    window.localStorage.removeItem("KOLIDE::auth_token");
+    window.localStorage.removeItem("FLEET::auth_token");
+  });
+});
+
+Cypress.Commands.add("seedQueries", () => {
+  const queries = [
+    {
+      name: "Detect presence of authorized SSH keys",
+      query:
+        "SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid)",
+      description:
+        "Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.",
+      observer_can_run: true,
+    },
+    {
+      name: "Get authorized keys for Domain Joined Accounts",
+      query:
+        "SELECT * FROM users CROSS JOIN authorized_keys USING(uid) WHERE username IN (SELECT distinct(username) FROM last);",
+      description: "List authorized_keys for each user on the system.",
+      observer_can_run: false,
+    },
+  ];
+
+  queries.forEach((queryForm) => {
+    const { name, query, description, observer_can_run } = queryForm;
+    cy.request({
+      url: "/api/v1/fleet/queries",
+      method: "POST",
+      body: { name, query, description, observer_can_run },
+      auth: {
+        bearer: window.localStorage.getItem("FLEET::auth_token"),
+      },
+    });
   });
 });
 
@@ -59,7 +92,7 @@ Cypress.Commands.add("setupSMTP", () => {
       authentication_type: "authtype_none",
       enable_smtp: true,
       port: 1025,
-      sender_address: "gabriel+dev@example.com",
+      sender_address: "fleet@example.com",
       server: "localhost",
     },
   };
@@ -69,7 +102,7 @@ Cypress.Commands.add("setupSMTP", () => {
     method: "PATCH",
     body,
     auth: {
-      bearer: window.localStorage.getItem("KOLIDE::auth_token"),
+      bearer: window.localStorage.getItem("FLEET::auth_token"),
     },
   });
 });
@@ -91,7 +124,7 @@ Cypress.Commands.add("setupSSO", (enable_idp_login = false) => {
     method: "PATCH",
     body,
     auth: {
-      bearer: window.localStorage.getItem("KOLIDE::auth_token"),
+      bearer: window.localStorage.getItem("FLEET::auth_token"),
     },
   });
 });
@@ -120,7 +153,7 @@ Cypress.Commands.add("loginSSO", () => {
       cy.request({
         method: "POST",
         url: redirect,
-        body: `username=user1&password=user1pass&AuthState=${authState}`,
+        body: `username=sso_user&password=user123#&AuthState=${authState}`,
         form: true,
         followRedirect: false,
       }).then((finalResponse) => {
@@ -148,4 +181,99 @@ Cypress.Commands.add("getEmails", () => {
       expect(response.status).to.eq(200);
       return response;
     });
+});
+
+Cypress.Commands.add("seedCore", () => {
+  const authToken = window.localStorage.getItem("FLEET::auth_token");
+  cy.exec("bash ./tools/api/fleet/teams/create_core", {
+    env: {
+      TOKEN: authToken,
+      CURL_FLAGS: "-k",
+      SERVER_URL: Cypress.config().baseUrl,
+      // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
+      FLEET_ENV_PATH: "",
+    },
+  });
+});
+
+Cypress.Commands.add("seedBasic", () => {
+  const authToken = window.localStorage.getItem("FLEET::auth_token");
+  cy.exec("bash ./tools/api/fleet/teams/create_basic", {
+    env: {
+      TOKEN: authToken,
+      CURL_FLAGS: "-k",
+      SERVER_URL: Cypress.config().baseUrl,
+      // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
+      FLEET_ENV_PATH: "",
+    },
+  });
+});
+
+Cypress.Commands.add("seedFigma", () => {
+  const authToken = window.localStorage.getItem("FLEET::auth_token");
+  cy.exec("bash ./tools/api/fleet/teams/create_figma", {
+    env: {
+      TOKEN: authToken,
+      CURL_FLAGS: "-k",
+      SERVER_URL: Cypress.config().baseUrl,
+      // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
+      FLEET_ENV_PATH: "",
+    },
+  });
+});
+
+Cypress.Commands.add("addUser", (options = {}) => {
+  let { password, email, globalRole } = options;
+  password ||= "test123#";
+  email ||= `admin@example.com`;
+  globalRole ||= "admin";
+
+  cy.exec(
+    `./build/fleetctl user create --context e2e --password "${password}" --email "${email}" --global-role "${globalRole}"`,
+    { timeout: 5000 }
+  );
+});
+
+// Ability to add a docker host to a team using args if ran after seedBasic()
+Cypress.Commands.add("addDockerHost", (team = "") => {
+  const serverPort = new URL(Cypress.config().baseUrl).port;
+  // Get enroll secret
+  let enrollSecretURL = "/api/v1/fleet/spec/enroll_secret";
+  if (team === "apples") {
+    enrollSecretURL = "/api/v1/fleet/teams/1/secrets";
+  } else if (team === "oranges") {
+    enrollSecretURL = "/api/v1/fleet/teams/2/secrets";
+  }
+
+  cy.request({
+    url: enrollSecretURL,
+    auth: {
+      bearer: window.localStorage.getItem("FLEET::auth_token"),
+    },
+  }).then(({ body }) => {
+    const enrollSecret =
+      team === "" ? body.spec.secrets[0].secret : body.secrets[0].secret;
+
+    // Start up docker-compose with enroll secret
+    cy.exec(
+      "docker-compose -f tools/osquery/docker-compose.yml up -d ubuntu20-osquery",
+      {
+        env: {
+          ENROLL_SECRET: enrollSecret,
+          FLEET_SERVER: `host.docker.internal:${serverPort}`,
+        },
+      }
+    );
+  });
+});
+
+Cypress.Commands.add("stopDockerHost", () => {
+  // Start up docker-compose with enroll secret
+  cy.exec("docker-compose -f tools/osquery/docker-compose.yml stop", {
+    env: {
+      // Not that ENROLL_SECRET must be specified or docker-compose errors,
+      // even when just trying to shut down the hosts.
+      ENROLL_SECRET: "invalid",
+    },
+  });
 });

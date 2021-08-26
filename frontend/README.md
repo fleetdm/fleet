@@ -5,7 +5,7 @@ The Fleet front-end is a Single Page Application using React and Redux.
 ## Running the Fleet web app
 
 For details instruction on building and serving the Fleet web application
-consult the [Development Documentation](https://github.com/fleetdm/fleet/tree/master/docs/3-Deployment)
+consult the [Contributing documentation](../docs/3-Contributing/README.md).
 
 ## Directory Structure
 
@@ -23,15 +23,15 @@ typical directory structure for a component is as follows:
 |  |-- index.js
 ```
 
-* `_styles.scss`: The component css styles
-* `ComponentName.jsx`: The React component
-* `ComponentName.tests.jsx`: The React component tests
-* `helpers.js`: Helper functions used by the component
-* `helpers.tests.js`: Tests for the component's helper functions
-* `index.js`: Exports the React component
-  * This file is helpful as it allows other components to import the component
+- `_styles.scss`: The component css styles
+- `ComponentName.jsx`: The React component
+- `ComponentName.tests.jsx`: The React component tests
+- `helpers.js`: Helper functions used by the component
+- `helpers.tests.js`: Tests for the component's helper functions
+- `index.js`: Exports the React component
+  - This file is helpful as it allows other components to import the component
     by it's directory name. Without this file the component name would have to
-be duplicated during imports (`components/ComponentName` vs. `components/ComponentName/ComponentName`).
+    be duplicated during imports (`components/ComponentName` vs. `components/ComponentName/ComponentName`).
 
 ### [app_constants](./app_constants)
 
@@ -41,6 +41,7 @@ that require constants, the constants should be added here for accessibility
 throughout the application.
 
 ### [components](./components)
+
 The component directory contains the React components rendered by pages. They
 are typically not connected to the redux state but receive props from their
 parent components to render data and handle user interactions.
@@ -52,12 +53,12 @@ entity. This is designed to DRY up the code and increase re-usability. These
 interfaces are imported into component files and implemented when defining the
 component's PropTypes.
 
-### [kolide](./kolide)
+### [fleet](./fleet)
 
-The default export of the kolide directory is the API client. More info can be
-found at the [API client documentation page](./kolide/README.md).
+The default export of the `fleet` directory is the API client. More info can be
+found at the [API client documentation page](./fleet/README.md).
 
-### [layouts](https://github.com/fleetdm/fleet/tree/master/frontend/layouts)
+### [layouts](https://github.com/fleetdm/fleet/tree/main/frontend/layouts)
 
 The Fleet application has only 1 layout, the [Core Layout](./layouts/CoreLayout/CoreLayout.jsx).
 The Layout is rendered from the [router](./router/index.jsx) and are used to set up the general app UI (header, sidebar) and render child components.
@@ -97,7 +98,7 @@ includes variables for the app color hex codes, fonts (families, weights and siz
 ### [templates](./templates)
 
 The templates directory contains the HTML file that renders the React application via including the `bundle.js`
- and `bundle.css` files. The HTML page also includes the HTML element in which the React application is mounted.
+and `bundle.css` files. The HTML page also includes the HTML element in which the React application is mounted.
 
 ### [test](./test)
 
@@ -117,4 +118,4 @@ For details on creating a Fleet form visit the [Fleet Form Documentation](./comp
 
 ## API Client
 
-For details on the Fleet API Client visit the [Fleet API Client Documentation](./kolide/README.md).
+For details on the Fleet API Client visit the [Fleet API Client Documentation](./fleet/README.md).

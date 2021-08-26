@@ -53,19 +53,19 @@ func (e *notFoundError) IsNotFound() bool {
 }
 
 type existsError struct {
-	ID           uint
+	Identifier   interface{}
 	ResourceType string
 }
 
-func alreadyExists(kind string, id uint) error {
+func alreadyExists(kind string, identifier interface{}) error {
 	return &existsError{
-		ID:           id,
+		Identifier:   identifier,
 		ResourceType: kind,
 	}
 }
 
 func (e *existsError) Error() string {
-	return fmt.Sprintf("%s %d already exists in the datastore", e.ResourceType, e.ID)
+	return fmt.Sprintf("%s %v already exists", e.ResourceType, e.Identifier)
 }
 
 func (e *existsError) IsExists() bool {

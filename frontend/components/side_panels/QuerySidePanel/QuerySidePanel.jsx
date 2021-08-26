@@ -6,7 +6,7 @@ import IconToolTip from "components/IconToolTip";
 import osqueryTableInterface from "interfaces/osquery_table";
 import { osqueryTableNames } from "utilities/osquery_tables";
 import Dropdown from "components/forms/fields/Dropdown";
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
 
 import displayTypeForDataType from "./helpers";
@@ -91,7 +91,7 @@ class QuerySidePanel extends Component {
     return (
       <SecondarySidePanelContainer className={baseClass}>
         <div className={`${baseClass}__choose-table`}>
-          <h2 className={`${baseClass}__header`}>Documentation</h2>
+          <h2 className={`${baseClass}__header`}>Tables</h2>
           {renderTableSelect()}
           <p className={`${baseClass}__description`}>{description}</p>
         </div>
@@ -103,13 +103,13 @@ class QuerySidePanel extends Component {
               if (platform === "all") {
                 return (
                   <li key={platform}>
-                    <KolideIcon name="hosts" /> {platform}
+                    <FleetIcon name="hosts" /> {platform}
                   </li>
                 );
               } else if (platform === "freebsd") {
                 return (
                   <li key={platform}>
-                    <KolideIcon name="single-host" /> {platform}
+                    <FleetIcon name="single-host" /> {platform}
                   </li>
                 );
               }

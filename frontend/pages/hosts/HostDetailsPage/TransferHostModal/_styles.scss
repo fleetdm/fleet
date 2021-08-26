@@ -1,0 +1,102 @@
+.transfer-host-modal {
+  #error-icon {
+    height: 12px;
+    width: 12px;
+    margin-right: 8px;
+  }
+
+  #new-tab-icon {
+    height: 12px;
+    width: 12px;
+    margin-left: 6px;
+  }
+
+  &__modal {
+    @include position(absolute, 22px null null null);
+    background-color: $core-white;
+    width: 658px;
+    padding: $pad-xxlarge;
+    border-radius: $pad-small;
+
+    a {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
+    .info {
+      display: flex;
+
+      &__header {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: $bold;
+        font-size: $x-small;
+        text-align: left;
+      }
+      &__data {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: normal;
+        font-size: $x-small;
+        text-align: left;
+        margin-top: 10px;
+      }
+    }
+  }
+
+  &__no-queries {
+    .info {
+      &__header {
+        margin: $pad-medium 0 $pad-medium 0;
+      }
+      &__data {
+        margin: 0 0 $pad-large 0;
+      }
+    }
+  }
+
+  &__query-modal {
+    display: flex;
+  }
+
+  &__filter-queries {
+    flex-grow: 3;
+    position: relative;
+
+    &::before {
+      display: inline-block;
+      position: absolute;
+      padding: 5px 0 0 0; // centers spin
+      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
+      transform: scale(0.5);
+      height: 20px;
+      top: 3px;
+      left: 8px;
+    }
+
+    .input-field {
+      padding-left: 44px;
+    }
+
+    .fleeticon {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: $medium;
+      color: $ui-fleet-black-25;
+    }
+  }
+
+  &__create-query {
+    span {
+      margin: 15px;
+      font-weight: bold;
+    }
+  }
+
+  &__custom-query-button {
+    font-size: $x-small;
+  }
+}

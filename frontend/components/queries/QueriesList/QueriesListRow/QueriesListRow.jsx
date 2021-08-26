@@ -18,6 +18,7 @@ class QueriesListRow extends Component {
     onDoubleClick: PropTypes.func,
     query: queryInterface.isRequired,
     selected: PropTypes.bool,
+    isOnlyObserver: PropTypes.bool,
   };
 
   shouldComponentUpdate(nextProps) {
@@ -47,7 +48,7 @@ class QueriesListRow extends Component {
   };
 
   render() {
-    const { checked, query, selected } = this.props;
+    const { checked, query, selected, isOnlyObserver } = this.props;
     const { onCheck, onSelect, onDblClick } = this;
     const {
       author_name: authorName,
@@ -55,6 +56,7 @@ class QueriesListRow extends Component {
       name,
       updated_at: updatedAt,
       description,
+      observer_can_run,
     } = query;
     const lastModifiedDate = moment(updatedAt).format("MM/DD/YY");
     const rowClassName = classnames(baseClass, {
@@ -76,7 +78,12 @@ class QueriesListRow extends Component {
         </td>
         <td className={`${baseClass}__name`}>{name}</td>
         <td className={`${baseClass}__description`}>{description}</td>
-        <td className={`${baseClass}__author-name`}>{authorName}</td>
+        {isOnlyObserver ? null : (
+          <td className={`${baseClass}__observers-can-run`}>
+            {observer_can_run.toString()}
+          </td>
+        )}
+        <td className={`${baseClass}__author-name`}>{authorName || "---"}</td>
         <td>{lastModifiedDate}</td>
       </ClickableTableRow>
     );

@@ -15,13 +15,15 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/fleetdm/fleet/server/service"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
 const (
-	downloadUrl = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
+	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
+	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/1-Using-Fleet/standard-query-library/standard-query-library.yml"
+	licenseKeyFlagName      = "license-key"
 )
 
 func previewCommand() *cli.Command {
@@ -39,6 +41,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.StringFlag{
+				Name:  licenseKeyFlagName,
+				Usage: "License key to enable Fleet Basic (optional)",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if err := checkDocker(); err != nil {
@@ -74,7 +80,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Starting Docker containers...")
-			out, err = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01").CombinedOutput()
+			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
@@ -88,7 +96,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// Start fleet02 (UI server) after fleet01 (agent/fleetctl server)
 			// has finished starting up so that there is no conflict with
 			// running database migrations.
-			out, err = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "fleet02").CombinedOutput()
+			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "fleet02")
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
@@ -97,16 +107,16 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			fmt.Println("Initializing server...")
 			const (
 				address  = "https://localhost:8412"
-				username = "admin"
+				email    = "admin@example.com"
 				password = "admin123#"
 			)
 
-			fleet, err := service.NewClient(address, true, "", "")
+			fleetClient, err := service.NewClient(address, true, "", "")
 			if err != nil {
 				return errors.Wrap(err, "Error creating Fleet API client handler")
 			}
 
-			token, err := fleet.Setup(username, username, password, "Fleet Preview")
+			token, err := fleetClient.Setup(email, "Admin", password, "Fleet Preview")
 			if err != nil {
 				switch errors.Cause(err).(type) {
 				case service.SetupAlreadyErr:
@@ -120,7 +130,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			contextConfig := Context{
 				Address:       address,
-				Email:         username,
+				Email:         email,
 				Token:         token,
 				TLSSkipVerify: true,
 			}
@@ -143,7 +153,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Fleet UI is now available at http://localhost:1337.")
-			fmt.Println("Username:", username)
+			fmt.Println("Email:", email)
 			fmt.Println("Password:", password)
 
 			// Create client and get enroll secret
@@ -152,7 +162,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error making fleetctl client")
 			}
 
-			token, err = client.Login(username, password)
+			token, err = client.Login(email, password)
 			if err != nil {
 				return errors.Wrap(err, "fleetctl login failed")
 			}
@@ -162,19 +172,35 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			client.SetToken(token)
 
+			fmt.Println("Loading standard query library...")
+			buf, err := downloadStandardQueryLibrary()
+			if err != nil {
+				return errors.Wrap(err, "failed to download standard query library")
+			}
+
+			specGroup, err := specGroupFromBytes(buf)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse standard query library")
+			}
+
+			err = client.ApplyQueries(specGroup.Queries)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply standard query library")
+			}
+
 			secrets, err := client.GetEnrollSecretSpec()
 			if err != nil {
 				return errors.Wrap(err, "Error retrieving enroll secret")
 			}
 
-			if len(secrets.Secrets) != 1 || !secrets.Secrets[0].Active {
+			if len(secrets.Secrets) != 1 {
 				return errors.New("Expected 1 active enroll secret")
 			}
 
 			fmt.Println("Starting simulated hosts...")
-			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans")
+			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(cmd.Env,
+			cmd.Env = append(os.Environ(),
 				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
 				"FLEET_URL="+address,
 			)
@@ -226,6 +252,21 @@ func downloadFiles() error {
 	}
 
 	return nil
+}
+
+func downloadStandardQueryLibrary() ([]byte, error) {
+	resp, err := http.Get(standardQueryLibraryUrl)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("status: %d", resp.StatusCode)
+	}
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "read response body")
+	}
+	return buf, nil
 }
 
 // Adapted from https://stackoverflow.com/a/24792688/491710
@@ -355,7 +396,7 @@ func previewStopCommand() *cli.Command {
 
 			cmd := exec.Command("docker-compose", "stop")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(cmd.Env,
+			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
 				// stopping because docker-compose will error otherwise.
 				"ENROLL_SECRET=empty",
@@ -404,7 +445,7 @@ func previewResetCommand() *cli.Command {
 
 			cmd := exec.Command("docker-compose", "rm", "-sf")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(cmd.Env,
+			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
 				// stopping because docker-compose will error otherwise.
 				"ENROLL_SECRET=empty",

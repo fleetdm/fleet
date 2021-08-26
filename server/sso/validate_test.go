@@ -16,7 +16,7 @@ func testMetadata() Metadata {
 	var metadata Metadata
 	if err := xml.Unmarshal([]byte(`
 <?xml version="1.0" encoding="UTF-8"?>
-  <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://kolide-dev-ed.my.salesforce.com" validUntil="2027-04-29T19:22:40.750Z" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://fleet-dev-ed.my.salesforce.com" validUntil="2027-04-29T19:22:40.750Z" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
       <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
          <md:KeyDescriptor use="signing">
             <ds:KeyInfo>
@@ -26,8 +26,8 @@ func testMetadata() Metadata {
             </ds:KeyInfo>
          </md:KeyDescriptor>
          <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
-         <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://kolide-dev-ed.my.salesforce.com/idp/endpoint/HttpPost"/>
-         <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://kolide-dev-ed.my.salesforce.com/idp/endpoint/HttpRedirect"/>
+         <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://fleet-dev-ed.my.salesforce.com/idp/endpoint/HttpPost"/>
+         <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://fleet-dev-ed.my.salesforce.com/idp/endpoint/HttpRedirect"/>
       </md:IDPSSODescriptor>
    </md:EntityDescriptor>
 `), &metadata); err != nil {
@@ -76,7 +76,7 @@ func tamperedResponse(original string) (string, error) {
 		return "", err
 	}
 	// change name
-	resp.Assertion.Subject.NameID.Value = "bob@kolide.co"
+	resp.Assertion.Subject.NameID.Value = "bob@fleet.co"
 	var wrtr bytes.Buffer
 	err = xml.NewEncoder(&wrtr).Encode(resp)
 	if err != nil {

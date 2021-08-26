@@ -48,9 +48,9 @@ describe("TargetDetails - component", () => {
       it("renders a success check icon when the target is online", () => {
         const target = { ...Test.Stubs.hostStub, status: "online" };
         const Component = mount(<TargetDetails target={target} />);
-        const KolideIcon = Component.find("KolideIcon");
-        const onlineIcon = KolideIcon.find(".host-target__icon--online");
-        const offlineIcon = KolideIcon.find(".host-target__icon--offline");
+        const FleetIcon = Component.find("FleetIcon");
+        const onlineIcon = FleetIcon.find(".host-target__icon--online");
+        const offlineIcon = FleetIcon.find(".host-target__icon--offline");
 
         expect(onlineIcon.length).toBeGreaterThan(
           0,
@@ -65,9 +65,9 @@ describe("TargetDetails - component", () => {
       it("renders a offline icon when the target is offline", () => {
         const target = { ...Test.Stubs.hostStub, status: "offline" };
         const Component = mount(<TargetDetails target={target} />);
-        const KolideIcon = Component.find("KolideIcon");
-        const onlineIcon = KolideIcon.find(".host-target__icon--online");
-        const offlineIcon = KolideIcon.find(".host-target__icon--offline");
+        const FleetIcon = Component.find("FleetIcon");
+        const onlineIcon = FleetIcon.find(".host-target__icon--online");
+        const offlineIcon = FleetIcon.find(".host-target__icon--offline");
 
         expect(onlineIcon.length).toEqual(
           0,

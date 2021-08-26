@@ -9,7 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -24,13 +24,13 @@ const (
 
 // generateS3Key builds S3 key from carve metadata
 // all keys are prefixed by date so that they can easily be listed chronologically
-func (d *Datastore) generateS3Key(metadata *kolide.CarveMetadata) string {
+func (d *Datastore) generateS3Key(metadata *fleet.CarveMetadata) string {
 	simpleDateHour := metadata.CreatedAt.Format(timePrefixFormat)
 	return fmt.Sprintf("%s%s/%s", d.prefix, simpleDateHour, metadata.Name)
 }
 
 // NewCarve initializes a new file carving session
-func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetadata, error) {
+func (d *Datastore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	objectKey := d.generateS3Key(metadata)
 	res, err := d.s3client.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
 		Bucket: &d.bucket,
@@ -45,7 +45,7 @@ func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetad
 
 // UpdateCarve updates carve definition in database
 // Only max_block and expired are updatable
-func (d *Datastore) UpdateCarve(metadata *kolide.CarveMetadata) error {
+func (d *Datastore) UpdateCarve(metadata *fleet.CarveMetadata) error {
 	return d.metadatadb.UpdateCarve(metadata)
 }
 
@@ -91,8 +91,8 @@ func (d *Datastore) listS3Carves(lastPrefix string, maxKeys int) (map[string]boo
 func (d *Datastore) CleanupCarves(now time.Time) (int, error) {
 	var err error
 	// Get the 1000 oldest carves
-	nonExpiredCarves, err := d.ListCarves(kolide.CarveListOptions{
-		ListOptions: kolide.ListOptions{PerPage: cleanupSize},
+	nonExpiredCarves, err := d.ListCarves(fleet.CarveListOptions{
+		ListOptions: fleet.ListOptions{PerPage: cleanupSize},
 		Expired:     false,
 	})
 	if err != nil {
@@ -118,22 +118,22 @@ func (d *Datastore) CleanupCarves(now time.Time) (int, error) {
 }
 
 // Carve returns carve metadata by ID
-func (d *Datastore) Carve(carveID int64) (*kolide.CarveMetadata, error) {
+func (d *Datastore) Carve(carveID int64) (*fleet.CarveMetadata, error) {
 	return d.metadatadb.Carve(carveID)
 }
 
 // CarveBySessionId returns carve metadata by session ID
-func (d *Datastore) CarveBySessionId(sessionID string) (*kolide.CarveMetadata, error) {
+func (d *Datastore) CarveBySessionId(sessionID string) (*fleet.CarveMetadata, error) {
 	return d.metadatadb.CarveBySessionId(sessionID)
 }
 
 // CarveByName returns carve metadata by name
-func (d *Datastore) CarveByName(name string) (*kolide.CarveMetadata, error) {
+func (d *Datastore) CarveByName(name string) (*fleet.CarveMetadata, error) {
 	return d.metadatadb.CarveByName(name)
 }
 
 // ListCarves returns a list of the currently available carves
-func (d *Datastore) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
+func (d *Datastore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 	return d.metadatadb.ListCarves(opt)
 }
 
@@ -167,7 +167,7 @@ func (d *Datastore) listCompletedParts(objectKey, uploadID string) ([]*s3.Comple
 }
 
 // NewBlock uploads a new block for a specific carve
-func (d *Datastore) NewBlock(metadata *kolide.CarveMetadata, blockID int64, data []byte) error {
+func (d *Datastore) NewBlock(metadata *fleet.CarveMetadata, blockID int64, data []byte) error {
 	objectKey := d.generateS3Key(metadata)
 	partNumber := blockID + 1 // PartNumber is 1-indexed
 	_, err := d.s3client.UploadPart(&s3.UploadPartInput{
@@ -206,7 +206,7 @@ func (d *Datastore) NewBlock(metadata *kolide.CarveMetadata, blockID int64, data
 }
 
 // GetBlock returns a block of data for a carve
-func (d *Datastore) GetBlock(metadata *kolide.CarveMetadata, blockID int64) ([]byte, error) {
+func (d *Datastore) GetBlock(metadata *fleet.CarveMetadata, blockID int64) ([]byte, error) {
 	objectKey := d.generateS3Key(metadata)
 	// blockID is 0-indexed and sequential so can be perfectly used for evaluating ranges
 	// range extremes are inclusive as for RFC-2616 (section 14.35)

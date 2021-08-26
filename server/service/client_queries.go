@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
 // ApplyQueries sends the list of Queries to be applied (upserted) to the
 // Fleet instance.
-func (c *Client) ApplyQueries(specs []*kolide.QuerySpec) error {
+func (c *Client) ApplyQueries(specs []*fleet.QuerySpec) error {
 	req := applyQuerySpecsRequest{Specs: specs}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/spec/queries", "", req)
 	if err != nil {
@@ -41,7 +41,7 @@ func (c *Client) ApplyQueries(specs []*kolide.QuerySpec) error {
 }
 
 // GetQuery retrieves the list of all Queries.
-func (c *Client) GetQuery(name string) (*kolide.QuerySpec, error) {
+func (c *Client) GetQuery(name string) (*fleet.QuerySpec, error) {
 	verb, path := "GET", "/api/v1/fleet/spec/queries/"+url.PathEscape(name)
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
@@ -75,7 +75,7 @@ func (c *Client) GetQuery(name string) (*kolide.QuerySpec, error) {
 }
 
 // GetQueries retrieves the list of all Queries.
-func (c *Client) GetQueries() ([]*kolide.QuerySpec, error) {
+func (c *Client) GetQueries() ([]*fleet.QuerySpec, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/spec/queries", "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/fleet/spec/queries")

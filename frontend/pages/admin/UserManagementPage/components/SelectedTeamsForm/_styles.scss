@@ -1,0 +1,28 @@
+.selected-teams-form {
+  border: 1px solid $ui-fleet-blue-15;
+  border-radius: $border-radius;
+  background-color: $ui-off-white;
+  padding: $pad-medium;
+
+  &__team-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $pad-xsmall;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-field {
+      margin-bottom: 0;
+    }
+  }
+
+  &__role-dropdown {
+    .Select-control {
+      border: none;
+      width: 130px;
+    }
+  }
+}

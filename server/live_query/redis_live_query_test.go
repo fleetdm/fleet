@@ -1,20 +1,15 @@
 package live_query
 
 import (
-	"os"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/pubsub"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRedisLiveQuery(t *testing.T) {
-	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
-		t.Skip("Redis tests not requested. Skipping.")
-	}
-
 	for _, f := range testFunctions {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			store, teardown := setupRedisLiveQuery(t)
@@ -32,9 +27,11 @@ func setupRedisLiveQuery(t *testing.T) (store *redisLiveQuery, teardown func()) 
 		useTLS   = false
 	)
 
-	store = NewRedisLiveQuery(pubsub.NewRedisPool(addr, password, database, useTLS))
+	pool, err := pubsub.NewRedisPool(addr, password, database, useTLS)
+	require.NoError(t, err)
+	store = NewRedisLiveQuery(pool)
 
-	_, err := store.pool.Get().Do("PING")
+	_, err = store.pool.Get().Do("PING")
 	require.NoError(t, err)
 
 	teardown = func() {

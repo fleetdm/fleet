@@ -21,8 +21,8 @@ describe("AuthenticatedAdminRoutes - layout", () => {
     expect(mockStore.getActions()).toContainEqual(redirectToHomeAction);
   });
 
-  it("does not redirect if the user is an admin", () => {
-    const user = { id: 1, admin: true };
+  it("does not redirect if the user is a global admin", () => {
+    const user = { id: 1, global_role: "admin" };
     const storeWithAdminUser = { auth: { user } };
     const mockStore = reduxMockStore(storeWithAdminUser);
     mount(connectedComponent(ConnectedAdminRoutes, { mockStore }));

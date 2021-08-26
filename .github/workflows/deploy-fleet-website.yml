@@ -2,7 +2,7 @@ name: Deploy Fleet website
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -56,7 +56,7 @@ jobs:
     # (This commit will never be pushed to GitHub- only to Heroku.)
     # > The local config flags make this work in GitHub's environment.
     - run: git add website/.www
-    - run: git add website/views/partials/built-from-markdown  > /dev/null 2>&1 || echo '* * * WARNING - Silently ignoring the fact that there are no HTML partials generated from markdown to include in automated commit...'
+    - run: git add -f website/views/partials/built-from-markdown  > /dev/null 2>&1 || echo '* * * WARNING - Silently ignoring the fact that there are no HTML partials generated from markdown to include in automated commit...'
     - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.'
 
     # Configure the Heroku app we'll be deploying to
@@ -68,6 +68,6 @@ jobs:
     - run: echo "Unshallowing local repository…"
     - run: git fetch --prune --unshallow
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
-    - run: git push heroku +${GITHUB_REF##*/}:master
+    - run: git push heroku +${GITHUB_REF##*/}:master  # note that Heroku, at least as of Jun 10 2021, still uses "master" on their end
     - name: 🌐 https://fleetdm.com
       run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'

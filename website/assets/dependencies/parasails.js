@@ -2,7 +2,7 @@
  * parasails.js
  * (lightweight structures for apps with more than one page)
  *
- * v0.9.2
+ * v0.9.3
  *
  * Copyright 2014-present, Mike McNeil (@mikermcneil)
  * MIT License
@@ -167,7 +167,7 @@
     // > This is particularly useful for catching loose top-level properties
     // > that were intended to be within `data` or `methods`, etc.)
     if (currentModuleEntityNoun === 'page script' || currentModuleEntityNoun === 'component') {
-      // FUTURE: don't allow page-script only things on components
+      // FUTURE: don't allow page script only things on components
 
       var LEGAL_TOP_LVL_KEYS = [
         // Everyday page script stuff:
@@ -723,8 +723,22 @@
     if (!pageName) { throw new Error('1st argument (page name) is required'); }
     if (!def) { throw new Error('2nd argument (page script definition) is required'); }
 
+    // Don't look for a matching DOM element (by "id") within anything that has `parasails-has-no-page-script`
+    // FUTURE: Move this check a bit further below, probably without defining the variable, and just add another avast (aka early return)
+    var isWithinIgnoredElements;
+    if ($) {
+      // Note that, luckily, this works even without waiting for the DOM to be ready according to jQuery.  (i.e. $(()=>{ … }))
+      isWithinIgnoredElements = (
+        $('#'+pageName).parents().filter('[parasails-has-no-page-script]')
+      ).length >= 1;
+    } else {
+      // For simplicity, this check is skipped if jQuery is not available.
+      // FUTURE: Implement with vanilla JS here
+      isWithinIgnoredElements = false;
+    }
+
     // Only actually build+load this page script if it is relevant for the current contents of the DOM.
-    if (!document.getElementById(pageName)) { return; }//eslint-disable-line no-undef
+    if (!window.document.getElementById(pageName) || isWithinIgnoredElements) { return; }
 
     // Spinlock
     if (didAlreadyLoadPageScript) { throw new Error('Cannot load page script (`'+pageName+') because a page script has already been loaded on this page.'); }

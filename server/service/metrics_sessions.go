@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw metricsMiddleware) SSOSettings(ctx context.Context) (settings *kolide.SSOSettings, err error) {
+func (mw metricsMiddleware) SSOSettings(ctx context.Context) (settings *fleet.SessionSSOSettings, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "SSOSettings", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "SessionSSOSettings", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -28,7 +28,7 @@ func (mw metricsMiddleware) InitiateSSO(ctx context.Context, relayValue string) 
 	return
 }
 
-func (mw metricsMiddleware) CallbackSSO(ctx context.Context, auth kolide.Auth) (sess *kolide.SSOSession, err error) {
+func (mw metricsMiddleware) CallbackSSO(ctx context.Context, auth fleet.Auth) (sess *fleet.SSOSession, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "CallbackSSO", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
@@ -38,9 +38,9 @@ func (mw metricsMiddleware) CallbackSSO(ctx context.Context, auth kolide.Auth) (
 	return
 }
 
-func (mw metricsMiddleware) Login(ctx context.Context, username string, password string) (*kolide.User, string, error) {
+func (mw metricsMiddleware) Login(ctx context.Context, email string, password string) (*fleet.User, string, error) {
 	var (
-		user  *kolide.User
+		user  *fleet.User
 		token string
 		err   error
 	)
@@ -49,7 +49,7 @@ func (mw metricsMiddleware) Login(ctx context.Context, username string, password
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	user, token, err = mw.Service.Login(ctx, username, password)
+	user, token, err = mw.Service.Login(ctx, email, password)
 	return user, token, err
 }
 
@@ -79,9 +79,9 @@ func (mw metricsMiddleware) DestroySession(ctx context.Context) error {
 	return err
 }
 
-func (mw metricsMiddleware) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {
+func (mw metricsMiddleware) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
 	var (
-		sessions []*kolide.Session
+		sessions []*fleet.Session
 		err      error
 	)
 	defer func(begin time.Time) {
@@ -106,9 +106,9 @@ func (mw metricsMiddleware) DeleteSessionsForUser(ctx context.Context, id uint) 
 	return err
 }
 
-func (mw metricsMiddleware) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Session, error) {
+func (mw metricsMiddleware) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Session, error) {
 	var (
-		session *kolide.Session
+		session *fleet.Session
 		err     error
 	)
 	defer func(begin time.Time) {
@@ -117,20 +117,6 @@ func (mw metricsMiddleware) GetInfoAboutSession(ctx context.Context, id uint) (*
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	session, err = mw.Service.GetInfoAboutSession(ctx, id)
-	return session, err
-}
-
-func (mw metricsMiddleware) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
-	var (
-		session *kolide.Session
-		err     error
-	)
-	defer func(begin time.Time) {
-		lvs := []string{"method", "GetSessionByKey", "error", fmt.Sprint(err != nil)}
-		mw.requestCount.With(lvs...).Add(1)
-		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	session, err = mw.Service.GetSessionByKey(ctx, key)
 	return session, err
 }
 

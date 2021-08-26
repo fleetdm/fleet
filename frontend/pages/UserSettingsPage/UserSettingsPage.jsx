@@ -4,11 +4,7 @@ import { connect } from "react-redux";
 import { goBack } from "react-router-redux";
 import moment from "moment";
 import { authToken } from "utilities/local";
-import {
-  copyText,
-  COPY_TEXT_SUCCESS,
-  COPY_TEXT_ERROR,
-} from "utilities/copy_text";
+import { stringToClipboard } from "utilities/copy_text";
 
 import { noop } from "lodash";
 
@@ -17,27 +13,29 @@ import Button from "components/buttons/Button";
 import ChangeEmailForm from "components/forms/ChangeEmailForm";
 import ChangePasswordForm from "components/forms/ChangePasswordForm";
 import deepDifference from "utilities/deep_difference";
-import KolideIcon from "components/icons/KolideIcon";
+import permissionUtils from "utilities/permissions";
+import FleetIcon from "components/icons/FleetIcon";
 import InputField from "components/forms/fields/InputField";
 import { logoutUser, updateUser } from "redux/nodes/auth/actions";
 import Modal from "components/modals/Modal";
+import configInterface from "interfaces/config";
+import versionInterface from "interfaces/version";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import versionActions from "redux/nodes/version/actions";
 import userInterface from "interfaces/user";
 import UserSettingsForm from "components/forms/UserSettingsForm";
+import { generateRole, generateTeam, greyCell } from "fleet/helpers";
 
 const baseClass = "user-settings";
 
 export class UserSettingsPage extends Component {
   static propTypes = {
+    config: configInterface,
     dispatch: PropTypes.func.isRequired,
-    version: PropTypes.shape({
-      version: PropTypes.string,
-      go_version: PropTypes.string,
-    }),
+    version: versionInterface,
     errors: PropTypes.shape({
-      username: PropTypes.string,
+      email: PropTypes.string,
       base: PropTypes.string,
     }),
     user: userInterface,
@@ -46,6 +44,7 @@ export class UserSettingsPage extends Component {
       new_password: PropTypes.string,
       old_password: PropTypes.string,
     }),
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -61,6 +60,7 @@ export class UserSettingsPage extends Component {
       showEmailModal: false,
       showPasswordModal: false,
       updatedUser: {},
+      copyMessage: "",
     };
   }
 
@@ -148,23 +148,23 @@ export class UserSettingsPage extends Component {
     return false;
   };
 
-  onCopySecret = (elementClass) => {
+  onCopySecret = () => {
     return (evt) => {
       evt.preventDefault();
 
-      const { dispatch } = this.props;
+      stringToClipboard(authToken())
+        .then(() => this.setState({ copyMessage: "Copied!" }))
+        .catch(() => this.setState({ copyMessage: "Copy failed" }));
 
-      if (copyText(elementClass)) {
-        dispatch(renderFlash("success", COPY_TEXT_SUCCESS));
-      } else {
-        this.setState({ revealSecret: true });
-        dispatch(renderFlash("error", COPY_TEXT_ERROR));
-      }
+      // Clear message after 1 second
+      setTimeout(() => this.setState({ copyMessage: "" }), 1000);
+
+      return false;
     };
   };
 
   handleSubmit = (formData) => {
-    const { dispatch, user } = this.props;
+    const { dispatch, user, config } = this.props;
     const updatedUser = deepDifference(formData, user);
 
     if (updatedUser.email && !updatedUser.password) {
@@ -173,11 +173,13 @@ export class UserSettingsPage extends Component {
 
     return dispatch(updateUser(user, updatedUser))
       .then(() => {
+        let accountUpdatedFlashMessage = "Account updated";
         if (updatedUser.email) {
+          accountUpdatedFlashMessage += `: A confirmation email was sent from ${config.sender_address} to ${updatedUser.email}`;
           this.setState({ pendingEmail: updatedUser.email });
         }
 
-        dispatch(renderFlash("success", "Account updated!"));
+        dispatch(renderFlash("success", accountUpdatedFlashMessage));
 
         return true;
       })
@@ -211,10 +213,10 @@ export class UserSettingsPage extends Component {
     }
 
     return (
-      <Modal
-        title="To change your email you must supply your password"
-        onExit={onToggleEmailModal}
-      >
+      <Modal title="Confirm email update" onExit={onToggleEmailModal}>
+        <div className={`${baseClass}__confirm-update`}>
+          To update your email you must confirm your password.
+        </div>
         <ChangeEmailForm
           formData={updatedUser}
           handleSubmit={emailSubmit}
@@ -245,9 +247,29 @@ export class UserSettingsPage extends Component {
     );
   };
 
+  renderLabel = () => {
+    const { copyMessage } = this.state;
+    const { onCopySecret } = this;
+
+    return (
+      <span className={`${baseClass}__name`}>
+        <span className="buttons">
+          {copyMessage && <span>{`${copyMessage} `}</span>}
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__secret-copy-icon`}
+            onClick={onCopySecret(`.${baseClass}__secret-input`)}
+          >
+            <FleetIcon name="clipboard" />
+          </Button>
+        </span>
+      </span>
+    );
+  };
+
   renderApiTokenModal = () => {
     const { showApiTokenModal, revealSecret } = this.state;
-    const { onToggleApiTokenModal, onCopySecret, onToggleSecret } = this;
+    const { onToggleApiTokenModal, onToggleSecret, renderLabel } = this;
 
     if (!showApiTokenModal) {
       return false;
@@ -272,14 +294,8 @@ export class UserSettingsPage extends Component {
             name="osqueryd-secret"
             type={revealSecret ? "text" : "password"}
             value={authToken()}
+            label={renderLabel()}
           />
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__secret-copy-icon`}
-            onClick={onCopySecret(`.${baseClass}__secret-input`)}
-          >
-            <KolideIcon name="clipboard" />
-          </Button>
         </div>
         <div className={`${baseClass}__button-wrap`}>
           <Button
@@ -303,15 +319,23 @@ export class UserSettingsPage extends Component {
       renderPasswordModal,
       renderApiTokenModal,
     } = this;
-    const { version, errors, user } = this.props;
+    const { version, errors, user, config, isBasicTier } = this.props;
     const { pendingEmail } = this.state;
 
     if (!user) {
       return false;
     }
 
-    const { admin, updated_at: updatedAt, sso_enabled: ssoEnabled } = user;
-    const roleText = admin ? "Admin" : "User";
+    const {
+      global_role: globalRole,
+      updated_at: updatedAt,
+      sso_enabled: ssoEnabled,
+      teams,
+    } = user;
+
+    const roleText = generateRole(teams, globalRole);
+    const teamsText = generateTeam(teams, globalRole);
+
     const lastUpdatedAt = moment(updatedAt).fromNow();
 
     return (
@@ -324,21 +348,35 @@ export class UserSettingsPage extends Component {
             onCancel={onCancel}
             pendingEmail={pendingEmail}
             serverErrors={errors}
+            smtpConfigured={config.configured}
           />
         </div>
         <div className={`${baseClass}__additional body-wrap`}>
-          <h2>Photo</h2>
-
           <div className={`${baseClass}__change-avatar`}>
             <Avatar user={user} className={`${baseClass}__avatar`} />
             <a href="http://en.gravatar.com/emails/">
               Change photo at Gravatar
             </a>
           </div>
-
+          {isBasicTier && (
+            <div className={`${baseClass}__more-info-detail`}>
+              <p className={`${baseClass}__header`}>Teams</p>
+              <p
+                className={`${baseClass}__description ${baseClass}__teams ${greyCell(
+                  teamsText
+                )}`}
+              >
+                {teamsText}
+              </p>
+            </div>
+          )}
           <div className={`${baseClass}__more-info-detail`}>
             <p className={`${baseClass}__header`}>Role</p>
-            <p className={`${baseClass}__description ${baseClass}__role`}>
+            <p
+              className={`${baseClass}__description ${baseClass}__role ${greyCell(
+                roleText
+              )}`}
+            >
               {roleText}
             </p>
           </div>
@@ -376,9 +414,11 @@ export class UserSettingsPage extends Component {
 const mapStateToProps = (state) => {
   const { data: version } = state.version;
   const { errors, user } = state.auth;
+  const { config } = state.app;
   const { errors: userErrors } = state.entities.users;
+  const isBasicTier = permissionUtils.isBasicTier(config);
 
-  return { version, errors, user, userErrors };
+  return { version, errors, user, userErrors, config, isBasicTier };
 };
 
 export default connect(mapStateToProps)(UserSettingsPage);

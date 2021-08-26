@@ -10,8 +10,8 @@ import (
 	launcher "github.com/kolide/launcher/service"
 	grpc "google.golang.org/grpc"
 
-	"github.com/fleetdm/fleet/server/health"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/health"
 )
 
 // Handler extends the grpc.Server, providing Handler that allows us to serve
@@ -22,7 +22,7 @@ type Handler struct {
 
 // New creates a gRPC server to handle remote requests from launcher.
 func New(
-	tls kolide.OsqueryService,
+	tls fleet.OsqueryService,
 	logger log.Logger,
 	grpcServer *grpc.Server,
 	healthCheckers map[string]health.Checker,

@@ -17,28 +17,23 @@
   &:focus {
     outline: none;
     border-color: $core-vibrant-blue;
-    border-top-color: $core-fleet-purple;
   }
 
   &--disabled {
-    background-color: #f9f9f9;
+    color: $ui-fleet-black-50;
   }
 
   &--error {
-    transition: background 150ms ease-in-out, color 150ms ease-in-out;
-    border-color: $ui-error;
-    background-color: $ui-error;
-    color: $core-white;
+    color: $core-vibrant-red;
+    border: 1px solid $core-vibrant-red;
+    box-sizing: border-box;
+    border-radius: 4px;
 
     &:focus {
       border-bottom-color: $ui-error;
       background-color: $core-white;
       color: $core-fleet-black;
     }
-  }
-
-  &--password {
-    letter-spacing: 7px;
   }
 
   &__textarea {
@@ -55,7 +50,7 @@
     margin-bottom: $pad-xsmall;
 
     &--error {
-      color: $ui-error;
+      font-weight: $bold;
     }
   }
 

@@ -3,22 +3,22 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
 type createInviteRequest struct {
-	payload kolide.InvitePayload
+	payload fleet.InvitePayload
 }
 
 type createInviteResponse struct {
-	Invite *kolide.Invite `json:"invite,omitempty"`
-	Err    error          `json:"error,omitempty"`
+	Invite *fleet.Invite `json:"invite,omitempty"`
+	Err    error         `json:"error,omitempty"`
 }
 
 func (r createInviteResponse) error() error { return r.Err }
 
-func makeCreateInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCreateInviteEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createInviteRequest)
 		invite, err := svc.InviteNewUser(ctx, req.payload)
@@ -30,17 +30,17 @@ func makeCreateInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 type listInvitesRequest struct {
-	ListOptions kolide.ListOptions
+	ListOptions fleet.ListOptions
 }
 
 type listInvitesResponse struct {
-	Invites []kolide.Invite `json:"invites"`
-	Err     error           `json:"error,omitempty"`
+	Invites []fleet.Invite `json:"invites"`
+	Err     error          `json:"error,omitempty"`
 }
 
 func (r listInvitesResponse) error() error { return r.Err }
 
-func makeListInvitesEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListInvitesEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listInvitesRequest)
 		invites, err := svc.ListInvites(ctx, req.ListOptions)
@@ -48,7 +48,7 @@ func makeListInvitesEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listInvitesResponse{Err: err}, nil
 		}
 
-		resp := listInvitesResponse{Invites: []kolide.Invite{}}
+		resp := listInvitesResponse{Invites: []fleet.Invite{}}
 		for _, invite := range invites {
 			resp.Invites = append(resp.Invites, *invite)
 		}
@@ -66,7 +66,7 @@ type deleteInviteResponse struct {
 
 func (r deleteInviteResponse) error() error { return r.Err }
 
-func makeDeleteInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteInviteEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteInviteRequest)
 		err := svc.DeleteInvite(ctx, req.ID)
@@ -82,13 +82,13 @@ type verifyInviteRequest struct {
 }
 
 type verifyInviteResponse struct {
-	Invite *kolide.Invite `json:"invite"`
-	Err    error          `json:"error,omitempty"`
+	Invite *fleet.Invite `json:"invite"`
+	Err    error         `json:"error,omitempty"`
 }
 
 func (r verifyInviteResponse) error() error { return r.Err }
 
-func makeVerifyInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeVerifyInviteEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(verifyInviteRequest)
 		invite, err := svc.VerifyInvite(ctx, req.Token)

@@ -8,84 +8,52 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/datastore/inmem"
-	"github.com/fleetdm/fleet/server/kolide"
-	kitlog "github.com/go-kit/kit/log"
-	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/throttled/throttled/store/memstore"
 )
 
 func TestLogin(t *testing.T) {
-	ds, _ := inmem.New(config.TestConfig())
-	svc, _ := newTestService(ds, nil, nil)
-	users := createTestUsers(t, ds)
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
-
-	opts := []kithttp.ServerOption{
-		kithttp.ServerBefore(
-			setRequestsContexts(svc, "CHANGEME"),
-		),
-		kithttp.ServerErrorLogger(logger),
-		kithttp.ServerAfter(
-			kithttp.SetContentType("application/json; charset=utf-8"),
-		),
-	}
-	r := mux.NewRouter()
-	limitStore, _ := memstore.New(0)
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "", limitStore)
-	kh := makeKolideKitHandlers(ke, opts)
-	attachKolideAPIRoutes(r, kh)
-	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "index")
-	}))
-
-	server := httptest.NewServer(r)
+	ds, users, server := setupAuthTest(t)
+	defer server.Close()
 	var loginTests = []struct {
-		username string
+		email    string
 		status   int
 		password string
 	}{
 		{
-			username: "admin1",
+			email:    "admin1@example.com",
 			password: testUsers["admin1"].PlaintextPassword,
 			status:   http.StatusOK,
 		},
 		{
-			username: "user1",
+			email:    "user1@example.com",
 			password: testUsers["user1"].PlaintextPassword,
 			status:   http.StatusOK,
 		},
 		{
-			username: "nosuchuser",
+			email:    "nosuchuser@example.com",
 			password: "nosuchuser",
 			status:   http.StatusUnauthorized,
 		},
 		{
-			username: "admin1",
+			email:    "admin1@example.com",
 			password: "badpassword",
 			status:   http.StatusUnauthorized,
 		},
 	}
 
 	for _, tt := range loginTests {
-		var shouldBeAdmin bool
-		if u, ok := testUsers[tt.username]; ok {
-			shouldBeAdmin = u.IsAdmin
-		}
-
 		// test sessions
-		testUser := users[tt.username]
+		testUser := users[tt.email]
 
 		params := loginRequest{
-			Username: tt.username,
+			Email:    tt.email,
 			Password: tt.password,
 		}
 		j, err := json.Marshal(&params)
@@ -97,7 +65,7 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, tt.status, resp.StatusCode)
 
 		var jsn = struct {
-			User  *kolide.User        `json:"user"`
+			User  *fleet.User         `json:"user"`
 			Token string              `json:"token"`
 			Err   []map[string]string `json:"errors,omitempty"`
 		}{}
@@ -110,8 +78,7 @@ func TestLogin(t *testing.T) {
 		}
 
 		require.NotNil(t, jsn.User)
-		assert.Equal(t, shouldBeAdmin, jsn.User.Admin)
-		assert.Equal(t, tt.username, jsn.User.Username)
+		assert.Equal(t, tt.email, jsn.User.Email)
 
 		// ensure that a session was created for our test user and stored
 		sessions, err := ds.ListSessionsForUser(testUser.ID)
@@ -137,6 +104,130 @@ func TestLogin(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Len(t, sessions, 0)
 	}
+}
+
+func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httptest.Server) {
+	ds := new(mock.Store)
+	var users []*fleet.User
+	var admin *fleet.User
+	sessions := make(map[string]*fleet.Session)
+	ds.NewUserFunc = func(user *fleet.User) (*fleet.User, error) {
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			admin = user
+		}
+		users = append(users, user)
+		return user, nil
+	}
+	ds.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+		return sessions[key], nil
+	}
+	ds.MarkSessionAccessedFunc = func(session *fleet.Session) error {
+		return nil
+	}
+	ds.UserByIDFunc = func(id uint) (*fleet.User, error) {
+		return admin, nil
+	}
+	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return users, nil
+	}
+	ds.ListSessionsForUserFunc = func(id uint) ([]*fleet.Session, error) {
+		for _, session := range sessions {
+			if session.UserID == id {
+				return []*fleet.Session{session}, nil
+			}
+		}
+		return nil, nil
+	}
+	ds.SessionByIDFunc = func(id uint) (*fleet.Session, error) {
+		for _, session := range sessions {
+			if session.ID == id {
+				return session, nil
+			}
+		}
+		return nil, nil
+	}
+	ds.DestroySessionFunc = func(session *fleet.Session) error {
+		delete(sessions, session.Key)
+		return nil
+	}
+	usersMap, server := RunServerForTestsWithDS(t, ds)
+	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+		user := usersMap[email]
+		return &user, nil
+	}
+	ds.NewSessionFunc = func(session *fleet.Session) (*fleet.Session, error) {
+		sessions[session.Key] = session
+		return session, nil
+	}
+	return ds, usersMap, server
+}
+
+func getTestAdminToken(t *testing.T, server *httptest.Server) string {
+	testUser := testUsers["admin1"]
+
+	params := loginRequest{
+		Email:    testUser.Email,
+		Password: testUser.PlaintextPassword,
+	}
+	j, err := json.Marshal(&params)
+	assert.Nil(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var jsn = struct {
+		User  *fleet.User         `json:"user"`
+		Token string              `json:"token"`
+		Err   []map[string]string `json:"errors,omitempty"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&jsn)
+	require.Nil(t, err)
+
+	return jsn.Token
+}
+
+func TestNoHeaderErrorsDifferently(t *testing.T) {
+	_, _, server := setupAuthTest(t)
+	defer server.Close()
+
+	req, _ := http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	require.Nil(t, err)
+	assert.Equal(t, `{
+  "message": "Authorization header required",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Authorization header required"
+    }
+  ]
+}
+`, string(bodyBytes))
+
+	req, _ = http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
+	req.Header.Add("Authorization", "Bearer AAAA")
+	resp, err = client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	bodyBytes, err = ioutil.ReadAll(resp.Body)
+	require.Nil(t, err)
+	assert.Equal(t, `{
+  "message": "Authentication required",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Authentication required"
+    }
+  ]
+}
+`, string(bodyBytes))
 }
 
 // an io.ReadCloser for new request body

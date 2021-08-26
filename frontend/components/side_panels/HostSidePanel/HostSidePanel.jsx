@@ -2,13 +2,13 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { filter } from "lodash";
 
-import KolideIcon from "components/icons/KolideIcon";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import labelInterface from "interfaces/label";
 import PanelGroup from "components/side_panels/HostSidePanel/PanelGroup";
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
 import statusLabelsInterface from "interfaces/status_labels";
+import PlusIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 const baseClass = "host-side-panel";
 
@@ -19,6 +19,7 @@ class HostSidePanel extends Component {
     onLabelClick: PropTypes.func,
     selectedFilter: PropTypes.string,
     statusLabels: statusLabelsInterface,
+    canAddNewLabel: PropTypes.bool,
   };
 
   constructor(props) {
@@ -40,12 +41,11 @@ class HostSidePanel extends Component {
       onAddLabelClick,
       onLabelClick,
       selectedFilter,
-      statusLabels,
+      canAddNewLabel,
     } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
     const allHostLabels = filter(labels, { type: "all" });
-    const hostStatusLabels = filter(labels, { type: "status" });
     const hostPlatformLabels = filter(labels, (label) => {
       return label.type === "platform" && label.count > 0;
     });
@@ -57,7 +57,6 @@ class HostSidePanel extends Component {
 
     return (
       <SecondarySidePanelContainer className={`${baseClass}`}>
-        <h3>Status</h3>
         <PanelGroup
           groupItems={allHostLabels}
           onLabelClick={onLabelClick}
@@ -65,23 +64,29 @@ class HostSidePanel extends Component {
           type="all-hosts"
         />
 
-        <PanelGroup
-          groupItems={hostStatusLabels}
-          onLabelClick={onLabelClick}
-          statusLabels={statusLabels}
-          selectedFilter={selectedFilter}
-          type="status"
-        />
-
-        <h3>Operating Systems</h3>
+        <h3>Operating systems</h3>
         <PanelGroup
           groupItems={hostPlatformLabels}
           onLabelClick={onLabelClick}
           selectedFilter={selectedFilter}
           type="platform"
         />
-
-        <h3 className="title">Labels</h3>
+        <div className="title">
+          <div>
+            <h3>Labels</h3>
+          </div>
+          <div>
+            {canAddNewLabel && (
+              <Button
+                variant="text-icon"
+                onClick={onAddLabelClick}
+                className={`${baseClass}__add-label-btn`}
+              >
+                Add label <img src={PlusIcon} alt="Add label icon" />
+              </Button>
+            )}
+          </div>
+        </div>
         <div
           className={`${baseClass}__panel-group-item ${baseClass}__panel-group-item--filter`}
         >
@@ -92,7 +97,6 @@ class HostSidePanel extends Component {
             value={labelFilter}
             inputWrapperClass={`${baseClass}__filter-labels`}
           />
-          <KolideIcon name="search" />
         </div>
         <PanelGroup
           groupItems={customLabels}
@@ -100,14 +104,6 @@ class HostSidePanel extends Component {
           selectedFilter={selectedFilter}
           type="label"
         />
-
-        <Button
-          variant="grey"
-          onClick={onAddLabelClick}
-          className={`${baseClass}__add-label-btn`}
-        >
-          Add new label
-        </Button>
       </SecondarySidePanelContainer>
     );
   }

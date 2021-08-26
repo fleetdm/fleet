@@ -3,7 +3,7 @@ package data
 import (
 	"database/sql"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -22,7 +22,7 @@ func Up_20170301093653(tx *sql.Tx) error {
                 (SELECT id as label_id FROM labels WHERE name = 'All Hosts' AND label_type = ?)
                 FROM hosts
 `,
-		kolide.LabelTypeBuiltIn)
+		fleet.LabelTypeBuiltIn)
 	if err != nil {
 		return errors.Wrap(err, "adding hosts to 'All Hosts'")
 	}

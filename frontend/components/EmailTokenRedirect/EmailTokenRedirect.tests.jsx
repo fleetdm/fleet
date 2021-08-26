@@ -5,13 +5,13 @@ import { connectedComponent, reduxMockStore } from "test/helpers";
 import ConnectedEmailTokenRedirect, {
   EmailTokenRedirect,
 } from "components/EmailTokenRedirect/EmailTokenRedirect";
-import Kolide from "kolide";
+import Fleet from "fleet";
 import { userStub } from "test/stubs";
 
 describe("EmailTokenRedirect - component", () => {
   beforeEach(() => {
     jest
-      .spyOn(Kolide.users, "confirmEmailChange")
+      .spyOn(Fleet.users, "confirmEmailChange")
       .mockImplementation(() =>
         Promise.resolve({ ...userStub, email: "new@email.com" })
       );
@@ -40,7 +40,7 @@ describe("EmailTokenRedirect - component", () => {
         })
       );
 
-      expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(
+      expect(Fleet.users.confirmEmailChange).toHaveBeenCalledWith(
         userStub,
         token
       );
@@ -56,7 +56,7 @@ describe("EmailTokenRedirect - component", () => {
         })
       );
 
-      expect(Kolide.users.confirmEmailChange).not.toHaveBeenCalled();
+      expect(Fleet.users.confirmEmailChange).not.toHaveBeenCalled();
     });
   });
 
@@ -66,11 +66,11 @@ describe("EmailTokenRedirect - component", () => {
       const props = { dispatch: mockStore.dispatch, token };
       const Component = mount(<EmailTokenRedirect {...props} />);
 
-      expect(Kolide.users.confirmEmailChange).not.toHaveBeenCalled();
+      expect(Fleet.users.confirmEmailChange).not.toHaveBeenCalled();
 
       Component.setProps({ user: userStub });
 
-      expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(
+      expect(Fleet.users.confirmEmailChange).toHaveBeenCalledWith(
         userStub,
         token
       );

@@ -6,12 +6,12 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
 // ListCarves lists the file carving sessions
-func (c *Client) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
+func (c *Client) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 	endpoint := "/api/v1/fleet/carves"
 	rawQuery := ""
 	if opt.Expired {
@@ -40,7 +40,7 @@ func (c *Client) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMetadat
 		return nil, errors.Errorf("get carves: %s", responseBody.Err)
 	}
 
-	carves := []*kolide.CarveMetadata{}
+	carves := []*fleet.CarveMetadata{}
 	for _, carve := range responseBody.Carves {
 		c := carve
 		carves = append(carves, &c)
@@ -49,7 +49,7 @@ func (c *Client) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMetadat
 	return carves, nil
 }
 
-func (c *Client) GetCarve(carveId int64) (*kolide.CarveMetadata, error) {
+func (c *Client) GetCarve(carveId int64) (*fleet.CarveMetadata, error) {
 	endpoint := fmt.Sprintf("/api/v1/fleet/carves/%d", carveId)
 	response, err := c.AuthenticatedDo("GET", endpoint, "", nil)
 	if err != nil {
@@ -109,14 +109,14 @@ func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 }
 
 type carveReader struct {
-	carve     kolide.CarveMetadata
+	carve     fleet.CarveMetadata
 	bytesRead int64
 	curBlock  int64
 	buffer    []byte
 	client    *Client
 }
 
-func newCarveReader(carve kolide.CarveMetadata, client *Client) *carveReader {
+func newCarveReader(carve fleet.CarveMetadata, client *Client) *carveReader {
 	return &carveReader{
 		carve:     carve,
 		client:    client,

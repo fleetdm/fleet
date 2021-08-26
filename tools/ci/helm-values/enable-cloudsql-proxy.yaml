@@ -19,7 +19,7 @@ resources:
 # All of the settings relating to configuring the Fleet server
 fleet:
   listenPort: 8080
-  # Name of the Secret resource storing TLS, JWT, and S3 bucket secrets
+  # Name of the Secret resource storing TLS and S3 bucket secrets
   secretName: fleet
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
   # WARNING: This may cause database corruption if more than one migration is attempted at a time
@@ -30,7 +30,6 @@ fleet:
     certSecretKey: server.cert
     keySecretKey: server.key
   auth:
-    jwtSecretKey: jwt-secret
     bcryptCost: 12
     saltKeySize: 24
   app:
@@ -102,8 +101,8 @@ mysql:
   # Name of the Secret resource containing MySQL password and TLS secrets
   secretName: mysql
   address: 127.0.0.1:3306
-  database: kolide
-  username: kolide
+  database: fleet
+  username: fleet
   passwordKey: mysql-password
   maxOpenConns: 50
   maxIdleConns: 50

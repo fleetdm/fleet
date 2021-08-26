@@ -1,0 +1,56 @@
+.dropdown-cell {
+  width: 80px;
+
+  .Select {
+    position: relative;
+
+    .Select-control {
+      height: auto;
+      display: flex;
+      justify-content: space-between;
+      border: 0;
+      cursor: pointer;
+
+      &:hover .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
+
+      .Select-placeholder {
+        line-height: normal;
+        color: $core-fleet-black;
+      }
+
+      .Select-input {
+        height: auto;
+      }
+    }
+
+    .Select-menu-outer {
+      margin-top: $pad-xsmall;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      border-radius: $border-radius;
+      z-index: 6;
+      overflow: hidden;
+      border: 0;
+      width: 188px;
+      left: unset;
+      top: unset;
+      max-height: 220px;
+      padding: $pad-small;
+      position: absolute;
+      left: -12px;
+    }
+
+    &:not(.is-open) {
+      .Select-control:hover .Select-arrow {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      }
+    }
+
+    &.is-open {
+      .Select-control .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
+    }
+  }
+}

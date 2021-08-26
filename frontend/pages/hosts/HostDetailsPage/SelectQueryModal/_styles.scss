@@ -11,6 +11,13 @@
     margin-left: 6px;
   }
 
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
   &__modal {
     @include position(absolute, 22px null null null);
     background-color: $core-white;
@@ -65,11 +72,22 @@
     flex-grow: 3;
     position: relative;
 
-    .input-field {
-      padding-left: 42px;
+    &::before {
+      display: inline-block;
+      position: absolute;
+      padding: 5px 0 0 0; // centers spin
+      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
+      transform: scale(0.5);
+      height: 20px;
+      top: 3px;
+      left: 8px;
     }
 
-    .kolidecon {
+    .input-field {
+      padding-left: 44px;
+    }
+
+    .fleeticon {
       position: absolute;
       top: 10px;
       left: 10px;

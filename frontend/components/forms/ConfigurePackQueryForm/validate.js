@@ -10,16 +10,14 @@ const validate = (formData) => {
   }
 
   if (!formData.interval) {
-    errors.interval = "Interval must be present";
+    errors.interval = "Frequency (seconds) must be present";
   }
 
   if (formData.interval && !validateNumericality(formData.interval)) {
-    errors.interval = "Interval must be a number";
+    errors.interval = "Frequency must be a number";
   }
 
-  if (!formData.logging_type) {
-    errors.logging_type = "A Logging Type must be selected";
-  }
+  // logging_type does not need to be validated because it is defaulted "snapshot" if unspecified.
 
   if (formData.shard) {
     if (formData.shard < 0 || formData.shard > 100) {

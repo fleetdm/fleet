@@ -1,13 +1,13 @@
 package live_query
 
 import (
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/mock"
 )
 
 type MockLiveQuery struct {
 	mock.Mock
-	kolide.LiveQueryStore
+	fleet.LiveQueryStore
 }
 
 func (m *MockLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {

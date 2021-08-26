@@ -1,5 +1,4 @@
 import { combineReducers } from "redux";
-import { loadingBarReducer } from "react-redux-loading-bar";
 import { routerReducer } from "react-router-redux";
 
 import app from "./nodes/app/reducer";
@@ -19,7 +18,6 @@ export default combineReducers({
   components,
   entities,
   errors500,
-  loadingBar: loadingBarReducer,
   notifications,
   osquery,
   persistentFlash,

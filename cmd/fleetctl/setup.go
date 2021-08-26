@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fleetdm/fleet/server/service"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
@@ -13,7 +13,7 @@ import (
 func setupCommand() *cli.Command {
 	var (
 		flEmail    string
-		flUsername string
+		flName     string
 		flPassword string
 		flOrgName  string
 	)
@@ -27,14 +27,16 @@ func setupCommand() *cli.Command {
 				EnvVars:     []string{"EMAIL"},
 				Value:       "",
 				Destination: &flEmail,
-				Usage:       "Email of the admin user to create",
+				Usage:       "Email of the admin user to create (required)",
+				Required:    true,
 			},
 			&cli.StringFlag{
-				Name:        "username",
-				EnvVars:     []string{"USERNAME"},
+				Name:        "name",
+				EnvVars:     []string{"NAME"},
 				Value:       "",
-				Destination: &flUsername,
-				Usage:       "Username of the admin user to create",
+				Destination: &flName,
+				Usage:       "Name or nickname of the admin user to create (required)",
+				Required:    true,
 			},
 			&cli.StringFlag{
 				Name:        "password",
@@ -48,7 +50,8 @@ func setupCommand() *cli.Command {
 				EnvVars:     []string{"ORG_NAME"},
 				Value:       "",
 				Destination: &flOrgName,
-				Usage:       "Name of the organization",
+				Usage:       "Name of the organization (required)",
+				Required:    true,
 			},
 			configFlag(),
 			contextFlag(),
@@ -60,13 +63,6 @@ func setupCommand() *cli.Command {
 				return err
 			}
 
-			if flEmail == "" {
-				return errors.Errorf("Email of the admin user to create must be provided")
-			}
-			if flUsername == "" {
-				fmt.Println("No username supplied, using email as username")
-				flUsername = flEmail
-			}
 			if flPassword == "" {
 				fmt.Print("Password: ")
 				passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
@@ -88,7 +84,7 @@ func setupCommand() *cli.Command {
 
 			}
 
-			token, err := fleet.Setup(flEmail, flUsername, flPassword, flOrgName)
+			token, err := fleet.Setup(flEmail, flName, flPassword, flOrgName)
 			if err != nil {
 				switch err.(type) {
 				case service.SetupAlreadyErr:
@@ -107,7 +103,8 @@ func setupCommand() *cli.Command {
 				return errors.Wrap(err, "error setting token for the current context")
 			}
 
-			fmt.Printf("[+] Fleet setup successful and context configured!\n")
+			fmt.Println("Fleet Device Management Inc. periodically collects anonymous information about your instance.\nSending usage statistics from your Fleet instance is optional and can be disabled in settings.")
+			fmt.Println("[+] Fleet setup successful and context configured!")
 
 			return nil
 		},

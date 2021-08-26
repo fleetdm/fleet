@@ -3,17 +3,16 @@ parasails.registerPage('query-detail', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    contributors: [],
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
-  beforeMount: function() {
+  beforeMount: function () {
     //…
   },
-  mounted: async function() {
-    //…
+  mounted: async function () {
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -21,5 +20,12 @@ parasails.registerPage('query-detail', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-  }
+
+    clickAvatar: function (contributor) {
+      window.location = contributor.htmlUrl;
+    },
+    getDisplayName: function (contributor) {
+      return !contributor.name ? contributor.handle : contributor.name;
+    }
+  },
 });

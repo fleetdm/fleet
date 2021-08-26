@@ -11,12 +11,26 @@
       color: $core-vibrant-blue;
       padding: 6px;
 
-      .kolidecon-chevronleft {
+      .fleeticon-chevronleft {
         margin-right: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
       }
 
-      .kolidecon-chevronright {
+      .fleeticon-chevronright {
         margin-left: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
       }
     }
 

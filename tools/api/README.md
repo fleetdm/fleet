@@ -1,13 +1,14 @@
 Using `curl` and `jq` to interact with the fleet API.
 
 First, create a `env` file with the following contents:
+
 ```
 export SERVER_URL=https://localhost:8080 # your fleet server url and port
 export CURL_FLAGS='-k -s' # set insecure flag
 export TOKEN=eyJhbGciOi... # your login token
 ```
 
-Next set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scripts in the `kolide/` folder source the env file.
+Next set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scripts in the `fleet/` folder source the env file.
 
 # Examples
 
@@ -15,13 +16,12 @@ Next set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scri
 export FLEET_ENV_PATH=/Users/victor/fleet_env
 
 # get my user info
-./tools/api/kolide/me
+./tools/api/fleet/me
 {
   "user": {
     "created_at": "2018-04-10T02:07:46Z",
     "updated_at": "2018-04-10T02:07:46Z",
     "id": 1,
-    "username": "admin",
     "name": "admin",
     "email": "admin@acme.co",
     "admin": true,
@@ -33,17 +33,17 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
 }
 
 # list queries
-./tools/api/kolide/queries/list
+./tools/api/fleet/queries/list
 {
   "queries": []
 }
 
 # use jq to filter a specific query and get the id
-./tools/api/kolide/queries/list | jq '.queries[]|select(.name == "osquery_info")|.id'
+./tools/api/fleet/queries/list | jq '.queries[]|select(.name == "osquery_info")|.id'
 2
 
 # create a query
-./tools/api/kolide/queries/create 'system_info' 'select * from system_info;'
+./tools/api/fleet/queries/create 'system_info' 'select * from system_info;'
 {
   "query": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -60,8 +60,8 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
 }
 
 # add query with id=4 to pack with id=2
-./tools/api/kolide/schedule/add_query_to_pack 2 4
+./tools/api/fleet/schedule/add_query_to_pack 2 4
 
 # get scheduled queries in a pack
-./tools/api/kolide/packs/scheduled 2 | jq '.scheduled[]|{"name": .name, "schedule_id": .id, "query_id": .query_id}'
+./tools/api/fleet/packs/scheduled 2 | jq '.scheduled[]|{"name": .name, "schedule_id": .id, "query_id": .query_id}'
 ```

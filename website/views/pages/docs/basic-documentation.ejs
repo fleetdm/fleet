@@ -1,11 +1,214 @@
 <div id="basic-documentation" v-cloak>
 
-  <h1>TODO: Implement this page.</h1>
-  <p>(See also <em>assets/styles/pages/docs/basic-documentation.less</em>, <em>assets/js/pages/docs/basic-documentation.page.js</em>, and <em>api/controllers/docs/view-basic-documentation.js</em>.)</p>
+  <div purpose="docs-landing-page" v-if="isDocsLandingPage">
+    <div style="max-width: 948px;" class="container-fluid p-0 px-3 px-sm-4 py-5 mb-5 mx-auto">
+  
+      <div class="text-center">
+        <h1 class="pt-5">Fleet documentation</h1>
+        <p class="mb-2">Welcome to the documentation for Fleet, an open-source osquery management server.</p>
+        <!-- <p class="mb-0"><strong>v4.0.1 </strong><a href="https://github.com/fleetdm/fleet/releases">changelog</a></p> -->
+        <!-- TODO automatically display latest release version or come up with some other way to present this that doesn't rely on knowing the version number -->
+      </div>
+  
+      <!-- TODO: bring back search -->
+      <!-- <div purpose="search" class="d-flex p-0 pt-4 mt-3">
+        <div class="input-group">
+          <div class="input-group-prepend border-right-0">
+            <span class="input-group-text bg-transparent border-right-0 pl-3 pr-2">
+              <img style="height: 16px; width: auto;" class="search" alt="search" src="/images/icon-search-16x16@2x.png"></span>
+          </div>
+          <input class="form-control border-left-0 px-0" placeholder="Search the docs..." aria-label="Search the docs"
+            v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+        </div>
+      </div> -->
+  
+      <div purpose="cta-cards">
+        <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 pt-4 mt-3">
+          <div class="container-fluid d-flex flex-column flex-md-row justify-content-center align-items-center py-3 m-0 mr-sm-1 cta-card" @click="clickCTA('/install')">
+            <img class="cta-image" alt="Install Fleet" src="/images/install-fleet-140x72@2x.png"/>
+            <div class="text-center text-md-left cta-text">
+              <p class="font-weight-bold p-0 pl-md-4 pt-2 pt-md-0 m-0">Install osquery and Fleet</p>
+              <a class="p-0 pl-md-4 pt-2 pt-md-0 arrow" href="/install">
+                Get started
+                <img class="d-inline mb-1" style="height: 16px; width: auto;" alt="right arrow" src="/images/arrow-right-16x16@2x.png" />
+              </a>  
+            </div>
+          </div>
+          <div class="container-fluid d-flex flex-column flex-md-row justify-content-center align-items-center py-3 m-0 ml-sm-1 mt-3 mt-sm-0 cta-card" @click="clickCTA('support')">
+            <img class="cta-image" alt="Fleet support" src="/images/fleet-support-140x72@2x.png"/>
+            <div class="text-center text-md-left cta-text">
+              <p class="font-weight-bold p-0 pl-md-4 pt-2 pt-md-0 m-0">Can't find what you need?</p>
+              <a class="p-0 pl-md-4 pt-2 pt-md-0 arrow" href="/support">
+                Support
+                <img class="d-inline mb-1" style="height: 16px; width: auto;" alt="right arrow" src="/images/arrow-right-16x16@2x.png" />
+              </a>  
+            </div>
+          </div>
+        </div>
+      </div>
+  
+      <div purpose="docs-tree">
+        <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 px-4">
+          <div v-for="page in findPagesByUrl()">
+            <div style="max-width: 300px;" class="container-fluid justify-content-start align-items-center p-0 px-2 pt-4 m-0 mt-3">
+              <h3 class="mb-4">{{page.title}}</h3>
+              <ul style="list-style: none;" class="p-0 m-0">
+                <li class="mb-2" v-for="subpage in findPagesByUrl(page.url)">
+                  <a :href="subpage.url">{{subpage.title}}</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>    
+  </div>
 
-  <p>This paragraph, and the content above it, are just here for reference.  The HTML generated from markdown is below.</p>
+  <div v-else>
+    <div purpose="docs-template" style="max-width: 1200px;" class="container-fluid px-3 px-sm-4 mb-5">
 
-  <%- partial('../../partials/built-from-markdown/docs/1-Using-Fleet/1-Fleet-UI.ejs') %>
+      <div purpose="breadcrumbs-and-search" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0 breadcrumbs-search">
+        
+        <div purpose="breadcrumbs" class="d-none d-lg-flex p-0 m-0 align-items-center breadcrumbs">
+          <a :href="'/' + breadcrumbs[0]" class="pr-3" v-if="breadcrumbs.length > 1">
+            {{breadcrumbs[0] === 'docs' ? 'Documentation' : breadcrumbs[0]}}
+          </a>
+          <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length === 3">
+            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
+            <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3">
+              {{getTitleFromUrl(breadcrumbs[1])}}
+            </a>
+          </div>
+          <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length > 1">
+            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+            <p class="px-3 m-0">
+              {{thisPage.title}}
+            </p>
+          </div>
+        </div>
+  
+        <!-- <div purpose="search" class="d-flex p-0 mb-2 mb-lg-0">
+          <div class="input-group">
+            <div class="input-group-prepend border-right-0">
+              <span class="input-group-text bg-transparent border-right-0 pl-3 pr-2"><img style="height: 16px; width: auto;" class="search" alt="search"
+                  src="/images/icon-search-16x16@2x.png"></span>
+            </div>
+            <input class="form-control border-left-0 px-0" placeholder="Search the docs..." aria-label="Search the docs"
+              v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+          </div>
+        </div> -->
+  
+        <div purpose="mobile-docs-nav" class="d-flex-block d-lg-none">
+          <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
+            <button purpose="docs-nav-button" class="btn btn-block d-flex align-items-center docs-nav-button" type="button" @click="toggleDocsNav">
+              <span class="pr-2 m-0">Docs</span>
+              <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+              <span class="font-weight-bold px-2 m-0">{{thisPage.title}}</span>
+              <img style="width: 6px; height: 9px;" class="ml-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showDocsNav"/>
+              <img style="width: 9px; height: 6px;" class="ml-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
+            </button>  
+          </div>
+          <div class="border-bottom" v-if="!showDocsNav"></div>
+          <div class="d-flex px-0 border-bottom mobile-docs-nav" v-if="showDocsNav">
+            <div class="container-fluid px-0 pt-4">
+              <ul class="px-0 mb-0">
+                <li class="px-0 mb-2" v-for="page in findPagesByUrl()" :key="page.title">
+                  <a :href="page.url" class="font-weight-bold">
+                    {{page.title}}
+                  </a>
+                  <ul class="px-0 pt-3 mb-0" v-if="!_.isEmpty(findPagesByUrl(page.url))">
+                    <li class="px-0 mb-2" v-for="subpage in findPagesByUrl(page.url)">
+                      <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                        {{subpage.title}}
+                      </a>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+          </div>  
+  
+        </div> 
+  
+      </div>
+  
+      <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0">{{thisPage.title}}</h1>
+  
+      <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
+  
+        <div purpose="left-sidebar" style="min-width: 190px; max-width: 210px;" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
+          <ul class="p-0 pb-2 m-0 left-nav">
+            <li v-for="page in findPagesByUrl()" :key="page.title">
+              <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
+              <div class="pt-2" v-if="isCurrentSection(page)">
+                <ul class="p-0 mb-2">
+                  <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
+                    <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                      {{subpage.title}}
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </li>
+          </ul>
+          <a class="font-weight-bold py-3" target="_blank" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+          <a href="/support" class="btn btn-block btn-sm btn-primary">Support</a>
+        </div>
+  
+        <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
+          
+          <p class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</p>
+          <div purpose="subtopics">
+            <ul class="p-0 m-0">
+              <!-- <li v-for="(subtopic, index) in subtopics" :class="pl-lg-2 pb-3 pb-1g-2 subtopic" :key="index">
+                <a :class="getActiveSubtopicClass(currentLocation, subtopic.url)" :href="subtopic.url">{{subtopic.title}}</a>
+              </li> -->
+              <li v-for="(subtopic, index) in subtopics" class="pl-lg-3 pb-3 pb-lg-2 subtopic" :key="index">
+                <a :href="subtopic.url">{{subtopic.title}}</a>
+              </li>
+              <li class="d-lg-none pl-lg-3 subtopic">
+                <a href="/support">Help and feedback</a>
+              </li>
+            </ul>
+          </div>
+          
+          <!-- <div v-if="!_.isEmpty(relatedTopics)">
+            <h6 class="d-none d-lg-block font-weight-bold py-2">Related topics</h6>
+            <ul class="d-none d-lg-block p-0">
+              <li v-for="(relatedTopic, index) in relatedTopics" :key="index">{{relatedTopic}}</li>
+            </ul>
+          </div> -->
+  
+        </div>
+
+        <div purpose="content" id="body-content" class="d-flex flex-column p-0 px-lg-5 content" parasails-has-no-page-script>
+          <%- partial(
+            path.relative(
+              path.dirname(__filename), 
+              path.resolve(
+                sails.config.appPath, 
+                path.join(
+                  sails.config.builtStaticContent.compiledPagePartialsAppPath, 
+                  thisPage.htmlId
+                )
+              )
+            )
+          ) %>
+
+          <div class="d-none d-lg-block">
+            <h3 class="pb-4 m-0">Is there something missing?</h3>
+            <p>
+              If you notice something we've missed or could be improved on, please follow <a href="https://github.com/fleetdm/fleet">this link</a> and submit a pull request to the Fleet repo. 
+            </p>
+          </div>
+
+        </div>
+  
+      </div>
+    
+    </div>
+  
+  </div>
 
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

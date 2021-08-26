@@ -6,21 +6,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/fleetdm/fleet/server/service/middleware/ratelimit"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/throttled/throttled/v2"
 )
 
-// KolideEndpoints is a collection of RPC endpoints implemented by the Kolide API.
-type KolideEndpoints struct {
+// FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
+type FleetEndpoints struct {
 	Login                                 endpoint.Endpoint
 	Logout                                endpoint.Endpoint
 	ForgotPassword                        endpoint.Endpoint
@@ -32,8 +33,7 @@ type KolideEndpoints struct {
 	GetUser                               endpoint.Endpoint
 	ListUsers                             endpoint.Endpoint
 	ModifyUser                            endpoint.Endpoint
-	AdminUser                             endpoint.Endpoint
-	EnableUser                            endpoint.Endpoint
+	DeleteUser                            endpoint.Endpoint
 	RequirePasswordReset                  endpoint.Endpoint
 	PerformRequiredPasswordReset          endpoint.Endpoint
 	GetSessionsForUserInfo                endpoint.Endpoint
@@ -74,6 +74,10 @@ type KolideEndpoints struct {
 	ApplyPackSpecs                        endpoint.Endpoint
 	GetPackSpecs                          endpoint.Endpoint
 	GetPackSpec                           endpoint.Endpoint
+	GlobalScheduleQuery                   endpoint.Endpoint
+	GetGlobalSchedule                     endpoint.Endpoint
+	ModifyGlobalSchedule                  endpoint.Endpoint
+	DeleteGlobalSchedule                  endpoint.Endpoint
 	EnrollAgent                           endpoint.Endpoint
 	GetClientConfig                       endpoint.Endpoint
 	GetDistributedQueries                 endpoint.Endpoint
@@ -97,9 +101,9 @@ type KolideEndpoints struct {
 	RefetchHost                           endpoint.Endpoint
 	ListHosts                             endpoint.Endpoint
 	GetHostSummary                        endpoint.Endpoint
+	AddHostsToTeam                        endpoint.Endpoint
+	AddHostsToTeamByFilter                endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
-	ApplyOsqueryOptionsSpec               endpoint.Endpoint
-	GetOsqueryOptionsSpec                 endpoint.Endpoint
 	GetCertificate                        endpoint.Endpoint
 	ChangeEmail                           endpoint.Endpoint
 	InitiateSSO                           endpoint.Endpoint
@@ -111,116 +115,136 @@ type KolideEndpoints struct {
 	GetCarve                              endpoint.Endpoint
 	GetCarveBlock                         endpoint.Endpoint
 	Version                               endpoint.Endpoint
+	CreateTeam                            endpoint.Endpoint
+	ModifyTeam                            endpoint.Endpoint
+	ModifyTeamAgentOptions                endpoint.Endpoint
+	DeleteTeam                            endpoint.Endpoint
+	ListTeams                             endpoint.Endpoint
+	ListTeamUsers                         endpoint.Endpoint
+	AddTeamUsers                          endpoint.Endpoint
+	DeleteTeamUsers                       endpoint.Endpoint
+	TeamEnrollSecrets                     endpoint.Endpoint
+	ListActivities                        endpoint.Endpoint
 }
 
-// MakeKolideServerEndpoints creates the Kolide API endpoints.
-func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, limitStore throttled.GCRAStore) KolideEndpoints {
+// MakeFleetServerEndpoints creates the Fleet API endpoints.
+func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore) FleetEndpoints {
 	limiter := ratelimit.NewMiddleware(limitStore)
 
-	return KolideEndpoints{
-		Login: limiter.Limit(throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
+	return FleetEndpoints{
+		Login: limiter.Limit(
+			throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
 			makeLoginEndpoint(svc),
 		),
-		Logout: makeLogoutEndpoint(svc),
+		Logout: logged(makeLogoutEndpoint(svc)),
 		ForgotPassword: limiter.Limit(
 			throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})(
-			makeForgotPasswordEndpoint(svc),
+			logged(makeForgotPasswordEndpoint(svc)),
 		),
-		ResetPassword:        makeResetPasswordEndpoint(svc),
-		CreateUserWithInvite: makeCreateUserWithInviteEndpoint(svc),
-		VerifyInvite:         makeVerifyInviteEndpoint(svc),
-		InitiateSSO:          makeInitiateSSOEndpoint(svc),
-		CallbackSSO:          makeCallbackSSOEndpoint(svc, urlPrefix),
-		SSOSettings:          makeSSOSettingsEndpoint(svc),
+		ResetPassword:        logged(makeResetPasswordEndpoint(svc)),
+		CreateUserWithInvite: logged(makeCreateUserFromInviteEndpoint(svc)),
+		VerifyInvite:         logged(makeVerifyInviteEndpoint(svc)),
+		InitiateSSO:          logged(makeInitiateSSOEndpoint(svc)),
+		CallbackSSO:          logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
+		SSOSettings:          logged(makeSSOSettingsEndpoint(svc)),
 
-		// Authenticated user endpoints
-		// Each of these endpoints should have exactly one
-		// authorization check around the make.*Endpoint method. At a
-		// minimum, canPerformActions. Some endpoints use
-		// stricter/different checks and should NOT also use
-		// canPerformActions (these other checks should also call
-		// canPerformActions if that is appropriate).
-		Me:                   authenticatedUser(jwtKey, svc, canPerformActions(makeGetSessionUserEndpoint(svc))),
-		ChangePassword:       authenticatedUser(jwtKey, svc, canPerformActions(makeChangePasswordEndpoint(svc))),
-		GetUser:              authenticatedUser(jwtKey, svc, canReadUser(makeGetUserEndpoint(svc))),
-		ListUsers:            authenticatedUser(jwtKey, svc, canPerformActions(makeListUsersEndpoint(svc))),
-		ModifyUser:           authenticatedUser(jwtKey, svc, canModifyUser(makeModifyUserEndpoint(svc))),
-		AdminUser:            authenticatedUser(jwtKey, svc, mustBeAdmin(makeAdminUserEndpoint(svc))),
-		EnableUser:           authenticatedUser(jwtKey, svc, mustBeAdmin(makeEnableUserEndpoint(svc))),
-		RequirePasswordReset: authenticatedUser(jwtKey, svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
-		CreateUser:           authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateUserEndpoint(svc))),
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
-		PerformRequiredPasswordReset:          authenticatedUser(jwtKey, svc, canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
-		GetSessionsForUserInfo:                authenticatedUser(jwtKey, svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
-		DeleteSessionsForUser:                 authenticatedUser(jwtKey, svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
-		GetSessionInfo:                        authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
-		DeleteSession:                         authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteSessionEndpoint(svc))),
-		GetAppConfig:                          authenticatedUser(jwtKey, svc, canPerformActions(makeGetAppConfigEndpoint(svc))),
-		ModifyAppConfig:                       authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyAppConfigEndpoint(svc))),
-		ApplyEnrollSecretSpec:                 authenticatedUser(jwtKey, svc, mustBeAdmin(makeApplyEnrollSecretSpecEndpoint(svc))),
-		GetEnrollSecretSpec:                   authenticatedUser(jwtKey, svc, canPerformActions(makeGetEnrollSecretSpecEndpoint(svc))),
-		CreateInvite:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
-		ListInvites:                           authenticatedUser(jwtKey, svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
-		DeleteInvite:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),
-		GetQuery:                              authenticatedUser(jwtKey, svc, makeGetQueryEndpoint(svc)),
-		ListQueries:                           authenticatedUser(jwtKey, svc, makeListQueriesEndpoint(svc)),
-		CreateQuery:                           authenticatedUser(jwtKey, svc, makeCreateQueryEndpoint(svc)),
-		ModifyQuery:                           authenticatedUser(jwtKey, svc, makeModifyQueryEndpoint(svc)),
-		DeleteQuery:                           authenticatedUser(jwtKey, svc, makeDeleteQueryEndpoint(svc)),
-		DeleteQueryByID:                       authenticatedUser(jwtKey, svc, makeDeleteQueryByIDEndpoint(svc)),
-		DeleteQueries:                         authenticatedUser(jwtKey, svc, makeDeleteQueriesEndpoint(svc)),
-		ApplyQuerySpecs:                       authenticatedUser(jwtKey, svc, makeApplyQuerySpecsEndpoint(svc)),
-		GetQuerySpecs:                         authenticatedUser(jwtKey, svc, makeGetQuerySpecsEndpoint(svc)),
-		GetQuerySpec:                          authenticatedUser(jwtKey, svc, makeGetQuerySpecEndpoint(svc)),
-		CreateDistributedQueryCampaign:        authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
-		CreateDistributedQueryCampaignByNames: authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		CreatePack:                            authenticatedUser(jwtKey, svc, makeCreatePackEndpoint(svc)),
-		ModifyPack:                            authenticatedUser(jwtKey, svc, makeModifyPackEndpoint(svc)),
-		GetPack:                               authenticatedUser(jwtKey, svc, makeGetPackEndpoint(svc)),
-		ListPacks:                             authenticatedUser(jwtKey, svc, makeListPacksEndpoint(svc)),
-		DeletePack:                            authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
-		DeletePackByID:                        authenticatedUser(jwtKey, svc, makeDeletePackByIDEndpoint(svc)),
-		GetScheduledQueriesInPack:             authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
-		ScheduleQuery:                         authenticatedUser(jwtKey, svc, makeScheduleQueryEndpoint(svc)),
-		GetScheduledQuery:                     authenticatedUser(jwtKey, svc, makeGetScheduledQueryEndpoint(svc)),
-		ModifyScheduledQuery:                  authenticatedUser(jwtKey, svc, makeModifyScheduledQueryEndpoint(svc)),
-		DeleteScheduledQuery:                  authenticatedUser(jwtKey, svc, makeDeleteScheduledQueryEndpoint(svc)),
-		ApplyPackSpecs:                        authenticatedUser(jwtKey, svc, makeApplyPackSpecsEndpoint(svc)),
-		GetPackSpecs:                          authenticatedUser(jwtKey, svc, makeGetPackSpecsEndpoint(svc)),
-		GetPackSpec:                           authenticatedUser(jwtKey, svc, makeGetPackSpecEndpoint(svc)),
-		GetHost:                               authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
-		HostByIdentifier:                      authenticatedUser(jwtKey, svc, makeHostByIdentifierEndpoint(svc)),
-		ListHosts:                             authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
-		GetHostSummary:                        authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
-		DeleteHost:                            authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
-		RefetchHost:                           authenticatedUser(jwtKey, svc, makeRefetchHostEndpoint(svc)),
-		CreateLabel:                           authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
-		ModifyLabel:                           authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
-		GetLabel:                              authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
-		ListLabels:                            authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
-		ListHostsInLabel:                      authenticatedUser(jwtKey, svc, makeListHostsInLabelEndpoint(svc)),
-		DeleteLabel:                           authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
-		DeleteLabelByID:                       authenticatedUser(jwtKey, svc, makeDeleteLabelByIDEndpoint(svc)),
-		ApplyLabelSpecs:                       authenticatedUser(jwtKey, svc, makeApplyLabelSpecsEndpoint(svc)),
-		GetLabelSpecs:                         authenticatedUser(jwtKey, svc, makeGetLabelSpecsEndpoint(svc)),
-		GetLabelSpec:                          authenticatedUser(jwtKey, svc, makeGetLabelSpecEndpoint(svc)),
-		SearchTargets:                         authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
-		ApplyOsqueryOptionsSpec:               authenticatedUser(jwtKey, svc, makeApplyOsqueryOptionsSpecEndpoint(svc)),
-		GetOsqueryOptionsSpec:                 authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
-		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
-		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
-		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
-		GetCarve:                              authenticatedUser(jwtKey, svc, makeGetCarveEndpoint(svc)),
-		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
-		Version:                               authenticatedUser(jwtKey, svc, makeVersionEndpoint(svc)),
+		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
+
+		// Standard user authentication routes
+		Me:                                    authenticatedUser(svc, makeGetSessionUserEndpoint(svc)),
+		ChangePassword:                        authenticatedUser(svc, makeChangePasswordEndpoint(svc)),
+		GetUser:                               authenticatedUser(svc, makeGetUserEndpoint(svc)),
+		ListUsers:                             authenticatedUser(svc, makeListUsersEndpoint(svc)),
+		ModifyUser:                            authenticatedUser(svc, makeModifyUserEndpoint(svc)),
+		DeleteUser:                            authenticatedUser(svc, makeDeleteUserEndpoint(svc)),
+		RequirePasswordReset:                  authenticatedUser(svc, makeRequirePasswordResetEndpoint(svc)),
+		CreateUser:                            authenticatedUser(svc, makeCreateUserEndpoint(svc)),
+		GetSessionsForUserInfo:                authenticatedUser(svc, makeGetInfoAboutSessionsForUserEndpoint(svc)),
+		DeleteSessionsForUser:                 authenticatedUser(svc, makeDeleteSessionsForUserEndpoint(svc)),
+		GetSessionInfo:                        authenticatedUser(svc, makeGetInfoAboutSessionEndpoint(svc)),
+		DeleteSession:                         authenticatedUser(svc, makeDeleteSessionEndpoint(svc)),
+		GetAppConfig:                          authenticatedUser(svc, makeGetAppConfigEndpoint(svc)),
+		ModifyAppConfig:                       authenticatedUser(svc, makeModifyAppConfigEndpoint(svc)),
+		ApplyEnrollSecretSpec:                 authenticatedUser(svc, makeApplyEnrollSecretSpecEndpoint(svc)),
+		GetEnrollSecretSpec:                   authenticatedUser(svc, makeGetEnrollSecretSpecEndpoint(svc)),
+		CreateInvite:                          authenticatedUser(svc, makeCreateInviteEndpoint(svc)),
+		ListInvites:                           authenticatedUser(svc, makeListInvitesEndpoint(svc)),
+		DeleteInvite:                          authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
+		GetQuery:                              authenticatedUser(svc, makeGetQueryEndpoint(svc)),
+		ListQueries:                           authenticatedUser(svc, makeListQueriesEndpoint(svc)),
+		CreateQuery:                           authenticatedUser(svc, makeCreateQueryEndpoint(svc)),
+		ModifyQuery:                           authenticatedUser(svc, makeModifyQueryEndpoint(svc)),
+		DeleteQuery:                           authenticatedUser(svc, makeDeleteQueryEndpoint(svc)),
+		DeleteQueryByID:                       authenticatedUser(svc, makeDeleteQueryByIDEndpoint(svc)),
+		DeleteQueries:                         authenticatedUser(svc, makeDeleteQueriesEndpoint(svc)),
+		ApplyQuerySpecs:                       authenticatedUser(svc, makeApplyQuerySpecsEndpoint(svc)),
+		GetQuerySpecs:                         authenticatedUser(svc, makeGetQuerySpecsEndpoint(svc)),
+		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
+		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
+		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
+		CreatePack:                            authenticatedUser(svc, makeCreatePackEndpoint(svc)),
+		ModifyPack:                            authenticatedUser(svc, makeModifyPackEndpoint(svc)),
+		GetPack:                               authenticatedUser(svc, makeGetPackEndpoint(svc)),
+		ListPacks:                             authenticatedUser(svc, makeListPacksEndpoint(svc)),
+		DeletePack:                            authenticatedUser(svc, makeDeletePackEndpoint(svc)),
+		DeletePackByID:                        authenticatedUser(svc, makeDeletePackByIDEndpoint(svc)),
+		GetScheduledQueriesInPack:             authenticatedUser(svc, makeGetScheduledQueriesInPackEndpoint(svc)),
+		ScheduleQuery:                         authenticatedUser(svc, makeScheduleQueryEndpoint(svc)),
+		GetScheduledQuery:                     authenticatedUser(svc, makeGetScheduledQueryEndpoint(svc)),
+		ModifyScheduledQuery:                  authenticatedUser(svc, makeModifyScheduledQueryEndpoint(svc)),
+		DeleteScheduledQuery:                  authenticatedUser(svc, makeDeleteScheduledQueryEndpoint(svc)),
+		ApplyPackSpecs:                        authenticatedUser(svc, makeApplyPackSpecsEndpoint(svc)),
+		GetPackSpecs:                          authenticatedUser(svc, makeGetPackSpecsEndpoint(svc)),
+		GetPackSpec:                           authenticatedUser(svc, makeGetPackSpecEndpoint(svc)),
+		GlobalScheduleQuery:                   authenticatedUser(svc, makeGlobalScheduleQueryEndpoint(svc)),
+		GetGlobalSchedule:                     authenticatedUser(svc, makeGetGlobalScheduleEndpoint(svc)),
+		ModifyGlobalSchedule:                  authenticatedUser(svc, makeModifyGlobalScheduleEndpoint(svc)),
+		DeleteGlobalSchedule:                  authenticatedUser(svc, makeDeleteGlobalScheduleEndpoint(svc)),
+		GetHost:                               authenticatedUser(svc, makeGetHostEndpoint(svc)),
+		HostByIdentifier:                      authenticatedUser(svc, makeHostByIdentifierEndpoint(svc)),
+		ListHosts:                             authenticatedUser(svc, makeListHostsEndpoint(svc)),
+		GetHostSummary:                        authenticatedUser(svc, makeGetHostSummaryEndpoint(svc)),
+		DeleteHost:                            authenticatedUser(svc, makeDeleteHostEndpoint(svc)),
+		AddHostsToTeam:                        authenticatedUser(svc, makeAddHostsToTeamEndpoint(svc)),
+		AddHostsToTeamByFilter:                authenticatedUser(svc, makeAddHostsToTeamByFilterEndpoint(svc)),
+		RefetchHost:                           authenticatedUser(svc, makeRefetchHostEndpoint(svc)),
+		CreateLabel:                           authenticatedUser(svc, makeCreateLabelEndpoint(svc)),
+		ModifyLabel:                           authenticatedUser(svc, makeModifyLabelEndpoint(svc)),
+		GetLabel:                              authenticatedUser(svc, makeGetLabelEndpoint(svc)),
+		ListLabels:                            authenticatedUser(svc, makeListLabelsEndpoint(svc)),
+		ListHostsInLabel:                      authenticatedUser(svc, makeListHostsInLabelEndpoint(svc)),
+		DeleteLabel:                           authenticatedUser(svc, makeDeleteLabelEndpoint(svc)),
+		DeleteLabelByID:                       authenticatedUser(svc, makeDeleteLabelByIDEndpoint(svc)),
+		ApplyLabelSpecs:                       authenticatedUser(svc, makeApplyLabelSpecsEndpoint(svc)),
+		GetLabelSpecs:                         authenticatedUser(svc, makeGetLabelSpecsEndpoint(svc)),
+		GetLabelSpec:                          authenticatedUser(svc, makeGetLabelSpecEndpoint(svc)),
+		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
+		GetCertificate:                        authenticatedUser(svc, makeCertificateEndpoint(svc)),
+		ChangeEmail:                           authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
+		ListCarves:                            authenticatedUser(svc, makeListCarvesEndpoint(svc)),
+		GetCarve:                              authenticatedUser(svc, makeGetCarveEndpoint(svc)),
+		GetCarveBlock:                         authenticatedUser(svc, makeGetCarveBlockEndpoint(svc)),
+		Version:                               authenticatedUser(svc, makeVersionEndpoint(svc)),
+		CreateTeam:                            authenticatedUser(svc, makeCreateTeamEndpoint(svc)),
+		ModifyTeam:                            authenticatedUser(svc, makeModifyTeamEndpoint(svc)),
+		ModifyTeamAgentOptions:                authenticatedUser(svc, makeModifyTeamAgentOptionsEndpoint(svc)),
+		DeleteTeam:                            authenticatedUser(svc, makeDeleteTeamEndpoint(svc)),
+		ListTeams:                             authenticatedUser(svc, makeListTeamsEndpoint(svc)),
+		ListTeamUsers:                         authenticatedUser(svc, makeListTeamUsersEndpoint(svc)),
+		AddTeamUsers:                          authenticatedUser(svc, makeAddTeamUsersEndpoint(svc)),
+		DeleteTeamUsers:                       authenticatedUser(svc, makeDeleteTeamUsersEndpoint(svc)),
+		TeamEnrollSecrets:                     authenticatedUser(svc, makeTeamEnrollSecretsEndpoint(svc)),
+		ListActivities:                        authenticatedUser(svc, makeListActivitiesEndpoint(svc)),
 
 		// Authenticated status endpoints
-		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
-		StatusLiveQuery:   authenticatedUser(jwtKey, svc, makeStatusLiveQueryEndpoint(svc)),
+		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
+		StatusLiveQuery:   authenticatedUser(svc, makeStatusLiveQueryEndpoint(svc)),
 
 		// Osquery endpoints
-		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
+		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
+		// Authenticated osquery endpoints
 		GetClientConfig:               authenticatedHost(svc, makeGetClientConfigEndpoint(svc)),
 		GetDistributedQueries:         authenticatedHost(svc, makeGetDistributedQueriesEndpoint(svc)),
 		SubmitDistributedQueryResults: authenticatedHost(svc, makeSubmitDistributedQueryResultsEndpoint(svc)),
@@ -229,11 +253,11 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		// For some reason osquery does not provide a node key with the block
 		// data. Instead the carve session ID should be verified in the service
 		// method.
-		CarveBlock: makeCarveBlockEndpoint(svc),
+		CarveBlock: logged(makeCarveBlockEndpoint(svc)),
 	}
 }
 
-type kolideHandlers struct {
+type fleetHandlers struct {
 	Login                                 http.Handler
 	Logout                                http.Handler
 	ForgotPassword                        http.Handler
@@ -245,8 +269,7 @@ type kolideHandlers struct {
 	GetUser                               http.Handler
 	ListUsers                             http.Handler
 	ModifyUser                            http.Handler
-	AdminUser                             http.Handler
-	EnableUser                            http.Handler
+	DeleteUser                            http.Handler
 	RequirePasswordReset                  http.Handler
 	PerformRequiredPasswordReset          http.Handler
 	GetSessionsForUserInfo                http.Handler
@@ -287,6 +310,10 @@ type kolideHandlers struct {
 	ApplyPackSpecs                        http.Handler
 	GetPackSpecs                          http.Handler
 	GetPackSpec                           http.Handler
+	GlobalScheduleQuery                   http.Handler
+	GetGlobalSchedule                     http.Handler
+	ModifyGlobalSchedule                  http.Handler
+	DeleteGlobalSchedule                  http.Handler
 	EnrollAgent                           http.Handler
 	GetClientConfig                       http.Handler
 	GetDistributedQueries                 http.Handler
@@ -310,9 +337,9 @@ type kolideHandlers struct {
 	RefetchHost                           http.Handler
 	ListHosts                             http.Handler
 	GetHostSummary                        http.Handler
+	AddHostsToTeam                        http.Handler
+	AddHostsToTeamByFilter                http.Handler
 	SearchTargets                         http.Handler
-	ApplyOsqueryOptionsSpec               http.Handler
-	GetOsqueryOptionsSpec                 http.Handler
 	GetCertificate                        http.Handler
 	ChangeEmail                           http.Handler
 	InitiateSSO                           http.Handler
@@ -324,13 +351,24 @@ type kolideHandlers struct {
 	GetCarve                              http.Handler
 	GetCarveBlock                         http.Handler
 	Version                               http.Handler
+	CreateTeam                            http.Handler
+	ModifyTeam                            http.Handler
+	ModifyTeamAgentOptions                http.Handler
+	DeleteTeam                            http.Handler
+	ListTeams                             http.Handler
+	ListTeamUsers                         http.Handler
+	AddTeamUsers                          http.Handler
+	DeleteTeamUsers                       http.Handler
+	TeamEnrollSecrets                     http.Handler
+	ListActivities                        http.Handler
 }
 
-func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
+func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
 	newServer := func(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc) http.Handler {
+		e = authzcheck.NewMiddleware().AuthzCheck()(e)
 		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
-	return &kolideHandlers{
+	return &fleetHandlers{
 		Login:                                 newServer(e.Login, decodeLoginRequest),
 		Logout:                                newServer(e.Logout, decodeNoParamsRequest),
 		ForgotPassword:                        newServer(e.ForgotPassword, decodeForgotPasswordRequest),
@@ -342,10 +380,9 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetUser:                               newServer(e.GetUser, decodeGetUserRequest),
 		ListUsers:                             newServer(e.ListUsers, decodeListUsersRequest),
 		ModifyUser:                            newServer(e.ModifyUser, decodeModifyUserRequest),
+		DeleteUser:                            newServer(e.DeleteUser, decodeDeleteUserRequest),
 		RequirePasswordReset:                  newServer(e.RequirePasswordReset, decodeRequirePasswordResetRequest),
 		PerformRequiredPasswordReset:          newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		EnableUser:                            newServer(e.EnableUser, decodeEnableUserRequest),
-		AdminUser:                             newServer(e.AdminUser, decodeAdminUserRequest),
 		GetSessionsForUserInfo:                newServer(e.GetSessionsForUserInfo, decodeGetInfoAboutSessionsForUserRequest),
 		DeleteSessionsForUser:                 newServer(e.DeleteSessionsForUser, decodeDeleteSessionsForUserRequest),
 		GetSessionInfo:                        newServer(e.GetSessionInfo, decodeGetInfoAboutSessionRequest),
@@ -384,6 +421,10 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ApplyPackSpecs:                        newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
 		GetPackSpecs:                          newServer(e.GetPackSpecs, decodeNoParamsRequest),
 		GetPackSpec:                           newServer(e.GetPackSpec, decodeGetGenericSpecRequest),
+		GlobalScheduleQuery:                   newServer(e.GlobalScheduleQuery, decodeGlobalScheduleQueryRequest),
+		GetGlobalSchedule:                     newServer(e.GetGlobalSchedule, decodeGetGlobalScheduleRequest),
+		ModifyGlobalSchedule:                  newServer(e.ModifyGlobalSchedule, decodeModifyGlobalScheduleRequest),
+		DeleteGlobalSchedule:                  newServer(e.DeleteGlobalSchedule, decodeDeleteGlobalScheduleRequest),
 		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:                       newServer(e.GetClientConfig, decodeGetClientConfigRequest),
 		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
@@ -407,9 +448,9 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		RefetchHost:                           newServer(e.RefetchHost, decodeRefetchHostRequest),
 		ListHosts:                             newServer(e.ListHosts, decodeListHostsRequest),
 		GetHostSummary:                        newServer(e.GetHostSummary, decodeNoParamsRequest),
+		AddHostsToTeam:                        newServer(e.AddHostsToTeam, decodeAddHostsToTeamRequest),
+		AddHostsToTeamByFilter:                newServer(e.AddHostsToTeamByFilter, decodeAddHostsToTeamByFilterRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		ApplyOsqueryOptionsSpec:               newServer(e.ApplyOsqueryOptionsSpec, decodeApplyOsqueryOptionsSpecRequest),
-		GetOsqueryOptionsSpec:                 newServer(e.GetOsqueryOptionsSpec, decodeNoParamsRequest),
 		GetCertificate:                        newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                           newServer(e.ChangeEmail, decodeChangeEmailRequest),
 		InitiateSSO:                           newServer(e.InitiateSSO, decodeInitiateSSORequest),
@@ -421,6 +462,16 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetCarve:                              newServer(e.GetCarve, decodeGetCarveRequest),
 		GetCarveBlock:                         newServer(e.GetCarveBlock, decodeGetCarveBlockRequest),
 		Version:                               newServer(e.Version, decodeNoParamsRequest),
+		CreateTeam:                            newServer(e.CreateTeam, decodeCreateTeamRequest),
+		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
+		ModifyTeamAgentOptions:                newServer(e.ModifyTeamAgentOptions, decodeModifyTeamAgentOptionsRequest),
+		DeleteTeam:                            newServer(e.DeleteTeam, decodeDeleteTeamRequest),
+		ListTeams:                             newServer(e.ListTeams, decodeListTeamsRequest),
+		ListTeamUsers:                         newServer(e.ListTeamUsers, decodeListTeamUsersRequest),
+		AddTeamUsers:                          newServer(e.AddTeamUsers, decodeModifyTeamUsersRequest),
+		DeleteTeamUsers:                       newServer(e.DeleteTeamUsers, decodeModifyTeamUsersRequest),
+		TeamEnrollSecrets:                     newServer(e.TeamEnrollSecrets, decodeTeamEnrollSecretsRequest),
+		ListActivities:                        newServer(e.ListActivities, decodeListActivitiesRequest),
 	}
 }
 
@@ -433,6 +484,14 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(kitlog.With(h.logger, "path", path))
 
+	if e, ok := err.(fleet.ErrWithInternal); ok {
+		logger = kitlog.With(logger, "internal", e.Internal())
+	}
+
+	if e, ok := err.(fleet.ErrWithLogFields); ok {
+		logger = kitlog.With(logger, e.LogFields()...)
+	}
+
 	switch e := err.(type) {
 	case ratelimit.Error:
 		res := e.Result()
@@ -443,37 +502,57 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	}
 }
 
+func logRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWriter) context.Context {
+	return func(ctx context.Context, w http.ResponseWriter) context.Context {
+		logCtx, ok := logging.FromContext(ctx)
+		if !ok {
+			return ctx
+		}
+		logCtx.Log(ctx, logger)
+		return ctx
+	}
+}
+
+func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.ResponseWriter) context.Context {
+	return func(ctx context.Context, w http.ResponseWriter) context.Context {
+		license, err := svc.License(ctx)
+		if err != nil || license == nil {
+			return ctx
+		}
+		if license.Tier == fleet.TierBasic && license.Expiration.Before(time.Now()) {
+			w.Header().Set(fleet.HeaderLicenseKey, fleet.HeaderLicenseValueExpired)
+		}
+		return ctx
+	}
+}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
-func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
-	kolideAPIOptions := []kithttp.ServerOption{
+func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
+	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
-			setRequestsContexts(svc, config.Auth.JwtKey),
+			setRequestsContexts(svc),
 		),
-		//kithttp.ServerErrorLogger(logger),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
 		kithttp.ServerErrorEncoder(encodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
+			logRequestEnd(logger),
+			checkLicenseExpiration(svc),
 		),
 	}
 
-	kolideEndpoints := MakeKolideServerEndpoints(svc, config.Auth.JwtKey, config.Server.URLPrefix, limitStore)
-	kolideHandlers := makeKolideKitHandlers(kolideEndpoints, kolideAPIOptions)
+	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Server.URLPrefix, limitStore)
+	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
 
 	r := mux.NewRouter()
 
-	attachKolideAPIRoutes(r, kolideHandlers)
-
-	// TODO #42 remove the shims
-	shimRoutes(r, logger)
+	attachFleetAPIRoutes(r, fleetHandlers)
+	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)
 
 	// Results endpoint is handled different due to websockets use
 	r.PathPrefix("/api/v1/fleet/results/").
-		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, config.Auth.JwtKey, logger)).
-		Name("distributed_query_results")
-	r.PathPrefix("/api/v1/fleet/results/").
-		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, config.Auth.JwtKey, logger)).
+		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
 		Name("distributed_query_results")
 
 	addMetrics(r)
@@ -490,54 +569,7 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
-func shimRoutes(r *mux.Router, logger kitlog.Logger) {
-	if err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		path, err := route.GetPathTemplate()
-		if err != nil {
-			return errors.Wrap(err, "get path template")
-		}
-
-		if !strings.HasPrefix(path, "/api/v1/fleet") {
-			return nil
-		}
-
-		methods, err := route.GetMethods()
-		if err != nil {
-			methods = []string{}
-		}
-
-		path = strings.Replace(path, "fleet", "kolide", 1)
-		router.Handle(path, route.GetHandler()).Methods(methods...).Name(route.GetName())
-
-		return nil
-	}); err != nil {
-		panic(err)
-	}
-
-	// Shim the routes to allow them to be referred as /api/v1/fleet or
-	// /api/v1/kolide.
-	var lastShimLogTime time.Time
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if time.Now().After(lastShimLogTime.Add(1 * time.Hour)) {
-				if strings.HasPrefix(r.URL.Path, "/api/v1/kolide") {
-					// There's a race condition with this timestamp but it's not
-					// a big deal if we accidentally log this message more than
-					// once. The point is to not overwhelm the logs with these
-					// messages and this code will be killed soon anyway.
-					lastShimLogTime = time.Now()
-					level.Info(logger).Log(
-						"msg", "client used deprecated route",
-						"deprecated", r.URL.Path,
-					)
-				}
-			}
-			next.ServeHTTP(w, r)
-		})
-	})
-}
-
-func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
+func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/login", h.Login).Methods("POST").Name("login")
 	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
 	r.Handle("/api/v1/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
@@ -553,8 +585,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/users/admin", h.CreateUser).Methods("POST").Name("create_user")
 	r.Handle("/api/v1/fleet/users/{id}", h.GetUser).Methods("GET").Name("get_user")
 	r.Handle("/api/v1/fleet/users/{id}", h.ModifyUser).Methods("PATCH").Name("modify_user")
-	r.Handle("/api/v1/fleet/users/{id}/enable", h.EnableUser).Methods("POST").Name("enable_user")
-	r.Handle("/api/v1/fleet/users/{id}/admin", h.AdminUser).Methods("POST").Name("admin_user")
+	r.Handle("/api/v1/fleet/users/{id}", h.DeleteUser).Methods("DELETE").Name("delete_user")
 	r.Handle("/api/v1/fleet/users/{id}/require_password_reset", h.RequirePasswordReset).Methods("POST").Name("require_password_reset")
 	r.Handle("/api/v1/fleet/users/{id}/sessions", h.GetSessionsForUserInfo).Methods("GET").Name("get_session_for_user")
 	r.Handle("/api/v1/fleet/users/{id}/sessions", h.DeleteSessionsForUser).Methods("DELETE").Name("delete_session_for_user")
@@ -602,6 +633,11 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
 	r.Handle("/api/v1/fleet/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
 
+	r.Handle("/api/v1/fleet/global/schedule", h.GetGlobalSchedule).Methods("GET").Name("set_global_schedule")
+	r.Handle("/api/v1/fleet/global/schedule", h.GlobalScheduleQuery).Methods("POST").Name("add_to_global_schedule")
+	r.Handle("/api/v1/fleet/global/schedule/{id}", h.ModifyGlobalSchedule).Methods("PATCH").Name("modify_global_schedule")
+	r.Handle("/api/v1/fleet/global/schedule/{id}", h.DeleteGlobalSchedule).Methods("DELETE").Name("delete_global_schedule")
+
 	r.Handle("/api/v1/fleet/labels", h.CreateLabel).Methods("POST").Name("create_label")
 	r.Handle("/api/v1/fleet/labels/{id}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
 	r.Handle("/api/v1/fleet/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
@@ -618,10 +654,9 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/hosts/{id}", h.GetHost).Methods("GET").Name("get_host")
 	r.Handle("/api/v1/fleet/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
 	r.Handle("/api/v1/fleet/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
+	r.Handle("/api/v1/fleet/hosts/transfer", h.AddHostsToTeam).Methods("POST").Name("add_hosts_to_team")
+	r.Handle("/api/v1/fleet/hosts/transfer/filter", h.AddHostsToTeamByFilter).Methods("POST").Name("add_hosts_to_team_by_filter")
 	r.Handle("/api/v1/fleet/hosts/{id}/refetch", h.RefetchHost).Methods("POST").Name("refetch_host")
-
-	r.Handle("/api/v1/fleet/spec/osquery_options", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")
-	r.Handle("/api/v1/fleet/spec/osquery_options", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
 
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
@@ -634,6 +669,16 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/carves/{id}", h.GetCarve).Methods("GET").Name("get_carve")
 	r.Handle("/api/v1/fleet/carves/{id}/block/{block_id}", h.GetCarveBlock).Methods("GET").Name("get_carve_block")
 
+	r.Handle("/api/v1/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
+	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
+	r.Handle("/api/v1/fleet/teams/{id}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
+	r.Handle("/api/v1/fleet/teams/{id}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
+	r.Handle("/api/v1/fleet/teams/{id}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
+	r.Handle("/api/v1/fleet/teams/{id}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
+	r.Handle("/api/v1/fleet/teams/{id}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
+	r.Handle("/api/v1/fleet/teams/{id}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")
+	r.Handle("/api/v1/fleet/teams/{id}/secrets", h.TeamEnrollSecrets).Methods("GET").Name("get_team_enroll_secrets")
+
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
 	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
@@ -641,12 +686,37 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
 	r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
 	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
+
+	r.Handle("/api/v1/fleet/activities", h.ListActivities).Methods("GET").Name("list_activities")
+}
+
+func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
+	e := NewUserAuthenticatedEndpointer(svc, opts, r)
+	e.POST("/api/v1/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
+	e.POST("/api/v1/fleet/translate", translatorEndpoint, translatorRequest{})
+	e.POST("/api/v1/fleet/spec/teams", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
+
+	e.GET("/api/v1/fleet/team/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
+	e.POST("/api/v1/fleet/team/{team_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
+	e.PATCH("/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
+	e.DELETE("/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
+
+	e.POST("/api/v1/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
+	e.GET("/api/v1/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
+	e.GET("/api/v1/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
+	e.POST("/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
+}
+
+// TODO: this duplicates the one in makeKitHandler
+func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
+	e = authzcheck.NewMiddleware().AuthzCheck()(e)
+	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.
 // If setup hasn't been completed it serves the API with a setup middleware.
 // If the server is already configured, the default API handler is exposed.
-func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
 		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
@@ -659,7 +729,7 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 			next.ServeHTTP(w, r)
 			return
 		}
-		requireSetup, err := RequireSetup(svc)
+		requireSetup, err := svc.SetupRequired(context.Background())
 		if err != nil {
 			logger.Log("msg", "fetching setup info from db", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -675,7 +745,7 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 
 // RedirectLoginToSetup detects if the setup endpoint should be used. If setup is required it redirect all
 // frontend urls to /setup, otherwise the frontend router is used.
-func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
+func RedirectLoginToSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		redirect := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/setup" {
@@ -687,7 +757,7 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
 		})
 
-		setupRequired, err := RequireSetup(svc)
+		setupRequired, err := svc.SetupRequired(context.Background())
 		if err != nil {
 			logger.Log("msg", "fetching setupinfo from db", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -701,22 +771,9 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 	}
 }
 
-// RequireSetup checks to see if the service has been setup.
-func RequireSetup(svc kolide.Service) (bool, error) {
-	ctx := context.Background()
-	users, err := svc.ListUsers(ctx, kolide.ListOptions{Page: 0, PerPage: 1})
-	if err != nil {
-		return false, err
-	}
-	if len(users) == 0 {
-		return true, nil
-	}
-	return false, nil
-}
-
 // RedirectSetupToLogin forces the /setup path to be redirected to login. This middleware is used after
 // the app has been setup.
-func RedirectSetupToLogin(svc kolide.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
+func RedirectSetupToLogin(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/setup" {
 			newURL := r.URL

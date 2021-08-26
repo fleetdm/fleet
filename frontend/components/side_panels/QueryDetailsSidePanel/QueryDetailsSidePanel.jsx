@@ -2,9 +2,11 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router";
 
+import permissionUtils from "utilities/permissions";
 import Button from "components/buttons/Button";
-import KolideAce from "components/KolideAce";
+import FleetAce from "components/FleetAce";
 import queryInterface from "interfaces/query";
+import userInterface from "interfaces/user";
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
 
 const baseClass = "query-details-side-panel";
@@ -13,6 +15,7 @@ class QueryDetailsSidePanel extends Component {
   static propTypes = {
     onEditQuery: PropTypes.func.isRequired,
     query: queryInterface.isRequired,
+    currentUser: userInterface,
   };
 
   handleEditQueryClick = (evt) => {
@@ -30,7 +33,7 @@ class QueryDetailsSidePanel extends Component {
     if (!packs || (packs && !packs.length)) {
       return (
         <p className={`${baseClass}__description`}>
-          There are no packs associated with this query
+          There are no packs associated with this query.
         </p>
       );
     }
@@ -57,32 +60,56 @@ class QueryDetailsSidePanel extends Component {
   };
 
   render() {
-    const { query } = this.props;
+    const { query, currentUser } = this.props;
     const { handleEditQueryClick, renderPacks } = this;
-    const { description, name, query: queryText } = query;
+    const { description, name, query: queryText, observer_can_run } = query;
+
+    const renderCTA = () => {
+      if (
+        permissionUtils.isGlobalAdmin(currentUser) ||
+        permissionUtils.isGlobalMaintainer(currentUser)
+      ) {
+        return "Edit or run query";
+      }
+      if (
+        permissionUtils.isAnyTeamMaintainer(currentUser) ||
+        (permissionUtils.isOnlyObserver(currentUser) && observer_can_run)
+      ) {
+        return "Run query";
+      }
+      return "Show query";
+    };
 
     return (
       <SecondarySidePanelContainer className={baseClass}>
         <p className={`${baseClass}__label`}>Query</p>
-        <h1>{name}</h1>
-        <p className={`${baseClass}__label`}>SQL</p>
-        <KolideAce
-          fontSize={12}
-          name="query-details"
-          readOnly
-          showGutter={false}
-          value={queryText}
-          wrapperClassName={`${baseClass}__query-preview`}
-          wrapEnabled
-        />
+        <p className={`${baseClass}__description`}>{name}</p>
+        {!permissionUtils.isOnlyObserver(currentUser) && (
+          <>
+            <p className={`${baseClass}__label`}>SQL</p>
+            <FleetAce
+              fontSize={12}
+              name="query-details"
+              readOnly
+              showGutter={false}
+              value={queryText}
+              wrapperClassName={`${baseClass}__query-preview`}
+              wrapEnabled
+            />
+          </>
+        )}
         <p className={`${baseClass}__label`}>Description</p>
         <p className={`${baseClass}__description`}>
-          {description || <em>No description available</em>}
+          {description || <>No description available.</>}
         </p>
-        <p className={`${baseClass}__label`}>Packs</p>
-        {renderPacks()}
-        <Button onClick={handleEditQueryClick} variant="inverse">
-          Edit or run query
+        {!permissionUtils.isOnlyObserver(currentUser) && (
+          <>
+            <p className={`${baseClass}__label`}>Packs</p>
+            {renderPacks()}
+          </>
+        )}
+        <Button onClick={handleEditQueryClick} variant="brand">
+          {renderCTA(currentUser)}
         </Button>
       </SecondarySidePanelContainer>
     );

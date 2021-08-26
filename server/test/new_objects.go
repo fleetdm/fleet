@@ -4,16 +4,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
-func NewQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint, saved bool) *kolide.Query {
+func NewQuery(t *testing.T, ds fleet.Datastore, name, q string, authorID uint, saved bool) *fleet.Query {
 	authorPtr := &authorID
 	if authorID == 0 {
 		authorPtr = nil
 	}
-	query, err := ds.NewQuery(&kolide.Query{
+	query, err := ds.NewQuery(&fleet.Query{
 		Name:     name,
 		Query:    q,
 		AuthorID: authorPtr,
@@ -28,8 +30,8 @@ func NewQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint, 
 	return query
 }
 
-func NewPack(t *testing.T, ds kolide.Datastore, name string) *kolide.Pack {
-	err := ds.ApplyPackSpecs([]*kolide.PackSpec{&kolide.PackSpec{Name: name}})
+func NewPack(t *testing.T, ds fleet.Datastore, name string) *fleet.Pack {
+	err := ds.ApplyPackSpecs([]*fleet.PackSpec{&fleet.PackSpec{Name: name}})
 	require.Nil(t, err)
 
 	// Loading gives us the timestamps
@@ -40,10 +42,10 @@ func NewPack(t *testing.T, ds kolide.Datastore, name string) *kolide.Pack {
 	return pack
 }
 
-func NewCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.DistributedQueryStatus, now time.Time) *kolide.DistributedQueryCampaign {
-	campaign, err := ds.NewDistributedQueryCampaign(&kolide.DistributedQueryCampaign{
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{
+func NewCampaign(t *testing.T, ds fleet.Datastore, queryID uint, status fleet.DistributedQueryStatus, now time.Time) *fleet.DistributedQueryCampaign {
+	campaign, err := ds.NewDistributedQueryCampaign(&fleet.DistributedQueryCampaign{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{
 				CreatedAt: now,
 			},
 		},
@@ -59,48 +61,48 @@ func NewCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.
 	return campaign
 }
 
-func AddHostToCampaign(t *testing.T, ds kolide.Datastore, campaignID, hostID uint) {
+func AddHostToCampaign(t *testing.T, ds fleet.Datastore, campaignID, hostID uint) {
 	_, err := ds.NewDistributedQueryCampaignTarget(
-		&kolide.DistributedQueryCampaignTarget{
-			Type:                       kolide.TargetHost,
+		&fleet.DistributedQueryCampaignTarget{
+			Type:                       fleet.TargetHost,
 			TargetID:                   hostID,
 			DistributedQueryCampaignID: campaignID,
 		})
 	require.Nil(t, err)
 }
 
-func AddLabelToCampaign(t *testing.T, ds kolide.Datastore, campaignID, labelID uint) {
+func AddLabelToCampaign(t *testing.T, ds fleet.Datastore, campaignID, labelID uint) {
 	_, err := ds.NewDistributedQueryCampaignTarget(
-		&kolide.DistributedQueryCampaignTarget{
-			Type:                       kolide.TargetLabel,
+		&fleet.DistributedQueryCampaignTarget{
+			Type:                       fleet.TargetLabel,
 			TargetID:                   labelID,
 			DistributedQueryCampaignID: campaignID,
 		})
 	require.Nil(t, err)
 }
 
-func AddAllHostsLabel(t *testing.T, ds kolide.Datastore) {
+func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 	_, err := ds.NewLabel(
-		&kolide.Label{
+		&fleet.Label{
 			Name:                "All Hosts",
 			Query:               "select 1",
-			LabelType:           kolide.LabelTypeBuiltIn,
-			LabelMembershipType: kolide.LabelMembershipTypeManual,
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
 		},
 	)
 	require.Nil(t, err)
 }
 
-func NewHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now time.Time) *kolide.Host {
-	osqueryHostID, _ := kolide.RandomText(10)
-	h, err := ds.NewHost(&kolide.Host{
-		HostName:         name,
-		NodeKey:          key,
-		UUID:             uuid,
-		DetailUpdateTime: now,
-		LabelUpdateTime:  now,
-		SeenTime:         now,
-		OsqueryHostID:    osqueryHostID,
+func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now time.Time) *fleet.Host {
+	osqueryHostID, _ := server.GenerateRandomText(10)
+	h, err := ds.NewHost(&fleet.Host{
+		Hostname:        name,
+		NodeKey:         key,
+		UUID:            uuid,
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		SeenTime:        now,
+		OsqueryHostID:   osqueryHostID,
 	})
 
 	require.Nil(t, err)
@@ -110,14 +112,17 @@ func NewHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now 
 	return h
 }
 
-func NewUser(t *testing.T, ds kolide.Datastore, name, username, email string, admin bool) *kolide.User {
-	u, err := ds.NewUser(&kolide.User{
-		Password: []byte("garbage"),
-		Salt:     "garbage",
-		Name:     name,
-		Username: username,
-		Email:    email,
-		Admin:    admin,
+func NewUser(t *testing.T, ds fleet.Datastore, name, email string, admin bool) *fleet.User {
+	role := fleet.RoleObserver
+	if admin {
+		role = fleet.RoleAdmin
+	}
+	u, err := ds.NewUser(&fleet.User{
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       name,
+		Email:      email,
+		GlobalRole: &role,
 	})
 
 	require.Nil(t, err)
@@ -126,8 +131,8 @@ func NewUser(t *testing.T, ds kolide.Datastore, name, username, email string, ad
 	return u
 }
 
-func NewScheduledQuery(t *testing.T, ds kolide.Datastore, pid, qid, interval uint, snapshot, removed bool, name string) *kolide.ScheduledQuery {
-	sq, err := ds.NewScheduledQuery(&kolide.ScheduledQuery{
+func NewScheduledQuery(t *testing.T, ds fleet.Datastore, pid, qid, interval uint, snapshot, removed bool, name string) *fleet.ScheduledQuery {
+	sq, err := ds.NewScheduledQuery(&fleet.ScheduledQuery{
 		Name:     name,
 		PackID:   pid,
 		QueryID:  qid,

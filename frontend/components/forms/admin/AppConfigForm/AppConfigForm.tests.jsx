@@ -11,9 +11,9 @@ describe("AppConfigForm - form", () => {
     handleSubmit: noop,
     smtpConfigured: false,
     enrollSecret: [
-      { name: "foo", secret: "foo_secret", active: true },
-      { name: "bar", secret: "bar_secret", active: true },
-      { name: "inactive", secret: "inactive", active: false },
+      { secret: "foo_secret" },
+      { secret: "bar_secret" },
+      { secret: "baz_secret" },
     ],
   };
   const form = mount(<AppConfigForm {...defaultProps} />);
@@ -32,7 +32,7 @@ describe("AppConfigForm - form", () => {
 
   describe("Fleet App URL input", () => {
     it("renders an input field", () => {
-      itBehavesLikeAFormInputElement(form, "kolide_server_url");
+      itBehavesLikeAFormInputElement(form, "server_url");
     });
   });
 

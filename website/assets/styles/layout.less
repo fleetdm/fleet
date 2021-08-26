@@ -20,15 +20,16 @@ html, body {
   position: absolute;
   left: 0;
   right: 0;
+  .dropdown:hover > .dropdown-menu {
+    display: block;
+  }
   .header-btn {
     color: #ffffff;
     cursor: unset;
     font-family: @navigation-font;
     font-weight: @bold;
+    border: 0;
   }
-  // .header-btn[aria-expanded='true'] {
-  //   color: #6a67fe;
-  // }
   .header-link {
     color: #ffffff;
     font-weight: @bold;
@@ -104,6 +105,9 @@ html, body {
   left: 0;
   right: 0;
   border-bottom: 1px solid #e2e4ea;
+  .dropdown:hover > .dropdown-menu {
+    display: block;
+  }
   .header-btn {
     color: #192147;
     cursor: unset;
@@ -180,28 +184,18 @@ html, body {
 }
 
 [purpose='page-footer'] {
+  color: white;
   height: @footer-height;
   width: 100%;
   position: absolute;
   left: 0px;
   bottom: 0px;
-  padding-top: 63px;
-  .twitter-link {
-    background-color: #03a9f4;
-    border-color: #03a9f4;
-    &:hover {
-      background-color: darken(#03a9f4, 10%);
-      border-color: darken(#03a9f4, 10%);
-    }
+  // padding-top: 63px;
+
+  a {
+    color: white;
   }
-  .slack-link {
-    background-color: #fff;
-    border-color: #fff;
-    &:hover {
-      background-color: darken(#fff, 10%);
-      border-color: darken(#fff, 10%);
-    }
-  }
+
 }
 
 body.detected-mobile {
@@ -237,7 +231,7 @@ body.detected-mobile {
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 300px) {
   [purpose='join-the-community-on-slack-expanded-text'] {
     display: none;
   }

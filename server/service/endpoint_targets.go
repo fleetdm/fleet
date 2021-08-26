@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -13,11 +13,12 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type searchTargetsRequest struct {
-	Query    string `json:"query"`
-	Selected struct {
-		Labels []uint `json:"labels"`
-		Hosts  []uint `json:"hosts"`
-	} `json:"selected"`
+	// MatchQuery is the query SQL
+	MatchQuery string `json:"query"`
+	// QueryID is the ID of a saved query to run (used to determine if this is a
+	// query that observers can run).
+	QueryID  *uint             `json:"query_id"`
+	Selected fleet.HostTargets `json:"selected"`
 }
 
 type hostSearchResult struct {
@@ -26,7 +27,13 @@ type hostSearchResult struct {
 }
 
 type labelSearchResult struct {
-	kolide.Label
+	*fleet.Label
+	DisplayText string `json:"display_text"`
+	Count       int    `json:"count"`
+}
+
+type teamSearchResult struct {
+	*fleet.Team
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
 }
@@ -34,6 +41,7 @@ type labelSearchResult struct {
 type targetsData struct {
 	Hosts  []hostSearchResult  `json:"hosts"`
 	Labels []labelSearchResult `json:"labels"`
+	Teams  []teamSearchResult  `json:"teams"`
 }
 
 type searchTargetsResponse struct {
@@ -47,11 +55,11 @@ type searchTargetsResponse struct {
 
 func (r searchTargetsResponse) error() error { return r.Err }
 
-func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeSearchTargetsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(searchTargetsRequest)
 
-		results, err := svc.SearchTargets(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels)
+		results, err := svc.SearchTargets(ctx, req.MatchQuery, req.QueryID, req.Selected)
 		if err != nil {
 			return searchTargetsResponse{Err: err}, nil
 		}
@@ -59,6 +67,7 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		targets := &targetsData{
 			Hosts:  []hostSearchResult{},
 			Labels: []labelSearchResult{},
+			Teams:  []teamSearchResult{},
 		}
 
 		for _, host := range results.Hosts {
@@ -68,7 +77,7 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 						Host:   host,
 						Status: host.Status(time.Now()),
 					},
-					host.HostName,
+					host.Hostname,
 				},
 			)
 		}
@@ -83,7 +92,17 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			)
 		}
 
-		metrics, err := svc.CountHostsInTargets(ctx, req.Selected.Hosts, req.Selected.Labels)
+		for _, team := range results.Teams {
+			targets.Teams = append(targets.Teams,
+				teamSearchResult{
+					Team:        team,
+					DisplayText: team.Name,
+					Count:       team.HostCount,
+				},
+			)
+		}
+
+		metrics, err := svc.CountHostsInTargets(ctx, req.QueryID, req.Selected)
 		if err != nil {
 			return searchTargetsResponse{Err: err}, nil
 		}

@@ -9,12 +9,17 @@ const local = {
   getItem: (itemName) => {
     const { localStorage } = window;
 
-    return localStorage.getItem(`KOLIDE::${itemName}`);
+    return localStorage.getItem(`FLEET::${itemName}`);
   },
   setItem: (itemName, value) => {
     const { localStorage } = window;
 
-    return localStorage.setItem(`KOLIDE::${itemName}`, value);
+    return localStorage.setItem(`FLEET::${itemName}`, value);
+  },
+  removeItem: (itemName) => {
+    const { localStorage } = window;
+
+    localStorage.removeItem(`FLEET::${itemName}`);
   },
 };
 

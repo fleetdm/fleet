@@ -11,7 +11,7 @@ declare namespace Cypress {
     /**
      * Custom command to login the user programmatically using the fleet API.
      */
-    login(): Chainable<Element>;
+    login(email?: string, password?: string): Chainable<Element>;
 
     /**
      * Custom command to log out the current user.
@@ -19,12 +19,32 @@ declare namespace Cypress {
     logout(): Chainable<Element>;
 
     /**
+     * Custom command to add new queries by default.
+     */
+    seedQueries(): Chainable<Element>;
+
+    /**
+     * Custom command to add a new user in Fleet (via fleetctl).
+     */
+    addUser(options?: {
+      email?: string;
+      password?: string;
+      globalRole?: string;
+    }): Chainable<Element>;
+
+    /**
      * Custom command to setup the SMTP configuration for this testing environment.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
      */
     setupSMTP(): Chainable<Element>;
 
     /**
      * Custom command to set up SSO auth with the local server.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
      */
     setupSSO(enable_idp_login?: boolean): Chainable<Element>;
 
@@ -37,5 +57,42 @@ declare namespace Cypress {
      * Custom command to get the emails handled by the Mailhog server.
      */
     getEmails(): Chainable<Response>;
+
+    /**
+     * Custom command to seed the Core tier teams/users.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
+     */
+    seedCore(): Chainable<Element>;
+
+    /**
+     * Custom command to seed the Basic tier teams/users.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
+     */
+    seedBasic(): Chainable<Element>;
+
+    /**
+     * Custom command to seed the teams/users as represented in Figma.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
+     */
+    seedFigma(): Chainable<Element>;
+
+    /**
+     * Custom command to add Docker osquery host.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests.
+     */
+    addDockerHost(): Chainable;
+
+    /**
+     * Custom command to stop any running Docker hosts.
+     */
+    stopDockerHost(): Chainable;
   }
 }

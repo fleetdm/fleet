@@ -5,6 +5,8 @@ import invites from "test/mocks/invite_mocks";
 import labels from "test/mocks/label_mocks";
 import packs from "test/mocks/pack_mocks";
 import queries from "test/mocks/query_mocks";
+import teamScheduledQueries from "test/mocks/team_scheduled_query_mocks";
+import globalScheduledQueries from "test/mocks/global_scheduled_query_mocks";
 import scheduledQueries from "test/mocks/scheduled_query_mocks";
 import sessions from "test/mocks/session_mocks";
 import statusLabels from "test/mocks/status_label_mocks";
@@ -19,6 +21,8 @@ export default {
   labels,
   packs,
   queries,
+  teamScheduledQueries,
+  globalScheduledQueries,
   scheduledQueries,
   sessions,
   statusLabels,

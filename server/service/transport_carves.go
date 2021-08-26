@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -44,7 +44,7 @@ func decodeListCarvesRequest(ctx context.Context, r *http.Request) (interface{},
 	if err != nil {
 		return nil, err
 	}
-	copt := kolide.CarveListOptions{ListOptions: opt}
+	copt := fleet.CarveListOptions{ListOptions: opt}
 	expired := r.URL.Query().Get("expired")
 	switch expired {
 	case "1", "true":

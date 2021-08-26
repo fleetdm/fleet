@@ -6,7 +6,7 @@ import (
 	"html/template"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -15,22 +15,22 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type loginRequest struct {
-	Username string // can be username or email
+	Email    string
 	Password string
 }
 
 type loginResponse struct {
-	User  *kolide.User `json:"user,omitempty"`
-	Token string       `json:"token,omitempty"`
-	Err   error        `json:"error,omitempty"`
+	User  *fleet.User `json:"user,omitempty"`
+	Token string      `json:"token,omitempty"`
+	Err   error       `json:"error,omitempty"`
 }
 
 func (r loginResponse) error() error { return r.Err }
 
-func makeLoginEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeLoginEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(loginRequest)
-		user, token, err := svc.Login(ctx, req.Username, req.Password)
+		user, token, err := svc.Login(ctx, req.Email, req.Password)
 		if err != nil {
 			return loginResponse{Err: err}, nil
 		}
@@ -48,7 +48,7 @@ type logoutResponse struct {
 
 func (r logoutResponse) error() error { return r.Err }
 
-func makeLogoutEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeLogoutEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		err := svc.Logout(ctx)
 		if err != nil {
@@ -75,7 +75,7 @@ type getInfoAboutSessionResponse struct {
 
 func (r getInfoAboutSessionResponse) error() error { return r.Err }
 
-func makeGetInfoAboutSessionEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetInfoAboutSessionEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getInfoAboutSessionRequest)
 		session, err := svc.GetInfoAboutSession(ctx, req.ID)
@@ -106,7 +106,7 @@ type getInfoAboutSessionsForUserResponse struct {
 
 func (r getInfoAboutSessionsForUserResponse) error() error { return r.Err }
 
-func makeGetInfoAboutSessionsForUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetInfoAboutSessionsForUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getInfoAboutSessionsForUserRequest)
 		sessions, err := svc.GetInfoAboutSessionsForUser(ctx, req.ID)
@@ -139,7 +139,7 @@ type deleteSessionResponse struct {
 
 func (r deleteSessionResponse) error() error { return r.Err }
 
-func makeDeleteSessionEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteSessionEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteSessionRequest)
 		err := svc.DeleteSession(ctx, req.ID)
@@ -164,7 +164,7 @@ type deleteSessionsForUserResponse struct {
 
 func (r deleteSessionsForUserResponse) error() error { return r.Err }
 
-func makeDeleteSessionsForUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteSessionsForUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteSessionsForUserRequest)
 		err := svc.DeleteSessionsForUser(ctx, req.ID)
@@ -186,7 +186,7 @@ type initiateSSOResponse struct {
 
 func (r initiateSSOResponse) error() error { return r.Err }
 
-func makeInitiateSSOEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeInitiateSSOEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(initiateSSORequest)
 		idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL)
@@ -207,15 +207,15 @@ func (r callbackSSOResponse) error() error { return r.Err }
 // If html is present we return a web page
 func (r callbackSSOResponse) html() string { return r.content }
 
-func makeCallbackSSOEndpoint(svc kolide.Service, urlPrefix string) endpoint.Endpoint {
+func makeCallbackSSOEndpoint(svc fleet.Service, urlPrefix string) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		authResponse := request.(kolide.Auth)
+		authResponse := request.(fleet.Auth)
 		session, err := svc.CallbackSSO(ctx, authResponse)
 		var resp callbackSSOResponse
 		if err != nil {
 			// redirect to login page on front end if there was some problem,
 			// errors should still be logged
-			session = &kolide.SSOSession{
+			session = &fleet.SSOSession{
 				RedirectURL: urlPrefix + "/login",
 				Token:       "",
 			}
@@ -224,7 +224,7 @@ func makeCallbackSSOEndpoint(svc kolide.Service, urlPrefix string) endpoint.Endp
 		relayStateLoadPage := ` <html>
      <script type='text/javascript'>
      var redirectURL = {{ .RedirectURL }};
-     window.localStorage.setItem('KOLIDE::auth_token', '{{ .Token }}');
+     window.localStorage.setItem('FLEET::auth_token', '{{ .Token }}');
      window.location = redirectURL;
      </script>
      <body>
@@ -247,13 +247,13 @@ func makeCallbackSSOEndpoint(svc kolide.Service, urlPrefix string) endpoint.Endp
 }
 
 type ssoSettingsResponse struct {
-	Settings *kolide.SSOSettings `json:"settings,omitempty"`
-	Err      error               `json:"error,omitempty"`
+	Settings *fleet.SessionSSOSettings `json:"settings,omitempty"`
+	Err      error                     `json:"error,omitempty"`
 }
 
 func (r ssoSettingsResponse) error() error { return r.Err }
 
-func makeSSOSettingsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeSSOSettingsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, unused interface{}) (interface{}, error) {
 		settings, err := svc.SSOSettings(ctx)
 		if err != nil {

@@ -6,6 +6,9 @@ import { configure } from "enzyme";
 import Adapter from "enzyme-adapter-react-16";
 import nock from "nock";
 
+// for testing-library utils
+import "@testing-library/jest-dom";
+
 // Uncomment for verbose unhandled promise rejection warnings
 // process.on('unhandledRejection', (reason) => {
 //   console.error('REJECTION', reason);

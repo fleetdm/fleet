@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw metricsMiddleware) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (mw metricsMiddleware) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet.AppConfig, error) {
 	var (
-		info *kolide.AppConfig
+		info *fleet.AppConfig
 		err  error
 	)
 	defer func(begin time.Time) {
@@ -22,9 +22,9 @@ func (mw metricsMiddleware) NewAppConfig(ctx context.Context, p kolide.AppConfig
 	return info, err
 }
 
-func (mw metricsMiddleware) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
+func (mw metricsMiddleware) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	var (
-		info *kolide.AppConfig
+		info *fleet.AppConfig
 		err  error
 	)
 	defer func(begin time.Time) {
@@ -36,9 +36,9 @@ func (mw metricsMiddleware) AppConfig(ctx context.Context) (*kolide.AppConfig, e
 	return info, err
 }
 
-func (mw metricsMiddleware) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+func (mw metricsMiddleware) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
 	var (
-		info *kolide.AppConfig
+		info *fleet.AppConfig
 		err  error
 	)
 	defer func(begin time.Time) {

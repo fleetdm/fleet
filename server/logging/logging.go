@@ -1,22 +1,22 @@
-// package logging provides logger "plugins" for writing osquery status and
+// Package logging provides logger "plugins" for writing osquery status and
 // result logs to various destinations.
 package logging
 
 import (
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 )
 
 type OsqueryLogger struct {
-	Status kolide.JSONLogger
-	Result kolide.JSONLogger
+	Status fleet.JSONLogger
+	Result fleet.JSONLogger
 }
 
-func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) {
-	var status, result kolide.JSONLogger
+func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
+	var status, result fleet.JSONLogger
 	var err error
 
 	switch config.Osquery.StatusLogPlugin {
@@ -37,6 +37,7 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 	case "firehose":
 		status, err = NewFirehoseLogWriter(
 			config.Firehose.Region,
+			config.Firehose.EndpointURL,
 			config.Firehose.AccessKeyID,
 			config.Firehose.SecretAccessKey,
 			config.Firehose.StsAssumeRoleArn,
@@ -49,6 +50,7 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 	case "kinesis":
 		status, err = NewKinesisLogWriter(
 			config.Kinesis.Region,
+			config.Kinesis.EndpointURL,
 			config.Kinesis.AccessKeyID,
 			config.Kinesis.SecretAccessKey,
 			config.Kinesis.StsAssumeRoleArn,
@@ -109,6 +111,7 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 	case "firehose":
 		result, err = NewFirehoseLogWriter(
 			config.Firehose.Region,
+			config.Firehose.EndpointURL,
 			config.Firehose.AccessKeyID,
 			config.Firehose.SecretAccessKey,
 			config.Kinesis.StsAssumeRoleArn,
@@ -121,6 +124,7 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 	case "kinesis":
 		result, err = NewKinesisLogWriter(
 			config.Kinesis.Region,
+			config.Kinesis.EndpointURL,
 			config.Kinesis.AccessKeyID,
 			config.Kinesis.SecretAccessKey,
 			config.Kinesis.StsAssumeRoleArn,

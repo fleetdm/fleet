@@ -3,41 +3,58 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (svc service) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSpec) error {
+func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	for _, spec := range specs {
-		if spec.LabelMembershipType == kolide.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
+		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
 			return errors.Errorf("label %s is declared as dynamic but contains `hosts` key", spec.Name)
 		}
-		if spec.LabelMembershipType == kolide.LabelMembershipTypeManual && spec.Hosts == nil {
+		if spec.LabelMembershipType == fleet.LabelMembershipTypeManual && spec.Hosts == nil {
 			// Hosts list doesn't need to contain anything, but it should at least not be nil.
-			return errors.Errorf("label %s is declared as manual but contains not `hosts key`", spec.Name)
+			return errors.Errorf("label %s is declared as manual but contains no `hosts key`", spec.Name)
 		}
 	}
 	return svc.ds.ApplyLabelSpecs(specs)
 }
 
-func (svc service) GetLabelSpecs(ctx context.Context) ([]*kolide.LabelSpec, error) {
+func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.GetLabelSpecs()
 }
 
-func (svc service) GetLabelSpec(ctx context.Context, name string) (*kolide.LabelSpec, error) {
+func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.GetLabelSpec(name)
 }
 
-func (svc service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide.Label, error) {
-	label := &kolide.Label{}
+func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.Label, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	label := &fleet.Label{}
 
 	if p.Name == nil {
-		return nil, newInvalidArgumentError("name", "missing required argument")
+		return nil, fleet.NewInvalidArgumentError("name", "missing required argument")
 	}
 	label.Name = *p.Name
 
 	if p.Query == nil {
-		return nil, newInvalidArgumentError("query", "missing required argument")
+		return nil, fleet.NewInvalidArgumentError("query", "missing required argument")
 	}
 	label.Query = *p.Query
 
@@ -56,7 +73,11 @@ func (svc service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide
 	return label, nil
 }
 
-func (svc service) ModifyLabel(ctx context.Context, id uint, payload kolide.ModifyLabelPayload) (*kolide.Label, error) {
+func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
 	label, err := svc.ds.Label(id)
 	if err != nil {
 		return nil, err
@@ -70,19 +91,40 @@ func (svc service) ModifyLabel(ctx context.Context, id uint, payload kolide.Modi
 	return svc.ds.SaveLabel(label)
 }
 
-func (svc service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
-	return svc.ds.ListLabels(opt)
+func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Label, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	return svc.ds.ListLabels(filter, opt)
 }
 
-func (svc service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error) {
+func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.Label(id)
 }
 
-func (svc service) DeleteLabel(ctx context.Context, name string) error {
+func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DeleteLabel(name)
 }
 
-func (svc service) DeleteLabelByID(ctx context.Context, id uint) error {
+func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	label, err := svc.ds.Label(id)
 	if err != nil {
 		return err
@@ -90,22 +132,23 @@ func (svc service) DeleteLabelByID(ctx context.Context, id uint) error {
 	return svc.ds.DeleteLabel(label.Name)
 }
 
-func (svc service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.HostListOptions) ([]kolide.Host, error) {
-	return svc.ds.ListHostsInLabel(lid, opt)
-}
-
-func (svc service) ListLabelsForHost(ctx context.Context, hid uint) ([]kolide.Label, error) {
-	return svc.ds.ListLabelsForHost(hid)
-}
-
-func (svc service) HostIDsForLabel(lid uint) ([]uint, error) {
-	hosts, err := svc.ds.ListHostsInLabel(lid, kolide.HostListOptions{})
-	if err != nil {
+func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	var ids []uint
-	for _, h := range hosts {
-		ids = append(ids, h.ID)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
 	}
-	return ids, nil
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	return svc.ds.ListHostsInLabel(filter, lid, opt)
+}
+
+func (svc *Service) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.ListLabelsForHost(hid)
 }

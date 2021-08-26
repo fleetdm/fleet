@@ -60,7 +60,7 @@ a {
   @at-root {
     .has-sidebar & {
       margin-right: 0;
-      min-width: 610px;
+      min-width: calc(#{$app-min-width} - 30px - 30px - #{$sidepanel-width});
       max-width: calc(
         100vw - #{$pad-xlarge} - #{$pad-xlarge} - #{$pad-xxsmall} - #{$sidepanel-width}
       );
@@ -103,5 +103,29 @@ input {
       -webkit-appearance: none;
       margin: 0;
     }
+  }
+}
+
+// syntax highlighting for pretty-printed JSON
+pre {
+  padding: 15px;
+  background-color: $core-fleet-black;
+  color: $core-white;
+  border-radius: 4px;
+
+  .string {
+    color: $rainbow-green;
+  }
+  .number {
+    color: $rainbow-orange;
+  }
+  .boolean {
+    color: blue;
+  }
+  .null {
+    color: magenta;
+  }
+  .key {
+    color: $core-white;
   }
 }

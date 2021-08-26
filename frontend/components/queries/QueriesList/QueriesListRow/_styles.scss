@@ -1,9 +1,13 @@
 .queries-list-row {
-  line-height: 38px;
+  line-height: 40px;
   border-bottom: 1px solid $ui-fleet-blue-15;
 
   &__description {
     max-width: 280px;
+  }
+
+  &__observers-can-run {
+    max-width: 180px;
   }
 
   &:last-child {

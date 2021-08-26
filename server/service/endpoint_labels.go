@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -12,7 +12,7 @@ type getLabelRequest struct {
 }
 
 type labelResponse struct {
-	kolide.Label
+	fleet.Label
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
 	HostIDs     []uint `json:"host_ids"`
@@ -25,7 +25,7 @@ type getLabelResponse struct {
 
 func (r getLabelResponse) error() error { return r.Err }
 
-func labelResponseForLabel(ctx context.Context, svc kolide.Service, label *kolide.Label) (*labelResponse, error) {
+func labelResponseForLabel(ctx context.Context, svc fleet.Service, label *fleet.Label) (*labelResponse, error) {
 	return &labelResponse{
 		Label:       *label,
 		DisplayText: label.Name,
@@ -37,7 +37,7 @@ func labelResponseForLabel(ctx context.Context, svc kolide.Service, label *kolid
 // Get Label
 ////////////////////////////////////////////////////////////////////////////////
 
-func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetLabelEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getLabelRequest)
 		label, err := svc.GetLabel(ctx, req.ID)
@@ -57,7 +57,7 @@ func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type createLabelRequest struct {
-	payload kolide.LabelPayload
+	payload fleet.LabelPayload
 }
 
 type createLabelResponse struct {
@@ -67,7 +67,7 @@ type createLabelResponse struct {
 
 func (r createLabelResponse) error() error { return r.Err }
 
-func makeCreateLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCreateLabelEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createLabelRequest)
 
@@ -91,7 +91,7 @@ func makeCreateLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type modifyLabelRequest struct {
 	ID      uint
-	payload kolide.ModifyLabelPayload
+	payload fleet.ModifyLabelPayload
 }
 
 type modifyLabelResponse struct {
@@ -101,7 +101,7 @@ type modifyLabelResponse struct {
 
 func (r modifyLabelResponse) error() error { return r.Err }
 
-func makeModifyLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeModifyLabelEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyLabelRequest)
 		label, err := svc.ModifyLabel(ctx, req.ID, req.payload)
@@ -123,7 +123,7 @@ func makeModifyLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listLabelsRequest struct {
-	ListOptions kolide.ListOptions
+	ListOptions fleet.ListOptions
 }
 
 type listLabelsResponse struct {
@@ -133,7 +133,7 @@ type listLabelsResponse struct {
 
 func (r listLabelsResponse) error() error { return r.Err }
 
-func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListLabelsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listLabelsRequest)
 		labels, err := svc.ListLabels(ctx, req.ListOptions)
@@ -159,10 +159,10 @@ func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type listHostsInLabelRequest struct {
 	ID          uint
-	ListOptions kolide.HostListOptions
+	ListOptions fleet.HostListOptions
 }
 
-func makeListHostsInLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListHostsInLabelEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listHostsInLabelRequest)
 		hosts, err := svc.ListHostsInLabel(ctx, req.ID, req.ListOptions)
@@ -172,7 +172,7 @@ func makeListHostsInLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		hostResponses := make([]HostResponse, len(hosts))
 		for i, host := range hosts {
-			h, err := hostResponseForHost(ctx, svc, &host)
+			h, err := hostResponseForHost(ctx, svc, host)
 			if err != nil {
 				return listHostsResponse{Err: err}, nil
 			}
@@ -197,7 +197,7 @@ type deleteLabelResponse struct {
 
 func (r deleteLabelResponse) error() error { return r.Err }
 
-func makeDeleteLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteLabelEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteLabelRequest)
 		err := svc.DeleteLabel(ctx, req.Name)
@@ -222,7 +222,7 @@ type deleteLabelByIDResponse struct {
 
 func (r deleteLabelByIDResponse) error() error { return r.Err }
 
-func makeDeleteLabelByIDEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeDeleteLabelByIDEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteLabelByIDRequest)
 		err := svc.DeleteLabelByID(ctx, req.ID)
@@ -234,11 +234,11 @@ func makeDeleteLabelByIDEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Apply Label Specs
+// Apply Label Spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyLabelSpecsRequest struct {
-	Specs []*kolide.LabelSpec `json:"specs"`
+	Specs []*fleet.LabelSpec `json:"specs"`
 }
 
 type applyLabelSpecsResponse struct {
@@ -247,7 +247,7 @@ type applyLabelSpecsResponse struct {
 
 func (r applyLabelSpecsResponse) error() error { return r.Err }
 
-func makeApplyLabelSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeApplyLabelSpecsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(applyLabelSpecsRequest)
 		err := svc.ApplyLabelSpecs(ctx, req.Specs)
@@ -259,17 +259,17 @@ func makeApplyLabelSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Label Specs
+// Get Label Spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type getLabelSpecsResponse struct {
-	Specs []*kolide.LabelSpec `json:"specs"`
-	Err   error               `json:"error,omitempty"`
+	Specs []*fleet.LabelSpec `json:"specs"`
+	Err   error              `json:"error,omitempty"`
 }
 
 func (r getLabelSpecsResponse) error() error { return r.Err }
 
-func makeGetLabelSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetLabelSpecsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		specs, err := svc.GetLabelSpecs(ctx)
 		if err != nil {
@@ -284,13 +284,13 @@ func makeGetLabelSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getLabelSpecResponse struct {
-	Spec *kolide.LabelSpec `json:"specs,omitempty"`
-	Err  error             `json:"error,omitempty"`
+	Spec *fleet.LabelSpec `json:"specs,omitempty"`
+	Err  error            `json:"error,omitempty"`
 }
 
 func (r getLabelSpecResponse) error() error { return r.Err }
 
-func makeGetLabelSpecEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetLabelSpecEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getGenericSpecRequest)
 		spec, err := svc.GetLabelSpec(ctx, req.Name)

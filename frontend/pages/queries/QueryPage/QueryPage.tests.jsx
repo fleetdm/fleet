@@ -1,7 +1,6 @@
 import React from "react";
 import FileSave from "file-saver";
 import { mount } from "enzyme";
-import nock from "nock";
 import { noop } from "lodash";
 
 import convertToCSV from "utilities/convert_to_csv";
@@ -12,7 +11,13 @@ import queryActions from "redux/nodes/entities/queries/actions";
 import ConnectedQueryPage, {
   QueryPage,
 } from "pages/queries/QueryPage/QueryPage";
-import { hostStub, queryStub, labelStub } from "test/stubs";
+import {
+  hostStub,
+  queryStub,
+  labelStub,
+  adminUserStub,
+  configStub,
+} from "test/stubs";
 
 const {
   connectedComponent,
@@ -35,6 +40,7 @@ describe("QueryPage - component", () => {
   const store = {
     app: {
       isSmallNav: false,
+      config: configStub,
     },
     components: {
       QueryPages: {
@@ -52,6 +58,12 @@ describe("QueryPage - component", () => {
       },
       queries: { loading: false, data: {} },
       targets: {},
+    },
+    // THIS WAS ADDED 5/24, not sure if it's correct
+    auth: {
+      user: {
+        ...adminUserStub,
+      },
     },
   };
   const mockStore = reduxMockStore(store);
@@ -200,6 +212,7 @@ describe("QueryPage - component", () => {
     const mockStoreWithQuery = reduxMockStore({
       app: {
         isSmallNav: false,
+        config: configStub,
       },
       components: {
         QueryPages: {
@@ -214,6 +227,9 @@ describe("QueryPage - component", () => {
             1: query,
           },
         },
+      },
+      auth: {
+        user: adminUserStub,
       },
     });
     const page = mount(
@@ -247,7 +263,10 @@ describe("QueryPage - component", () => {
 
   describe("#componentWillReceiveProps", () => {
     it("resets selected targets and removed the campaign when the hostname changes", () => {
-      const queryResult = { org_name: "Kolide", org_url: "https://kolide.co" };
+      const queryResult = {
+        org_name: "example",
+        org_url: "https://example.com",
+      };
       const campaign = {
         id: 1,
         query_results: [queryResult],
@@ -261,6 +280,7 @@ describe("QueryPage - component", () => {
         query: { query: "select * from users" },
         selectedOsqueryTable: defaultSelectedOsqueryTable,
         selectedTargets: [hostStub],
+        currentUser: adminUserStub,
       };
       const Page = mount(<QueryPage {...props} />);
       const PageNode = Page.instance();
@@ -280,7 +300,10 @@ describe("QueryPage - component", () => {
 
   describe("export as csv", () => {
     it("exports the campaign query results in csv format", () => {
-      const queryResult = { org_name: "Kolide", org_url: "https://kolide.co" };
+      const queryResult = {
+        org_name: "example",
+        org_url: "https://example.com",
+      };
       const campaign = {
         id: 1,
         hosts_count: {
@@ -301,6 +324,7 @@ describe("QueryPage - component", () => {
           dispatch={noop}
           query={queryStub}
           selectedOsqueryTable={defaultSelectedOsqueryTable}
+          currentUser={adminUserStub}
         />
       );
       const filename = "query_results.csv";
@@ -323,7 +347,10 @@ describe("QueryPage - component", () => {
 
   describe("toggle full screen results", () => {
     it("toggles query results table from default to full screen and back", () => {
-      const queryResult = { org_name: "Kolide", org_url: "https://kolide.co" };
+      const queryResult = {
+        org_name: "example",
+        org_url: "https://example.com",
+      };
       const campaign = {
         id: 1,
         hosts_count: {
@@ -342,6 +369,7 @@ describe("QueryPage - component", () => {
           dispatch={noop}
           query={queryStub}
           selectedOsqueryTable={defaultSelectedOsqueryTable}
+          currentUser={adminUserStub}
         />
       );
       Page.setState({ campaign });

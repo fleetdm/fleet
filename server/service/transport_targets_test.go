@@ -18,9 +18,9 @@ func TestDecodeSearchTargetsRequest(t *testing.T) {
 		assert.Nil(t, err)
 
 		params := r.(searchTargetsRequest)
-		assert.Equal(t, "bar", params.Query)
-		assert.Len(t, params.Selected.Hosts, 3)
-		assert.Len(t, params.Selected.Labels, 2)
+		assert.Equal(t, "bar", params.MatchQuery)
+		assert.Len(t, params.Selected.HostIDs, 3)
+		assert.Len(t, params.Selected.LabelIDs, 2)
 	}).Methods("POST")
 	var body bytes.Buffer
 

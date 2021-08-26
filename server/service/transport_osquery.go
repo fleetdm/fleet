@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -66,7 +66,7 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 	}
 	defer r.Body.Close()
 
-	results := kolide.OsqueryDistributedQueryResults{}
+	results := fleet.OsqueryDistributedQueryResults{}
 	for query, raw := range shim.Results {
 		queryResults := []map[string]string{}
 		// No need to handle error because the empty array is what we
@@ -79,7 +79,7 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 	// Statuses were represented by strings in osquery < 3.0 and now
 	// integers in osquery > 3.0. Massage to string for compatibility with
 	// the service definition.
-	statuses := map[string]kolide.OsqueryStatus{}
+	statuses := map[string]fleet.OsqueryStatus{}
 	for query, status := range shim.Statuses {
 		switch s := status.(type) {
 		case string:
@@ -87,9 +87,9 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 			if err != nil {
 				return nil, errors.Wrap(err, "parse status to int")
 			}
-			statuses[query] = kolide.OsqueryStatus(sint)
+			statuses[query] = fleet.OsqueryStatus(sint)
 		case float64:
-			statuses[query] = kolide.OsqueryStatus(s)
+			statuses[query] = fleet.OsqueryStatus(s)
 		default:
 			return nil, errors.Errorf("query status should be string or number, got %T", s)
 		}

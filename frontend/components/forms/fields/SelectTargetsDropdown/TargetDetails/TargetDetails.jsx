@@ -4,8 +4,8 @@ import { noop } from "lodash";
 import AceEditor from "react-ace";
 import classnames from "classnames";
 
-import { humanHostMemory } from "kolide/helpers";
-import KolideIcon from "components/icons/KolideIcon";
+import { humanHostMemory } from "fleet/helpers";
+import FleetIcon from "components/icons/FleetIcon";
 import PlatformIcon from "components/icons/PlatformIcon";
 import targetInterface from "interfaces/target";
 
@@ -66,23 +66,23 @@ class TargetDetails extends Component {
           className={`button button--unstyled ${hostBaseClass}__back`}
           onClick={handleBackToResults}
         >
-          <KolideIcon name="chevronleft" />
+          <FleetIcon name="chevronleft" />
           Back
         </button>
 
         <p className={`${hostBaseClass}__display-text`}>
-          <KolideIcon name="single-host" className={`${hostBaseClass}__icon`} />
+          <FleetIcon name="single-host" className={`${hostBaseClass}__icon`} />
           <span>{displayText}</span>
         </p>
         <p className={statusClassName}>
           {isOnline && (
-            <KolideIcon
+            <FleetIcon
               name="success-check"
               className={`${hostBaseClass}__icon ${hostBaseClass}__icon--online`}
             />
           )}
           {isOffline && (
-            <KolideIcon
+            <FleetIcon
               name="offline"
               className={`${hostBaseClass}__icon ${hostBaseClass}__icon--offline`}
             />
@@ -150,11 +150,11 @@ class TargetDetails extends Component {
           className={`button button--unstyled ${labelBaseClass}__back`}
           onClick={handleBackToResults}
         >
-          <KolideIcon name="chevronleft" /> Back
+          <FleetIcon name="chevronleft" /> Back
         </button>
 
         <p className={`${labelBaseClass}__display-text`}>
-          <KolideIcon name="label" fw className={`${labelBaseClass}__icon`} />
+          <FleetIcon name="label" fw className={`${labelBaseClass}__icon`} />
           <span>{displayText}</span>
         </p>
 
@@ -173,7 +173,7 @@ class TargetDetails extends Component {
           <div className={`${labelBaseClass}__editor`}>
             <AceEditor
               editorProps={{ $blockScrolling: Infinity }}
-              mode="kolide"
+              mode="fleet"
               minLines={1}
               maxLines={20}
               name="label-query"
@@ -181,7 +181,7 @@ class TargetDetails extends Component {
               setOptions={{ wrap: true }}
               showGutter={false}
               showPrintMargin={false}
-              theme="kolide"
+              theme="fleet"
               value={query}
               width="100%"
               fontSize={14}

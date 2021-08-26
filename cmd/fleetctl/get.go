@@ -7,7 +7,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"gopkg.in/guregu/null.v3"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -28,10 +32,20 @@ type specGeneric struct {
 	Spec    interface{} `json:"spec"`
 }
 
-func defaultTable() *tablewriter.Table {
-	table := tablewriter.NewWriter(os.Stdout)
+func defaultTable(writer io.Writer) *tablewriter.Table {
+	w := writerOrStdout(writer)
+	table := tablewriter.NewWriter(w)
 	table.SetRowLine(true)
 	return table
+}
+
+func writerOrStdout(writer io.Writer) io.Writer {
+	var w io.Writer
+	w = os.Stdout
+	if writer != nil {
+		w = writer
+	}
+	return w
 }
 
 func yamlFlag() cli.Flag {
@@ -48,156 +62,153 @@ func jsonFlag() cli.Flag {
 	}
 }
 
-func printJSON(spec interface{}) error {
+func printJSON(spec interface{}, writer io.Writer) error {
+	w := writerOrStdout(writer)
 	b, err := json.Marshal(spec)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s\n", b)
+	fmt.Fprintf(w, "%s\n", b)
 	return nil
 }
 
-func printYaml(spec interface{}) error {
+func printYaml(spec interface{}, writer io.Writer) error {
+	w := writerOrStdout(writer)
 	b, err := yaml.Marshal(spec)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("---\n%s", string(b))
+	fmt.Fprintf(w, "---\n%s", string(b))
 	return nil
 }
 
-func printLabel(c *cli.Context, label *kolide.LabelSpec) error {
+func printLabel(c *cli.Context, label *fleet.LabelSpec) error {
 	spec := specGeneric{
-		Kind:    kolide.LabelKind,
-		Version: kolide.ApiVersion,
+		Kind:    fleet.LabelKind,
+		Version: fleet.ApiVersion,
 		Spec:    label,
 	}
 
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
-func printQuery(c *cli.Context, query *kolide.QuerySpec) error {
+func printQuery(c *cli.Context, query *fleet.QuerySpec) error {
 	spec := specGeneric{
-		Kind:    kolide.QueryKind,
-		Version: kolide.ApiVersion,
+		Kind:    fleet.QueryKind,
+		Version: fleet.ApiVersion,
 		Spec:    query,
 	}
 
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
-func printPack(c *cli.Context, pack *kolide.PackSpec) error {
+func printPack(c *cli.Context, pack *fleet.PackSpec) error {
 	spec := specGeneric{
-		Kind:    kolide.PackKind,
-		Version: kolide.ApiVersion,
+		Kind:    fleet.PackKind,
+		Version: fleet.ApiVersion,
 		Spec:    pack,
 	}
 
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
-func printOption(c *cli.Context, option *kolide.OptionsSpec) error {
+func printSecret(c *cli.Context, secret *fleet.EnrollSecretSpec) error {
 	spec := specGeneric{
-		Kind:    kolide.OptionsKind,
-		Version: kolide.ApiVersion,
-		Spec:    option,
-	}
-
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
-}
-
-func printSecret(c *cli.Context, secret *kolide.EnrollSecretSpec) error {
-	spec := specGeneric{
-		Kind:    kolide.EnrollSecretKind,
-		Version: kolide.ApiVersion,
+		Kind:    fleet.EnrollSecretKind,
+		Version: fleet.ApiVersion,
 		Spec:    secret,
 	}
 
-	if name := c.Args().Get(0); name != "" {
-		for _, s := range secret.Secrets {
-			if s.Name == name {
-				fmt.Println(s.Secret)
-				return nil
-			}
-		}
-		return fmt.Errorf("Secret '%s' not found", name)
-	}
-
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
-func printHost(c *cli.Context, host *kolide.Host) error {
+func printHost(c *cli.Context, host *service.HostResponse) error {
 	spec := specGeneric{
-		Kind:    kolide.HostKind,
-		Version: kolide.ApiVersion,
+		Kind:    fleet.HostKind,
+		Version: fleet.ApiVersion,
 		Spec:    host,
 	}
 
-	var err error
-
-	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
-	} else {
-		err = printYaml(spec)
-	}
-
-	return err
+	return printSpec(c, spec)
 }
 
-func printConfig(c *cli.Context, config *kolide.AppConfigPayload) error {
+func printConfig(c *cli.Context, config *fleet.AppConfig) error {
 	spec := specGeneric{
-		Kind:    kolide.AppConfigKind,
-		Version: kolide.ApiVersion,
+		Kind:    fleet.AppConfigKind,
+		Version: fleet.ApiVersion,
 		Spec:    config,
 	}
+
+	return printSpec(c, spec)
+}
+
+type UserRoles struct {
+	Roles map[string]UserRole `json:"roles"`
+}
+
+type TeamRole struct {
+	Team string `json:"team"`
+	Role string `json:"role"`
+}
+
+type UserRole struct {
+	GlobalRole *string    `json:"global_role"`
+	Teams      []TeamRole `json:"teams"`
+}
+
+func usersToUserRoles(users []fleet.User) UserRoles {
+	roles := make(map[string]UserRole)
+	for _, u := range users {
+		var teams []TeamRole
+		for _, t := range u.Teams {
+			teams = append(teams, TeamRole{
+				Team: t.Name,
+				Role: t.Role,
+			})
+		}
+		roles[u.Email] = UserRole{
+			GlobalRole: u.GlobalRole,
+			Teams:      teams,
+		}
+	}
+	return UserRoles{Roles: roles}
+}
+
+func printUserRoles(c *cli.Context, users []fleet.User) error {
+	spec := specGeneric{
+		Kind:    fleet.UserRolesKind,
+		Version: fleet.ApiVersion,
+		Spec:    usersToUserRoles(users),
+	}
+
+	return printSpec(c, spec)
+}
+
+func printTeams(c *cli.Context, teams []fleet.Team) error {
+	for _, team := range teams {
+		spec := specGeneric{
+			Kind:    fleet.TeamKind,
+			Version: fleet.ApiVersion,
+			Spec: map[string]interface{}{
+				"team": team,
+			},
+		}
+
+		if err := printSpec(c, spec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printSpec(c *cli.Context, spec specGeneric) error {
 	var err error
 
 	if c.Bool(jsonFlagName) {
-		err = printJSON(spec)
+		err = printJSON(spec, c.App.Writer)
 	} else {
-		err = printYaml(spec)
+		err = printYaml(spec, c.App.Writer)
 	}
-
 	return err
 }
 
@@ -209,12 +220,13 @@ func getCommand() *cli.Command {
 			getQueriesCommand(),
 			getPacksCommand(),
 			getLabelsCommand(),
-			getOptionsCommand(),
 			getHostsCommand(),
 			getEnrollSecretCommand(),
 			getAppConfigCommand(),
 			getCarveCommand(),
 			getCarvesCommand(),
+			getUserRolesCommand(),
+			getTeamsCommand(),
 		},
 	}
 }
@@ -232,7 +244,7 @@ func getQueriesCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -241,7 +253,7 @@ func getQueriesCommand() *cli.Command {
 
 			// if name wasn't provided, list all queries
 			if name == "" {
-				queries, err := fleet.GetQueries()
+				queries, err := client.GetQueries()
 				if err != nil {
 					return errors.Wrap(err, "could not list queries")
 				}
@@ -269,15 +281,13 @@ func getQueriesCommand() *cli.Command {
 						})
 					}
 
-					table := defaultTable()
-					table.SetHeader([]string{"name", "description", "query"})
-					table.AppendBulk(data)
-					table.Render()
+					columns := []string{"name", "description", "query"}
+					printTable(c, columns, data)
 				}
 				return nil
 			}
 
-			query, err := fleet.GetQuery(name)
+			query, err := client.GetQuery(name)
 			if err != nil {
 				return err
 			}
@@ -309,7 +319,7 @@ func getPacksCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -318,7 +328,7 @@ func getPacksCommand() *cli.Command {
 			shouldPrintQueries := c.Bool(withQueriesFlagName)
 			queriesToPrint := make(map[string]bool)
 
-			addQueries := func(pack *kolide.PackSpec) {
+			addQueries := func(pack *fleet.PackSpec) {
 				if shouldPrintQueries {
 					for _, q := range pack.Queries {
 						queriesToPrint[q.QueryName] = true
@@ -331,7 +341,7 @@ func getPacksCommand() *cli.Command {
 					return nil
 				}
 
-				queries, err := fleet.GetQueries()
+				queries, err := client.GetQueries()
 				if err != nil {
 					return errors.Wrap(err, "could not list queries")
 				}
@@ -353,7 +363,7 @@ func getPacksCommand() *cli.Command {
 
 			// if name wasn't provided, list all packs
 			if name == "" {
-				packs, err := fleet.GetPacks()
+				packs, err := client.GetPacks()
 				if err != nil {
 					return errors.Wrap(err, "could not list packs")
 				}
@@ -386,16 +396,14 @@ func getPacksCommand() *cli.Command {
 					})
 				}
 
-				table := defaultTable()
-				table.SetHeader([]string{"name", "platform", "description", "disabled"})
-				table.AppendBulk(data)
-				table.Render()
+				columns := []string{"name", "platform", "description", "disabled"}
+				printTable(c, columns, data)
 
 				return nil
 			}
 
 			// Name was specified
-			pack, err := fleet.GetPack(name)
+			pack, err := client.GetPack(name)
 			if err != nil {
 				return err
 			}
@@ -425,7 +433,7 @@ func getLabelsCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -434,7 +442,7 @@ func getLabelsCommand() *cli.Command {
 
 			// if name wasn't provided, list all labels
 			if name == "" {
-				labels, err := fleet.GetLabels()
+				labels, err := client.GetLabels()
 				if err != nil {
 					return errors.Wrap(err, "could not list labels")
 				}
@@ -463,16 +471,14 @@ func getLabelsCommand() *cli.Command {
 					})
 				}
 
-				table := defaultTable()
-				table.SetHeader([]string{"name", "platform", "description", "query"})
-				table.AppendBulk(data)
-				table.Render()
+				columns := []string{"name", "platform", "description", "query"}
+				printTable(c, columns, data)
 
 				return nil
 			}
 
 			// Label name was specified
-			label, err := fleet.GetLabel(name)
+			label, err := client.GetLabel(name)
 			if err != nil {
 				return err
 			}
@@ -480,38 +486,6 @@ func getLabelsCommand() *cli.Command {
 			printLabel(c, label)
 			return nil
 
-		},
-	}
-}
-
-func getOptionsCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "options",
-		Usage: "Retrieve the osquery configuration",
-		Flags: []cli.Flag{
-			jsonFlag(),
-			yamlFlag(),
-			configFlag(),
-			contextFlag(),
-			debugFlag(),
-		},
-		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
-			if err != nil {
-				return err
-			}
-
-			options, err := fleet.GetOptions()
-			if err != nil {
-				return err
-			}
-
-			err = printOption(c, options)
-			if err != nil {
-				return err
-			}
-
-			return nil
 		},
 	}
 }
@@ -529,12 +503,12 @@ func getEnrollSecretCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
 
-			secrets, err := fleet.GetEnrollSecretSpec()
+			secrets, err := client.GetEnrollSecretSpec()
 			if err != nil {
 				return err
 			}
@@ -561,12 +535,12 @@ func getAppConfigCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
 
-			config, err := fleet.GetAppConfig()
+			config, err := client.GetAppConfig()
 			if err != nil {
 				return err
 			}
@@ -587,6 +561,11 @@ func getHostsCommand() *cli.Command {
 		Aliases: []string{"host", "h"},
 		Usage:   "List information about one or more hosts",
 		Flags: []cli.Flag{
+			&cli.UintFlag{
+				Name:     "team",
+				Usage:    "filter hosts by team_id",
+				Required: false,
+			},
 			jsonFlag(),
 			yamlFlag(),
 			configFlag(),
@@ -594,7 +573,7 @@ func getHostsCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -602,7 +581,11 @@ func getHostsCommand() *cli.Command {
 			identifier := c.Args().First()
 
 			if identifier == "" {
-				hosts, err := fleet.GetHosts()
+				query := ""
+				if c.Uint("team") > 0 {
+					query = fmt.Sprintf("team_id=%d", c.Uint("team"))
+				}
+				hosts, err := client.GetHosts(query)
 				if err != nil {
 					return errors.Wrap(err, "could not list hosts")
 				}
@@ -614,7 +597,7 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
 					for _, host := range hosts {
-						err = printHost(c, &host.Host)
+						err = printHost(c, &host)
 						if err != nil {
 							return err
 						}
@@ -635,12 +618,10 @@ func getHostsCommand() *cli.Command {
 					})
 				}
 
-				table := defaultTable()
-				table.SetHeader([]string{"uuid", "hostname", "platform", "osquery_version", "status"})
-				table.AppendBulk(data)
-				table.Render()
+				columns := []string{"uuid", "hostname", "platform", "osquery_version", "status"}
+				printTable(c, columns, data)
 			} else {
-				host, err := fleet.HostByIdentifier(identifier)
+				host, err := client.HostByIdentifier(identifier)
 				if err != nil {
 					return errors.Wrap(err, "could not get host")
 				}
@@ -670,14 +651,14 @@ func getCarvesCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
 
 			expired := c.Bool(expiredFlagName)
 
-			carves, err := fleet.ListCarves(kolide.CarveListOptions{Expired: expired})
+			carves, err := client.ListCarves(fleet.CarveListOptions{Expired: expired})
 			if err != nil {
 				return err
 			}
@@ -706,10 +687,8 @@ func getCarvesCommand() *cli.Command {
 				})
 			}
 
-			table := defaultTable()
-			table.SetHeader([]string{"id", "created_at", "request_id", "carve_size", "completion"})
-			table.AppendBulk(data)
-			table.Render()
+			columns := []string{"id", "created_at", "request_id", "carve_size", "completion"}
+			printTable(c, columns, data)
 
 			return nil
 		},
@@ -731,7 +710,7 @@ func getCarveCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -757,7 +736,7 @@ func getCarveCommand() *cli.Command {
 			if stdout || outFile != "" {
 				out := os.Stdout
 				if outFile != "" {
-					f, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
+					f, err := secure.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
 					if err != nil {
 						return errors.Wrap(err, "open out file")
 					}
@@ -765,7 +744,7 @@ func getCarveCommand() *cli.Command {
 					out = f
 				}
 
-				reader, err := fleet.DownloadCarve(id)
+				reader, err := client.DownloadCarve(id)
 				if err != nil {
 					return err
 				}
@@ -777,14 +756,136 @@ func getCarveCommand() *cli.Command {
 				return nil
 			}
 
-			carve, err := fleet.GetCarve(id)
+			carve, err := client.GetCarve(id)
 			if err != nil {
 				return err
 			}
 
-			if err := printYaml(carve); err != nil {
+			if err := printYaml(carve, c.App.Writer); err != nil {
 				return errors.Wrap(err, "print carve yaml")
 			}
+
+			return nil
+		},
+	}
+}
+
+func log(c *cli.Context, msg ...interface{}) {
+	fmt.Fprint(c.App.Writer, msg...)
+}
+
+func logf(c *cli.Context, format string, a ...interface{}) {
+	fmt.Fprintf(c.App.Writer, format, a...)
+}
+
+func getUserRolesCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "user_roles",
+		Aliases: []string{"user_role", "ur"},
+		Usage:   "List global and team roles for users",
+		Flags: []cli.Flag{
+			jsonFlag(),
+			yamlFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			users, err := client.ListUsers()
+			if err != nil {
+				return errors.Wrap(err, "could not list users")
+			}
+
+			if len(users) == 0 {
+				log(c, "No users found")
+				return nil
+			}
+
+			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+				err = printUserRoles(c, users)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+
+			// Default to printing as table
+			data := [][]string{}
+
+			for _, u := range users {
+				data = append(data, []string{
+					u.Name,
+					null.StringFromPtr(u.GlobalRole).ValueOrZero(),
+				})
+			}
+			columns := []string{"User", "Global Role"}
+			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func printTable(c *cli.Context, columns []string, data [][]string) {
+	table := defaultTable(c.App.Writer)
+	table.SetHeader(columns)
+	table.AppendBulk(data)
+	table.Render()
+}
+
+func getTeamsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "teams",
+		Aliases: []string{"t"},
+		Usage:   "List teams",
+		Flags: []cli.Flag{
+			jsonFlag(),
+			yamlFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			teams, err := client.ListTeams()
+			if err != nil {
+				return errors.Wrap(err, "could not list teams")
+			}
+
+			if len(teams) == 0 {
+				log(c, "No teams found")
+				return nil
+			}
+
+			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+				err = printTeams(c, teams)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+
+			// Default to printing as table
+			data := [][]string{}
+
+			for _, team := range teams {
+				data = append(data, []string{
+					team.Name,
+					team.Description,
+					fmt.Sprintf("%d", team.UserCount),
+				})
+			}
+			columns := []string{"Team Name", "Description", "User count"}
+			printTable(c, columns, data)
 
 			return nil
 		},

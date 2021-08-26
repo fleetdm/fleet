@@ -5,7 +5,7 @@ package viewer
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type key int
@@ -26,8 +26,8 @@ func FromContext(ctx context.Context) (Viewer, bool) {
 // Viewer holds information about the current
 // user and the user's session
 type Viewer struct {
-	User    *kolide.User
-	Session *kolide.Session
+	User    *fleet.User
+	Session *fleet.Session
 }
 
 // UserID is a helper that enables quick access to the user ID of the current
@@ -39,11 +39,11 @@ func (v Viewer) UserID() uint {
 	return 0
 }
 
-// Username is a helper that enables quick access to the username of the current
+// Email is a helper that enables quick access to the email of the current
 // user.
-func (v Viewer) Username() string {
+func (v Viewer) Email() string {
 	if v.User != nil {
-		return v.User.Username
+		return v.User.Email
 	}
 	return ""
 }
@@ -74,11 +74,6 @@ func (v Viewer) IsUserID(id uint) bool {
 // IsLoggedIn determines whether or not the current VC is attached to a user
 // account
 func (v Viewer) IsLoggedIn() bool {
-	if v.User != nil {
-		if !v.User.Enabled {
-			return false
-		}
-	}
 	if v.Session != nil {
 		// Without having access to a service to call GetInfoAboutSession(id),
 		// we can't synchronously check the database here.
@@ -94,33 +89,6 @@ func (v Viewer) IsLoggedIn() bool {
 func (v Viewer) CanPerformActions() bool {
 	if v.User != nil {
 		return v.IsLoggedIn() && !v.User.AdminForcedPasswordReset
-	}
-	return false
-}
-
-// CanPerformAdminActions indicates whether or not the current user can perform
-// administrative actions.
-func (v Viewer) CanPerformAdminActions() bool {
-	if v.User != nil {
-		return v.CanPerformActions() && v.User.Admin
-	}
-	return false
-}
-
-// CanPerformReadActionOnUser returns a bool indicating the current user's
-// ability to perform read actions on the given user
-func (v Viewer) CanPerformReadActionOnUser(uid uint) bool {
-	if v.User != nil {
-		return v.CanPerformActions() || (v.IsLoggedIn() && v.IsUserID(uid))
-	}
-	return false
-}
-
-// CanPerformWriteActionOnUser returns a bool indicating the current user's
-// ability to perform write actions on the given user
-func (v Viewer) CanPerformWriteActionOnUser(uid uint) bool {
-	if v.User != nil {
-		return (v.IsLoggedIn() && v.IsUserID(uid)) || v.CanPerformAdminActions()
 	}
 	return false
 }

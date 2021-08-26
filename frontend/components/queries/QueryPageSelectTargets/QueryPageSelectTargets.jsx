@@ -21,6 +21,8 @@ class QueryPageSelectTargets extends Component {
     targetsCount: PropTypes.number,
     queryTimerMilliseconds: PropTypes.number,
     disableRun: PropTypes.bool,
+    queryId: PropTypes.number,
+    isBasicTier: PropTypes.bool,
   };
 
   render() {
@@ -36,6 +38,8 @@ class QueryPageSelectTargets extends Component {
       queryIsRunning,
       queryTimerMilliseconds,
       disableRun,
+      queryId,
+      isBasicTier,
     } = this.props;
 
     return (
@@ -47,6 +51,8 @@ class QueryPageSelectTargets extends Component {
           selectedTargets={selectedTargets}
           targetsCount={targetsCount}
           label="Select targets"
+          queryId={queryId}
+          isBasicTier={isBasicTier}
         />
         <QueryProgressDetails
           campaign={campaign}

@@ -7,9 +7,14 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 export const fetchQuery = (dispatch, queryID) => {
   return dispatch(queryActions.load(queryID)).catch((errors) => {
-    const errorMessage = join(values(omit(errors, "http_status")), ", ");
+    const { MANAGE_QUERIES } = PATHS;
+    let errorMessage = join(values(omit(errors, "http_status")), ", ");
 
-    dispatch(push(PATHS.NEW_QUERY));
+    if (errorMessage.includes("no rows in result set")) {
+      errorMessage = "The query you requested does not exist in Fleet.";
+    }
+
+    dispatch(push(MANAGE_QUERIES));
     dispatch(renderFlash("error", errorMessage));
 
     return false;

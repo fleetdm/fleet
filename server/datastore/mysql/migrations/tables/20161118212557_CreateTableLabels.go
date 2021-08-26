@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func init() {
@@ -23,7 +23,7 @@ func Up_20161118212557(tx *sql.Tx) error {
 			"`description` varchar(255) DEFAULT NULL," +
 			"`query` varchar(255) NOT NULL," +
 			"`platform` varchar(255) DEFAULT NULL," +
-			fmt.Sprintf("`label_type` INT UNSIGNED NOT NULL DEFAULT %d,", kolide.LabelTypeBuiltIn) +
+			fmt.Sprintf("`label_type` INT UNSIGNED NOT NULL DEFAULT %d,", fleet.LabelTypeBuiltIn) +
 			"PRIMARY KEY (`id`)," +
 			"UNIQUE KEY `idx_label_unique_name` (`name`)," +
 			"FULLTEXT KEY `labels_search` (`name`)" +

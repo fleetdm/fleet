@@ -3,7 +3,7 @@ package data
 import (
 	"database/sql"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func init() {
@@ -19,7 +19,7 @@ func Up_20170314151620(tx *sql.Tx) error {
                 WHERE name = 'CentOS Linux' AND label_type = ?
 `
 
-	_, err := tx.Exec(sql, label_query, kolide.LabelTypeBuiltIn)
+	_, err := tx.Exec(sql, label_query, fleet.LabelTypeBuiltIn)
 	if err != nil {
 		return err
 	}

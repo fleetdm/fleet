@@ -4,19 +4,19 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/fleetdm/fleet/server/test"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockMailer struct{}
 
-func (m *mockMailer) SendEmail(e kolide.Email) error {
+func (m *mockMailer) SendEmail(e fleet.Email) error {
 	return nil
 }
 
-func getMailer() kolide.MailService {
+func getMailer() fleet.MailService {
 
 	if os.Getenv("MAIL_TEST") == "" {
 		return &mockMailer{}
@@ -24,7 +24,7 @@ func getMailer() kolide.MailService {
 	return NewService()
 }
 
-var testFunctions = [...]func(*testing.T, kolide.MailService){
+var testFunctions = [...]func(*testing.T, fleet.MailService){
 	testSMTPPlainAuth,
 	testSMTPSkipVerify,
 	testSMTPNoAuth,
@@ -41,22 +41,24 @@ func TestMail(t *testing.T) {
 	}
 }
 
-func testSMTPPlainAuth(t *testing.T, mailer kolide.MailService) {
-	mail := kolide.Email{
+func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
+	mail := fleet.Email{
 		Subject: "smtp plain auth",
-		To:      []string{"john@kolide.co"},
-		Config: &kolide.AppConfig{
-			SMTPConfigured:           true,
-			SMTPAuthenticationType:   kolide.AuthTypeUserNamePassword,
-			SMTPAuthenticationMethod: kolide.AuthMethodPlain,
-			SMTPUserName:             "bob",
-			SMTPPassword:             "secret",
-			SMTPEnableTLS:            true,
-			SMTPVerifySSLCerts:       true,
-			SMTPEnableStartTLS:       true,
-			SMTPPort:                 1025,
-			SMTPServer:               "localhost",
-			SMTPSenderAddress:        "kolide@kolide.com",
+		To:      []string{"john@fleet.co"},
+		Config: &fleet.AppConfig{
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:           true,
+				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+				SMTPUserName:             "bob",
+				SMTPPassword:             "secret",
+				SMTPEnableTLS:            true,
+				SMTPVerifySSLCerts:       true,
+				SMTPEnableStartTLS:       true,
+				SMTPPort:                 1025,
+				SMTPServer:               "localhost",
+				SMTPSenderAddress:        "test@example.com",
+			},
 		},
 		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
@@ -67,22 +69,24 @@ func testSMTPPlainAuth(t *testing.T, mailer kolide.MailService) {
 	assert.Nil(t, err)
 }
 
-func testSMTPSkipVerify(t *testing.T, mailer kolide.MailService) {
-	mail := kolide.Email{
+func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
+	mail := fleet.Email{
 		Subject: "skip verify",
-		To:      []string{"john@kolide.co"},
-		Config: &kolide.AppConfig{
-			SMTPConfigured:           true,
-			SMTPAuthenticationType:   kolide.AuthTypeUserNamePassword,
-			SMTPAuthenticationMethod: kolide.AuthMethodPlain,
-			SMTPUserName:             "bob",
-			SMTPPassword:             "secret",
-			SMTPEnableTLS:            true,
-			SMTPVerifySSLCerts:       false,
-			SMTPEnableStartTLS:       true,
-			SMTPPort:                 1025,
-			SMTPServer:               "localhost",
-			SMTPSenderAddress:        "kolide@kolide.com",
+		To:      []string{"john@fleet.co"},
+		Config: &fleet.AppConfig{
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:           true,
+				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+				SMTPUserName:             "bob",
+				SMTPPassword:             "secret",
+				SMTPEnableTLS:            true,
+				SMTPVerifySSLCerts:       false,
+				SMTPEnableStartTLS:       true,
+				SMTPPort:                 1025,
+				SMTPServer:               "localhost",
+				SMTPSenderAddress:        "test@example.com",
+			},
 		},
 		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
@@ -93,18 +97,20 @@ func testSMTPSkipVerify(t *testing.T, mailer kolide.MailService) {
 	assert.Nil(t, err)
 }
 
-func testSMTPNoAuth(t *testing.T, mailer kolide.MailService) {
-	mail := kolide.Email{
+func testSMTPNoAuth(t *testing.T, mailer fleet.MailService) {
+	mail := fleet.Email{
 		Subject: "no auth",
 		To:      []string{"bob@foo.com"},
-		Config: &kolide.AppConfig{
-			SMTPConfigured:         true,
-			SMTPAuthenticationType: kolide.AuthTypeNone,
-			SMTPEnableTLS:          true,
-			SMTPVerifySSLCerts:     true,
-			SMTPPort:               1025,
-			SMTPServer:             "localhost",
-			SMTPSenderAddress:      "kolide@kolide.com",
+		Config: &fleet.AppConfig{
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPEnableTLS:          true,
+				SMTPVerifySSLCerts:     true,
+				SMTPPort:               1025,
+				SMTPServer:             "localhost",
+				SMTPSenderAddress:      "test@example.com",
+			},
 		},
 		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
@@ -115,18 +121,20 @@ func testSMTPNoAuth(t *testing.T, mailer kolide.MailService) {
 	assert.Nil(t, err)
 }
 
-func testMailTest(t *testing.T, mailer kolide.MailService) {
-	mail := kolide.Email{
+func testMailTest(t *testing.T, mailer fleet.MailService) {
+	mail := fleet.Email{
 		Subject: "test tester",
 		To:      []string{"bob@foo.com"},
-		Config: &kolide.AppConfig{
-			SMTPConfigured:         true,
-			SMTPAuthenticationType: kolide.AuthTypeNone,
-			SMTPEnableTLS:          true,
-			SMTPVerifySSLCerts:     true,
-			SMTPPort:               1025,
-			SMTPServer:             "localhost",
-			SMTPSenderAddress:      "kolide@kolide.com",
+		Config: &fleet.AppConfig{
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:         true,
+				SMTPAuthenticationType: fleet.AuthTypeNameNone,
+				SMTPEnableTLS:          true,
+				SMTPVerifySSLCerts:     true,
+				SMTPPort:               1025,
+				SMTPServer:             "localhost",
+				SMTPSenderAddress:      "test@example.com",
+			},
 		},
 		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",

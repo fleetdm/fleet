@@ -3,19 +3,23 @@
 
   &__label {
     font-size: $x-small;
-    font-weight: $regular;
+    font-weight: $bold;
     color: $core-fleet-black;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: $pad-xsmall;
 
     &--error {
-      color: $ui-error;
+      font-weight: $bold;
     }
   }
 
   &__hint {
+    font-size: $x-small;
+    font-style: italic;
     font-weight: $regular;
-    color: $core-fleet-blue;
+    line-height: 20px;
+    display: inline-block;
+    margin-top: $pad-small;
 
     code {
       color: $core-vibrant-blue;

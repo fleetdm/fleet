@@ -2,7 +2,7 @@
 
 Request mocks are used to intercept API requests when running tests. Requests
 are mocked to simulate valid and invalid requests. The naming convention is
-similar to the [API client entity CRUD methods](../../kolide/README.md).
+similar to the [API client entity CRUD methods](../../fleet/README.md).
 
 ## Using Mocks
 
@@ -106,7 +106,7 @@ the `endpoint` option.
 
 ### Examples
 
-[API Request](../../kolide/entities/packs.tests.js#L16-L30)
+[API Request](../../fleet/entities/packs.tests.js#L16-L30)
 * The mocked request is saved as a variable in order to assert that the request
   is made
 

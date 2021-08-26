@@ -8,7 +8,7 @@
   border-radius: $border-radius;
   border: 1px solid #f2c94c;
   font-size: $x-small;
-  margin: 0 0 25px;
+  margin: 0 0 $pad-large;
 
   &__message {
     flex-grow: 1;

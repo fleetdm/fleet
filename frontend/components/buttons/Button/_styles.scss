@@ -36,7 +36,7 @@ $base-class: "button";
   align-items: center;
   padding: $pad-small $pad-medium;
   border-radius: 4px;
-  font-size: $small;
+  font-size: $x-small;
   font-family: "Nunito Sans", sans-serif;
   font-weight: $bold;
   display: inline-flex;
@@ -63,7 +63,7 @@ $base-class: "button";
 
   &--alert {
     @include button-variant(
-      $ui-error,
+      $core-vibrant-red,
       $core-vibrant-red-over,
       $core-vibrant-red-down
     );
@@ -100,8 +100,9 @@ $base-class: "button";
     border: 1px solid $core-vibrant-blue;
     box-sizing: border-box;
     font-size: $xx-small;
-    padding: 4px 10px;
+    padding: $pad-xsmall 10px;
     height: 24px;
+    white-space: nowrap;
 
     &:active {
       box-shadow: inset 2px 2px 2px rgba(0, 0, 0, 0.25);
@@ -140,6 +141,37 @@ $base-class: "button";
       box-shadow: none;
       text-decoration: underline;
     }
+
+    &.light-text {
+      font-weight: $regular;
+    }
+  }
+
+  &--text-icon {
+    @include button-variant(transparent);
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    font-weight: $bold;
+    cursor: pointer;
+
+    img {
+      transform: scale(0.5);
+    }
+
+    &:active {
+      color: $core-vibrant-blue-down;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover {
+      color: $core-vibrant-blue-over;
+    }
   }
 
   &--inverse {
@@ -150,8 +182,13 @@ $base-class: "button";
       $inverse: true
     );
     color: $core-vibrant-blue;
-    border: 2px solid $core-vibrant-blue;
+    border: 0;
     box-sizing: border-box;
+    padding: 0;
+
+    &:hover {
+      border: 0;
+    }
   }
 
   &--inverse-alert {
@@ -161,9 +198,14 @@ $base-class: "button";
       $core-vibrant-red-down,
       $inverse: true
     );
-    color: $ui-error;
-    border: 2px solid $ui-error;
+    color: $core-vibrant-red;
+    border: 0;
     box-sizing: border-box;
+    padding: 0;
+
+    &:hover {
+      border: 0;
+    }
   }
 
   &--block {
@@ -172,8 +214,8 @@ $base-class: "button";
   }
 
   &--disabled {
-    opacity: 0.4;
-    filter: grayscale(1);
+    opacity: 0.5;
+    filter: grayscale(0.5);
     cursor: default;
 
     &:hover {

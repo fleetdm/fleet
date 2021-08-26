@@ -23,7 +23,7 @@ type AuthnRequest struct {
 	Signature                   *Signature             `xml:"Signature,omitempty"`
 }
 
-// Response is submitted to the service provider (Kolide) from the IDP via a callback.
+// Response is submitted to the service provider (Fleet) from the IDP via a callback.
 // It will contain information about a authenticated user that can in turn
 // be used to generate a session token.
 // See http://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf Section 3.3.3.

@@ -57,6 +57,14 @@ module.exports = {
     // https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/explicit-module-boundary-types.md#configuring-in-a-mixed-jsts-codebase
     "@typescript-eslint/explicit-module-boundary-types": "off",
 
+    // Most of the js modules written by us need to be rewritten into TS. Until then
+    // we use ts-ignore comment to ignore the error TS gives us from not having those modules
+    // declared (TS7016). This is done on purpose as there is not time to rewrite everything in TS.
+    '@typescript-eslint/ban-ts-comment': 'off',
+
+    'no-shadow': 'off', // replaced by ts-eslint rule below
+    '@typescript-eslint/no-shadow': 'error',
+
     // There is a bug with these rules in our version of jsx-a11y plugin (5.1.1)
     // To upgrade our version of the plugin we would need to make more changes
     // with eslint-config-airbnb, so we will just turn off for now.

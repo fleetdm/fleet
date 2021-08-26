@@ -1,4 +1,4 @@
-import Kolide from "kolide";
+import Fleet from "fleet";
 import { reduxMockStore } from "test/helpers";
 import {
   getStatusLabelCounts,
@@ -42,7 +42,7 @@ describe("ManageHostsPage - reducer", () => {
       ];
 
       jest
-        .spyOn(Kolide.statusLabels, "getCounts")
+        .spyOn(Fleet.statusLabels, "getCounts")
         .mockImplementation(() => Promise.resolve(statusLabelCounts));
 
       mockStore.dispatch(getStatusLabelCounts).then(() => {
@@ -66,7 +66,7 @@ describe("ManageHostsPage - reducer", () => {
       ];
 
       jest
-        .spyOn(Kolide.statusLabels, "getCounts")
+        .spyOn(Fleet.statusLabels, "getCounts")
         .mockImplementation(() => Promise.reject(errorObject));
 
       mockStore
@@ -131,7 +131,7 @@ describe("ManageHostsPage - reducer", () => {
       ];
 
       jest
-        .spyOn(Kolide.statusLabels, "getCounts")
+        .spyOn(Fleet.statusLabels, "getCounts")
         .mockImplementation(() => Promise.resolve(statusLabelCounts));
 
       mockStore.dispatch(silentGetStatusLabelCounts).then(() => {
@@ -154,7 +154,7 @@ describe("ManageHostsPage - reducer", () => {
       ];
 
       jest
-        .spyOn(Kolide.statusLabels, "getCounts")
+        .spyOn(Fleet.statusLabels, "getCounts")
         .mockImplementation(() => Promise.reject(errorObject));
 
       mockStore

@@ -59,11 +59,6 @@ spec:
             value: "{{ .Values.fleet.auth.bcryptCost }}"
           - name: FLEET_AUTH_SALT_KEY_SIZE
             value: "{{ .Values.fleet.auth.saltKeySize }}"
-          - name: FLEET_AUTH_JWT_KEY
-            valueFrom:
-              secretKeyRef:
-                name: "{{ .Values.fleet.secretName }}"
-                key: "{{ .Values.fleet.auth.jwtSecretKey }}"
           - name: FLEET_APP_TOKEN_KEY_SIZE
             value: "{{ .Values.fleet.app.tokenKeySize }}"
           - name: FLEET_APP_TOKEN_VALIDITY_PERIOD

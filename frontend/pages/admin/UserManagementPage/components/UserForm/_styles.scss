@@ -1,0 +1,130 @@
+.create-user-form {
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
+  img {
+    width: 12px;
+    height: 12px;
+    margin-left: 6px;
+  }
+
+  &__new-user-container {
+    margin-top: $pad-large;
+    margin-bottom: $pad-large;
+  }
+
+  &__sso-input {
+    margin-top: $pad-large;
+    margin-bottom: $pad-large;
+
+    .fleet-checkbox {
+      margin-top: 5px;
+
+      &__label {
+        font-size: $x-small;
+        font-weight: $bold;
+        color: $core-fleet-black;
+        padding-left: 12px;
+      }
+    }
+  }
+
+  .sso-disabled {
+    width: 375px;
+  }
+
+  .invite-disabled {
+    width: 100px;
+  }
+
+  .password-tooltip-text {
+    width: 310px;
+  }
+
+  &__label {
+    color: $core-fleet-black;
+    font-size: $x-small;
+    font-weight: $bold;
+    margin-bottom: $pad-xsmall;
+  }
+
+  &__user-permissions-info {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: $pad-xlarge;
+
+    p {
+      margin: 0 0 $pad-medium 0;
+    }
+  }
+
+  &__selected-teams-container {
+    margin-bottom: $pad-xxlarge;
+  }
+
+  &__radio-input {
+    margin-bottom: $pad-medium;
+
+    &.disabled {
+      .radio__control {
+        background-color: $ui-fleet-black-25;
+      }
+      .radio__label {
+        color: $ui-fleet-black-25;
+      }
+    }
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+
+  &__invite-admin {
+    margin-bottom: 8px;
+  }
+
+  &__password {
+    width: 98%;
+    float: left;
+    padding: 0 $pad-medium 0 0;
+    box-sizing: border-box;
+
+    .input-icon-field {
+      width: 100%;
+    }
+  }
+
+  &__details {
+    float: right;
+    width: 2%;
+
+    .icon-tooltip {
+      margin-top: 12px;
+    }
+
+    .hint {
+      color: $core-fleet-black;
+
+      &--brand {
+        color: $core-vibrant-blue;
+      }
+    }
+  }
+
+  .sublabel {
+    margin: 0px;
+  }
+
+  &__tooltip-text {
+    width: 300px;
+  }
+}

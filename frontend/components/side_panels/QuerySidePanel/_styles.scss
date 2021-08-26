@@ -1,15 +1,13 @@
 .query-side-panel {
-  padding: 0 28px;
-
   &__header {
-    margin: 0 0 $pad-medium;
+    margin: 0 0 $pad-small;
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
   }
 
   &__choose-table {
-    margin: $pad-xxlarge 0 $pad-medium;
+    margin: 0 0 $pad-xlarge;
 
     .form-field {
       margin-bottom: $pad-medium;
@@ -31,10 +29,10 @@
     font-size: $x-small;
     color: $core-fleet-black;
     list-style: none;
-    margin: 0 0 $pad-large;
+    margin: 0 0 $pad-xlarge;
     padding: 0;
 
-    .kolidecon {
+    .fleeticon {
       font-size: 18px;
       margin-right: $pad-medium;
     }
@@ -98,7 +96,7 @@
     justify-content: space-between;
     color: $core-fleet-black;
     font-size: px-to-rem(14);
-    padding: 12px 0;
+    padding: $pad-small 0;
 
     &:first-of-type {
       border: 0;
@@ -106,7 +104,9 @@
   }
 
   &__name {
-    padding: 4px 8px 4px 0px;
+    border-radius: $border-radius;
+    margin-right: $pad-small;
+    font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
   }

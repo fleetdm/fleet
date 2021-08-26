@@ -3,19 +3,13 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw validationMiddleware) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
-	invalid := &invalidArgumentError{}
+func (mw validationMiddleware) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
+	invalid := &fleet.InvalidArgumentError{}
 	if payload.Email == nil {
 		invalid.Append("email", "missing required argument")
-	}
-	if payload.InvitedBy == nil {
-		invalid.Append("invited_by", "missing required argument")
-	}
-	if payload.Admin == nil {
-		invalid.Append("admin", "missing required argument")
 	}
 	if invalid.HasErrors() {
 		return nil, invalid

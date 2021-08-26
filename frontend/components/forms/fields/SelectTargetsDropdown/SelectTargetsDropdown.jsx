@@ -3,9 +3,9 @@ import PropTypes from "prop-types";
 import classnames from "classnames";
 import { isEqual, noop } from "lodash";
 
-import Kolide from "kolide";
+import Fleet from "fleet";
 import targetInterface from "interfaces/target";
-import { formatSelectedTargetsForApi } from "kolide/helpers";
+import { formatSelectedTargetsForApi } from "fleet/helpers";
 import Input from "./SelectTargetsInput";
 import Menu from "./SelectTargetsMenu";
 
@@ -20,6 +20,8 @@ class SelectTargetsDropdown extends Component {
     onSelect: PropTypes.func.isRequired,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
+    queryId: PropTypes.number,
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -50,9 +52,10 @@ class SelectTargetsDropdown extends Component {
   componentWillReceiveProps(nextProps) {
     const { selectedTargets } = nextProps;
     const { query } = this.state;
+    const { queryId } = this.props;
 
     if (!isEqual(selectedTargets, this.props.selectedTargets)) {
-      this.fetchTargets(query, selectedTargets);
+      this.fetchTargets(query, queryId, selectedTargets);
     }
   }
 
@@ -118,7 +121,11 @@ class SelectTargetsDropdown extends Component {
     this.setState({ moreInfoTarget: null });
   };
 
-  fetchTargets = (query = "", selectedTargets = this.props.selectedTargets) => {
+  fetchTargets = (
+    query = "",
+    queryId = this.props.queryId,
+    selectedTargets = this.props.selectedTargets
+  ) => {
     const { onFetchTargets } = this.props;
 
     if (!this.mounted) {
@@ -127,8 +134,8 @@ class SelectTargetsDropdown extends Component {
 
     this.setState({ isLoadingTargets: true, query });
 
-    return Kolide.targets
-      .loadAll(query, formatSelectedTargetsForApi(selectedTargets))
+    return Fleet.targets
+      .loadAll(query, queryId, formatSelectedTargetsForApi(selectedTargets))
       .then((response) => {
         const { targets } = response;
         const isEmpty = targets.length === 0;
@@ -194,11 +201,12 @@ class SelectTargetsDropdown extends Component {
       onTargetSelectMoreInfo,
       renderLabel,
     } = this;
-    const { disabled, onSelect, selectedTargets } = this.props;
+    const { disabled, onSelect, selectedTargets, isBasicTier } = this.props;
     const menuRenderer = Menu(
       onTargetSelectMoreInfo,
       moreInfoTarget,
-      onBackToResults
+      onBackToResults,
+      isBasicTier
     );
 
     const inputClasses = classnames({
@@ -221,6 +229,7 @@ class SelectTargetsDropdown extends Component {
           onTargetSelectInputChange={fetchTargets}
           selectedTargets={selectedTargets}
           targets={targets}
+          isBasicTier={isBasicTier}
         />
       </div>
     );

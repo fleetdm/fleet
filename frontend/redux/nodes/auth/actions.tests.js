@@ -1,4 +1,4 @@
-import Kolide from "kolide";
+import Fleet from "fleet";
 import userActions from "redux/nodes/entities/users/actions";
 
 import { reduxMockStore } from "test/helpers";
@@ -19,7 +19,7 @@ const store = { entities: { invites: {}, users: {} } };
 const user = {
   ...userStub,
   id: 1,
-  email: "zwass@kolide.co",
+  email: "zwass@Fleet.co",
   force_password_reset: false,
 };
 
@@ -31,7 +31,7 @@ describe("Auth - actions", () => {
     describe("successful request", () => {
       beforeEach(() => {
         jest
-          .spyOn(Kolide.sessions, "initializeSSO")
+          .spyOn(Fleet.sessions, "initializeSSO")
           .mockImplementation(() => Promise.resolve({ url: ssoURL }));
       });
 
@@ -41,14 +41,10 @@ describe("Auth - actions", () => {
         mockStore
           .dispatch(ssoRedirect(relayURL))
           .then(() => {
-            expect(Kolide.sessions.initializeSSO).toHaveBeenCalledWith(
-              relayURL
-            );
+            expect(Fleet.sessions.initializeSSO).toHaveBeenCalledWith(relayURL);
           })
           .catch(() => {
-            expect(Kolide.sessions.initializeSSO).toHaveBeenCalledWith(
-              relayURL
-            );
+            expect(Fleet.sessions.initializeSSO).toHaveBeenCalledWith(relayURL);
           });
       });
 
@@ -87,7 +83,7 @@ describe("Auth - actions", () => {
     describe("successful request", () => {
       beforeEach(() => {
         jest
-          .spyOn(Kolide.users, "performRequiredPasswordReset")
+          .spyOn(Fleet.users, "performRequiredPasswordReset")
           .mockImplementation(() => {
             return Promise.resolve({ ...user, force_password_reset: false });
           });
@@ -102,7 +98,7 @@ describe("Auth - actions", () => {
           .dispatch(performRequiredPasswordReset(resetParams))
           .then(() => {
             expect(
-              Kolide.users.performRequiredPasswordReset
+              Fleet.users.performRequiredPasswordReset
             ).toHaveBeenCalledWith(resetParams);
           });
       });
@@ -144,7 +140,7 @@ describe("Auth - actions", () => {
 
       beforeEach(() => {
         jest
-          .spyOn(Kolide.users, "performRequiredPasswordReset")
+          .spyOn(Fleet.users, "performRequiredPasswordReset")
           .mockImplementation(() => {
             return Promise.reject(errorResponse);
           });
@@ -160,7 +156,7 @@ describe("Auth - actions", () => {
           })
           .catch(() => {
             expect(
-              Kolide.users.performRequiredPasswordReset
+              Fleet.users.performRequiredPasswordReset
             ).toHaveBeenCalledWith(resetParams);
           });
       });

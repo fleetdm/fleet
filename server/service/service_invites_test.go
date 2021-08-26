@@ -1,121 +1,100 @@
 package service
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/fleetdm/fleet/server/mock"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestInviteNewUserMock(t *testing.T) {
-	svc, mockStore, mailer := setupInviteTest(t)
-	ctx := context.Background()
+	ms := new(mock.Store)
+	ms.UserByEmailFunc = mock.UserWithEmailNotFound()
+	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://acme.co"}}, nil
+	}
 
-	payload := kolide.InvitePayload{
-		Email:     stringPtr("user@acme.co"),
-		InvitedBy: &adminUser.ID,
-		Admin:     boolPtr(false),
+	ms.NewInviteFunc = func(i *fleet.Invite) (*fleet.Invite, error) {
+		return i, nil
+	}
+	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+
+	svc := validationMiddleware{&Service{
+		ds:          ms,
+		config:      config.TestConfig(),
+		mailService: mailer,
+		clock:       clock.NewMockClock(),
+		authz:       authz.Must(),
+	}, ms, nil}
+
+	payload := fleet.InvitePayload{
+		Email: ptr.String("user@acme.co"),
 	}
 
 	// happy path
-	invite, err := svc.InviteNewUser(ctx, payload)
+	invite, err := svc.InviteNewUser(test.UserContext(test.UserAdmin), payload)
 	require.Nil(t, err)
-	assert.Equal(t, invite.ID, validInvite.ID)
-	assert.True(t, mockStore.NewInviteFuncInvoked)
-	assert.True(t, mockStore.AppConfigFuncInvoked)
+	assert.Equal(t, test.UserAdmin.ID, invite.InvitedBy)
+	assert.True(t, ms.NewInviteFuncInvoked)
+	assert.True(t, ms.AppConfigFuncInvoked)
 	assert.True(t, mailer.Invoked)
 
-	mockStore.UserByEmailFunc = mock.UserByEmailWithUser(new(kolide.User))
-	_, err = svc.InviteNewUser(ctx, payload)
+	ms.UserByEmailFunc = mock.UserByEmailWithUser(new(fleet.User))
+	_, err = svc.InviteNewUser(test.UserContext(test.UserAdmin), payload)
 	require.NotNil(t, err, "should err if the user we're inviting already exists")
 }
 
 func TestVerifyInvite(t *testing.T) {
 	ms := new(mock.Store)
-	svc := service{
-		ds:     ms,
-		config: config.TestConfig(),
-		clock:  clock.NewMockClock(),
-	}
-	ctx := context.Background()
+	svc := newTestService(ms, nil, nil)
 
-	ms.InviteByTokenFunc = mock.ReturnFakeInviteByToken(expiredInvite)
-	wantErr := &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}}
-	_, err := svc.VerifyInvite(ctx, expiredInvite.Token)
+	ms.InviteByTokenFunc = func(token string) (*fleet.Invite, error) {
+		return &fleet.Invite{
+			ID:    1,
+			Token: "abcd",
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{
+					CreatedAt: time.Now().AddDate(-1, 0, 0),
+				},
+			},
+		}, nil
+	}
+	wantErr := fleet.NewInvalidArgumentError("invite_token", "Invite token has expired.")
+	_, err := svc.VerifyInvite(test.UserContext(test.UserAdmin), "abcd")
 	assert.Equal(t, err, wantErr)
 
-	wantErr = &invalidArgumentError{{name: "invite_token",
-		reason: "Invite Token does not match Email Address."}}
+	wantErr = fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
 
-	_, err = svc.VerifyInvite(ctx, "bad_token")
+	_, err = svc.VerifyInvite(test.UserContext(test.UserAdmin), "bad_token")
 	assert.Equal(t, err, wantErr)
 }
 
 func TestDeleteInvite(t *testing.T) {
 	ms := new(mock.Store)
-	svc := service{ds: ms}
+	svc := newTestService(ms, nil, nil)
 
 	ms.DeleteInviteFunc = func(uint) error { return nil }
-	err := svc.DeleteInvite(context.Background(), 1)
+	err := svc.DeleteInvite(test.UserContext(test.UserAdmin), 1)
 	require.Nil(t, err)
 	assert.True(t, ms.DeleteInviteFuncInvoked)
 }
 
 func TestListInvites(t *testing.T) {
 	ms := new(mock.Store)
-	svc := service{ds: ms}
+	svc := newTestService(ms, nil, nil)
 
-	ms.ListInvitesFunc = func(kolide.ListOptions) ([]*kolide.Invite, error) {
+	ms.ListInvitesFunc = func(fleet.ListOptions) ([]*fleet.Invite, error) {
 		return nil, nil
 	}
-	_, err := svc.ListInvites(context.Background(), kolide.ListOptions{})
+	_, err := svc.ListInvites(test.UserContext(test.UserAdmin), fleet.ListOptions{})
 	require.Nil(t, err)
 	assert.True(t, ms.ListInvitesFuncInvoked)
-}
-
-func setupInviteTest(t *testing.T) (kolide.Service, *mock.Store, *mockMailService) {
-
-	ms := new(mock.Store)
-	ms.UserByEmailFunc = mock.UserWithEmailNotFound()
-	ms.UserByIDFunc = mock.UserWithID(adminUser)
-	ms.NewInviteFunc = mock.ReturnNewInivite(validInvite)
-	ms.AppConfigFunc = mock.ReturnFakeAppConfig(&kolide.AppConfig{
-		KolideServerURL: "https://acme.co",
-	})
-	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-	svc := validationMiddleware{&service{
-		ds:          ms,
-		config:      config.TestConfig(),
-		mailService: mailer,
-		clock:       clock.NewMockClock(),
-	}, ms, nil}
-	return svc, ms, mailer
-}
-
-var adminUser = &kolide.User{
-	ID:       1,
-	Email:    "admin@acme.co",
-	Username: "admin",
-	Name:     "Administrator",
-}
-
-var validInvite = &kolide.Invite{
-	ID:    1,
-	Token: "abcd",
-}
-
-var expiredInvite = &kolide.Invite{
-	ID:    1,
-	Token: "abcd",
-	UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-		CreateTimestamp: kolide.CreateTimestamp{
-			CreatedAt: time.Now().AddDate(-1, 0, 0),
-		},
-	},
 }

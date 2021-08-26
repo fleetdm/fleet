@@ -1,16 +1,16 @@
 package mysql
 
 import (
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) SessionByKey(key string) (*kolide.Session, error) {
+func (d *Datastore) SessionByKey(key string) (*fleet.Session, error) {
 	sqlStatement := `
 		SELECT * FROM sessions
 			WHERE ` + "`key`" + ` = ? LIMIT 1
 	`
-	session := &kolide.Session{}
+	session := &fleet.Session{}
 	err := d.db.Get(session, sqlStatement, key)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting sessions")
@@ -19,13 +19,13 @@ func (d *Datastore) SessionByKey(key string) (*kolide.Session, error) {
 	return session, nil
 }
 
-func (d *Datastore) SessionByID(id uint) (*kolide.Session, error) {
+func (d *Datastore) SessionByID(id uint) (*fleet.Session, error) {
 	sqlStatement := `
 		SELECT * FROM sessions
 		WHERE id = ?
 		LIMIT 1
 	`
-	session := &kolide.Session{}
+	session := &fleet.Session{}
 	err := d.db.Get(session, sqlStatement, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting session by id")
@@ -34,12 +34,12 @@ func (d *Datastore) SessionByID(id uint) (*kolide.Session, error) {
 	return session, nil
 }
 
-func (d *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
+func (d *Datastore) ListSessionsForUser(id uint) ([]*fleet.Session, error) {
 	sqlStatement := `
 		SELECT * FROM sessions
 		WHERE user_id = ?
 	`
-	sessions := []*kolide.Session{}
+	sessions := []*fleet.Session{}
 	err := d.db.Select(&sessions, sqlStatement, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting sessions for user")
@@ -49,7 +49,7 @@ func (d *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
 
 }
 
-func (d *Datastore) NewSession(session *kolide.Session) (*kolide.Session, error) {
+func (d *Datastore) NewSession(session *fleet.Session) (*fleet.Session, error) {
 	sqlStatement := `
 		INSERT INTO sessions (
 			user_id,
@@ -67,7 +67,7 @@ func (d *Datastore) NewSession(session *kolide.Session) (*kolide.Session, error)
 	return session, nil
 }
 
-func (d *Datastore) DestroySession(session *kolide.Session) error {
+func (d *Datastore) DestroySession(session *fleet.Session) error {
 	err := d.deleteEntity("sessions", session.ID)
 	if err != nil {
 		return errors.Wrap(err, "deleting session")
@@ -88,7 +88,7 @@ func (d *Datastore) DestroyAllSessionsForUser(id uint) error {
 	return nil
 }
 
-func (d *Datastore) MarkSessionAccessed(session *kolide.Session) error {
+func (d *Datastore) MarkSessionAccessed(session *fleet.Session) error {
 	sqlStatement := `
 		UPDATE sessions SET
 		accessed_at = ?

@@ -1,3 +1,294 @@
+## Fleet 4.2.3 (Aug 25, 2021)
+
+* Add ability to troubleshoot connection issues with the `fleetctl debug connection` command.
+
+* Improve compatibility with MySQL variants (MariaDB, Aurora, etc.) by removing usage of JSON_ARRAYAGG.
+
+* Fix bug in which live queries would stop returning results if more than 5 seconds goes by without a result. This bug was introduced in 4.2.1.
+
+* Eliminate double-logging of IP addresses in osquery endpoints.
+
+* Update host details after transferring a host on the details page.
+
+* Log errors in osquery endpoints to improve debugging.
+
+## Fleet 4.2.2 (Aug 18, 2021)
+
+* Add a new built in label "All Linux" to target all hosts that run any linux flavor.
+
+* Allow finer grained configuration of the vulnerability processing capabilities.
+
+* Fix performance issues when updating pack contents.
+
+* Fix a build issue that caused external network access to panic in certain Linux distros (Ubuntu).
+
+* Fix rendering of checkboxes in UI when modals appear.
+
+* Orbit: sync critical file writes to disk.
+
+* Add "-o" flag to fleetctl convert command to ensure consistent output rather than relying on shell redirection (this was causing issues with file encodings).
+
+* Fix table column wrapping for manage queries page.
+
+* Fix wrapping in Label pills.
+
+* Side panels in UI have a fresher look, Teams/Roles UI greyed out conditionally.
+
+* Improved sorting in UI tables.
+
+* Improve detection of CentOS in label membership.
+
+## Fleet 4.2.1 (Aug 14, 2021)
+
+* Fix a database issue with MariaDB 10.5.4.
+
+* Display updated team name after edit.
+
+* When a connection from a live query websocket is closed, Fleet now timeouts the receive and handles the different cases correctly to not hold the connection to Redis.
+
+* Read live query results from Redis in a thread safe manner.
+
+* Allow observers and maintainers to refetch a host in a team they belong to.
+
+## Fleet 4.2.0 (Aug 11, 2021)
+
+* Add ability to simultaneously filter hosts by status (`online`, `offline`, `new`, `mia`) and by label on the **Hosts** page.
+
+* Add ability to filter hosts by team in the Fleet UI, fleetctl CLI tool, and Fleet API. *Available for Fleet Basic customers*.
+
+* Add ability to create a Team schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1). *Available for Fleet Basic customers*.
+
+* Add Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/13-Vulnerability-Processing.md#vulnerability-processing).
+
+* Add ability to see which logging destination is configured for Fleet in the Fleet UI. To see this information, head to the **Schedule** page and then select "Schedule a query." Configured logging destination information is also available in the `GET api/v1/fleet/config` API route.
+
+* Improve the `fleetctl preview` experience by downloading Fleet's standard query library and loading the queries into the Fleet UI.
+
+* Improve the user interface for the **Packs** page and **Queries** page in the Fleet UI.
+
+* Add ability to modify scheduled queries in your Schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1).
+
+* Add ability to disable the Users feature in Fleet by setting the new `enable_host_users` key to `true` in the `config` yaml, configuration file. For documentation on using configuration files in yaml syntax, check out the [Using yaml files in Fleet](https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/configuration-files#using-yaml-files-in-fleet) documentation.
+
+* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/2-Configuration.md#feature-flags).
+
+* Improve performance of inserting `pack_stats` in the database. The `pack_stats` information is used to display "Frequency" and "Last run" information for a specific host's scheduled queries. You can find this information on the **Host details** page.
+
+* Improve Fleet server logging so that it is more uniform.
+
+* Fix a bug in which a user with the Observer role was unable to run a live query.
+
+* Fix a bug that prevented the new **Home** page from being displayed in some Fleet instances.
+
+* Fix a bug that prevented accurate sorting issues across multiple pages on the **Hosts** page.
+
+## Fleet 4.1.0 (Jul 26, 2021)
+
+The primary additions in Fleet 4.1.0 are the new Schedule and Activity feed features.
+
+Schedule lets you add queries which are executed on your devices at regular intervals without having to understand or configure osquery query packs. For experienced Fleet and osquery users, the ability to create new, and modify existing, query packs is still available in the Fleet UI and fleetctl command-line tool. To reach the **Packs** page in the Fleet UI, head to **Schedule > Advanced**.
+
+Activity feed adds the ability to observe when, and by whom, queries are changes, packs are created, live queries are run, and more. The Activity feed feature is located on the new Home page in the Fleet UI. Select the logo in the top right corner of the Fleet UI to navigate to the new **Home** page.
+
+### New features breakdown
+
+* Add ability to create teams and update their respective agent options and enroll secrets using the new `teams` yaml document and fleetctl. Available in Fleet Basic.
+
+* Adds a new **Home** page to the Fleet UI. The **Home** page presents a breakdown of the enrolled hosts by operating system.
+
+* Add a "Users" table on the **Host details** page. The `username` information displayed in the "Users" table, as well as the `uid`, `type`, and `groupname` are available in the Fleet REST API via the `/api/v1/fleet/hosts/{id}` API route.
+
+* Add ability to create a user without an invitation. You can now create a new user by heading to **Settings > Users**, selecting "Create user," and then choosing the "Create user" option.
+
+* Add ability to search and sort installed software items in the "Software" table on the **Host details** page. 
+
+* Add ability to delete a user from Fleet using a new `fleetctl user delete` command.
+
+* Add ability to retrieve hosts' `status`, `display_text`, and `labels` using the `fleetctl get hosts` command.
+
+* Add a new `user_roles` yaml document that allows users to manage user roles via fleetctl. Available in Fleet Basic.
+
+* Change default ordering of the "Hosts" table in the Fleet UI to ascending order (A-Z).
+
+* Improve performance of the Software inventory feature by reducing the amount of inserts and deletes are done in the database when updating each host's
+software inventory.
+
+* Remove YUM and APT sources from Software inventory.
+
+* Fix an issue in which disabling SSO at the organization level would not disable SSO for all users.
+
+* Fix an issue with data migrations in which enroll secrets are duplicated after the `name` column was removed from the `enroll_secrets` table.
+
+* Fix an issue in which it was not possible to clear host settings by applying the `config` yaml document. This allows users to successfully remove the `additional_queries` property after adding it.
+
+* Fix printing of failed record count in AWS Kinesis/Firehose logging plugins.
+
+* Fix compatibility with GCP Memorystore Redis due to missing CLUSTER command.
+
+
+## Fleet 4.0.1 (Jul 01, 2021)
+
+* Fix an issue in which migrations failed on MariaDB MySQL.
+
+* Allow `http` to be used when configuring `fleetctl` for `localhost`.
+
+* Fix a bug in which Team information was missing for hosts looked up by Label. 
+
+## Fleet 4.0.0 (Jun 29, 2021)
+
+The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
+
+RBAC adds the ability to define a user's access to features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access.
+
+* Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md) for a breakdown of the new user roles.
+
+Teams adds the ability to separate hosts into exclusive groups. This way, users can easily act on consistent groups of hosts. 
+
+* Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/10-Teams.md).
+
+### New features breakdown
+
+* Add ability to define a user's access to features in Fleet by introducing the Admin, Maintainer, and Observer roles. Available in Fleet Core.
+
+* Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Basic customers. Check out the list below for the new functionality included with Teams:
+
+* Teams: Add ability to enroll hosts to one team using team specific enroll secrets.
+
+* Teams: Add ability to manually transfer hosts to a different team in the Fleet UI.
+
+* Teams: Add ability to apply unique agent options to each team. Note that "osquery options" have been renamed to "agent options."
+
+* Teams: Add ability to grant users access to one or more teams. This allows you to define a user's access to specific groups of hosts in Fleet.
+
+* Add ability to create an API-only user. API-only users cannot access the Fleet UI. These users can access all Fleet API endpoints and `fleetctl` features. Available in Fleet Core.
+
+* Add Redis cluster support. Available in Fleet Core.
+
+* Fix a bug that prevented the columns chosen for the "Hosts" table from persisting after logging out of Fleet.
+
+### Upgrade plan
+
+Fleet 4.0.0 is a major release and introduces several breaking changes and database migrations. The following sections call out changes to consider when upgrading to Fleet 4.0.0:
+
+* The structure of Fleet's `.tar.gz` and `.zip` release archives have changed slightly. Deployments that use the binary artifacts may need to update scripts or tooling. The `fleetdm/fleet` Docker container maintains the same API.
+
+* Use strictly `fleet` in Fleet's configuration, API routes, and environment variables. Users must update all usage of `kolide` in these items (deprecated since Fleet 3.8.0).
+
+* Change your SAML SSO URI to use fleet instead of kolide . This is due to the changes to Fleet's API routes outlined in the section above.
+
+* Change configuration option `server_tlsprofile` to `server_tls_compatibility`. This options previously had an inconsistent key name.
+
+* Replace the use of the `api/v1/fleet/spec/osquery/options` with `api/v1/fleet/config`. In Fleet 4.0.0, "osquery options" are now called "agent options." The new agent options are moved to the Fleet application config spec file and the `api/v1/fleet/config` API endpoint.
+
+* Enroll secrets no longer have "names" and are now either global or for a specific team. Hosts no longer store the “name” of the enroll secret that was used. Users that want to be able to segment hosts (for configuration, queries, etc.) based on the enrollment secret should use the Teams feature in Fleet Basic.
+
+* JWT encoding is no longer used for session keys. Sessions now default to expiring in 4 hours of inactivity. `auth_jwt_key` and `auth_jwt_key_file` are no longer accepted as configuration.
+
+* The `username` artifact has been removed in favor of the more recognizable `name` (Full name). As a result the `email` artifact is now used for uniqueness in Fleet. Upon upgrading to Fleet 4.0.0, existing users will have the `name` field populated with `username`. SAML users may need to update their username mapping to match user emails.
+
+* As of Fleet 4.0.0, Fleet Device Management Inc. periodically collects anonymous information about your instance. Sending usage statistics is turned off by default for users upgrading from a previous version of Fleet. Read more about the exact information collected [here](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/11-Usage-statistics.md).
+
+## Fleet 4.0.0 RC3 (Jun 25, 2021)
+
+Primarily a test of the new release workflows. Relevant changelog will be updated for Fleet 4.0. 
+
+## Fleet 4.0.0 RC2 (Jun 18, 2021)
+
+The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
+
+RBAC adds the ability to define a user's access to features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access.
+
+* Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/5e40afa8ba28fc5cdee813dfca53b84ee0ee65cd/docs/1-Using-Fleet/8-Permissions.md) for a breakdown of the new user roles.
+
+Teams adds the ability to separate hosts into exclusive groups. This way, users can easily act on consistent groups of hosts. 
+
+* Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/5e40afa8ba28fc5cdee813dfca53b84ee0ee65cd/docs/1-Using-Fleet/9-Teams.md).
+
+### New features breakdown
+
+* Add ability to define a user's access to features in Fleet by introducing the Admin, Maintainer, and Observer roles. Available in Fleet Core.
+
+* Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Basic customers. Check out the list below for the new functionality included with Teams:
+
+* Teams: Add ability to enroll hosts to one team using team specific enroll secrets.
+
+* Teams: Add ability to manually transfer hosts to a different team in the Fleet UI.
+
+* Teams: Add ability to apply unique agent options to each team. Note that "osquery options" have been renamed to "agent options."
+
+* Teams: Add ability to grant users access to one or more teams. This allows you to define a user's access to specific groups of hosts in Fleet.
+
+* Add ability to create an API-only user. API-only users cannot access the Fleet UI. These users can access all Fleet API endpoints and `fleetctl` features. Available in Fleet Core.
+
+* Add Redis cluster support. Available in Fleet Core.
+
+* Fix a bug that prevented the columns chosen for the "Hosts" table from persisting after logging out of Fleet.
+
+### Upgrade plan
+
+Fleet 4.0.0 is a major release and introduces several breaking changes and database migrations. 
+
+* Use strictly `fleet` in Fleet's configuration, API routes, and environment variables. Users must update all usage of `kolide` in these items (deprecated since Fleet 3.8.0).
+
+* Change configuration option `server_tlsprofile` to `server_tls_compatability`. This option previously had an inconsistent key name.
+
+* Replace the use of the `api/v1/fleet/spec/osquery/options` with `api/v1/fleet/config`. In Fleet 4.0.0, "osquery options" are now called "agent options." The new agent options are moved to the Fleet application config spec file and the `api/v1/fleet/config` API endpoint.
+
+* Enroll secrets no longer have "names" and are now either global or for a specific team. Hosts no longer store the “name” of the enroll secret that was used. Users that want to be able to segment hosts (for configuration, queries, etc.) based on the enrollment secret should use the Teams feature in Fleet Basic.
+
+* `auth_jwt_key` and `auth_jwt_key_file` are no longer accepted as configuration. 
+
+* JWT encoding is no longer used for session keys. Sessions now default to expiring in 4 hours of inactivity.
+
+### Known issues
+
+
+There are currently no known issues in this release. However, we recommend only upgrading to Fleet 4.0.0-rc2 for testing purposes. Please file a GitHub issue for any issues discovered when testing Fleet 4.0.0!
+
+## Fleet 4.0.0 RC1 (Jun 10, 2021)
+
+The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
+
+RBAC adds the ability to define a user's access to information and features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access. Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/9-Permissions.md) for a breakdown of the new user roles and their respective capabilities.
+
+Teams adds the ability to separate hosts into exclusive groups. This way, users can easily observe and apply operations to consistent groups of hosts. Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md).
+
+There are several known issues that will be fixed for the stable release of Fleet 4.0.0. Therefore, we recommend only upgrading to Fleet 4.0.0 RC1 for testing purposes. Please file a GitHub issue for any issues discovered when testing Fleet 4.0.0!
+
+### New features breakdown
+
+* Add ability to define a user's access to information and features in Fleet by introducing the Admin, Maintainer, and Observer roles.
+
+* Add ability to separate hosts into exclusive groups with the Teams feature. The Teams feature is available for Fleet Basic customers. Check out the list below for the new functionality included with Teams:
+
+* Add ability to enroll hosts to one team using team specific enroll secrets.
+
+* Add ability to manually transfer hosts to a different team in the Fleet UI.
+
+* Add ability to apply unique agent options to each team. Note that "osquery options" have been renamed to "agent options."
+
+* Add ability to grant users access to one or more teams. This allows you to define a user's access to specific groups of hosts in Fleet.
+
+### Upgrade plan
+
+Fleet 4.0.0 is a major release and introduces several breaking changes and database migrations. 
+
+* Use strictly `fleet` in Fleet's configuration, API routes, and environment variables. This means that you must update all usage of `kolide` in these items. The backwards compatibility introduced in Fleet 3.8.0 is no longer valid in Fleet 4.0.0.
+
+* Change configuration option `server_tlsprofile` to `server_tls_compatability`. This options previously had an inconsistent key name.
+
+* Replace the use of the `api/v1/fleet/spec/osquery/options` with `api/v1/fleet/config`. In Fleet 4.0.0, "osquery options" are now called "agent options." The new agent options are moved to the Fleet application config spec file and the `api/v1/fleet/config` API endpoint.
+
+* Enroll secrets no longer have "names" and are now either global or for a specific team. Hosts no longer store the “name” of the enroll secret that was used. Users that want to be able to segment hosts (for configuration, queries, etc.) based on the enrollment secret should use the Teams feature in Fleet Basic.
+
+* `auth_jwt_key` and `auth_jwt_key_file` are no longer accepted as configuration. 
+
+* JWT encoding is no longer used for session keys. Sessions now default to expiring in 4 hours of inactivity.
+
+### Known issues
+
+* Query packs cannot be targeted to teams.
+
 ## Fleet 3.13.0 (Jun 3, 2021)
 
 * Improve performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that the `/api/v1/fleet/hosts` API endpoint now return only the requested `additional` columns. See documentation on the changes to the hosts API endpoint [here](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/1-Using-Fleet/3-REST-API.md#list-hosts).
@@ -28,7 +319,7 @@
 
 * Improve Fleet performance by batch updating host seen time instead of updating synchronously. This improvement reduces MySQL CPU usage by ~33% with 4,000 simulated hosts and MySQL running in Docker.
 
-* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](https://github.com/fleetdm/fleet/blob/master/docs/3-Deployment/2-Configuration.md#software-inventory).
+* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](./docs/2-Deploying/2-Configuration.md#software-inventory).
 
 * Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Basic customers.
 
@@ -496,7 +787,7 @@ to 2.0.0.
 
 ## Kolide Fleet 2.0.0 (currently preparing for release)
 
-The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md).
+The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md).
 
 ### New Features
 

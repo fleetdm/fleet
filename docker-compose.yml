@@ -1,8 +1,10 @@
 ---
 version: '2'
 services:
+  # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like.
   mysql:
-    image: mysql:5.7
+    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
+    platform: linux/x86_64
     volumes:
       - mysql-persistent-volume:/tmp
     command: mysqld --datadir=/tmp/mysqldata --event-scheduler=ON
@@ -15,13 +17,16 @@ services:
       - "3306:3306"
 
   mysql_test:
-    image: mysql:5.7
+    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
+    platform: linux/x86_64
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: mysqld --datadir=/tmpfs --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON --innodb-file-per-table=OFF
-    tmpfs: /tmpfs
     environment: *mysql-default-environment
     ports:
       - "3307:3306"
+    tmpfs:
+      - /var/lib/mysql:rw,noexec,nosuid
+      - /tmpfs
 
   mailhog:
     image: mailhog/mailhog:latest
@@ -39,6 +44,8 @@ services:
     environment:
       SIMPLESAMLPHP_SP_ENTITY_ID: 'https://localhost:8080'
       SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE: 'https://localhost:8080/api/v1/fleet/sso/callback'
+    volumes:
+      - ./tools/saml/users.php:/var/www/simplesamlphp/config/authsources.php
     ports:
       - "9080:8080"
       - "9443:8443"
@@ -60,6 +67,16 @@ services:
       - "9090:9090"
     volumes:
       - ./tools/app/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  # localstack to simulate AWS integrations like firehose & kinesis
+  # use http://localhost:4566 as the `--endpoint-url` argument in awscli
+  localstack:
+    image: localstack/localstack
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    environment:
+      - SERVICES=firehose,kinesis
 
 volumes:
   mysql-persistent-volume:

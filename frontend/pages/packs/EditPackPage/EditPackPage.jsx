@@ -4,17 +4,21 @@ import { connect } from "react-redux";
 import { filter, includes, isEqual, noop, size, find } from "lodash";
 import { push } from "react-router-redux";
 
+import permissionUtils from "utilities/permissions";
 import deepDifference from "utilities/deep_difference";
 import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
 import hostActions from "redux/nodes/entities/hosts/actions";
 import hostInterface from "interfaces/host";
 import labelActions from "redux/nodes/entities/labels/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
 import labelInterface from "interfaces/label";
+import teamInterface from "interfaces/team";
 import packActions from "redux/nodes/entities/packs/actions";
 import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePanel";
 import packInterface from "interfaces/pack";
 import queryActions from "redux/nodes/entities/queries/actions";
 import queryInterface from "interfaces/query";
+import scheduledQueryInterface from "interfaces/scheduled_query";
 import ScheduledQueriesListWrapper from "components/queries/ScheduledQueriesListWrapper";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
@@ -22,7 +26,6 @@ import stateEntityGetter from "redux/utilities/entityGetter";
 import PATHS from "router/paths";
 
 const baseClass = "edit-pack-page";
-
 export class EditPackPage extends Component {
   static propTypes = {
     allQueries: PropTypes.arrayOf(queryInterface),
@@ -34,7 +37,9 @@ export class EditPackPage extends Component {
     packHosts: PropTypes.arrayOf(hostInterface),
     packID: PropTypes.string,
     packLabels: PropTypes.arrayOf(labelInterface),
-    scheduledQueries: PropTypes.arrayOf(queryInterface),
+    packTeams: PropTypes.arrayOf(teamInterface),
+    scheduledQueries: PropTypes.arrayOf(scheduledQueryInterface),
+    isBasicTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -60,6 +65,7 @@ export class EditPackPage extends Component {
       packHosts,
       packID,
       packLabels,
+      packTeams,
       scheduledQueries,
     } = this.props;
     const { load } = packActions;
@@ -77,6 +83,10 @@ export class EditPackPage extends Component {
       if (!packLabels || packLabels.length !== pack.label_ids.length) {
         dispatch(labelActions.loadAll());
       }
+
+      if (!packTeams || packTeams.length !== pack.team_ids.length) {
+        dispatch(teamActions.loadAll());
+      }
     }
 
     if (!size(scheduledQueries)) {
@@ -90,7 +100,13 @@ export class EditPackPage extends Component {
     return false;
   }
 
-  componentWillReceiveProps({ dispatch, pack, packHosts, packLabels }) {
+  componentWillReceiveProps({
+    dispatch,
+    pack,
+    packHosts,
+    packLabels,
+    packTeams,
+  }) {
     if (!isEqual(pack, this.props.pack)) {
       if (!packHosts || packHosts.length !== pack.host_ids.length) {
         dispatch(hostActions.loadAll());
@@ -98,6 +114,10 @@ export class EditPackPage extends Component {
 
       if (!packLabels || packLabels.length !== pack.label_ids.length) {
         dispatch(labelActions.loadAll());
+      }
+
+      if (!packTeams || packTeams.length !== pack.team_ids.length) {
+        dispatch(teamActions.loadAll());
       }
     }
 
@@ -153,7 +173,9 @@ export class EditPackPage extends Component {
     const { dispatch, isEdit, packID } = this.props;
 
     if (isEdit) {
-      return dispatch(push(PATHS.PACK({ id: packID })));
+      dispatch(push(PATHS.PACK({ id: packID })));
+      dispatch(renderFlash("success", `Pack successfully updated.`));
+      return null;
     }
 
     return dispatch(push(PATHS.EDIT_PACK({ id: packID })));
@@ -181,8 +203,15 @@ export class EditPackPage extends Component {
     const { dispatch, pack } = this.props;
     const { update } = packActions;
     const updatedPack = deepDifference(formData, pack);
-
-    return dispatch(update(pack, updatedPack)).then(() => this.onToggleEdit());
+    return dispatch(update(pack, updatedPack))
+      .then(() => {
+        this.onToggleEdit();
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", `Could not update pack. Please try again.`)
+        );
+      });
   };
 
   handleRemoveScheduledQueries = (scheduledQueryIDs) => {
@@ -202,14 +231,26 @@ export class EditPackPage extends Component {
   handleConfigurePackQuerySubmit = (formData) => {
     const { create } = scheduledQueryActions;
     const { dispatch, packID } = this.props;
+
     const scheduledQueryData = {
       ...formData,
       pack_id: packID,
     };
 
-    dispatch(create(scheduledQueryData)).catch(() => {
-      dispatch(renderFlash("error", "Unable to schedule your query."));
-    });
+    dispatch(create(scheduledQueryData))
+      // Will not render query name without declaring scheduledQueryData twice
+      // eslint-disable-next-line @typescript-eslint/no-shadow
+      .then((scheduledQueryData) => {
+        dispatch(
+          renderFlash(
+            "success",
+            `${scheduledQueryData.name} successfully scheduled to pack.`
+          )
+        );
+      })
+      .catch(() => {
+        dispatch(renderFlash("error", "Unable to schedule your query."));
+      });
 
     return false;
   };
@@ -237,10 +278,12 @@ export class EditPackPage extends Component {
       pack,
       packHosts,
       packLabels,
+      packTeams,
       scheduledQueries,
+      isBasicTier,
     } = this.props;
 
-    const packTargets = [...packHosts, ...packLabels];
+    const packTargets = [...packHosts, ...packLabels, ...packTeams];
 
     if (!pack || isLoadingPack || isLoadingScheduledQueries) {
       return false;
@@ -259,6 +302,7 @@ export class EditPackPage extends Component {
             pack={pack}
             packTargets={packTargets}
             targetsCount={targetsCount}
+            isBasicTier={isBasicTier}
           />
           <ScheduledQueriesListWrapper
             onRemoveScheduledQueries={handleRemoveScheduledQueries}
@@ -303,6 +347,12 @@ const mapStateToProps = (state, { params, route }) => {
         return includes(pack.label_ids, label.id);
       })
     : [];
+  const packTeams = pack
+    ? filter(state.entities.teams.data, (team) => {
+        return includes(pack.team_ids, team.id);
+      })
+    : [];
+  const isBasicTier = permissionUtils.isBasicTier(state.app.config);
 
   return {
     allQueries,
@@ -313,7 +363,9 @@ const mapStateToProps = (state, { params, route }) => {
     packHosts,
     packID,
     packLabels,
+    packTeams,
     scheduledQueries,
+    isBasicTier,
   };
 };
 

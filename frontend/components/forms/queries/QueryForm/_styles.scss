@@ -1,13 +1,30 @@
 .query-form {
   &__wrapper {
+    font-size: $x-small;
+
     h1 {
-      margin-bottom: $pad-large;
+      margin: $pad-large 0;
     }
   }
 
-  &__query-title,
+  &__query-name,
   &__query-description {
     width: 100%;
+  }
+
+  &__query-observer-can-run {
+    font-size: $x-small;
+    font-weight: $bold;
+    font-style: normal;
+
+    &__label {
+      margin-left: $pad-small;
+    }
+  }
+
+  &__query-observer-can-run-wrapper {
+    margin-bottom: $pad-xsmall;
+    font-weight: $bold !important; //override checkbox default
   }
 
   &__button-wrap {

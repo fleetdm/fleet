@@ -12,14 +12,14 @@ import validate from "components/forms/LoginForm/validate";
 import ssoSettingsInterface from "interfaces/ssoSettings";
 
 const baseClass = "login-form";
-const formFields = ["username", "password"];
+const formFields = ["email", "password"];
 
 class LoginForm extends Component {
   static propTypes = {
     baseError: PropTypes.string,
     fields: PropTypes.shape({
       password: formFieldInterface.isRequired,
-      username: formFieldInterface.isRequired,
+      email: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func,
     isHidden: PropTypes.bool,
@@ -85,11 +85,7 @@ class LoginForm extends Component {
       <form onSubmit={handleSubmit} className={loginFormClass}>
         <div className={`${baseClass}__container`}>
           {baseError && <div className="form__base-error">{baseError}</div>}
-          <InputFieldWithIcon
-            {...fields.username}
-            autofocus
-            placeholder="Username or email"
-          />
+          <InputFieldWithIcon {...fields.email} autofocus placeholder="Email" />
           <InputFieldWithIcon
             {...fields.password}
             placeholder="Password"

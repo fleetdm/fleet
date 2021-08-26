@@ -11,6 +11,6 @@ describe("PlatformIcon - component", () => {
   it("renders text if no icon", () => {
     const component = mount(<PlatformIcon name="All" />);
 
-    expect(component.find(".kolidecon-single-host").length).toEqual(1);
+    expect(component.find(".fleeticon-single-host").length).toEqual(1);
   });
 });

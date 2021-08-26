@@ -6,7 +6,7 @@ import { keys, omit } from "lodash";
 import Button from "components/buttons/Button";
 import campaignInterface from "interfaces/campaign";
 import filterArrayByHash from "utilities/filter_array_by_hash";
-import KolideIcon from "components/icons/KolideIcon";
+import FleetIcon from "components/icons/FleetIcon";
 import InputField from "components/forms/fields/InputField";
 import QueryResultsRow from "components/queries/QueryResultsTable/QueryResultsRow";
 import QueryProgressDetails from "components/queries/QueryProgressDetails";
@@ -68,7 +68,7 @@ class QueryResultsTable extends Component {
     return (
       <th key={`query-results-table-header-${index}`}>
         <span>
-          <KolideIcon className={filterIconClassName} name="filter" />
+          <FleetIcon className={filterIconClassName} name="filter" />
           {column}
         </span>
         <InputField
@@ -202,7 +202,7 @@ class QueryResultsTable extends Component {
             onClick={onToggleQueryFullScreen}
             variant="grey"
           >
-            <KolideIcon name={isQueryFullScreen ? "windowed" : "fullscreen"} />
+            <FleetIcon name={isQueryFullScreen ? "windowed" : "fullscreen"} />
           </Button>
           {!hasNoResults && !queryIsRunning && (
             <Button

@@ -8,8 +8,8 @@ import {
   getEnrollSecret,
 } from "redux/nodes/app/actions";
 import { configStub } from "test/stubs";
-import { frontendFormattedConfig } from "redux/nodes/app/helpers";
-import Kolide from "kolide";
+import { frontendFormattedConfig } from "fleet/helpers";
+import Fleet from "fleet";
 import { reduxMockStore } from "test/helpers";
 import mocks from "test/mocks";
 
@@ -23,7 +23,7 @@ describe("App - actions", () => {
       const bearerToken = "abc123";
       const request = configMocks.loadAll.valid(bearerToken);
 
-      Kolide.setBearerToken(bearerToken);
+      Fleet.setBearerToken(bearerToken);
       store
         .dispatch(getConfig())
         .then(() => {
@@ -37,7 +37,7 @@ describe("App - actions", () => {
       const bearerToken = "abc123";
       configMocks.loadAll.valid(bearerToken);
 
-      Kolide.setBearerToken(bearerToken);
+      Fleet.setBearerToken(bearerToken);
       store
         .dispatch(getConfig())
         .then(() => {
@@ -61,7 +61,7 @@ describe("App - actions", () => {
       const bearerToken = "abc123";
       const request = configMocks.update.valid(bearerToken);
 
-      Kolide.setBearerToken(bearerToken);
+      Fleet.setBearerToken(bearerToken);
       store
         .dispatch(updateConfig(configFormData))
         .then(() => {
@@ -75,7 +75,7 @@ describe("App - actions", () => {
       const bearerToken = "abc123";
       configMocks.update.valid(bearerToken);
 
-      Kolide.setBearerToken(bearerToken);
+      Fleet.setBearerToken(bearerToken);
       store
         .dispatch(updateConfig(configFormData))
         .then(() => {
@@ -98,7 +98,7 @@ describe("App - actions", () => {
       const bearerToken = "abc123";
       const request = configMocks.loadAll.valid(bearerToken);
 
-      Kolide.setBearerToken(bearerToken);
+      Fleet.setBearerToken(bearerToken);
       store
         .dispatch(getEnrollSecret())
         .then(() => {
@@ -112,7 +112,7 @@ describe("App - actions", () => {
       const bearerToken = "abc123";
       configMocks.loadAll.valid(bearerToken);
 
-      Kolide.setBearerToken(bearerToken);
+      Fleet.setBearerToken(bearerToken);
       store
         .dispatch(getEnrollSecret())
         .then(() => {

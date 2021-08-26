@@ -3,18 +3,18 @@ package live_query
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var testFunctions = [...]func(*testing.T, kolide.LiveQueryStore){
+var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQuery,
 	testLiveQueryNoTargets,
 	testLiveQueryStopQuery,
 }
 
-func testLiveQuery(t *testing.T, store kolide.LiveQueryStore) {
+func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
 	queries, err := store.QueriesForHost(1)
 	assert.NoError(t, err)
 	assert.Len(t, queries, 0)
@@ -73,11 +73,11 @@ func testLiveQuery(t *testing.T, store kolide.LiveQueryStore) {
 	)
 }
 
-func testLiveQueryNoTargets(t *testing.T, store kolide.LiveQueryStore) {
+func testLiveQueryNoTargets(t *testing.T, store fleet.LiveQueryStore) {
 	assert.Error(t, store.RunQuery("test", "select 1", []uint{}))
 }
 
-func testLiveQueryStopQuery(t *testing.T, store kolide.LiveQueryStore) {
+func testLiveQueryStopQuery(t *testing.T, store fleet.LiveQueryStore) {
 	require.NoError(t, store.RunQuery("test", "select 1", []uint{1, 3}))
 	require.NoError(t, store.RunQuery("test2", "select 2", []uint{1, 3}))
 	require.NoError(t, store.StopQuery("test"))

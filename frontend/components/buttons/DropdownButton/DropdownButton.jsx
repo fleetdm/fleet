@@ -4,7 +4,6 @@ import { noop } from "lodash";
 import classnames from "classnames";
 
 import ClickOutside from "components/ClickOutside";
-import KolideIcon from "components/icons/KolideIcon";
 import Button from "components/buttons/Button";
 
 const baseClass = "dropdown-button";

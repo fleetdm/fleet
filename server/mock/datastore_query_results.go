@@ -5,14 +5,14 @@ package mock
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-var _ kolide.QueryResultStore = (*QueryResultStore)(nil)
+var _ fleet.QueryResultStore = (*QueryResultStore)(nil)
 
-type WriteResultFunc func(result kolide.DistributedQueryResult) error
+type WriteResultFunc func(result fleet.DistributedQueryResult) error
 
-type ReadChannelFunc func(ctx context.Context, query kolide.DistributedQueryCampaign) (<-chan interface{}, error)
+type ReadChannelFunc func(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan interface{}, error)
 
 type HealthCheckFunc func() error
 
@@ -27,12 +27,12 @@ type QueryResultStore struct {
 	HealthCheckFuncInvoked bool
 }
 
-func (s *QueryResultStore) WriteResult(result kolide.DistributedQueryResult) error {
+func (s *QueryResultStore) WriteResult(result fleet.DistributedQueryResult) error {
 	s.WriteResultFuncInvoked = true
 	return s.WriteResultFunc(result)
 }
 
-func (s *QueryResultStore) ReadChannel(ctx context.Context, query kolide.DistributedQueryCampaign) (<-chan interface{}, error) {
+func (s *QueryResultStore) ReadChannel(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan interface{}, error) {
 	s.ReadChannelFuncInvoked = true
 	return s.ReadChannelFunc(ctx, query)
 }

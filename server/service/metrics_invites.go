@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw metricsMiddleware) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
+func (mw metricsMiddleware) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
 	var (
-		invite *kolide.Invite
+		invite *fleet.Invite
 		err    error
 	)
 	defer func(begin time.Time) {
@@ -35,9 +35,9 @@ func (mw metricsMiddleware) DeleteInvite(ctx context.Context, id uint) error {
 	return err
 }
 
-func (mw metricsMiddleware) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
+func (mw metricsMiddleware) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
 	var (
-		invites []*kolide.Invite
+		invites []*fleet.Invite
 		err     error
 	)
 	defer func(begin time.Time) {
@@ -49,10 +49,10 @@ func (mw metricsMiddleware) ListInvites(ctx context.Context, opt kolide.ListOpti
 	return invites, err
 }
 
-func (mw metricsMiddleware) VerifyInvite(ctx context.Context, token string) (*kolide.Invite, error) {
+func (mw metricsMiddleware) VerifyInvite(ctx context.Context, token string) (*fleet.Invite, error) {
 	var (
 		err    error
-		invite *kolide.Invite
+		invite *fleet.Invite
 	)
 	defer func(begin time.Time) {
 		lvs := []string{"method", "VerifyInvite", "error", fmt.Sprint(err != nil)}

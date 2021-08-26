@@ -1,0 +1,54 @@
+.fleet-403 {
+  p {
+    color: #333;
+    font-style: $regular;
+  }
+
+  a {
+    color: $core-vibrant-blue;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .primary-header {
+    position: absolute;
+    top: 0;
+    height: 90px;
+    width: 100%;
+
+    &__logo {
+      height: 48px;
+      width: 174px;
+      position: absolute;
+      top: 25px;
+      left: 40px;
+    }
+  }
+
+  .background-image {
+    width: 100%;
+  }
+
+  main {
+    text-align: center;
+
+    > h1 {
+      display: inline;
+      font-size: 32px;
+      max-width: 479px;
+      color: $core-fleet-black;
+
+      span {
+        font-weight: $bold;
+      }
+    }
+
+    > h2 {
+      font-size: 36px;
+      margin: 13px 0 $pad-xlarge;
+    }
+  }
+}

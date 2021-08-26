@@ -5,18 +5,23 @@ import classnames from "classnames";
 
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
-import { noop, pick } from "lodash";
-
+import { isEmpty, noop, pick, reduce } from "lodash";
+import simpleSearch from "utilities/simple_search";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
-import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
-import PackQueriesListRow from "pages/hosts/HostDetailsPage/PackQueriesListRow";
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities";
+import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
+import TableContainer from "components/TableContainer";
 
-import entityGetter from "redux/utilities/entityGetter";
+import permissionUtils from "utilities/permissions";
+import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
 import queryActions from "redux/nodes/entities/queries/actions";
+import teamInterface from "interfaces/team";
 import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
+import hostActions from "redux/nodes/entities/hosts/actions";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
 import {
@@ -27,7 +32,6 @@ import {
   AccordionItemPanel,
 } from "react-accessible-accordion";
 
-import hostInterface from "interfaces/host";
 import {
   humanHostUptime,
   humanHostLastSeen,
@@ -35,22 +39,38 @@ import {
   humanHostMemory,
   humanHostDetailUpdated,
   secondsToHms,
-} from "kolide/helpers";
+} from "fleet/helpers";
 import helpers from "./helpers";
 import SelectQueryModal from "./SelectQueryModal";
+import TransferHostModal from "./TransferHostModal";
+import {
+  generateTableHeaders,
+  generateDataSet,
+} from "./SoftwareTable/SoftwareTableConfig";
+import {
+  generatePackTableHeaders,
+  generatePackDataSet,
+} from "./PackTable/PackTableConfig";
+import EmptySoftware from "./EmptySoftware";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
+import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
+import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
+import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
 
 const baseClass = "host-details";
 
 export class HostDetailsPage extends Component {
   static propTypes = {
-    host: hostInterface,
     hostID: PropTypes.string,
     dispatch: PropTypes.func,
-    isLoadingHost: PropTypes.bool,
     queries: PropTypes.arrayOf(queryInterface),
     queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    isGlobalAdmin: PropTypes.bool,
+    isBasicTier: PropTypes.bool,
+    isOnlyObserver: PropTypes.bool,
+    canTransferTeam: PropTypes.bool,
+    teams: PropTypes.arrayOf(teamInterface),
   };
 
   static defaultProps = {
@@ -62,9 +82,13 @@ export class HostDetailsPage extends Component {
     super(props);
 
     this.state = {
+      host: {},
+      isLoadingHost: true,
       showDeleteHostModal: false,
       showQueryHostModal: false,
+      showTransferHostModal: false,
       showRefetchLoadingSpinner: false,
+      softwareState: [],
     };
   }
 
@@ -80,14 +104,43 @@ export class HostDetailsPage extends Component {
     const { dispatch, hostID } = this.props;
     const { fetchHost } = helpers;
 
-    fetchHost(dispatch, hostID).then((host) =>
-      this.setState({ showRefetchLoadingSpinner: host.refetch_requested })
-    );
+    fetchHost(dispatch, hostID)
+      .then((host) => {
+        this.setState({
+          host,
+          showRefetchLoadingSpinner: host.refetch_requested,
+          isLoadingHost: false,
+        });
+      })
+      .catch((err) => {
+        console.log(err);
+        dispatch(
+          renderFlash("error", `Unable to load host. Please try again.`)
+        );
+        this.setState({ isLoadingHost: false });
+      });
     return false;
   }
 
+  // Loads teams
+  componentDidUpdate(prevProps) {
+    const { dispatch, isBasicTier, canTransferTeam } = this.props;
+    if (
+      isBasicTier !== prevProps.isBasicTier &&
+      isBasicTier &&
+      canTransferTeam
+    ) {
+      dispatch(teamActions.loadAll({}));
+    }
+  }
+
+  componentWillUnmount() {
+    this.clearHostUpdates();
+  }
+
   onDestroyHost = () => {
-    const { dispatch, host } = this.props;
+    const { dispatch } = this.props;
+    const { host } = this.state;
     const { destroyHost } = helpers;
 
     destroyHost(dispatch, host).then(() => {
@@ -103,7 +156,8 @@ export class HostDetailsPage extends Component {
   };
 
   onRefetchHost = () => {
-    const { dispatch, host } = this.props;
+    const { dispatch } = this.props;
+    const { host } = this.state;
     const { refetchHost } = helpers;
 
     this.setState({ showRefetchLoadingSpinner: true });
@@ -129,10 +183,79 @@ export class HostDetailsPage extends Component {
     return dispatch(push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`));
   };
 
+  onTransferHostSubmit = (team) => {
+    const { toggleTransferHostModal } = this;
+    const { dispatch, hostID } = this.props;
+    const { fetchHost } = helpers;
+    const teamId = team.id === "no-team" ? null : team.id;
+
+    dispatch(hostActions.transferToTeam(teamId, [parseInt(hostID, 10)]))
+      .then(() => {
+        const successMessage =
+          teamId === null
+            ? `Host successfully removed from teams.`
+            : `Host successfully transferred to  ${team.name}.`;
+        dispatch(renderFlash("success", successMessage));
+        // Update page with correct team
+        this.setState({ isLoadingHost: true });
+        fetchHost(dispatch, hostID)
+          .then((host) => {
+            this.setState({
+              host,
+              showRefetchLoadingSpinner: host.refetch_requested,
+              isLoadingHost: false,
+            });
+          })
+          .catch((err) => {
+            console.log(err);
+            dispatch(
+              renderFlash("error", `Unable to load host. Please try again.`)
+            );
+            this.setState({ isLoadingHost: false });
+          });
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", "Could not transfer host. Please try again.")
+        );
+      });
+    // Must call the function and the return to avoid infinite loop
+    toggleTransferHostModal()();
+  };
+
+  // Search functionality
+  onQueryChange = (queryData) => {
+    const { host } = this.state;
+    const {
+      pageIndex,
+      pageSize,
+      searchQuery,
+      sortHeader,
+      sortDirection,
+    } = queryData;
+    let sortBy = [];
+    if (sortHeader !== "") {
+      sortBy = [{ id: sortHeader, direction: sortDirection }];
+    }
+
+    if (!searchQuery) {
+      this.setState({ softwareState: host.software });
+      return;
+    }
+
+    this.setState({ softwareState: simpleSearch(searchQuery, host.software) });
+  };
+
+  clearHostUpdates() {
+    if (this.timeout) {
+      global.window.clearTimeout(this.timeout);
+      this.timeout = null;
+    }
+  }
+
   toggleQueryHostModal = () => {
     return () => {
       const { showQueryHostModal } = this.state;
-
       this.setState({
         showQueryHostModal: !showQueryHostModal,
       });
@@ -153,9 +276,21 @@ export class HostDetailsPage extends Component {
     };
   };
 
+  toggleTransferHostModal = () => {
+    return () => {
+      const { showTransferHostModal } = this.state;
+
+      this.setState({
+        showTransferHostModal: !showTransferHostModal,
+      });
+
+      return false;
+    };
+  };
+
   renderDeleteHostModal = () => {
     const { showDeleteHostModal } = this.state;
-    const { host } = this.props;
+    const { host } = this.state;
     const { toggleDeleteHostModal, onDestroyHost } = this;
 
     if (!showDeleteHostModal) {
@@ -183,7 +318,7 @@ export class HostDetailsPage extends Component {
           <Button onClick={onDestroyHost} variant="alert">
             Delete
           </Button>
-          <Button onClick={toggleDeleteHostModal(null)} variant="inverse">
+          <Button onClick={toggleDeleteHostModal(null)} variant="inverse-alert">
             Cancel
           </Button>
         </div>
@@ -192,22 +327,40 @@ export class HostDetailsPage extends Component {
   };
 
   renderActionButtons = () => {
-    const { toggleDeleteHostModal, toggleQueryHostModal } = this;
-    const { host } = this.props;
+    const {
+      toggleDeleteHostModal,
+      toggleQueryHostModal,
+      toggleTransferHostModal,
+    } = this;
+    const { isOnlyObserver, canTransferTeam } = this.props;
+    const { host } = this.state;
 
     const isOnline = host.status === "online";
-    const isOffline = host.status === "offline";
+
+    // Hide action buttons for global and team only observers
+    if (isOnlyObserver) {
+      return null;
+    }
 
     return (
       <div className={`${baseClass}__action-button-container`}>
+        {canTransferTeam && (
+          <Button
+            onClick={toggleTransferHostModal()}
+            variant="text-icon"
+            className={`${baseClass}__transfer-button`}
+          >
+            Transfer <img src={TransferIcon} alt="Transfer host icon" />
+          </Button>
+        )}
         <div data-tip data-for="query" data-tip-disable={isOnline}>
           <Button
             onClick={toggleQueryHostModal()}
-            variant="inverse"
-            disabled={isOffline}
+            variant="text-icon"
+            disabled={!isOnline}
             className={`${baseClass}__query-button`}
           >
-            Query
+            Query <img src={QueryIcon} alt="Query host icon" />
           </Button>
         </div>
         <ReactTooltip
@@ -221,8 +374,8 @@ export class HostDetailsPage extends Component {
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="active">
-          Delete
+        <Button onClick={toggleDeleteHostModal()} variant="text-icon">
+          Delete <img src={DeleteIcon} alt="Delete host icon" />
         </Button>
       </div>
     );
@@ -230,7 +383,7 @@ export class HostDetailsPage extends Component {
 
   renderLabels = () => {
     const { onLabelClick } = this;
-    const { host } = this.props;
+    const { host } = this.state;
     const { labels = [] } = host;
 
     const labelItems = labels.map((label) => {
@@ -260,9 +413,10 @@ export class HostDetailsPage extends Component {
   };
 
   renderPacks = () => {
-    const { host } = this.props;
-    const { pack_stats } = host;
-    const wrapperClassName = `${baseClass}__table`;
+    const { host, isLoadingHost } = this.state;
+    const pack_stats = host && host.pack_stats;
+    const wrapperClassName = `${baseClass}__pack-table`;
+    const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
     if (pack_stats) {
@@ -276,29 +430,24 @@ export class HostDetailsPage extends Component {
               {pack.query_stats.length === 0 ? (
                 <div>There are no schedule queries for this pack.</div>
               ) : (
-                <div className={`${baseClass}__wrapper`}>
-                  <table className={wrapperClassName}>
-                    <thead>
-                      <tr>
-                        <th>Query name</th>
-                        <th>Description</th>
-                        <th>Frequency</th>
-                        <th>Last run</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {!!pack.query_stats.length &&
-                        pack.query_stats.map((query) => {
-                          return (
-                            <PackQueriesListRow
-                              key={`pack-row-${query.pack_id}-${query.scheduled_query_id}`}
-                              query={query}
-                            />
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {!!pack.query_stats.length && (
+                    <div className={`${wrapperClassName}`}>
+                      <TableContainer
+                        columns={tableHeaders}
+                        data={generatePackDataSet(pack.query_stats)}
+                        isLoading={isLoadingHost}
+                        onQueryChange={() => null}
+                        resultsTitle={"queries"}
+                        defaultSortHeader={"scheduled_query_name"}
+                        defaultSortDirection={"asc"}
+                        showMarkAllPages={false}
+                        disablePagination
+                        disableCount
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </AccordionItemPanel>
           </AccordionItem>
@@ -322,13 +471,56 @@ export class HostDetailsPage extends Component {
     );
   };
 
-  renderSoftware = () => {
-    const { host } = this.props;
+  renderUsers = () => {
+    const { host } = this.state;
+    const { users } = host;
     const wrapperClassName = `${baseClass}__table`;
+
+    if (users) {
+      return (
+        <div className="section section--users">
+          <p className="section__header">Users</p>
+          {users.length === 0 ? (
+            <p className="results__data">
+              No users were detected on this host.
+            </p>
+          ) : (
+            <div className={`${baseClass}__wrapper`}>
+              <table className={wrapperClassName}>
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((hostUser) => {
+                    return (
+                      <HostUsersListRow
+                        key={`host-users-row-${hostUser.id}`}
+                        hostUser={hostUser}
+                      />
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+    }
+  };
+
+  renderSoftware = () => {
+    // const { EmptySoftware } = this;
+    const { onQueryChange } = this;
+    const { host, isLoadingHost, softwareState } = this.state;
+
+    const tableHeaders = generateTableHeaders();
 
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
+
         {host.software.length === 0 ? (
           <div className="results">
             <p className="results__header">
@@ -340,28 +532,26 @@ export class HostDetailsPage extends Component {
             </p>
           </div>
         ) : (
-          <div className={`${baseClass}__wrapper`}>
-            <table className={wrapperClassName}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Installed Version</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!!host.software.length &&
-                  host.software.map((software) => {
-                    return (
-                      <SoftwareListRow
-                        key={`software-row-${software.id}`}
-                        software={software}
-                      />
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <SoftwareVulnerabilities softwareList={host.software} />
+            {host.software && (
+              <TableContainer
+                columns={tableHeaders}
+                data={generateDataSet(softwareState)}
+                isLoading={isLoadingHost}
+                defaultSortHeader={"name"}
+                defaultSortDirection={"asc"}
+                inputPlaceHolder={"Filter software"}
+                onQueryChange={onQueryChange}
+                resultsTitle={"software items"}
+                emptyComponent={EmptySoftware}
+                showMarkAllPages={false}
+                searchable
+                wideSearch
+                disablePagination
+              />
+            )}
+          </>
         )}
       </div>
     );
@@ -369,11 +559,11 @@ export class HostDetailsPage extends Component {
 
   renderRefetch = () => {
     const { onRefetchHost } = this;
-    const { host } = this.props;
+    const { host } = this.state;
     const { showRefetchLoadingSpinner } = this.state;
 
     const isOnline = host.status === "online";
-    const isOffline = host.status === "offline";
+
     return (
       <>
         <div
@@ -386,10 +576,10 @@ export class HostDetailsPage extends Component {
             className={`
               button
               button--unstyled
-              ${isOffline ? "refetch-offline" : ""} 
+              ${!isOnline ? "refetch-offline" : ""} 
               ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
-            disabled={isOffline}
+            disabled={!isOnline}
             onClick={onRefetchHost}
           >
             {showRefetchLoadingSpinner
@@ -413,59 +603,128 @@ export class HostDetailsPage extends Component {
   };
 
   render() {
-    const { host, isLoadingHost, dispatch, queries, queryErrors } = this.props;
-    const { showQueryHostModal } = this.state;
+    const {
+      dispatch,
+      queries,
+      queryErrors,
+      isBasicTier,
+      isGlobalAdmin,
+      teams,
+    } = this.props;
+    const {
+      host,
+      isLoadingHost,
+      showQueryHostModal,
+      showTransferHostModal,
+    } = this.state;
     const {
       toggleQueryHostModal,
+      toggleTransferHostModal,
       renderDeleteHostModal,
+      onTransferHostSubmit,
       renderActionButtons,
       renderLabels,
       renderSoftware,
       renderPacks,
+      renderUsers,
       renderRefetch,
     } = this;
 
-    const titleData = pick(host, [
-      "status",
-      "memory",
-      "host_cpu",
-      "os_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-    ]);
-    const aboutData = pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-    ]);
-    const osqueryData = pick(host, [
-      "config_tls_refresh",
-      "logger_tls_period",
-      "distributed_interval",
-    ]);
-    const data = [titleData, aboutData, osqueryData];
-    data.forEach((object) => {
-      Object.keys(object).forEach((key) => {
-        if (object[key] === "") {
-          object[key] = "--";
-        } else if (
-          key === "logger_tls_period" ||
-          key === "config_tls_refresh" ||
-          key === "distributed_interval"
-        ) {
-          object[key] = secondsToHms(object[key]);
-        }
-      });
-    });
+    const normalizeEmptyValues = (hostData) => {
+      return reduce(
+        hostData,
+        (result, value, key) => {
+          if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+            Object.assign(result, { [key]: value });
+          } else {
+            Object.assign(result, { [key]: "---" });
+          }
+          return result;
+        },
+        {}
+      );
+    };
+
+    const wrapKolideHelper = (helperFn, value) => {
+      return value === "---" ? value : helperFn(value);
+    };
+
+    const titleData = normalizeEmptyValues(
+      pick(host, [
+        "status",
+        "memory",
+        "host_cpu",
+        "os_version",
+        "enroll_secret_name",
+        "detail_updated_at",
+        "percent_disk_space_available",
+        "gigs_disk_space_available",
+      ])
+    );
+    const aboutData = normalizeEmptyValues(
+      pick(host, [
+        "seen_time",
+        "uptime",
+        "last_enrolled_at",
+        "hardware_model",
+        "hardware_serial",
+        "primary_ip",
+      ])
+    );
+    const osqueryData = normalizeEmptyValues(
+      pick(host, [
+        "config_tls_refresh",
+        "logger_tls_period",
+        "distributed_interval",
+      ])
+    );
 
     const statusClassName = classnames("status", `status--${host.status}`);
 
     if (isLoadingHost) {
       return <Spinner />;
     }
+
+    const hostTeam = () => {
+      return (
+        <div className="info__item info__item--title">
+          <span className="info__header">Team</span>
+          <span className={`info__data`}>
+            {host.team_name ? (
+              `${host.team_name}`
+            ) : (
+              <span className="info__no-team">No team</span>
+            )}
+          </span>
+        </div>
+      );
+    };
+
+    const renderDiskSpace = () => {
+      if (
+        host.gigs_disk_space_available > 0 ||
+        host.percent_disk_space_available > 0
+      ) {
+        return (
+          <span className="info__data">
+            <div className="info__disk-space">
+              <div
+                className={
+                  titleData.percent_disk_space_available > 20
+                    ? "info__disk-space-used"
+                    : "info__disk-space-warning"
+                }
+                style={{
+                  width: `${100 - titleData.percent_disk_space_available}%`,
+                }}
+              />
+            </div>
+            {titleData.gigs_disk_space_available} GB available
+          </span>
+        );
+      }
+      return <span className="info__data">No data available</span>;
+    };
 
     return (
       <div className={`${baseClass} body-wrap`}>
@@ -478,7 +737,9 @@ export class HostDetailsPage extends Component {
         <div className="section title">
           <div className="title__inner">
             <div className="hostname-container">
-              <h1 className="hostname">{host.hostname}</h1>
+              <h1 className="hostname">
+                {host.hostname ? host.hostname : "---"}
+              </h1>
               <p className="last-fetched">
                 {`Last fetched ${humanHostDetailUpdated(
                   titleData.detail_updated_at
@@ -493,10 +754,15 @@ export class HostDetailsPage extends Component {
                   {titleData.status}
                 </span>
               </div>
+              {isBasicTier && hostTeam()}
+              <div className="info__item info__item--title">
+                <span className="info__header">Disk Space</span>
+                {renderDiskSpace()}
+              </div>
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
                 <span className="info__data">
-                  {humanHostMemory(titleData.memory)}
+                  {wrapKolideHelper(humanHostMemory, titleData.memory)}
                 </span>
               </div>
               <div className="info__item info__item--title">
@@ -506,12 +772,6 @@ export class HostDetailsPage extends Component {
               <div className="info__item info__item--title">
                 <span className="info__header">OS</span>
                 <span className="info__data">{titleData.os_version}</span>
-              </div>
-              <div className="info__item info__item--title">
-                <span className="info__header">Enroll secret</span>
-                <span className="info__data">
-                  {titleData.enroll_secret_name}
-                </span>
               </div>
             </div>
           </div>
@@ -524,15 +784,21 @@ export class HostDetailsPage extends Component {
               <div className="info__block">
                 <span className="info__header">Created at</span>
                 <span className="info__data">
-                  {humanHostEnrolled(aboutData.last_enrolled_at)}
+                  {wrapKolideHelper(
+                    humanHostEnrolled,
+                    aboutData.last_enrolled_at
+                  )}
                 </span>
                 <span className="info__header">Updated at</span>
                 <span className="info__data">
-                  {humanHostLastSeen(titleData.detail_updated_at)}
+                  {wrapKolideHelper(
+                    humanHostLastSeen,
+                    titleData.detail_updated_at
+                  )}
                 </span>
                 <span className="info__header">Uptime</span>
                 <span className="info__data">
-                  {humanHostUptime(aboutData.uptime)}
+                  {wrapKolideHelper(humanHostUptime, aboutData.uptime)}
                 </span>
               </div>
             </div>
@@ -554,21 +820,25 @@ export class HostDetailsPage extends Component {
             <div className="info__block">
               <span className="info__header">Config TLS refresh</span>
               <span className="info__data">
-                {osqueryData.config_tls_refresh}
+                {wrapKolideHelper(secondsToHms, osqueryData.config_tls_refresh)}
               </span>
               <span className="info__header">Logger TLS period</span>
               <span className="info__data">
-                {osqueryData.logger_tls_period}
+                {wrapKolideHelper(secondsToHms, osqueryData.logger_tls_period)}
               </span>
               <span className="info__header">Distributed interval</span>
               <span className="info__data">
-                {osqueryData.distributed_interval}
+                {wrapKolideHelper(
+                  secondsToHms,
+                  osqueryData.distributed_interval
+                )}
               </span>
             </div>
           </div>
         </div>
         {renderLabels()}
         {renderPacks()}
+        {renderUsers()}
         {/* The Software inventory feature is behind a feature flag
         so we only render the sofware section if the feature is enabled */}
         {host.software && renderSoftware()}
@@ -576,10 +846,19 @@ export class HostDetailsPage extends Component {
         {showQueryHostModal && (
           <SelectQueryModal
             host={host}
-            toggleQueryHostModal={toggleQueryHostModal}
+            onCancel={toggleQueryHostModal}
             queries={queries}
             dispatch={dispatch}
             queryErrors={queryErrors}
+          />
+        )}
+        {showTransferHostModal && (
+          <TransferHostModal
+            host={host}
+            onCancel={toggleTransferHostModal()}
+            onSubmit={onTransferHostSubmit}
+            teams={teams}
+            isGlobalAdmin={isGlobalAdmin}
           />
         )}
       </div>
@@ -591,14 +870,26 @@ const mapStateToProps = (state, ownProps) => {
   const queryEntities = entityGetter(state).get("queries");
   const { entities: queries, errors: queryErrors } = queryEntities;
   const { host_id: hostID } = ownProps.params;
-  const host = entityGetter(state).get("hosts").findBy({ id: hostID });
-  const { loading: isLoadingHost } = state.entities.hosts;
+  const config = state.app.config;
+  const currentUser = state.auth.user;
+  const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
+  const isBasicTier = permissionUtils.isBasicTier(config);
+  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
+  const teams = memoizedGetEntity(state.entities.teams.data);
+  const canTransferTeam =
+    isBasicTier &&
+    (permissionUtils.isGlobalAdmin(currentUser) ||
+      permissionUtils.isGlobalMaintainer(currentUser));
+
   return {
-    host,
     hostID,
-    isLoadingHost,
     queries,
     queryErrors,
+    isGlobalAdmin,
+    isBasicTier,
+    isOnlyObserver,
+    teams,
+    canTransferTeam,
   };
 };
 

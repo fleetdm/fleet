@@ -1,0 +1,22 @@
+.delete-user-form {
+  margin-top: $pad-large;
+
+  &__name {
+    font-weight: $bold;
+  }
+
+  &__warning {
+    color: $ui-error;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+
+  &__btn {
+    height: 38px;
+    margin-bottom: 5px;
+    margin-left: 15px;
+  }
+}

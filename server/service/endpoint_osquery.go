@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -25,7 +25,7 @@ type enrollAgentResponse struct {
 
 func (r enrollAgentResponse) error() error { return r.Err }
 
-func makeEnrollAgentEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeEnrollAgentEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(enrollAgentRequest)
 		nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
@@ -51,7 +51,7 @@ type getClientConfigResponse struct {
 
 func (r getClientConfigResponse) error() error { return r.Err }
 
-func makeGetClientConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetClientConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		config, err := svc.GetClientConfig(ctx)
 		if err != nil {
@@ -80,7 +80,7 @@ type getDistributedQueriesResponse struct {
 
 func (r getDistributedQueriesResponse) error() error { return r.Err }
 
-func makeGetDistributedQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetDistributedQueriesEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		queries, accelerate, err := svc.GetDistributedQueries(ctx)
 		if err != nil {
@@ -95,10 +95,10 @@ func makeGetDistributedQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type submitDistributedQueryResultsRequest struct {
-	NodeKey  string                                `json:"node_key"`
-	Results  kolide.OsqueryDistributedQueryResults `json:"queries"`
-	Statuses map[string]kolide.OsqueryStatus       `json:"statuses"`
-	Messages map[string]string                     `json:"messages"`
+	NodeKey  string                               `json:"node_key"`
+	Results  fleet.OsqueryDistributedQueryResults `json:"queries"`
+	Statuses map[string]fleet.OsqueryStatus       `json:"statuses"`
+	Messages map[string]string                    `json:"messages"`
 }
 
 type submitDistributedQueryResultsResponse struct {
@@ -107,7 +107,7 @@ type submitDistributedQueryResultsResponse struct {
 
 func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
 
-func makeSubmitDistributedQueryResultsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeSubmitDistributedQueryResultsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(submitDistributedQueryResultsRequest)
 		err := svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages)
@@ -134,7 +134,7 @@ type submitLogsResponse struct {
 
 func (r submitLogsResponse) error() error { return r.Err }
 
-func makeSubmitLogsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeSubmitLogsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(submitLogsRequest)
 

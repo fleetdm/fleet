@@ -1,7 +1,7 @@
 import { reduxMockStore } from "test/helpers";
 
 import helpers from "components/EmailTokenRedirect/helpers";
-import Kolide from "kolide";
+import Fleet from "fleet";
 import { userStub } from "test/stubs";
 
 describe("EmailTokenRedirect - helpers", () => {
@@ -17,7 +17,7 @@ describe("EmailTokenRedirect - helpers", () => {
     describe("successfully dispatching the confirmEmailChange action", () => {
       beforeEach(() => {
         jest
-          .spyOn(Kolide.users, "confirmEmailChange")
+          .spyOn(Fleet.users, "confirmEmailChange")
           .mockImplementation(() =>
             Promise.resolve({ ...userStub, email: "new@email.com" })
           );
@@ -58,7 +58,7 @@ describe("EmailTokenRedirect - helpers", () => {
         };
 
         jest
-          .spyOn(Kolide.users, "confirmEmailChange")
+          .spyOn(Fleet.users, "confirmEmailChange")
           .mockImplementation(() => Promise.reject(errorResponse));
       });
 
