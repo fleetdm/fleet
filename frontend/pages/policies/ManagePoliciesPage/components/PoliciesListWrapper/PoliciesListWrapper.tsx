@@ -33,6 +33,10 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
           {/* <img src={policiesSvg} alt="No Policies" /> */}
           <div className={`${noPoliciesClass}__inner-text`}>
             <h2>You don&apos;t have any policies.</h2>
+            <p>
+              Policies allow you to monitor which devices meet a certain
+              standard.
+            </p>
             <div className={`${noPoliciesClass}__-cta-buttons`}>
               <Button
                 variant="brand"

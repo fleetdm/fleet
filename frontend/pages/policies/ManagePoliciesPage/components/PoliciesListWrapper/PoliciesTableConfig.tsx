@@ -148,7 +148,15 @@ const generateTableHeaders = (): IDataColumn[] => {
 //   });
 // };
 
-const generateDataSet = memoize((all_policies: IPolicy[]): IPolicy[] => {
+// const generateDataSet = memoize((all_policies: IPolicy[]): IPolicy[] => {
+//   all_policies = all_policies.sort((a, b) =>
+//     sortUtils.caseInsensitiveAsc(b.query_name, a.query_name)
+//   );
+//   //   return [...enhanceAllPoliciesData(all_policies)];
+//   return all_policies;
+// });
+
+const generateDataSet = memoize((all_policies: IPolicy[] = []): IPolicy[] => {
   all_policies = all_policies.sort((a, b) =>
     sortUtils.caseInsensitiveAsc(b.query_name, a.query_name)
   );

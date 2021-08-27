@@ -90,24 +90,10 @@
     color: $core-fleet-black;
   }
 
-  // ul {
-  //   margin: 0;
-  //   padding: 0;
-  //   color: $core-fleet-black;
-  //   list-style: none;
-
-  //   li {
-  //     &::before {
-  //       content: "•";
-  //       color: $core-vibrant-blue;
-  //       margin-right: $pad-medium;
-  //     }
-  //   }
-  // }
-
   &__inner {
     display: flex;
     flex-direction: row;
+    // width: 485px;
 
     h1 {
       font-size: $small;
@@ -127,43 +113,14 @@
       margin: 0;
       margin-bottom: $pad-large;
     }
-
-    // .no-filter-results {
-    //   display: flex;
-    //   flex-direction: column;
-    //   width: 350px;
-    // }
   }
 
   &__inner-text {
     padding-left: $pad-xlarge;
-    width: 290px;
+    width: 485px;
   }
 
   &__add-policy-button {
     margin-right: $pad-small;
   }
-
-  // .query-pagination__pager-wrap {
-  //   margin-top: $pad-medium;
-  // }
-
-  // &__no-hosts-contact {
-  //   text-align: left;
-  //   margin-top: $pad-large;
-
-  //   p {
-  //     color: $core-fleet-black;
-  //     font-weight: $bold;
-  //     font-size: $x-small;
-  //     margin: 0;
-  //   }
-
-  //   a {
-  //     color: $core-vibrant-blue;
-  //     font-weight: $regular;
-  //     font-size: $x-small;
-  //     text-decoration: none;
-  //   }
-  // }
 }

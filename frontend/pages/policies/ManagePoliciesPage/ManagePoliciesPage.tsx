@@ -146,7 +146,9 @@ const ManagePolicyPage = (): JSX.Element => {
         dispatch(
           renderFlash(
             "success",
-            `Successfully removed ${ids.length === 1 ? "policy" : "policies"}.`
+            `Successfully removed ${
+              ids && ids.length === 1 ? "policy" : "policies"
+            }.`
           )
         );
       })
@@ -155,7 +157,7 @@ const ManagePolicyPage = (): JSX.Element => {
           renderFlash(
             "error",
             `Unable to remove ${
-              ids.length === 1 ? "policy" : "policies"
+              ids && ids.length === 1 ? "policy" : "policies"
             }. Please try again.`
           )
         );
@@ -198,7 +200,7 @@ const ManagePolicyPage = (): JSX.Element => {
             </div>
           </div>
           {/* Hide CTA Buttons if no policy or policy error */}
-          {policies.length !== 0 && !isLoadingError && (
+          {policies && policies.length !== 0 && !isLoadingError && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -213,7 +215,7 @@ const ManagePolicyPage = (): JSX.Element => {
         <div className={`${baseClass}__description`}>
           <p>Policy queries report which hosts are compliant.</p>
         </div>
-        {!isLoadingError && (
+        {policies && policies.length !== 0 && !isLoadingError && (
           <InfoBanner className={`${baseClass}__sandbox-info`}>
             <p>
               Your policies are checked every <b>{updateInterval.trim()}</b>.
