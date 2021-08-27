@@ -3,8 +3,12 @@ import { Link } from "react-router";
 
 import PATHS from "router/paths";
 
+import Button from "components/buttons/Button";
+
 import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 import backgroundImg from "../../../assets/images/404.svg";
+import githubLogo from "../../../assets/images/github-mark-white-24x24@2x.png";
+import slackLogo from "../../../assets/images/logo-slack-24x24@2x.png";
 
 const baseClass = "fleet-404";
 
@@ -34,7 +38,20 @@ class Fleet404 extends Component {
             The page you are looking for has either moved, or doesn&apos;t
             exist.
           </p>
-          <a href="https://fleetdm.com/support">Get help</a>
+          <div className={`${baseClass}__button-wrapper`}>
+            <Button
+              type="button"
+              variant="unstyled"
+              className={`${baseClass}__slack-btn`}
+            >
+              <img src={slackLogo} alt="Slack icon" />
+              Get help on Slack
+            </Button>
+            <Button type="button">
+              <img src={githubLogo} alt="Github icon" />
+              File an issue
+            </Button>
+          </div>
         </main>
       </div>
     );
