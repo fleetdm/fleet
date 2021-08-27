@@ -29,7 +29,7 @@ func TestOrgInfo(t *testing.T) {
 	require.NotNil(t, info)
 
 	// Checking some defaults
-	require.Equal(t, 24*time.Hour, info.WebhookSettings.Periodicity.Duration)
+	require.Equal(t, 24*time.Hour, info.WebhookSettings.Interval.Duration)
 	require.False(t, info.WebhookSettings.HostStatusWebhook.Enable)
 
 	info2, err := ds.AppConfig()
@@ -264,21 +264,21 @@ func TestAppConfigDefaults(t *testing.T) {
 
 	ac, err := ds.AppConfig()
 	require.NoError(t, err)
-	require.Equal(t, 24*time.Hour, ac.WebhookSettings.Periodicity.Duration)
+	require.Equal(t, 24*time.Hour, ac.WebhookSettings.Interval.Duration)
 	require.False(t, ac.WebhookSettings.HostStatusWebhook.Enable)
 	require.True(t, ac.HostSettings.EnableHostUsers)
 	require.False(t, ac.HostSettings.EnableSoftwareInventory)
 
 	_, err = ds.db.Exec(
 		insertAppConfigQuery,
-		`{"webhook_settings": {"periodicity": "12h"}, "host_settings": {"enable_host_users": false}}`,
+		`{"webhook_settings": {"interval": "12h"}, "host_settings": {"enable_host_users": false}}`,
 	)
 	require.NoError(t, err)
 
 	ac, err = ds.AppConfig()
 	require.NoError(t, err)
 
-	require.Equal(t, 12*time.Hour, ac.WebhookSettings.Periodicity.Duration)
+	require.Equal(t, 12*time.Hour, ac.WebhookSettings.Interval.Duration)
 	require.False(t, ac.HostSettings.EnableHostUsers)
 	require.False(t, ac.HostSettings.EnableSoftwareInventory)
 }

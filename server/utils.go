@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -45,7 +46,8 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("Error posting to %s: %d", url, resp.StatusCode)
+		body, _ := ioutil.ReadAll(resp.Body)
+		return errors.Errorf("Error posting to %s: %d. %s", url, resp.StatusCode, string(body))
 	}
 
 	return nil

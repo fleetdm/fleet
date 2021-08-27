@@ -401,7 +401,7 @@ The following options are available when configuring SMTP authentication:
 The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts 
 are offline for the specified amount of time.
 
-- `webhook_settings.periodicity`: the interval at which to check for webhook conditions. Default: 24h
+- `webhook_settings.interval`: the interval at which to check for webhook conditions. Default: 24h
 - `webhook_settings.host_status_webhook.enable_host_status_webhook`: true or false. Defines whether the check for host status will run or not.
 - `webhook_settings.host_status_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
 - `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline  

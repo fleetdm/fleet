@@ -152,13 +152,13 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		}
 		return nil
 	default:
-		return errors.New("invalid duration")
+		return errors.Errorf("invalid duration type: %T", value)
 	}
 }
 
 type WebhookSettings struct {
 	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
-	Periodicity       Duration                  `json:"periodicity"`
+	Interval          Duration                  `json:"interval"`
 }
 
 type HostStatusWebhookSettings struct {
@@ -182,7 +182,7 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 
 func (c *AppConfig) ApplyDefaults() {
 	c.HostSettings.EnableHostUsers = true
-	c.WebhookSettings.Periodicity.Duration = 24 * time.Hour
+	c.WebhookSettings.Interval.Duration = 24 * time.Hour
 }
 
 // OrgInfo contains general info about the organization using Fleet.
