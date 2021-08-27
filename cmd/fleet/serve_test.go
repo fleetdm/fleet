@@ -246,3 +246,32 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 
 	require.Contains(t, buf.String(), `"databases-path":"creation failed, returning"`)
 }
+
+func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := kitlog.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	vulnPath := path.Join(t.TempDir(), "something")
+	require.NoDirExists(t, vulnPath)
+
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DatabasesPath:         vulnPath,
+			Periodicity:           10 * time.Second,
+			CurrentInstanceChecks: "1",
+		},
+	}
+	go cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
+
+	time.Sleep(1 * time.Second)
+
+	require.NoDirExists(t, vulnPath)
+}
