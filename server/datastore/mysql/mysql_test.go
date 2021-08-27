@@ -466,6 +466,8 @@ func TestWhereOmitIDs(t *testing.T) {
 }
 
 func Test_generateConnectionString(t *testing.T) {
+	t.Parallel()
+
 	type args struct {
 		conf config.MysqlConfig
 	}
@@ -500,6 +502,8 @@ func Test_generateConnectionString(t *testing.T) {
 }
 
 func Test_generateRDSConnectionString(t *testing.T) {
+	t.Parallel()
+
 	type args struct {
 		conf      config.MysqlConfig
 		authToken string
