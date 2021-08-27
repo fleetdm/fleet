@@ -7,6 +7,7 @@ import { TableContext } from "context/table";
 
 import { isEqual } from "lodash";
 
+import permissionUtils from "utilities/permissions";
 import configInterface from "interfaces/config";
 import FlashMessage from "components/flash_messages/FlashMessage";
 import PersistentFlash from "components/flash_messages/PersistentFlash";
@@ -43,6 +44,7 @@ export class CoreLayout extends Component {
       showFlash: PropTypes.bool.isRequired,
       message: PropTypes.string.isRequired,
     }).isRequired,
+    isBasicTier: PropTypes.bool,
   };
 
   constructor(props) {
@@ -141,6 +143,7 @@ export class CoreLayout extends Component {
       config,
       persistentFlash,
       user,
+      isBasicTier,
     } = this.props;
     const { showExpirationFlashMessage } = this.state;
     const {
@@ -175,7 +178,7 @@ export class CoreLayout extends Component {
           {persistentFlash.showFlash && (
             <PersistentFlash message={persistentFlash.message} />
           )}
-          {showExpirationFlashMessage && (
+          {isBasicTier && showExpirationFlashMessage && (
             <FlashMessage
               fullWidth={fullWidthFlash}
               notification={expirationNotification}
@@ -203,6 +206,8 @@ const mapStateToProps = (state) => {
     persistentFlash,
   } = state;
 
+  const isBasicTier = permissionUtils.isBasicTier(state.app.config);
+
   const fullWidthFlash = !user;
 
   return {
@@ -211,6 +216,7 @@ const mapStateToProps = (state) => {
     notifications,
     persistentFlash,
     user,
+    isBasicTier,
   };
 };
 
