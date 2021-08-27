@@ -1,7 +1,7 @@
 describe(
   "Basic tier - Maintainer user",
   {
-    defaultCommandTimeout: 8000,
+    defaultCommandTimeout: 20000,
   },
   () => {
     beforeEach(() => {
