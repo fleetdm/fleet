@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/ghodss/yaml"
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -164,6 +167,7 @@ func TestGetHosts(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
+	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
 	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		hosts := []*fleet.Host{
 			{
@@ -183,6 +187,33 @@ func TestGetHosts(t *testing.T) {
 		return hosts, nil
 	}
 
+	// these are run when host is specified `fleetctl get hosts --json test_host`
+	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+		require.NotEmpty(t, identifier)
+		return &fleet.Host{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
+				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
+			},
+			HostSoftware:    fleet.HostSoftware{},
+			DetailUpdatedAt: time.Time{},
+			LabelUpdatedAt:  time.Time{},
+			LastEnrolledAt:  time.Time{},
+			SeenTime:        time.Time{},
+			ComputerName:    "test_host",
+			Hostname:        "test_host"}, nil
+	}
+
+	ds.LoadHostSoftwareFunc = func(host *fleet.Host) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(hid uint) ([]*fleet.Label, error) {
+		return make([]*fleet.Label, 0), nil
+	}
+	ds.ListPacksForHostFunc = func(hid uint) (packs []*fleet.Pack, err error) {
+		return make([]*fleet.Pack, 0), nil
+	}
+
 	expectedText := `+------+-----------+----------+-----------------+--------+
 | UUID | HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS |
 +------+-----------+----------+-----------------+--------+
@@ -190,56 +221,51 @@ func TestGetHosts(t *testing.T) {
 +------+-----------+----------+-----------------+--------+
 `
 
-	expectedYaml := `---
-apiVersion: v1
-kind: host
-spec:
-  build: ""
-  code_name: ""
-  computer_name: test_host
-  config_tls_refresh: 0
-  cpu_brand: ""
-  cpu_logical_cores: 0
-  cpu_physical_cores: 0
-  cpu_subtype: ""
-  cpu_type: ""
-  created_at: "0001-01-01T00:00:00Z"
-  detail_updated_at: "0001-01-01T00:00:00Z"
-  display_text: test_host
-  distributed_interval: 0
-  gigs_disk_space_available: 0
-  hardware_model: ""
-  hardware_serial: ""
-  hardware_vendor: ""
-  hardware_version: ""
-  hostname: test_host
-  id: 0
-  label_updated_at: "0001-01-01T00:00:00Z"
-  last_enrolled_at: "0001-01-01T00:00:00Z"
-  logger_tls_period: 0
-  memory: 0
-  os_version: ""
-  osquery_version: ""
-  pack_stats: null
-  percent_disk_space_available: 0
-  platform: ""
-  platform_like: ""
-  primary_ip: ""
-  primary_mac: ""
-  refetch_requested: false
-  seen_time: "0001-01-01T00:00:00Z"
-  status: mia
-  team_id: null
-  team_name: null
-  updated_at: "0001-01-01T00:00:00Z"
-  uptime: 0
-  uuid: ""
-`
-	expectedJson := "{\"kind\":\"host\",\"apiVersion\":\"v1\",\"spec\":{\"created_at\":\"0001-01-01T00:00:00Z\",\"updated_at\":\"0001-01-01T00:00:00Z\",\"id\":0,\"detail_updated_at\":\"0001-01-01T00:00:00Z\",\"label_updated_at\":\"0001-01-01T00:00:00Z\",\"last_enrolled_at\":\"0001-01-01T00:00:00Z\",\"seen_time\":\"0001-01-01T00:00:00Z\",\"refetch_requested\":false,\"hostname\":\"test_host\",\"uuid\":\"\",\"platform\":\"\",\"osquery_version\":\"\",\"os_version\":\"\",\"build\":\"\",\"platform_like\":\"\",\"code_name\":\"\",\"uptime\":0,\"memory\":0,\"cpu_type\":\"\",\"cpu_subtype\":\"\",\"cpu_brand\":\"\",\"cpu_physical_cores\":0,\"cpu_logical_cores\":0,\"hardware_vendor\":\"\",\"hardware_model\":\"\",\"hardware_version\":\"\",\"hardware_serial\":\"\",\"computer_name\":\"test_host\",\"primary_ip\":\"\",\"primary_mac\":\"\",\"distributed_interval\":0,\"config_tls_refresh\":0,\"logger_tls_period\":0,\"team_id\":null,\"pack_stats\":null,\"team_name\":null,\"gigs_disk_space_available\":0,\"percent_disk_space_available\":0,\"status\":\"mia\",\"display_text\":\"test_host\"}}\n"
+	var specGot specGeneric
+	var specExpected specGeneric
+
+	tests := []struct {
+		name        string
+		goldenFile  string
+		unmarshaler func(data []byte, v interface{}) error
+		args        []string
+	}{
+		{
+			name:        "get hosts --json",
+			goldenFile:  "expectedListHostsJson.json",
+			unmarshaler: json.Unmarshal,
+			args:        []string{"get", "hosts", "--json"},
+		},
+		{
+			name:        "get hosts --json test_host",
+			goldenFile:  "expectedHostDetailResponseJson.json",
+			unmarshaler: json.Unmarshal,
+			args:        []string{"get", "hosts", "--json", "test_host"},
+		},
+		{
+			name:        "get hosts --yaml",
+			goldenFile:  "expectedListHostsYaml.yml",
+			unmarshaler: yaml.Unmarshal,
+			args:        []string{"get", "hosts", "--yaml"},
+		},
+		{
+			name:        "get hosts --yaml test_host",
+			goldenFile:  "expectedHostDetailResponseYaml.yml",
+			unmarshaler: yaml.Unmarshal,
+			args:        []string{"get", "hosts", "--yaml", "test_host"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
+			require.NoError(t, err)
+			require.NoError(t, tt.unmarshaler(expected, &specExpected))
+			require.NoError(t, tt.unmarshaler([]byte(runAppForTest(t, tt.args)), &specGot))
+			require.Equal(t, specExpected, specGot)
+		})
+	}
 
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "hosts"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "hosts", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "hosts", "--json"}))
 }
 
 func TestGetConfig(t *testing.T) {
