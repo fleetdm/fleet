@@ -45,7 +45,8 @@ describe("Core tier - Observer user", () => {
     cy.findByText(/team/i).should("not.exist");
     cy.contains("button", /transfer/i).should("not.exist");
     cy.contains("button", /delete/i).should("not.exist");
-    cy.contains("button", /query/i).should("not.exist");
+    cy.contains("button", /query/i).click();
+    cy.contains("button", /create custom query/i).should("not.exist");
 
     // Queries pages: Observer can or cannot run UI
     cy.visit("/queries/manage");
