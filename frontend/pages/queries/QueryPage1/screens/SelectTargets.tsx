@@ -2,12 +2,11 @@ import React, { useState } from "react";
 import { Dispatch } from "redux";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
+import { ErrorBoundary } from "react-error-boundary";
 import { forEach, isEmpty, reduce, remove, unionBy } from "lodash";
 
-import {
-  setSelectedTargets,
-  setSelectedTargetsQuery, // @ts-ignore
-} from "redux/nodes/components/QueryPages/actions";
+// @ts-ignore
+import { setSelectedTargets } from "redux/nodes/components/QueryPages/actions";
 import { formatSelectedTargetsForApi } from "fleet/helpers";
 import targetsAPI from "services/entities/targets";
 import { ITarget, ITargets, ITargetsAPIResponse } from "interfaces/target";
@@ -18,8 +17,11 @@ import { IHost } from "interfaces/host";
 // @ts-ignore
 import TargetsInput from "pages/queries/QueryPage1/components/TargetsInput";
 import Button from "components/buttons/Button";
+import Spinner from "components/loaders/Spinner";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
+import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
+import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
 interface ITargetPillSelectorProps {
   entity: ILabel | ITeam;
@@ -74,7 +76,6 @@ const SelectTargets = ({
     null
   );
   const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
-  const [hasFetchError, setHasFetchError] = useState<boolean>(false);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
   const [linuxLabels, setLinuxLabels] = useState<ILabel[] | null>(null);
@@ -85,7 +86,10 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  const { status: isTargetsLoading } = useQuery(
+  const { 
+    isLoading: isTargetsLoading, 
+    isError: isTargetsError,
+  } = useQuery(
     ["targetsFromSearch", searchText, [...selectedTargets]], // triggers query on change
     () =>
       targetsAPI.loadAll({
@@ -110,9 +114,6 @@ const SelectTargets = ({
               targetsCount: data.targets_count,
               onlineCount: data.targets_online,
             },
-      onError: () => {
-        setHasFetchError(true);
-      },
       onSuccess: ({
         results,
         targetsCount,
@@ -179,7 +180,6 @@ const SelectTargets = ({
           setRelatedHosts([...results] as IHost[]);
         }
 
-        setHasFetchError(false);
         setTargetsTotalCount(targetsCount);
         if (targetsCount > 0) {
           setTargetsOnlinePercent(Math.round(onlineCount / targetsCount));
@@ -272,6 +272,33 @@ const SelectTargets = ({
     </>
   );
 
+  if (isEmpty(searchText) && isTargetsLoading) {
+    return (
+      <div className={`${baseClass}__wrapper body-wrap`}>
+        <h1>Select Targets</h1>
+        <div className={`${baseClass}__page-loading`}>
+          <Spinner />
+        </div>
+      </div>
+    );
+  }
+
+  if (isEmpty(searchText) && isTargetsError) {
+    return (
+      <div className={`${baseClass}__wrapper body-wrap`}>
+        <h1>Select Targets</h1>
+        <div className={`${baseClass}__page-error`}>
+          <h4>
+            <img alt="" src={ErrorIcon} />
+            Something&apos;s gone wrong.
+          </h4>
+          <p>Refresh the page or log in again.</p>
+          <p>If this keeps happening please <a className="file-issue-link" target="_blank" rel="noopener noreferrer" href="https://github.com/fleetdm/fleet/issues/new/choose">file an issue <img alt="" src={ExternalURLIcon} /></a></p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`${baseClass}__wrapper body-wrap`}>
       <h1>Select Targets</h1>
@@ -285,9 +312,9 @@ const SelectTargets = ({
         tabIndex={inputTabIndex}
         searchText={searchText}
         relatedHosts={[...relatedHosts]}
-        isTargetsLoading={isTargetsLoading === "loading"}
+        isTargetsLoading={isTargetsLoading}
         selectedTargets={[...selectedTargets]}
-        hasFetchError={hasFetchError}
+        hasFetchError={isTargetsError}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
         onPrimarySelectActionClick={removeHostsFromTargets}

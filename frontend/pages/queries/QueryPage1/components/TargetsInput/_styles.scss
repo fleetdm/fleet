@@ -12,6 +12,7 @@
     border-radius: 0px 0px 8px 8px;
     
     .table-container {
+      min-height: 225px;
       max-height: 400px;
       overflow: auto;
       box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
@@ -21,9 +22,11 @@
     .error-search {
       padding-top: 72px;
       padding-bottom: 72px;
+      min-height: 225px;
       display: flex;
       justify-content: center;
       box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
+      box-sizing: border-box;
 
       &__inner {
         h4 {

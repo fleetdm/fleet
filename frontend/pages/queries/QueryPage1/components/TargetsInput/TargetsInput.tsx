@@ -91,7 +91,7 @@ const TargetsInput = ({
             <div className="error-search__inner">
               <h4>Something&apos;s gone wrong.</h4>
               <p>Refresh the page or log in again.</p>
-              <p>If this keeps happening please <a target="_blank" rel="noopener noreferrer" href="https://github.com/fleetdm/fleet/issues/new/choose">file an issue <img alt="" src={ExternalURLIcon} /></a></p>
+              <p>If this keeps happening please <a className="file-issue-link" target="_blank" rel="noopener noreferrer" href="https://github.com/fleetdm/fleet/issues/new/choose">file an issue <img alt="" src={ExternalURLIcon} /></a></p>
             </div>
           </div>
         </div>
