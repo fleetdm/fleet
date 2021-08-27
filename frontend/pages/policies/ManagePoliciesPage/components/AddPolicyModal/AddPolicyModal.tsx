@@ -27,7 +27,7 @@ const AddPolicyModal = ({
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q) => {
       return {
-        value: q.id, // TODO confirm if string or number?
+        value: q.id,
         label: q.name,
       };
     });
