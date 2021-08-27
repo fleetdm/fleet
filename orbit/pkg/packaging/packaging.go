@@ -1,4 +1,4 @@
-// package packaging provides tools for buildin Orbit installation packages.
+// Package packaging provides tools for building Orbit installation packages.
 package packaging
 
 import (
