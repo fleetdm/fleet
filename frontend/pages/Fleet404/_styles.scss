@@ -7,10 +7,6 @@
   a {
     color: $core-vibrant-blue;
     text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 
   button {
@@ -23,10 +19,10 @@
       height: 24px;
       margin-right: $pad-medium;
     }
+  }
 
-    &__button-wrapper {
-      margin-bottom: $pad-large;
-    }
+  &__button-wrapper {
+    margin-bottom: $pad-large;
   }
 
   &__slack-btn {
