@@ -133,34 +133,10 @@ const generateTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-// const enhanceAllPoliciesData = (
-//   all_policies: IPolicy[],
-//   teamId: number
-// ): IAllPoliciesTableData[] => {
-//   return all_policies.map((policy: IPolicy) => {
-//     return {
-//       name: policy.name,
-//       passing: policy.passing,
-//       failing: policy.failing,
-//       id: policy.id,
-//       query_id: policy.query_id,
-//     };
-//   });
-// };
-
-// const generateDataSet = memoize((all_policies: IPolicy[]): IPolicy[] => {
-//   all_policies = all_policies.sort((a, b) =>
-//     sortUtils.caseInsensitiveAsc(b.query_name, a.query_name)
-//   );
-//   //   return [...enhanceAllPoliciesData(all_policies)];
-//   return all_policies;
-// });
-
 const generateDataSet = memoize((all_policies: IPolicy[] = []): IPolicy[] => {
   all_policies = all_policies.sort((a, b) =>
     sortUtils.caseInsensitiveAsc(b.query_name, a.query_name)
   );
-  //   return [...enhanceAllPoliciesData(all_policies)];
   return all_policies;
 });
 

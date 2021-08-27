@@ -199,7 +199,6 @@ const ManagePolicyPage = (): JSX.Element => {
               </h1>
             </div>
           </div>
-          {/* Hide CTA Buttons if no policy or policy error */}
           {policies && policies.length !== 0 && !isLoadingError && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
