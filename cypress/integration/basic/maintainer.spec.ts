@@ -1,7 +1,7 @@
 describe(
   "Basic tier - Maintainer user",
   {
-    defaultCommandTimeout: 20000,
+    defaultCommandTimeout: 8000,
   },
   () => {
     beforeEach(() => {
@@ -26,6 +26,8 @@ describe(
 
       // Host manage page: Teams column, select a team
       cy.visit("/hosts/manage");
+
+      cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.get("thead").within(() => {
         cy.findByText(/team/i).should("exist");
