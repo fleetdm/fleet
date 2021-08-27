@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -139,4 +140,10 @@ func TestPolicyMembershipView(t *testing.T) {
 	policy, err := ds.Policy(policies[0].ID)
 	require.NoError(t, err)
 	assert.Equal(t, policies[0], policy)
+
+	queries, err := ds.PolicyQueriesForHost(nil)
+	require.NoError(t, err)
+	require.Len(t, queries, 2)
+	assert.Equal(t, q.Query, queries[fmt.Sprint(q.ID)])
+	assert.Equal(t, q2.Query, queries[fmt.Sprint(q2.ID)])
 }
