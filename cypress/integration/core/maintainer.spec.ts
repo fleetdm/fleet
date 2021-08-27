@@ -53,7 +53,9 @@ describe(
       });
       cy.contains("button", /transfer/i).should("not.exist");
 
-      cy.contains("button", /delete/i).click();
+      cy.contains("button", /delete/i)
+        .should("exist")
+        .click();
       cy.contains("button", /cancel/i).click();
 
       cy.contains("button", /query/i).click();
