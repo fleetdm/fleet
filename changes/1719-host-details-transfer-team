@@ -1,4 +1,0 @@
-Add API calls to fetch latest host details
-Use local state to reduce dependency on Redux and need for page refresh after host is transferred to new team
-Add host details flows to Cypress tests
-Remove outdated Jest tests

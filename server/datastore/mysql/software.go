@@ -211,13 +211,13 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 		selectFunc = tx.Select
 	}
 	sql := `
-		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe, 
+		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe,
 			IF(
-				COUNT(scv.cve) = 0, 
-				null, 
+				COUNT(scv.cve) = 0,
+				null,
 				GROUP_CONCAT(
 					JSON_OBJECT(
-						"cve", scv.cve, 
+						"cve", scv.cve,
 						"details_link", CONCAT('https://nvd.nist.gov/vuln/detail/', scv.cve)
 					)
 				)
@@ -273,7 +273,9 @@ func (si *softwareIterator) Next() bool {
 
 func (d *Datastore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
 	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
-	rows, err := d.db.Queryx(sql)
+	// The rows.Close call is done by the caller once iteration using the
+	// returned fleet.SoftwareIterator is done.
+	rows, err := d.db.Queryx(sql) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}

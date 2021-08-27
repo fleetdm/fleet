@@ -30,9 +30,8 @@ func checkPermPath(path string, perm os.FileMode) error {
 					"Path %s already exists with mode %o instead of the expected %o", path, dir.Mode(), perm)
 			}
 			return nil
-		} else {
-			return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
 		}
+		return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
 	}
 
 	// Look for the parent directory in the path and then check the permissions in that

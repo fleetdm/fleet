@@ -46,7 +46,7 @@ func (e notFoundErr) Error() string {
 	return "The resource was not found"
 }
 
-func (n notFoundErr) NotFound() bool {
+func (e notFoundErr) NotFound() bool {
 	return true
 }
 

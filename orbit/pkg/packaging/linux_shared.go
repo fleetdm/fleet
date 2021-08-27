@@ -9,7 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/goreleaser/nfpm/v2"
 	"github.com/goreleaser/nfpm/v2/files"
 	"github.com/pkg/errors"

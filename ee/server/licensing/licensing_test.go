@@ -41,7 +41,7 @@ func TestLoadLicenseExpired(t *testing.T) {
 
 	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjA5NDU5MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjQyLCJ0aWVyIjoiYmFzaWMiLCJpYXQiOjE2MjI0Mjk1MTB9.pvmgQ2_6GWbGcdlm3JbNTbxFF8V6-xs2pC6zO8P96TF806W0y1TjF5G2ZjzEWCkNMk3dydaRoMHIzE7WgCaK5w"
 	_, err := LoadLicense(key)
-	require.Error(t, err)
+	require.NoError(t, err)
 }
 
 func TestLoadLicenseNotIssuedYet(t *testing.T) {

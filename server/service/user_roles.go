@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kithttp "github.com/go-kit/kit/transport/http"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -18,14 +16,6 @@ type applyUserRoleSpecsResponse struct {
 }
 
 func (r applyUserRoleSpecsResponse) error() error { return r.Err }
-
-func makeApplyUserRoleSpecsEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, applyUserRoleSpecsEndpoint),
-		makeDecoder(applyUserRoleSpecsRequest{}),
-		opts,
-	)
-}
 
 func applyUserRoleSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*applyUserRoleSpecsRequest)

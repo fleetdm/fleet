@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"strings"
 	"time"
 
@@ -25,11 +24,9 @@ var _ fleet.QueryResultStore = &redisQueryResults{}
 // NewRedisPool creates a Redis connection pool using the provided server
 // address, password and database.
 func NewRedisPool(server, password string, database int, useTLS bool) (*redisc.Cluster, error) {
-	//Create the Cluster
+	// Create the Cluster
 	cluster := &redisc.Cluster{
-		StartupNodes: []string{
-			fmt.Sprint(server),
-		},
+		StartupNodes: []string{server},
 		CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
 			return &redis.Pool{
 				MaxIdle:     3,
@@ -95,6 +92,7 @@ func pubSubForID(id uint) string {
 	return fmt.Sprintf("results_%d", id)
 }
 
+// Pool returns the redisc connection pool (used in tests).
 func (r *redisQueryResults) Pool() *redisc.Cluster {
 	return r.pool
 }
@@ -113,7 +111,8 @@ func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) err
 	n, err := redis.Int(conn.Do("PUBLISH", channelName, string(jsonVal)))
 
 	if n != 0 && r.duplicateResults {
-		redis.Int(conn.Do("PUBLISH", "LQDuplicate", string(jsonVal)))
+		// Ignore errors, duplicate result publishing is on a "best-effort" basis.
+		_, _ = redis.Int(conn.Do("PUBLISH", "LQDuplicate", string(jsonVal)))
 	}
 
 	if err != nil {
@@ -139,47 +138,34 @@ func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) b
 
 // receiveMessages runs in a goroutine, forwarding messages from the Pub/Sub
 // connection over the provided channel. This effectively allows a select
-// statement to run on conn.Receive() (by running on the channel that is being
-// fed by this function)
-func receiveMessages(ctx context.Context, pool *redisc.Cluster, query fleet.DistributedQueryCampaign, outChan chan<- interface{}) {
-	conn := redis.PubSubConn{Conn: pool.Get()}
+// statement to run on conn.Receive() (by selecting on outChan that is
+// passed into this function)
+func receiveMessages(ctx context.Context, conn *redis.PubSubConn, outChan chan<- interface{}) {
+	defer close(outChan)
+	// conn.Close() needs to be here in this function because Receive and Close should not be called
+	// concurrently. Otherwise we end up with a hang when Close is called.
+	// See https://github.com/gomodule/redigo/issues/187.
 	defer conn.Close()
 
-	pubSubName := pubSubForID(query.ID)
-	err := conn.Subscribe(pubSubName)
-	if err != nil && writeOrDone(ctx, outChan, errors.Wrap(err, "subscribe to channel")) {
-		return
-	}
-	defer conn.Unsubscribe(pubSubName)
-
-	defer func() {
-		close(outChan)
-	}()
-
 	for {
-		// This Receive needs to be with timeout, otherwise we might block on it forever
-		msg := conn.ReceiveWithTimeout(5 * time.Second)
+		// Add a timeout to try to cleanup in the case the server has somehow gone completely unresponsive.
+		msg := conn.ReceiveWithTimeout(1 * time.Hour)
 
-		select {
-		case outChan <- msg:
-			switch msg := msg.(type) {
-			case error:
-				if err, ok := msg.(net.Error); ok && err.Timeout() {
-					// We ignore timeouts, we just want them there to make sure we don't hang on Receiving
-					continue
-				} else {
-					// If an error occurred (i.e. connection was closed), then we should exit
-					return
-				}
-			case redis.Subscription:
-				// If the subscription count is 0, the ReadChannel call that invoked this goroutine has unsubscribed,
-				// and we can exit
-				if msg.Count == 0 {
-					return
-				}
-			}
-		case <-ctx.Done():
+		// Pass the message back to ReadChannel.
+		if writeOrDone(ctx, outChan, msg) {
 			return
+		}
+
+		switch msg := msg.(type) {
+		case error:
+			// If an error occurred (i.e. connection was closed), then we should exit.
+			return
+		case redis.Subscription:
+			// If the subscription count is 0, the ReadChannel call that invoked this goroutine has unsubscribed,
+			// and we can exit.
+			if msg.Count == 0 {
+				return
+			}
 		}
 	}
 }
@@ -188,11 +174,23 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 	outChannel := make(chan interface{})
 	msgChannel := make(chan interface{})
 
+	conn := r.pool.Get()
+	psc := &redis.PubSubConn{Conn: conn}
+	pubSubName := pubSubForID(query.ID)
+	if err := psc.Subscribe(pubSubName); err != nil {
+		// Explicit conn.Close() here because we can't defer it until in the goroutine
+		_ = conn.Close()
+		return nil, errors.Wrapf(err, "subscribe to channel %s", pubSubName)
+	}
+
 	// Run a separate goroutine feeding redis messages into
 	// msgChannel
-	go receiveMessages(ctx, r.pool, query, msgChannel)
+	go receiveMessages(ctx, psc, msgChannel)
 
 	go func() {
+		// Unsubscribe here, but do not Close. This allows receiveMessages to finish with the final
+		// receive and non-concurrently call the Close.
+		defer psc.Unsubscribe(pubSubName)
 		defer close(outChannel)
 
 		for {
@@ -200,8 +198,10 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 			select {
 			case msg, ok := <-msgChannel:
 				if !ok {
+					writeOrDone(ctx, outChannel, errors.New("unexpected exit in receiveMessages"))
 					return
 				}
+
 				switch msg := msg.(type) {
 				case redis.Message:
 					var res fleet.DistributedQueryResult
@@ -215,14 +215,14 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 						return
 					}
 				case error:
-					if writeOrDone(ctx, outChannel, errors.Wrap(msg, "reading from redis")) {
+					if writeOrDone(ctx, outChannel, errors.Wrap(msg, "read from redis")) {
 						return
 					}
 				}
+
 			case <-ctx.Done():
 				return
 			}
-
 		}
 	}()
 	return outChannel, nil

@@ -20,6 +20,7 @@ server/bindata/generated.go
 *.cover
 *.test
 *.log
+coverage.txt
 
 # typescript generated test files
 tmp/

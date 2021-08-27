@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -123,9 +123,8 @@ func getConfigValue(configPath, context, key string) (interface{}, error) {
 	case "tls-skip-verify":
 		if currentContext.TLSSkipVerify {
 			return true, nil
-		} else {
-			return false, nil
 		}
+		return false, nil
 	case "url-prefix":
 		return currentContext.URLPrefix, nil
 	default:
