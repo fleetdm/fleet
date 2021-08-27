@@ -160,6 +160,8 @@ type AddHostsToTeamFunc func(teamID *uint, hostIDs []uint) error
 
 type SaveHostAdditionalFunc func(host *fleet.Host) error
 
+type TotalAndUnseenHostsSinceFunc func(daysCount int) (int, int, error)
+
 type CountHostsInTargetsFunc func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -515,6 +517,9 @@ type DataStore struct {
 
 	SaveHostAdditionalFunc        SaveHostAdditionalFunc
 	SaveHostAdditionalFuncInvoked bool
+
+	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
+	TotalAndUnseenHostsSinceFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -1085,6 +1090,11 @@ func (s *DataStore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
 func (s *DataStore) SaveHostAdditional(host *fleet.Host) error {
 	s.SaveHostAdditionalFuncInvoked = true
 	return s.SaveHostAdditionalFunc(host)
+}
+
+func (s *DataStore) TotalAndUnseenHostsSince(daysCount int) (int, int, error) {
+	s.TotalAndUnseenHostsSinceFuncInvoked = true
+	return s.TotalAndUnseenHostsSinceFunc(daysCount)
 }
 
 func (s *DataStore) CountHostsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {

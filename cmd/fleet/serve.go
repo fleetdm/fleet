@@ -1,16 +1,15 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/webhooks"
 
 	"io/ioutil"
 	"net/http"
@@ -412,6 +411,7 @@ type Locker interface {
 const (
 	lockKeyLeader          = "leader"
 	lockKeyVulnerabilities = "vulnerabilities"
+	lockKeyWebhooks        = "webhooks"
 )
 
 func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) error {
@@ -431,22 +431,9 @@ func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) 
 		return nil
 	}
 
-	statsBytes, err := json.Marshal(stats)
+	err = server.PostJSONWithTimeout(context.Background(), url, stats)
 	if err != nil {
 		return err
-	}
-	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(statsBytes))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("Error posting to %s: %d", url, resp.StatusCode)
 	}
 	return ds.RecordStatisticsSent()
 }
@@ -466,6 +453,7 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfi
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), locker, ourIdentifier)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), locker, ourIdentifier, config)
+	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), locker, ourIdentifier)
 
 	return cancelBackground
 }
@@ -576,6 +564,48 @@ func cronVulnerabilities(
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 			continue
+		}
+
+		level.Debug(logger).Log("loop", "done")
+	}
+}
+
+func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
+	appConfig, err := ds.AppConfig()
+	if err != nil {
+		level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		return
+	}
+
+	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+	ticker := time.NewTicker(interval)
+	for {
+		level.Debug(logger).Log("waiting", "on ticker")
+		select {
+		case <-ticker.C:
+			level.Debug(logger).Log("waiting", "done")
+		case <-ctx.Done():
+			level.Debug(logger).Log("exit", "done with cron.")
+			break
+		}
+		if locked, err := locker.Lock(lockKeyWebhooks, identifier, interval); err != nil || !locked {
+			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+			continue
+		}
+
+		err := webhooks.TriggerHostStatusWebhook(
+			ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig)
+		if err != nil {
+			level.Error(logger).Log("err", "triggering host status webhook", "details", err)
+		}
+
+		// Reread app config to be able to change interval somewhat on the fly
+		appConfig, err = ds.AppConfig()
+		if err != nil {
+			level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		} else {
+			interval = appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+			ticker.Reset(interval)
 		}
 
 		level.Debug(logger).Log("loop", "done")

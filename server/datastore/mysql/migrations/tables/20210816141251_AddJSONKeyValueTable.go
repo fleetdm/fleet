@@ -62,6 +62,7 @@ func Up_20210816141251(tx *sql.Tx) error {
 				FROM app_configs LIMIT 1`,
 	)
 	config := &fleet.AppConfig{}
+	config.ApplyDefaults()
 	var vulnPath *string
 	err := row.Scan(
 		&config.OrgInfo.OrgName,
