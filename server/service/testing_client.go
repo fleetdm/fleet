@@ -17,13 +17,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// an io.ReadCloser for new request body
-type nopCloser struct {
-	io.Reader
-}
-
-func (nopCloser) Close() error { return nil }
-
 type withDS struct {
 	s  *suite.Suite
 	ds *mysql.Datastore
@@ -75,7 +68,7 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedStatusCode int) *http.Response {
 	t := ts.s.T()
 
-	requestBody := &nopCloser{bytes.NewBuffer(rawBytes)}
+	requestBody := io.NopCloser(bytes.NewBuffer(rawBytes))
 	req, _ := http.NewRequest(verb, ts.server.URL+path, requestBody)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ts.token))
 	client := &http.Client{}
@@ -105,7 +98,7 @@ func (ts *withServer) getTestAdminToken() string {
 	j, err := json.Marshal(&params)
 	require.NoError(ts.s.T(), err)
 
-	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	requestBody := io.NopCloser(bytes.NewBuffer(j))
 	resp, err := http.Post(ts.server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 	require.NoError(ts.s.T(), err)
 	defer resp.Body.Close()

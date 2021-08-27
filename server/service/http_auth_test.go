@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -58,7 +59,7 @@ func TestLogin(t *testing.T) {
 		j, err := json.Marshal(&params)
 		assert.Nil(t, err)
 
-		requestBody := &nopCloser{bytes.NewBuffer(j)}
+		requestBody := io.NopCloser(bytes.NewBuffer(j))
 		resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 		require.Nil(t, err)
 		assert.Equal(t, tt.status, resp.StatusCode)
@@ -171,7 +172,7 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 	j, err := json.Marshal(&params)
 	assert.Nil(t, err)
 
-	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	requestBody := io.NopCloser(bytes.NewBuffer(j))
 	resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 	require.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)

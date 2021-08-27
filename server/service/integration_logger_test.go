@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -110,7 +111,7 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	})
 	require.NoError(t, err)
 
-	requestBody := &nopCloser{bytes.NewBuffer([]byte(`{"node_key":"1234","log_type":"status","data":[}`))}
+	requestBody := io.NopCloser(bytes.NewBuffer([]byte(`{"node_key":"1234","log_type":"status","data":[}`)))
 	req, _ := http.NewRequest("POST", s.server.URL+"/api/v1/osquery/log", requestBody)
 	client := &http.Client{}
 	_, err = client.Do(req)
@@ -171,7 +172,7 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	})
 	require.NoError(t, err)
 
-	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	requestBody := io.NopCloser(bytes.NewBuffer(j))
 	req, _ := http.NewRequest("POST", s.server.URL+"/api/v1/osquery/enroll", requestBody)
 	client := &http.Client{}
 	resp, err := client.Do(req)

@@ -230,7 +230,7 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		fmt.Fprintf(os.Stderr, "Read body error: %v", err)
 		return nil, err
 	}
-	res.Body = ioutil.NopCloser(resBody)
+	res.Body = io.NopCloser(resBody)
 
 	return res, nil
 }
