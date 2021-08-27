@@ -1,17 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -160,4 +165,84 @@ func TestCronWebhooks(t *testing.T) {
 	<-calledTwice
 	time.Sleep(1 * time.Second)
 	assert.GreaterOrEqual(t, int32(2), atomic.LoadInt32(&endpointCalled))
+}
+
+func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	vulnPath := path.Join(t.TempDir(), "something")
+	require.NoDirExists(t, vulnPath)
+
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DatabasesPath:         vulnPath,
+			Periodicity:           10 * time.Second,
+			CurrentInstanceChecks: "auto",
+		},
+	}
+	go cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), &alwaysLocker{}, "AAA", fleetConfig)
+
+	time.Sleep(1 * time.Second)
+	require.DirExists(t, vulnPath)
+}
+
+func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := kitlog.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DatabasesPath:         t.TempDir(),
+			Periodicity:           10 * time.Second,
+			CurrentInstanceChecks: "auto",
+		},
+	}
+	go cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
+
+	time.Sleep(1 * time.Second)
+
+	require.Contains(t, buf.String(), `{"level":"debug","waiting":"on ticker"}`)
+}
+
+func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := kitlog.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	fileVulnPath := path.Join(t.TempDir(), "somefile")
+	_, err := os.Create(fileVulnPath)
+	require.NoError(t, err)
+
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DatabasesPath:         fileVulnPath,
+			Periodicity:           10 * time.Second,
+			CurrentInstanceChecks: "auto",
+		},
+	}
+	go cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
+
+	time.Sleep(1 * time.Second)
+
+	require.Contains(t, buf.String(), `"databases-path":"creation failed, returning"`)
 }
