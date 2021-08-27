@@ -111,7 +111,7 @@ class AppConfigForm extends Component {
       agent_options: formFieldInterface.isRequired,
       enable_analytics: formFieldInterface.isRequired,
     }).isRequired,
-    enrollSecret: enrollSecretInterface.isRequired,
+    enrollSecret: PropTypes.arrayOf(enrollSecretInterface).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     smtpConfigured: PropTypes.bool.isRequired,
   };
@@ -155,18 +155,17 @@ class AppConfigForm extends Component {
         <div className={`${baseClass}__inputs`}>
           <div className={`${baseClass}__smtp-section`}>
             <InputField {...fields.domain} label="Domain" />
-            <Slider {...fields.verify_ssl_certs} label="Verify SSL Certs?" />
-            <Slider {...fields.enable_start_tls} label="Enable STARTTLS?" />
-            <Slider {...fields.host_expiry_enabled} label="Host Expiry" />
+            <Checkbox {...fields.verify_ssl_certs}>Verify SSL Certs</Checkbox>
+            <Checkbox {...fields.enable_start_tls}>Enable STARTTLS</Checkbox>
+            <Checkbox {...fields.host_expiry_enabled}>Host Expiry</Checkbox>
             <InputField
               {...fields.host_expiry_window}
               disabled={!fields.host_expiry_enabled.value}
               label="Host Expiry Window"
             />
-            <Slider
-              {...fields.live_query_disabled}
-              label="Disable Live Queries?"
-            />
+            <Checkbox {...fields.live_query_disabled}>
+              Disable Live Queries
+            </Checkbox>
           </div>
         </div>
 
