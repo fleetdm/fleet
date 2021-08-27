@@ -3,11 +3,9 @@ package service
 import (
 	"context"
 	"database/sql"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/pkg/errors"
 )
 
@@ -20,14 +18,6 @@ type applyTeamSpecsResponse struct {
 }
 
 func (r applyTeamSpecsResponse) error() error { return r.Err }
-
-func makeApplyTeamSpecsEndpoint(svc fleet.Service, opts []kithttp.ServerOption) http.Handler {
-	return newServer(
-		makeAuthenticatedServiceEndpoint(svc, applyTeamSpecsEndpoint),
-		makeDecoder(applyTeamSpecsRequest{}),
-		opts,
-	)
-}
 
 func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*applyTeamSpecsRequest)

@@ -10,7 +10,7 @@ func init() {
 
 func Up_20161118212613(tx *sql.Tx) error {
 	_, err := tx.Exec(
-		"CREATE TABLE `scheduled_queries` (" +
+		"CREATE TABLE IF NOT EXISTS `scheduled_queries` (" +
 			"`id` int(10) unsigned NOT NULL AUTO_INCREMENT," +
 			"`created_at` timestamp DEFAULT CURRENT_TIMESTAMP," +
 			"`updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +

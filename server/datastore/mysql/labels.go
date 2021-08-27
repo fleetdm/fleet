@@ -35,6 +35,7 @@ func (d *Datastore) ApplyLabelSpecs(specs []*fleet.LabelSpec) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "prepare ApplyLabelSpecs insert")
 		}
+		defer stmt.Close()
 
 		for _, s := range specs {
 			if s.Name == "" {
@@ -324,16 +325,18 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 
 		results[id] = query
 	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "iterating over returned rows")
+	}
 
 	return results, nil
-
 }
 
-func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]bool, updated time.Time) error {
+func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]*bool, updated time.Time) error {
 	// Sort the results to have generated SQL queries ordered to minimize
-	// deadlocks. See https://github.com/fleetdm/fleet/v4/issues/1146.
+	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
-	for labelID, _ := range results {
+	for labelID := range results {
 		orderedIDs = append(orderedIDs, labelID)
 	}
 	sort.Slice(orderedIDs, func(i, j int) bool { return orderedIDs[i] < orderedIDs[j] })
@@ -345,7 +348,7 @@ func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uin
 	removes := []uint{}
 	for _, labelID := range orderedIDs {
 		matches := results[labelID]
-		if matches {
+		if matches != nil && *matches {
 			// Add/update row
 			bindvars = append(bindvars, "(?,?,?)")
 			vals = append(vals, updated, labelID, host.ID)

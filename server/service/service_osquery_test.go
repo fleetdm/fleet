@@ -333,6 +333,9 @@ func TestLabelQueries(t *testing.T) {
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
+	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
 
@@ -370,9 +373,9 @@ func TestLabelQueries(t *testing.T) {
 	assert.Zero(t, acc)
 
 	var gotHost *fleet.Host
-	var gotResults map[uint]bool
+	var gotResults map[uint]*bool
 	var gotTime time.Time
-	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]bool, t time.Time) error {
+	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]*bool, t time.Time) error {
 		gotHost = host
 		gotResults = results
 		gotTime = t
@@ -394,7 +397,7 @@ func TestLabelQueries(t *testing.T) {
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
 	if assert.Len(t, gotResults, 1) {
-		assert.Equal(t, true, gotResults[1])
+		assert.Equal(t, true, *gotResults[1])
 	}
 
 	mockClock.AddTime(1 * time.Second)
@@ -414,8 +417,8 @@ func TestLabelQueries(t *testing.T) {
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
 	if assert.Len(t, gotResults, 2) {
-		assert.Equal(t, true, gotResults[2])
-		assert.Equal(t, false, gotResults[3])
+		assert.Equal(t, true, *gotResults[2])
+		assert.Equal(t, false, *gotResults[3])
 	}
 }
 
@@ -534,6 +537,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 
@@ -711,6 +717,9 @@ func TestDetailQueries(t *testing.T) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 
@@ -903,12 +912,9 @@ func TestDetailQueries(t *testing.T) {
 }
 
 func TestNewDistributedQueryCampaign(t *testing.T) {
-	ds := &mock.Store{
-		AppConfigStore: mock.AppConfigStore{
-			AppConfigFunc: func() (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{}, nil
-			},
-		},
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
 	}
 	rs := &mock.QueryResultStore{
 		HealthCheckFunc: func() error {
@@ -989,6 +995,9 @@ func TestDistributedQueryResults(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 
 	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.SaveHostFunc = func(host *fleet.Host) error {
@@ -1166,7 +1175,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 		ID: 42,
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{
-				CreatedAt: mockClock.Now().Add(-30 * time.Second),
+				CreatedAt: mockClock.Now().Add(-2 * time.Minute),
 			},
 		},
 	}
@@ -1202,7 +1211,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 		ID: 42,
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{
-				CreatedAt: mockClock.Now().Add(-30 * time.Second),
+				CreatedAt: mockClock.Now().Add(-2 * time.Minute),
 			},
 		},
 	}
@@ -1239,7 +1248,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 		ID: 42,
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{
-				CreatedAt: mockClock.Now().Add(-30 * time.Second),
+				CreatedAt: mockClock.Now().Add(-2 * time.Minute),
 			},
 		},
 	}
@@ -1255,7 +1264,8 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 	host := fleet.Host{ID: 1}
 
 	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "campaign stopped")
 	lq.AssertExpectations(t)
 }
 
@@ -1329,7 +1339,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 		return []*fleet.Pack{}, nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		initHost       fleet.Host
 		finalHost      fleet.Host
 		configOptions  json.RawMessage
@@ -1461,7 +1471,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 			assert.Equal(t, tt.saveHostCalled, saveHostCalled)
 		})
 	}
-
 }
 
 type notFoundError struct{}
@@ -1600,7 +1609,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return authz.CheckMissingWithResponse(nil)
 	}
-	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]bool, t time.Time) error {
+	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]*bool, t time.Time) error {
 		return errors.New("something went wrong")
 	}
 
@@ -1689,7 +1698,8 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 		}, nil
 	}
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
-		User: &fleet.User{ID: 0, GlobalRole: ptr.String(fleet.RoleObserver)}})
+		User: &fleet.User{ID: 0, GlobalRole: ptr.String(fleet.RoleObserver)},
+	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
 	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
@@ -1733,4 +1743,75 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	lq.On("RunQuery", "21", "select 1;", []uint{1, 3, 5}).Return(nil)
 	_, err = svc.NewDistributedQueryCampaign(viewerCtx, "", ptr.Uint(42), fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.NoError(t, err)
+}
+
+func TestPolicyQueries(t *testing.T) {
+	mockClock := clock.NewMockClock()
+	ds := new(mock.Store)
+	lq := new(live_query.MockLiveQuery)
+	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
+
+	host := &fleet.Host{
+		Platform: "darwin",
+	}
+
+	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.SaveHostFunc = func(host *fleet.Host) error {
+		return nil
+	}
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+	}
+
+	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
+
+	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
+	}
+	recordedResults := make(map[uint]*bool)
+	ds.RecordPolicyQueryExecutionsFunc = func(host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+		recordedResults = results
+		return nil
+	}
+
+	ctx := hostctx.NewContext(context.Background(), *host)
+
+	queries, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+2)
+
+	hasPolicy1, hasPolicy2 := false, false
+	for name := range queries {
+		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+			if name[len(hostPolicyQueryPrefix):] == "1" {
+				hasPolicy1 = true
+			}
+			if name[len(hostPolicyQueryPrefix):] == "2" {
+				hasPolicy2 = true
+			}
+		}
+	}
+	assert.True(t, hasPolicy1)
+	assert.True(t, hasPolicy2)
+
+	// Record a query execution
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1,
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, recordedResults[1])
+	require.Equal(t, true, *recordedResults[1])
+	require.Nil(t, recordedResults[2])
 }

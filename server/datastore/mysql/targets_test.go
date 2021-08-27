@@ -17,10 +17,6 @@ func TestCountHostsInTargets(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
-
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
@@ -72,12 +68,12 @@ func TestCountHostsInTargets(t *testing.T) {
 	require.NoError(t, ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2}))
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*fleet.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l2.ID: true}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l2.ID: ptr.Bool(true)}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
@@ -168,10 +164,6 @@ func TestHostStatus(t *testing.T) {
 
 	test.AddAllHostsLabel(t, ds)
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
-
 	mockClock := clock.NewMockClock()
 
 	h, err := ds.EnrollHost("1", "key1", nil, 0)
@@ -233,10 +225,6 @@ func TestHostIDsInTargets(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
-
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
@@ -275,12 +263,12 @@ func TestHostIDsInTargets(t *testing.T) {
 	require.Nil(t, err)
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*fleet.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l2.ID: true}, time.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 

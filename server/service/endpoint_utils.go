@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
@@ -70,6 +70,11 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 // IDs are expected to be uint, and can be optional by setting the tag as follows: `url:"some-id,optional"`
 // list-options are optional by default and it'll ignore the optional portion of the tag.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
+	if iface == nil {
+		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			return nil, nil
+		}
+	}
 	t := reflect.TypeOf(iface)
 	if t.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("makeDecoder only understands structs, not %T", iface))
@@ -132,12 +137,48 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	}
 }
 
-func makeAuthenticatedServiceEndpoint(svc fleet.Service, f handlerFunc) endpoint.Endpoint {
-	return authenticatedUser(svc, makeServiceEndpoint(svc, f))
+type UserAuthEndpointer struct {
+	svc  fleet.Service
+	opts []kithttp.ServerOption
+	r    *mux.Router
 }
 
-func makeServiceEndpoint(svc fleet.Service, f handlerFunc) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		return f(ctx, request, svc)
-	}
+func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router) *UserAuthEndpointer {
+	return &UserAuthEndpointer{svc: svc, opts: opts, r: r}
+}
+
+func getNameFromPathAndVerb(verb, path string) string {
+	return strings.ToLower(verb) + "_" + strings.ReplaceAll(strings.TrimSuffix("/api/v1/fleet/", strings.TrimRight(path, "/")), "/", "_")
+}
+
+func (e *UserAuthEndpointer) POST(path string, f handlerFunc, v interface{}) {
+	e.handle(path, f, v, "POST")
+}
+
+func (e *UserAuthEndpointer) GET(path string, f handlerFunc, v interface{}) {
+	e.handle(path, f, v, "GET")
+}
+
+func (e *UserAuthEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
+	e.handle(path, f, v, "PATCH")
+}
+
+func (e *UserAuthEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
+	e.handle(path, f, v, "DELETE")
+}
+
+func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) *mux.Route {
+	return e.r.Handle(path, e.makeEndpoint(f, v)).Methods(verb).Name(getNameFromPathAndVerb(verb, path))
+}
+
+func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
+	return newServer(
+		authenticatedUser(
+			e.svc,
+			func(ctx context.Context, request interface{}) (interface{}, error) {
+				return f(ctx, request, e.svc)
+			}),
+		makeDecoder(v),
+		e.opts,
+	)
 }

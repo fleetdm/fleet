@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -29,6 +31,8 @@ type Client struct {
 	token              string
 	http               httpClient
 	insecureSkipVerify bool
+
+	writer io.Writer
 }
 
 type ClientOption func(*Client) error
@@ -55,7 +59,7 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 
 		// add certs to pool
 		if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
-			return nil, errors.Wrap(err, "adding root CA")
+			return nil, errors.New("failed to add certificates to root CA pool")
 		}
 	} else if !insecureSkipVerify {
 		// Use only the system certs (doesn't work on Windows)
@@ -104,7 +108,14 @@ func EnableClientDebug() ClientOption {
 	}
 }
 
-func (c *Client) doWithHeaders(verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
+func SetClientWriter(w io.Writer) ClientOption {
+	return func(c *Client) error {
+		c.writer = w
+		return nil
+	}
+}
+
+func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
 	var bodyBytes []byte
 	var err error
 	if params != nil {
@@ -114,7 +125,8 @@ func (c *Client) doWithHeaders(verb, path, rawQuery string, params interface{}, 
 		}
 	}
 
-	request, err := http.NewRequest(
+	request, err := http.NewRequestWithContext(
+		ctx,
 		verb,
 		c.url(path, rawQuery).String(),
 		bytes.NewBuffer(bodyBytes),
@@ -126,16 +138,29 @@ func (c *Client) doWithHeaders(verb, path, rawQuery string, params interface{}, 
 		request.Header.Set(k, v)
 	}
 
-	return c.http.Do(request)
+	resp, err := c.http.Do(request)
+	if err != nil {
+		return nil, errors.Wrap(err, "do request")
+	}
+
+	if resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
+		fleet.WriteExpiredLicenseBanner(c.writer)
+	}
+
+	return resp, nil
 }
 
 func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
+	return c.DoContext(context.Background(), verb, path, rawQuery, params)
+}
+
+func (c *Client) DoContext(ctx context.Context, verb, path, rawQuery string, params interface{}) (*http.Response, error) {
 	headers := map[string]string{
 		"Content-type": "application/json",
 		"Accept":       "application/json",
 	}
 
-	return c.doWithHeaders(verb, path, rawQuery, params, headers)
+	return c.doContextWithHeaders(ctx, verb, path, rawQuery, params, headers)
 }
 
 func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
@@ -149,7 +174,7 @@ func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}
 		"Authorization": fmt.Sprintf("Bearer %s", c.token),
 	}
 
-	return c.doWithHeaders(verb, path, rawQuery, params, headers)
+	return c.doContextWithHeaders(context.Background(), verb, path, rawQuery, params, headers)
 }
 
 func (c *Client) SetToken(t string) {

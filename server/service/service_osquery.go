@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 
@@ -39,8 +40,6 @@ func (e osqueryError) NodeInvalid() bool {
 func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
-
-	logIPs(ctx)
 
 	if nodeKey == "" {
 		return nil, osqueryError{
@@ -371,6 +370,11 @@ const hostDetailQueryPrefix = "fleet_detail_query_"
 // provided as an additional query (additional info for hosts to retrieve).
 const hostAdditionalQueryPrefix = "fleet_additional_query_"
 
+// hostPolicyQueryPrefix is appended before the query name when a query is
+// provided as a policy query. This allows the results to be retrieved when
+// osqueryd writes the distributed query results.
+const hostPolicyQueryPrefix = "fleet_policy_query_"
+
 // hostDistributedQueryPrefix is appended before the query name when a query is
 // run from a distributed query campaign
 const hostDistributedQueryPrefix = "fleet_distributed_query_"
@@ -449,6 +453,15 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		queries[hostDistributedQueryPrefix+name] = query
 	}
 
+	policyQueries, err := svc.ds.PolicyQueriesForHost(&host)
+	if err != nil {
+		return nil, 0, osqueryError{message: "retrieving policy queries: " + err.Error()}
+	}
+
+	for name, query := range policyQueries {
+		queries[hostPolicyQueryPrefix+name] = query
+	}
+
 	accelerate := uint(0)
 	if host.Hostname == "" || host.Platform == "" {
 		// Assume this host is just enrolling, and accelerate checkins
@@ -489,16 +502,27 @@ func (svc *Service) ingestDetailQuery(host *fleet.Host, name string, rows []map[
 	return nil
 }
 
-// ingestLabelQuery records the results of label queries run by a host
-func (svc *Service) ingestLabelQuery(host fleet.Host, query string, rows []map[string]string, results map[uint]bool) error {
-	trimmedQuery := strings.TrimPrefix(query, hostLabelQueryPrefix)
+// ingestMembershipQuery records the results of label queries run by a host
+func ingestMembershipQuery(
+	prefix string,
+	query string,
+	rows []map[string]string,
+	results map[uint]*bool,
+	failed bool,
+) error {
+	trimmedQuery := strings.TrimPrefix(query, prefix)
 	trimmedQueryNum, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
 	if err != nil {
 		return errors.Wrap(err, "converting query from string to int")
 	}
-	// A label query matches if there is at least one result for that
+	// A label/policy query matches if there is at least one result for that
 	// query. We must also store negative results.
-	results[uint(trimmedQueryNum)] = len(rows) > 0
+	if failed {
+		results[uint(trimmedQueryNum)] = nil
+	} else {
+		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0)
+	}
+
 	return nil
 }
 
@@ -534,14 +558,14 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 		// execute that query when we can't write to any subscriber
 		campaign, err := svc.ds.DistributedQueryCampaign(uint(campaignID))
 		if err != nil {
-			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaignID))); err != nil {
+			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
 				return osqueryError{message: "stop orphaned campaign after load failure: " + err.Error()}
 			}
 			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
 		}
 
-		if campaign.CreatedAt.After(svc.clock.Now().Add(-5 * time.Second)) {
-			// Give the client 5 seconds to connect before considering the
+		if campaign.CreatedAt.After(svc.clock.Now().Add(-1 * time.Minute)) {
+			// Give the client a minute to connect before considering the
 			// campaign orphaned
 			return osqueryError{message: "campaign waiting for listener (please retry)"}
 		}
@@ -553,15 +577,15 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 			}
 		}
 
-		if err := svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaignID))); err != nil {
+		if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
 			return osqueryError{message: "stopping orphaned campaign: " + err.Error()}
 		}
 
 		// No need to record query completion in this case
-		return nil
+		return osqueryError{message: "campaign stopped"}
 	}
 
-	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(int(campaignID)), host.ID)
+	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
 	if err != nil {
 		return osqueryError{message: "record query completion: " + err.Error()}
 	}
@@ -569,7 +593,12 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 	return nil
 }
 
-func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string) error {
+func (svc *Service) SubmitDistributedQueryResults(
+	ctx context.Context,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
+) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -600,8 +629,12 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 	var err error
 	detailUpdated := false // Whether detail or additional was updated
 	additionalResults := make(fleet.OsqueryDistributedQueryResults)
-	labelResults := map[uint]bool{}
+	labelResults := map[uint]*bool{}
+	policyResults := map[uint]*bool{}
 	for query, rows := range results {
+		// osquery docs say any nonzero (string) value for status indicates a query error
+		status, ok := statuses[query]
+		failed := ok && status != fleet.StatusOK
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
 			err = svc.ingestDetailQuery(&host, query, rows)
@@ -611,18 +644,18 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 			additionalResults[name] = rows
 			detailUpdated = true
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
-			err = svc.ingestLabelQuery(host, query, rows, labelResults)
+			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
+		case strings.HasPrefix(query, hostPolicyQueryPrefix):
+			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
 		case strings.HasPrefix(query, hostDistributedQueryPrefix):
-			// osquery docs say any nonzero (string) value for
-			// status indicates a query error
-			status, ok := statuses[query]
-			failed := ok && status != fleet.StatusOK
 			err = svc.ingestDistributedQuery(host, query, rows, failed, messages[query])
+
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}
 
 		if err != nil {
+			logging.WithErr(ctx, errors.New("error in live query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}
 	}
@@ -631,6 +664,13 @@ func (svc *Service) SubmitDistributedQueryResults(ctx context.Context, results f
 		host.Modified = true
 		host.LabelUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordLabelQueryExecutions(&host, labelResults, svc.clock.Now())
+		if err != nil {
+			logging.WithErr(ctx, err)
+		}
+	}
+
+	if len(policyResults) > 0 {
+		err = svc.ds.RecordPolicyQueryExecutions(&host, policyResults, svc.clock.Now())
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}

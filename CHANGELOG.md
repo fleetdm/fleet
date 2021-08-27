@@ -1,3 +1,17 @@
+## Fleet 4.2.3 (Aug 25, 2021)
+
+* Add ability to troubleshoot connection issues with the `fleetctl debug connection` command.
+
+* Improve compatibility with MySQL variants (MariaDB, Aurora, etc.) by removing usage of JSON_ARRAYAGG.
+
+* Fix bug in which live queries would stop returning results if more than 5 seconds goes by without a result. This bug was introduced in 4.2.1.
+
+* Eliminate double-logging of IP addresses in osquery endpoints.
+
+* Update host details after transferring a host on the details page.
+
+* Log errors in osquery endpoints to improve debugging.
+
 ## Fleet 4.2.2 (Aug 18, 2021)
 
 * Add a new built in label "All Linux" to target all hosts that run any linux flavor.

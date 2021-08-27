@@ -1,19 +1,12 @@
 package mysql
 
 import (
-	"bytes"
-	"database/sql"
-	"fmt"
-	"io/ioutil"
-	"os/exec"
-	"path"
-	"runtime"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/config"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/VividCortex/mysqlerr"
-	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
@@ -472,45 +465,6 @@ func TestWhereOmitIDs(t *testing.T) {
 	}
 }
 
-func TestMigrations(t *testing.T) {
-	// Create the database (must use raw MySQL client to do this)
-	db, err := sql.Open(
-		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
-	)
-	require.NoError(t, err)
-	defer db.Close()
-	_, err = db.Exec("DROP DATABASE IF EXISTS schemadb; CREATE DATABASE schemadb;")
-	require.NoError(t, err)
-
-	// Create a datastore client in order to run migrations as usual
-	config := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
-		Address:  testAddress,
-		Database: "schemadb",
-	}
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
-	require.NoError(t, err)
-	defer ds.Close()
-	require.NoError(t, ds.MigrateTables())
-
-	// Dump schema to dumpfile
-	cmd := exec.Command(
-		"docker-compose", "exec", "-T", "mysql_test",
-		// Command run inside container
-		"mysqldump", "-u"+testUsername, "-p"+testPassword, "schemadb", "--compact", "--skip-comments",
-	)
-	var stdoutBuf bytes.Buffer
-	cmd.Stdout = &stdoutBuf
-	require.NoError(t, cmd.Run())
-
-	require.NoError(t, err)
-	_, filename, _, _ := runtime.Caller(0)
-	base := path.Dir(filename)
-	require.NoError(t, ioutil.WriteFile(path.Join(base, "schema.sql"), stdoutBuf.Bytes(), 0o655))
-}
-
 func Test_generateConnectionString(t *testing.T) {
 	type args struct {
 		conf config.MysqlConfig
@@ -536,7 +490,7 @@ func Test_generateConnectionString(t *testing.T) {
 			want: "foo:bar@()/baz?charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%27-00%3A00%27&clientFoundRows=true&allowNativePasswords=true&tls=true",
 		},
 	}
-		for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := generateConnectionString(tt.args.conf); got != tt.want {
 				t.Errorf("generateConnectionString() = %v, want %v", got, tt.want)
