@@ -24,7 +24,7 @@ This way, the Fleet team can constantly improve the effectiveness and experience
 
 - Celebrate contributions. 
 
-- Triage bugs, identify community pull requests and questions.
+- Triage bugs, identify community feature requests, community pull requests and community questions.
 
 ## How?
 
