@@ -26,7 +26,7 @@ func BuildPkg(opt Options) error {
 	if err != nil {
 		return errors.Wrap(err, "user home directory")
 	}
-	packageDir := filepath.Join(dir, ".orbit", "orbit-package")
+	packageDir := filepath.Join(dir, ".fleet", "orbit-package")
 	defer os.RemoveAll(packageDir)
 
 	filesystemRoot := filepath.Join(packageDir, "root")
