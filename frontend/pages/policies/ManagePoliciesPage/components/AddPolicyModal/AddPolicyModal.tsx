@@ -1,6 +1,8 @@
 /* This component is used for creating policies */
 
 import React, { useState, useCallback } from "react";
+import { useDispatch } from "react-redux";
+
 // @ts-ignore
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
@@ -8,13 +10,15 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import { IQuery } from "interfaces/query";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 
 const baseClass = "add-policy-modal";
 
 interface IAddPolicyModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
-  onSubmit: (query_id: any) => void;
+  onSubmit: (query_id: number) => void;
 }
 
 const AddPolicyModal = ({
@@ -22,16 +26,14 @@ const AddPolicyModal = ({
   onSubmit,
   allQueries,
 }: IAddPolicyModalProps): JSX.Element => {
-  const [selectedQuery, setSelectedQuery] = useState<number | undefined>();
+  const dispatch = useDispatch();
+  const [selectedQuery, setSelectedQuery] = useState<number>();
 
   const createQueryDropdownOptions = () => {
-    const queryOptions = allQueries.map((q) => {
-      return {
-        value: q.id,
-        label: q.name,
-      };
-    });
-    return queryOptions;
+    return allQueries.map(({ id, name }) => ({
+      value: id,
+      label: name,
+    }));
   };
 
   const onChangeSelectQuery = useCallback(
@@ -42,8 +44,17 @@ const AddPolicyModal = ({
   );
 
   const handleSubmitAddPolicy = useCallback(() => {
-    onSubmit(selectedQuery);
-  }, [onSubmit, selectedQuery]);
+    try {
+      if (selectedQuery) {
+        onSubmit(selectedQuery);
+      } else {
+        throw new Error("Expected type 'number' but received type 'undefined");
+      }
+    } catch (error) {
+      console.log(error);
+      dispatch(renderFlash("error", "Could not add policy. Please try again."));
+    }
+  }, [dispatch, onSubmit, selectedQuery]);
 
   return (
     <Modal title={"Add a policy"} onExit={onCancel} className={baseClass}>

@@ -80,7 +80,6 @@ const ManagePolicyPage = (): JSX.Element => {
     setIsLoading(true);
     try {
       const response = await policiesAPI.loadAll();
-      console.log(response);
       setPolicies(response.policies);
     } catch (error) {
       console.log(error);
@@ -96,7 +95,6 @@ const ManagePolicyPage = (): JSX.Element => {
   const getInterval = useCallback(async () => {
     try {
       const response = await configAPI.loadAll();
-      console.log(response);
       const interval = secondsToHms(
         inMilliseconds(response.update_interval.osquery_detail) / 1000
       );
