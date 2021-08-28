@@ -64,7 +64,14 @@ describe(
     it("Can delete a host from host details page", () => {
       let hostname = "";
 
+      cy.intercept({
+        method: "GET",
+        url: "/api/v1/fleet/hosts",
+      }).as("getHosts");
+
       cy.visit("/hosts/manage");
+
+      cy.wait("@getHosts");
 
       cy.get("tbody").within(() => {
         cy.get(".button--text-link").first().as("hostLink");
@@ -111,7 +118,14 @@ describe(
 
       let hostname = "";
 
+      cy.intercept({
+        method: "GET",
+        url: "/api/v1/fleet/hosts",
+      }).as("getHosts");
+
       cy.visit("/hosts/manage");
+
+      cy.wait("@getHosts");
 
       cy.get("tbody").within(() => {
         cy.get(".button--text-link").first().as("hostLink");

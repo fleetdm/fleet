@@ -48,6 +48,7 @@ describe(
         // Test host text varies
         cy.findByRole("button").click();
       });
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.get(".title").within(() => {
         cy.findByText(/team/i).should("not.exist");
       });
