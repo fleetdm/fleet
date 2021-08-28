@@ -11,12 +11,6 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 604800, label: "Every week" },
 ];
 
-export const PLATFORM_OPTIONS = [
-  { label: "All", value: "" },
-  { label: "Windows", value: "windows" },
-  { label: "Linux", value: "linux" },
-  { label: "macOS", value: "darwin" },
-];
 
 export const LOGGING_TYPE_OPTIONS = [
   { label: "Snapshot", value: "snapshot" },
@@ -53,4 +47,26 @@ export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "2.0.0 +", value: "2.0.0" },
   { label: "1.8.2 +", value: "1.8.2" },
   { label: "1.8.1 +", value: "1.8.1" },
+];
+
+export const OS_CUSTOM_LABELS = ["All Linux"];
+
+export const OS_DISPLAY_ORDER = [
+  "macOS",
+  "All Linux",
+  "CentOS Linux",
+  "Ubuntu Linux",
+  "MS Windows",
+];
+
+export const PLATFORM_DISPLAY_NAMES: Record<string, string> = {
+  "All Linux": "Linux",
+  "MS Windows": "Windows",
+};
+
+export const PLATFORM_OPTIONS = [
+  { label: "All", value: "" },
+  { label: "Windows", value: "windows" },
+  { label: "Linux", value: "linux" },
+  { label: "macOS", value: "darwin" },
 ];

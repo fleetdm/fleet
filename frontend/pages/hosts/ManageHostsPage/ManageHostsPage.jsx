@@ -33,7 +33,7 @@ import policiesClient from "services/entities/policies";
 import permissionUtils from "utilities/permissions";
 import sortUtils from "utilities/sort";
 
-import { PolicyResponse } from "utilities/constants";
+import { PLATFORM_DISPLAY_NAMES, PolicyResponse } from "utilities/constants";
 import { getNextLocationPath } from "./helpers";
 import {
   defaultHiddenColumns,
@@ -1036,15 +1036,17 @@ export class ManageHostsPage extends PureComponent {
   renderHeaderLabelBlock = ({
     description,
     display_text: displayText,
-    type,
+    label_type: labelType,
   }) => {
     const { onEditLabelClick, toggleDeleteLabelModal } = this;
+
+    displayText = PLATFORM_DISPLAY_NAMES[displayText] || displayText;
 
     return (
       <div className={`${baseClass}__label-block`}>
         <div className="title">
           <span>{displayText}</span>
-          {type !== "platform" && (
+          {labelType !== "builtin" && (
             <>
               <Button onClick={onEditLabelClick} variant={"text-icon"}>
                 <img src={PencilIcon} alt="Edit label" />
