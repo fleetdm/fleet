@@ -9,7 +9,10 @@ describe("Policies flow", () => {
 
     // Add a policy
     cy.get(".table-container").within(() =>
-      cy.findByText(/add a policy/i).click()
+      cy
+        .findByText(/add a policy/i)
+        .should("exist")
+        .click()
     );
     cy.get(".add-policy-modal").within(() => {
       cy.findByText(/select query/i).click();
@@ -17,7 +20,7 @@ describe("Policies flow", () => {
         /Detect Linux hosts with high severity vulnerable versions of OpenSSL/i
       ).click();
       cy.findByRole("button", { name: /cancel/i }).should("exist");
-      cy.findByRole("button", { name: /add/i }).click();
+      cy.findByRole("button", { name: /add/i }).should("exist").click();
     });
 
     // Confirm that policy was added successfully
