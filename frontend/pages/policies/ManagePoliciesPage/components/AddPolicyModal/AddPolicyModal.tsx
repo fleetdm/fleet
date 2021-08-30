@@ -1,7 +1,6 @@
 /* This component is used for creating policies */
 
 import React, { useState, useCallback } from "react";
-import { useDispatch } from "react-redux";
 
 // @ts-ignore
 import Modal from "components/modals/Modal";
@@ -10,15 +9,13 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import { IQuery } from "interfaces/query";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 
 const baseClass = "add-policy-modal";
 
 interface IAddPolicyModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
-  onSubmit: (query_id: number) => void;
+  onSubmit: (query_id: number | undefined) => void;
 }
 
 const AddPolicyModal = ({
@@ -26,7 +23,6 @@ const AddPolicyModal = ({
   onSubmit,
   allQueries,
 }: IAddPolicyModalProps): JSX.Element => {
-  const dispatch = useDispatch();
   const [selectedQuery, setSelectedQuery] = useState<number>();
 
   const createQueryDropdownOptions = () => {
@@ -42,19 +38,6 @@ const AddPolicyModal = ({
     },
     [setSelectedQuery]
   );
-
-  const handleSubmitAddPolicy = useCallback(() => {
-    try {
-      if (selectedQuery) {
-        onSubmit(selectedQuery);
-      } else {
-        throw new Error("Expected type 'number' but received type 'undefined");
-      }
-    } catch (error) {
-      console.log(error);
-      dispatch(renderFlash("error", "Could not add policy. Please try again."));
-    }
-  }, [dispatch, onSubmit, selectedQuery]);
 
   return (
     <Modal title={"Add a policy"} onExit={onCancel} className={baseClass}>
@@ -88,7 +71,7 @@ const AddPolicyModal = ({
             className={`${baseClass}__btn`}
             type="button"
             variant="brand"
-            onClick={handleSubmitAddPolicy}
+            onClick={() => onSubmit(selectedQuery)}
             disabled={!selectedQuery}
           >
             Add
