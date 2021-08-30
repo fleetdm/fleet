@@ -54,6 +54,7 @@ describe(
       });
       cy.contains("button", /transfer/i).should("not.exist");
 
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.contains("button", /delete/i)
         .should("exist")
         .click();
