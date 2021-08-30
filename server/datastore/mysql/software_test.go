@@ -296,8 +296,8 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
-	_, err := ds.db.Exec("SET GLOBAL group_concat_max_len = 4194304")
-	require.NoError(t, err)
+	//_, err := ds.db.Exec("SET GLOBAL group_concat_max_len = 4194304")
+	//require.NoError(t, err)
 	soft := fleet.HostSoftware{
 		Modified: true,
 		Software: []fleet.Software{
@@ -322,15 +322,21 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 
 	require.NoError(t, ds.LoadHostSoftware(host))
 
-	assert.Equal(t, "somecpe", host.Software[0].GenerateCPE)
-	require.Len(t, host.Software[0].Vulnerabilities, 1000)
-	//assert.Equal(t, "cve-123-123-132", host.Software[0].Vulnerabilities[0].CVE)
-	//assert.Equal(t,
-	//	"https://nvd.nist.gov/vuln/detail/cve-123-123-132", host.Software[0].Vulnerabilities[0].DetailsLink)
-	//assert.Equal(t, "cve-321-321-321", host.Software[0].Vulnerabilities[1].CVE)
-	//assert.Equal(t,
-	//	"https://nvd.nist.gov/vuln/detail/cve-321-321-321", host.Software[0].Vulnerabilities[1].DetailsLink)
-
-	assert.Equal(t, "someothercpewithoutvulns", host.Software[1].GenerateCPE)
-	require.Len(t, host.Software[1].Vulnerabilities, 0)
+	for _, software := range host.Software {
+		switch software.Name {
+		case "foo":
+			assert.Equal(t, "somecpe", software.GenerateCPE)
+			require.Len(t, software.Vulnerabilities, 1000)
+			assert.True(t, strings.HasPrefix(software.Vulnerabilities[0].CVE, "cve-"))
+			assert.Equal(t,
+				"https://nvd.nist.gov/vuln/detail/"+software.Vulnerabilities[0].CVE,
+				software.Vulnerabilities[0].DetailsLink,
+			)
+		case "bar":
+			assert.Len(t, software.Vulnerabilities, 0)
+			assert.Equal(t, "someothercpewithoutvulns", software.GenerateCPE)
+		case "blah":
+			assert.Len(t, software.Vulnerabilities, 0)
+		}
+	}
 }
