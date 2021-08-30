@@ -873,15 +873,15 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 
 func (d *Datastore) TotalAndUnseenHostsSince(daysCount int) (int, int, error) {
 	var totalCount, unseenCount int
-	err := d.db.QueryRow("SELECT count(*) FROM hosts").Scan(&totalCount)
+	err := d.reader.Get(&totalCount, "SELECT count(*) FROM hosts")
 	if err != nil {
 		return 0, 0, errors.Wrap(err, "getting total host count")
 	}
 
-	err = d.db.QueryRow(
+	err = d.reader.Get(&unseenCount,
 		"SELECT count(*) FROM hosts WHERE DATEDIFF(CURRENT_DATE, seen_time) >= ?",
 		daysCount,
-	).Scan(&unseenCount)
+	)
 	if err != nil {
 		return 0, 0, errors.Wrap(err, "getting unseen host count")
 	}
