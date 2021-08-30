@@ -56,7 +56,7 @@
   <body>
     <div purpose="page-wrap">
       <div class="<%= isHomepage ? 'homepage-header' : 'header' %>" purpose="page-header">
-        <div style="max-width: 1248px; height: 80px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
+        <div style="foo max-width: 1248px; height: 80px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a href="/">
             <% /* The homepage-header on the homepage has a white fleet logo */ %>
             <% if (isHomepage) { %>
@@ -102,35 +102,35 @@
                   </svg>
                   <span class="ml-2">GitHub</span>
                 </a>
+              </div>  
             </div>
           </div>
-        </div>
-        <div class="d-none d-lg-flex">
-          <div class="dropdown px-3 py-2 mr-4">
-            <button style="font-size: 16px; line-height: 23px; text-decoration: none;" class="header-btn btn btn-link p-0 m-0 dropdown-label" type="button" id="dropdownMenuButton">
-              Get started
-            </button>
-            <div style="border-radius: 8px;" class="dropdown-menu dropdown-container p-2" aria-labelledby="dropdownMenuButton">
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/install" data-text="Try Fleet">Try Fleet</a>
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" href="/contribute" data-text="Contribute">Contribute</a>
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/hall-of-fame" data-text="Hall of fame">Hall of fame</a>
+          <div class="bar d-none d-lg-flex">
+            <div class="dropdown px-3 py-2 mr-4">
+              <button style="font-size: 16px; line-height: 23px; text-decoration: none;" class="header-btn btn btn-link p-0 m-0 dropdown-label" type="button" id="dropdownMenuButton">
+                Get started
+              </button>
+              <div style="border-radius: 8px;" class="dropdown-menu dropdown-container p-2" aria-labelledby="dropdownMenuButton">
+                <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/install" data-text="Try Fleet">Try Fleet</a>
+                <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" href="/contribute" data-text="Contribute">Contribute</a>
+                <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/hall-of-fame" data-text="Hall of fame">Hall of fame</a>
+              </div>
             </div>
-          </div>
-          <a href="/docs" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Docs</a>
-          <a href="/queries" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Queries</a>
-          <a href="/pricing" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Pricing</a>
-          <a target="_blank" href="/blog" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Blog</a>
-          <!-- <a href="/company/contact" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Contact</a> -->
-          <a target="_blank" href="https://github.com/fleetdm/fleet" class="header-link d-flex align-items-center px-3 py-2" style=" text-decoration: none;line-height: 23px;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fill-rule="evenodd" clip-rule="evenodd" d="M11.9633 0.5C5.3578 0.5 0 5.8578 0 12.4633C0 17.7477 3.44954 22.2248 8.14679 23.8394C8.73394 23.9128 8.95413 23.5459 8.95413 23.2523C8.95413 22.9587 8.95413 22.2248 8.95413 21.1972C5.65138 21.9312 4.91743 19.5826 4.91743 19.5826C4.40367 18.1881 3.59633 17.8211 3.59633 17.8211C2.49541 17.0872 3.66972 17.0872 3.66972 17.0872C4.84404 17.1606 5.50459 18.3349 5.50459 18.3349C6.6055 20.1697 8.29358 19.656 8.95413 19.3624C9.02752 18.555 9.3945 18.0413 9.68807 17.7477C7.04587 17.4541 4.25688 16.4266 4.25688 11.8028C4.25688 10.4817 4.69725 9.45413 5.50459 8.57339C5.43119 8.35321 4.99083 7.1055 5.65138 5.49083C5.65138 5.49083 6.6789 5.19725 8.95413 6.73853C9.90826 6.44495 10.9358 6.37156 11.9633 6.37156C12.9908 6.37156 14.0183 6.51835 14.9725 6.73853C17.2477 5.19725 18.2752 5.49083 18.2752 5.49083C18.9358 7.1055 18.4954 8.35321 18.422 8.64679C19.156 9.45413 19.6697 10.555 19.6697 11.8761C19.6697 16.5 16.8807 17.4541 14.2385 17.7477C14.6789 18.1147 15.0459 18.8486 15.0459 19.9495C15.0459 21.5642 15.0459 22.8119 15.0459 23.2523C15.0459 23.5459 15.2661 23.9128 15.8532 23.8394C20.6239 22.2248 24 17.7477 24 12.4633C23.9266 5.8578 18.5688 0.5 11.9633 0.5Z" fill="#192147"/>
-            </svg>
-            <span style="line-height: 24px;" class="ml-2 mr-4">GitHub</span>
-          </a>
-          <span class="header-link d-flex align-items-center text-decoration-none">
-            <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
-            allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
-          </span>
+            <a href="/docs" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Docs</a>
+            <a href="/queries" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Queries</a>
+            <a href="/pricing" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Pricing</a>
+            <a target="_blank" href="/blog" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Blog</a>
+            <!-- <a href="/company/contact" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Contact</a> -->
+            <a target="_blank" href="https://github.com/fleetdm/fleet" class="header-link d-flex align-items-center px-3 py-2" style=" text-decoration: none;line-height: 23px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M11.9633 0.5C5.3578 0.5 0 5.8578 0 12.4633C0 17.7477 3.44954 22.2248 8.14679 23.8394C8.73394 23.9128 8.95413 23.5459 8.95413 23.2523C8.95413 22.9587 8.95413 22.2248 8.95413 21.1972C5.65138 21.9312 4.91743 19.5826 4.91743 19.5826C4.40367 18.1881 3.59633 17.8211 3.59633 17.8211C2.49541 17.0872 3.66972 17.0872 3.66972 17.0872C4.84404 17.1606 5.50459 18.3349 5.50459 18.3349C6.6055 20.1697 8.29358 19.656 8.95413 19.3624C9.02752 18.555 9.3945 18.0413 9.68807 17.7477C7.04587 17.4541 4.25688 16.4266 4.25688 11.8028C4.25688 10.4817 4.69725 9.45413 5.50459 8.57339C5.43119 8.35321 4.99083 7.1055 5.65138 5.49083C5.65138 5.49083 6.6789 5.19725 8.95413 6.73853C9.90826 6.44495 10.9358 6.37156 11.9633 6.37156C12.9908 6.37156 14.0183 6.51835 14.9725 6.73853C17.2477 5.19725 18.2752 5.49083 18.2752 5.49083C18.9358 7.1055 18.4954 8.35321 18.422 8.64679C19.156 9.45413 19.6697 10.555 19.6697 11.8761C19.6697 16.5 16.8807 17.4541 14.2385 17.7477C14.6789 18.1147 15.0459 18.8486 15.0459 19.9495C15.0459 21.5642 15.0459 22.8119 15.0459 23.2523C15.0459 23.5459 15.2661 23.9128 15.8532 23.8394C20.6239 22.2248 24 17.7477 24 12.4633C23.9266 5.8578 18.5688 0.5 11.9633 0.5Z" fill="#192147"/>
+              </svg>
+              <span style="line-height: 24px;" class="ml-2 mr-4">GitHub</span>
+            </a>
+            <span class="header-link d-flex align-items-center text-decoration-none">
+              <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
+              allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
+            </span>
           </div>
         </div>
       </div>
@@ -140,43 +140,43 @@
       <div style="background-color: #201E43;" purpose="page-footer">
         <div style="background-color: #201E43;">
           <div style="max-width: 1248px;" class="container-fluid d-flex flex-column flex-lg-row justify-content-center justify-content-lg-between px-3 px-md-4 pt-4 pb-0 mt-md-5 mb-lg-5">
-          <div class="d-flex flex-grow-1 flex-column align-items-center">
-            <div class="container-fluid d-block d-md-flex flex-md-row text-center justify-content-between justify-content-lg-end px-5 px-lg-0 pt-lg-3 pb-4 pb-md-0">
-              <a href="/install" class="d-block pr-lg-4 pb-4">Try Fleet</a>
-              <a href="/docs" class="d-block pr-lg-4 pb-4">Documentation</a>
-              <a href="/pricing" class="d-block pr-lg-4 pb-4">Pricing</a>
-              <a href="/docs/contributing" class="d-block pr-lg-4 pb-4">Contribute</a>
-              <a href="/blog" class="d-block pr-lg-4 pb-4">Blog</a>
-              <a href="/hall-of-fame" class="d-block pb-4">Hall of fame</a>
-            </div>
+            <div class="d-flex flex-grow-1 flex-column align-items-center">
+              <div class="container-fluid d-block d-md-flex flex-md-row text-center justify-content-between justify-content-lg-end px-5 px-lg-0 pt-lg-3 pb-4 pb-md-0">
+                <a href="/install" class="d-block pr-lg-4 pb-4">Try Fleet</a>
+                <a href="/docs" class="d-block pr-lg-4 pb-4">Documentation</a>
+                <a href="/pricing" class="d-block pr-lg-4 pb-4">Pricing</a>
+                <a href="/docs/contributing" class="d-block pr-lg-4 pb-4">Contribute</a>
+                <a href="/blog" class="d-block pr-lg-4 pb-4">Blog</a>
+                <a href="/hall-of-fame" class="d-block pb-4">Hall of fame</a>
+              </div>
     
-            <div class="container-fluid d-flex flex-column flex-md-row font-weight-bold justify-content-center justify-content-lg-end px-0 pt-3 pt-md-0">
-              <a href="https://twitter.com/fleetctl" class="d-flex flex-shrink-1 justify-content-center align-items-center px-0 pb-4 pb-lg-0">
-                <img alt="Twitter logo" src="/images/logo-twitter-32x26@2x.png" style="height: 25px; width: auto;" class="mr-3"/>
-                Follow us on Twitter
-              </a>
-              <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" class="d-flex flex-nowrap justify-content-center align-items-center px-1 px-sm-5 pb-4 pb-lg-0">
-                <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png" style="height: 25px; width: auto" class="mr-3"/>
-                <span>Join the community<span purpose="join-the-community-on-slack-expanded-text"> on Slack</span></span>
-              </a>
-              <a href="https://github.com/fleetdm/fleet" class="d-flex flex-shrink-1 justify-content-center align-items-center px-0 pb-4 pb-lg-0">
-                <img alt="GitHub logo" src="/images/github-mark-white-24x24@2x.png" style="height: 25px; width: auto" class="mr-3"/>
-                GitHub
-              </a>
-            </div>  
-          </div>
-          <div class="d-flex flex-column order-lg-first">
-            <div class="d-none d-lg-flex">
-              <a href="/">
-                <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;"/>
-              </a>  
-            </div>    
-            <div style="font-family: 'Lato', sans-serif; font-size: 13px;" class="d-flex flex-column justify-content-center justify-content-lg-start pt-5 pb-5 pt-md-4">
-              <div class="text-center text-lg-left">
-                <span>&copy; 2021 Fleet Device Management Inc.</span>
+              <div class="container-fluid d-flex flex-column flex-md-row font-weight-bold justify-content-center justify-content-lg-end px-0 pt-3 pt-md-0">
+                <a href="https://twitter.com/fleetctl" class="d-flex flex-shrink-1 justify-content-center align-items-center px-0 pb-4 pb-lg-0">
+                  <img alt="Twitter logo" src="/images/logo-twitter-32x26@2x.png" style="height: 25px; width: auto;" class="mr-3"/>
+                  Follow us on Twitter
+                </a>
+                <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" class="d-flex flex-nowrap justify-content-center align-items-center px-1 px-sm-5 pb-4 pb-lg-0">
+                  <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png" style="height: 25px; width: auto" class="mr-3"/>
+                  <span>Join the community<span purpose="join-the-community-on-slack-expanded-text"> on Slack</span></span>
+                </a>
+                <a href="https://github.com/fleetdm/fleet" class="d-flex flex-shrink-1 justify-content-center align-items-center px-0 pb-4 pb-lg-0">
+                  <img alt="GitHub logo" src="/images/github-mark-white-24x24@2x.png" style="height: 25px; width: auto" class="mr-3"/>
+                  GitHub
+                </a>
+              </div>  
+            </div>
+            <div class="d-flex flex-column order-lg-first">
+              <div class="d-none d-lg-flex">
+                <a href="/">
+                  <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;"/>
+                </a>  
+              </div>    
+              <div style="font-family: 'Lato', sans-serif; font-size: 13px;" class="d-flex flex-column justify-content-center justify-content-lg-start pt-5 pb-5 pt-md-4">
+                <div class="text-center text-lg-left">
+                  <span>&copy; 2021 Fleet Device Management Inc.</span>
+                </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
       </div>
