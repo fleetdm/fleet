@@ -2,7 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import { ILabel } from "interfaces/label";
-import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
+import { PLATFORM_LABEL_DISPLAY_NAMES } from "utilities/constants";
 import darwinIcon from "../../../../../assets/images/icon-darwin-fleet-black-16x16@2x.png";
 import linuxIcon from "../../../../../assets/images/icon-linux-fleet-black-16x16@2x.png";
 import ubuntuIcon from "../../../../../assets/images/icon-ubuntu-fleet-black-16x16@2x.png";
@@ -12,7 +12,7 @@ import windowsIcon from "../../../../../assets/images/icon-windows-fleet-black-1
 const baseClass = "panel-group-item";
 
 const displayName = (name: string) => {
-  return PLATFORM_DISPLAY_NAMES[name] || name;
+  return PLATFORM_LABEL_DISPLAY_NAMES[name] || name;
 };
 
 const displayIcon = (name: string) => {

@@ -33,7 +33,10 @@ import policiesClient from "services/entities/policies";
 import permissionUtils from "utilities/permissions";
 import sortUtils from "utilities/sort";
 
-import { PLATFORM_DISPLAY_NAMES, PolicyResponse } from "utilities/constants";
+import {
+  PLATFORM_LABEL_DISPLAY_NAMES,
+  PolicyResponse,
+} from "utilities/constants";
 import { getNextLocationPath } from "./helpers";
 import {
   defaultHiddenColumns,
@@ -1040,7 +1043,7 @@ export class ManageHostsPage extends PureComponent {
   }) => {
     const { onEditLabelClick, toggleDeleteLabelModal } = this;
 
-    displayText = PLATFORM_DISPLAY_NAMES[displayText] || displayText;
+    displayText = PLATFORM_LABEL_DISPLAY_NAMES[displayText] || displayText;
 
     return (
       <div className={`${baseClass}__label-block`}>
@@ -1093,6 +1096,7 @@ export class ManageHostsPage extends PureComponent {
         </div>
       );
     }
+    return null;
   };
 
   renderForm = () => {

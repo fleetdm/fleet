@@ -49,9 +49,17 @@ export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "1.8.1 +", value: "1.8.1" },
 ];
 
-export const OS_CUSTOM_LABELS = ["All Linux"];
+export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
+  "All Hosts": "All Hosts",
+  "All Linux": "Linux",
+  "CentOS Linux": "CentOS Linux",
+  macOS: "macOS",
+  "MS Windows": "Windows",
+  "Red Hat Linux": "Red Hat Linux",
+  "Ubuntu Linux": "Ubuntu Linux",
+};
 
-export const OS_DISPLAY_ORDER = [
+export const PLATFORM_LABEL_DISPLAY_ORDER = [
   "macOS",
   "All Linux",
   "CentOS Linux",
@@ -59,9 +67,14 @@ export const OS_DISPLAY_ORDER = [
   "MS Windows",
 ];
 
-export const PLATFORM_DISPLAY_NAMES: Record<string, string> = {
-  "All Linux": "Linux",
-  "MS Windows": "Windows",
+export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
+  "All Hosts": "all",
+  "All Linux": "platform",
+  "CentOS Linux": "platform",
+  macOS: "platform",
+  "MS Windows": "platform",
+  "Red Hat Linux": "platform",
+  "Ubuntu Linux": "platform",
 };
 
 export const PLATFORM_OPTIONS = [

@@ -9,7 +9,7 @@ import PanelGroup from "components/side_panels/HostSidePanel/PanelGroup";
 // @ts-ignore
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
 import { ILabel } from "interfaces/label";
-import { OS_CUSTOM_LABELS, OS_DISPLAY_ORDER } from "utilities/constants";
+import { PLATFORM_LABEL_DISPLAY_ORDER } from "utilities/constants";
 
 import PlusIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
@@ -45,32 +45,28 @@ const HostSidePanel = (props: IHostSidePanelProps): JSX.Element => {
 
   const hostPlatformLabels = (() => {
     const unorderedList: ILabel[] = labels.filter(
-      (label) =>
-        label.type === "platform" ||
-        (label.type === "custom" &&
-          label.label_type === "builtin" &&
-          OS_CUSTOM_LABELS.includes(label.name))
+      (label) => label.type === "platform"
     );
 
     let orderedList: ILabel[] = [];
-    OS_DISPLAY_ORDER.forEach((name) => {
+    PLATFORM_LABEL_DISPLAY_ORDER.forEach((name) => {
       orderedList.push(
         ...remove(unorderedList, (label) => label.name === name)
       );
     });
     orderedList = orderedList.concat(unorderedList);
 
-    return orderedList;
+    return orderedList.filter(
+      (label) =>
+        ["macOS", "MS Windows", "All Linux"].includes(label.name) ||
+        label.count !== 0
+    );
   })();
 
   const customLabels = filter(labels, (label) => {
     const lowerDisplayText = label.display_text.toLowerCase();
 
-    return (
-      label.type === "custom" &&
-      lowerDisplayText.match(labelFilter) &&
-      !OS_CUSTOM_LABELS.includes(label.name)
-    );
+    return label.type === "custom" && lowerDisplayText.match(labelFilter);
   });
 
   return (
