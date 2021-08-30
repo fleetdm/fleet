@@ -11,6 +11,17 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 604800, label: "Every week" },
 ];
 
+// as returned by the TARGETS API; based on display_text
+export const BUILTIN_LABELS = {
+  ALL: "All Hosts",
+  MAC: "macOS",
+  WINDOWS: "MS Windows",
+  LINUX: "All Linux",
+  UBUNTU: "Ubuntu Linux",
+  CENTOS: "CentOS Linux",
+  RED_HAT: "Red Hat Linux",
+};
+
 export const PLATFORM_OPTIONS = [
   { label: "All", value: "" },
   { label: "Windows", value: "windows" },

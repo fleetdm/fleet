@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { Dispatch } from "redux";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
-import { ErrorBoundary } from "react-error-boundary";
-import { forEach, isEmpty, reduce, remove, unionBy } from "lodash";
+import { filter, forEach, isEmpty, reduce, remove, unionBy } from "lodash";
 
 // @ts-ignore
 import { setSelectedTargets } from "redux/nodes/components/QueryPages/actions";
@@ -13,6 +12,7 @@ import { ITarget, ITargets, ITargetsAPIResponse } from "interfaces/target";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
+import { BUILTIN_LABELS } from "utilities/constants";
 
 // @ts-ignore
 import TargetsInput from "pages/queries/QueryPage1/components/TargetsInput";
@@ -121,47 +121,12 @@ const SelectTargets = ({
       }: IModifiedUseQueryTargetsResponse) => {
         if ("labels" in results) {
           // this will only run once
+          const { ALL, MAC, WINDOWS, LINUX } = BUILTIN_LABELS;
           const { labels, teams: targetTeams } = results as ITargets;
-          const allHosts = remove(
-            labels,
-            ({ display_text: text }) => text === "All Hosts"
-          );
-          const platforms = remove(
-            labels,
-            ({ label_type: type }) => type === "builtin"
-          );
-          const other = labels;
+          const allHosts = filter(labels, ({ display_text: text }) => text === ALL);
+          const platforms = filter(labels, ({ display_text: text }) => text === MAC || text === WINDOWS || text === LINUX);
+          const other = filter(labels, ({ label_type: type }) => type === "regular");
 
-          const linux = remove(platforms, ({ display_text: text }) =>
-            text.toLowerCase().includes("linux")
-          );
-          // used later when we need to send info
-          setLinuxLabels(linux);
-
-          // merge all linux OS
-          const mergedLinux = reduce(
-            linux,
-            (result, value) => {
-              if (isEmpty(result)) {
-                return {
-                  ...value,
-                  name: "Linux",
-                  display_text: "Linux",
-                  description: "All Linux hosts",
-                  label_type: "custom_frontend",
-                };
-              }
-
-              result.count += value.count;
-              result.hosts_count += value.hosts_count;
-              return result;
-            },
-            {} as ILabel
-          );
-
-          platforms.push(mergedLinux);
-
-          // setRelatedHosts([...hosts]);
           setAllHostsLabels(allHosts);
           setPlatformLabels(platforms);
           setTeams(targetTeams);
@@ -194,14 +159,8 @@ const SelectTargets = ({
     e.preventDefault();
     let labels = selectedLabels;
     let newTargets = null;
-    let removed = [];
     const targets = selectedTargets;
-
-    if (entity.name === "Linux") {
-      removed = remove(labels, ({ name }) => name.includes("Linux"));
-    } else {
-      removed = remove(labels, ({ id }) => id === entity.id);
-    }
+    const removed = remove(labels, ({ id }) => id === entity.id);
 
     // visually show selection
     const isRemoval = removed.length > 0;
@@ -210,16 +169,7 @@ const SelectTargets = ({
     } else {
       labels.push(entity);
 
-      // now prepare the labels data
-      const linuxFakeIndex = labels.findIndex(
-        ({ name }: ILabel) => name === "Linux"
-      );
-      if (linuxFakeIndex > -1) {
-        // use the official linux labels instead
-        labels.splice(linuxFakeIndex, 1);
-        labels = labels.concat(linuxLabels);
-      }
-
+      // prepare the labels data
       forEach(labels, (label) => {
         label.target_type = "label_type" in label ? "labels" : "teams";
       });
@@ -303,10 +253,10 @@ const SelectTargets = ({
     <div className={`${baseClass}__wrapper body-wrap`}>
       <h1>Select Targets</h1>
       <div className={`${baseClass}__target-selectors`}>
-        {allHostsLabels && renderTargetEntityList("", allHostsLabels)}
-        {platformLabels && renderTargetEntityList("Platforms", platformLabels)}
-        {teams && renderTargetEntityList("Teams", teams)}
-        {otherLabels && renderTargetEntityList("Labels", otherLabels)}
+        {allHostsLabels && allHostsLabels.length > 0 && renderTargetEntityList("", allHostsLabels)}
+        {platformLabels && platformLabels.length > 0 && renderTargetEntityList("Platforms", platformLabels)}
+        {teams && teams.length > 0 && renderTargetEntityList("Teams", teams)}
+        {otherLabels && otherLabels.length > 0 && renderTargetEntityList("Labels", otherLabels)}
       </div>
       <TargetsInput
         tabIndex={inputTabIndex}
