@@ -4948,7 +4948,7 @@ None.
     }
   }
   "update_interval": {
-    "osquery_detail": "1hr"
+    "osquery_detail": 3600000000000
   }
 }
 ```

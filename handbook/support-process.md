@@ -24,7 +24,7 @@ This way, the Fleet team can constantly improve the effectiveness and experience
 
 - Celebrate contributions. 
 
-- Identify actionable bugs, feature requests, pull requests and questions.
+- Triage bugs, identify community feature requests, community pull requests and community questions.
 
 ## How?
 
@@ -76,13 +76,15 @@ To provide another way of tracking status without closing issues altogether, con
 
 ## Sources
 
-There are three sources that the individual on-call should monitor for activity:
+There are four sources that the individual on-call should monitor for activity:
 
 1. Customer Slack channels - Found under the "Connections" section in Slack. These channels are usually titled "at-insert-customer-name-here"
 
 2. Community chatroom - https://osquery.slack.com, #fleet channel
 
-3. GitHub issues and pull requests - [Github Triage: Community contributions with no milestones or assignees](https://github.com/issues?q=is%3Aopen+archived%3Afalse+org%3Afleetdm+no%3Amilestone+no%3Aassignee+sort%3Aupdated-desc+)
+3. Reported bugs - [GitHub issues with the "bug" and ":reproduce" label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce). Please remove the ":reproduce" label after you've followed up in the issue.
+
+4. Pull requests opened by the community - [GitHub open pull requests](https://github.com/fleetdm/fleet/pulls?q=is%3Aopen+is%3Apr)
 
 ## Resources
 
