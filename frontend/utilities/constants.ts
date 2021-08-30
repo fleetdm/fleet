@@ -63,6 +63,7 @@ export const PLATFORM_LABEL_DISPLAY_ORDER = [
   "macOS",
   "All Linux",
   "CentOS Linux",
+  "Red Hat Linux",
   "Ubuntu Linux",
   "MS Windows",
 ];
