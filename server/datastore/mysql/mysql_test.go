@@ -1,7 +1,9 @@
 package mysql
 
 import (
+	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/VividCortex/mysqlerr"
@@ -32,7 +34,31 @@ func TestDatastoreReplica(t *testing.T) {
 		defer ds.Close()
 		require.NotEqual(t, ds.reader, ds.writer)
 
+		// create a new host
+		host, err := ds.NewHost(&fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         "1",
+			UUID:            "1",
+			Hostname:        "foo.local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+
+		// trying to read it fails, not replicated yet
+		_, err = ds.Host(host.ID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+
 		opts.RunReplication()
+
+		// now it can read it
+		host2, err := ds.Host(host.ID)
+		require.NoError(t, err)
+		require.Equal(t, host.ID, host2.ID)
 	})
 }
 

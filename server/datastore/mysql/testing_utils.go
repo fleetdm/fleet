@@ -76,13 +76,7 @@ func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *Datast
 		primary := ds.writer
 		replica := ds.reader.(*sqlx.DB)
 		replicaDB := testName + testReplicaDatabaseSuffix
-		last := time.Now()
-
-		var dbName string
-		require.NoError(t, primary.GetContext(ctx, &dbName, `select database()`))
-		t.Logf("primary database: %s", dbName)
-		require.NoError(t, replica.GetContext(ctx, &dbName, `select database()`))
-		t.Logf("replica database: %s", dbName)
+		last := time.Now().Add(-time.Minute)
 
 		// drop all foreign keys in the replica, as that causes issues even with
 		// FOREIGN_KEY_CHECKS=0
@@ -101,7 +95,6 @@ func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *Datast
 		require.NoError(t, err)
 		for _, fk := range fks {
 			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
-			t.Log(stmt)
 			_, err := replica.ExecContext(ctx, stmt)
 			require.NoError(t, err)
 		}
@@ -119,10 +112,18 @@ func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *Datast
           WHERE
             table_schema = ? AND
             table_type = 'BASE TABLE' AND
-            ( update_time IS NULL OR
-              update_time >= ? )`, testName, last)
+            update_time >= ?`, testName, last)
 				require.NoError(t, err)
-				last = time.Now()
+
+				err = primary.GetContext(ctx, &last, `
+          SELECT
+            MAX(update_time)
+          FROM
+            information_schema.tables
+          WHERE
+            table_schema = ? AND
+            table_type = 'BASE TABLE'`, testName)
+				require.NoError(t, err)
 
 				// replicate by dropping the existing table and re-creating it from
 				// the primary.
@@ -138,7 +139,7 @@ func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *Datast
 				}
 
 				out <- struct{}{}
-				t.Log("replication step executed")
+				t.Logf("replication step executed, next will consider updates since %s", last)
 
 			case <-ctx.Done():
 				return
