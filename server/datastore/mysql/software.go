@@ -258,6 +258,9 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 	for _, software := range result {
 		software.Vulnerabilities = cvesBySoftware[software.ID]
 		resultWithCVEs = append(resultWithCVEs, *software)
+		if err := rows.Err(); err != nil {
+			return nil, errors.Wrap(err, "error iterating through cve rows")
+		}
 	}
 
 	return resultWithCVEs, nil
