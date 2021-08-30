@@ -84,19 +84,7 @@ describe("AppConfigForm - form", () => {
     });
   });
 
-  it("does not render advanced options by default", () => {
-    expect(form.find({ name: "domain" }).length).toEqual(0);
-  });
-
   describe("Advanced options", () => {
-    beforeAll(() => {
-      form.find(".app-config-form__show-options").simulate("click");
-    });
-
-    it('renders advanced options when "Advanced Options" is clicked', () => {
-      expect(form.find({ name: "domain" }).hostNodes().length).toEqual(1);
-    });
-
     it("disables host expiry window by default", () => {
       const InputField = form.find({ name: "host_expiry_window" });
       const inputElement = InputField.find("input");
