@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -286,4 +288,49 @@ func TestAllCPEs(t *testing.T) {
 	cpes, err := ds.AllCPEs()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, cpes, []string{"somecpe", "someothercpewithoutvulns"})
+}
+
+func TestLoadSupportsTonsOfCVEs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	_, err := ds.db.Exec("SET GLOBAL group_concat_max_len = 4194304")
+	require.NoError(t, err)
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "apps"},
+			{Name: "blah", Version: "1.0", Source: "apps"},
+		},
+	}
+	host.HostSoftware = soft
+	require.NoError(t, ds.SaveHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(host.Software[1], "someothercpewithoutvulns"))
+	for i := 0; i < 1000; i++ {
+		part1 := rand.Intn(1000)
+		part2 := rand.Intn(1000)
+		part3 := rand.Intn(1000)
+		cve := fmt.Sprintf("cve-%d-%d-%d", part1, part2, part3)
+		require.NoError(t, ds.InsertCVEForCPE(cve, []string{"somecpe"}))
+	}
+
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	assert.Equal(t, "somecpe", host.Software[0].GenerateCPE)
+	require.Len(t, host.Software[0].Vulnerabilities, 1000)
+	//assert.Equal(t, "cve-123-123-132", host.Software[0].Vulnerabilities[0].CVE)
+	//assert.Equal(t,
+	//	"https://nvd.nist.gov/vuln/detail/cve-123-123-132", host.Software[0].Vulnerabilities[0].DetailsLink)
+	//assert.Equal(t, "cve-321-321-321", host.Software[0].Vulnerabilities[1].CVE)
+	//assert.Equal(t,
+	//	"https://nvd.nist.gov/vuln/detail/cve-321-321-321", host.Software[0].Vulnerabilities[1].DetailsLink)
+
+	assert.Equal(t, "someothercpewithoutvulns", host.Software[1].GenerateCPE)
+	require.Len(t, host.Software[1].Vulnerabilities, 0)
 }

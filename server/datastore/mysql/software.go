@@ -233,6 +233,19 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 		return nil, errors.Wrap(err, "load host software")
 	}
 
+	//sql = `
+	//	SELECT s.id, coalesce(scp.cpe, "") as generated_cpe, scv.cve
+	//	FROM software s
+	//	LEFT JOIN software_cpe scp ON (s.id=scp.software_id)
+	//	LEFT JOIN software_cve scv ON (scp.id=scv.cpe_id)
+	//	WHERE s.id IN
+	//		(SELECT software_id FROM host_software WHERE host_id = ?)
+	//	group by s.id, s.name, s.version, s.source, generated_cpe
+	//`
+	//if err := selectFunc(&result, sql, id); err != nil {
+	//	return nil, errors.Wrap(err, "load host software")
+	//}
+
 	return result, nil
 }
 
