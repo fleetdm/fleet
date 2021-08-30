@@ -41,14 +41,37 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
   const tooltipText = () => {
     console.log("value", value);
     switch (value) {
-      case "undetermined":
-        return "Running this query very frequently has little to no impact on your device’s performance.";
+      case "minimal":
+        return (
+          <>
+            Running this query very frequently
+            <br /> has little to no impact
+            <br /> on your device’s performance.
+          </>
+        );
       case "considerable":
-        return "Running this query frequently can have a noticeable impact on your device’s performance.";
+        return (
+          <>
+            Running this query frequently
+            <br /> can have a noticeable impact <br /> on your device’s
+            performance.
+          </>
+        );
       case "excessive":
-        return "Running this query, even infrequently, can have a significant impact on your device’s performance.";
+        return (
+          <>
+            Running this query, even infrequently, <br /> can have a significant
+            impact
+            <br /> on your device’s performance.
+          </>
+        );
       case "denylisted":
-        return "This query has been stopped from running because of excessive resource consumption.";
+        return (
+          <>
+            This query has been stopped <br /> from running because of
+            <br /> excessive resource consumption.
+          </>
+        );
       default:
         return null;
     }
