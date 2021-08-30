@@ -188,20 +188,19 @@ func TestSearchLabels(t *testing.T) {
 	defer db.Close()
 
 	specs := []*fleet.LabelSpec{
-		&fleet.LabelSpec{
-			ID:   1,
-			Name: "foo",
-		},
-		&fleet.LabelSpec{
-			ID:   2,
-			Name: "bar",
-		},
-		&fleet.LabelSpec{
-			ID:   3,
-			Name: "foo-bar",
-		},
-		&fleet.LabelSpec{
-			ID:        4,
+		{ID: 1, Name: "foo"},
+		{ID: 2, Name: "bar"},
+		{ID: 3, Name: "foo-bar"},
+		{ID: 4, Name: "bar2"},
+		{ID: 5, Name: "bar3"},
+		{ID: 6, Name: "bar4"},
+		{ID: 7, Name: "bar5"},
+		{ID: 8, Name: "bar6"},
+		{ID: 9, Name: "bar7"},
+		{ID: 10, Name: "bar8"},
+		{ID: 11, Name: "bar9"},
+		{
+			ID:        12,
 			Name:      "All Hosts",
 			LabelType: fleet.LabelTypeBuiltIn,
 		},
@@ -209,7 +208,7 @@ func TestSearchLabels(t *testing.T) {
 	err := db.ApplyLabelSpecs(specs)
 	require.Nil(t, err)
 
-	all, err := db.Label(specs[3].ID)
+	all, err := db.Label(specs[len(specs)-1].ID)
 	require.Nil(t, err)
 	l3, err := db.Label(specs[2].ID)
 	require.Nil(t, err)
@@ -221,6 +220,7 @@ func TestSearchLabels(t *testing.T) {
 	// don't error.
 	labels, err := db.SearchLabels(filter, "")
 	require.Nil(t, err)
+	assert.Len(t, labels, 12)
 	assert.Contains(t, labels, all)
 
 	labels, err = db.SearchLabels(filter, "foo")
