@@ -125,9 +125,7 @@ const QueryForm = ({
           value={value || storedQuery.query}
           error={error || errors.query}
           label="Query:"
-          labelActionComponent={
-            showOpenSchemaActionText && renderLabelComponent()
-          }
+          labelActionComponent={renderLabelComponent()}
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
