@@ -7,7 +7,7 @@ const baseClass = "remove-policies-modal";
 
 interface IRemovePoliciesModalProps {
   onCancel: () => void;
-  onSubmit: (ids: any) => void; // TODO typing for mouse event?
+  onSubmit: () => void;
 }
 
 const RemovePoliciesModal = (props: IRemovePoliciesModalProps): JSX.Element => {

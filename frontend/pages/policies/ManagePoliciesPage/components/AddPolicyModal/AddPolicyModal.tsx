@@ -14,7 +14,7 @@ const baseClass = "add-policy-modal";
 interface IAddPolicyModalProps {
   allQueries: IQuery[];
   onCancel: () => void;
-  onSubmit: (query_id: any) => void;
+  onSubmit: (query_id: number | undefined) => void;
 }
 
 const AddPolicyModal = ({
@@ -22,16 +22,13 @@ const AddPolicyModal = ({
   onSubmit,
   allQueries,
 }: IAddPolicyModalProps): JSX.Element => {
-  const [selectedQuery, setSelectedQuery] = useState<number | undefined>();
+  const [selectedQuery, setSelectedQuery] = useState<number>();
 
   const createQueryDropdownOptions = () => {
-    const queryOptions = allQueries.map((q) => {
-      return {
-        value: q.id,
-        label: q.name,
-      };
-    });
-    return queryOptions;
+    return allQueries.map(({ id, name }) => ({
+      value: id,
+      label: name,
+    }));
   };
 
   const onChangeSelectQuery = useCallback(
@@ -40,10 +37,6 @@ const AddPolicyModal = ({
     },
     [setSelectedQuery]
   );
-
-  const handleSubmitAddPolicy = useCallback(() => {
-    onSubmit(selectedQuery);
-  }, [onSubmit, selectedQuery]);
 
   return (
     <Modal title={"Add a policy"} onExit={onCancel} className={baseClass}>
@@ -77,7 +70,7 @@ const AddPolicyModal = ({
             className={`${baseClass}__btn`}
             type="button"
             variant="brand"
-            onClick={handleSubmitAddPolicy}
+            onClick={() => onSubmit(selectedQuery)}
             disabled={!selectedQuery}
           >
             Add

@@ -42,7 +42,7 @@ const renderTable = (
   policiesList: IPolicy[],
   isLoading: boolean,
   isLoadingError: boolean,
-  onRemovePoliciesClick: React.MouseEventHandler<HTMLButtonElement>,
+  onRemovePoliciesClick: (selectedTableIds: number[]) => void,
   toggleAddPolicyModal: () => void
 ): JSX.Element => {
   if (isLoadingError) {
@@ -80,7 +80,6 @@ const ManagePolicyPage = (): JSX.Element => {
     setIsLoading(true);
     try {
       const response = await policiesAPI.loadAll();
-      console.log(response);
       setPolicies(response.policies);
     } catch (error) {
       console.log(error);
@@ -96,7 +95,6 @@ const ManagePolicyPage = (): JSX.Element => {
   const getInterval = useCallback(async () => {
     try {
       const response = await configAPI.loadAll();
-      console.log(response);
       const interval = secondsToHms(
         inMilliseconds(response.update_interval.osquery_detail) / 1000
       );
@@ -131,7 +129,7 @@ const ManagePolicyPage = (): JSX.Element => {
 
   // TODO typing for mouse event?
   const onRemovePoliciesClick = useCallback(
-    (selectedTableIds: any): void => {
+    (selectedTableIds: number[]): void => {
       toggleRemovePoliciesModal();
       setSelectedIds(selectedTableIds);
     },
@@ -169,7 +167,14 @@ const ManagePolicyPage = (): JSX.Element => {
   }, [dispatch, getPolicies, selectedIds, toggleRemovePoliciesModal]);
 
   const onAddPolicySubmit = useCallback(
-    (query_id: number) => {
+    (query_id: number | undefined) => {
+      if (!query_id) {
+        dispatch(
+          renderFlash("error", "Could not add policy. Please try again.")
+        );
+        console.log("Missing query id; cannot add policy");
+        return false;
+      }
       policiesAPI
         .create(query_id)
         .then(() => {
@@ -184,6 +189,7 @@ const ManagePolicyPage = (): JSX.Element => {
           toggleAddPolicyModal();
           getPolicies();
         });
+      return false;
     },
     [dispatch, getPolicies, toggleAddPolicyModal]
   );

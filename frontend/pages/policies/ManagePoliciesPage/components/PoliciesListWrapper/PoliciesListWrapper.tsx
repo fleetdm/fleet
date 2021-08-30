@@ -12,7 +12,7 @@ const noPoliciesClass = "no-policies";
 interface IPoliciesListWrapperProps {
   policiesList: IPolicy[];
   isLoading: boolean;
-  onRemovePoliciesClick: any;
+  onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   toggleAddPolicyModal: () => void;
 }
 
