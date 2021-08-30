@@ -213,6 +213,7 @@ type Datastore interface {
 
 	NewPasswordResetRequest(req *PasswordResetRequest) (*PasswordResetRequest, error)
 	DeletePasswordResetRequestsForUser(userID uint) error
+	FindPassswordResetByToken(token string) (*PasswordResetRequest, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SessionStore is the abstract interface that all session backends must conform to.

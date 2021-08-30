@@ -33,3 +33,17 @@ func (d *Datastore) DeletePasswordResetRequestsForUser(userID uint) error {
 
 	return nil
 }
+func (d *Datastore) FindPassswordResetByToken(token string) (*fleet.PasswordResetRequest, error) {
+	sqlStatement := `
+               SELECT * FROM password_reset_requests
+               WHERE token = ? LIMIT 1
+       `
+	passwordResetRequest := &fleet.PasswordResetRequest{}
+	err := d.db.Get(passwordResetRequest, sqlStatement, token)
+	if err != nil {
+		return nil, errors.Wrap(err, "selecting password reset requests")
+	}
+
+	return passwordResetRequest, nil
+
+}
