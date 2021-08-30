@@ -239,33 +239,6 @@ func TestSearchLabels(t *testing.T) {
 	assert.Contains(t, labels, all)
 }
 
-func TestSearchLabelsLimit(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
-	all := &fleet.LabelSpec{
-		Name:      "All Hosts",
-		LabelType: fleet.LabelTypeBuiltIn,
-	}
-	err := db.ApplyLabelSpecs([]*fleet.LabelSpec{all})
-	require.Nil(t, err)
-
-	for i := 0; i < 15; i++ {
-		l := &fleet.LabelSpec{
-			Name: fmt.Sprintf("foo%d", i),
-		}
-		err := db.ApplyLabelSpecs([]*fleet.LabelSpec{l})
-		require.Nil(t, err)
-	}
-
-	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	filter := fleet.TeamFilter{User: user}
-
-	labels, err := db.SearchLabels(filter, "foo")
-	require.Nil(t, err)
-	assert.Len(t, labels, 11)
-}
-
 func TestListHostsInLabel(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
