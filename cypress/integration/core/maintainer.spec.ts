@@ -1,7 +1,11 @@
 describe(
   "Core tier - Maintainer user",
   {
+<<<<<<< HEAD
     defaultCommandTimeout: 20000,
+=======
+    defaultCommandTimeout: 8000,
+>>>>>>> 2d93ccbc (packflow, queryflow, admin core, maintainer core should pass)
   },
   () => {
     beforeEach(() => {
