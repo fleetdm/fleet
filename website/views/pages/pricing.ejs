@@ -2,16 +2,16 @@
   <div class="pb-5">
     <div
       style="max-width: 1260px"
-      class="container-fluid pt-5 px-4 px-sm-5 mx-auto"
+      class="container-fluid pt-5 px-4 mx-auto"
     >
-      <section id="pricing-section" class="pt-5 mx-auto">
+      <section id="pricing-section" class="container-fluid d-flex flex-column justify-content-center pt-5 mx-auto">
         <h1 class="text-center">Choose your plan</h1>
         <p class="text-center mb-5">
           Choose the right plan for where your organization is at today.
         </p>
-        <div style="max-width: 810px">
-          <div class="row">
-            <div style="max-width: 392px" class="col-lg px-1 mx-auto">
+        <div class="d-flex justify-content-center p-0">
+          <div class="container-fluid d-flex flex-wrap justify-content-center p-0">
+            <div style="max-width: 384px; min-width: 330px;" class="w-100 mx-3">
               <div style="border-radius: 15px" class="card mb-4">
                 <div class="card-body">
                   <div style="min-height: 125px" class="text-center mt-4">
@@ -72,7 +72,7 @@
                 </div>
               </div>
             </div>
-            <div style="max-width: 392px" class="col-lg px-1 mx-auto">
+            <div style="max-width: 384px; min-width: 330px;" class="w-100 mx-3">
               <div style="border-radius: 15px" class="card mb-4">
                 <div class="card-body">
                   <div style="min-height: 125px" class="text-center mt-4">
@@ -139,12 +139,11 @@
           </div>
         </div>
       </section>
-      <section id="features" class="pt-5 mx-auto">
-        <div style="max-width: 810px">
-          <div class="row">
-            <div class="col-lg px-1 mx-auto" style="max-width: 810px">
+      <section id="features" class="d-flex flex-column justify-content-center p-0 pt-5 mx-auto">
+          <div class="container-fluid d-flex flex-column flex-sm-row flex-wrap justify-content-center p-0">
+            <div style="max-width: 810px" class="w-100 px-1" >
               <div style="border-radius: 15px" class="card mb-4">
-                <div class="card-body py-md-5 px-md-5">
+                <div class="card-body py-md-5 pl-4 px-md-5">
                   <div class="row mb-4">
                     <div class="col-8">
                       <p class="m-0" style="color: #8b8fa2">SUPPORT</p>
@@ -1128,11 +1127,10 @@
               </div>
             </div>
           </div>
-        </div>
 
-        <div style="max-width: 800px; color: #192147;" class="pt-5 mx-auto">
+        <div style="color: #192147;" class="container-fluid d-flex flex-column justify-content-center pt-5 mx-auto">
           <h2 class="text-center mb-4">FAQ</h2>
-          <div class="mb-5">
+          <div style="max-width: 800px;" class="container-fluid d-flex flex-column justify-content-center mb-5">
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
               <p id="faq__question1" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
                 Is Fleet MIT licensed?
@@ -1210,10 +1208,15 @@
 
         <div style="max-width: 1260px;" class="container-fluid py-5 px-4 px-sm-5 mx-auto">
           <div style="max-width: 800px" class="mx-auto">
-            <div style="max-width: 800px;" class="position-relative mx-auto">
-              <p>"Fleet is hands down the best osquery platform out there. Zach and I created Fleet as a natural extension to our original vision for osquery and this has manifested in the ease-of-use, flexibility, and adoption it has today. Look to Fleet for the future of open-source endpoint monitoring."</p>
-              <p style="color: #676A7A" class="mb-4">- Mike Arpaia, Co-creator of <a style="color:#676A7A;" target="_blank" href="https://osquery.io/">osquery</a></p>
-              <a target="_blank" href="https://osquery.io/"><img alt="osquery logo" src="/images/logo-osquery-137x40@2x.png" style="height: 40px; width: 137px;" class="d-inline-block mb-3 mx-auto"/></a>
+            <div style="max-width: 800px;" class="d-flex position-relative px-0 px-md-3 mx-auto">
+              <div class="d-inline-block pr-2">
+                <h1 style="font-size:48px; line-height: 58px;">&#8220;</h1>
+              </div>
+              <div class="d-inline-block pl-2">
+                <p style="font-size: 24px; line-height: 36px;">Fleet is hands down the best osquery platform out there. Zach and I created Fleet as a natural extension to our original vision for osquery and this has manifested in the ease-of-use, flexibility, and adoption it has today. Look to Fleet for the future of open-source endpoint monitoring.</p>
+                <p style="color: #676A7A" class="mb-4">- Mike Arpaia, Co-creator of <a style="color:#676A7A;" target="_blank" href="https://osquery.io/">osquery</a></p>
+                <a target="_blank" href="https://osquery.io/"><img alt="osquery logo" src="/images/logo-osquery-137x40@2x.png" style="height: 40px; width: 137px;" class="d-inline-block my-3 mx-auto"/></a>  
+              </div>
             </div>
           </div>
         </div>

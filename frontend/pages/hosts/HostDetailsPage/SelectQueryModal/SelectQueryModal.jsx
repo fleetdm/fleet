@@ -34,18 +34,33 @@ const onQueryHostSaved = (host, selectedQuery, dispatch) => {
 };
 
 const SelectQueryModal = (props) => {
-  const { host, onCancel, dispatch, queries, queryErrors } = props;
+  const {
+    host,
+    onCancel,
+    dispatch,
+    queries,
+    queryErrors,
+    isOnlyObserver,
+  } = props;
+
+  let queriesAvailableToRun = queries;
+
+  if (isOnlyObserver) {
+    queriesAvailableToRun = queries.filter(
+      (query) => query.observer_can_run === true
+    );
+  }
 
   const [queriesFilter, setQueriesFilter] = useState("");
 
   const getQueries = () => {
     if (!queriesFilter) {
-      return queries;
+      return queriesAvailableToRun;
     }
 
     const lowerQueryFilter = queriesFilter.toLowerCase();
 
-    return filter(queries, (query) => {
+    return filter(queriesAvailableToRun, (query) => {
       if (!query.name) {
         return false;
       }
@@ -140,10 +155,12 @@ const SelectQueryModal = (props) => {
                 value={queriesFilter}
               />
             </div>
-            <div className={`${baseClass}__create-query`}>
-              <span>OR</span>
-              {customQueryButton()}
-            </div>
+            {!isOnlyObserver && (
+              <div className={`${baseClass}__create-query`}>
+                <span>OR</span>
+                {customQueryButton()}
+              </div>
+            )}
           </div>
           <div>{queryList}</div>
         </div>
@@ -199,6 +216,7 @@ SelectQueryModal.propTypes = {
   queries: PropTypes.arrayOf(queryInterface),
   onCancel: PropTypes.func,
   queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+  isOnlyObserver: PropTypes.bool,
 };
 
 export default SelectQueryModal;
