@@ -112,7 +112,7 @@ The `fleetdm.com/docs` compilation process does not account for relative links t
 Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
 
 #### Linking to a location on GitHub
-When adding a link to a location on GitHub that is outside of `/docs`, Be sure to use the canonical form of the URL.
+When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
 
 To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its cononical form.
 
