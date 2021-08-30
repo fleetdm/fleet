@@ -185,9 +185,11 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 			CurrentInstanceChecks: "auto",
 		},
 	}
-	go cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), &alwaysLocker{}, "AAA", fleetConfig)
 
-	time.Sleep(1 * time.Second)
+	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
+	cancelFunc()
+	cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), &alwaysLocker{}, "AAA", fleetConfig)
+
 	require.DirExists(t, vulnPath)
 }
 
@@ -210,9 +212,10 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 			CurrentInstanceChecks: "auto",
 		},
 	}
-	go cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
 
-	time.Sleep(1 * time.Second)
+	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
+	cancelFunc()
+	cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
 
 	require.Contains(t, buf.String(), `{"level":"debug","waiting":"on ticker"}`)
 }
@@ -240,9 +243,10 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 			CurrentInstanceChecks: "auto",
 		},
 	}
-	go cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
 
-	time.Sleep(1 * time.Second)
+	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
+	cancelFunc()
+	cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
 
 	require.Contains(t, buf.String(), `"databases-path":"creation failed, returning"`)
 }
@@ -269,9 +273,10 @@ func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
 			CurrentInstanceChecks: "1",
 		},
 	}
-	go cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
 
-	time.Sleep(1 * time.Second)
+	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
+	cancelFunc()
+	cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
 
 	require.NoDirExists(t, vulnPath)
 }
