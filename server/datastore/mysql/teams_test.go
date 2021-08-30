@@ -219,5 +219,12 @@ func TestTeamEnrollSecrets(t *testing.T) {
 
 	enrollSecrets, err := ds.TeamEnrollSecrets(team1.ID)
 	require.NoError(t, err)
-	test.ElementsMatchSkipID(t, secrets, enrollSecrets)
+
+	var justSecrets []*fleet.EnrollSecret
+	for _, secret := range enrollSecrets {
+		require.NotNil(t, secret.TeamID)
+		assert.Equal(t, team1.ID, *secret.TeamID)
+		justSecrets = append(justSecrets, &fleet.EnrollSecret{Secret: secret.Secret})
+	}
+	test.ElementsMatchSkipTimestampsID(t, secrets, justSecrets)
 }
