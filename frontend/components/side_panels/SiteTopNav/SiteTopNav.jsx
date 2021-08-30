@@ -12,6 +12,7 @@ import navItems from "./navItems";
 import HostsIcon from "../../../../assets/images/icon-main-hosts@2x-16x16@2x.png";
 import QueriesIcon from "../../../../assets/images/icon-main-queries@2x-16x16@2x.png";
 import PacksIcon from "../../../../assets/images/icon-main-packs@2x-16x16@2x.png";
+import PoliciesIcon from "../../../../assets/images/icon-main-policies-16x16@2x.png";
 import AdminIcon from "../../../../assets/images/icon-main-settings@2x-16x16@2x.png";
 
 class SiteTopNav extends Component {
@@ -61,6 +62,14 @@ class SiteTopNav extends Component {
     else if (iconName === "packs")
       icon = (
         <img src={PacksIcon} alt={`${iconName} icon`} className={iconClasses} />
+      );
+    else if (iconName === "policies")
+      icon = (
+        <img
+          src={PoliciesIcon}
+          alt={`${iconName} icon`}
+          className={iconClasses}
+        />
       );
     else if (iconName === "settings")
       icon = (

@@ -71,6 +71,14 @@ Cypress.Commands.add("seedQueries", () => {
       description: "List authorized_keys for each user on the system.",
       observer_can_run: false,
     },
+    {
+      name:
+        "Detect Linux hosts with high severity vulnerable versions of OpenSSL",
+      query:
+        "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
+      description: "Retrieves the OpenSSL version.",
+      observer_can_run: false,
+    },
   ];
 
   queries.forEach((queryForm) => {

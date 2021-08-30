@@ -1,23 +1,14 @@
-.manage-hosts {
-  .header-wrap {
+.manage-policies-page {
+  &__header-wrap {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    margin-bottom: $pad-medium;
-
-    .button-wrap {
-      min-width: 266px;
-    }
-  }
-
-  .ace-fleet {
-    margin-bottom: $pad-medium;
+    margin-bottom: $pad-small;
   }
 
   &__header {
     display: flex;
     align-items: center;
-    min-width: 125px;
 
     .form-field {
       margin-bottom: 0;
@@ -49,65 +40,59 @@
     }
   }
 
-  &__label-actions {
-    button {
-      &:first-child {
-        margin-right: $pad-medium;
-      }
+  &__description {
+    margin: 0;
+    padding-top: $pad-xsmall;
+
+    h2 {
+      text-transform: uppercase;
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $small;
+    }
+
+    p {
+      color: $core-dark-blue-grey;
+      margin: 0;
+      font-size: $x-small;
+      font-style: italic;
     }
   }
 
-  &__label-block {
-    .title {
-      display: flex;
-      align-items: center;
-      span {
-        font-size: $x-small;
-        font-weight: $bold;
-      }
-      button {
-        margin-left: $pad-small;
-        padding: 0;
-        height: auto;
+  &__action-button-container {
+    display: flex;
+    align-items: flex-start;
+  }
 
-        img {
-          margin: 0;
-        }
-      }
-    }
-    .description {
-      span {
-        vertical-align: text-top;
-        font-size: $x-small;
-        opacity: 0.5;
-      }
+  .button {
+    font-size: $x-small;
+
+    img {
+      transform: scale(0.5);
     }
   }
 
-  &__toggle-view {
-    .fleeticon {
-      width: 24px;
-      height: 24px;
-      margin-left: 12px;
-      fill: $ui-gray;
-    }
-
-    &--active {
-      .fleeticon {
-        fill: $core-fleet-purple;
-      }
-    }
+  &__advanced-button {
+    margin-right: $pad-medium;
   }
 
-  .table-container {
-    padding-top: $pad-small;
-  }
+  &__sandbox-info {
+    margin-top: $pad-large;
+    margin-bottom: $pad-xxlarge;
 
-  .data-table-container {
-    .data-table {
-      &__wrapper {
-        overflow-x: scroll;
-      }
+    p {
+      font-size: $x-small;
+      margin: 0;
+      margin-bottom: $pad-medium;
+    }
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    a {
+      color: $core-vibrant-blue;
+      text-decoration: none;
     }
   }
 
@@ -118,23 +103,6 @@
 
     .button:first-child {
       margin-right: $pad-medium;
-    }
-  }
-
-  .form-field--dropdown {
-    margin: 0;
-  }
-
-  &__status_dropdown {
-    width: 159px;
-
-    .Select-menu-outer {
-      width: 364px;
-      max-height: 310px;
-
-      .Select-menu {
-        max-height: none;
-      }
     }
   }
 
@@ -155,12 +123,18 @@
 
     .Select-menu-outer {
       position: absolute;
-      width: 330px;
-      min-width: 125px;
       left: -12px;
       border-radius: 6px;
     }
+  }
 
+  .Select.is-open {
+    .Select-value-label {
+      color: $core-vibrant-blue !important;
+    }
+  }
+
+  &__header {
     .Select-control {
       background-color: #fff;
       border: 0 !important;
@@ -185,7 +159,6 @@
           margin-top: 0 !important;
         }
       }
-
       .Select-multi-value-wrapper {
         width: max-content; // move select arrow
         height: 20px;
@@ -220,25 +193,5 @@
         }
       }
     }
-  }
-
-  &__labels-policies-wrap {
-    margin-bottom: $pad-medium;
-  }
-
-  &__policies-filter-block {
-    display: flex;
-    align-items: center;
-
-    p {
-      font-size: $x-small;
-      font-weight: $bold;
-      padding-left: $pad-medium;
-    }
-  }
-
-  &__enroll-hosts {
-    padding: $pad-small;
-    margin-right: $pad-small;
   }
 }
