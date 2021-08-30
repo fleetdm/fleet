@@ -108,7 +108,9 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 ### Fleet docs
 
 #### Adding a link to Fleet docs
-The `fleetdm.com/docs` compilation process does not account for relative links to directories outside of `/docs`.
+You can link documentation pages to each other using relative paths. For example, in `docs/1-Using-Fleet/1-Fleet-UI.md`, you can link to `docs/1-Using-Fleet/9-Permissions.md` by writing `[permissions](./9-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+
+However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
 
 #### Linking to a location on GitHub
