@@ -56,7 +56,7 @@
   <body>
     <div purpose="page-wrap">
       <div class="<%= isHomepage ? 'homepage-header' : 'header' %>" purpose="page-header">
-        <div style="foo max-width: 1248px; height: 80px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
+        <div style="max-width: 1248px; height: 80px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a href="/">
             <% /* The homepage-header on the homepage has a white fleet logo */ %>
             <% if (isHomepage) { %>
@@ -105,7 +105,7 @@
               </div>  
             </div>
           </div>
-          <div class="bar d-none d-lg-flex">
+          <div class="d-none d-lg-flex">
             <div class="dropdown px-3 py-2 mr-4">
               <button style="font-size: 16px; line-height: 23px; text-decoration: none;" class="header-btn btn btn-link p-0 m-0 dropdown-label" type="button" id="dropdownMenuButton">
                 Get started
