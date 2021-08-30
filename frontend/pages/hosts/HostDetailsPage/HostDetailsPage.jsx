@@ -337,11 +337,6 @@ export class HostDetailsPage extends Component {
 
     const isOnline = host.status === "online";
 
-    // Hide action buttons for global and team only observers
-    if (isOnlyObserver) {
-      return null;
-    }
-
     return (
       <div className={`${baseClass}__action-button-container`}>
         {canTransferTeam && (
@@ -374,9 +369,11 @@ export class HostDetailsPage extends Component {
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="text-icon">
-          Delete <img src={DeleteIcon} alt="Delete host icon" />
-        </Button>
+        {!isOnlyObserver && (
+          <Button onClick={toggleDeleteHostModal()} variant="text-icon">
+            Delete <img src={DeleteIcon} alt="Delete host icon" />
+          </Button>
+        )}
       </div>
     );
   };
@@ -610,6 +607,7 @@ export class HostDetailsPage extends Component {
       isBasicTier,
       isGlobalAdmin,
       teams,
+      isOnlyObserver,
     } = this.props;
     const {
       host,
@@ -850,6 +848,7 @@ export class HostDetailsPage extends Component {
             queries={queries}
             dispatch={dispatch}
             queryErrors={queryErrors}
+            isOnlyObserver={isOnlyObserver}
           />
         )}
         {showTransferHostModal && (

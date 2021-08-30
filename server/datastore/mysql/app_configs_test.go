@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 
@@ -26,6 +27,10 @@ func TestOrgInfo(t *testing.T) {
 	info, err := ds.NewAppConfig(info)
 	assert.Nil(t, err)
 	require.NotNil(t, info)
+
+	// Checking some defaults
+	require.Equal(t, 24*time.Hour, info.WebhookSettings.Interval.Duration)
+	require.False(t, info.WebhookSettings.HostStatusWebhook.Enable)
 
 	info2, err := ds.AppConfig()
 	require.Nil(t, err)
@@ -247,4 +252,33 @@ func TestEnrollSecretUniqueness(t *testing.T) {
 	// Same secret at global level should not be allowed
 	err = ds.ApplyEnrollSecrets(nil, expectedSecrets)
 	require.Error(t, err)
+}
+
+func TestAppConfigDefaults(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
+	_, err := ds.db.Exec(insertAppConfigQuery, `{}`)
+	require.NoError(t, err)
+
+	ac, err := ds.AppConfig()
+	require.NoError(t, err)
+	require.Equal(t, 24*time.Hour, ac.WebhookSettings.Interval.Duration)
+	require.False(t, ac.WebhookSettings.HostStatusWebhook.Enable)
+	require.True(t, ac.HostSettings.EnableHostUsers)
+	require.False(t, ac.HostSettings.EnableSoftwareInventory)
+
+	_, err = ds.db.Exec(
+		insertAppConfigQuery,
+		`{"webhook_settings": {"interval": "12h"}, "host_settings": {"enable_host_users": false}}`,
+	)
+	require.NoError(t, err)
+
+	ac, err = ds.AppConfig()
+	require.NoError(t, err)
+
+	require.Equal(t, 12*time.Hour, ac.WebhookSettings.Interval.Duration)
+	require.False(t, ac.HostSettings.EnableHostUsers)
+	require.False(t, ac.HostSettings.EnableSoftwareInventory)
 }
