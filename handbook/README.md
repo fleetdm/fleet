@@ -114,7 +114,7 @@ Therefore, when adding a link to Fleet docs, it is important to always use the a
 #### Linking to a location on GitHub
 When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
 
-To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its cononical form.
+To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
 
 #### How to fix a broken link
 For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
