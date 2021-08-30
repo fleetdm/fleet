@@ -40,6 +40,9 @@ describe(
         cy.findByText("Team").should("exist");
       });
       cy.contains("button", /transfer/i).should("not.exist");
+      cy.contains("button", /delete/i).should("not.exist");
+      cy.contains("button", /query/i).click();
+      cy.contains("button", /create custom query/i).should("not.exist");
 
       // Not see the “Show enroll secret” button
       cy.contains("button", /show enroll secret/i).should("not.exist");

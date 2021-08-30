@@ -225,7 +225,7 @@ Note that a "restore" will replace the state of the development database with th
 
 ## Teams seed data
 
-When developing on both the `master` and `teams` branches, it may be useful to create seed data that includes users and teams.
+When developing Fleet, it may be useful to create seed data that includes users and teams.
 
 Check out this Loom demo video that walks through creating teams seed data:
 https://www.loom.com/share/1c41a1540e8f41328a7a6cfc56ad0a01

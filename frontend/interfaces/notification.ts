@@ -6,3 +6,10 @@ export default PropTypes.shape({
   message: PropTypes.string,
   undoAction: PropTypes.func,
 });
+
+export interface INotifications {
+  alertType: string;
+  isVisible: boolean;
+  message: string | JSX.Element;
+  undoAction: () => void;
+}
