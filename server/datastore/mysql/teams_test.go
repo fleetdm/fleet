@@ -205,3 +205,19 @@ func TestTeamSearchTeams(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, teams, 0)
 }
+
+func TestTeamEnrollSecrets(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	secrets := []*fleet.EnrollSecret{{Secret: "secret1"}, {Secret: "secret2"}}
+	team1, err := ds.NewTeam(&fleet.Team{
+		Name:    "team1",
+		Secrets: secrets,
+	})
+	require.NoError(t, err)
+
+	enrollSecrets, err := ds.TeamEnrollSecrets(team1.ID)
+	require.NoError(t, err)
+	test.ElementsMatchSkipID(t, secrets, enrollSecrets)
+}

@@ -118,6 +118,7 @@ func TestSoftwareCPE(t *testing.T) {
 	require.NoError(t, err)
 
 	iterator, err := ds.AllSoftwareWithoutCPEIterator()
+	defer iterator.Close()
 	require.NoError(t, err)
 
 	loops := 0
@@ -140,11 +141,13 @@ func TestSoftwareCPE(t *testing.T) {
 		loops++
 	}
 	assert.Equal(t, len(host1.Software), loops)
+	require.NoError(t, iterator.Close())
 
 	err = ds.AddCPEForSoftware(fleet.Software{ID: id}, "some:cpe")
 	require.NoError(t, err)
 
 	iterator, err = ds.AllSoftwareWithoutCPEIterator()
+	defer iterator.Close()
 	require.NoError(t, err)
 
 	loops = 0
@@ -166,6 +169,7 @@ func TestSoftwareCPE(t *testing.T) {
 		loops++
 	}
 	assert.Equal(t, len(host1.Software)-1, loops)
+	require.NoError(t, iterator.Close())
 }
 
 func TestInsertCVEs(t *testing.T) {
@@ -286,4 +290,21 @@ func TestAllCPEs(t *testing.T) {
 	cpes, err := ds.AllCPEs()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, cpes, []string{"somecpe", "someothercpewithoutvulns"})
+}
+
+func TestNothingChanged(t *testing.T) {
+	assert.False(t, nothingChanged(nil, []fleet.Software{{}}))
+	assert.True(t, nothingChanged(nil, nil))
+	assert.True(t, nothingChanged(
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+	))
+	assert.False(t, nothingChanged(
+		[]fleet.Software{{Name: "A", Version: "1.1", Source: "ASD"}},
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+	))
+	assert.False(t, nothingChanged(
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "B", Version: "1.0", Source: "ASD"}},
+	))
 }

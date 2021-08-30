@@ -1133,7 +1133,7 @@ func TestAddHostsToTeam(t *testing.T) {
 	}
 }
 
-func TestSaveUsers(t *testing.T) {
+func TestSaveHostUsers(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 

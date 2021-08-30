@@ -212,13 +212,7 @@ type Datastore interface {
 	// PasswordResetStore manages password resets in the Datastore
 
 	NewPasswordResetRequest(req *PasswordResetRequest) (*PasswordResetRequest, error)
-	SavePasswordResetRequest(req *PasswordResetRequest) error
-	DeletePasswordResetRequest(req *PasswordResetRequest) error
 	DeletePasswordResetRequestsForUser(userID uint) error
-	FindPassswordResetByID(id uint) (*PasswordResetRequest, error)
-	FindPassswordResetsByUserID(id uint) ([]*PasswordResetRequest, error)
-	FindPassswordResetByToken(token string) (*PasswordResetRequest, error)
-	FindPassswordResetByTokenAndUserID(token string, id uint) (*PasswordResetRequest, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SessionStore is the abstract interface that all session backends must conform to.
@@ -345,15 +339,12 @@ type Datastore interface {
 
 	PolicyQueriesForHost(host *Host) (map[string]string, error)
 
-	Name() string
-	Drop() error
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables() error
 	// MigrateData populates built-in data
 	MigrateData() error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
 	MigrationStatus() (MigrationStatus, error)
-	Begin() (Transaction, error)
 }
 
 type MigrationStatus int
