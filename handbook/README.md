@@ -105,6 +105,28 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign for fixing.
 - If in doubt about anything regarding design or layout, please reach out to the Design team.
 
+### Fleet docs
+
+#### Adding a link to Fleet docs
+The `fleetdm.com/docs` compilation process does not account for relative links to directories outside of `/docs`.
+Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
+
+#### Linking to a location on GitHub
+When adding a link to a location on GitHub that is outside of `/docs`, Be sure to use the canonical form of the URL.
+
+To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its cononical form.
+
+#### How to fix a broken link
+For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
+
+An example of a link that lives outside of `/docs` is:
+
+```
+../../tools/app/prometheus
+```
+
+If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
+
 ### About the handbook
 #### Why bother?
 The Fleet handbook is inspired by (and heavily influenced by) the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
