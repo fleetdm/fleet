@@ -25,6 +25,8 @@ The following table depicts various permissions levels for each role.
 | Create saved queries                                 |          | ✅         | ✅    |
 | Edit saved queries                                   |          | ✅         | ✅    |
 | Delete saved queries                                 |          | ✅         | ✅    |
+| Schedule queries for all hosts                       |          | ✅         | ✅    |
+| Schedule queries for all hosts assigned to a team\*  |          | ✅         | ✅    |
 | Create packs                                         |          | ✅         | ✅    |
 | Edit packs                                           |          | ✅         | ✅    |
 | Delete packs                                         |          | ✅         | ✅    |
