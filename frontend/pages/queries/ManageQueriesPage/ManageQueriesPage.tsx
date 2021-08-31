@@ -15,7 +15,7 @@ import permissionUtils from "utilities/permissions";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/loaders/Spinner";
-import QueriesListError from "./components/QueriesListError";
+import TableDataError from "components/TableDataError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
 
@@ -28,7 +28,7 @@ interface IRootState {
     queries: {
       loading: boolean;
       data: IQuery[];
-      errors: any;
+      errors: { name: string; reason: string }[];
     };
   };
 }
@@ -40,7 +40,7 @@ const renderTable = (
   queriesErrors: any
 ): JSX.Element => {
   if (Object.keys(queriesErrors).length > 0) {
-    return <QueriesListError />;
+    return <TableDataError />;
   }
 
   return (

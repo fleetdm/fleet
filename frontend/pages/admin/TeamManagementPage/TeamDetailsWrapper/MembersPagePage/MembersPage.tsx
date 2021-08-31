@@ -15,11 +15,11 @@ import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
 import PATHS from "router/paths";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import { IFormData } from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
-import MembersError from "./components/MembersError";
 import AddMemberModal from "./components/AddMemberModal";
 import RemoveMemberModal from "./components/RemoveMemberModal";
 
@@ -45,7 +45,7 @@ interface IRootState {
     users: {
       loading: boolean;
       data: { [id: number]: IUser };
-      errors: any;
+      errors: { name: string; reason: string }[];
     };
     teams: {
       data: { [id: number]: ITeam };
@@ -289,7 +289,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
         <Link to={PATHS.ADMIN_USERS}>Manage users with global access here</Link>
       </p>
       {Object.keys(usersError).length > 0 ? (
-        <MembersError />
+        <TableDataError />
       ) : (
         <TableContainer
           resultsTitle={"members"}

@@ -12,6 +12,7 @@ import LabelForm from "components/forms/LabelForm";
 import Modal from "components/modals/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
 import labelInterface from "interfaces/label";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
@@ -41,7 +42,6 @@ import {
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
 import EnrollSecretModal from "./components/EnrollSecretModal";
-import HostsError from "./components/HostsError";
 import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
@@ -1220,7 +1220,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     if (hosts.errors) {
-      return <HostsError />;
+      return <TableDataError />;
     }
 
     // Hosts have not been set up for this instance yet.

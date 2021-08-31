@@ -11,7 +11,7 @@ import Button from "components/buttons/Button";
 import FleetIcon from "components/icons/FleetIcon";
 import TableContainer from "components/TableContainer";
 
-import TeamsError from "./components/TeamsError";
+import TableDataError from "components/TableDataError";
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
@@ -28,7 +28,7 @@ interface IRootState {
     teams: {
       isLoading: boolean;
       data: { [id: number]: ITeam };
-      errors: any;
+      errors: { name: string; reason: string }[];
     };
   };
 }
@@ -231,7 +231,7 @@ const TeamManagementPage = (): JSX.Element => {
         Create, customize, and remove teams from Fleet.
       </p>
       {Object.keys(teamsError).length > 0 ? (
-        <TeamsError />
+        <TableDataError />
       ) : (
         <TableContainer
           columns={tableHeaders}

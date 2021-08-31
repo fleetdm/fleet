@@ -6,6 +6,7 @@ import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
 import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
 import Modal from "components/modals/Modal";
 import inviteInterface from "interfaces/invite";
 import configInterface from "interfaces/config";
@@ -20,7 +21,6 @@ import { updateUser } from "redux/nodes/auth/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 
-import UsersError from "./components/UsersError";
 import UserForm from "./components/UserForm";
 import EmptyUsers from "./components/EmptyUsers";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
@@ -557,6 +557,7 @@ export class UserManagementPage extends Component {
       invites,
       currentUser,
       isBasicTier,
+      userErrors,
     } = this.props;
 
     const tableHeaders = generateTableHeaders(onActionSelect, isBasicTier);
@@ -578,8 +579,8 @@ export class UserManagementPage extends Component {
           Fleet.
         </p>
         {/* TODO: find a way to move these controls into the table component */}
-        {users.errors ? (
-          <UsersError />
+        {Object.keys(userErrors).length > 0 ? (
+          <TableDataError />
         ) : (
           <TableContainer
             columns={tableHeaders}

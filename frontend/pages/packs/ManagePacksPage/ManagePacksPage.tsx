@@ -16,7 +16,7 @@ import permissionUtils from "utilities/permissions";
 import deepDifference from "utilities/deep_difference";
 
 import Button from "components/buttons/Button";
-import PacksListError from "./components/PacksListError";
+import TableDataError from "components/TableDataError";
 import PacksListWrapper from "./components/PacksListWrapper";
 import RemovePackModal from "./components/RemovePackModal";
 
@@ -29,7 +29,7 @@ interface IRootState {
     packs: {
       isLoading: boolean;
       data: IPack[];
-      errors: any;
+      errors: { name: string; reason: string }[];
     };
   };
 }
@@ -40,10 +40,10 @@ const renderTable = (
   onDisablePackClick: React.MouseEventHandler<HTMLButtonElement>,
   onCreatePackClick: React.MouseEventHandler<HTMLButtonElement>,
   packsList: IPack[],
-  packsErrors: any
+  packsErrors: { name: string; reason: string }[]
 ): JSX.Element => {
   if (Object.keys(packsErrors).length > 0) {
-    return <PacksListError />;
+    return <TableDataError />;
   }
 
   return (
