@@ -4,10 +4,7 @@ import {
 } from "./actions";
 
 export const initialState = {
-  queryText: "SELECT * FROM osquery_info",
   selectedOsqueryTable: defaultSelectedOsqueryTable,
-  selectedTargets: [],
-  selectedTargetsQuery: "",
 };
 
 const reducer = (state = initialState, { type, payload }) => {
