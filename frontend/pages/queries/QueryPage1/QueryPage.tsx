@@ -187,7 +187,7 @@ const QueryPage = ({
   );
 };
 
-const mapStateToProps = (state: any, { params }: any) => {
+const mapStateToProps = (state: any) => {
   const { selectedOsqueryTable, selectedTargets } = state.components.QueryPages;
   const currentUser = state.auth.user;
   const config = state.app.config;
