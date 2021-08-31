@@ -176,6 +176,7 @@ export class ManageHostsPage extends PureComponent {
       searchQuery: "",
       hosts: [],
       isHostsLoading: true,
+      hostErrors: false,
       sortBy: initialSortBy,
       isConfigLoaded: !isEmpty(this.props.config),
       isTeamsLoaded: !isEmpty(this.props.teams),
@@ -643,9 +644,7 @@ export class ManageHostsPage extends PureComponent {
       this.setState({ hosts });
     } catch (error) {
       console.log(error);
-      dispatch(
-        renderFlash("error", "Sorry, we could not retrieve your hosts.")
-      );
+      this.setState({ hostErrors: true });
     } finally {
       this.setState({ isHostsLoading: false });
     }
@@ -1198,6 +1197,7 @@ export class ManageHostsPage extends PureComponent {
       isAllMatchingHostsSelected,
       hosts,
       isHostsLoading,
+      hostErrors,
       isConfigLoaded,
       sortBy,
     } = this.state;
@@ -1219,7 +1219,7 @@ export class ManageHostsPage extends PureComponent {
       return null;
     }
 
-    if (hosts.errors) {
+    if (hostErrors) {
       return <TableDataError />;
     }
 
