@@ -74,7 +74,7 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
 
   return (
     <>
-      <div data-tip data-for={value[1].toString()} data-tip-disable={false}>
+      <div data-tip data-for={value[1].toString()} data-tip-disable={disable()}>
         <span className={pillClassName}>{value[0]}</span>
       </div>
       <ReactTooltip
