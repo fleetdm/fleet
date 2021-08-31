@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
 )
@@ -94,14 +95,14 @@ func (r *redisLiveQuery) StopQuery(name string) error {
 }
 
 func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
-	conn := r.pool.Get()
-	defer conn.Close()
-
 	// Get keys for active queries
-	queryKeys, err := scanKeys(conn, queryKeyPrefix+"*")
+	queryKeys, err := scanKeys(r.pool, queryKeyPrefix+"*")
 	if err != nil {
 		return nil, errors.Wrap(err, "scan active queries")
 	}
+
+	conn := r.pool.Get()
+	defer conn.Close()
 
 	// Pipeline redis calls to check for this host in the bitfield of the
 	// targets of the query.
@@ -195,23 +196,29 @@ func mapBitfield(hostIDs []uint) []byte {
 	return field
 }
 
-func scanKeys(conn redis.Conn, pattern string) ([]string, error) {
+func scanKeys(pool fleet.RedisPool, pattern string) ([]string, error) {
 	var keys []string
-	cursor := 0
-	for {
-		res, err := redis.Values(conn.Do("SCAN", cursor, "MATCH", pattern))
-		if err != nil {
-			return nil, errors.Wrap(err, "scan keys")
+
+	err := pubsub.EachRedisNode(pool, func(conn redis.Conn) error {
+		cursor := 0
+		for {
+			res, err := redis.Values(conn.Do("SCAN", cursor, "MATCH", pattern))
+			if err != nil {
+				return errors.Wrap(err, "scan keys")
+			}
+			var curKeys []string
+			_, err = redis.Scan(res, &cursor, &curKeys)
+			if err != nil {
+				return errors.Wrap(err, "convert scan results")
+			}
+			keys = append(keys, curKeys...)
+			if cursor == 0 {
+				return nil
+			}
 		}
-		var curKeys []string
-		_, err = redis.Scan(res, &cursor, &curKeys)
-		if err != nil {
-			return nil, errors.Wrap(err, "convert scan results")
-		}
-		keys = append(keys, curKeys...)
-		if cursor == 0 {
-			break
-		}
+	})
+	if err != nil {
+		return nil, err
 	}
 	return keys, nil
 }

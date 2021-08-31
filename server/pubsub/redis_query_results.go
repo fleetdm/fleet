@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -49,6 +50,76 @@ func NewRedisPool(server, password string, database int, useTLS bool) (fleet.Red
 	}
 
 	return cluster, nil
+}
+
+// EachRedisNode calls fn for each node in the redis cluster, with a connection
+// to that node, until all nodes have been visited. The connection is
+// automatically closed after the call. If fn returns an error, the iteration
+// of nodes stops and EachRedisNode returns that error. For standalone redis,
+// fn is called only once.
+func EachRedisNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
+	// TODO: ideally, NewRedisPool, EachRedisNode and other helper functions
+	// would live in a datastore/redis package or something like that? This is
+	// not related to pubsub specifically.
+
+	if cluster, isCluster := pool.(*redisc.Cluster); isCluster {
+		addrs, err := getClusterPrimaryAddrs(cluster)
+		if err != nil {
+			return err
+		}
+		for _, addr := range addrs {
+			err := func() error {
+				// NOTE(mna): using CreatePool means that we respect the redis timeouts
+				// and configs.  This is a temporary pool as we can't reuse the
+				// (internal) cluster pools for each host at the moment, would require
+				// a change to redisc (one that would make sense to make for that
+				// use-case of visiting each node, IMO).
+				tempPool, err := cluster.CreatePool(addr)
+				if err != nil {
+					return errors.Wrap(err, "create pool")
+				}
+				defer tempPool.Close()
+
+				conn := tempPool.Get()
+				defer conn.Close()
+				return fn(conn)
+			}()
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	conn := pool.Get()
+	defer conn.Close()
+	return fn(conn)
+}
+
+func getClusterPrimaryAddrs(pool *redisc.Cluster) ([]string, error) {
+	conn := pool.Get()
+	defer conn.Close()
+	nodes, err := redis.String(conn.Do("CLUSTER", "NODES"))
+	if err != nil {
+		return nil, errors.Wrap(err, "get cluster nodes")
+	}
+
+	var addrs []string
+	s := bufio.NewScanner(strings.NewReader(nodes))
+	for s.Scan() {
+		fields := strings.Fields(s.Text())
+		if len(fields) > 2 {
+			flags := fields[2]
+			if strings.Contains(flags, "master") {
+				addrField := fields[1]
+				if ix := strings.Index(addrField, "@"); ix >= 0 {
+					addrField = addrField[:ix]
+				}
+				addrs = append(addrs, addrField)
+			}
+		}
+	}
+	return addrs, nil
 }
 
 func newCluster(server, password string, database int, useTLS bool) *redisc.Cluster {
