@@ -27,8 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gomodule/redigo/redis"
-	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 )
 
@@ -41,12 +41,12 @@ const (
 
 type redisLiveQuery struct {
 	// connection pool
-	pool *redisc.Cluster
+	pool fleet.RedisPool
 }
 
 // NewRedisQueryResults creats a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisLiveQuery(pool *redisc.Cluster) *redisLiveQuery {
+func NewRedisLiveQuery(pool fleet.RedisPool) *redisLiveQuery {
 	return &redisLiveQuery{pool: pool}
 }
 

@@ -15,7 +15,7 @@ import (
 
 type redisQueryResults struct {
 	// connection pool
-	pool             *redisc.Cluster
+	pool             fleet.RedisPool
 	duplicateResults bool
 }
 
@@ -23,7 +23,7 @@ var _ fleet.QueryResultStore = &redisQueryResults{}
 
 // NewRedisPool creates a Redis connection pool using the provided server
 // address, password and database.
-func NewRedisPool(server, password string, database int, useTLS bool) (*redisc.Cluster, error) {
+func NewRedisPool(server, password string, database int, useTLS bool) (fleet.RedisPool, error) {
 	// Create the Cluster
 	cluster := &redisc.Cluster{
 		StartupNodes: []string{server},
@@ -84,7 +84,7 @@ func isClusterCommandUnknown(err error) bool {
 
 // NewRedisQueryResults creats a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisQueryResults(pool *redisc.Cluster, duplicateResults bool) *redisQueryResults {
+func NewRedisQueryResults(pool fleet.RedisPool, duplicateResults bool) *redisQueryResults {
 	return &redisQueryResults{pool: pool, duplicateResults: duplicateResults}
 }
 
@@ -93,7 +93,7 @@ func pubSubForID(id uint) string {
 }
 
 // Pool returns the redisc connection pool (used in tests).
-func (r *redisQueryResults) Pool() *redisc.Cluster {
+func (r *redisQueryResults) Pool() fleet.RedisPool {
 	return r.pool
 }
 
