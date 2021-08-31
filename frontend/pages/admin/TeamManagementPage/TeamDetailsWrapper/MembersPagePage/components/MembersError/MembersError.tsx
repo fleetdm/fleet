@@ -3,19 +3,19 @@
  */
 import React from "react";
 
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
-import ErrorIcon from "../../../../../../assets/images/icon-error-16x16@2x.png";
+import OpenNewTabIcon from "../../../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ErrorIcon from "../../../../../../../../assets/images/icon-error-16x16@2x.png";
 
-const baseClass = "users-error";
+const baseClass = "members-error";
 
-const UsersError = (): JSX.Element => {
+const MembersError = (): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
         <div className="info">
           <span className="info__header">
             <img src={ErrorIcon} alt="error icon" id="error-icon" />
-            Something&apos;s gone wrong.
+            Something&apos;s gone wrong
           </span>
           <span className="info__data">Refresh the page or log in again.</span>
           <span className="info__data">
@@ -35,4 +35,4 @@ const UsersError = (): JSX.Element => {
   );
 };
 
-export default UsersError;
+export default MembersError;
