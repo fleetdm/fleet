@@ -1,6 +1,7 @@
 /* This component is used for creating policies */
 
 import React, { useState, useCallback } from "react";
+
 // @ts-ignore
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
