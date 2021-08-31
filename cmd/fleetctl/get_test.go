@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"github.com/ghodss/yaml"
 	"io/ioutil"
@@ -211,6 +213,19 @@ func TestGetHosts(t *testing.T) {
 				ComputerName:    "test_host",
 				Hostname:        "test_host",
 			},
+			{
+				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
+					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
+				},
+				HostSoftware:    fleet.HostSoftware{},
+				DetailUpdatedAt: time.Time{},
+				LabelUpdatedAt:  time.Time{},
+				LastEnrolledAt:  time.Time{},
+				SeenTime:        time.Time{},
+				ComputerName:    "test_host2",
+				Hostname:        "test_host2",
+			},
 		}
 		return hosts, nil
 	}
@@ -242,44 +257,62 @@ func TestGetHosts(t *testing.T) {
 		return make([]*fleet.Pack, 0), nil
 	}
 
-	expectedText := `+------+-----------+----------+-----------------+--------+
-| UUID | HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS |
-+------+-----------+----------+-----------------+--------+
-|      | test_host |          |                 | mia    |
-+------+-----------+----------+-----------------+--------+
+	expectedText := `+------+------------+----------+-----------------+--------+
+| UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS |
++------+------------+----------+-----------------+--------+
+|      | test_host  |          |                 | mia    |
++------+------------+----------+-----------------+--------+
+|      | test_host2 |          |                 | mia    |
++------+------------+----------+-----------------+--------+
 `
 
-	var specGot specGeneric
-	var specExpected specGeneric
 
 	tests := []struct {
 		name        string
 		goldenFile  string
 		unmarshaler func(data []byte, v interface{}) error
+		scanner     func(s string) []string
 		args        []string
 	}{
 		{
 			name:        "get hosts --json",
 			goldenFile:  "expectedListHostsJson.json",
 			unmarshaler: json.Unmarshal,
+			scanner: func(s string) []string {
+				var parts []string
+				scanner := bufio.NewScanner(bytes.NewBufferString(s))
+				for scanner.Scan() {
+					parts = append(parts, scanner.Text())
+				}
+				return parts
+			},
 			args:        []string{"get", "hosts", "--json"},
 		},
 		{
 			name:        "get hosts --json test_host",
 			goldenFile:  "expectedHostDetailResponseJson.json",
 			unmarshaler: json.Unmarshal,
+			scanner: func(s string) []string {
+				return []string{s}
+			},
 			args:        []string{"get", "hosts", "--json", "test_host"},
 		},
 		{
 			name:        "get hosts --yaml",
 			goldenFile:  "expectedListHostsYaml.yml",
 			unmarshaler: yaml.Unmarshal,
+			scanner: func(s string) []string {
+				return []string{s}
+			},
 			args:        []string{"get", "hosts", "--yaml"},
 		},
 		{
 			name:        "get hosts --yaml test_host",
 			goldenFile:  "expectedHostDetailResponseYaml.yml",
 			unmarshaler: yaml.Unmarshal,
+			scanner: func(s string) []string {
+				return splitYaml(s)
+			},
 			args:        []string{"get", "hosts", "--yaml", "test_host"},
 		},
 	}
@@ -287,9 +320,21 @@ func TestGetHosts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
-			require.NoError(t, tt.unmarshaler(expected, &specExpected))
-			require.NoError(t, tt.unmarshaler([]byte(runAppForTest(t, tt.args)), &specGot))
-			require.Equal(t, specExpected, specGot)
+			expectedResults := tt.scanner(string(expected))
+			expectedSpecs := make([]specGeneric, len(expectedResults))
+			for i, result := range expectedResults {
+				var got specGeneric
+				require.NoError(t, tt.unmarshaler([]byte(result), &got))
+				expectedSpecs[i] = got
+			}
+			actualResult := tt.scanner(runAppForTest(t, tt.args))
+			actualSpecs := make([]specGeneric, len(actualResult))
+			for i, result := range actualResult {
+				var spec specGeneric
+				require.NoError(t, tt.unmarshaler([]byte(result), &spec))
+				actualSpecs[i] = spec
+			}
+			require.Equal(t, expectedSpecs, actualSpecs)
 		})
 	}
 
