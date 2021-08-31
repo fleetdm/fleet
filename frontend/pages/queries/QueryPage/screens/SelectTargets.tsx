@@ -15,7 +15,7 @@ import { IHost } from "interfaces/host";
 import { BUILTIN_LABELS } from "utilities/constants";
 
 // @ts-ignore
-import TargetsInput from "pages/queries/QueryPage1/components/TargetsInput";
+import TargetsInput from "pages/queries/QueryPage/components/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/loaders/Spinner";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";

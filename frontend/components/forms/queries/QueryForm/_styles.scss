@@ -1,8 +1,13 @@
-.query-form {
+.query-form1 {
   &__wrapper {
+    position: relative;
     font-size: $x-small;
 
     h1 {
+      margin: $pad-large 0;
+    }
+
+    .query-page__warning {
       margin: $pad-large 0;
     }
   }
@@ -28,15 +33,17 @@
   }
 
   &__button-wrap {
-    text-align: right;
-
-    .query-form__run-query-btn,
-    .query-form__stop-query-btn {
-      margin-left: $pad-xsmall;
+    &--new-query {
+      display: flex;
+      align-items: center;
     }
-
-    .kolide-timer {
-      display: block;
+    &--modal {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    button:not(:first-of-type) {
+      margin-left: $pad-medium;
     }
   }
 

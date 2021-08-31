@@ -12,8 +12,8 @@ import deepDifference from "utilities/deep_difference";
 import { IUser } from "interfaces/user";
 import { IQueryFormData, IQuery } from "interfaces/query";
 
-import QueryForm from "components/forms/queries/QueryForm1";
-import { hasSavePermissions } from "pages/queries/QueryPage1/helpers";
+import QueryForm from "components/forms/queries/QueryForm";
+import { hasSavePermissions } from "pages/queries/QueryPage/helpers";
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 interface IQueryEditorProps {

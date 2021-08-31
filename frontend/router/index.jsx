@@ -35,7 +35,6 @@ import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackPageWrapper from "components/packs/PackPageWrapper";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import QueryPage from "pages/queries/QueryPage";
-import QueryPage1 from "pages/queries/QueryPage1";
 import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
 import SchedulePageWrapper from "components/schedule/SchedulePageWrapper";
@@ -126,13 +125,6 @@ const routes = (
               </Route>
               <Route path=":id" component={QueryPage} />
             </Route>
-            {/* TEMP COMMENT: NEW QUERY PAGE */}
-            <Route path="queries1/manage" component={ManageQueriesPage} />
-            <Route component={AuthAnyMaintainerGlobalAdminRoutes}>
-              <Route path="queries1/new" component={QueryPage1} />
-            </Route>
-            <Route path="queries1/:id" component={QueryPage1} />
-            {/* END TEMP COMMENT: NEW QUERY PAGE */}
             <Route path="profile" component={UserSettingsPage} />
           </Route>
         </Route>

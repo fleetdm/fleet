@@ -15,9 +15,9 @@ import { IOsqueryTable } from "interfaces/osquery_table";
 import { IUser } from "interfaces/user";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import QueryEditor from "pages/queries/QueryPage1/screens/QueryEditor";
-import SelectTargets from "pages/queries/QueryPage1/screens/SelectTargets";
-import RunQuery from "pages/queries/QueryPage1/screens/RunQuery";
+import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
+import SelectTargets from "pages/queries/QueryPage/screens/SelectTargets";
+import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IQueryPageProps {
@@ -33,7 +33,7 @@ interface IStoredQueryResponse {
   query: IQuery;
 }
 
-const baseClass = "query-page1";
+const baseClass = "query-page";
 
 const QueryPage = ({
   params: { id: queryIdForEdit },
