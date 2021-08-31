@@ -61,8 +61,8 @@ describe(
       //   .click();
       // cy.contains("button", /cancel/i).click();
 
-      cy.contains("button", /query/i).click();
-      cy.contains("button", /create custom query/i).click();
+      // cy.contains("button", /query/i).click();
+      // cy.contains("button", /create custom query/i).click();
 
       // Queries pages: Can create, edit, and run query
       cy.visit("/queries/manage");
