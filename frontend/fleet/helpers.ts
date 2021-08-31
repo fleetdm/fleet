@@ -4,6 +4,9 @@ import moment from "moment";
 import yaml from "js-yaml";
 import stringUtils from "utilities/strings";
 import { ITeam } from "interfaces/team";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import { IQueryStats } from "interfaces/query_stats";
+import { scheduledQueryStub } from "test/stubs";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -553,7 +556,7 @@ export const humanQueryLastRun = (lastRun: string): string => {
   // Handles the case when a query has never been ran.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
   if (lastRun < "2016-07-28T00:00:00Z") {
-    return "Never";
+    return "Has not run";
   }
 
   return moment(lastRun).fromNow();
@@ -572,6 +575,27 @@ export const secondsToHms = (d: number): string => {
   const mDisplay = m > 0 ? m + (m === 1 ? " min " : " mins ") : "";
   const sDisplay = s > 0 ? s + (s === 1 ? " sec" : " secs") : "";
   return hDisplay + mDisplay + sDisplay;
+};
+
+export const performanceIndicator = (scheduledQuery: IQueryStats): string => {
+  if (scheduledQuery.executions === 0) {
+    return "Undetermined";
+  }
+  if (scheduledQuery.denylisted === true) {
+    return "Denylisted";
+  }
+
+  const indicator =
+    (scheduledQuery.user_time + scheduledQuery.system_time) /
+    scheduledQuery.executions;
+
+  if (indicator < 2000) {
+    return "Minimal";
+  }
+  if (indicator >= 2000 && indicator <= 4000) {
+    return "Considerate";
+  }
+  return "Excessive";
 };
 
 export const secondsToDhms = (d: number): string => {
@@ -641,6 +665,7 @@ export default {
   humanQueryLastRun,
   inMilliseconds,
   licenseExpirationWarning,
+  performanceIndicator,
   secondsToHms,
   secondsToDhms,
   labelSlug,
