@@ -129,8 +129,11 @@ export class ManageHostsPage extends PureComponent {
     isOnGlobalTeam: PropTypes.bool,
     isBasicTier: PropTypes.bool,
     currentUser: userInterface,
-    policyId: PropTypes.number,
-    policyResponse: PolicyResponse,
+    policyId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    policyResponse: PropTypes.oneOf([
+      PolicyResponse.PASSING,
+      PolicyResponse.FAILING,
+    ]),
   };
 
   static defaultProps = {
