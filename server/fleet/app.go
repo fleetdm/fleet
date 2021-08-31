@@ -1,62 +1,12 @@
 package fleet
 
 import (
-	"context"
 	"encoding/json"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/kolide/kit/version"
+	"github.com/pkg/errors"
 )
-
-// AppConfigStore contains method for saving and retrieving
-// application configuration
-type AppConfigStore interface {
-	NewAppConfig(info *AppConfig) (*AppConfig, error)
-	AppConfig() (*AppConfig, error)
-	SaveAppConfig(info *AppConfig) error
-
-	// VerifyEnrollSecret checks that the provided secret matches an active
-	// enroll secret. If it is successfully matched, that secret is returned.
-	// Otherwise an error is returned.
-	VerifyEnrollSecret(secret string) (*EnrollSecret, error)
-	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).
-	GetEnrollSecrets(teamID *uint) ([]*EnrollSecret, error)
-	// ApplyEnrollSecrets replaces the current enroll secrets for a team with the provided secrets.
-	ApplyEnrollSecrets(teamID *uint, secrets []*EnrollSecret) error
-}
-
-// AppConfigService provides methods for configuring
-// the Fleet application
-type AppConfigService interface {
-	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
-	AppConfig(ctx context.Context) (info *AppConfig, err error)
-	ModifyAppConfig(ctx context.Context, p []byte) (info *AppConfig, err error)
-
-	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in
-	// the spec.
-	ApplyEnrollSecretSpec(ctx context.Context, spec *EnrollSecretSpec) error
-	// GetEnrollSecretSpec gets the spec for the current enroll secrets.
-	GetEnrollSecretSpec(ctx context.Context) (*EnrollSecretSpec, error)
-
-	// CertificateChain returns the PEM encoded certificate chain for osqueryd TLS termination.
-	// For cases where the connection is self-signed, the server will attempt to
-	// connect using the InsecureSkipVerify option in tls.Config.
-	CertificateChain(ctx context.Context) (cert []byte, err error)
-
-	// SetupRequired returns whether the app config setup needs to be performed
-	// (only when first initializing a Fleet server).
-	SetupRequired(ctx context.Context) (bool, error)
-
-	// Version returns version and build information.
-	Version(ctx context.Context) (*version.Info, error)
-
-	// License returns the licensing information.
-	License(ctx context.Context) (*LicenseInfo, error)
-
-	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
-	LoggingConfig(ctx context.Context) (*Logging, error)
-}
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
 // SMTPAuthMethod
@@ -166,17 +116,73 @@ type AppConfig struct {
 
 	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
+
+	WebhookSettings WebhookSettings `json:"webhook_settings"`
 }
 
-func (ac *AppConfig) ApplyDefaultsForNewInstalls() {
-	ac.ServerSettings.EnableAnalytics = true
-	ac.HostSettings.EnableHostUsers = true
-	ac.SMTPSettings.SMTPPort = 587
-	ac.SMTPSettings.SMTPEnableStartTLS = true
-	ac.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
-	ac.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
-	ac.SMTPSettings.SMTPVerifySSLCerts = true
-	ac.SMTPSettings.SMTPEnableTLS = true
+type Duration struct {
+	time.Duration
+}
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.String())
+}
+
+func (d Duration) ValueOr(t time.Duration) time.Duration {
+	if d.Duration == 0 {
+		return t
+	}
+	return d.Duration
+}
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	switch value := v.(type) {
+	case float64:
+		d.Duration = time.Duration(value)
+		return nil
+	case string:
+		var err error
+		d.Duration, err = time.ParseDuration(value)
+		if err != nil {
+			return err
+		}
+		return nil
+	default:
+		return errors.Errorf("invalid duration type: %T", value)
+	}
+}
+
+type WebhookSettings struct {
+	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
+	Interval          Duration                  `json:"interval"`
+}
+
+type HostStatusWebhookSettings struct {
+	Enable         bool    `json:"enable_host_status_webhook"`
+	DestinationURL string  `json:"destination_url"`
+	HostPercentage float64 `json:"host_percentage"`
+	DaysCount      int     `json:"days_count"`
+}
+
+func (c *AppConfig) ApplyDefaultsForNewInstalls() {
+	c.ServerSettings.EnableAnalytics = true
+	c.SMTPSettings.SMTPPort = 587
+	c.SMTPSettings.SMTPEnableStartTLS = true
+	c.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
+	c.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
+	c.SMTPSettings.SMTPVerifySSLCerts = true
+	c.SMTPSettings.SMTPEnableTLS = true
+
+	c.ApplyDefaults()
+}
+
+func (c *AppConfig) ApplyDefaults() {
+	c.HostSettings.EnableHostUsers = true
+	c.WebhookSettings.Interval.Duration = 24 * time.Hour
 }
 
 // OrgInfo contains general info about the organization using Fleet.
@@ -282,11 +288,20 @@ type LicenseInfo struct {
 	Note string `json:"note,omitempty"`
 }
 
+const (
+	HeaderLicenseKey          = "X-Fleet-License"
+	HeaderLicenseValueExpired = "Expired"
+)
+
 type Logging struct {
 	Debug  bool          `json:"debug"`
 	Json   bool          `json:"json"`
 	Result LoggingPlugin `json:"result"`
 	Status LoggingPlugin `json:"status"`
+}
+
+type UpdateIntervalConfig struct {
+	OSQueryDetail time.Duration `json:"osquery_detail"`
 }
 
 type LoggingPlugin struct {

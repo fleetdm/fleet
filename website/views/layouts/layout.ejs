@@ -105,16 +105,7 @@
           </div>
         </div>
         <div class="d-none d-lg-flex">
-          <div class="dropdown px-3 py-2 mr-4">
-            <button style="font-size: 16px; line-height: 23px; text-decoration: none;" class="header-btn btn btn-link p-0 m-0 dropdown-label" type="button" id="dropdownMenuButton">
-              Get started
-            </button>
-            <div style="border-radius: 8px;" class="dropdown-menu dropdown-container p-2" aria-labelledby="dropdownMenuButton">
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/install" data-text="Try Fleet">Try Fleet</a>
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" href="/contribute" data-text="Contribute">Contribute</a>
-              <a style="border-radius: 4px;" class="dropdown-item py-2 px-3" target="_blank" href="/hall-of-fame" data-text="Hall of fame">Hall of fame</a>
-            </div>
-          </div>
+          <a href="/get-started" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Get started</a>
           <a href="/docs" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Docs</a>
           <a href="/queries" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Queries</a>
           <a href="/pricing" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Pricing</a>
@@ -268,7 +259,7 @@
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
           msedge: '16',
-          msie: '11',
+          // msie: '11',
           safari: '10',//« earliest version to eliminate rare bug where `window.location` doesn't exist momentarily after doing a server-side redirect
           firefox: '28',//« earliest version to support both ES5 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
           chrome: '29',//« earliest version to support both ES5 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
@@ -276,7 +267,7 @@
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {
           'microsoft edge': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msedge,
-          'internet explorer': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msie,
+          // 'internet explorer': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msie,
           'safari': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.safari,
           'firefox': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.firefox,
           'chrome': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.chrome,

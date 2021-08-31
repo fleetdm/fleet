@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/logging"
 
 	"github.com/WatchBeam/clock"
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -24,43 +24,36 @@ func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.Live
 
 func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-	license := fleet.LicenseInfo{Tier: "core"}
-	writer, err := logging.NewFilesystemLogWriter(
+	license := &fleet.LicenseInfo{Tier: "core"}
+	writer, _ := logging.NewFilesystemLogWriter(
 		fleetConfig.Filesystem.StatusLogFile,
 		kitlog.NewNopLogger(),
 		fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
+	// See #1776
+	//if err != nil {
+	//	panic(err)
+	//}
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
-	if len(opts) > 0 && opts[0].Logger != nil {
-		logger = opts[0].Logger
+	if len(opts) > 0 {
+		if opts[0].Logger != nil {
+			logger = opts[0].Logger
+		}
+		if opts[0].License != nil {
+			license = opts[0].License
+		}
 	}
-	svc, err := NewService(ds, rs, logger, osqlogger, fleetConfig, mailer, clock.C, nil, lq, ds, license)
+	svc, err := NewService(ds, rs, logger, osqlogger, fleetConfig, mailer, clock.C, nil, lq, ds, *license)
 	if err != nil {
 		panic(err)
 	}
-	return svc
-}
-
-func newTestBasicService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
-	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-	license := fleet.LicenseInfo{Tier: fleet.TierBasic}
-	testConfig := config.TestConfig()
-	writer, err := logging.NewFilesystemLogWriter(
-		testConfig.Filesystem.StatusLogFile,
-		kitlog.NewNopLogger(),
-		testConfig.Filesystem.EnableLogRotation,
-		testConfig.Filesystem.EnableLogCompression,
-	)
-	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
-	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, clock.C, nil, lq, ds, license)
-	if err != nil {
-		panic(err)
-	}
-	svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), testConfig, mailer, clock.C, &license)
-	if err != nil {
-		panic(err)
+	if license.Tier == fleet.TierBasic {
+		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, clock.C, license)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return svc
 }
@@ -75,6 +68,9 @@ func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq f
 		testConfig.Filesystem.EnableLogRotation,
 		testConfig.Filesystem.EnableLogCompression,
 	)
+	if err != nil {
+		panic(err)
+	}
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license)
 	if err != nil {
@@ -137,20 +133,17 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 }
 
 type TestServerOpts struct {
-	Tier   string
-	Logger kitlog.Logger
+	Logger              kitlog.Logger
+	License             *fleet.LicenseInfo
+	SkipCreateTestUsers bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
-	newServiceFunc := newTestService
-	if opts != nil && len(opts) > 0 {
-		switch opts[0].Tier {
-		case fleet.TierBasic:
-			newServiceFunc = newTestBasicService
-		}
+	svc := newTestService(ds, nil, nil, opts...)
+	users := map[string]fleet.User{}
+	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
+		users = createTestUsers(t, ds)
 	}
-	svc := newServiceFunc(ds, nil, nil, opts...)
-	users := createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger

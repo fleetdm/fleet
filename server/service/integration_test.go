@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ func TestDoubleUserCreationErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
@@ -60,6 +62,7 @@ func TestUserWithoutRoleErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
@@ -85,6 +88,7 @@ func TestUserWithWrongRoleErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
@@ -111,6 +115,7 @@ func TestUserCreationWrongTeamErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	teams := []fleet.UserTeam{
@@ -209,6 +214,7 @@ func TestQueryCreationLogsActivity(t *testing.T) {
 	defer ds.Close()
 
 	users, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	admin1 := users["admin1@example.com"]
@@ -250,6 +256,7 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	spec := []byte(`
@@ -275,11 +282,24 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
 }
 
+func TestAppConfigUpdateInterval(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
+	token := getTestAdminToken(t, server)
+
+	config := getConfig(t, server, token)
+	require.Equal(t, 1*time.Hour, config.UpdateInterval.OSQueryDetail)
+}
+
 func TestAppConfigHasLogging(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	config := getConfig(t, server, token)
@@ -306,6 +326,7 @@ func TestUserRolesSpec(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	_, err := ds.NewTeam(&fleet.Team{
 		ID:          42,
 		Name:        "team1",
@@ -352,6 +373,7 @@ func TestGlobalSchedule(t *testing.T) {
 	test.AddAllHostsLabel(t, ds)
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	gs := fleet.GlobalSchedulePayload{}
@@ -408,7 +430,8 @@ func TestTeamSpecs(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Tier: fleet.TierBasic})
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierBasic}})
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	// create a team through the service so it initializes the agent ops
@@ -472,6 +495,7 @@ func TestTranslator(t *testing.T) {
 	defer ds.Close()
 
 	users, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	payload := translatorResponse{}
@@ -496,6 +520,7 @@ func TestTeamSchedule(t *testing.T) {
 	test.AddAllHostsLabel(t, ds)
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	team1, err := ds.NewTeam(&fleet.Team{
@@ -565,6 +590,7 @@ func TestLogger(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	getConfig(t, server, token)
@@ -614,6 +640,7 @@ func TestVulnerableSoftware(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	host, err := ds.NewHost(&fleet.Host{
@@ -675,6 +702,116 @@ func TestVulnerableSoftware(t *testing.T) {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 }
 
+func TestGlobalPolicies(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
+	token := getTestAdminToken(t, server)
+
+	for i := 0; i < 3; i++ {
+		_, err := ds.NewHost(&fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	qr, err := ds.NewQuery(&fleet.Query{
+		Name:           "TestQuery",
+		Description:    "Some description",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+	})
+	require.NoError(t, err)
+
+	gpParams := globalPolicyRequest{QueryID: qr.ID}
+	gpResp := globalPolicyResponse{}
+	doJSONReq(t, gpParams, "POST", server, "/api/v1/fleet/global/policies", token, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+	assert.Equal(t, qr.ID, gpResp.Policy.QueryID)
+
+	policiesResponse := listGlobalPoliciesResponse{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/policies", token, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 1)
+	assert.Equal(t, qr.ID, policiesResponse.Policies[0].QueryID)
+
+	singlePolicyResponse := getPolicyByIDResponse{}
+	singlePolicyURL := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policiesResponse.Policies[0].ID)
+	doJSONReq(t, nil, "GET", server, singlePolicyURL, token, http.StatusOK, &singlePolicyResponse)
+	assert.Equal(t, qr.ID, singlePolicyResponse.Policy.QueryID)
+	assert.Equal(t, qr.Name, singlePolicyResponse.Policy.QueryName)
+
+	listHostsURL := fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
+	listHostsResp := listHostsResponse{}
+	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 3)
+
+	h1 := listHostsResp.Hosts[0]
+	h2 := listHostsResp.Hosts[1]
+
+	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 0)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
+
+	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 1)
+
+	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
+	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	doJSONReq(t, deletePolicyParams, "POST", server, "/api/v1/fleet/global/policies/delete", token, http.StatusOK, &deletePolicyResp)
+
+	policiesResponse = listGlobalPoliciesResponse{}
+	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/policies", token, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 0)
+}
+
+func TestOsqueryEndpointsLogErrors(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	defer server.Close()
+
+	_, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1234",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer([]byte(`{"node_key":"1234","log_type":"status","data":[}`))}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/osquery/log", requestBody)
+	client := &http.Client{}
+	_, err = client.Do(req)
+	require.Nil(t, err)
+
+	logString := buf.String()
+	assert.Equal(t, `{"err":"decoding JSON: invalid character '}' looking for beginning of value","level":"info","path":"/api/v1/osquery/log"}
+`, logString)
+}
+
 func TestSubmitStatusLog(t *testing.T) {
 	buf := new(bytes.Buffer)
 	logger := log.NewJSONLogger(buf)
@@ -684,6 +821,7 @@ func TestSubmitStatusLog(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	_, err := ds.NewHost(&fleet.Host{
@@ -709,4 +847,84 @@ func TestSubmitStatusLog(t *testing.T) {
 	logString := buf.String()
 	assert.Equal(t, 1, strings.Count(logString, "\"ip_addr\""))
 	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
+}
+
+func TestEnrollAgentLogsErrors(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	defer server.Close()
+
+	_, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1234",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   "1234",
+		HostIdentifier: "4321",
+		HostDetails:    nil,
+	})
+	require.NoError(t, err)
+
+	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/osquery/enroll", requestBody)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	parts := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	require.Len(t, parts, 1)
+	logData := make(map[string]json.RawMessage)
+	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
+	assert.Equal(t, json.RawMessage(`["enroll failed: no matching secret found"]`), logData["err"])
+}
+
+func TestLicenseExpiration(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	testCases := []struct {
+		name             string
+		tier             string
+		expiration       time.Time
+		shouldHaveHeader bool
+	}{
+		{"basic expired", fleet.TierBasic, time.Now().Add(-24 * time.Hour), true},
+		{"basic not expired", fleet.TierBasic, time.Now().Add(24 * time.Hour), false},
+		{"core expired", fleet.TierCore, time.Now().Add(-24 * time.Hour), false},
+		{"core not expired", fleet.TierCore, time.Now().Add(24 * time.Hour), false},
+	}
+
+	_ = createTestUsers(t, ds)
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			license := &fleet.LicenseInfo{Tier: tt.tier, Expiration: tt.expiration}
+			_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{License: license, SkipCreateTestUsers: true})
+			defer server.Close()
+
+			token := getTestAdminToken(t, server)
+
+			resp, closeFunc := doReq(t, nil, "GET", server, "/api/v1/fleet/config", token, http.StatusOK)
+			defer closeFunc()
+			if tt.shouldHaveHeader {
+				require.Equal(t, fleet.HeaderLicenseValueExpired, resp.Header.Get(fleet.HeaderLicenseKey))
+			} else {
+				require.Equal(t, "", resp.Header.Get(fleet.HeaderLicenseKey))
+			}
+		})
+	}
 }

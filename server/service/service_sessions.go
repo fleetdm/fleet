@@ -236,7 +236,7 @@ func (svc *Service) makeSession(id uint) (string, error) {
 		AccessedAt: time.Now().UTC(),
 	}
 
-	session, err = svc.ds.NewSession(session)
+	_, err = svc.ds.NewSession(session)
 	if err != nil {
 		return "", errors.Wrap(err, "creating new session")
 	}

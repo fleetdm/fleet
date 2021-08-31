@@ -14,9 +14,6 @@ func TestChangeEmail(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
-	}
 	user := &fleet.User{
 		Password:   []byte("foobar"),
 		Email:      "bob@bob.com",
@@ -33,7 +30,7 @@ func TestChangeEmail(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, "xxxx@yyy.com", user.Email)
 	// this should fail because it doesn't exist
-	newMail, err = ds.ConfirmPendingEmailChange(user.ID, "abcd12345")
+	_, err = ds.ConfirmPendingEmailChange(user.ID, "abcd12345")
 	assert.NotNil(t, err)
 
 	// test that wrong user can't confirm e-mail change

@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -123,6 +123,16 @@ func printSecret(c *cli.Context, secret *fleet.EnrollSecretSpec) error {
 }
 
 func printHost(c *cli.Context, host *service.HostResponse) error {
+	spec := specGeneric{
+		Kind:    fleet.HostKind,
+		Version: fleet.ApiVersion,
+		Spec:    host,
+	}
+
+	return printSpec(c, spec)
+}
+
+func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
 	spec := specGeneric{
 		Kind:    fleet.HostKind,
 		Version: fleet.ApiVersion,
@@ -368,7 +378,7 @@ func getPacksCommand() *cli.Command {
 					return errors.Wrap(err, "could not list packs")
 				}
 
-				if c.Bool(yamlFlagName) {
+				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, pack := range packs {
 						if err := printPack(c, pack); err != nil {
 							return errors.Wrap(err, "unable to print pack")
@@ -625,12 +635,10 @@ func getHostsCommand() *cli.Command {
 				if err != nil {
 					return errors.Wrap(err, "could not get host")
 				}
-				b, err := yaml.Marshal(host)
+				err = printHostDetail(c, host)
 				if err != nil {
 					return err
 				}
-
-				fmt.Print(string(b))
 			}
 			return nil
 		},

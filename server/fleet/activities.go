@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"context"
 	"encoding/json"
 )
 
@@ -31,15 +30,6 @@ const (
 	// ActivityTypeLiveQuery is the activity type for live queries
 	ActivityTypeLiveQuery = "live_query"
 )
-
-type ActivitiesStore interface {
-	NewActivity(user *User, activityType string, details *map[string]interface{}) error
-	ListActivities(opt ListOptions) ([]*Activity, error)
-}
-
-type ActivitiesService interface {
-	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, error)
-}
 
 type Activity struct {
 	CreateTimestamp

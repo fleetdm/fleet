@@ -1,3 +1,8 @@
+export enum PolicyResponse {
+  PASSING = "passing",
+  FAILING = "failing",
+}
+
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 3600, label: "Every hour" },
   { value: 21600, label: "Every 6 hours" },

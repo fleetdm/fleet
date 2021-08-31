@@ -31,7 +31,13 @@ Check out [the instructions in the `/tools/osquery` directory](../../tools/osque
 
 ## Test suite
 
-To execute the basic unit and integration tests, run the following from the root of the repository:
+You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
+
+```
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
+```
+
+Make sure it is available in your PATH. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
 MYSQL_TEST=1 make test
@@ -219,7 +225,7 @@ Note that a "restore" will replace the state of the development database with th
 
 ## Teams seed data
 
-When developing on both the `master` and `teams` branches, it may be useful to create seed data that includes users and teams.
+When developing Fleet, it may be useful to create seed data that includes users and teams.
 
 Check out this Loom demo video that walks through creating teams seed data:
 https://www.loom.com/share/1c41a1540e8f41328a7a6cfc56ad0a01

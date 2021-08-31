@@ -26,7 +26,7 @@ func Up_20210816141251(tx *sql.Tx) error {
 		return errors.Wrap(err, "create app_config_json")
 	}
 	row := tx.QueryRow(
-		`SELECT 
+		`SELECT
        			org_name,
 				org_logo_url,
 				server_url,
@@ -62,6 +62,7 @@ func Up_20210816141251(tx *sql.Tx) error {
 				FROM app_configs LIMIT 1`,
 	)
 	config := &fleet.AppConfig{}
+	config.ApplyDefaults()
 	var vulnPath *string
 	err := row.Scan(
 		&config.OrgInfo.OrgName,
@@ -108,6 +109,7 @@ func Up_20210816141251(tx *sql.Tx) error {
 	if err != nil {
 		return errors.Wrap(err, "marshaling config")
 	}
+	//nolint
 	_, err = tx.Exec(
 		`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 		configBytes,

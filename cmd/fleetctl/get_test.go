@@ -1,7 +1,12 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
+	"github.com/ghodss/yaml"
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -86,33 +91,54 @@ spec:
 }
 
 func TestGetTeams(t *testing.T) {
-	server, ds := runServerWithMockedDS(t, service.TestServerOpts{Tier: fleet.TierBasic})
-	defer server.Close()
-
-	agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
-	ds.ListTeamsFunc = func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
-		require.NoError(t, err)
-		return []*fleet.Team{
-			&fleet.Team{
-				ID:          42,
-				CreatedAt:   created_at,
-				Name:        "team1",
-				Description: "team1 description",
-				UserCount:   99,
-			},
-			&fleet.Team{
-				ID:           43,
-				CreatedAt:    created_at,
-				Name:         "team2",
-				Description:  "team2 description",
-				UserCount:    87,
-				AgentOptions: &agentOpts,
-			},
-		}, nil
+	expiredBanner := "Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about downgrading, please navigate to https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md#expired_license and contact us for help."
+	testCases := []struct {
+		name                    string
+		license                 *fleet.LicenseInfo
+		shouldHaveExpiredBanner bool
+	}{
+		{
+			"not expired license",
+			&fleet.LicenseInfo{Tier: fleet.TierBasic, Expiration: time.Now().Add(24 * time.Hour)},
+			false,
+		},
+		{
+			"expired license",
+			&fleet.LicenseInfo{Tier: fleet.TierBasic, Expiration: time.Now().Add(-24 * time.Hour)},
+			true,
+		},
 	}
 
-	expectedText := `+-----------+-------------------+------------+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			license := tt.license
+			server, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+			defer server.Close()
+
+			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
+			ds.ListTeamsFunc = func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+				created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+				require.NoError(t, err)
+				return []*fleet.Team{
+					{
+						ID:          42,
+						CreatedAt:   created_at,
+						Name:        "team1",
+						Description: "team1 description",
+						UserCount:   99,
+					},
+					{
+						ID:           43,
+						CreatedAt:    created_at,
+						Name:         "team2",
+						Description:  "team2 description",
+						UserCount:    87,
+						AgentOptions: &agentOpts,
+					},
+				}, nil
+			}
+
+			expectedText := `+-----------+-------------------+------------+
 | TEAM NAME |    DESCRIPTION    | USER COUNT |
 +-----------+-------------------+------------+
 | team1     | team1 description |         99 |
@@ -120,7 +146,7 @@ func TestGetTeams(t *testing.T) {
 | team2     | team2 description |         87 |
 +-----------+-------------------+------------+
 `
-	expectedYaml := `---
+			expectedYaml := `---
 apiVersion: v1
 kind: team
 spec:
@@ -151,19 +177,27 @@ spec:
     name: team2
     user_count: 87
 `
-	expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","agent_options":null,"user_count":99,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","agent_options":null,"user_count":99,"host_count":0}}}
 {"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"user_count":87,"host_count":0}}}
 `
+			if tt.shouldHaveExpiredBanner {
+				expectedJson = expiredBanner + "\n" + expectedJson
+				expectedYaml = expiredBanner + "\n" + expectedYaml
+				expectedText = expiredBanner + "\n" + expectedText
+			}
 
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "teams", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
+			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
+			assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
+		})
+	}
 }
 
 func TestGetHosts(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
+	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
 	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		hosts := []*fleet.Host{
 			{
@@ -179,67 +213,131 @@ func TestGetHosts(t *testing.T) {
 				ComputerName:    "test_host",
 				Hostname:        "test_host",
 			},
+			{
+				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
+					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
+				},
+				HostSoftware:    fleet.HostSoftware{},
+				DetailUpdatedAt: time.Time{},
+				LabelUpdatedAt:  time.Time{},
+				LastEnrolledAt:  time.Time{},
+				SeenTime:        time.Time{},
+				ComputerName:    "test_host2",
+				Hostname:        "test_host2",
+			},
 		}
 		return hosts, nil
 	}
 
-	expectedText := `+------+-----------+----------+-----------------+--------+
-| UUID | HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS |
-+------+-----------+----------+-----------------+--------+
-|      | test_host |          |                 | mia    |
-+------+-----------+----------+-----------------+--------+
+	// these are run when host is specified `fleetctl get hosts --json test_host`
+	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+		require.NotEmpty(t, identifier)
+		return &fleet.Host{
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
+				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
+			},
+			HostSoftware:    fleet.HostSoftware{},
+			DetailUpdatedAt: time.Time{},
+			LabelUpdatedAt:  time.Time{},
+			LastEnrolledAt:  time.Time{},
+			SeenTime:        time.Time{},
+			ComputerName:    "test_host",
+			Hostname:        "test_host"}, nil
+	}
+
+	ds.LoadHostSoftwareFunc = func(host *fleet.Host) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(hid uint) ([]*fleet.Label, error) {
+		return make([]*fleet.Label, 0), nil
+	}
+	ds.ListPacksForHostFunc = func(hid uint) (packs []*fleet.Pack, err error) {
+		return make([]*fleet.Pack, 0), nil
+	}
+
+	expectedText := `+------+------------+----------+-----------------+--------+
+| UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS |
++------+------------+----------+-----------------+--------+
+|      | test_host  |          |                 | mia    |
++------+------------+----------+-----------------+--------+
+|      | test_host2 |          |                 | mia    |
++------+------------+----------+-----------------+--------+
 `
 
-	expectedYaml := `---
-apiVersion: v1
-kind: host
-spec:
-  build: ""
-  code_name: ""
-  computer_name: test_host
-  config_tls_refresh: 0
-  cpu_brand: ""
-  cpu_logical_cores: 0
-  cpu_physical_cores: 0
-  cpu_subtype: ""
-  cpu_type: ""
-  created_at: "0001-01-01T00:00:00Z"
-  detail_updated_at: "0001-01-01T00:00:00Z"
-  display_text: test_host
-  distributed_interval: 0
-  gigs_disk_space_available: 0
-  hardware_model: ""
-  hardware_serial: ""
-  hardware_vendor: ""
-  hardware_version: ""
-  hostname: test_host
-  id: 0
-  label_updated_at: "0001-01-01T00:00:00Z"
-  last_enrolled_at: "0001-01-01T00:00:00Z"
-  logger_tls_period: 0
-  memory: 0
-  os_version: ""
-  osquery_version: ""
-  pack_stats: null
-  percent_disk_space_available: 0
-  platform: ""
-  platform_like: ""
-  primary_ip: ""
-  primary_mac: ""
-  refetch_requested: false
-  seen_time: "0001-01-01T00:00:00Z"
-  status: mia
-  team_id: null
-  team_name: null
-  updated_at: "0001-01-01T00:00:00Z"
-  uptime: 0
-  uuid: ""
-`
-	expectedJson := "{\"kind\":\"host\",\"apiVersion\":\"v1\",\"spec\":{\"created_at\":\"0001-01-01T00:00:00Z\",\"updated_at\":\"0001-01-01T00:00:00Z\",\"id\":0,\"detail_updated_at\":\"0001-01-01T00:00:00Z\",\"label_updated_at\":\"0001-01-01T00:00:00Z\",\"last_enrolled_at\":\"0001-01-01T00:00:00Z\",\"seen_time\":\"0001-01-01T00:00:00Z\",\"refetch_requested\":false,\"hostname\":\"test_host\",\"uuid\":\"\",\"platform\":\"\",\"osquery_version\":\"\",\"os_version\":\"\",\"build\":\"\",\"platform_like\":\"\",\"code_name\":\"\",\"uptime\":0,\"memory\":0,\"cpu_type\":\"\",\"cpu_subtype\":\"\",\"cpu_brand\":\"\",\"cpu_physical_cores\":0,\"cpu_logical_cores\":0,\"hardware_vendor\":\"\",\"hardware_model\":\"\",\"hardware_version\":\"\",\"hardware_serial\":\"\",\"computer_name\":\"test_host\",\"primary_ip\":\"\",\"primary_mac\":\"\",\"distributed_interval\":0,\"config_tls_refresh\":0,\"logger_tls_period\":0,\"team_id\":null,\"pack_stats\":null,\"team_name\":null,\"gigs_disk_space_available\":0,\"percent_disk_space_available\":0,\"status\":\"mia\",\"display_text\":\"test_host\"}}\n"
+	tests := []struct {
+		name        string
+		goldenFile  string
+		unmarshaler func(data []byte, v interface{}) error
+		scanner     func(s string) []string
+		args        []string
+	}{
+		{
+			name:        "get hosts --json",
+			goldenFile:  "expectedListHostsJson.json",
+			unmarshaler: json.Unmarshal,
+			scanner: func(s string) []string {
+				var parts []string
+				scanner := bufio.NewScanner(bytes.NewBufferString(s))
+				for scanner.Scan() {
+					parts = append(parts, scanner.Text())
+				}
+				return parts
+			},
+			args: []string{"get", "hosts", "--json"},
+		},
+		{
+			name:        "get hosts --json test_host",
+			goldenFile:  "expectedHostDetailResponseJson.json",
+			unmarshaler: json.Unmarshal,
+			scanner: func(s string) []string {
+				return []string{s}
+			},
+			args: []string{"get", "hosts", "--json", "test_host"},
+		},
+		{
+			name:        "get hosts --yaml",
+			goldenFile:  "expectedListHostsYaml.yml",
+			unmarshaler: yaml.Unmarshal,
+			scanner: func(s string) []string {
+				return []string{s}
+			},
+			args: []string{"get", "hosts", "--yaml"},
+		},
+		{
+			name:        "get hosts --yaml test_host",
+			goldenFile:  "expectedHostDetailResponseYaml.yml",
+			unmarshaler: yaml.Unmarshal,
+			scanner: func(s string) []string {
+				return splitYaml(s)
+			},
+			args: []string{"get", "hosts", "--yaml", "test_host"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
+			require.NoError(t, err)
+			expectedResults := tt.scanner(string(expected))
+			expectedSpecs := make([]specGeneric, len(expectedResults))
+			for i, result := range expectedResults {
+				var got specGeneric
+				require.NoError(t, tt.unmarshaler([]byte(result), &got))
+				expectedSpecs[i] = got
+			}
+			actualResult := tt.scanner(runAppForTest(t, tt.args))
+			actualSpecs := make([]specGeneric, len(actualResult))
+			for i, result := range actualResult {
+				var spec specGeneric
+				require.NoError(t, tt.unmarshaler([]byte(result), &spec))
+				actualSpecs[i] = spec
+			}
+			require.Equal(t, expectedSpecs, actualSpecs)
+		})
+	}
 
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "hosts"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "hosts", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "hosts", "--json"}))
 }
 
 func TestGetConfig(t *testing.T) {
@@ -295,8 +393,15 @@ spec:
     metadata_url: ""
   vulnerability_settings:
     databases_path: /some/path
+  webhook_settings:
+    host_status_webhook:
+      days_count: 0
+      destination_url: ""
+      enable_host_status_webhook: false
+      host_percentage: 0
+    interval: 0s
 `
-	expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"}}}
+	expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"interval":"0s"}}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))

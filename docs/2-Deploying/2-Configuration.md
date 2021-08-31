@@ -1246,6 +1246,8 @@ AWS STS role ARN to use for S3 authentication.
 
 The path specified needs to exist and fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
+When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist. 
+
 - Default value: none
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
 - Config file format:

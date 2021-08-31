@@ -23,7 +23,7 @@ func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error
 }
 
 func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
-	var info fleet.AppConfig
+	info := &fleet.AppConfig{}
 	var bytes []byte
 	err := d.db.Get(&bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
 	if err != nil && err != sql.ErrNoRows {
@@ -33,11 +33,13 @@ func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	err = json.Unmarshal(bytes, &info)
+	info.ApplyDefaults()
+
+	err = json.Unmarshal(bytes, info)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshaling config")
 	}
-	return &info, nil
+	return info, nil
 }
 
 func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
@@ -45,8 +47,14 @@ func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	defer rows.Close()
+
 	if !rows.Next() {
-		return false, errors.New("Error detecting MySQL event scheduler status.")
+		err := errors.New("Error detecting MySQL event scheduler status.")
+		if rerr := rows.Err(); rerr != nil {
+			err = rerr
+		}
+		return false, err
 	}
 	var value string
 	if err := rows.Scan(&value); err != nil {
