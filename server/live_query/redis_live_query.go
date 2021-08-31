@@ -21,6 +21,22 @@
 // We believe that normal fleet usage has many hosts, and a small
 // number of live queries targeting all of them. This was a big
 // factor in choosing this implementation.
+//
+// Implementation
+//
+// As mentioned in the Design section, there are two keys for each
+// live query: the bitfield and the SQL of the query:
+//
+//     livequery:<ID> is the bitfield that indicates the hosts
+//     sql:livequery:<ID> is the SQL of the query.
+//
+// Both have an expiration, and <ID> is the campaign ID of the query.
+// To make efficient use of Redis Cluster (without impacting standalone
+// Redis), the <ID> is stored in braces (hash tags), so that the two
+// keys for the same <ID> are always stored on the same node (as they
+// hash to the same cluster slot). See
+// https://redis.io/topics/cluster-spec#keys-hash-tags for details.
+//
 package live_query
 
 import (

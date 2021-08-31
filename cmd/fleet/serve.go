@@ -200,6 +200,10 @@ the way that the Fleet server works.
 				initFatal(err, "initialize Redis")
 			}
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
+
+			// TODO: at startup, migrate old-style live query keys to the new format.
+			// Use pubsub.EachRedisNode to find all such keys on all nodes.
+
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
