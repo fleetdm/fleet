@@ -18,6 +18,8 @@ type appConfigRequest struct {
 type appConfigResponse struct {
 	fleet.AppConfig
 
+	UpdateInterval *fleet.UpdateIntervalConfig `json:"update_interval"`
+
 	// License is loaded from the service
 	License *fleet.LicenseInfo `json:"license,omitempty"`
 	// Logging is loaded on the fly rather than from the database.
@@ -42,6 +44,10 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return nil, err
 		}
 		loggingConfig, err := svc.LoggingConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		updateIntervalConfig, err := svc.UpdateIntervalConfig(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -72,10 +78,12 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				SSOSettings:        ssoSettings,
 				HostExpirySettings: hostExpirySettings,
 				AgentOptions:       agentOptions,
-			},
 
-			License: license,
-			Logging: loggingConfig,
+				WebhookSettings: config.WebhookSettings,
+			},
+			UpdateInterval: updateIntervalConfig,
+			License:        license,
+			Logging:        loggingConfig,
 		}
 		return response, nil
 	}

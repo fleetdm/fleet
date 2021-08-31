@@ -376,9 +376,8 @@ func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey str
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
 				return "TRUE"
-			} else {
-				return "FALSE"
 			}
+			return "FALSE"
 
 		default:
 			// Fall through to specific teams
@@ -425,9 +424,8 @@ func (d *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) st
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
 				return "TRUE"
-			} else {
-				return "FALSE"
 			}
+			return "FALSE"
 
 		default:
 			// Fall through to specific teams

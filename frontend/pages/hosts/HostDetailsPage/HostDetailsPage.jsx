@@ -337,11 +337,6 @@ export class HostDetailsPage extends Component {
 
     const isOnline = host.status === "online";
 
-    // Hide action buttons for global and team only observers
-    if (isOnlyObserver) {
-      return null;
-    }
-
     return (
       <div className={`${baseClass}__action-button-container`}>
         {canTransferTeam && (
@@ -374,9 +369,11 @@ export class HostDetailsPage extends Component {
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        <Button onClick={toggleDeleteHostModal()} variant="text-icon">
-          Delete <img src={DeleteIcon} alt="Delete host icon" />
-        </Button>
+        {!isOnlyObserver && (
+          <Button onClick={toggleDeleteHostModal()} variant="text-icon">
+            Delete <img src={DeleteIcon} alt="Delete host icon" />
+          </Button>
+        )}
       </div>
     );
   };
@@ -610,6 +607,7 @@ export class HostDetailsPage extends Component {
       isBasicTier,
       isGlobalAdmin,
       teams,
+      isOnlyObserver,
     } = this.props;
     const {
       host,
@@ -657,6 +655,8 @@ export class HostDetailsPage extends Component {
         "os_version",
         "enroll_secret_name",
         "detail_updated_at",
+        "percent_disk_space_available",
+        "gigs_disk_space_available",
       ])
     );
     const aboutData = normalizeEmptyValues(
@@ -697,6 +697,33 @@ export class HostDetailsPage extends Component {
         </div>
       );
     };
+
+    const renderDiskSpace = () => {
+      if (
+        host.gigs_disk_space_available > 0 ||
+        host.percent_disk_space_available > 0
+      ) {
+        return (
+          <span className="info__data">
+            <div className="info__disk-space">
+              <div
+                className={
+                  titleData.percent_disk_space_available > 20
+                    ? "info__disk-space-used"
+                    : "info__disk-space-warning"
+                }
+                style={{
+                  width: `${100 - titleData.percent_disk_space_available}%`,
+                }}
+              />
+            </div>
+            {titleData.gigs_disk_space_available} GB available
+          </span>
+        );
+      }
+      return <span className="info__data">No data available</span>;
+    };
+
     return (
       <div className={`${baseClass} body-wrap`}>
         <div>
@@ -725,7 +752,11 @@ export class HostDetailsPage extends Component {
                   {titleData.status}
                 </span>
               </div>
-              {isBasicTier ? hostTeam() : null}
+              {isBasicTier && hostTeam()}
+              <div className="info__item info__item--title">
+                <span className="info__header">Disk Space</span>
+                {renderDiskSpace()}
+              </div>
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
                 <span className="info__data">
@@ -817,6 +848,7 @@ export class HostDetailsPage extends Component {
             queries={queries}
             dispatch={dispatch}
             queryErrors={queryErrors}
+            isOnlyObserver={isOnlyObserver}
           />
         )}
         {showTransferHostModal && (

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/go-kit/kit/log"
@@ -35,7 +35,7 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 			Compress:   enableCompression,
 		}
 		appLogger = log.With(appLogger, "component", "osqueryd-logger")
-		sig := make(chan os.Signal)
+		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGHUP)
 		go func() {
 			for {

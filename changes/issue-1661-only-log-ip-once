@@ -1,1 +1,0 @@
-* Make sure to not log ip and fwd ip twice with osquery endpoints.

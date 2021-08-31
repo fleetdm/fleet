@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	adminFlagName      = "admin"
 	globalRoleFlagName = "global-role"
 	teamFlagName       = "team"
 	passwordFlagName   = "password"

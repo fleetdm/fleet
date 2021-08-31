@@ -89,33 +89,54 @@ spec:
 }
 
 func TestGetTeams(t *testing.T) {
-	server, ds := runServerWithMockedDS(t, service.TestServerOpts{Tier: fleet.TierBasic})
-	defer server.Close()
-
-	agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
-	ds.ListTeamsFunc = func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
-		require.NoError(t, err)
-		return []*fleet.Team{
-			&fleet.Team{
-				ID:          42,
-				CreatedAt:   created_at,
-				Name:        "team1",
-				Description: "team1 description",
-				UserCount:   99,
-			},
-			&fleet.Team{
-				ID:           43,
-				CreatedAt:    created_at,
-				Name:         "team2",
-				Description:  "team2 description",
-				UserCount:    87,
-				AgentOptions: &agentOpts,
-			},
-		}, nil
+	expiredBanner := "Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about downgrading, please navigate to https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md#expired_license and contact us for help."
+	testCases := []struct {
+		name                    string
+		license                 *fleet.LicenseInfo
+		shouldHaveExpiredBanner bool
+	}{
+		{
+			"not expired license",
+			&fleet.LicenseInfo{Tier: fleet.TierBasic, Expiration: time.Now().Add(24 * time.Hour)},
+			false,
+		},
+		{
+			"expired license",
+			&fleet.LicenseInfo{Tier: fleet.TierBasic, Expiration: time.Now().Add(-24 * time.Hour)},
+			true,
+		},
 	}
 
-	expectedText := `+-----------+-------------------+------------+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			license := tt.license
+			server, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+			defer server.Close()
+
+			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
+			ds.ListTeamsFunc = func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+				created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+				require.NoError(t, err)
+				return []*fleet.Team{
+					{
+						ID:          42,
+						CreatedAt:   created_at,
+						Name:        "team1",
+						Description: "team1 description",
+						UserCount:   99,
+					},
+					{
+						ID:           43,
+						CreatedAt:    created_at,
+						Name:         "team2",
+						Description:  "team2 description",
+						UserCount:    87,
+						AgentOptions: &agentOpts,
+					},
+				}, nil
+			}
+
+			expectedText := `+-----------+-------------------+------------+
 | TEAM NAME |    DESCRIPTION    | USER COUNT |
 +-----------+-------------------+------------+
 | team1     | team1 description |         99 |
@@ -123,7 +144,7 @@ func TestGetTeams(t *testing.T) {
 | team2     | team2 description |         87 |
 +-----------+-------------------+------------+
 `
-	expectedYaml := `---
+			expectedYaml := `---
 apiVersion: v1
 kind: team
 spec:
@@ -154,13 +175,20 @@ spec:
     name: team2
     user_count: 87
 `
-	expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","agent_options":null,"user_count":99,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","agent_options":null,"user_count":99,"host_count":0}}}
 {"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"user_count":87,"host_count":0}}}
 `
+			if tt.shouldHaveExpiredBanner {
+				expectedJson = expiredBanner + "\n" + expectedJson
+				expectedYaml = expiredBanner + "\n" + expectedYaml
+				expectedText = expiredBanner + "\n" + expectedText
+			}
 
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "teams", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
+			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
+			assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
+		})
+	}
 }
 
 func TestGetHosts(t *testing.T) {
@@ -321,8 +349,15 @@ spec:
     metadata_url: ""
   vulnerability_settings:
     databases_path: /some/path
+  webhook_settings:
+    host_status_webhook:
+      days_count: 0
+      destination_url: ""
+      enable_host_status_webhook: false
+      host_percentage: 0
+    interval: 0s
 `
-	expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"}}}
+	expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"interval":"0s"}}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))

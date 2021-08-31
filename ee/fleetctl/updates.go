@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/secure"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf"
 	"github.com/urfave/cli/v2"
@@ -29,7 +29,7 @@ const (
 	// Expirations from
 	// https://github.com/theupdateframework/notary/blob/e87b31f46cdc5041403c64b7536df236d5e35860/docs/best_practices.md#expiration-prevention
 	// ~10 years
-	rootExpirationDuration = 10 * 365 * 24 * time.Hour
+	rootExpirationDuration = 10 * 365 * 24 * time.Hour //nolint:unused,deadcode
 	// ~3 years
 	targetsExpirationDuration = 3 * 365 * 24 * time.Hour
 	// ~3 years
@@ -93,9 +93,8 @@ func updatesInitFunc(c *cli.Context) error {
 	if _, err := os.Stat(filepath.Join(path, "keys")); !errors.Is(err, os.ErrNotExist) {
 		if err == nil {
 			return errors.Errorf("keys directory already exists: %s", filepath.Join(path, "keys"))
-		} else {
-			return errors.Wrap(err, "failed to check existence of keys directory")
 		}
+		return errors.Wrap(err, "failed to check existence of keys directory")
 	}
 
 	repo, err := tuf.NewRepo(store)
@@ -444,7 +443,7 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 		}
 
 		fmt.Printf("Enter %s key passphrase: ", role)
-		passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
+		passphrase, err := terminal.ReadPassword(syscall.Stdin)
 		fmt.Println()
 		if err != nil {
 			return nil, errors.Wrap(err, "read password")
@@ -455,7 +454,7 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 		}
 
 		fmt.Printf("Repeat %s key passphrase: ", role)
-		confirmation, err := terminal.ReadPassword(int(syscall.Stdin))
+		confirmation, err := terminal.ReadPassword(syscall.Stdin)
 		fmt.Println()
 		if err != nil {
 			return nil, errors.Wrap(err, "read password confirmation")

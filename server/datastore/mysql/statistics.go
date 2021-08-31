@@ -37,9 +37,8 @@ func (d *Datastore) ShouldSendStatistics(frequency time.Duration) (fleet.Statist
 				FleetVersion:        version.Version().Version,
 				NumHostsEnrolled:    amountEnrolledHosts,
 			}, true, nil
-		} else {
-			return fleet.StatisticsPayload{}, false, err
 		}
+		return fleet.StatisticsPayload{}, false, err
 	}
 	lastUpdated := dest.UpdatedAt
 	if dest.CreatedAt.After(dest.UpdatedAt) {

@@ -111,7 +111,7 @@ class AppConfigForm extends Component {
       agent_options: formFieldInterface.isRequired,
       enable_analytics: formFieldInterface.isRequired,
     }).isRequired,
-    enrollSecret: enrollSecretInterface.isRequired,
+    enrollSecret: PropTypes.arrayOf(enrollSecretInterface).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     smtpConfigured: PropTypes.bool.isRequired,
   };

@@ -1,32 +1,8 @@
 package fleet
 
 import (
-	"context"
 	"time"
 )
-
-type CarveStore interface {
-	NewCarve(metadata *CarveMetadata) (*CarveMetadata, error)
-	UpdateCarve(metadata *CarveMetadata) error
-	Carve(carveId int64) (*CarveMetadata, error)
-	CarveBySessionId(sessionId string) (*CarveMetadata, error)
-	CarveByName(name string) (*CarveMetadata, error)
-	ListCarves(opt CarveListOptions) ([]*CarveMetadata, error)
-	NewBlock(metadata *CarveMetadata, blockId int64, data []byte) error
-	GetBlock(metadata *CarveMetadata, blockId int64) ([]byte, error)
-	// CleanupCarves will mark carves older than 24 hours expired, and delete the
-	// associated data blocks. This behaves differently for carves stored in S3
-	// (check the implementation godoc comment for more details)
-	CleanupCarves(now time.Time) (expired int, err error)
-}
-
-type CarveService interface {
-	CarveBegin(ctx context.Context, payload CarveBeginPayload) (*CarveMetadata, error)
-	CarveBlock(ctx context.Context, payload CarveBlockPayload) error
-	GetCarve(ctx context.Context, id int64) (*CarveMetadata, error)
-	ListCarves(ctx context.Context, opt CarveListOptions) ([]*CarveMetadata, error)
-	GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error)
-}
 
 type CarveMetadata struct {
 	// ID is the DB auto-increment ID for the carve.
@@ -62,8 +38,8 @@ func (c CarveMetadata) AuthzType() string {
 	return "carve"
 }
 
-func (m *CarveMetadata) BlocksComplete() bool {
-	return m.MaxBlock == m.BlockCount-1
+func (c *CarveMetadata) BlocksComplete() bool {
+	return c.MaxBlock == c.BlockCount-1
 }
 
 type CarveListOptions struct {

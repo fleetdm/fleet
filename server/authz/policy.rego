@@ -329,3 +329,20 @@ allow {
   subject.global_role == admin
   action == [read, write][_]
 }
+
+##
+# Policies
+##
+
+# Global Admin and Maintainer users can read and write policies
+allow {
+  object.type == "policy"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+allow {
+  object.type == "policy"
+  subject.global_role == maintainer
+  action == [read, write][_]
+}

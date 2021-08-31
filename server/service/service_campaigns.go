@@ -96,7 +96,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	}
 
 	defer func() {
-		var numHosts uint = 0
+		var numHosts uint
 		if campaign != nil {
 			numHosts = campaign.Metrics.TotalHosts
 		}
