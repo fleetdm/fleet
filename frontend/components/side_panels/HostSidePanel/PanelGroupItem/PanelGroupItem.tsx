@@ -36,11 +36,10 @@ interface IPanelGroupItemProps {
   item: ILabel;
   onLabelClick: () => void;
   isSelected: boolean;
-  type: string;
 }
 
 const PanelGroupItem = (props: IPanelGroupItemProps): JSX.Element => {
-  const { item, onLabelClick, isSelected, type } = props;
+  const { item, onLabelClick, isSelected } = props;
   const {
     count,
     display_text: displayText,
@@ -52,10 +51,7 @@ const PanelGroupItem = (props: IPanelGroupItemProps): JSX.Element => {
     baseClass,
     "button",
     "button--contextual-nav-item",
-    `${baseClass}__${type.toLowerCase()}`,
-    `${baseClass}__${type.toLowerCase()}--${displayText
-      .toLowerCase()
-      .replace(" ", "-")}`,
+    `${baseClass}__${displayText.toLowerCase().replace(" ", "-")}`,
     {
       [`${baseClass}--selected`]: isSelected,
     }

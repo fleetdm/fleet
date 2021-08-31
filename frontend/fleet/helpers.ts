@@ -177,7 +177,6 @@ export const frontendFormattedConfig = (config: any) => {
 };
 
 const formatLabelResponse = (response: any): { [index: string]: any } => {
-
   const labels = response.labels.map((label: any) => {
     return {
       ...label,

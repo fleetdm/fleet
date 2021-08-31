@@ -11,7 +11,6 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 604800, label: "Every week" },
 ];
 
-
 export const LOGGING_TYPE_OPTIONS = [
   { label: "Snapshot", value: "snapshot" },
   { label: "Differential", value: "differential" },
