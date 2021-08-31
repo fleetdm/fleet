@@ -484,7 +484,6 @@ func (d *Datastore) searchLabelsWithOmits(filter fleet.TeamFilter, query string,
 			)
 			AND id NOT IN (?)
 			ORDER BY label_type DESC, id ASC
-			LIMIT 10
 		`, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
@@ -558,7 +557,6 @@ func (d *Datastore) searchLabelsDefault(filter fleet.TeamFilter, omit ...uint) (
 			WHERE id NOT IN (?)
 			GROUP BY id
 			ORDER BY label_type DESC, id ASC
-			LIMIT 7
 		`, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
@@ -615,7 +613,6 @@ func (d *Datastore) SearchLabels(filter fleet.TeamFilter, query string, omit ...
 				MATCH(name) AGAINST(? IN BOOLEAN MODE)
 			)
 			ORDER BY label_type DESC, id ASC
-			LIMIT 10
 		`, d.whereFilterHostsByTeams(filter, "h"),
 	)
 

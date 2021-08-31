@@ -117,7 +117,7 @@ class EnrollSecretRow extends Component {
 
 class EnrollSecretTable extends Component {
   static propTypes = {
-    secrets: enrollSecretInterface.isRequired,
+    secrets: PropTypes.arrayOf(enrollSecretInterface).isRequired,
   };
 
   render() {

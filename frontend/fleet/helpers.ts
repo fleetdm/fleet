@@ -508,7 +508,7 @@ const inGigaBytes = (bytes: number): string => {
   return (bytes / BYTES_PER_GIGABYTE).toFixed(1);
 };
 
-const inMilliseconds = (nanoseconds: number): number => {
+export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
@@ -557,6 +557,10 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 
   return moment(lastRun).fromNow();
+};
+
+export const licenseExpirationWarning = (expiration: string): boolean => {
+  return moment(moment()).isAfter(expiration);
 };
 
 export const secondsToHms = (d: number): string => {
@@ -635,6 +639,8 @@ export default {
   humanHostDetailUpdated,
   hostTeamName,
   humanQueryLastRun,
+  inMilliseconds,
+  licenseExpirationWarning,
   secondsToHms,
   secondsToDhms,
   labelSlug,
