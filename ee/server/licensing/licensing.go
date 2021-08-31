@@ -68,6 +68,10 @@ func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 		return nil, errors.Wrap(err, "validate license")
 	}
 
+	// Force premium license
+	if license.IsPremium() {
+		license.Tier = fleet.TierPremium
+	}
 	return license, nil
 }
 
