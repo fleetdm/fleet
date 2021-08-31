@@ -231,7 +231,7 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 		WHERE s.id IN
 			(SELECT software_id FROM host_software WHERE host_id = ?)
 	`
-	queryFunc := d.db.Queryx
+	queryFunc := d.reader.Queryx
 	if tx != nil {
 		queryFunc = tx.Queryx
 	}
