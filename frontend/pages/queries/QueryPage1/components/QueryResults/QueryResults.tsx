@@ -268,36 +268,33 @@ const QueryResults = ({
         </div>
       </div>
       {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}
-      {isQueryFinished && (
-        <div className={`${baseClass}__nav-header`}>
-          <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
-            <TabList>
-              <Tab className="react-tabs__tab no-count">
-                {NAV_TITLES.RESULTS}
-              </Tab>
-              <Tab disabled={!errors?.length}>
-                <span className="count">{errors?.length || 0}</span>
-                {NAV_TITLES.ERRORS}
-              </Tab>
-            </TabList>
-            <TabPanel>
-              {hasNoResults && (
-                <p className="no-results-message">
-                  Your live query returned no results.
-                  <br />
-                  <span>
-                    Expecting to see results? Check to see if the hosts you
-                    targeted reported &ldquo;Online&rdquo; or check out the
-                    &ldquo;Errors&rdquo; table.
-                  </span>
-                </p>
-              )}
-              {!hasNoResults && renderTable()}
-            </TabPanel>
-            <TabPanel>{renderErrorsTable()}</TabPanel>
-          </Tabs>
-        </div>
-      )}
+      <div className={`${baseClass}__nav-header`}>
+        <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
+          <TabList>
+            <Tab className="react-tabs__tab no-count">
+              {NAV_TITLES.RESULTS}
+            </Tab>
+            <Tab disabled={!errors?.length}>
+              <span className="count">{errors?.length || 0}</span>
+              {NAV_TITLES.ERRORS}
+            </Tab>
+          </TabList>
+          <TabPanel>
+            {isQueryFinished && hasNoResults ? (
+              <p className="no-results-message">
+                Your live query returned no results.
+                <br />
+                <span>
+                  Expecting to see results? Check to see if the hosts you
+                  targeted reported &ldquo;Online&rdquo; or check out the
+                  &ldquo;Errors&rdquo; table.
+                </span>
+              </p>
+            ) : renderTable()}
+          </TabPanel>
+          <TabPanel>{renderErrorsTable()}</TabPanel>
+        </Tabs>
+      </div>
     </div>
   );
 };
