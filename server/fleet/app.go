@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/pkg/errors"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -115,17 +116,73 @@ type AppConfig struct {
 
 	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
+
+	WebhookSettings WebhookSettings `json:"webhook_settings"`
+}
+
+type Duration struct {
+	time.Duration
+}
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.String())
+}
+
+func (d Duration) ValueOr(t time.Duration) time.Duration {
+	if d.Duration == 0 {
+		return t
+	}
+	return d.Duration
+}
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	switch value := v.(type) {
+	case float64:
+		d.Duration = time.Duration(value)
+		return nil
+	case string:
+		var err error
+		d.Duration, err = time.ParseDuration(value)
+		if err != nil {
+			return err
+		}
+		return nil
+	default:
+		return errors.Errorf("invalid duration type: %T", value)
+	}
+}
+
+type WebhookSettings struct {
+	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
+	Interval          Duration                  `json:"interval"`
+}
+
+type HostStatusWebhookSettings struct {
+	Enable         bool    `json:"enable_host_status_webhook"`
+	DestinationURL string  `json:"destination_url"`
+	HostPercentage float64 `json:"host_percentage"`
+	DaysCount      int     `json:"days_count"`
 }
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.ServerSettings.EnableAnalytics = true
-	c.HostSettings.EnableHostUsers = true
 	c.SMTPSettings.SMTPPort = 587
 	c.SMTPSettings.SMTPEnableStartTLS = true
 	c.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
 	c.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
 	c.SMTPSettings.SMTPVerifySSLCerts = true
 	c.SMTPSettings.SMTPEnableTLS = true
+
+	c.ApplyDefaults()
+}
+
+func (c *AppConfig) ApplyDefaults() {
+	c.HostSettings.EnableHostUsers = true
+	c.WebhookSettings.Interval.Duration = 24 * time.Hour
 }
 
 // OrgInfo contains general info about the organization using Fleet.

@@ -1,0 +1,18 @@
+.policies-filter {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+
+  &__status_dropdown {
+    width: 159px;
+
+    .Select-menu-outer {
+      width: 364px;
+      max-height: 310px;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
+  }
+}
