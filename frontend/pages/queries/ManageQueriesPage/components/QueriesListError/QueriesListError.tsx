@@ -25,7 +25,7 @@ const QueriesListError = (): JSX.Element => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              file an issue.
+              file an issue
               <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
             </a>
           </span>

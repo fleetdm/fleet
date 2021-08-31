@@ -41,6 +41,7 @@ import {
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
 import EnrollSecretModal from "./components/EnrollSecretModal";
+import HostsError from "./components/HostsError";
 import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
@@ -1216,6 +1217,10 @@ export class ManageHostsPage extends PureComponent {
       selectedLabel === undefined
     ) {
       return null;
+    }
+
+    if (hosts.errors) {
+      return <HostsError />;
     }
 
     // Hosts have not been set up for this instance yet.

@@ -20,6 +20,7 @@ import { updateUser } from "redux/nodes/auth/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 
+import UsersError from "./components/UsersError";
 import UserForm from "./components/UserForm";
 import EmptyUsers from "./components/EmptyUsers";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
@@ -577,20 +578,24 @@ export class UserManagementPage extends Component {
           Fleet.
         </p>
         {/* TODO: find a way to move these controls into the table component */}
-        <TableContainer
-          columns={tableHeaders}
-          data={tableData}
-          isLoading={loadingTableData}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search"}
-          actionButtonText={"Create user"}
-          onActionButtonClick={toggleCreateUserModal}
-          onQueryChange={onTableQueryChange}
-          resultsTitle={"users"}
-          emptyComponent={EmptyUsers}
-          searchable
-        />
+        {users.errors ? (
+          <UsersError />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={tableData}
+            isLoading={loadingTableData}
+            defaultSortHeader={"name"}
+            defaultSortDirection={"asc"}
+            inputPlaceHolder={"Search"}
+            actionButtonText={"Create user"}
+            onActionButtonClick={toggleCreateUserModal}
+            onQueryChange={onTableQueryChange}
+            resultsTitle={"users"}
+            emptyComponent={EmptyUsers}
+            searchable
+          />
+        )}
         {renderCreateUserModal()}
         {renderEditUserModal()}
         {renderDeleteUserModal()}

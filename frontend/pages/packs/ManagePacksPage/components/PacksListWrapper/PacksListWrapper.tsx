@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 
 import { IPack } from "interfaces/pack";
 import { IUser } from "interfaces/user";
+import Button from "components/buttons/Button";
 import permissionUtils from "utilities/permissions";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
@@ -14,6 +15,7 @@ interface IPacksListWrapperProps {
   onRemovePackClick: any;
   onEnablePackClick: any;
   onDisablePackClick: any;
+  onCreatePackClick: any;
   packsList: IPack[];
 }
 
@@ -34,6 +36,7 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
     onRemovePackClick,
     onEnablePackClick,
     onDisablePackClick,
+    onCreatePackClick,
     packsList,
   } = props;
 
@@ -73,14 +76,29 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
         <div className={`${noPacksClass}__inner`}>
           <div className={`${noPacksClass}__inner-text`}>
             {!searchString ? (
-              <h2>You don&apos;t have any packs.</h2>
+              <>
+                <h2>You don&apos;t have any packs</h2>
+                <p>
+                  Query packs allow you to schedule recurring queries for your
+                  hosts.
+                </p>
+                <Button
+                  variant="brand"
+                  className={`${baseClass}__create-button`}
+                  onClick={onCreatePackClick}
+                >
+                  Create new pack
+                </Button>
+              </>
             ) : (
-              <h2>No packs match your search.</h2>
+              <>
+                <h2>No packs match the current search criteria.</h2>
+                <p>
+                  Expecting to see packs? Try again in a few seconds as the
+                  system catches up.
+                </p>
+              </>
             )}
-            <p>
-              Expecting to see packs? Try again in a few seconds as the system
-              catches up.
-            </p>
           </div>
         </div>
       </div>
@@ -118,7 +136,7 @@ const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
         isAllPagesSelected={false}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
-        searchable
+        searchable={packsList.length > 0}
         disablePagination
         onPrimarySelectActionClick={onRemovePackClick}
         primarySelectActionButtonVariant="text-icon"

@@ -1,14 +1,14 @@
 /**
- * Component when there is an error retrieving policy set up in fleet
+ * Component when there is an error retrieving schedule set up in fleet
  */
 import React from "react";
 
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 import ErrorIcon from "../../../../../../assets/images/icon-error-16x16@2x.png";
 
-const baseClass = "policy-error";
+const baseClass = "schedule-error";
 
-const PolicyError = (): JSX.Element => {
+const HostsError = (): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
@@ -35,4 +35,4 @@ const PolicyError = (): JSX.Element => {
   );
 };
 
-export default PolicyError;
+export default HostsError;

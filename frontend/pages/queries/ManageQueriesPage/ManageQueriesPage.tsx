@@ -35,6 +35,7 @@ interface IRootState {
 
 const renderTable = (
   onRemoveQueryClick: React.MouseEventHandler<HTMLButtonElement>,
+  onCreateQueryClick: React.MouseEventHandler<HTMLButtonElement>,
   queriesList: IQuery[],
   queriesErrors: any
 ): JSX.Element => {
@@ -45,6 +46,7 @@ const renderTable = (
   return (
     <QueriesListWrapper
       onRemoveQueryClick={onRemoveQueryClick}
+      onCreateQueryClick={onCreateQueryClick}
       queriesList={queriesList}
     />
   );
@@ -133,7 +135,7 @@ const ManageQueriesPage = (): JSX.Element => {
               </div>
             </div>
           </div>
-          {!isOnlyObserver && (
+          {!isOnlyObserver && queriesList.length > 0 && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -147,7 +149,12 @@ const ManageQueriesPage = (): JSX.Element => {
         </div>
         <div>
           {!isLoading ? (
-            renderTable(onRemoveQueryClick, queriesList, queriesErrors)
+            renderTable(
+              onRemoveQueryClick,
+              onCreateQueryClick,
+              queriesList,
+              queriesErrors
+            )
           ) : (
             <Spinner />
           )}

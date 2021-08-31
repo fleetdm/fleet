@@ -38,6 +38,7 @@ const renderTable = (
   onRemovePackClick: React.MouseEventHandler<HTMLButtonElement>,
   onEnablePackClick: React.MouseEventHandler<HTMLButtonElement>,
   onDisablePackClick: React.MouseEventHandler<HTMLButtonElement>,
+  onCreatePackClick: React.MouseEventHandler<HTMLButtonElement>,
   packsList: IPack[],
   packsErrors: any
 ): JSX.Element => {
@@ -50,6 +51,7 @@ const renderTable = (
       onRemovePackClick={onRemovePackClick}
       onEnablePackClick={onEnablePackClick}
       onDisablePackClick={onDisablePackClick}
+      onCreatePackClick={onCreatePackClick}
       packsList={packsList}
     />
   );
@@ -169,7 +171,7 @@ const ManagePacksPage = (): JSX.Element => {
               </div>
             </div>
           </div>
-          {!isOnlyObserver && (
+          {!isOnlyObserver && packsList.length > 0 && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -187,6 +189,7 @@ const ManagePacksPage = (): JSX.Element => {
               onRemovePackClick,
               onEnablePackClick,
               onDisablePackClick,
+              onCreatePackClick,
               packsList,
               packsErrors
             )}
