@@ -94,7 +94,7 @@ const SelectTargets = ({
     () =>
       targetsAPI.loadAll({
         query: searchText,
-        queryId: null,
+        queryId: queryIdForEdit || null,
         selected: formatSelectedTargetsForApi(selectedTargets) as any,
       }),
     {

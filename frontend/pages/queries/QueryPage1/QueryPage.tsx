@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { connect, useDispatch } from "react-redux";
 import { useQuery, useMutation } from "react-query";
+import { Params } from "react-router/lib/Router";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
@@ -22,6 +23,7 @@ import RunQuery from "pages/queries/QueryPage1/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IQueryPageProps {
+  params: Params;
   queryIdForEdit: string;
   selectedTargets: ITarget[];
   selectedOsqueryTable: IOsqueryTable;
@@ -29,10 +31,14 @@ interface IQueryPageProps {
   isBasicTier: boolean;
 }
 
+interface IStoredQueryResponse {
+  query: IQuery;
+} 
+
 const baseClass = "query-page1";
 
 const QueryPage = ({
-  queryIdForEdit,
+  params: { id: queryIdForEdit },
   selectedTargets,
   selectedOsqueryTable,
   currentUser,
@@ -54,12 +60,17 @@ const QueryPage = ({
   ] = useState<boolean>(false);
 
   const { 
-    status, 
+    isLoading: isStoredQueryLoading, 
     data: storedQuery = DEFAULT_QUERY, 
-    error 
-  } = useQuery<IQuery, Error>("query", () => queryAPI.load(queryIdForEdit), {
-    enabled: !!queryIdForEdit,
-  });
+    error: storedQueryError
+  } = useQuery<IStoredQueryResponse, Error, IQuery>(
+    "query", 
+    () => queryAPI.load(queryIdForEdit), 
+    {
+      enabled: !!queryIdForEdit,
+      select: (data: IStoredQueryResponse) => data.query
+    }
+  );
   
   const { mutateAsync: createQuery } = useMutation((formData: IQueryFormData) =>
     queryAPI.create(formData)
@@ -119,7 +130,8 @@ const QueryPage = ({
       currentUser,
       storedQuery,
       showOpenSchemaActionText,
-      error,
+      isStoredQueryLoading,
+      error: storedQueryError,
       createQuery,
       onOsqueryTableSelect,
       goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
@@ -173,14 +185,14 @@ const QueryPage = ({
 };
 
 const mapStateToProps = (state: any, { params }: any) => {
-  const { id: queryIdForEdit } = params;
+  // const { id: queryIdForEdit } = params;
   const { selectedOsqueryTable, selectedTargets } = state.components.QueryPages;
   const currentUser = state.auth.user;
   const config = state.app.config;
   const isBasicTier = permissionUtils.isBasicTier(config);
 
   return {
-    queryIdForEdit,
+    // queryIdForEdit,
     selectedTargets,
     selectedOsqueryTable,
     currentUser,

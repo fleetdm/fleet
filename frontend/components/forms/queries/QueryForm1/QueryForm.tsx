@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { size } from "lodash";
+import React, { useState, useRef } from "react";
+import ContentEditable, { ContentEditableEvent } from "react-contenteditable";
 import { IAceEditor } from "react-ace/lib/types";
+import { size } from "lodash";
 
 import { IQueryFormFields, IQueryFormData, IQuery } from "interfaces/query";
 
@@ -9,6 +10,8 @@ import Form from "components/forms/Form"; // @ts-ignore
 import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
+import Spinner from "components/loaders/Spinner";
 import NewQueryModal from "./NewQueryModal";
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
@@ -18,9 +21,9 @@ interface IQueryFormProps {
   baseError: string;
   fields: IQueryFormFields;
   storedQuery: IQuery;
-  title: string;
   hasSavePermissions: boolean;
   showOpenSchemaActionText: boolean;
+  isStoredQueryLoading: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -45,9 +48,9 @@ const QueryForm = ({
   baseError,
   fields,
   storedQuery,
-  title,
   hasSavePermissions,
   showOpenSchemaActionText,
+  isStoredQueryLoading,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -55,6 +58,8 @@ const QueryForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryFormProps) => {
+  const nameEditable = useRef(null);
+  const descriptionEditable = useRef(null);
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
 
@@ -76,19 +81,37 @@ const QueryForm = ({
     });
   };
 
-  const openSaveModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const promptSaveQuery = (forceNew: boolean = false) => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    const { query } = fields;
-    const { valid, errors: newErrors } = validateQuerySQL(
-      query.value as string
-    );
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
+    let valid = true;
+    const { description, name, query, observer_can_run } = fields;
 
-    valid && setIsSaveModalOpen(true);
+    if (query.value) {
+      const { valid: isValidated, errors: newErrors } = validateQuerySQL(
+        query.value as string
+      );
+
+      valid = isValidated;
+      setErrors({
+        ...errors,
+        ...newErrors,
+      });
+    }
+
+    if (valid) {
+      // if not edit
+      if (!storedQuery || forceNew) {
+        setIsSaveModalOpen(true);
+      } else {
+        onUpdate({
+          description: description.value,
+          name: name.value,
+          query: query.value,
+          observer_can_run: observer_can_run.value,
+        });
+      }
+    }
   };
 
   const renderLabelComponent = (): JSX.Element | null => {
@@ -106,6 +129,10 @@ const QueryForm = ({
     );
   };
 
+  if (isStoredQueryLoading) {
+    return <Spinner />;
+  }
+
   const modalProps = {
     baseClass,
     fields,
@@ -113,38 +140,85 @@ const QueryForm = ({
     onCreateQuery,
     setIsSaveModalOpen,
   };
-  const {
-    query: { error, onChange, value },
-  } = fields;
+  const { name, description, query, observer_can_run } = fields;
+  const nameText = (name?.value || storedQuery.name) as string;
+  const descText = (description?.value || storedQuery.description) as string;
+  const observerCanRun = (observer_can_run?.value || storedQuery.observer_can_run) as boolean;
+
   return (
     <>
       <form className={`${baseClass}__wrapper`}>
-        <h1>{title}</h1>
+        {storedQuery ? (
+          <ContentEditable
+            className="query-name"
+            innerRef={nameEditable}
+            html={nameText}
+            tagName="h1"
+            onChange={(evt: ContentEditableEvent) => name?.onChange(evt.target.value)}
+          />
+        ): (
+          <h1>New query</h1>
+        )}
+        {storedQuery && (
+          <ContentEditable
+            className="description"
+            innerRef={descriptionEditable}
+            html={descText}
+            onChange={(evt: ContentEditableEvent) => description?.onChange(evt.target.value)}
+          />
+        )}
         {baseError && <div className="form__base-error">{baseError}</div>}
         <FleetAce
-          value={value || storedQuery.query}
-          error={error || errors.query}
+          value={query.value || storedQuery.query}
+          error={query.error || errors.query}
           label="Query:"
           labelActionComponent={renderLabelComponent()}
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={onChange}
-          handleSubmit={openSaveModal}
+          onChange={query.onChange}
+          handleSubmit={promptSaveQuery}
         />
+        {storedQuery && (
+          <>
+            <Checkbox
+              {...observer_can_run}
+              value={observerCanRun}
+              wrapperClassName={`query-observer-can-run-wrapper`}
+            >
+              Observers can run
+            </Checkbox>
+            <p>
+              Users with the Observer role will be able to run this query on hosts
+              where they have access.
+            </p>
+          </>
+        )}
         {renderLiveQueryWarning()}
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
           {hasSavePermissions && (
-            <Button
-              className={`${baseClass}__save`}
-              variant="brand"
-              onClick={openSaveModal}
-              disabled={false}
-            >
-              Save
-            </Button>
+            <>
+              {storedQuery && (
+                <Button
+                  className={`${baseClass}__save`}
+                  variant="text-link"
+                  onClick={promptSaveQuery(true)}
+                  disabled={false}
+                >
+                  Save as new
+                </Button>
+              )}
+              <Button
+                className={`${baseClass}__save`}
+                variant="brand"
+                onClick={promptSaveQuery}
+                disabled={false}
+              >
+                Save
+              </Button>
+            </>
           )}
           <Button
             className={`${baseClass}__run`}
@@ -161,6 +235,6 @@ const QueryForm = ({
 };
 
 export default Form(QueryForm, {
-  fields: ["query"],
+  fields: ["description", "name", "query", "observer_can_run"],
   validate: validateQuerySQL,
 });

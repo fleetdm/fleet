@@ -22,6 +22,7 @@ interface IQueryEditorProps {
   storedQuery: IQuery | undefined;
   error: any;
   showOpenSchemaActionText: boolean;
+  isStoredQueryLoading: boolean;
   dispatch: Dispatch;
   createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
   onOsqueryTableSelect: (tableName: string) => void;
@@ -37,6 +38,7 @@ const QueryEditor = ({
   storedQuery,
   error,
   showOpenSchemaActionText,
+  isStoredQueryLoading,
   createQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -106,7 +108,7 @@ const QueryEditor = ({
         onUpdate={onUpdateQuery}
         serverErrors={error || {}}
         storedQuery={storedQuery}
-        title={storedQuery?.name || "New query"}
+        isStoredQueryLoading={isStoredQueryLoading}
         hasSavePermissions={hasSavePermissions(currentUser)}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}
