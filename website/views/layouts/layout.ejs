@@ -274,7 +274,7 @@
           'opera': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.opera
         };
         var isUnsupportedBrowser = (
-          bowser.isUnsupportedBrowser(LATEST_SUPPORTED_VERSION_BY_USER_AGENT, window.navigator.userAgent)
+          bowser.isUnsupportedBrowser(LATEST_SUPPORTED_VERSION_BY_USER_AGENT, window.navigator.userAgent) || bowser.msie
         );
         var isUnsupportedOS = (
           LATEST_SUPPORTED_VERSION_BY_OS[bowser.osname] &&
@@ -289,16 +289,22 @@
           '  <h5 class="card-title">This '+(isUnsupportedBrowser ? 'browser' : 'operating system')+' is not supported.</h5>'+
           '  <p style="max-width: 500px; margin-left: auto; margin-right: auto;">'+
           '    This app does not currently support '+(
-            isUnsupportedBrowser?
-            '<strong>'+bowser.name+'</strong> for versions lower than <strong>v'+ LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME[bowser.name.toLowerCase()]+'</strong>. '+
-            'To continue, please upgrade your browser to the newest version, or download the <a href="https://www.google.com/chrome">latest version of Google Chrome</a>.'+
-            '  </p>'+
-            '  <a class="btn btn-primary" style="padding: 5px 10px" href="https://www.google.com/chrome">Download Chrome</a>'
+          isUnsupportedBrowser?
+            (bowser.msie?
+              '<strong>'+bowser.name+'</strong><br>'+ 'To continue, please use a supported browser, or download the <a href="https://www.google.com/chrome">latest version of Google Chrome</a>.'+
+              '  </p>'+
+              '  <a class="btn btn-primary" style="padding: 5px 10px" href="https://www.google.com/chrome">Download Chrome</a>'
             :
-            '<strong>'+bowser.osname+'</strong> for versions lower than <strong>v'+ LATEST_SUPPORTED_VERSION_BY_OS[bowser.osname]+'</strong>. '+
-            'To continue, please use a different device, or <a href="'+(bowser.osname === 'iOS' ? 'https://support.apple.com/en-us/HT204204' : 'https://support.google.com/android/?hl=en#topic=7313011')+'">upgrade this device\'s software</a> to the latest compatible version.'+
-            '  </p>'+
-            '  <a class="btn btn-primary" style="padding: 5px 10px" href="/contact">Need help?</a>'
+              '<strong>'+bowser.name+'</strong> for versions lower than <strong>v'+ LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME[bowser.name.toLowerCase()]+'</strong>. '+
+              'To continue, please upgrade your browser to the newest version, or download the <a href="https://www.google.com/chrome">latest version of Google Chrome</a>.'+
+              '  </p>'+
+              '  <a class="btn btn-primary" style="padding: 5px 10px" href="https://www.google.com/chrome">Download Chrome</a>'
+            )
+          :
+          '<strong>'+bowser.osname+'</strong> for versions lower than <strong>v'+ LATEST_SUPPORTED_VERSION_BY_OS[bowser.osname]+'</strong>. '+
+          'To continue, please use a different device, or <a href="'+(bowser.osname === 'iOS' ? 'https://support.apple.com/en-us/HT204204' : 'https://support.google.com/android/?hl=en#topic=7313011')+'">upgrade this device\'s software</a> to the latest compatible version.'+
+          '  </p>'+
+          '  <a class="btn btn-primary" style="padding: 5px 10px" href="/contact">Need help?</a>'
           )+
           '</div>';
           document.body.style.padding = '75px 0';
