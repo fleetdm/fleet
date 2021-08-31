@@ -476,7 +476,7 @@
       background-color: $ui-vibrant-blue-10;
     }
 
-    .data-table__pill--considerable {
+    .data-table__pill--considerate {
       background-color: $ui-vibrant-blue-25;
     }
 
@@ -505,6 +505,10 @@
           overflow: hidden;
           text-overflow: ellipsis;
         }
+      }
+
+      .__react_component_tooltip {
+        text-align: center;
       }
     }
 

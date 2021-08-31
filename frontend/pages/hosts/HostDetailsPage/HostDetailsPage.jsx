@@ -411,9 +411,89 @@ export class HostDetailsPage extends Component {
 
   renderPacks = () => {
     const { host, isLoadingHost } = this.state;
-    const pack_stats = host && host.pack_stats;
+    // const pack_stats = host && host.pack_stats;
     const wrapperClassName = `${baseClass}__pack-table`;
     const tableHeaders = generatePackTableHeaders();
+
+    const pack_stats = [
+      {
+        pack_id: 2,
+        pack_name: "New pack",
+        query_stats: [
+          {
+            scheduled_query_id: 3,
+            query_name: "per_query_perf",
+            interval: 3600,
+            last_executed: "2021-08-19T02:02:17Z",
+            user_time: 1900,
+            system_time: 100,
+            executions: 2,
+          },
+          {
+            scheduled_query_id: 7,
+            query_name: "runtime_perf",
+            interval: 3600,
+            last_executed: "2021-08-19T02:02:17Z",
+            user_time: 4000,
+            system_time: 100,
+            executions: 2,
+          },
+          {
+            scheduled_query_id: 5,
+            query_name: "endpoint_security_tool_perf",
+            interval: 3600,
+            last_executed: "2021-08-19T02:02:17Z",
+            user_time: 0,
+            system_time: 0,
+            executions: 0,
+          },
+          {
+            scheduled_query_id: 9,
+            query_name: "backup_tool_perf",
+            interval: 3600,
+            last_executed: "2021-08-19T02:02:17Z",
+            user_time: 1900,
+            system_time: 0,
+            executions: 0,
+            denylisted: true,
+          },
+        ],
+      },
+      {
+        pack_id: 1,
+        pack_name: "Global",
+        query_stats: [
+          {
+            scheduled_query_id: 27,
+            query_name: "endpoint_security_tool_not_run",
+            interval: 3600,
+            last_executed: "2021-08-19T02:02:17Z",
+            user_time: 1900,
+            system_time: 100,
+            executions: 2,
+          },
+          {
+            scheduled_query_id: 12,
+            query_name: "backup_tool_not_running",
+            interval: 3600,
+            last_executed: "2021-08-19T02:02:17Z",
+            user_time: 8000,
+            system_time: 100,
+            executions: 2,
+            denylisted: true,
+          },
+          {
+            scheduled_query_id: 10,
+            query_name: "endpoint_security_tool_perf",
+            interval: 3600,
+            last_executed: "2021-08-19T02:02:17Z",
+            user_time: 8000,
+            system_time: 100,
+            executions: 2,
+          },
+        ],
+      },
+    ];
 
     let packsAccordion;
     if (pack_stats) {

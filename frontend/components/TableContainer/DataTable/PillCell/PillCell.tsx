@@ -4,7 +4,7 @@ import classnames from "classnames";
 import ReactTooltip from "react-tooltip";
 
 interface IPillCellProps {
-  value: string;
+  value: [string, number];
 }
 
 const generateClassTag = (rawValue: string): string => {
@@ -18,20 +18,18 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
 
   const pillClassName = classnames(
     "data-table__pill",
-    `data-table__pill--${generateClassTag(value)}`
+    `data-table__pill--${generateClassTag(value[0])}`
   );
 
   const disable = () => {
-    switch (value) {
-      case "undetermined":
+    switch (value[0]) {
+      case "Minimal":
         return false;
-      case "minimal":
+      case "Considerate":
         return false;
-      case "considerable":
+      case "Excessive":
         return false;
-      case "excessive":
-        return false;
-      case "denylisted":
+      case "Denylisted":
         return false;
       default:
         return true;
@@ -39,37 +37,34 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
   };
 
   const tooltipText = () => {
-    console.log("value", value);
-    switch (value) {
-      case "minimal":
+    switch (value[0]) {
+      case "Minimal":
         return (
           <>
-            Running this query very frequently
-            <br /> has little to no impact
-            <br /> on your device’s performance.
-          </>
-        );
-      case "considerable":
-        return (
-          <>
-            Running this query frequently
-            <br /> can have a noticeable impact <br /> on your device’s
+            Running this query very <br />
+            frequently has little to no <br /> impact on your device’s <br />{" "}
             performance.
           </>
         );
-      case "excessive":
+      case "Considerate":
         return (
           <>
-            Running this query, even infrequently, <br /> can have a significant
-            impact
-            <br /> on your device’s performance.
+            Running this query <br /> frequently can have a <br /> noticeable
+            impact on your <br /> device’s performance.
           </>
         );
-      case "denylisted":
+      case "Excessive":
         return (
           <>
-            This query has been stopped <br /> from running because of
-            <br /> excessive resource consumption.
+            Running this query, even <br /> infrequently, can have a <br />{" "}
+            significant impact on your <br /> device’s performance.
+          </>
+        );
+      case "Denylisted":
+        return (
+          <>
+            This query has been <br /> stopped from running <br /> because of
+            excessive <br /> resource consumption.
           </>
         );
       default:
@@ -77,14 +72,33 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
     }
   };
 
-  console.log(pillClassName);
-
   return (
     <>
-      <div data-tip data-for="value" data-tip-disable={disable()}>
-        <span className={pillClassName}>{value}</span>
+      <div data-tip data-for={value[1].toString()} data-tip-disable={false}>
+        <span className={pillClassName}>{value[0]}</span>
       </div>
       <ReactTooltip
+        place="bottom"
+        type="dark"
+        effect="solid"
+        backgroundColor="#3e4771"
+        id={value[1].toString()}
+        data-html
+      >
+        <span
+          className={`tooltip ${generateClassTag(value[0])}__tooltip-text`}
+          style={{ width: "196px" }}
+        >
+          {tooltipText()}
+        </span>
+      </ReactTooltip>
+    </>
+  );
+};
+
+export default PillCell;
+
+/*      <ReactTooltip
         place="bottom"
         type="dark"
         effect="solid"
@@ -97,10 +111,6 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
           style={{ width: `196px` }}
         >
           {tooltipText()}
-        </span>
-      </ReactTooltip>
-    </>
-  );
-};
-
-export default PillCell;
+        </span> 
+        </ReactTooltip>
+         */

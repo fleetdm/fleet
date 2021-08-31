@@ -39,7 +39,7 @@ interface IDataColumn {
 interface IPackTable extends IQueryStats {
   frequency: string;
   last_run: string;
-  performance: string;
+  performance: (string | number)[];
 }
 
 // NOTE: cellProps come from react-table
@@ -100,7 +100,7 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
       last_executed: query.last_executed,
       frequency: secondsToHms(query.interval),
       last_run: humanQueryLastRun(query.last_executed),
-      performance: performanceIndicator(query),
+      performance: [performanceIndicator(query), query.scheduled_query_id],
       average_memory: query.average_memory,
       denylisted: query.denylisted,
       executions: query.executions,
