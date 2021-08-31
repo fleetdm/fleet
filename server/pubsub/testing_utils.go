@@ -25,6 +25,7 @@ func SetupRedisForTest(t *testing.T) (store *redisQueryResults, teardown func())
 	require.Nil(t, err)
 
 	teardown = func() {
+		store.pool.Get().Do("FLUSHDB")
 		store.pool.Close()
 	}
 
