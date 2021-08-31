@@ -50,7 +50,9 @@ const EnrollSecretModal = ({
           Use these secret(s) to enroll devices to <b>{renderTeam()?.name}</b>:
         </div>
         <div className={`${baseClass}__secret-wrapper`}>
-          {isPremiumTier && <EnrollSecretTable secrets={renderTeam()?.secrets} />}
+          {isPremiumTier && (
+            <EnrollSecretTable secrets={renderTeam()?.secrets} />
+          )}
           {!isPremiumTier && (
             <EnrollSecretTable secrets={renderTeam()?.secrets} />
           )}

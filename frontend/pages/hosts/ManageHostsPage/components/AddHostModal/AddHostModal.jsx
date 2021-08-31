@@ -257,7 +257,9 @@ class AddHostModal extends Component {
                     secrets={getSelectedEnrollSecrets(selectedTeam)}
                   />
                 )}
-                {!isPremiumTier && <EnrollSecretTable secrets={globalSecrets} />}
+                {!isPremiumTier && (
+                  <EnrollSecretTable secrets={globalSecrets} />
+                )}
               </div>
             </li>
             <li>

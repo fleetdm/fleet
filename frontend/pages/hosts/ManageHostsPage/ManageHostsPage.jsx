@@ -1310,7 +1310,9 @@ export class ManageHostsPage extends PureComponent {
               </div>
             </div>
             {renderLabelOrPolicyBlock()}
-            {isConfigLoaded && (!isPremiumTier || isTeamsLoaded) && renderTable()}
+            {isConfigLoaded &&
+              (!isPremiumTier || isTeamsLoaded) &&
+              renderTable()}
           </div>
         )}
         {!loadingLabels && renderSidePanel()}
