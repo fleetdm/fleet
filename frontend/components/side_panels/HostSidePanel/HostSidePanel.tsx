@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { filter, remove } from "lodash";
+import { filter } from "lodash";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -32,7 +32,7 @@ const HostSidePanel = (props: IHostSidePanelProps): JSX.Element => {
     canAddNewLabel,
   } = props;
 
-  const [labelFilter, setLabelFilter] = useState("");
+  const [labelFilter, setLabelFilter] = useState<string>("");
 
   const onFilterLabels = useCallback(
     (filterString: string): void => {
@@ -48,13 +48,11 @@ const HostSidePanel = (props: IHostSidePanelProps): JSX.Element => {
       (label) => label.type === "platform"
     );
 
-    let orderedList: ILabel[] = [];
+    const orderedList: ILabel[] = [];
     PLATFORM_LABEL_DISPLAY_ORDER.forEach((name) => {
-      orderedList.push(
-        ...remove(unorderedList, (label) => label.name === name)
-      );
+      const label = unorderedList.find((el) => el.name === name);
+      label && orderedList.push(label);
     });
-    orderedList = orderedList.concat(unorderedList);
 
     return orderedList.filter(
       (label) =>
