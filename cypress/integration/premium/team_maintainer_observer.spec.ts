@@ -1,8 +1,8 @@
-describe("Basic tier - Team observer/maintainer user", () => {
+describe("Premium tier - Team observer/maintainer user", () => {
   beforeEach(() => {
     cy.setup();
     cy.login();
-    cy.seedBasic();
+    cy.seedPremium();
     cy.seedQueries();
     cy.addDockerHost();
     cy.logout();

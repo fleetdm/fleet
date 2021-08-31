@@ -10,7 +10,7 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 interface IEnrollSecretModal {
   selectedTeam: number;
   onReturnToApp: () => void;
-  isBasicTier: boolean;
+  isPremiumTier: boolean;
   teams: ITeam[];
 }
 
@@ -25,7 +25,7 @@ const baseClass = "enroll-secret-modal";
 const EnrollSecretModal = ({
   onReturnToApp,
   selectedTeam,
-  isBasicTier,
+  isPremiumTier,
   teams,
 }: IEnrollSecretModal): JSX.Element => {
   const globalSecret = useSelector(
@@ -50,8 +50,8 @@ const EnrollSecretModal = ({
           Use these secret(s) to enroll devices to <b>{renderTeam()?.name}</b>:
         </div>
         <div className={`${baseClass}__secret-wrapper`}>
-          {isBasicTier && <EnrollSecretTable secrets={renderTeam()?.secrets} />}
-          {!isBasicTier && (
+          {isPremiumTier && <EnrollSecretTable secrets={renderTeam()?.secrets} />}
+          {!isPremiumTier && (
             <EnrollSecretTable secrets={renderTeam()?.secrets} />
           )}
         </div>

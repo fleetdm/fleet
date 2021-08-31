@@ -1,5 +1,5 @@
 describe(
-  "Basic tier - Admin user",
+  "Premium tier - Admin user",
   {
     defaultCommandTimeout: 20000,
   },
@@ -7,7 +7,7 @@ describe(
     beforeEach(() => {
       cy.setup();
       cy.login();
-      cy.seedBasic();
+      cy.seedPremium();
       cy.setupSMTP();
       cy.seedQueries();
       cy.addDockerHost("apples");
@@ -18,7 +18,7 @@ describe(
     });
 
     it(
-      "Can perform the appropriate basic-tier admin actions",
+      "Can perform the appropriate premium-tier admin actions",
       {
         retries: {
           runMode: 2,

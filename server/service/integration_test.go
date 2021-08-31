@@ -430,7 +430,7 @@ func TestTeamSpecs(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierBasic}})
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	defer server.Close()
 	token := getTestAdminToken(t, server)
 
@@ -903,10 +903,10 @@ func TestLicenseExpiration(t *testing.T) {
 		expiration       time.Time
 		shouldHaveHeader bool
 	}{
-		{"basic expired", fleet.TierBasic, time.Now().Add(-24 * time.Hour), true},
-		{"basic not expired", fleet.TierBasic, time.Now().Add(24 * time.Hour), false},
-		{"core expired", fleet.TierCore, time.Now().Add(-24 * time.Hour), false},
-		{"core not expired", fleet.TierCore, time.Now().Add(24 * time.Hour), false},
+		{"premium expired", fleet.TierPremium, time.Now().Add(-24 * time.Hour), true},
+		{"premium not expired", fleet.TierPremium, time.Now().Add(24 * time.Hour), false},
+		{"free expired", fleet.TierFree, time.Now().Add(-24 * time.Hour), false},
+		{"free not expired", fleet.TierFree, time.Now().Add(24 * time.Hour), false},
 	}
 
 	_ = createTestUsers(t, ds)

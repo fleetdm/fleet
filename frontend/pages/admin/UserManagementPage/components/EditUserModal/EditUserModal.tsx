@@ -14,7 +14,7 @@ interface IEditUserModalProps {
   defaultTeams?: ITeam[];
   availableTeams: ITeam[];
   validationErrors: any[];
-  isBasicTier: boolean;
+  isPremiumTier: boolean;
   smtpConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
@@ -31,7 +31,7 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
     defaultGlobalRole,
     defaultTeams,
     availableTeams,
-    isBasicTier,
+    isPremiumTier,
     validationErrors,
     smtpConfigured,
     canUseSso,
@@ -54,7 +54,7 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
         onSubmit={onSubmit}
         availableTeams={availableTeams}
         submitText={"Save"}
-        isBasicTier={isBasicTier}
+        isPremiumTier={isPremiumTier}
         smtpConfigured={smtpConfigured}
         canUseSso={canUseSso}
         isSsoEnabled={isSsoEnabled}

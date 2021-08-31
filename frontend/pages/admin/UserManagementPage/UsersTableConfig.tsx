@@ -49,7 +49,7 @@ interface IUserTableData {
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
   actionSelectHandler: (value: string, user: IUser | IInvite) => void,
-  isBasicTier: boolean
+  isPremiumTier: boolean
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
@@ -111,8 +111,8 @@ const generateTableHeaders = (
     },
   ];
 
-  // Add Teams tab for basic tier only
-  if (isBasicTier) {
+  // Add Teams tab for premium tier only
+  if (isPremiumTier) {
     tableHeaders.splice(3, 0, {
       title: "Teams",
       Header: "Teams",

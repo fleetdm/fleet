@@ -237,10 +237,10 @@ e2e-setup:
 	./build/fleetctl user create --context e2e --email=observer@example.com --name observer --password=user123# --global-role=observer
 	./build/fleetctl user create --context e2e --email=sso_user@example.com --name "SSO user" --sso=true
 
-e2e-serve-core:
+e2e-serve-free:
 	FLEET_SOFTWARE_INVENTORY=1 ./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
-e2e-serve-basic:
+e2e-serve-premium:
 	FLEET_SOFTWARE_INVENTORY=1 ./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
 changelog:

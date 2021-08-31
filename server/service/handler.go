@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -519,7 +518,7 @@ func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.Respon
 		if err != nil || license == nil {
 			return ctx
 		}
-		if license.Tier == fleet.TierBasic && license.Expiration.Before(time.Now()) {
+		if license.IsPremium() && license.IsExpired() {
 			w.Header().Set(fleet.HeaderLicenseKey, fleet.HeaderLicenseValueExpired)
 		}
 		return ctx

@@ -157,7 +157,7 @@ class AddHostModal extends Component {
       onChangeSelectTeam,
     } = this;
 
-    const isBasicTier = permissionUtils.isBasicTier(config);
+    const isPremiumTier = permissionUtils.isPremiumTier(config);
 
     let tlsHostname = config.server_url;
     try {
@@ -241,7 +241,7 @@ class AddHostModal extends Component {
                 server.
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
-                {isBasicTier ? (
+                {isPremiumTier ? (
                   <Dropdown
                     wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
                     label={"Select a team for this new host:"}
@@ -252,12 +252,12 @@ class AddHostModal extends Component {
                     searchable={false}
                   />
                 ) : null}
-                {isBasicTier && selectedTeam && (
+                {isPremiumTier && selectedTeam && (
                   <EnrollSecretTable
                     secrets={getSelectedEnrollSecrets(selectedTeam)}
                   />
                 )}
-                {!isBasicTier && <EnrollSecretTable secrets={globalSecrets} />}
+                {!isPremiumTier && <EnrollSecretTable secrets={globalSecrets} />}
               </div>
             </li>
             <li>
