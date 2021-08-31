@@ -266,7 +266,6 @@ func TestGetHosts(t *testing.T) {
 +------+------------+----------+-----------------+--------+
 `
 
-
 	tests := []struct {
 		name        string
 		goldenFile  string
@@ -286,7 +285,7 @@ func TestGetHosts(t *testing.T) {
 				}
 				return parts
 			},
-			args:        []string{"get", "hosts", "--json"},
+			args: []string{"get", "hosts", "--json"},
 		},
 		{
 			name:        "get hosts --json test_host",
@@ -295,7 +294,7 @@ func TestGetHosts(t *testing.T) {
 			scanner: func(s string) []string {
 				return []string{s}
 			},
-			args:        []string{"get", "hosts", "--json", "test_host"},
+			args: []string{"get", "hosts", "--json", "test_host"},
 		},
 		{
 			name:        "get hosts --yaml",
@@ -304,7 +303,7 @@ func TestGetHosts(t *testing.T) {
 			scanner: func(s string) []string {
 				return []string{s}
 			},
-			args:        []string{"get", "hosts", "--yaml"},
+			args: []string{"get", "hosts", "--yaml"},
 		},
 		{
 			name:        "get hosts --yaml test_host",
@@ -313,7 +312,7 @@ func TestGetHosts(t *testing.T) {
 			scanner: func(s string) []string {
 				return splitYaml(s)
 			},
-			args:        []string{"get", "hosts", "--yaml", "test_host"},
+			args: []string{"get", "hosts", "--yaml", "test_host"},
 		},
 	}
 	for _, tt := range tests {
