@@ -467,7 +467,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("waiting", "done")
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
-			break
+			return
 		}
 		if locked, err := locker.Lock(lockKeyLeader, identifier, time.Hour); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
@@ -536,6 +536,15 @@ func cronVulnerabilities(
 	level.Info(logger).Log("databases-path", vulnPath)
 	level.Info(logger).Log("periodicity", config.Vulnerabilities.Periodicity)
 
+	if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
+		level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
+		err := os.MkdirAll(vulnPath, 0o755)
+		if err != nil {
+			level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
+			return
+		}
+	}
+
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
@@ -545,7 +554,7 @@ func cronVulnerabilities(
 			ticker.Reset(config.Vulnerabilities.Periodicity)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
-			break
+			return
 		}
 		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
 			if locked, err := locker.Lock(lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
@@ -586,7 +595,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("waiting", "done")
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
-			break
+			return
 		}
 		if locked, err := locker.Lock(lockKeyWebhooks, identifier, interval); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")

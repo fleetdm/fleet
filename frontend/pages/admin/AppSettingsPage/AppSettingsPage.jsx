@@ -17,7 +17,7 @@ class AppSettingsPage extends Component {
     appConfig: configInterface,
     dispatch: PropTypes.func.isRequired,
     error: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-    enrollSecret: enrollSecretInterface,
+    enrollSecret: PropTypes.arrayOf(enrollSecretInterface),
   };
 
   onFormSubmit = (formData) => {

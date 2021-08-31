@@ -9,29 +9,46 @@
 }
 
 .persistent-flash {
-  @include position(fixed, 0 0 null 0);
+  @include position(fixed);
+  top: 80px;
+  left: 50%;
+  transform: translate(-50%, 0);
   display: flex;
   align-items: center;
   justify-content: center;
   color: $core-white;
-  padding: $pad-small;
-  z-index: 2;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
-  background-color: #3d4758;
-  min-width: $min-width;
+  padding: $pad-small $pad-medium;
+  z-index: 3;
+  background-color: $ui-warning;
+  margin: auto;
+  border: 1px solid $ui-fleet-blue-15;
+  box-sizing: border-box;
+  box-shadow: 0px 7px 3px -5px rgba(25, 33, 71, 0.1);
+  border-radius: 8px;
+  white-space: nowrap;
+
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
 
   &__content {
     flex-grow: 1;
     text-align: center;
 
     i {
-      color: $ui-error;
-      font-size: $large;
+      color: $core-fleet-black;
+      font-size: $small;
     }
 
     span {
       margin-left: 15px;
       margin-right: 15px;
+      font-size: $x-small;
+      color: $core-fleet-black;
+      white-space: nowrap;
     }
   }
 }
