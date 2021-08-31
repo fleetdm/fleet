@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { connect, useDispatch } from "react-redux";
 import { useQuery, useMutation } from "react-query";
 import { Params } from "react-router/lib/Router";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
-import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
+import { QueryContext } from "context/query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import permissionUtils from "utilities/permissions";
 import { IQueryFormData, IQuery } from "interfaces/query";
-import { ITarget, ITargets } from "interfaces/target";
-import { IOsqueryTable } from "interfaces/osquery_table";
+import { ITarget } from "interfaces/target";
 import { IUser } from "interfaces/user";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -22,8 +21,6 @@ import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2
 
 interface IQueryPageProps {
   params: Params;
-  queryIdForEdit: string;
-  selectedOsqueryTable: IOsqueryTable;
   currentUser: IUser;
   isBasicTier: boolean;
 }
@@ -36,11 +33,14 @@ const baseClass = "query-page";
 
 const QueryPage = ({
   params: { id: queryIdForEdit },
-  selectedOsqueryTable,
   currentUser,
   isBasicTier,
 }: IQueryPageProps) => {
   const dispatch = useDispatch();
+  const { 
+    selectedOsqueryTable,
+    setSelectedOsqueryTable,
+  } = useContext(QueryContext);
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
@@ -88,7 +88,7 @@ const QueryPage = ({
   }, [isSidebarOpen]);
 
   const onOsqueryTableSelect = (tableName: string) => {
-    dispatch(selectOsqueryTable(tableName));
+    setSelectedOsqueryTable(tableName)
   };
 
   const onCloseSidebar = () => {
@@ -185,13 +185,11 @@ const QueryPage = ({
 };
 
 const mapStateToProps = (state: any) => {
-  const { selectedOsqueryTable } = state.components.QueryPages;
   const currentUser = state.auth.user;
   const config = state.app.config;
   const isBasicTier = permissionUtils.isBasicTier(config);
 
   return {
-    selectedOsqueryTable,
     currentUser,
     isBasicTier,
   };
