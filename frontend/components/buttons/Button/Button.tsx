@@ -33,9 +33,9 @@ interface IButtonProps {
   type?: "button" | "submit" | "reset";
   title?: string;
   variant?: ButtonVariant;
-  onClick?: 
-    ((value?: any) => void) | 
-    ((evt: React.MouseEvent<HTMLButtonElement>) => void);
+  onClick?:
+    | ((value?: any) => void)
+    | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface

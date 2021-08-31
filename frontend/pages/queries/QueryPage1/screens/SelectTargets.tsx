@@ -86,10 +86,7 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  const { 
-    isLoading: isTargetsLoading, 
-    isError: isTargetsError,
-  } = useQuery(
+  const { isLoading: isTargetsLoading, isError: isTargetsError } = useQuery(
     ["targetsFromSearch", searchText, [...selectedTargets]], // triggers query on change
     () =>
       targetsAPI.loadAll({
@@ -123,9 +120,19 @@ const SelectTargets = ({
           // this will only run once
           const { ALL, MAC, WINDOWS, LINUX } = BUILTIN_LABELS;
           const { labels, teams: targetTeams } = results as ITargets;
-          const allHosts = filter(labels, ({ display_text: text }) => text === ALL);
-          const platforms = filter(labels, ({ display_text: text }) => text === MAC || text === WINDOWS || text === LINUX);
-          const other = filter(labels, ({ label_type: type }) => type === "regular");
+          const allHosts = filter(
+            labels,
+            ({ display_text: text }) => text === ALL
+          );
+          const platforms = filter(
+            labels,
+            ({ display_text: text }) =>
+              text === MAC || text === WINDOWS || text === LINUX
+          );
+          const other = filter(
+            labels,
+            ({ label_type: type }) => type === "regular"
+          );
 
           setAllHostsLabels(allHosts);
           setPlatformLabels(platforms);
@@ -157,7 +164,7 @@ const SelectTargets = ({
     e: React.MouseEvent<HTMLButtonElement>
   ): void => {
     e.preventDefault();
-    let labels = selectedLabels;
+    const labels = selectedLabels;
     let newTargets = null;
     const targets = selectedTargets;
     const removed = remove(labels, ({ id }) => id === entity.id);
@@ -243,7 +250,17 @@ const SelectTargets = ({
             Something&apos;s gone wrong.
           </h4>
           <p>Refresh the page or log in again.</p>
-          <p>If this keeps happening please <a className="file-issue-link" target="_blank" rel="noopener noreferrer" href="https://github.com/fleetdm/fleet/issues/new/choose">file an issue <img alt="" src={ExternalURLIcon} /></a></p>
+          <p>
+            If this keeps happening please{" "}
+            <a
+              className="file-issue-link"
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://github.com/fleetdm/fleet/issues/new/choose"
+            >
+              file an issue <img alt="" src={ExternalURLIcon} />
+            </a>
+          </p>
         </div>
       </div>
     );
@@ -253,10 +270,16 @@ const SelectTargets = ({
     <div className={`${baseClass}__wrapper body-wrap`}>
       <h1>Select Targets</h1>
       <div className={`${baseClass}__target-selectors`}>
-        {allHostsLabels && allHostsLabels.length > 0 && renderTargetEntityList("", allHostsLabels)}
-        {platformLabels && platformLabels.length > 0 && renderTargetEntityList("Platforms", platformLabels)}
+        {allHostsLabels &&
+          allHostsLabels.length > 0 &&
+          renderTargetEntityList("", allHostsLabels)}
+        {platformLabels &&
+          platformLabels.length > 0 &&
+          renderTargetEntityList("Platforms", platformLabels)}
         {teams && teams.length > 0 && renderTargetEntityList("Teams", teams)}
-        {otherLabels && otherLabels.length > 0 && renderTargetEntityList("Labels", otherLabels)}
+        {otherLabels &&
+          otherLabels.length > 0 &&
+          renderTargetEntityList("Labels", otherLabels)}
       </div>
       <TargetsInput
         tabIndex={inputTabIndex}

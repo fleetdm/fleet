@@ -81,7 +81,9 @@ const QueryForm = ({
     });
   };
 
-  const promptSaveQuery = (forceNew: boolean = false) => (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const promptSaveQuery = (forceNew = false) => (
+    evt: React.MouseEvent<HTMLButtonElement>
+  ) => {
     evt.preventDefault();
 
     let valid = true;
@@ -133,6 +135,11 @@ const QueryForm = ({
     return <Spinner />;
   }
 
+  const { name, description, query, observer_can_run } = fields;
+  const nameText = (name?.value || storedQuery.name) as string;
+  const descText = (description?.value || storedQuery.description) as string;
+  const observerCanRun = (observer_can_run?.value ||
+    storedQuery.observer_can_run) as boolean;
   const modalProps = {
     baseClass,
     fields,
@@ -140,10 +147,6 @@ const QueryForm = ({
     onCreateQuery,
     setIsSaveModalOpen,
   };
-  const { name, description, query, observer_can_run } = fields;
-  const nameText = (name?.value || storedQuery.name) as string;
-  const descText = (description?.value || storedQuery.description) as string;
-  const observerCanRun = (observer_can_run?.value || storedQuery.observer_can_run) as boolean;
 
   return (
     <>
@@ -154,9 +157,11 @@ const QueryForm = ({
             innerRef={nameEditable}
             html={nameText}
             tagName="h1"
-            onChange={(evt: ContentEditableEvent) => name?.onChange(evt.target.value)}
+            onChange={(evt: ContentEditableEvent) =>
+              name?.onChange(evt.target.value)
+            }
           />
-        ): (
+        ) : (
           <h1>New query</h1>
         )}
         {storedQuery && (
@@ -164,7 +169,9 @@ const QueryForm = ({
             className="description"
             innerRef={descriptionEditable}
             html={descText}
-            onChange={(evt: ContentEditableEvent) => description?.onChange(evt.target.value)}
+            onChange={(evt: ContentEditableEvent) =>
+              description?.onChange(evt.target.value)
+            }
           />
         )}
         {baseError && <div className="form__base-error">{baseError}</div>}
@@ -189,8 +196,8 @@ const QueryForm = ({
               Observers can run
             </Checkbox>
             <p>
-              Users with the Observer role will be able to run this query on hosts
-              where they have access.
+              Users with the Observer role will be able to run this query on
+              hosts where they have access.
             </p>
           </>
         )}

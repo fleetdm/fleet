@@ -31,7 +31,7 @@ interface IQueryPageProps {
 
 interface IStoredQueryResponse {
   query: IQuery;
-} 
+}
 
 const baseClass = "query-page1";
 
@@ -57,19 +57,19 @@ const QueryPage = ({
     setShowOpenSchemaActionText,
   ] = useState<boolean>(false);
 
-  const { 
-    isLoading: isStoredQueryLoading, 
-    data: storedQuery = DEFAULT_QUERY, 
-    error: storedQueryError
+  const {
+    isLoading: isStoredQueryLoading,
+    data: storedQuery = DEFAULT_QUERY,
+    error: storedQueryError,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
-    "query", 
-    () => queryAPI.load(queryIdForEdit), 
+    "query",
+    () => queryAPI.load(queryIdForEdit),
     {
       enabled: !!queryIdForEdit,
-      select: (data: IStoredQueryResponse) => data.query
+      select: (data: IStoredQueryResponse) => data.query,
     }
   );
-  
+
   const { mutateAsync: createQuery } = useMutation((formData: IQueryFormData) =>
     queryAPI.create(formData)
   );
@@ -109,8 +109,15 @@ const QueryPage = ({
       <div className={`${baseClass}__warning`}>
         <div className={`${baseClass}__message`}>
           <p>
-            Fleet is unable to run a live query. Refresh the page or log in again. 
-            If this keeps happening please <a target="_blank" rel="noopener noreferrer" href="https://github.com/fleetdm/fleet/issues/new/choose">file an issue <img alt="" src={ExternalURLIcon} /></a>
+            Fleet is unable to run a live query. Refresh the page or log in
+            again. If this keeps happening please{" "}
+            <a
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://github.com/fleetdm/fleet/issues/new/choose"
+            >
+              file an issue <img alt="" src={ExternalURLIcon} />
+            </a>
           </p>
         </div>
       </div>
@@ -168,9 +175,7 @@ const QueryPage = ({
   const sidebarClass = isFirstStep && isSidebarOpen && "has-sidebar";
   return (
     <div className={`${baseClass} ${sidebarClass}`}>
-      <div className={`${baseClass}__content`}>
-        {renderScreen()}
-      </div>
+      <div className={`${baseClass}__content`}>{renderScreen()}</div>
       {isFirstStep && isSidebarOpen && (
         <QuerySidePanel
           onOsqueryTableSelect={onOsqueryTableSelect}
