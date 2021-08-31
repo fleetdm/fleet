@@ -14,8 +14,6 @@ const generateClassTag = (rawValue: string): string => {
 const PillCell = (props: IPillCellProps): JSX.Element => {
   const { value } = props;
 
-  console.log(value);
-
   const pillClassName = classnames(
     "data-table__pill",
     `data-table__pill--${generateClassTag(value[0])}`
@@ -42,7 +40,7 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
         return (
           <>
             Running this query very <br />
-            frequently has little to no <br /> impact on your device’s <br />{" "}
+            frequently has little to no <br /> impact on your device’s <br />
             performance.
           </>
         );
@@ -56,7 +54,7 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
       case "Excessive":
         return (
           <>
-            Running this query, even <br /> infrequently, can have a <br />{" "}
+            Running this query, even <br /> infrequently, can have a <br />
             significant impact on your <br /> device’s performance.
           </>
         );
@@ -97,20 +95,3 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
 };
 
 export default PillCell;
-
-/*      <ReactTooltip
-        place="bottom"
-        type="dark"
-        effect="solid"
-        backgroundColor="#3e4771"
-        id="value"
-        data-html
-      >
-        <span
-          className={`tooltip ${generateClassTag(value)}__tooltip-text`}
-          style={{ width: `196px` }}
-        >
-          {tooltipText()}
-        </span> 
-        </ReactTooltip>
-         */
