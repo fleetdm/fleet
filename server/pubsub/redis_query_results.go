@@ -21,11 +21,38 @@ type redisQueryResults struct {
 
 var _ fleet.QueryResultStore = &redisQueryResults{}
 
+// this is an adapter type to implement the same Stats method as for
+// redisc.Cluster, so both can satisfy the same interface.
+type standalonePool struct {
+	*redis.Pool
+	addr string
+}
+
+func (p *standalonePool) Stats() map[string]redis.PoolStats {
+	return map[string]redis.PoolStats{
+		p.addr: p.Pool.Stats(),
+	}
+}
+
 // NewRedisPool creates a Redis connection pool using the provided server
 // address, password and database.
 func NewRedisPool(server, password string, database int, useTLS bool) (fleet.RedisPool, error) {
-	// Create the Cluster
-	cluster := &redisc.Cluster{
+	cluster := newCluster(server, password, database, useTLS)
+	if err := cluster.Refresh(); err != nil {
+		if isClusterDisabled(err) || isClusterCommandUnknown(err) {
+			// not a Redis Cluster setup, use a standalone Redis pool
+			pool, _ := cluster.CreatePool(server)
+			cluster.Close()
+			return &standalonePool{pool, server}, nil
+		}
+		return nil, errors.Wrap(err, "refresh cluster")
+	}
+
+	return cluster, nil
+}
+
+func newCluster(server, password string, database int, useTLS bool) *redisc.Cluster {
+	return &redisc.Cluster{
 		StartupNodes: []string{server},
 		CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
 			return &redis.Pool{
@@ -63,12 +90,6 @@ func NewRedisPool(server, password string, database int, useTLS bool) (fleet.Red
 			}, nil
 		},
 	}
-
-	if err := cluster.Refresh(); err != nil && !isClusterDisabled(err) && !isClusterCommandUnknown(err) {
-		return nil, errors.Wrap(err, "refresh cluster")
-	}
-
-	return cluster, nil
 }
 
 func isClusterDisabled(err error) bool {
