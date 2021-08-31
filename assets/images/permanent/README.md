@@ -16,12 +16,12 @@ To add an image, simply add an image to this folder using Fleet's standard image
 
 For example:
 ```
-images/permanent/avatar-default-118x118@2x.png
+images/permanent/avatar-default-128x128@2x.png
 ```
 
 Then, after merging, your image will be available from anywhere that can talk to the public internet!
 
 For example:
 ```
-<img alt="An unbreakable image of a lovely default avatar." src="https://fleetdm.com/images/permanent/avatar-default-118x118@2x.png"/>
+<img alt="An unbreakable image of a lovely default avatar." src="https://fleetdm.com/images/permanent/avatar-default-128x128@2x.png"/>
 ```
