@@ -1,11 +1,9 @@
 import React, { useState } from "react";
-import { Dispatch } from "redux";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
 import { filter, forEach, isEmpty, reduce, remove, unionBy } from "lodash";
 
 // @ts-ignore
-import { setSelectedTargets } from "redux/nodes/components/QueryPages/actions";
 import { formatSelectedTargetsForApi } from "fleet/helpers";
 import targetsAPI from "services/entities/targets";
 import { ITarget, ITargets, ITargetsAPIResponse } from "interfaces/target";
@@ -38,7 +36,7 @@ interface ISelectTargetsProps {
   queryIdForEdit: string | undefined;
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
-  dispatch: Dispatch;
+  setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
 }
 
 interface IModifiedUseQueryTargetsResponse {
@@ -70,7 +68,7 @@ const SelectTargets = ({
   queryIdForEdit,
   goToQueryEditor,
   goToRunQuery,
-  dispatch,
+  setSelectedTargets,
 }: ISelectTargetsProps) => {
   const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
     null
@@ -87,7 +85,8 @@ const SelectTargets = ({
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
   const { isLoading: isTargetsLoading, isError: isTargetsError } = useQuery(
-    ["targetsFromSearch", searchText, [...selectedTargets]], // triggers query on change
+    // triggers query on change
+    ["targetsFromSearch", searchText, [...selectedTargets]], 
     () =>
       targetsAPI.loadAll({
         query: searchText,
@@ -185,7 +184,7 @@ const SelectTargets = ({
     }
 
     setSelectedLabels([...labels]);
-    dispatch(setSelectedTargets([...newTargets]));
+    setSelectedTargets([...newTargets]);
   };
 
   const handleRowSelect = (row: Row) => {
@@ -195,7 +194,7 @@ const SelectTargets = ({
     hostTarget.target_type = "hosts";
 
     targets.push(hostTarget as IHost);
-    dispatch(setSelectedTargets([...targets]));
+    setSelectedTargets([...targets]);
   };
 
   const removeHostsFromTargets = (value: number[]) => {
@@ -205,7 +204,7 @@ const SelectTargets = ({
       remove(targets, (target) => target.id === id);
     });
 
-    dispatch(setSelectedTargets([...targets]));
+    setSelectedTargets([...targets]);
   };
 
   const renderTargetEntityList = (

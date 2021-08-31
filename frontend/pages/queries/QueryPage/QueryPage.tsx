@@ -10,7 +10,7 @@ import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import permissionUtils from "utilities/permissions";
 import { IQueryFormData, IQuery } from "interfaces/query";
-import { ITarget } from "interfaces/target";
+import { ITarget, ITargets } from "interfaces/target";
 import { IOsqueryTable } from "interfaces/osquery_table";
 import { IUser } from "interfaces/user";
 
@@ -23,7 +23,6 @@ import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2
 interface IQueryPageProps {
   params: Params;
   queryIdForEdit: string;
-  selectedTargets: ITarget[];
   selectedOsqueryTable: IOsqueryTable;
   currentUser: IUser;
   isBasicTier: boolean;
@@ -37,7 +36,6 @@ const baseClass = "query-page";
 
 const QueryPage = ({
   params: { id: queryIdForEdit },
-  selectedTargets,
   selectedOsqueryTable,
   currentUser,
   isBasicTier,
@@ -46,6 +44,7 @@ const QueryPage = ({
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
+  const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [typedQueryBody, setTypedQueryBody] = useState<string>(
@@ -125,13 +124,8 @@ const QueryPage = ({
   };
 
   const renderScreen = () => {
-    const commonOpts = {
-      baseClass,
-      dispatch,
-    };
-
     const step1Opts = {
-      ...commonOpts,
+      baseClass,
       currentUser,
       storedQuery,
       showOpenSchemaActionText,
@@ -143,22 +137,25 @@ const QueryPage = ({
       setTypedQueryBody,
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
+      dispatch,
     };
-
+    
     const step2Opts = {
-      ...commonOpts,
+      baseClass,
       selectedTargets: [...selectedTargets],
       isBasicTier,
       queryIdForEdit,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
+      setSelectedTargets,
     };
-
+    
     const step3Opts = {
-      ...commonOpts,
+      baseClass,
       typedQueryBody,
       storedQuery,
       selectedTargets,
+      dispatch,
     };
 
     switch (step) {
@@ -188,13 +185,12 @@ const QueryPage = ({
 };
 
 const mapStateToProps = (state: any) => {
-  const { selectedOsqueryTable, selectedTargets } = state.components.QueryPages;
+  const { selectedOsqueryTable } = state.components.QueryPages;
   const currentUser = state.auth.user;
   const config = state.app.config;
   const isBasicTier = permissionUtils.isBasicTier(config);
 
   return {
-    selectedTargets,
     selectedOsqueryTable,
     currentUser,
     isBasicTier,

@@ -2,7 +2,6 @@ import {
   defaultSelectedOsqueryTable,
   SELECT_OSQUERY_TABLE,
   SET_QUERY_TEXT,
-  SET_SELECTED_TARGETS,
   SET_SELECTED_TARGETS_QUERY,
 } from "./actions";
 
@@ -24,11 +23,6 @@ const reducer = (state = initialState, { type, payload }) => {
       return {
         ...state,
         queryText: payload.queryText,
-      };
-    case SET_SELECTED_TARGETS:
-      return {
-        ...state,
-        selectedTargets: payload.selectedTargets,
       };
     case SET_SELECTED_TARGETS_QUERY:
       return {
