@@ -70,16 +70,6 @@ module.exports.routes = {
   'GET /contact':                    '/company/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
-
-  // Permanent static images
-  // =============================================================================================================
-  // These images are made available via these URLs to guarantee that they'll be accessible on the internet.
-  // We'll be careful to never change these URLs, lest we break images for folks.
-  //
-  // Why list these out explicitly at routes?  Just to make it harder to accidentally break the URLs,
-  // and to provide an obvious place to set up redirects if these images ever need to get moved around.
-  'GET /images/permanent/avatar-default-118x118@2x.png':  '/images/permanent/avatar-default-118x118@2x.png',
-  ///… actually... wait, this would just redirect infinitely.  This won't work.
   
   // Sitemap
   // =============================================================================================================
