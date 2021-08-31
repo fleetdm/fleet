@@ -14,9 +14,7 @@ import { ITarget } from "interfaces/target";
 import { IOsqueryTable } from "interfaces/osquery_table";
 import { IUser } from "interfaces/user";
 
-// @ts-ignore
-// import WarningBanner from "components/WarningBanner";
-import QuerySidePanel from "components/side_panels/QuerySidePanel"; // @ts-ignore
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/queries/QueryPage1/screens/QueryEditor";
 import SelectTargets from "pages/queries/QueryPage1/screens/SelectTargets";
 import RunQuery from "pages/queries/QueryPage1/screens/RunQuery";
@@ -47,13 +45,13 @@ const QueryPage = ({
   const dispatch = useDispatch();
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
-  const [typedQueryBody, setTypedQueryBody] = useState<string>(
-    DEFAULT_QUERY.query
-  );
-  const [queryIsRunning, setQueryIsRunning] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [typedQueryBody, setTypedQueryBody] = useState<string>(
+    DEFAULT_QUERY.query
+  );
+
   const [
     showOpenSchemaActionText,
     setShowOpenSchemaActionText,
@@ -185,14 +183,12 @@ const QueryPage = ({
 };
 
 const mapStateToProps = (state: any, { params }: any) => {
-  // const { id: queryIdForEdit } = params;
   const { selectedOsqueryTable, selectedTargets } = state.components.QueryPages;
   const currentUser = state.auth.user;
   const config = state.app.config;
   const isBasicTier = permissionUtils.isBasicTier(config);
 
   return {
-    // queryIdForEdit,
     selectedTargets,
     selectedOsqueryTable,
     currentUser,
