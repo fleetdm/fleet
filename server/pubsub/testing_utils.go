@@ -19,7 +19,9 @@ func SetupRedisForTest(t *testing.T) (store *redisQueryResults, teardown func())
 	require.NoError(t, err)
 	store = NewRedisQueryResults(pool, dupResults)
 
-	_, err = store.pool.Get().Do("PING")
+	conn := store.pool.Get()
+	defer conn.Close()
+	_, err = conn.Do("PING")
 	require.Nil(t, err)
 
 	teardown = func() {

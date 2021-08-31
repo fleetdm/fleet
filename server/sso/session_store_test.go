@@ -22,7 +22,9 @@ func newPool(t *testing.T) fleet.RedisPool {
 
 		pool, err := pubsub.NewRedisPool(addr, password, database, useTLS)
 		require.NoError(t, err)
-		_, err = pool.Get().Do("PING")
+		conn := pool.Get()
+		defer conn.Close()
+		_, err = conn.Do("PING")
 		require.Nil(t, err)
 		return pool
 	}
