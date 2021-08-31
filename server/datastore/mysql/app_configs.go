@@ -64,7 +64,7 @@ func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
 	return value == "ON", nil
 }
 
-func (d *Datastore) ManageHostExpiryEvent(tx *sqlx.Tx, hostExpiryEnabled bool, hostExpiryWindow int) error {
+func manageHostExpiryEvent(tx *sqlx.Tx, hostExpiryEnabled bool, hostExpiryWindow int) error {
 	var err error
 	hostExpiryConfig := struct {
 		Window int `db:"host_expiry_window"`
@@ -111,7 +111,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 	}
 
 	return d.withTx(func(tx *sqlx.Tx) error {
-		if err := d.ManageHostExpiryEvent(tx, expiryEnabled, expiryWindow); err != nil {
+		if err := manageHostExpiryEvent(tx, expiryEnabled, expiryWindow); err != nil {
 			return err
 		}
 

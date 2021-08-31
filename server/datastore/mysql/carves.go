@@ -58,13 +58,17 @@ func (d *Datastore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadat
 // UpdateCarve updates the carve metadata in database
 // Only max_block and expired are updatable
 func (d *Datastore) UpdateCarve(metadata *fleet.CarveMetadata) error {
+	return updateCarve(d.writer, metadata)
+}
+
+func updateCarve(exec sqlx.Execer, metadata *fleet.CarveMetadata) error {
 	stmt := `
 		UPDATE carve_metadata SET
 			max_block = ?,
 			expired = ?
 		WHERE id = ?
 	`
-	_, err := d.writer.Exec(
+	_, err := exec.Exec(
 		stmt,
 		metadata.MaxBlock,
 		metadata.Expired,
@@ -221,7 +225,8 @@ func (d *Datastore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetada
 }
 
 func (d *Datastore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
-	stmt := `
+	return d.withTx(func(tx *sqlx.Tx) error {
+		stmt := `
 		INSERT INTO carve_blocks (
 			metadata_id,
 			block_id,
@@ -231,20 +236,20 @@ func (d *Datastore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data 
 			?,
 			?
 		)`
-	if _, err := d.writer.Exec(stmt, metadata.ID, blockId, data); err != nil {
-		return errors.Wrap(err, "insert carve block")
-	}
-
-	if metadata.MaxBlock < blockId {
-		// Update max_block
-		metadata.MaxBlock = blockId
-		// TODO: looks like this should all be done in an atomic transaction?
-		if err := d.UpdateCarve(metadata); err != nil {
+		if _, err := tx.Exec(stmt, metadata.ID, blockId, data); err != nil {
 			return errors.Wrap(err, "insert carve block")
 		}
-	}
 
-	return nil
+		if metadata.MaxBlock < blockId {
+			// Update max_block
+			metadata.MaxBlock = blockId
+			if err := updateCarve(tx, metadata); err != nil {
+				return errors.Wrap(err, "update carve max block")
+			}
+		}
+
+		return nil
+	})
 }
 
 func (d *Datastore) GetBlock(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {

@@ -135,6 +135,8 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 		return errors.Wrapf(err, "save host with id %d", host.ID)
 	}
 
+	// TODO: use encapsulating trx?
+
 	// Save host pack stats only if it is non-nil. Empty stats should be
 	// represented by an empty slice.
 	if host.PackStats != nil {
@@ -150,11 +152,11 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 	}
 
 	if host.Modified {
-		if err := d.SaveHostAdditional(host); err != nil {
+		if err := d.saveHostAdditional(host); err != nil {
 			return errors.Wrap(err, "failed to save host additional")
 		}
 
-		if err := d.SaveHostUsers(host); err != nil {
+		if err := d.saveHostUsers(host); err != nil {
 			return errors.Wrap(err, "failed to save host users")
 		}
 	}
@@ -268,7 +270,7 @@ WHERE host_id = ? AND p.pack_type IS NULL
 	return nil
 }
 
-func (d *Datastore) loadHostUsers(db dbReader, host *fleet.Host) error {
+func loadHostUsers(db dbReader, host *fleet.Host) error {
 	sql := `SELECT id, username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
 	if err := db.Select(&host.Users, sql, host.ID); err != nil {
 		return errors.Wrap(err, "load pack stats")
@@ -299,16 +301,16 @@ func (d *Datastore) Host(id uint) (*fleet.Host, error) {
 	if err := d.loadHostPackStats(host); err != nil {
 		return nil, err
 	}
-	if err := d.loadHostUsers(d.reader, host); err != nil {
+	if err := loadHostUsers(d.reader, host); err != nil {
 		return nil, err
 	}
 
 	return host, nil
 }
 
-func (d *Datastore) amountEnrolledHosts() (int, error) {
+func amountEnrolledHosts(db dbReader) (int, error) {
 	var amount int
-	err := d.writer.Get(&amount, `SELECT count(*) FROM hosts`)
+	err := db.Get(&amount, `SELECT count(*) FROM hosts`)
 	if err != nil {
 		return 0, err
 	}
@@ -803,7 +805,7 @@ func (d *Datastore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
 	return nil
 }
 
-func (d *Datastore) SaveHostAdditional(host *fleet.Host) error {
+func (d *Datastore) saveHostAdditional(host *fleet.Host) error {
 	sql := `
 		INSERT INTO host_additional (host_id, additional)
 		VALUES (?, ?)
@@ -816,7 +818,7 @@ func (d *Datastore) SaveHostAdditional(host *fleet.Host) error {
 	return nil
 }
 
-func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
+func (d *Datastore) saveHostUsers(host *fleet.Host) error {
 	if len(host.Users) == 0 {
 		if _, err := d.writer.Exec(
 			`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE host_id = ?`,
@@ -829,7 +831,7 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 	}
 
 	currentHost := &fleet.Host{ID: host.ID}
-	if err := d.loadHostUsers(d.writer, currentHost); err != nil {
+	if err := loadHostUsers(d.writer, currentHost); err != nil {
 		return err
 	}
 
