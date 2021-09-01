@@ -3,6 +3,9 @@ export enum PolicyResponse {
   FAILING = "failing",
 }
 
+export const DEFAULT_GRAVATAR_LINK =
+  "https://fleetdm.com/images/permanent/icon-avatar-default-128x128@2x.png";
+
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 3600, label: "Every hour" },
   { value: 21600, label: "Every 6 hours" },
