@@ -200,11 +200,15 @@ the way that the Fleet server works.
 				initFatal(err, "initialize Redis")
 			}
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
-
-			// TODO: at startup, migrate old-style live query keys to the new format.
-			// Use pubsub.EachRedisNode to find all such keys on all nodes.
-
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
+			// TODO: should that only be done when a certain "migrate" flag is set,
+			// to prevent affecting every startup?
+			if err := liveQueryStore.MigrateKeys(); err != nil {
+				level.Info(logger).Log(
+					"err", err,
+					"msg", "failed to migrate live query redis keys",
+				)
+			}
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
 			osqueryLogger, err := logging.New(config, logger)
