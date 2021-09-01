@@ -16,6 +16,7 @@ interface IRootState {
   auth: {
     user: IUser;
     loading: boolean;
+    isLoggingOut?: boolean;
   };
   routing: {
     locationBeforeTransitions: IRedirectLocation;
@@ -24,7 +25,7 @@ interface IRootState {
 
 export const AuthenticatedRoutes = ({ children }: IAppProps) => {
   const dispatch = useDispatch();
-  const { loading, user } = useSelector((state: IRootState) => state.auth);
+  const { loading, user, isLoggingOut } = useSelector((state: IRootState) => state.auth);
   const { locationBeforeTransitions } = useSelector(
     (state: IRootState) => state.routing
   );
@@ -54,12 +55,12 @@ export const AuthenticatedRoutes = ({ children }: IAppProps) => {
     // TODO: refreshing the page always begins with `loading` and `user` false.
     // In a nutshell, Redux is not playing nice with a functional component in App.tsx
     // because the fetchCurrentUser() call doesn't make it in time, so `mulligan` helps for now
-    if (!loading && !user && !mulligan) {
+    if (!loading && !user && !mulligan && !isLoggingOut) {
       setMulligan(true);
       return;
     }
 
-    if (!loading && !user && mulligan) {
+    if (!loading && !user && (mulligan || isLoggingOut)) {
       return redirectToLogin();
     }
 

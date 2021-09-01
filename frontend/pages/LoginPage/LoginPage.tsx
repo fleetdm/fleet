@@ -1,61 +1,66 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
+import React, { useState, useEffect, useContext } from "react";
 import { connect } from "react-redux";
 import { size } from "lodash";
 import { push } from "react-router-redux";
+import { Dispatch } from "redux"
 
+// @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import {
   clearAuthErrors,
   loginUser,
-  ssoRedirect,
-} from "redux/nodes/auth/actions";
-import { clearRedirectLocation } from "redux/nodes/redirectLocation/actions";
-import debounce from "utilities/debounce";
-import LoginForm from "components/forms/LoginForm";
-import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
-import ForgotPasswordPage from "pages/ForgotPasswordPage";
+  ssoRedirect, // @ts-ignore
+} from "redux/nodes/auth/actions"; // @ts-ignore
+import { clearRedirectLocation } from "redux/nodes/redirectLocation/actions"; // @ts-ignore
+import debounce from "utilities/debounce"; // @ts-ignore
+import LoginForm from "components/forms/LoginForm"; // @ts-ignore
+import LoginSuccessfulPage from "pages/LoginSuccessfulPage"; // @ts-ignore
+import ForgotPasswordPage from "pages/ForgotPasswordPage"; // @ts-ignore
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import paths from "router/paths";
-import redirectLocationInterface from "interfaces/redirect_location";
-import userInterface from "interfaces/user";
-import ssoSettingsInterface from "interfaces/ssoSettings";
+import { IRedirectLocation } from "interfaces/redirect_location";
+import userInterface, { IUser } from "interfaces/user";
+import { ISSOSettings } from "interfaces/ssoSettings";
+import { AppContext } from "context/App";
 
-export class LoginPage extends Component {
-  static propTypes = {
-    dispatch: PropTypes.func,
-    errors: PropTypes.shape({
-      base: PropTypes.string,
-    }),
-    pathname: PropTypes.string,
-    isForgotPassPage: PropTypes.bool,
-    isResetPassPage: PropTypes.bool,
-    token: PropTypes.string,
-    redirectLocation: redirectLocationInterface,
-    user: userInterface,
-    ssoSettings: ssoSettingsInterface,
+interface ILoginPageProps {
+  dispatch: Dispatch;
+  errors: {
+    base: string;
   };
+  pathname: string;
+  isForgotPassPage: boolean;
+  isResetPassPage: boolean;
+  token: string;
+  redirectLocation: IRedirectLocation;
+  user: IUser;
+  ssoSettings: ISSOSettings;
+}
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      loginVisible: true,
-    };
-  }
+const LoginPage = ({
+  dispatch,
+  errors,
+  pathname,
+  isForgotPassPage,
+  isResetPassPage,
+  token,
+  redirectLocation,
+  user,
+  ssoSettings,
+}: ILoginPageProps) => {
+  const { setCurrentUser } = useContext(AppContext);
+  const [loginVisible, setLoginVisible] = useState<boolean>(true);
 
-  componentWillMount() {
-    const { dispatch, pathname, user } = this.props;
+  useEffect(() => {
     const { HOME, LOGIN } = paths;
-
+    
     if (user && pathname === LOGIN) {
-      return dispatch(push(HOME));
+      dispatch(push(HOME));
     }
+  }, []);
 
-    return false;
-  }
-
-  onChange = () => {
-    const { dispatch, errors } = this.props;
+  const onChange = () => {
+    // const { dispatch, errors } = this.props;
 
     if (size(errors)) {
       return dispatch(clearAuthErrors);
@@ -64,13 +69,13 @@ export class LoginPage extends Component {
     return false;
   };
 
-  onSubmit = debounce((formData) => {
-    const { dispatch, redirectLocation } = this.props;
+  const onSubmit = debounce((formData: any) => {
     const { HOME } = paths;
     const redirectTime = 1500;
     return dispatch(loginUser(formData))
-      .then((user) => {
-        this.setState({ loginVisible: false });
+      .then((user: IUser) => {
+        // this.setState({ loginVisible: false });
+        setLoginVisible(false);
 
         // Redirect to password reset page if user is forced to reset password.
         // Any other requests will fail.
@@ -89,8 +94,8 @@ export class LoginPage extends Component {
       .catch(() => false);
   });
 
-  ssoSignOn = () => {
-    const { dispatch, redirectLocation } = this.props;
+  const ssoSignOn = () => {
+    // const { dispatch, redirectLocation } = this.props;
     const { HOME } = paths;
     let returnToAfterAuth = HOME;
     if (redirectLocation != null) {
@@ -98,16 +103,16 @@ export class LoginPage extends Component {
     }
 
     dispatch(ssoRedirect(returnToAfterAuth))
-      .then((result) => {
+      .then((result: any) => {
         window.location.href = result.payload.ssoRedirectURL;
       })
       .catch(() => false);
   };
 
-  showLoginForm = () => {
-    const { errors, ssoSettings } = this.props;
-    const { loginVisible } = this.state;
-    const { onChange, onSubmit, ssoSignOn } = this;
+  const showLoginForm = () => {
+    // const { errors, ssoSettings } = this.props;
+    // const { loginVisible } = this.state;
+    // const { onChange, onSubmit, ssoSignOn } = this;
 
     return (
       <LoginForm
@@ -121,9 +126,9 @@ export class LoginPage extends Component {
     );
   };
 
-  render() {
-    const { showLoginForm } = this;
-    const { isForgotPassPage, isResetPassPage, token } = this.props;
+  // render() {
+  //   const { showLoginForm } = this;
+  //   const { isForgotPassPage, isResetPassPage, token } = this.props;
 
     return (
       <AuthenticationFormWrapper>
@@ -133,10 +138,10 @@ export class LoginPage extends Component {
         {isResetPassPage && <ResetPasswordPage token={token} />}
       </AuthenticationFormWrapper>
     );
-  }
+  // }
 }
 
-const mapStateToProps = (state) => {
+const mapStateToProps = (state: any) => {
   const { errors, loading, user, ssoSettings } = state.auth;
   const { redirectLocation } = state;
 
