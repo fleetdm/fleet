@@ -24,6 +24,11 @@
     color: $core-vibrant-blue !important;
     align-self: right;
 
+    span {
+      display: flex;
+      align-items: center;
+    }
+
     img {
       margin-left: $pad-xsmall;
     }
