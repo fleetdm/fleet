@@ -1,4 +1,12 @@
-## Fleet 4.2.3 (Aug 25, 2021)
+## Fleet 4.2.4 (Sept 2, 2021)
+
+* Fix Redis Cluster support.
+
+* Handle properly the case where the agent opts is nil in the app config.
+
+* Improve how host users are stored to prevent deadlocks.
+
+## Fleet 4.2.3 (Aug 23, 2021)
 
 * Add ability to troubleshoot connection issues with the `fleetctl debug connection` command.
 
