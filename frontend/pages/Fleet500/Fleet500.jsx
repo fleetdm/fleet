@@ -8,8 +8,12 @@ import { Link } from "react-router";
 
 import PATHS from "router/paths";
 
+import Button from "components/buttons/Button";
+
 import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 import backgroundImg from "../../../assets/images/500.svg";
+import githubLogo from "../../../assets/images/github-mark-white-24x24@2x.png";
+import slackLogo from "../../../assets/images/logo-slack-24x24@2x.png";
 
 const baseClass = "fleet-500";
 
@@ -94,13 +98,32 @@ class Fleet500 extends Component {
           </h1>
           <p>Please file an issue if you believe this is a bug.</p>
           {renderError()}
-          <a
-            href="https://github.com/fleetdm/fleet/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            File an issue
-          </a>
+          <div className={`${baseClass}__button-wrapper`}>
+            <a
+              href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button
+                type="button"
+                variant="unstyled"
+                className={`${baseClass}__slack-btn`}
+              >
+                <img src={slackLogo} alt="Slack icon" />
+                Get help on Slack
+              </Button>
+            </a>
+            <a
+              href="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title="
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button type="button">
+                <img src={githubLogo} alt="Github icon" />
+                File an issue
+              </Button>
+            </a>
+          </div>
         </main>
       </div>
     );

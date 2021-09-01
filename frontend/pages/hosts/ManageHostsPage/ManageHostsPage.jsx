@@ -33,7 +33,10 @@ import policiesClient from "services/entities/policies";
 import permissionUtils from "utilities/permissions";
 import sortUtils from "utilities/sort";
 
-import { PolicyResponse } from "utilities/constants";
+import {
+  PLATFORM_LABEL_DISPLAY_NAMES,
+  PolicyResponse,
+} from "utilities/constants";
 import { getNextLocationPath } from "./helpers";
 import {
   defaultHiddenColumns,
@@ -126,8 +129,11 @@ export class ManageHostsPage extends PureComponent {
     isOnGlobalTeam: PropTypes.bool,
     isBasicTier: PropTypes.bool,
     currentUser: userInterface,
-    policyId: PropTypes.number,
-    policyResponse: PolicyResponse,
+    policyId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    policyResponse: PropTypes.oneOf([
+      PolicyResponse.PASSING,
+      PolicyResponse.FAILING,
+    ]),
   };
 
   static defaultProps = {
@@ -1036,15 +1042,17 @@ export class ManageHostsPage extends PureComponent {
   renderHeaderLabelBlock = ({
     description,
     display_text: displayText,
-    type,
+    label_type: labelType,
   }) => {
     const { onEditLabelClick, toggleDeleteLabelModal } = this;
+
+    displayText = PLATFORM_LABEL_DISPLAY_NAMES[displayText] || displayText;
 
     return (
       <div className={`${baseClass}__label-block`}>
         <div className="title">
           <span>{displayText}</span>
-          {type !== "platform" && (
+          {labelType !== "builtin" && (
             <>
               <Button onClick={onEditLabelClick} variant={"text-icon"}>
                 <img src={PencilIcon} alt="Edit label" />
@@ -1091,6 +1099,7 @@ export class ManageHostsPage extends PureComponent {
         </div>
       );
     }
+    return null;
   };
 
   renderForm = () => {

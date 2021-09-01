@@ -52,7 +52,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   ErrorControl="ignore"
                   Start="auto"
                   Type="ownProcess"
-                  Arguments='--root-dir "[ORBITROOT]." --log-file "[ORBITROOT]orbit-log.txt" {{ if .FleetURL }}--fleet-url "{{ .FleetURL }}"{{ end }} {{ if .EnrollSecret }}--enroll-secret-path "[ORBITROOT]secret.txt"{{ end }} {{if .Insecure }}--insecure{{ end }} {{ if .UpdateURL }}--update-url "{{ .UpdateURL }}" {{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}"'
+                  Arguments='--root-dir "[ORBITROOT]." --log-file "[ORBITROOT]orbit-log.txt" {{ if .FleetURL }}--fleet-url "{{ .FleetURL }}"{{ end }} {{ if .FleetCertificate }}--fleet-certificate "[ORBITROOT]fleet.pem"{{ end }} {{ if .EnrollSecret }}--enroll-secret-path "[ORBITROOT]secret.txt"{{ end }} {{if .Insecure }}--insecure{{ end }} {{ if .UpdateURL }}--update-url "{{ .UpdateURL }}" {{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}"'
                 >
                   <util:ServiceConfig
                     FirstFailureActionType="restart"
