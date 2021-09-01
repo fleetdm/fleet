@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/gomodule/redigo/redis"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,14 +65,14 @@ func TestMigrateKeys(t *testing.T) {
 		require.NoError(t, err)
 
 		got := make(map[string]string)
-		err = pubsub.EachRedisNode(store.pool, func(conn redis.Conn) error {
-			keys, err := redis.Strings(conn.Do("KEYS", "*"))
+		err = redis.EachRedisNode(store.pool, func(conn redigo.Conn) error {
+			keys, err := redigo.Strings(conn.Do("KEYS", "*"))
 			if err != nil {
 				return err
 			}
 
 			for _, k := range keys {
-				v, err := redis.String(conn.Do("GET", k))
+				v, err := redigo.String(conn.Do("GET", k))
 				if err != nil {
 					return err
 				}
@@ -111,7 +111,7 @@ func setupRedisLiveQuery(t *testing.T, cluster bool) (store *redisLiveQuery, tea
 	}
 	addr += port
 
-	pool, err := pubsub.NewRedisPool(addr, password, database, useTLS)
+	pool, err := redis.NewRedisPool(addr, password, database, useTLS)
 	require.NoError(t, err)
 	store = NewRedisLiveQuery(pool)
 
@@ -121,7 +121,7 @@ func setupRedisLiveQuery(t *testing.T, cluster bool) (store *redisLiveQuery, tea
 	require.NoError(t, err)
 
 	teardown = func() {
-		err := pubsub.EachRedisNode(store.pool, func(conn redis.Conn) error {
+		err := redis.EachRedisNode(store.pool, func(conn redigo.Conn) error {
 			_, err := conn.Do("FLUSHDB")
 			return err
 		})

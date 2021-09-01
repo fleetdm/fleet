@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +25,7 @@ func newPool(t *testing.T, cluster bool) fleet.RedisPool {
 		}
 		addr += port
 
-		pool, err := pubsub.NewRedisPool(addr, password, database, useTLS)
+		pool, err := redis.NewRedisPool(addr, password, database, useTLS)
 		require.NoError(t, err)
 		conn := pool.Get()
 		defer conn.Close()

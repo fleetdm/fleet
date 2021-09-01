@@ -43,9 +43,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/pubsub"
-	"github.com/gomodule/redigo/redis"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 )
@@ -110,7 +110,7 @@ func (r *redisLiveQuery) MigrateKeys() error {
 		}
 	}
 
-	keysBySlot := pubsub.SplitRedisKeysBySlot(r.pool, oldKeys...)
+	keysBySlot := redis.SplitRedisKeysBySlot(r.pool, oldKeys...)
 	for _, keys := range keysBySlot {
 		if err := migrateBatchKeys(r.pool, keys); err != nil {
 			return err
@@ -139,9 +139,9 @@ func migrateBatchKeys(pool fleet.RedisPool, keys []string) error {
 	// run at startup, not on a hot path, and we expect a relatively small number
 	// of queries vs hosts (as documented in the design comment at the top).
 	for _, key := range keys {
-		s, err := redis.String(readConn.Do("GET", key))
+		s, err := redigo.String(readConn.Do("GET", key))
 		if err != nil {
-			if err == redis.ErrNil {
+			if err == redigo.ErrNil {
 				// key may have expired since the scan, ignore
 				continue
 			}
@@ -212,7 +212,7 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 		return nil, errors.Wrap(err, "scan active queries")
 	}
 
-	keysBySlot := pubsub.SplitRedisKeysBySlot(r.pool, queryKeys...)
+	keysBySlot := redis.SplitRedisKeysBySlot(r.pool, queryKeys...)
 	queries := make(map[string]string)
 	for _, qkeys := range keysBySlot {
 		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
@@ -251,7 +251,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	for _, key := range queryKeys {
 		name := extractTargetKeyName(key)
 
-		targeted, err := redis.Int(conn.Receive())
+		targeted, err := redigo.Int(conn.Receive())
 		if err != nil {
 			return errors.Wrap(err, "receive target")
 		}
@@ -259,7 +259,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 		// Be sure to read SQL even if we are not going to include this query.
 		// Otherwise we will read an incorrect number of returned results from
 		// the pipeline.
-		sql, err := redis.String(conn.Receive())
+		sql, err := redigo.String(conn.Receive())
 		if err != nil {
 			// Not being able to get the sql for a matched query could mean things
 			// have ended up in a weird state. Or it could be that the query was
@@ -318,15 +318,15 @@ func mapBitfield(hostIDs []uint) []byte {
 func scanKeys(pool fleet.RedisPool, pattern string) ([]string, error) {
 	var keys []string
 
-	err := pubsub.EachRedisNode(pool, func(conn redis.Conn) error {
+	err := redis.EachRedisNode(pool, func(conn redigo.Conn) error {
 		cursor := 0
 		for {
-			res, err := redis.Values(conn.Do("SCAN", cursor, "MATCH", pattern))
+			res, err := redigo.Values(conn.Do("SCAN", cursor, "MATCH", pattern))
 			if err != nil {
 				return errors.Wrap(err, "scan keys")
 			}
 			var curKeys []string
-			_, err = redis.Scan(res, &cursor, &curKeys)
+			_, err = redigo.Scan(res, &cursor, &curKeys)
 			if err != nil {
 				return errors.Wrap(err, "convert scan results")
 			}

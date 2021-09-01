@@ -3,7 +3,8 @@ package pubsub
 import (
 	"testing"
 
-	"github.com/gomodule/redigo/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +22,7 @@ func SetupRedisForTest(t *testing.T, cluster bool) (store *redisQueryResults, te
 	}
 	addr += port
 
-	pool, err := NewRedisPool(addr, password, database, useTLS)
+	pool, err := redis.NewRedisPool(addr, password, database, useTLS)
 	require.NoError(t, err)
 	store = NewRedisQueryResults(pool, dupResults)
 
@@ -31,7 +32,7 @@ func SetupRedisForTest(t *testing.T, cluster bool) (store *redisQueryResults, te
 	require.Nil(t, err)
 
 	teardown = func() {
-		err := EachRedisNode(store.pool, func(conn redis.Conn) error {
+		err := redis.EachRedisNode(store.pool, func(conn redigo.Conn) error {
 			_, err := conn.Do("FLUSHDB")
 			return err
 		})
