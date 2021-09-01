@@ -460,6 +460,36 @@
       display: none;
     }
 
+    .tooltip {
+      width: 192px;
+    }
+
+    .data-table__pill--undetermined {
+      color: $ui-fleet-black-50;
+      font-style: italic;
+      font-weight: 400;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    .data-table__pill--denylisted {
+      font-weight: 400;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    .data-table__pill--minimal {
+      background-color: $ui-vibrant-blue-10;
+    }
+
+    .data-table__pill--considerate {
+      background-color: $ui-vibrant-blue-25;
+    }
+
+    .data-table__pill--excessive {
+      background-color: $ui-vibrant-blue-50;
+    }
+
     .data-table__table {
       table-layout: fixed;
 
@@ -467,7 +497,7 @@
         // Width for all columns except the "Query name" column
         // Width calculation adjusts for each row's horizontal padding
         th {
-          width: calc(160px - 27px * 2);
+          width: calc(200px - 27px * 2);
         }
 
         // Width for the "Query name" column
@@ -482,6 +512,19 @@
           text-overflow: ellipsis;
         }
       }
+
+      .__react_component_tooltip {
+        text-align: center;
+      }
+    }
+
+    .icon-tooltip {
+      display: inline;
+      position: relative;
+      top: 2px;
+      margin-left: $pad-small;
+      font-weight: 400;
+      text-align: center;
     }
   }
 }

@@ -545,7 +545,7 @@ export const humanQueryLastRun = (lastRun: string): string => {
   // Handles the case when a query has never been ran.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
   if (lastRun < "2016-07-28T00:00:00Z") {
-    return "Never";
+    return "Has not run";
   }
 
   return moment(lastRun).fromNow();
