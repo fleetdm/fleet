@@ -834,10 +834,15 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 	}
 
 	incomingUsers := make(map[uint]bool)
-	var insertArgs []interface{}
 	for _, u := range host.Users {
-		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName)
 		incomingUsers[u.Uid] = true
+
+		if _, err := d.db.Exec(
+			`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES (?, ?, ?, ?, ?)`,
+			host.ID, u.Uid, u.Username, u.Type, u.GroupName,
+		); err != nil {
+			return errors.Wrap(err, "insert users")
+		}
 	}
 
 	var removedArgs []interface{}
@@ -845,15 +850,6 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 		if _, ok := incomingUsers[u.Uid]; !ok {
 			removedArgs = append(removedArgs, u.ID)
 		}
-	}
-
-	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(host.Users)), ",")
-	insertSql := fmt.Sprintf(
-		`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s`,
-		insertValues,
-	)
-	if _, err := d.db.Exec(insertSql, insertArgs...); err != nil {
-		return errors.Wrap(err, "insert users")
 	}
 
 	if len(removedArgs) == 0 {
