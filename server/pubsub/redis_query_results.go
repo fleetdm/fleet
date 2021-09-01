@@ -52,6 +52,19 @@ func NewRedisPool(server, password string, database int, useTLS bool) (fleet.Red
 	return cluster, nil
 }
 
+// SplitRedisKeysBySlot takes a list of redis keys and groups them by hash slot
+// so that keys in a given group are guaranteed to hash to the same slot, making
+// them safe to run e.g. in a pipeline on the same connection or as part of a
+// multi-key command in a Redis Cluster setup. When using standalone Redis, it
+// simply returns all keys in the same group (i.e. the top-level slice has a
+// length of 1).
+func SplitRedisKeysBySlot(pool fleet.RedisPool, keys ...string) [][]string {
+	if _, isCluster := pool.(*redisc.Cluster); isCluster {
+		return redisc.SplitBySlot(keys...)
+	}
+	return [][]string{keys}
+}
+
 // EachRedisNode calls fn for each node in the redis cluster, with a connection
 // to that node, until all nodes have been visited. The connection is
 // automatically closed after the call. If fn returns an error, the iteration

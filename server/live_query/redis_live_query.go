@@ -136,61 +136,70 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 		return nil, errors.Wrap(err, "scan active queries")
 	}
 
-	conn := r.pool.Get()
-	defer conn.Close()
-
-	// Pipeline redis calls to check for this host in the bitfield of the
-	// targets of the query.
-	for _, key := range queryKeys {
-		if err := conn.Send("GETBIT", key, hostID); err != nil {
-			return nil, errors.Wrap(err, "getbit query targets")
-		}
-
-		// Additionally get SQL even though we don't yet know whether this query
-		// is targeted to the host. This allows us to avoid an additional
-		// roundtrip to the Redis server and likely has little cost due to the
-		// small number of queries and limited size of SQL
-		if err = conn.Send("GET", sqlKeyPrefix+key); err != nil {
-			return nil, errors.Wrap(err, "get query sql")
-		}
-	}
-
-	// Flush calls to begin receiving results.
-	if err := conn.Flush(); err != nil {
-		return nil, errors.Wrap(err, "flush pipeline")
-	}
-
-	// Receive target and SQL in order of pipelined calls.
+	keysBySlot := pubsub.SplitRedisKeysBySlot(r.pool, queryKeys...)
 	queries := make(map[string]string)
-	for _, key := range queryKeys {
-		name := extractTargetKeyName(key)
+	for _, qkeys := range keysBySlot {
+		// create function so that each connection is immediately closed/returned
+		// to the pool after the call
+		err := func() error {
+			conn := r.pool.Get()
+			defer conn.Close()
 
-		targeted, err := redis.Int(conn.Receive())
+			// Pipeline redis calls to check for this host in the bitfield of the
+			// targets of the query.
+			for _, key := range qkeys {
+				if err := conn.Send("GETBIT", key, hostID); err != nil {
+					return errors.Wrap(err, "getbit query targets")
+				}
+
+				// Additionally get SQL even though we don't yet know whether this query
+				// is targeted to the host. This allows us to avoid an additional
+				// roundtrip to the Redis server and likely has little cost due to the
+				// small number of queries and limited size of SQL
+				if err = conn.Send("GET", sqlKeyPrefix+key); err != nil {
+					return errors.Wrap(err, "get query sql")
+				}
+			}
+
+			// Flush calls to begin receiving results.
+			if err := conn.Flush(); err != nil {
+				return errors.Wrap(err, "flush pipeline")
+			}
+
+			// Receive target and SQL in order of pipelined calls.
+			for _, key := range qkeys {
+				name := extractTargetKeyName(key)
+
+				targeted, err := redis.Int(conn.Receive())
+				if err != nil {
+					return errors.Wrap(err, "receive target")
+				}
+
+				// Be sure to read SQL even if we are not going to include this query.
+				// Otherwise we will read an incorrect number of returned results from
+				// the pipeline.
+				sql, err := redis.String(conn.Receive())
+				if err != nil {
+					// Not being able to get the sql for a matched could mean things
+					// have ended up in a weird state. Or it could be that the query was
+					// stopped since we did the key scan. In any case, attempt to clean
+					// up here.
+					_ = r.StopQuery(name)
+					return errors.Wrap(err, "receive sql")
+				}
+
+				if targeted == 0 {
+					// Host not targeted with this query
+					continue
+				}
+				queries[name] = sql
+			}
+			return nil
+		}()
 		if err != nil {
-			return nil, errors.Wrap(err, "receive target")
+			return nil, err
 		}
-
-		// Be sure to read SQL even if we are not going to include this query.
-		// Otherwise we will read an incorrect number of returned results from
-		// the pipeline.
-		sql, err := redis.String(conn.Receive())
-		if err != nil {
-			// Not being able to get the sql for a matched could mean things
-			// have ended up in a weird state. Or it could be that the query was
-			// stopped since we did the key scan. In any case, attempt to clean
-			// up here.
-			_ = r.StopQuery(name)
-			return nil, errors.Wrap(err, "receive sql")
-		}
-
-		if targeted == 0 {
-			// Host not targeted with this query
-			continue
-		}
-
-		queries[name] = sql
 	}
-
 	return queries, nil
 }
 
