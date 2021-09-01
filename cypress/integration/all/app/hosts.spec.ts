@@ -45,6 +45,8 @@ describe(
           cy.get("input[disabled]").should("have.value", contents);
         });
 
+        cy.wait(5000);
+
         // Wait until the host becomes available (usually immediate in local
         // testing, but may vary by environment).
         cy.waitUntil(

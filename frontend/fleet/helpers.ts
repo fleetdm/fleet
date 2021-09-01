@@ -577,27 +577,6 @@ export const secondsToHms = (d: number): string => {
   return hDisplay + mDisplay + sDisplay;
 };
 
-export const performanceIndicator = (scheduledQuery: IQueryStats): string => {
-  if (scheduledQuery.executions === 0) {
-    return "Undetermined";
-  }
-  if (scheduledQuery.denylisted === true) {
-    return "Denylisted";
-  }
-
-  const indicator =
-    (scheduledQuery.user_time + scheduledQuery.system_time) /
-    scheduledQuery.executions;
-
-  if (indicator < 2000) {
-    return "Minimal";
-  }
-  if (indicator >= 2000 && indicator <= 4000) {
-    return "Considerate";
-  }
-  return "Excessive";
-};
-
 export const secondsToDhms = (d: number): string => {
   if (d === 604800) {
     return "1 week";
@@ -665,7 +644,6 @@ export default {
   humanQueryLastRun,
   inMilliseconds,
   licenseExpirationWarning,
-  performanceIndicator,
   secondsToHms,
   secondsToDhms,
   labelSlug,
