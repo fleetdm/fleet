@@ -5,6 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,6 +18,51 @@ func TestRedisLiveQuery(t *testing.T) {
 			f(t, store)
 		})
 	}
+}
+
+func TestMigrateKeys(t *testing.T) {
+	store, teardown := setupRedisLiveQuery(t)
+	defer teardown()
+
+	startKeys := map[string]string{
+		"unrelated":                           "u",
+		queryKeyPrefix + "a":                  "a",
+		sqlKeyPrefix + queryKeyPrefix + "a":   "sqla",
+		queryKeyPrefix + "b":                  "b",
+		queryKeyPrefix + "{c}":                "c",
+		sqlKeyPrefix + queryKeyPrefix + "{c}": "sqlc",
+	}
+
+	endKeys := map[string]string{
+		"unrelated":                           "u",
+		queryKeyPrefix + "{a}":                "a",
+		sqlKeyPrefix + queryKeyPrefix + "{a}": "sqla",
+		queryKeyPrefix + "{b}":                "b",
+		queryKeyPrefix + "{c}":                "c",
+		sqlKeyPrefix + queryKeyPrefix + "{c}": "sqlc",
+	}
+
+	conn := store.pool.Get()
+	defer conn.Close()
+	for k, v := range startKeys {
+		_, err := conn.Do("SET", k, v)
+		require.NoError(t, err)
+	}
+
+	err := store.MigrateKeys()
+	require.NoError(t, err)
+
+	keys, err := redis.Strings(conn.Do("KEYS", "*"))
+	require.NoError(t, err)
+
+	got := make(map[string]string)
+	for _, k := range keys {
+		v, err := redis.String(conn.Do("GET", k))
+		require.NoError(t, err)
+		got[k] = v
+	}
+
+	require.EqualValues(t, endKeys, got)
 }
 
 func setupRedisLiveQuery(t *testing.T) (store *redisLiveQuery, teardown func()) {

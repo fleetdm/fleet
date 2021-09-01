@@ -158,6 +158,9 @@ func migrateBatchKeys(pool fleet.RedisPool, keys []string) error {
 		if _, err := writeConn.Do("SET", newKey, s, "EX", queryExpiration.Seconds()); err != nil {
 			return err
 		}
+
+		// best-effort deletion of the old key, ignore error
+		readConn.Do("DEL", key)
 	}
 	return nil
 }
