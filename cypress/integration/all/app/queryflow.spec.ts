@@ -37,11 +37,11 @@ describe(
       cy.findByRole("button", { name: /save as new/i }).click();
 
       // Just refreshes to create new query, needs success alert to user that they created a query
+      cy.wait(5000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.visit("/queries/manage");
 
       cy.wait("@getQueries");
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.findByText(/query all window/i).click();
 
