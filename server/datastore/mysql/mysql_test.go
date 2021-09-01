@@ -1,7 +1,9 @@
 package mysql
 
 import (
+	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/VividCortex/mysqlerr"
@@ -14,6 +16,51 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDatastoreReplica(t *testing.T) {
+	// a bit unfortunate to create temp databases just for this - could be mixed
+	// with other tests when/if we move to subtests to minimize the number of
+	// databases created for tests (see #1805).
+
+	t.Run("noreplica", func(t *testing.T) {
+		ds := CreateMySQLDSWithOptions(t, nil)
+		defer ds.Close()
+		require.Equal(t, ds.reader, ds.writer)
+	})
+
+	t.Run("replica", func(t *testing.T) {
+		opts := &DatastoreTestOptions{Replica: true}
+		ds := CreateMySQLDSWithOptions(t, opts)
+		defer ds.Close()
+		require.NotEqual(t, ds.reader, ds.writer)
+
+		// create a new host
+		host, err := ds.NewHost(&fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         "1",
+			UUID:            "1",
+			Hostname:        "foo.local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+
+		// trying to read it fails, not replicated yet
+		_, err = ds.Host(host.ID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+
+		opts.RunReplication()
+
+		// now it can read it
+		host2, err := ds.Host(host.ID)
+		require.NoError(t, err)
+		require.Equal(t, host.ID, host2.ID)
+	})
+}
 
 func TestSanitizeColumn(t *testing.T) {
 	t.Parallel()
@@ -121,8 +168,10 @@ func TestSearchLike(t *testing.T) {
 func mockDatastore(t *testing.T) (sqlmock.Sqlmock, *Datastore) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
+	dbmock := sqlx.NewDb(db, "sqlmock")
 	ds := &Datastore{
-		db:     sqlx.NewDb(db, "sqlmock"),
+		writer: dbmock,
+		reader: dbmock,
 		logger: log.NewNopLogger(),
 	}
 

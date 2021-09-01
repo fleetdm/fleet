@@ -149,7 +149,11 @@ the way that the Fleet server works.
 			var carveStore fleet.CarveStore
 			mailService := mail.NewService()
 
-			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger))
+			var replicaOpt mysql.DBOption
+			if config.MysqlReadReplica.Address != "" {
+				replicaOpt = mysql.Replica(&config.MysqlReadReplica)
+			}
+			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger), replicaOpt)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}

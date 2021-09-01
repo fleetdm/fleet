@@ -10,7 +10,7 @@ import (
 )
 
 func (d *Datastore) ApplyQueries(authorID uint, queries []*fleet.Query) (err error) {
-	tx, err := d.db.Begin()
+	tx, err := d.writer.Begin()
 	if err != nil {
 		return errors.Wrap(err, "begin ApplyQueries transaction")
 	}
@@ -72,7 +72,7 @@ func (d *Datastore) QueryByName(name string, opts ...fleet.OptionalArg) (*fleet.
 			WHERE name = ?
 	`
 	var query fleet.Query
-	err := d.db.Get(&query, sqlStatement, name)
+	err := d.reader.Get(&query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("Query").WithName(name)
@@ -99,7 +99,7 @@ func (d *Datastore) NewQuery(query *fleet.Query, opts ...fleet.OptionalArg) (*fl
 			observer_can_run
 		) VALUES ( ?, ?, ?, ?, ?, ? )
 	`
-	result, err := d.db.Exec(sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
+	result, err := d.writer.Exec(sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
 
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Query", 0)
@@ -120,7 +120,7 @@ func (d *Datastore) SaveQuery(q *fleet.Query) error {
 			SET name = ?, description = ?, query = ?, author_id = ?, saved = ?, observer_can_run = ?
 			WHERE id = ?
 	`
-	result, err := d.db.Exec(sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
+	result, err := d.writer.Exec(sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating query")
 	}
@@ -156,7 +156,7 @@ func (d *Datastore) Query(id uint) (*fleet.Query, error) {
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := d.db.Get(query, sql, id); err != nil {
+	if err := d.reader.Get(query, sql, id); err != nil {
 		return nil, errors.Wrap(err, "selecting query")
 	}
 
@@ -180,7 +180,7 @@ func (d *Datastore) ListQueries(opt fleet.ListOptions) ([]*fleet.Query, error) {
 	sql = appendListOptionsToSQL(sql, opt)
 	results := []*fleet.Query{}
 
-	if err := d.db.Select(&results, sql); err != nil {
+	if err := d.reader.Select(&results, sql); err != nil {
 		return nil, errors.Wrap(err, "listing queries")
 	}
 
@@ -225,7 +225,7 @@ func (d *Datastore) loadPacksForQueries(queries []*fleet.Query) error {
 		fleet.Pack
 	}{}
 
-	err = d.db.Select(&rows, query, args...)
+	err = d.reader.Select(&rows, query, args...)
 	if err != nil {
 		return errors.Wrap(err, "selecting load packs for queries")
 	}
