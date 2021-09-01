@@ -481,6 +481,72 @@ class AppConfigForm extends Component {
 
           <div className={`${baseClass}__section`}>
             <h2>
+              <a id="agent-options">Host status webhook</a>
+            </h2>
+            <div className={`${baseClass}__yaml`}>
+              <p className={`${baseClass}__section-description`}>
+                Send an alert if a portion of your hosts go offline.
+              </p>
+              checkbox here
+              <p className={`${baseClass}__section-description`}>
+                A request will be sent to your configured <b>Destination URL</b>{" "}
+                if the configured <b>Percentage of hosts</b> have not checked
+                into Fleet for the configured <b>Number of days</b>.
+              </p>
+              <p>preview request</p>
+              <div className={`${baseClass}__inputs`}>
+                <InputField {...fields.password} label="Destination URL" />
+              </div>
+              <div className={`${baseClass}__details`}>
+                <IconToolTip
+                  isHtml
+                  text={
+                    "\
+                  <p>Provide a URL to deliver <br/>the webhook request to.</p>\
+                "
+                  }
+                />
+              </div>
+              <div className={`${baseClass}__inputs`}>
+                <Dropdown
+                  {...fields.authentication_method}
+                  label="Percentage of hosts"
+                  options={authMethodOptions}
+                  placeholder=""
+                />
+              </div>
+              <div className={`${baseClass}__details`}>
+                <IconToolTip
+                  isHtml
+                  text={
+                    "\
+                  <p>Provide a URL to deliver <br/>the webhook request to.</p>\
+                "
+                  }
+                />
+              </div>
+              <div className={`${baseClass}__inputs`}>
+                <Dropdown
+                  {...fields.authentication_type}
+                  label="Number of days"
+                  options={authTypeOptions}
+                />
+              </div>
+              <div className={`${baseClass}__details`}>
+                <IconToolTip
+                  isHtml
+                  text={
+                    "\
+                  <p>Provide a URL to deliver <br/>the webhook request to.</p>\
+                "
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className={`${baseClass}__section`}>
+            <h2>
               <a id="usage-stats">Usage statistics</a>
             </h2>
             <p className={`${baseClass}__section-description`}>
