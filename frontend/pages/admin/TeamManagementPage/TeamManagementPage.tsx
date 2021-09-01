@@ -193,7 +193,7 @@ const TeamManagementPage = (): JSX.Element => {
               className={`${noTeamsClass}__create-button`}
               onClick={toggleCreateTeamModal}
             >
-              Create Team
+              Create team
             </Button>
           </div>
         </div>
