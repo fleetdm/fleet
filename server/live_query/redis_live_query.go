@@ -30,11 +30,11 @@
 //     livequery:<ID> is the bitfield that indicates the hosts
 //     sql:livequery:<ID> is the SQL of the query.
 //
-// Both have an expiration, and <ID> is the campaign ID of the query.
-// To make efficient use of Redis Cluster (without impacting standalone
-// Redis), the <ID> is stored in braces (hash tags), so that the two
-// keys for the same <ID> are always stored on the same node (as they
-// hash to the same cluster slot). See
+// Both have an expiration, and <ID> is the campaign ID of the query.  To make
+// efficient use of Redis Cluster (without impacting standalone Redis), the
+// <ID> is stored in braces (hash tags, e.g. livequery:{1} and
+// sql:livequery:{1}), so that the two keys for the same <ID> are always stored
+// on the same node (as they hash to the same cluster slot). See
 // https://redis.io/topics/cluster-spec#keys-hash-tags for details.
 //
 package live_query
@@ -67,8 +67,27 @@ func NewRedisLiveQuery(pool fleet.RedisPool) *redisLiveQuery {
 	return &redisLiveQuery{pool: pool}
 }
 
+// generate keys for the bitfield and sql of a query - those always go in pair
+// and should live on the same cluster node when Redis Cluster is used, so
+// the common part of the key (the 'name' parameter) is used as key tag.
 func generateKeys(name string) (targetsKey, sqlKey string) {
-	return queryKeyPrefix + name, sqlKeyPrefix + queryKeyPrefix + name
+	keyTag := "{" + name + "}"
+	return queryKeyPrefix + keyTag, sqlKeyPrefix + queryKeyPrefix + keyTag
+}
+
+// returns the base name part of a target key, i.e. so that this is true:
+//     tkey, _ := generateKeys(name)
+//     baseName := extractTargetKeyName(tkey)
+//     baseName == name
+func extractTargetKeyName(key string) string {
+	name := strings.TrimPrefix(key, queryKeyPrefix)
+	if len(name) > 0 && name[0] == '{' {
+		name = name[1:]
+	}
+	if len(name) > 0 && name[len(name)-1] == '}' {
+		name = name[:len(name)-1]
+	}
+	return name
 }
 
 func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
@@ -144,7 +163,7 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 	// Receive target and SQL in order of pipelined calls.
 	queries := make(map[string]string)
 	for _, key := range queryKeys {
-		name := strings.TrimPrefix(key, queryKeyPrefix)
+		name := extractTargetKeyName(key)
 
 		targeted, err := redis.Int(conn.Receive())
 		if err != nil {
