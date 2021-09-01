@@ -66,8 +66,6 @@ describe("Settings flow", () => {
       .click()
       .type("rachelspassword");
 
-    cy.get("#advanced-options").click();
-
     cy.findByLabelText(/domain/i)
       .click()
       .type("http://www.fleetdm.com");
@@ -136,8 +134,6 @@ describe("Settings flow", () => {
       "have.value",
       "rachelsusername"
     );
-
-    cy.get("#advanced-options").click();
 
     cy.findByLabelText(/host expiry window/i).should("have.value", "5");
 
