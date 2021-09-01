@@ -363,6 +363,12 @@
     }
   }
 
+  .section--users {
+    .host-details__wrapper {
+      overflow: auto;
+    }
+  }
+
   tbody {
     td {
       padding: 12px 27px;
