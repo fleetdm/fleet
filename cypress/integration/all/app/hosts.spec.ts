@@ -45,7 +45,8 @@ describe(
           cy.get("input[disabled]").should("have.value", contents);
         });
 
-        cy.wait(5000);
+        // ensure load
+        cy.wait(5000); // eslint-disable-line cypress/no-unnecessary-waiting
 
         // Wait until the host becomes available (usually immediate in local
         // testing, but may vary by environment).
