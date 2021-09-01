@@ -39,6 +39,50 @@ services:
     ports:
       - "6379:6379"
 
+  redis-cluster-setup:
+    image: redis:5
+    command: redis-cli --cluster create 172.20.0.31:7001 172.20.0.32:7002 172.20.0.33:7003 --cluster-yes
+    networks:
+      cluster_network:
+        ipv4_address: 172.20.0.30
+    depends_on:
+      - redis-cluster-1
+      - redis-cluster-2
+      - redis-cluster-3
+
+  redis-cluster-1:
+    image: redis:5
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - '7001:7001'
+    volumes:
+      - ./tools/redis/redis-cluster-1.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      cluster_network:
+        ipv4_address: 172.20.0.31
+
+  redis-cluster-2:
+    image: redis:5
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - '7002:7002'
+    volumes:
+      - ./tools/redis/redis-cluster-2.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      cluster_network:
+        ipv4_address: 172.20.0.32
+
+  redis-cluster-3:
+    image: redis:5
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - '7003:7003'
+    volumes:
+      - ./tools/redis/redis-cluster-3.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      cluster_network:
+        ipv4_address: 172.20.0.33
+
   saml_idp:
     image: fleetdm/docker-idp:latest
     environment:
@@ -80,3 +124,10 @@ services:
 
 volumes:
   mysql-persistent-volume:
+
+networks:
+  cluster_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24

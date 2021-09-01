@@ -2,10 +2,12 @@ package live_query
 
 import (
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/gomodule/redigo/redis"
+	"github.com/mna/redisc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,17 +15,22 @@ import (
 func TestRedisLiveQuery(t *testing.T) {
 	for _, f := range testFunctions {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
-			store, teardown := setupRedisLiveQuery(t)
-			defer teardown()
-			f(t, store)
+			t.Run("standalone", func(t *testing.T) {
+				store, teardown := setupRedisLiveQuery(t, false)
+				defer teardown()
+				f(t, store)
+			})
+
+			t.Run("cluster", func(t *testing.T) {
+				store, teardown := setupRedisLiveQuery(t, true)
+				defer teardown()
+				f(t, store)
+			})
 		})
 	}
 }
 
 func TestMigrateKeys(t *testing.T) {
-	store, teardown := setupRedisLiveQuery(t)
-	defer teardown()
-
 	startKeys := map[string]string{
 		"unrelated":                           "u",
 		queryKeyPrefix + "a":                  "a",
@@ -42,46 +49,83 @@ func TestMigrateKeys(t *testing.T) {
 		sqlKeyPrefix + queryKeyPrefix + "{c}": "sqlc",
 	}
 
-	conn := store.pool.Get()
-	defer conn.Close()
-	for k, v := range startKeys {
-		_, err := conn.Do("SET", k, v)
+	runTest := func(t *testing.T, store *redisLiveQuery) {
+		conn := store.pool.Get()
+		defer conn.Close()
+		if rc, err := redisc.RetryConn(conn, 3, 100*time.Millisecond); err == nil {
+			conn = rc
+		}
+
+		for k, v := range startKeys {
+			_, err := conn.Do("SET", k, v)
+			require.NoError(t, err)
+		}
+
+		err := store.MigrateKeys()
 		require.NoError(t, err)
+
+		got := make(map[string]string)
+		err = pubsub.EachRedisNode(store.pool, func(conn redis.Conn) error {
+			keys, err := redis.Strings(conn.Do("KEYS", "*"))
+			if err != nil {
+				return err
+			}
+
+			for _, k := range keys {
+				v, err := redis.String(conn.Do("GET", k))
+				if err != nil {
+					return err
+				}
+				got[k] = v
+			}
+			return nil
+		})
+		require.NoError(t, err)
+
+		require.EqualValues(t, endKeys, got)
 	}
 
-	err := store.MigrateKeys()
-	require.NoError(t, err)
+	t.Run("standalone", func(t *testing.T) {
+		store, teardown := setupRedisLiveQuery(t, false)
+		defer teardown()
+		runTest(t, store)
+	})
 
-	keys, err := redis.Strings(conn.Do("KEYS", "*"))
-	require.NoError(t, err)
-
-	got := make(map[string]string)
-	for _, k := range keys {
-		v, err := redis.String(conn.Do("GET", k))
-		require.NoError(t, err)
-		got[k] = v
-	}
-
-	require.EqualValues(t, endKeys, got)
+	t.Run("cluster", func(t *testing.T) {
+		store, teardown := setupRedisLiveQuery(t, true)
+		defer teardown()
+		runTest(t, store)
+	})
 }
 
-func setupRedisLiveQuery(t *testing.T) (store *redisLiveQuery, teardown func()) {
+func setupRedisLiveQuery(t *testing.T, cluster bool) (store *redisLiveQuery, teardown func()) {
 	var (
-		addr     = "127.0.0.1:6379"
+		addr     = "127.0.0.1:"
 		password = ""
 		database = 0
 		useTLS   = false
+		port     = "6379"
 	)
+	if cluster {
+		port = "7001"
+	}
+	addr += port
 
 	pool, err := pubsub.NewRedisPool(addr, password, database, useTLS)
 	require.NoError(t, err)
 	store = NewRedisLiveQuery(pool)
 
-	_, err = store.pool.Get().Do("PING")
+	conn := store.pool.Get()
+	defer conn.Close()
+	_, err = conn.Do("PING")
 	require.NoError(t, err)
 
 	teardown = func() {
-		store.pool.Get().Do("FLUSHDB")
+		err := pubsub.EachRedisNode(store.pool, func(conn redis.Conn) error {
+			_, err := conn.Do("FLUSHDB")
+			return err
+		})
+		require.NoError(t, err)
 		store.pool.Close()
 	}
 

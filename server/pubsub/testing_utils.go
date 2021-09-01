@@ -3,17 +3,23 @@ package pubsub
 import (
 	"testing"
 
+	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
 )
 
-func SetupRedisForTest(t *testing.T) (store *redisQueryResults, teardown func()) {
+func SetupRedisForTest(t *testing.T, cluster bool) (store *redisQueryResults, teardown func()) {
 	var (
-		addr       = "127.0.0.1:6379"
+		addr       = "127.0.0.1:"
 		password   = ""
 		database   = 0
 		useTLS     = false
 		dupResults = false
+		port       = "6379"
 	)
+	if cluster {
+		port = "7001"
+	}
+	addr += port
 
 	pool, err := NewRedisPool(addr, password, database, useTLS)
 	require.NoError(t, err)
@@ -25,7 +31,11 @@ func SetupRedisForTest(t *testing.T) (store *redisQueryResults, teardown func())
 	require.Nil(t, err)
 
 	teardown = func() {
-		store.pool.Get().Do("FLUSHDB")
+		err := EachRedisNode(store.pool, func(conn redis.Conn) error {
+			_, err := conn.Do("FLUSHDB")
+			return err
+		})
+		require.NoError(t, err)
 		store.pool.Close()
 	}
 
