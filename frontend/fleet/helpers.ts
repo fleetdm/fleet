@@ -16,6 +16,7 @@ export const addGravatarUrlToResource = (resource: any): any => {
   const gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
     DEFAULT_GRAVATAR_LINK
   )}&size=200`;
+  console.log(gravatarURL);
   return {
     ...resource,
     gravatarURL,

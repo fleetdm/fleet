@@ -4,7 +4,7 @@ export enum PolicyResponse {
 }
 
 export const DEFAULT_GRAVATAR_LINK =
-  "https://fleetdm.com/images/permanent/icon-avatar-default-128x128@2x.png";
+  "https://fleetdm.com/images/permanent/icon-avatar-default-128x128-2x.png";
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 3600, label: "Every hour" },
