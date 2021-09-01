@@ -839,7 +839,7 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 	for _, u := range host.Users {
 		incomingUsers[u.Uid] = true
 
-		if _, err := d.db.Exec(
+		if _, err := d.writer.Exec(
 			`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES (?, ?, ?, ?, ?)`,
 			host.ID, u.Uid, u.Username, u.Type, u.GroupName,
 		); err != nil {
