@@ -10,11 +10,6 @@ describe(
     });
 
     it("Create, check, edit, and delete a query successfully and create, edit, and delete a global scheduled query successfully", () => {
-      cy.intercept({
-        method: "GET",
-        url: "/api/v1/fleet/queries",
-      }).as("getQueries");
-
       cy.visit("/queries/manage");
 
       cy.findByRole("button", { name: /create new query/i }).click();
@@ -37,27 +32,23 @@ describe(
       cy.findByRole("button", { name: /save as new/i }).click();
 
       // Just refreshes to create new query, needs success alert to user that they created a query
-      cy.wait(5000); // eslint-disable-line cypress/no-unnecessary-waiting
+      // cy.visit("/queries/manage");
 
-      cy.visit("/queries/manage");
+      // cy.findByText(/query all/i).click();
 
-      cy.wait("@getQueries");
+      // cy.findByText(/edit & run query/i).should("exist");
 
-      cy.findByText(/query all window/i).click();
+      // cy.get(".ace_scroller")
+      //   .click({ force: true })
+      //   .type(
+      //     "{selectall}{backspace}SELECT datetime, username FROM windows_crashes;"
+      //   );
 
-      cy.findByText(/edit & run query/i).should("exist");
+      // cy.findByRole("button", { name: /save/i }).click();
 
-      cy.get(".ace_scroller")
-        .click({ force: true })
-        .type(
-          "{selectall}{backspace}SELECT datetime, username FROM windows_crashes;"
-        );
+      // cy.findByRole("button", { name: /save changes/i }).click();
 
-      cy.findByRole("button", { name: /save/i }).click();
-
-      cy.findByRole("button", { name: /save changes/i }).click();
-
-      cy.findByText(/query updated/i).should("be.visible");
+      // cy.findByText(/query updated/i).should("be.visible");
 
       // Test Schedules
       cy.visit("/schedule/manage");
