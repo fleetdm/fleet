@@ -28,12 +28,18 @@ const authTypeOptions = [
   { label: "Username and Password", value: "authtype_username_password" },
   { label: "None", value: "authtype_none" },
 ];
-const percentageOfHosts = Array.from({ length: 100 }, (v, k) => {
-  return { label: (k + 1).toString() + "%", value: k + 1 };
-});
-const numberOfDays = Array.from({ length: 30 }, (v, k) => {
-  return { label: (k + 1).toString(), value: k + 1 };
-});
+const percentageOfHosts = [
+  { label: "1%", value: "1" },
+  { label: "5%", value: "5" },
+  { label: "10%", value: "10" },
+  { label: "25%", value: "25" },
+];
+const numberOfDays = [
+  { label: "1 day", value: "1" },
+  { label: "3 days", value: "3" },
+  { label: "7 days", value: "7" },
+  { label: "14 days", value: "14" },
+];
 
 const baseClass = "app-config-form";
 const formFields = [
@@ -65,6 +71,10 @@ const formFields = [
   "host_expiry_window",
   "live_query_disabled",
   "agent_options",
+  "enable_host_status_webhook",
+  "destination_url",
+  "host_percentage",
+  "days_count",
   "enable_analytics",
 ];
 class AppConfigForm extends Component {
@@ -97,6 +107,10 @@ class AppConfigForm extends Component {
       host_expiry_window: formFieldInterface.isRequired,
       live_query_disabled: formFieldInterface.isRequired,
       agent_options: formFieldInterface.isRequired,
+      enable_host_status_webhook: formFieldInterface.isRequired,
+      destination_url: formFieldInterface,
+      host_percentage: formFieldInterface,
+      days_count: formFieldInterface,
       enable_analytics: formFieldInterface.isRequired,
     }).isRequired,
     enrollSecret: PropTypes.arrayOf(enrollSecretInterface).isRequired,
@@ -216,7 +230,7 @@ class AppConfigForm extends Component {
 
     const json = {
       message:
-        "More than X% of your hosts have not checked into Fleet for more than X days. You’ve been sent this message because the Host status webhook is enabeld in your Fleet instance.",
+        "More than X% of your hosts have not checked into Fleet for more than X days. You’ve been sent this message because the Host status webhook is enabled in your Fleet instance.",
     };
 
     return (
@@ -228,7 +242,9 @@ class AppConfigForm extends Component {
         <p>
           An example request sent to your configured <b>Destination URL</b>.
         </p>
-        <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
+        <div className={`${baseClass}__host-status-webhook-preview`}>
+          <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
+        </div>
         <div className="flex-end">
           <Button type="button" onClick={toggleHostStatusWebhookPreviewModal}>
             Done
@@ -546,7 +562,9 @@ class AppConfigForm extends Component {
               <p className={`${baseClass}__section-description`}>
                 Send an alert if a portion of your hosts go offline.
               </p>
-              checkbox here
+              <Checkbox {...fields.enable_host_status_webhook}>
+                Enable host status webhook
+              </Checkbox>
               <p className={`${baseClass}__section-description`}>
                 A request will be sent to your configured <b>Destination URL</b>{" "}
                 if the configured <b>Percentage of hosts</b> have not checked
@@ -566,7 +584,7 @@ class AppConfigForm extends Component {
             </div>
             <div className={`${baseClass}__inputs`}>
               <InputField
-                {...fields.password}
+                {...fields.destination_url}
                 placeholder="https://server.com/example"
                 label="Destination URL"
               />
@@ -583,10 +601,9 @@ class AppConfigForm extends Component {
             </div>
             <div className={`${baseClass}__inputs`}>
               <Dropdown
-                {...fields.authentication_method}
+                {...fields.host_percentage}
                 label="Percentage of hosts"
                 options={percentageOfHosts}
-                placeholder=""
               />
             </div>
             <div className={`${baseClass}__details`}>
@@ -601,7 +618,7 @@ class AppConfigForm extends Component {
             </div>
             <div className={`${baseClass}__inputs`}>
               <Dropdown
-                {...fields.authentication_type}
+                {...fields.days_count}
                 label="Number of days"
                 options={numberOfDays}
               />

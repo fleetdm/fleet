@@ -37,6 +37,11 @@ export default PropTypes.shape({
   expiration: PropTypes.string,
   note: PropTypes.string,
   // vulnerability_settings: PropTypes.any, TODO
+  // host_status_webhook 9/1
+  enable_host_status_webhook: PropTypes.bool,
+  destination_url: PropTypes.string,
+  host_percentage: PropTypes.number,
+  days_count: PropTypes.number,
   logging: PropTypes.shape({
     debug: PropTypes.bool,
     json: PropTypes.bool,
@@ -96,6 +101,11 @@ export interface IConfig {
   expiration: string;
   note: string;
   // vulnerability_settings: any; TODO
+  // host_status_webhook 9/1
+  enable_host_status_webhook: boolean;
+  destination_url: string;
+  host_percentage: number;
+  days_count: number;
   logging: {
     debug: boolean;
     json: boolean;
