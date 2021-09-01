@@ -18,7 +18,7 @@ import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.p
 
 interface IQueryEditorProps {
   baseClass: string;
-  currentUser: IUser;
+  currentUser: IUser | null;
   storedQuery: IQuery | undefined;
   error: any;
   showOpenSchemaActionText: boolean;
@@ -93,6 +93,10 @@ const QueryEditor = ({
 
     return false;
   };
+
+  if (!currentUser) {
+    return null;
+  }
 
   return (
     <div className={`${baseClass}__form body-wrap`}>

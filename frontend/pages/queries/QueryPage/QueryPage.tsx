@@ -5,13 +5,13 @@ import { Params } from "react-router/lib/Router";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
-import { QueryContext } from "context/Query";
+import { QueryContext } from "context/query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import permissionUtils from "utilities/permissions";
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
-import { IUser } from "interfaces/user";
+import { AppContext } from "context/app";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
@@ -21,8 +21,6 @@ import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2
 
 interface IQueryPageProps {
   params: Params;
-  currentUser: IUser;
-  isBasicTier: boolean;
 }
 
 interface IStoredQueryResponse {
@@ -32,11 +30,12 @@ interface IStoredQueryResponse {
 const baseClass = "query-page";
 
 const QueryPage = ({
-  params: { id: queryIdForEdit },
-  currentUser,
-  isBasicTier,
+  params: { 
+    id: queryIdForEdit 
+  },
 }: IQueryPageProps) => {
   const dispatch = useDispatch();
+  const { currentUser, isBasicTier } = useContext(AppContext);
   const { 
     selectedOsqueryTable,
     setSelectedOsqueryTable,
@@ -184,15 +183,4 @@ const QueryPage = ({
   );
 };
 
-const mapStateToProps = (state: any) => {
-  const currentUser = state.auth.user;
-  const config = state.app.config;
-  const isBasicTier = permissionUtils.isBasicTier(config);
-
-  return {
-    currentUser,
-    isBasicTier,
-  };
-};
-
-export default connect(mapStateToProps)(QueryPage);
+export default QueryPage;

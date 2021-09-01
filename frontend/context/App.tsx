@@ -46,8 +46,8 @@ const actions = {
 // helper function - this is run every 
 // time currentUser or config is changed
 const setPermissions = (
-  config: IConfig,
   user: IUser,
+  config: IConfig,
 ) => {
   if (!user || !config) {
     return {};
@@ -76,7 +76,7 @@ const reducer = (state: any, action: any) => {
     case actions.SET_CONFIG:
       return { 
         ...state,
-        currentUser: action.currentUser,
+        config: action.config,
         ...setPermissions(state.currentUser, action.config),
       };
     default:
@@ -100,10 +100,10 @@ const AppProvider = ({ children }: Props) => {
     isOnGlobalTeam: state.isOnGlobalTeam,
     isAnyTeamMaintainer: state.isAnyTeamMaintainer,
     isOnlyObserver: state.isOnlyObserver,
-    setCurrentUser: (currentUser: IUser, ) => {
+    setCurrentUser: (currentUser: IUser) => {
       dispatch({ type: actions.SET_CURRENT_USER, currentUser });
     },
-    setConfig: (config: IConfig, ) => {
+    setConfig: (config: IConfig) => {
       dispatch({ type: actions.SET_CONFIG, config });
     },
   };

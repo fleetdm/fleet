@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useCallback, useContext } from "react";
-import { TableContext } from "context/Table";
+import { TableContext } from "context/table";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 import { useTable, useSortBy, useRowSelect, Row } from "react-table";

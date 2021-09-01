@@ -19,9 +19,9 @@ import ForgotPasswordPage from "pages/ForgotPasswordPage"; // @ts-ignore
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import paths from "router/paths";
 import { IRedirectLocation } from "interfaces/redirect_location";
-import userInterface, { IUser } from "interfaces/user";
+import { IUser } from "interfaces/user";
 import { ISSOSettings } from "interfaces/ssoSettings";
-import { AppContext } from "context/App";
+import { AppContext } from "context/app";
 
 interface ILoginPageProps {
   dispatch: Dispatch;
@@ -60,8 +60,6 @@ const LoginPage = ({
   }, []);
 
   const onChange = () => {
-    // const { dispatch, errors } = this.props;
-
     if (size(errors)) {
       return dispatch(clearAuthErrors);
     }
@@ -74,7 +72,6 @@ const LoginPage = ({
     const redirectTime = 1500;
     return dispatch(loginUser(formData))
       .then((user: IUser) => {
-        // this.setState({ loginVisible: false });
         setLoginVisible(false);
 
         // Redirect to password reset page if user is forced to reset password.
@@ -83,7 +80,8 @@ const LoginPage = ({
           return dispatch(push(paths.RESET_PASSWORD));
         }
 
-        // set user in global context
+        // transitioning to context API - 9/1/21 MP
+        setCurrentUser(user);
 
         setTimeout(() => {
           const nextLocation = redirectLocation || HOME;
@@ -95,7 +93,6 @@ const LoginPage = ({
   });
 
   const ssoSignOn = () => {
-    // const { dispatch, redirectLocation } = this.props;
     const { HOME } = paths;
     let returnToAfterAuth = HOME;
     if (redirectLocation != null) {
@@ -109,12 +106,9 @@ const LoginPage = ({
       .catch(() => false);
   };
 
-  const showLoginForm = () => {
-    // const { errors, ssoSettings } = this.props;
-    // const { loginVisible } = this.state;
-    // const { onChange, onSubmit, ssoSignOn } = this;
-
-    return (
+  return (
+    <AuthenticationFormWrapper>
+      <LoginSuccessfulPage />
       <LoginForm
         onChangeFunc={onChange}
         handleSubmit={onSubmit}
@@ -123,22 +117,10 @@ const LoginPage = ({
         ssoSettings={ssoSettings}
         handleSSOSignOn={ssoSignOn}
       />
-    );
-  };
-
-  // render() {
-  //   const { showLoginForm } = this;
-  //   const { isForgotPassPage, isResetPassPage, token } = this.props;
-
-    return (
-      <AuthenticationFormWrapper>
-        <LoginSuccessfulPage />
-        {showLoginForm()}
-        {isForgotPassPage && <ForgotPasswordPage />}
-        {isResetPassPage && <ResetPasswordPage token={token} />}
-      </AuthenticationFormWrapper>
-    );
-  // }
+      {isForgotPassPage && <ForgotPasswordPage />}
+      {isResetPassPage && <ResetPasswordPage token={token} />}
+    </AuthenticationFormWrapper>
+  );
 }
 
 const mapStateToProps = (state: any) => {

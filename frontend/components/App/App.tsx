@@ -1,8 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import classnames from "classnames";
-import TableProvider from "context/Table";
-import QueryProvider from "context/Query";
 
 import { QueryClient, QueryClientProvider } from "react-query";
 
@@ -12,6 +10,10 @@ import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
 import { fetchCurrentUser } from "redux/nodes/auth/actions"; // @ts-ignore
 import { getConfig, getEnrollSecret } from "redux/nodes/app/actions";
 import { IUser } from "interfaces/user";
+import { IConfig } from "interfaces/config";
+import TableProvider from "context/table";
+import QueryProvider from "context/query";
+import { AppContext } from "context/app";
 
 interface IAppProps {
   children: JSX.Element;
@@ -25,6 +27,7 @@ interface IRootState {
 
 const App = ({ children }: IAppProps) => {
   const dispatch = useDispatch();
+  const { setCurrentUser, setConfig } = useContext(AppContext);
   const user = useSelector((state: IRootState) => state.auth.user);
   const queryClient = new QueryClient();
 
@@ -34,7 +37,10 @@ const App = ({ children }: IAppProps) => {
     }
 
     if (user) {
-      dispatch(getConfig()).catch(() => false);
+      setCurrentUser(user);
+      dispatch(getConfig())
+        .then((config: IConfig) => setConfig(config))
+        .catch(() => false);
       dispatch(getEnrollSecret()).catch(() => false);
     }
   }, [user]);
