@@ -85,8 +85,8 @@ describe(
 
       cy.visit("/schedule/manage");
 
-      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/query all window crashes/i).should("exist");
+      // cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+      // cy.findByText(/query all window crashes/i).should("exist");
 
       cy.findByText(/actions/i).click();
       cy.findByText(/edit/i).click();
