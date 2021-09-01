@@ -20,7 +20,7 @@ func (d *Datastore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
 		description
 	) VALUES ( ?, ?, ? )
 	`
-	result, err := d.db.Exec(
+	result, err := d.writer.Exec(
 		query,
 		team.Name,
 		team.AgentOptions,
@@ -47,7 +47,7 @@ func (d *Datastore) Team(tid uint) (*fleet.Team, error) {
 	`
 	team := &fleet.Team{}
 
-	if err := d.db.Get(team, sql, tid); err != nil {
+	if err := d.reader.Get(team, sql, tid); err != nil {
 		return nil, errors.Wrap(err, "select team")
 	}
 
@@ -84,7 +84,7 @@ func (d *Datastore) TeamByName(name string) (*fleet.Team, error) {
 	`
 	team := &fleet.Team{}
 
-	if err := d.db.Get(team, sql, name); err != nil {
+	if err := d.reader.Get(team, sql, name); err != nil {
 		return nil, errors.Wrap(err, "select team")
 	}
 
@@ -106,7 +106,7 @@ func (d *Datastore) loadUsersForTeam(team *fleet.Team) error {
 		WHERE ut.team_id = ?
 	`
 	rows := []fleet.TeamUser{}
-	if err := d.db.Select(&rows, sql, team.ID); err != nil {
+	if err := d.reader.Select(&rows, sql, team.ID); err != nil {
 		return errors.Wrap(err, "load users for team")
 	}
 
@@ -157,7 +157,7 @@ func (d *Datastore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
 			description = ?
 		WHERE id = ?
 	`
-	_, err := d.db.Exec(query, team.Name, team.AgentOptions, team.Description, team.ID)
+	_, err := d.writer.Exec(query, team.Name, team.AgentOptions, team.Description, team.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving team")
 	}
@@ -174,7 +174,7 @@ func (d *Datastore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
 }
 
 func (d *Datastore) updateTeamSchedule(team *fleet.Team) error {
-	_, err := d.db.Exec(
+	_, err := d.writer.Exec(
 		`UPDATE packs SET name = ? WHERE pack_type = ?`, teamScheduleName(team), teamSchedulePackType(team),
 	)
 	return err
@@ -195,7 +195,7 @@ func (d *Datastore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([
 	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
 	query = appendListOptionsToSQL(query, opt)
 	teams := []*fleet.Team{}
-	if err := d.db.Select(&teams, query, params...); err != nil {
+	if err := d.reader.Select(&teams, query, params...); err != nil {
 		return nil, errors.Wrap(err, "list teams")
 	}
 	if err := d.loadSecretsForTeams(teams); err != nil {
@@ -229,7 +229,7 @@ func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit
 	sql, params := searchLike(sql, nil, matchQuery, teamSearchColumns...)
 	sql += "\nLIMIT 5"
 	teams := []*fleet.Team{}
-	if err := d.db.Select(&teams, sql, params...); err != nil {
+	if err := d.reader.Select(&teams, sql, params...); err != nil {
 		return nil, errors.Wrap(err, "search teams")
 	}
 	if err := d.loadSecretsForTeams(teams); err != nil {
@@ -244,7 +244,7 @@ func (d *Datastore) TeamEnrollSecrets(teamID uint) ([]*fleet.EnrollSecret, error
 		WHERE team_id = ?
 	`
 	var secrets []*fleet.EnrollSecret
-	if err := d.db.Select(&secrets, sql, teamID); err != nil {
+	if err := d.reader.Select(&secrets, sql, teamID); err != nil {
 		return nil, errors.Wrap(err, "get secrets")
 	}
 	return secrets, nil
