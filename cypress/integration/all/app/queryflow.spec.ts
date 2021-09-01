@@ -10,6 +10,11 @@ describe(
     });
 
     it("Create, check, edit, and delete a query successfully and create, edit, and delete a global scheduled query successfully", () => {
+      cy.intercept({
+        method: "GET",
+        url: "/api/v1/fleet/queries",
+      }).as("getQueries");
+
       cy.visit("/queries/manage");
 
       cy.findByRole("button", { name: /create new query/i }).click();
@@ -34,11 +39,11 @@ describe(
       // Just refreshes to create new query, needs success alert to user that they created a query
 
       cy.visit("/queries/manage");
+
+      cy.wait("@getQueries");
       cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-      cy.get("tbody").within(() => {
-        cy.findByText(/query all window/i).click();
-      });
+      cy.findByText(/query all window/i).click();
 
       cy.findByText(/edit & run query/i).should("exist");
 
