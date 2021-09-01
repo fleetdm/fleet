@@ -4,9 +4,6 @@ import moment from "moment";
 import yaml from "js-yaml";
 import stringUtils from "utilities/strings";
 import { ITeam } from "interfaces/team";
-import { IScheduledQuery } from "interfaces/scheduled_query";
-import { IQueryStats } from "interfaces/query_stats";
-import { scheduledQueryStub } from "test/stubs";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
