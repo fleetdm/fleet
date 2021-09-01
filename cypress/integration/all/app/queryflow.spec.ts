@@ -34,9 +34,11 @@ describe(
       // Just refreshes to create new query, needs success alert to user that they created a query
 
       cy.visit("/queries/manage");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-      cy.findByText(/query all/i).click();
+      cy.get("tbody").within(() => {
+        cy.findByText(/query all window/i).click();
+      });
 
       cy.findByText(/edit & run query/i).should("exist");
 
