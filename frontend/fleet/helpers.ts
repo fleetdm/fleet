@@ -4,8 +4,10 @@ import moment from "moment";
 import yaml from "js-yaml";
 import stringUtils from "utilities/strings";
 import { ITeam } from "interfaces/team";
-import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
-import { PLATFORM_LABEL_DISPLAY_TYPES } from "utilities/constants";
+import {
+  DEFAULT_GRAVATAR_LINK,
+  PLATFORM_LABEL_DISPLAY_TYPES,
+} from "utilities/constants";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
