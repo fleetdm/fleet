@@ -34,6 +34,7 @@ describe(
       // Just refreshes to create new query, needs success alert to user that they created a query
 
       cy.visit("/queries/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.findByText(/query all/i).click();
 
