@@ -44,10 +44,10 @@ const QuerySidePanel = ({
   };
 
   const renderColumns = () => {
-    const columns = selectedOsqueryTable.columns;
+    const columns = selectedOsqueryTable?.columns;
     const columnBaseClass = "query-column-list";
 
-    return columns.map((column) => (
+    return columns?.map((column) => (
       <li key={column.name} className={`${columnBaseClass}__item`}>
         <span className={`${columnBaseClass}__name`}>{column.name}</span>
         <IconToolTip text={column.description} />
@@ -61,21 +61,25 @@ const QuerySidePanel = ({
   };
 
   const renderTableSelect = () => {
-    const tableNames = osqueryTableNames.map((name: string) => {
+    const tableNames = osqueryTableNames?.map((name: string) => {
       return { label: name, value: name };
     });
+
+    if (!tableNames) {
+      return null;
+    }
 
     return (
       <Dropdown
         options={tableNames}
-        value={selectedOsqueryTable.name}
+        value={selectedOsqueryTable?.name}
         onChange={onSelectTable}
         placeholder="Choose Table..."
       />
     );
   };
 
-  const { description, platforms } = selectedOsqueryTable;
+  const { description, platforms } = selectedOsqueryTable || {};
   const iconClasses = classnames([`${baseClass}__icon`], "icon");
   return (
     <SecondarySidePanelContainer className={baseClass}>
@@ -95,7 +99,7 @@ const QuerySidePanel = ({
       <div className={`${baseClass}__os-availability`}>
         <h2 className={`${baseClass}__header`}>OS Availability</h2>
         <ul className={`${baseClass}__platforms`}>
-          {platforms.map((platform) => {
+          {platforms?.map((platform) => {
             if (platform === "all") {
               return (
                 <li key={platform}>

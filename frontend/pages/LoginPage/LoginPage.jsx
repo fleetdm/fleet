@@ -78,6 +78,8 @@ export class LoginPage extends Component {
           return dispatch(push(paths.RESET_PASSWORD));
         }
 
+        // set user in global context
+
         setTimeout(() => {
           const nextLocation = redirectLocation || HOME;
           dispatch(clearRedirectLocation);
