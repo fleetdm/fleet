@@ -83,64 +83,64 @@ describe(
         .contains("button", /schedule/i)
         .click();
 
-    //   cy.visit("/schedule/manage");
+      //   cy.visit("/schedule/manage");
 
-    //   cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
-    //   cy.findByText(/query all window crashes/i).should("exist");
+      //   cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+      //   cy.findByText(/query all window crashes/i).should("exist");
 
-    //   cy.findByText(/actions/i).click();
-    //   cy.findByText(/edit/i).click();
+      //   cy.findByText(/actions/i).click();
+      //   cy.findByText(/edit/i).click();
 
-    //   cy.get(
-    //     ".schedule-editor-modal__form-field--frequency > .dropdown__select"
-    //   ).click();
+      //   cy.get(
+      //     ".schedule-editor-modal__form-field--frequency > .dropdown__select"
+      //   ).click();
 
-    //   cy.findByText(/every 6 hours/i).click();
+      //   cy.findByText(/every 6 hours/i).click();
 
-    //   cy.findByText(/show advanced options/i).click();
+      //   cy.findByText(/show advanced options/i).click();
 
-    //   cy.findByText(/ignore removals/i).click();
-    //   cy.findByText(/snapshot/i).click();
+      //   cy.findByText(/ignore removals/i).click();
+      //   cy.findByText(/snapshot/i).click();
 
-    //   cy.get(".schedule-editor-modal__form-field--shard > .input-field")
-    //     .click()
-    //     .type("{selectall}{backspace}10");
+      //   cy.get(".schedule-editor-modal__form-field--shard > .input-field")
+      //     .click()
+      //     .type("{selectall}{backspace}10");
 
-    //   cy.get(".schedule-editor-modal__btn-wrap")
-    //     .contains("button", /schedule/i)
-    //     .click();
+      //   cy.get(".schedule-editor-modal__btn-wrap")
+      //     .contains("button", /schedule/i)
+      //     .click();
 
-    //   cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-    //   cy.findByText(/actions/i).click();
-    //   cy.findByText(/remove/i).click();
+      //   cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      //   cy.findByText(/actions/i).click();
+      //   cy.findByText(/remove/i).click();
 
-    //   cy.get(".remove-scheduled-query-modal__btn-wrap")
-    //     .contains("button", /remove/i)
-    //     .click();
+      //   cy.get(".remove-scheduled-query-modal__btn-wrap")
+      //     .contains("button", /remove/i)
+      //     .click();
 
-    //   cy.findByText(/query all window crashes/i).should("not.exist");
-    //   // End Test Schedules
+      //   cy.findByText(/query all window crashes/i).should("not.exist");
+      //   // End Test Schedules
 
-    //   cy.visit("/queries/manage");
+      //   cy.visit("/queries/manage");
 
-    //   cy.findByText(/query all window crashes/i)
-    //     .parent()
-    //     .parent()
-    //     .within(() => {
-    //       cy.get(".fleet-checkbox__input").check({ force: true });
-    //     });
+      //   cy.findByText(/query all window crashes/i)
+      //     .parent()
+      //     .parent()
+      //     .within(() => {
+      //       cy.get(".fleet-checkbox__input").check({ force: true });
+      //     });
 
-    //   cy.findByRole("button", { name: /delete/i }).click();
+      //   cy.findByRole("button", { name: /delete/i }).click();
 
-    //   // Can't figure out how attach findByRole onto modal button
-    //   // Can't use findByText because delete button under modal
-    //   cy.get(".remove-query-modal")
-    //     .contains("button", /delete/i)
-    //     .click();
+      //   // Can't figure out how attach findByRole onto modal button
+      //   // Can't use findByText because delete button under modal
+      //   cy.get(".remove-query-modal")
+      //     .contains("button", /delete/i)
+      //     .click();
 
-    //   cy.findByText(/successfully removed query/i).should("be.visible");
+      //   cy.findByText(/successfully removed query/i).should("be.visible");
 
-    //   cy.findByText(/query all/i).should("not.exist");
-    // });
+      //   cy.findByText(/query all/i).should("not.exist");
+    });
   }
 );
