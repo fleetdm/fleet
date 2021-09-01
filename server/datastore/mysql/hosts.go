@@ -308,6 +308,8 @@ func (d *Datastore) Host(id uint) (*fleet.Host, error) {
 
 func (d *Datastore) amountEnrolledHosts() (int, error) {
 	var amount int
+	// uses the writer as it is called from ShouldSendStatistics, which is a
+	// write method.
 	err := d.writer.Get(&amount, `SELECT count(*) FROM hosts`)
 	if err != nil {
 		return 0, err
