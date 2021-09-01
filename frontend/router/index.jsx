@@ -48,13 +48,21 @@ import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/Membe
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import PATHS from "router/paths";
 import store from "redux/store";
+import AppProvider from "context/app";
 
 const history = syncHistoryWithStore(browserHistory, store);
+
+// App.tsx needs the context for user and config
+const AppWrapper = () => (
+  <AppProvider>
+    <App />
+  </AppProvider>
+);
 
 const routes = (
   <Provider store={store}>
     <Router history={history}>
-      <Route path={PATHS.HOME} component={App}>
+      <Route path={PATHS.HOME} component={AppWrapper}>
         <Route path="setup" component={RegistrationPage} />
         <Route path="login" component={LoginRoutes}>
           <Route path="invites/:invite_token" component={ConfirmInvitePage} />

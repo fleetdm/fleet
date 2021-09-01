@@ -5,7 +5,7 @@ import { Params } from "react-router/lib/Router";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
-import { QueryContext } from "context/query";
+import { QueryContext } from "context/Query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import permissionUtils from "utilities/permissions";

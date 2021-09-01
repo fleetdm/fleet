@@ -1,8 +1,8 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import classnames from "classnames";
-import TableProvider from "context/table";
-import QueryProvider from "context/query";
+import TableProvider from "context/Table";
+import QueryProvider from "context/Query";
 
 import { QueryClient, QueryClientProvider } from "react-query";
 
