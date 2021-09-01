@@ -92,7 +92,8 @@ func extractTargetKeyName(key string) string {
 }
 
 // MigrateKeys migrates keys using a deprecated format to the new format. It
-// should be called at startup.
+// should be called at startup and never after that, so for this reason it is
+// not added to the fleet.LiveQueryStore interface.
 func (r *redisLiveQuery) MigrateKeys() error {
 	qkeys, err := scanKeys(r.pool, queryKeyPrefix+"*")
 	if err != nil {
