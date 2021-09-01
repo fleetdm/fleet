@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gomodule/redigo/redis"
-	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 )
 
@@ -34,12 +34,12 @@ type SessionStore interface {
 }
 
 // NewSessionStore creates a SessionStore
-func NewSessionStore(pool *redisc.Cluster) SessionStore {
+func NewSessionStore(pool fleet.RedisPool) SessionStore {
 	return &store{pool}
 }
 
 type store struct {
-	pool *redisc.Cluster
+	pool fleet.RedisPool
 }
 
 func (s *store) create(requestID, originalURL, metadata string, lifetimeSecs uint) error {
