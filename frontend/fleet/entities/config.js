@@ -24,7 +24,7 @@ export default (client) => {
     },
     update: (formData) => {
       const { CONFIG } = endpoints;
-      // NEED 9/1
+
       const configData = helpers.formatConfigDataForServer(formData);
 
       if (get(configData, "smtp_settings.port")) {

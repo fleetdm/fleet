@@ -108,8 +108,6 @@ class AppSettingsPage extends Component {
 const mapStateToProps = ({ app }) => {
   const { config: appConfig, error, enrollSecret } = app;
 
-  console.log(appConfig);
-
   return { appConfig, error, enrollSecret };
 };
 

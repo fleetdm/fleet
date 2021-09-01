@@ -140,7 +140,7 @@ export const formatConfigDataForServer = (config: any): any => {
     agent_options: yaml.load(agentOptionsSettingsAttrs),
   };
   const webhookSettings = size(webhookSettingsAttrs) && {
-    webhook_settings: { host_status_webhook: webhookSettingsAttrs },
+    webhook_settings: { host_status_webhook: webhookSettingsAttrs }, // nested to server
   };
 
   if (hostExpirySettings) {
@@ -168,7 +168,7 @@ export const frontendFormattedConfig = (config: any) => {
     smtp_settings: smtpSettings,
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
-    webhook_settings: webhookSettings,
+    webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
     license,
   } = config;
 

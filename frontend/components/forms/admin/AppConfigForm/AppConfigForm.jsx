@@ -29,16 +29,16 @@ const authTypeOptions = [
   { label: "None", value: "authtype_none" },
 ];
 const percentageOfHosts = [
-  { label: "1%", value: "1" },
-  { label: "5%", value: "5" },
-  { label: "10%", value: "10" },
-  { label: "25%", value: "25" },
+  { label: "1%", value: 1 },
+  { label: "5%", value: 5 },
+  { label: "10%", value: 10 },
+  { label: "25%", value: 25 },
 ];
 const numberOfDays = [
-  { label: "1 day", value: "1" },
-  { label: "3 days", value: "3" },
-  { label: "7 days", value: "7" },
-  { label: "14 days", value: "14" },
+  { label: "1 day", value: 1 },
+  { label: "3 days", value: 3 },
+  { label: "7 days", value: 7 },
+  { label: "14 days", value: 14 },
 ];
 
 const baseClass = "app-config-form";
