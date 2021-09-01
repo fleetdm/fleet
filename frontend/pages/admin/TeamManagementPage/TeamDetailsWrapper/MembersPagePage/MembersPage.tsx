@@ -267,7 +267,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
               </>
             ) : (
               <>
-                <h2>No members match the current search criteria.</h2>
+                <h2>We couldn’t find any members.</h2>
                 <p>
                   Expecting to see members? Try again in a few seconds as the
                   system catches up.

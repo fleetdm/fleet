@@ -167,51 +167,39 @@ const TeamManagementPage = (): JSX.Element => {
     }
   };
 
-  const NoTeamsComponent = useCallback(() => {
+  const NoTeamsComponent = () => {
     return (
       <div className={`${noTeamsClass}`}>
         <div className={`${noTeamsClass}__inner`}>
           <div className={`${noTeamsClass}__inner-text`}>
-            {searchString === "" ? (
-              <>
-                <h1>Set up team permissions</h1>
-                <p>
-                  Keep your organization organized and efficient by ensuring
-                  every user has the correct access to the right hosts.
-                </p>
-                <p>
-                  Want to learn more?&nbsp;
-                  <a
-                    href="https://github.com/fleetdm/fleet/tree/master/docs/1-Using-Fleet/role-based-access-control-and-teams.md"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Read about teams&nbsp;
-                    <FleetIcon name="external-link" />
-                  </a>
-                </p>
-                <Button
-                  variant="brand"
-                  className={`${noTeamsClass}__create-button`}
-                  onClick={toggleCreateTeamModal}
-                >
-                  Create Team
-                </Button>
-              </>
-            ) : (
-              <>
-                <h2>No members match the current search criteria.</h2>
-                <p>
-                  Expecting to see members? Try again in a few seconds as the
-                  system catches up.
-                </p>
-              </>
-            )}
+            <h1>Set up team permissions</h1>
+            <p>
+              Keep your organization organized and efficient by ensuring every
+              user has the correct access to the right hosts.
+            </p>
+            <p>
+              Want to learn more?&nbsp;
+              <a
+                href="https://github.com/fleetdm/fleet/tree/master/docs/1-Using-Fleet/role-based-access-control-and-teams.md"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Read about teams&nbsp;
+                <FleetIcon name="external-link" />
+              </a>
+            </p>
+            <Button
+              variant="brand"
+              className={`${noTeamsClass}__create-button`}
+              onClick={toggleCreateTeamModal}
+            >
+              Create Team
+            </Button>
           </div>
         </div>
       </div>
     );
-  }, [searchString]);
+  };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
   const loadingTableData = useSelector(
