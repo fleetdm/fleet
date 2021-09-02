@@ -66,12 +66,11 @@ export class EditPackPage extends Component {
       packID,
       packLabels,
       packTeams,
-      scheduledQueries,
     } = this.props;
     const { load } = packActions;
     const { loadAll } = queryActions;
 
-    if (!pack && !isLoadingPack) {
+    if (!isLoadingPack) {
       dispatch(load(packID));
     }
 
@@ -89,9 +88,7 @@ export class EditPackPage extends Component {
       }
     }
 
-    if (!size(scheduledQueries)) {
-      dispatch(scheduledQueryActions.loadAll({ id: packID }));
-    }
+    dispatch(scheduledQueryActions.loadAll({ id: packID }));
 
     if (!size(allQueries)) {
       dispatch(loadAll());
