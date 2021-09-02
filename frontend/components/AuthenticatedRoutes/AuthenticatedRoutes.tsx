@@ -16,8 +16,6 @@ interface IAppProps {
 interface IRootState {
   auth: {
     user: IUser;
-    loading: boolean;
-    isLoggingOut?: boolean;
   };
   routing: {
     locationBeforeTransitions: IRedirectLocation;
