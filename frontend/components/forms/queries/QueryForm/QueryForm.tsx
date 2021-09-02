@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useContext } from "react";
 import ContentEditable, { ContentEditableEvent } from "react-contenteditable";
 import { IAceEditor } from "react-ace/lib/types";
 import { size } from "lodash";
@@ -12,7 +12,11 @@ import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/loaders/Spinner";
+import { IFormField } from "interfaces/form_field";
+import { AppContext } from "context/app";
 import NewQueryModal from "./NewQueryModal";
+import { INewQueryModalProps } from "./NewQueryModal/NewQueryModal";
+
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form1";
@@ -31,6 +35,17 @@ interface IQueryFormProps {
   onUpdate: (formData: IQueryFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+}
+
+interface IRenderProps {
+  nameText: string;
+  descText: string;
+  name?: IFormField;
+  description?: IFormField;
+  query?: IFormField;
+  observer_can_run?: IFormField;
+  observerCanRun?: boolean;
+  modalProps?: INewQueryModalProps;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -62,8 +77,17 @@ const QueryForm = ({
 }: IQueryFormProps) => {
   const nameEditable = useRef(null);
   const descriptionEditable = useRef(null);
+
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
+  const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
+
+  const { 
+    isOnlyObserver,
+    isGlobalObserver,
+    isAnyTeamMaintainer,
+    isGlobalMaintainer,
+  } = useContext(AppContext);
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -132,24 +156,55 @@ const QueryForm = ({
     );
   };
 
-  if (isStoredQueryLoading) {
-    return <Spinner />;
-  }
+  const renderRunForObserverOrTeamMaintainer = ({
+    nameText,
+    descText,
+    query
+  }: IRenderProps) => (
+    <form className={`${baseClass}__wrapper`}>
+      <h1>{nameText}</h1>
+      <p>{descText}</p>
+      <Button
+        className={`${baseClass}__toggle-sql`}
+        variant="text-link"
+        onClick={() => setShowQueryEditor(!showQueryEditor)}
+        disabled={false}
+      >
+        {showQueryEditor ? "Hide SQL" : "Show SQL"}
+      </Button>
+      {showQueryEditor && (
+        <FleetAce
+          value={query?.value || storedQuery.query}
+          name="query editor"
+          wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          readOnly={true}
+        />
+      )}
+      {renderLiveQueryWarning()}
+      <div
+        className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+      >
+        <Button
+          className={`${baseClass}__run`}
+          variant="blue-green"
+          onClick={goToSelectTargets}
+        >
+          Run query
+        </Button>
+      </div>
+    </form>
+  );
 
-  const { name, description, query, observer_can_run } = fields;
-  const nameText = (name?.value || storedQuery.name) as string;
-  const descText = (description?.value || storedQuery.description) as string;
-  const observerCanRun = (observer_can_run?.value ||
-    storedQuery.observer_can_run) as boolean;
-  const modalProps = {
-    baseClass,
-    fields,
-    queryValue: fields.query.value,
-    onCreateQuery,
-    setIsSaveModalOpen,
-  };
-
-  return (
+  const renderForGlobalAdminOrMaintainer = ({
+    nameText,
+    descText,
+    name,
+    description,
+    query,
+    observer_can_run,
+    observerCanRun,
+    modalProps,
+  }: IRenderProps) => (
     <>
       <form className={`${baseClass}__wrapper`}>
         {isEditMode ? (
@@ -177,14 +232,14 @@ const QueryForm = ({
         )}
         {baseError && <div className="form__base-error">{baseError}</div>}
         <FleetAce
-          value={query.value || storedQuery.query}
-          error={query.error || errors.query}
+          value={query?.value || storedQuery.query}
+          error={query?.error || errors.query}
           label="Query:"
           labelActionComponent={renderLabelComponent()}
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={query.onChange}
+          onChange={query?.onChange}
           handleSubmit={promptSaveQuery}
         />
         {isEditMode && (
@@ -240,6 +295,41 @@ const QueryForm = ({
       {isSaveModalOpen && <NewQueryModal {...modalProps} />}
     </>
   );
+
+  const { name, description, query, observer_can_run } = fields;
+  const nameText = (name?.value || storedQuery.name) as string;
+  const descText = (description?.value || storedQuery.description) as string;
+  const observerCanRun = (observer_can_run?.value ||
+    storedQuery.observer_can_run) as boolean;
+  const modalProps = {
+    baseClass,
+    fields,
+    queryValue: fields.query.value as string,
+    onCreateQuery,
+    setIsSaveModalOpen,
+  };
+    
+  if (isStoredQueryLoading) {
+    return <Spinner />;
+  }
+
+  if (
+    ((isOnlyObserver || isGlobalObserver) && observerCanRun) ||
+    isAnyTeamMaintainer || isGlobalMaintainer
+  ) {
+    return renderRunForObserverOrTeamMaintainer({ nameText, descText });
+  }
+
+  return renderForGlobalAdminOrMaintainer({
+    name,
+    description,
+    query,
+    observer_can_run,
+    nameText,
+    descText,
+    observerCanRun,
+    modalProps,
+  });
 };
 
 export default Form(QueryForm, {

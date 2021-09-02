@@ -37,7 +37,6 @@ const QueryPage = ({
   } = useContext(QueryContext);
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
-  const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);

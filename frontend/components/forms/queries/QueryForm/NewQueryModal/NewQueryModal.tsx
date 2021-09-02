@@ -10,7 +10,7 @@ import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 
-interface INewQueryModalProps {
+export interface INewQueryModalProps {
   baseClass: string;
   fields: IQueryFormFields;
   queryValue: string;
