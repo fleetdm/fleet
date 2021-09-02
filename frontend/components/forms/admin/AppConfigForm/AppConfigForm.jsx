@@ -599,7 +599,9 @@ class AppConfigForm extends Component {
                 }
               />
             </div>
-            <div className={`${baseClass}__inputs`}>
+            <div
+              className={`${baseClass}__inputs ${baseClass}__host-percentage`}
+            >
               <Dropdown
                 {...fields.host_percentage}
                 label="Percentage of hosts"
@@ -616,7 +618,7 @@ class AppConfigForm extends Component {
                 }
               />
             </div>
-            <div className={`${baseClass}__inputs`}>
+            <div className={`${baseClass}__inputs ${baseClass}__days-count`}>
               <Dropdown
                 {...fields.days_count}
                 label="Number of days"
