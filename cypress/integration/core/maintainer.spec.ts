@@ -22,6 +22,7 @@ describe(
       cy.visit("/");
 
       // Ensure page is loaded
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.contains("All hosts");
 
       // Settings restrictions
