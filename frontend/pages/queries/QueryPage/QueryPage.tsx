@@ -35,7 +35,7 @@ const QueryPage = ({
   },
 }: IQueryPageProps) => {
   const dispatch = useDispatch();
-  const { currentUser, isBasicTier } = useContext(AppContext);
+  const { currentUser, isPremiumTier } = useContext(AppContext);
   const { 
     selectedOsqueryTable,
     setSelectedOsqueryTable,
@@ -142,7 +142,7 @@ const QueryPage = ({
     const step2Opts = {
       baseClass,
       selectedTargets: [...selectedTargets],
-      isBasicTier,
+      isPremiumTier,
       queryIdForEdit,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),

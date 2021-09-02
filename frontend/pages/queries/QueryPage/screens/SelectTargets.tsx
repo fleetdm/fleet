@@ -32,7 +32,7 @@ interface ITargetPillSelectorProps {
 interface ISelectTargetsProps {
   baseClass: string;
   selectedTargets: ITarget[];
-  isBasicTier: boolean;
+  isPremiumTier: boolean;
   queryIdForEdit: string | undefined;
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
@@ -64,7 +64,7 @@ const TargetPillSelector = ({
 const SelectTargets = ({
   baseClass,
   selectedTargets,
-  isBasicTier,
+  isPremiumTier,
   queryIdForEdit,
   goToQueryEditor,
   goToRunQuery,

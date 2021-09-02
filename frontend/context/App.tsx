@@ -11,8 +11,8 @@ type Props = {
 type InitialStateType = {
   currentUser: IUser | null;
   config: IConfig | null;
-  isCoreTier: boolean;
-  isBasicTier: boolean;
+  isFreeTier: boolean;
+  isPremiumTier: boolean;
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
   isGlobalObserver: boolean;
@@ -26,8 +26,8 @@ type InitialStateType = {
 const initialState = {
   currentUser: null,
   config: null,
-  isCoreTier: false,
-  isBasicTier: false,
+  isFreeTier: false,
+  isPremiumTier: false,
   isGlobalAdmin: false,
   isGlobalMaintainer: false,
   isGlobalObserver: false,
@@ -54,8 +54,8 @@ const setPermissions = (
   }
 
   return {
-    isCoreTier: permissions.isCoreTier(config),
-    isBasicTier: permissions.isBasicTier(config),
+    isFreeTier: permissions.isFreeTier(config),
+    isPremiumTier: permissions.isPremiumTier(config),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
@@ -92,8 +92,8 @@ const AppProvider = ({ children }: Props) => {
   const value = {
     currentUser: state.currentUser,
     config: state.config,
-    isCoreTier: state.isCoreTier,
-    isBasicTier: state.isBasicTier,
+    isFreeTier: state.isFreeTier,
+    isPremiumTier: state.isPremiumTier,
     isGlobalAdmin: state.isGlobalAdmin,
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,
