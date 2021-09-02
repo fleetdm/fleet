@@ -82,8 +82,6 @@ describe("Settings flow", () => {
       .contains(/7 days/i)
       .click();
 
-    cy.get("#advanced-options").click();
-
     cy.findByLabelText(/domain/i)
       .click()
       .type("http://www.fleetdm.com");
@@ -163,8 +161,6 @@ describe("Settings flow", () => {
     cy.findByText(/7 days/i).should("exist");
     cy.findByText(/1 day/i).should("not.exist");
     cy.findByText(/select one/i).should("not.exist");
-
-    cy.get("#advanced-options").click();
 
     cy.findByLabelText(/host expiry window/i).should("have.value", "5");
 
