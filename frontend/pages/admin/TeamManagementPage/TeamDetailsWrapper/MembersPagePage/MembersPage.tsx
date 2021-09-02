@@ -13,13 +13,14 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 // @ts-ignore
 import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
+import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
 import PATHS from "router/paths";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import { IFormData } from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
 import AddMemberModal from "./components/AddMemberModal";
-import EmptyMembers from "./components/EmptyMembers";
 import RemoveMemberModal from "./components/RemoveMemberModal";
 
 import {
@@ -28,6 +29,7 @@ import {
 } from "./MembersPageTableConfig";
 
 const baseClass = "members";
+const noMembersClass = "no-members";
 
 interface IMembersPageProps {
   params: {
@@ -43,6 +45,7 @@ interface IRootState {
     users: {
       loading: boolean;
       data: { [id: number]: IUser };
+      errors: { name: string; reason: string }[];
     };
     teams: {
       data: { [id: number]: ITeam };
@@ -85,6 +88,11 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const users = useSelector((state: IRootState) =>
     generateDataSet(teamId, state.entities.users.data)
   );
+
+  const usersError = useSelector(
+    (state: IRootState) => state.entities.users.errors
+  );
+
   const team = useSelector((state: IRootState) => {
     return state.entities.teams.data[teamId];
   });
@@ -107,6 +115,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
+  const [searchString, setSearchString] = useState<string>("");
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddMemberModal(!showAddMemberModal);
@@ -217,10 +226,11 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   // changes.
   const onQueryChange = useCallback(
     (queryData) => {
+      setSearchString(queryData.searchQuery);
       tableQueryData = { ...queryData, teamId };
       fetchUsers(queryData);
     },
-    [fetchUsers, teamId]
+    [fetchUsers, teamId, setSearchString]
   );
 
   const onActionSelection = (action: string, user: IUser): void => {
@@ -235,6 +245,41 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     }
   };
 
+  const NoMembersComponent = useCallback(() => {
+    return (
+      <div className={`${noMembersClass}`}>
+        <div className={`${noMembersClass}__inner`}>
+          <div className={`${noMembersClass}__inner-text`}>
+            {searchString === "" ? (
+              <>
+                <h1>This team doesn&apos;t have any members yet.</h1>
+                <p>
+                  Expecting to see new team members listed here? Try again in a
+                  few seconds as the system catches up.
+                </p>
+                <Button
+                  variant="brand"
+                  className={`${noMembersClass}__create-button`}
+                  onClick={toggleAddUserModal}
+                >
+                  Add member
+                </Button>
+              </>
+            ) : (
+              <>
+                <h2>We couldn’t find any members.</h2>
+                <p>
+                  Expecting to see members? Try again in a few seconds as the
+                  system catches up.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }, [searchString]);
+
   const tableHeaders = generateTableHeaders(onActionSelection);
 
   return (
@@ -243,23 +288,28 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
         Users can either be a member of team(s) or a global user.{" "}
         <Link to={PATHS.ADMIN_USERS}>Manage users with global access here</Link>
       </p>
-      <TableContainer
-        resultsTitle={"members"}
-        columns={tableHeaders}
-        data={users}
-        isLoading={loadingTableData}
-        defaultSortHeader={"name"}
-        defaultSortDirection={"asc"}
-        onActionButtonClick={toggleAddUserModal}
-        actionButtonText={"Add member"}
-        actionButtonVariant={"primary"}
-        onQueryChange={onQueryChange}
-        inputPlaceHolder={"Search"}
-        emptyComponent={EmptyMembers}
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        searchable
-      />
+      {Object.keys(usersError).length > 0 ? (
+        <TableDataError />
+      ) : (
+        <TableContainer
+          resultsTitle={"members"}
+          columns={tableHeaders}
+          data={users}
+          isLoading={loadingTableData}
+          defaultSortHeader={"name"}
+          defaultSortDirection={"asc"}
+          onActionButtonClick={toggleAddUserModal}
+          actionButtonText={"Add member"}
+          actionButtonVariant={"primary"}
+          hideActionButton={memberIds.length === 0 && searchString === ""}
+          onQueryChange={onQueryChange}
+          inputPlaceHolder={"Search"}
+          emptyComponent={NoMembersComponent}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          searchable={memberIds.length > 0 || searchString !== ""}
+        />
+      )}
       {showAddMemberModal ? (
         <AddMemberModal
           team={team}

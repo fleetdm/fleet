@@ -207,7 +207,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 	})
 	incoming[soft2Key] = true
 
-	tx, err := ds.db.Beginx()
+	tx, err := ds.writer.Beginx()
 	require.NoError(t, err)
 	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
@@ -220,7 +220,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 	})
 	incoming[soft3Key] = true
 
-	tx, err = ds.db.Beginx()
+	tx, err = ds.writer.Beginx()
 	require.NoError(t, err)
 	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())

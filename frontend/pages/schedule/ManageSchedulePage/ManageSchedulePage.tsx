@@ -25,7 +25,7 @@ import paths from "router/paths";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import ScheduleError from "./components/ScheduleError";
+import TableDataError from "components/TableDataError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
@@ -36,12 +36,12 @@ const renderTable = (
   onRemoveScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
   onEditScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
-  allScheduledQueriesError: any,
+  allScheduledQueriesError: { name: string; reason: string }[],
   toggleScheduleEditorModal: () => void,
   teamId: number
 ): JSX.Element => {
   if (Object.keys(allScheduledQueriesError).length !== 0) {
-    return <ScheduleError />;
+    return <TableDataError />;
   }
 
   return (
@@ -68,12 +68,12 @@ interface IRootState {
     global_scheduled_queries: {
       isLoading: boolean;
       data: IGlobalScheduledQuery[];
-      errors: any;
+      errors: { name: string; reason: string }[];
     };
     team_scheduled_queries: {
       isLoading: boolean;
       data: ITeamScheduledQuery[];
-      errors: any;
+      errors: { name: string; reason: string }[];
     };
     queries: {
       isLoading: boolean;

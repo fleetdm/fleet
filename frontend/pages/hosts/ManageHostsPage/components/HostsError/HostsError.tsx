@@ -6,9 +6,9 @@ import React from "react";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 import ErrorIcon from "../../../../../../assets/images/icon-error-16x16@2x.png";
 
-const baseClass = "queries-list-error";
+const baseClass = "schedule-error";
 
-const QueriesListError = (): JSX.Element => {
+const HostsError = (): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
@@ -25,7 +25,7 @@ const QueriesListError = (): JSX.Element => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              file an issue.
+              file an issue
               <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
             </a>
           </span>
@@ -35,4 +35,4 @@ const QueriesListError = (): JSX.Element => {
   );
 };
 
-export default QueriesListError;
+export default HostsError;

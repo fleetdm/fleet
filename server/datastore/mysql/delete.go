@@ -11,7 +11,7 @@ import (
 // returning a notFound error if appropriate.
 func (d *Datastore) deleteEntity(dbTable string, id uint) error {
 	deleteStmt := fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, dbTable)
-	result, err := d.db.Exec(deleteStmt, id)
+	result, err := d.writer.Exec(deleteStmt, id)
 	if err != nil {
 		return errors.Wrapf(err, "delete %s", dbTable)
 	}
@@ -26,7 +26,7 @@ func (d *Datastore) deleteEntity(dbTable string, id uint) error {
 // table, returning a notFound error if appropriate.
 func (d *Datastore) deleteEntityByName(dbTable string, name string) error {
 	deleteStmt := fmt.Sprintf("DELETE FROM %s WHERE name = ?", dbTable)
-	result, err := d.db.Exec(deleteStmt, name)
+	result, err := d.writer.Exec(deleteStmt, name)
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			return foreignKey(dbTable, name)
@@ -50,7 +50,7 @@ func (d *Datastore) deleteEntities(dbTable string, ids []uint) (uint, error) {
 		return 0, errors.Wrapf(err, "building delete entities query %s", dbTable)
 	}
 
-	result, err := d.db.Exec(query, args...)
+	result, err := d.writer.Exec(query, args...)
 	if err != nil {
 		return 0, errors.Wrapf(err, "executing delete entities query %s", dbTable)
 	}

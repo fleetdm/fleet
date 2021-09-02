@@ -1,14 +1,14 @@
 /**
- * Component when there is an error retrieving policy set up in fleet
+ * Component when there is an error retrieving schedule set up in fleet
  */
 import React from "react";
 
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
-import ErrorIcon from "../../../../../../assets/images/icon-error-16x16@2x.png";
+import OpenNewTabIcon from "../../../assets/images/open-new-tab-12x12@2x.png";
+import ErrorIcon from "../../../assets/images/icon-error-16x16@2x.png";
 
-const baseClass = "policy-error";
+const baseClass = "table-data-error";
 
-const PolicyError = (): JSX.Element => {
+const TableDataError = (): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
@@ -25,7 +25,7 @@ const PolicyError = (): JSX.Element => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              file an issue.
+              file an issue
               <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
             </a>
           </span>
@@ -35,4 +35,4 @@ const PolicyError = (): JSX.Element => {
   );
 };
 
-export default PolicyError;
+export default TableDataError;

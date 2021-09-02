@@ -1,8 +1,8 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 
-import FleetIcon from "components/icons/FleetIcon";
 import softwareInterface from "interfaces/software";
+import FleetIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const baseClass = "software-vulnerabilities";
 
@@ -42,10 +42,10 @@ class SoftwareVulnerabilities extends Component {
     const renderVul = (vul, index) => {
       return (
         <li key={index}>
-          Read more about{" "}
+          Read more about <b>{vul.name}</b>{" "}
           <a href={vul.details_link} target="_blank" rel="noopener noreferrer">
-            <em>{vul.name}</em> {vul.cve} vulnerability &nbsp;
-            <FleetIcon name="external-link" />
+            {vul.cve} vulnerability &nbsp;
+            <img alt="External link" src={FleetIcon} />
           </a>
         </li>
       );
@@ -62,9 +62,9 @@ class SoftwareVulnerabilities extends Component {
         <div className={`${baseClass}__count`}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
+            width="19"
+            height="19"
+            viewBox="0 -2.5 19 19"
             fill="none"
           >
             <path
