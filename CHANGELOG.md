@@ -2,7 +2,7 @@
 
 * Fix a bug in which live queries would fail for deployments that use Redis Cluster.
 
-* Handle properly the case where the agent opts is nil in the app config.
+* Fix a bug in which some new Fleet deployments don't include the default global agent options. Documentation for global and team agent options can be found [here](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options).
 
 * Improve how host users are stored to prevent deadlocks.
 
