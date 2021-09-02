@@ -9,6 +9,7 @@ import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
+import { AppContext } from "context/app";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
@@ -27,6 +28,7 @@ interface IStoredQueryResponse {
 const baseClass = "query-page";
 
 const QueryPage = ({ params: { id: queryIdForEdit } }: IQueryPageProps) => {
+  const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
@@ -154,10 +156,13 @@ const QueryPage = ({ params: { id: queryIdForEdit } }: IQueryPageProps) => {
 
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
   const sidebarClass = isFirstStep && isSidebarOpen && "has-sidebar";
+  const showSidebar =
+    isFirstStep && isSidebarOpen && isGlobalAdmin && isGlobalMaintainer;
+
   return (
     <div className={`${baseClass} ${sidebarClass}`}>
       <div className={`${baseClass}__content`}>{renderScreen()}</div>
-      {isFirstStep && isSidebarOpen && (
+      {showSidebar && (
         <QuerySidePanel
           onOsqueryTableSelect={onOsqueryTableSelect}
           selectedOsqueryTable={selectedOsqueryTable}

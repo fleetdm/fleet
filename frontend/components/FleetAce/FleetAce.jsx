@@ -44,16 +44,21 @@ class FleetAce extends Component {
       [`${baseClass}__label--with-action`]: !!labelActionComponent,
     });
 
+    const labelText = error || label;
     if (labelActionComponent) {
       return (
         <div className={labelClassName}>
-          <p>{error || label}</p>
+          {!!labelText && <p>{labelText}</p>}
           {labelActionComponent}
         </div>
       );
     }
 
-    return <p className={labelClassName}>{error || label}</p>;
+    if (labelText) {
+      return <p className={labelClassName}>{error || label}</p>;
+    }
+
+    return null;
   };
 
   renderHint = () => {
