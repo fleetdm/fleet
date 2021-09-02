@@ -21,6 +21,7 @@ interface IQueryFormProps {
   baseError: string;
   fields: IQueryFormFields;
   storedQuery: IQuery;
+  isEditMode: boolean;
   hasSavePermissions: boolean;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
@@ -48,6 +49,7 @@ const QueryForm = ({
   baseError,
   fields,
   storedQuery,
+  isEditMode,
   hasSavePermissions,
   showOpenSchemaActionText,
   isStoredQueryLoading,
@@ -102,8 +104,7 @@ const QueryForm = ({
     }
 
     if (valid) {
-      // if not edit
-      if (!storedQuery || forceNew) {
+      if (!isEditMode || forceNew) {
         setIsSaveModalOpen(true);
       } else {
         onUpdate({
@@ -151,7 +152,7 @@ const QueryForm = ({
   return (
     <>
       <form className={`${baseClass}__wrapper`}>
-        {storedQuery ? (
+        {isEditMode ? (
           <ContentEditable
             className="query-name"
             innerRef={nameEditable}
@@ -164,7 +165,7 @@ const QueryForm = ({
         ) : (
           <h1>New query</h1>
         )}
-        {storedQuery && (
+        {isEditMode && (
           <ContentEditable
             className="description"
             innerRef={descriptionEditable}
@@ -186,7 +187,7 @@ const QueryForm = ({
           onChange={query.onChange}
           handleSubmit={promptSaveQuery}
         />
-        {storedQuery && (
+        {isEditMode && (
           <>
             <Checkbox
               {...observer_can_run}
@@ -207,7 +208,7 @@ const QueryForm = ({
         >
           {hasSavePermissions && (
             <>
-              {storedQuery && (
+              {isEditMode && (
                 <Button
                   className={`${baseClass}__save`}
                   variant="text-link"
@@ -220,7 +221,7 @@ const QueryForm = ({
               <Button
                 className={`${baseClass}__save`}
                 variant="brand"
-                onClick={promptSaveQuery}
+                onClick={promptSaveQuery()}
                 disabled={false}
               >
                 Save

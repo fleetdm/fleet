@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useContext } from "react";
-import { connect, useDispatch } from "react-redux";
 import { useQuery, useMutation } from "react-query";
 import { Params } from "react-router/lib/Router";
 
@@ -8,10 +7,8 @@ import Fleet from "fleet"; // @ts-ignore
 import { QueryContext } from "context/query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
-import permissionUtils from "utilities/permissions";
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
-import { AppContext } from "context/app";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
@@ -34,8 +31,6 @@ const QueryPage = ({
     id: queryIdForEdit 
   },
 }: IQueryPageProps) => {
-  const dispatch = useDispatch();
-  const { currentUser, isPremiumTier } = useContext(AppContext);
   const { 
     selectedOsqueryTable,
     setSelectedOsqueryTable,
@@ -125,8 +120,8 @@ const QueryPage = ({
   const renderScreen = () => {
     const step1Opts = {
       baseClass,
-      currentUser,
       storedQuery,
+      isEditMode: !!queryIdForEdit,
       showOpenSchemaActionText,
       isStoredQueryLoading,
       error: storedQueryError,
@@ -136,13 +131,11 @@ const QueryPage = ({
       setTypedQueryBody,
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
-      dispatch,
     };
     
     const step2Opts = {
       baseClass,
       selectedTargets: [...selectedTargets],
-      isPremiumTier,
       queryIdForEdit,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
@@ -150,11 +143,9 @@ const QueryPage = ({
     };
     
     const step3Opts = {
-      baseClass,
       typedQueryBody,
       storedQuery,
       selectedTargets,
-      dispatch,
     };
 
     switch (step) {

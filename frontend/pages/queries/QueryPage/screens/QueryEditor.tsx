@@ -1,7 +1,7 @@
-import React from "react";
-import { Dispatch } from "redux";
+import React, { useContext } from "react";
 import { Link } from "react-router";
 import { push } from "react-router-redux";
+import { useDispatch } from "react-redux";
 import { UseMutateAsyncFunction } from "react-query";
 
 import queryAPI from "services/entities/queries"; // @ts-ignore
@@ -9,8 +9,8 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
-import { IUser } from "interfaces/user";
 import { IQueryFormData, IQuery } from "interfaces/query";
+import { AppContext } from "context/app";
 
 import QueryForm from "components/forms/queries/QueryForm";
 import { hasSavePermissions } from "pages/queries/QueryPage/helpers";
@@ -18,12 +18,11 @@ import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.p
 
 interface IQueryEditorProps {
   baseClass: string;
-  currentUser: IUser | null;
   storedQuery: IQuery | undefined;
+  isEditMode: boolean;
   error: any;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
-  dispatch: Dispatch;
   createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -34,8 +33,8 @@ interface IQueryEditorProps {
 
 const QueryEditor = ({
   baseClass,
-  currentUser,
   storedQuery,
+  isEditMode,
   error,
   showOpenSchemaActionText,
   isStoredQueryLoading,
@@ -43,10 +42,12 @@ const QueryEditor = ({
   onOsqueryTableSelect,
   goToSelectTargets,
   setTypedQueryBody,
-  dispatch,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps) => {
+  const dispatch = useDispatch();
+  const { currentUser } = useContext(AppContext);
+  
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
     try {
       const { query }: { query: IQuery } = await createQuery(formData);
@@ -64,7 +65,7 @@ const QueryEditor = ({
   });
 
   const onUpdateQuery = async (formData: IQueryFormData) => {
-    if (!storedQuery) {
+    if (!isEditMode || !storedQuery) {
       return false;
     }
 
@@ -112,6 +113,7 @@ const QueryEditor = ({
         onUpdate={onUpdateQuery}
         serverErrors={error || {}}
         storedQuery={storedQuery}
+        isEditMode={isEditMode}
         isStoredQueryLoading={isStoredQueryLoading}
         hasSavePermissions={hasSavePermissions(currentUser)}
         showOpenSchemaActionText={showOpenSchemaActionText}

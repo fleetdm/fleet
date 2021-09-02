@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Dispatch } from "redux";
+import { useDispatch } from "react-redux";
 import SockJS from "sockjs-client";
 
 // @ts-ignore
@@ -17,20 +17,18 @@ import { ITarget } from "interfaces/target";
 import QueryResults from "../components/QueryResults";
 
 interface IRunQueryProps {
-  baseClass: string;
   typedQueryBody: string;
   storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
-  dispatch: Dispatch;
 }
 
 const RunQuery = ({
-  baseClass,
   typedQueryBody,
   storedQuery,
   selectedTargets,
-  dispatch,
 }: IRunQueryProps) => {
+  const dispatch = useDispatch();
+
   const [isQueryFinished, setIsQueryFinished] = useState<boolean>(false);
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
