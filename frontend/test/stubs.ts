@@ -94,7 +94,7 @@ export const hostStub = {
   status: "online",
   display_text: "52883a0ba916",
   target_type: "hosts",
-  host_cpu: "1 x 2.4Ghz",
+  cpu_type: "1 x 2.4Ghz",
 };
 
 export const labelStub = {

@@ -216,7 +216,7 @@ const allHostTableHeaders: IHostDataColumn[] = [
     title: "CPU",
     Header: "CPU",
     disableSortBy: true,
-    accessor: "host_cpu",
+    accessor: "cpu_type",
     Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
@@ -269,7 +269,7 @@ const allHostTableHeaders: IHostDataColumn[] = [
 
 const defaultHiddenColumns = [
   "primary_mac",
-  "host_cpu",
+  "cpu_type",
   "memory",
   "uptime",
   "uuid",
