@@ -15,7 +15,7 @@ export const adminUserStub = {
 
 export const configStub = {
   org_info: {
-    org_name: "Kolide",
+    org_name: "Fleet",
     org_logo_url: "0.0.0.0:8080/logo.png",
   },
   server_settings: {
@@ -40,10 +40,18 @@ export const configStub = {
     host_expiry_enabled: false,
     host_expiry_window: 0,
   },
+  webhook_settings: {
+    host_status_webhook: {
+      enable_host_status_webhook: false,
+      destination_url: "http://server.com/example",
+      host_percentage: 5,
+      days_count: 7,
+    },
+  },
 };
 
 export const flatConfigStub = {
-  org_name: "Kolide",
+  org_name: "Fleet",
   org_logo_url: "0.0.0.0:8080/logo.png",
   server_url: "",
   configured: false,
@@ -61,6 +69,10 @@ export const flatConfigStub = {
   host_expiry_enabled: false,
   host_expiry_window: 0,
   live_query_disabled: false,
+  enable_host_status_webhook: false,
+  destination_url: "http://server.com/example",
+  host_percentage: 5,
+  days_count: 7,
 };
 
 export const hostStub = {

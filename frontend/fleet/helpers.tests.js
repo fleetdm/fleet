@@ -39,6 +39,9 @@ describe("Fleet API - helpers", () => {
       host_expiry_window: 0,
       live_query_disabled: false,
       enable_host_status_webhook: false,
+      destination_url: "http://server.com/example",
+      host_percentage: 5,
+      days_count: 7,
     };
 
     it("splits config into categories for the server", () => {
@@ -211,6 +214,7 @@ describe("redux app node - helpers", () => {
         server_settings: serverSettings,
         smtp_settings: smtpSettings,
         host_expiry_settings: hostExpirySettings,
+        webhook_settings: webhookSettings,
       } = configStub;
 
       expect(frontendFormattedConfig(configStub)).toEqual({
@@ -218,6 +222,7 @@ describe("redux app node - helpers", () => {
         ...serverSettings,
         ...smtpSettings,
         ...hostExpirySettings,
+        ...webhookSettings,
       });
     });
   });
