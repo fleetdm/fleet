@@ -79,7 +79,7 @@ export const hostStub = {
   code_name: "",
   uptime: 45469000000000,
   memory: 2094940160,
-  cpu_type: "6",
+  cpu_type: "1 x 2.4Ghz",
   cpu_subtype: "78",
   cpu_brand: "Intel(R) Core(TM) i5-6267U CPU @ 2.90GHz",
   cpu_physical_cores: 2,
@@ -94,7 +94,6 @@ export const hostStub = {
   status: "online",
   display_text: "52883a0ba916",
   target_type: "hosts",
-  cpu_type: "1 x 2.4Ghz",
 };
 
 export const labelStub = {
