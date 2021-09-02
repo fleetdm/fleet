@@ -1,6 +1,6 @@
 ## Fleet 4.2.4 (Sept 2, 2021)
 
-* Fix Redis Cluster support.
+* Fix a bug in which live queries would fail for deployments that use Redis Cluster.
 
 * Handle properly the case where the agent opts is nil in the app config.
 
