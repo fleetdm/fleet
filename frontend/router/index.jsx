@@ -57,7 +57,7 @@ const history = syncHistoryWithStore(browserHistory, store);
 // App.tsx needs the context for user and config
 const AppWrapper = ({ children }) => (
   <AppProvider>
-    <App children={children} />
+    <App>{children}</App>
   </AppProvider>
 );
 

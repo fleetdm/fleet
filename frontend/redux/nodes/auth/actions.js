@@ -234,7 +234,6 @@ export const logoutUser = () => {
       .destroy()
       .then(() => {
         dispatch(logoutSuccess);
-        
       })
       .catch((error) => {
         dispatch(logoutFailure({ base: "Unable to log out of your account" }));

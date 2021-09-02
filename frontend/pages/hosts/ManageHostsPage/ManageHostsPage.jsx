@@ -251,11 +251,16 @@ export class ManageHostsPage extends PureComponent {
         });
     }
   }
-  
+
   // TODO: Very temporary until this component becomes functional
   // this was so we could remove redux for selectedOsqueryTable - 8/31/21 - MP
   componentDidUpdate() {
-    if (!isEqual(this.context.selectedOsqueryTable, this.state.selectedOsqueryTable)) {
+    if (
+      !isEqual(
+        this.context.selectedOsqueryTable,
+        this.state.selectedOsqueryTable
+      )
+    ) {
       const { selectedOsqueryTable } = this.context;
       this.setState({ selectedOsqueryTable });
     }
@@ -1160,12 +1165,7 @@ export class ManageHostsPage extends PureComponent {
 
   renderSidePanel = () => {
     let SidePanel;
-    const {
-      isAddLabel,
-      labels,
-      statusLabels,
-      canAddNewLabels,
-    } = this.props;
+    const { isAddLabel, labels, statusLabels, canAddNewLabels } = this.props;
     const { selectedOsqueryTable } = this.state;
     const {
       onAddLabelClick,

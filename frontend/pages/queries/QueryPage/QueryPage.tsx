@@ -26,15 +26,10 @@ interface IStoredQueryResponse {
 
 const baseClass = "query-page";
 
-const QueryPage = ({
-  params: { 
-    id: queryIdForEdit 
-  },
-}: IQueryPageProps) => {
-  const { 
-    selectedOsqueryTable,
-    setSelectedOsqueryTable,
-  } = useContext(QueryContext);
+const QueryPage = ({ params: { id: queryIdForEdit } }: IQueryPageProps) => {
+  const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
+    QueryContext
+  );
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
@@ -81,7 +76,7 @@ const QueryPage = ({
   }, [isSidebarOpen]);
 
   const onOsqueryTableSelect = (tableName: string) => {
-    setSelectedOsqueryTable(tableName)
+    setSelectedOsqueryTable(tableName);
   };
 
   const onCloseSidebar = () => {
@@ -131,7 +126,7 @@ const QueryPage = ({
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
     };
-    
+
     const step2Opts = {
       baseClass,
       selectedTargets: [...selectedTargets],
@@ -140,7 +135,7 @@ const QueryPage = ({
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
     };
-    
+
     const step3Opts = {
       typedQueryBody,
       storedQuery,

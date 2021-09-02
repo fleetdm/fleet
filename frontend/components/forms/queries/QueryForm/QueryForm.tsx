@@ -82,7 +82,7 @@ const QueryForm = ({
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
 
-  const { 
+  const {
     isOnlyObserver,
     isGlobalObserver,
     isAnyTeamMaintainer,
@@ -159,7 +159,7 @@ const QueryForm = ({
   const renderRunForObserverOrTeamMaintainer = ({
     nameText,
     descText,
-    query
+    query,
   }: IRenderProps) => (
     <form className={`${baseClass}__wrapper`}>
       <h1>{nameText}</h1>
@@ -177,7 +177,7 @@ const QueryForm = ({
           value={query?.value || storedQuery.query}
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly={true}
+          readOnly
         />
       )}
       {renderLiveQueryWarning()}
@@ -308,14 +308,15 @@ const QueryForm = ({
     onCreateQuery,
     setIsSaveModalOpen,
   };
-    
+
   if (isStoredQueryLoading) {
     return <Spinner />;
   }
 
   if (
     ((isOnlyObserver || isGlobalObserver) && observerCanRun) ||
-    isAnyTeamMaintainer || isGlobalMaintainer
+    isAnyTeamMaintainer ||
+    isGlobalMaintainer
   ) {
     return renderRunForObserverOrTeamMaintainer({ nameText, descText });
   }

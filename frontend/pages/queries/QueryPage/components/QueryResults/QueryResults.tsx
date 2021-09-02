@@ -271,9 +271,7 @@ const QueryResults = ({
       <div className={`${baseClass}__nav-header`}>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
-            <Tab className="react-tabs__tab no-count">
-              {NAV_TITLES.RESULTS}
-            </Tab>
+            <Tab className="react-tabs__tab no-count">{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
               <span className="count">{errors?.length || 0}</span>
               {NAV_TITLES.ERRORS}
@@ -290,7 +288,9 @@ const QueryResults = ({
                   &ldquo;Errors&rdquo; table.
                 </span>
               </p>
-            ) : renderTable()}
+            ) : (
+              renderTable()
+            )}
           </TabPanel>
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>

@@ -84,7 +84,7 @@ const SelectTargets = ({
 
   const { isLoading: isTargetsLoading, isError: isTargetsError } = useQuery(
     // triggers query on change
-    ["targetsFromSearch", searchText, [...selectedTargets]], 
+    ["targetsFromSearch", searchText, [...selectedTargets]],
     () =>
       targetsAPI.loadAll({
         query: searchText,
@@ -118,13 +118,14 @@ const SelectTargets = ({
           const { labels, teams: targetTeams } = results as ITargets;
           const allHosts = filter(
             labels,
-            ({ display_text: text }) => text === PLATFORM_LABEL_DISPLAY_NAMES["All Hosts"]
+            ({ display_text: text }) =>
+              text === PLATFORM_LABEL_DISPLAY_NAMES["All Hosts"]
           );
           const platforms = filter(
             labels,
             ({ display_text: text }) =>
-              text === PLATFORM_LABEL_DISPLAY_NAMES["macOS"] || 
-              text === PLATFORM_LABEL_DISPLAY_NAMES["MS Windows"] || 
+              text === PLATFORM_LABEL_DISPLAY_NAMES.macOS ||
+              text === PLATFORM_LABEL_DISPLAY_NAMES["MS Windows"] ||
               text === PLATFORM_LABEL_DISPLAY_NAMES["All Linux"]
           );
           const other = filter(

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { connect } from "react-redux";
 import { size } from "lodash";
 import { push } from "react-router-redux";
-import { Dispatch } from "redux"
+import { Dispatch } from "redux";
 
 // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
@@ -53,7 +53,7 @@ const LoginPage = ({
 
   useEffect(() => {
     const { HOME, LOGIN } = paths;
-    
+
     if (user && pathname === LOGIN) {
       dispatch(push(HOME));
     }
@@ -121,7 +121,7 @@ const LoginPage = ({
       {isResetPassPage && <ResetPasswordPage token={token} />}
     </AuthenticationFormWrapper>
   );
-}
+};
 
 const mapStateToProps = (state: any) => {
   const { errors, loading, user, ssoSettings } = state.auth;

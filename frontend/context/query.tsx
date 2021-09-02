@@ -26,8 +26,8 @@ const actions = {
 const reducer = (state: any, action: any) => {
   switch (action.type) {
     case actions.SET_SELECTED_OSQUERY_TABLE:
-      return { 
-        ...state, 
+      return {
+        ...state,
         selectedOsqueryTable: find(osqueryTables, { name: action.tableName }),
       };
     default:

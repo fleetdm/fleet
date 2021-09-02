@@ -47,7 +47,7 @@ const QueryEditor = ({
 }: IQueryEditorProps) => {
   const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
-  
+
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
     try {
       const { query }: { query: IQuery } = await createQuery(formData);
