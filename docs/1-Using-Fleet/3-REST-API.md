@@ -4893,38 +4893,22 @@ None.
   },
   "license": {
     "tier": "core",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
-  "vulnerability_settings": null,
-  "logging": {
-      "debug": false,
-      "json": false,
-      "result": {
-          "plugin": "firehose",
-          "config": {
-              "region": "us-east-1",
-              "status_stream": "",
-              "result_stream": "result-topic"
-          }
-      },
-      "status": {
-          "plugin": "filesystem",
-          "config": {
-              "status_log_file": "foo_status",
-              "result_log_file": "",
-              "enable_log_rotation": false,
-              "enable_log_compression": false
-          }
-      }
-  }
-  "license": {
-    "tier": "core",
     "organization": "fleet",
     "device_count": 100,
     "expiration": "2021-12-31T19:00:00-05:00",
     "note": ""
   },
-  "vulnerability_settings": null,
+    "vulnerability_settings": {
+    "databases_path": ""
+  },
+  "webhook_settings": {
+    "host_status_webhook": {
+      "enable_host_status_webhook": true,
+       "destination_url": "https://server.com",
+      "host_percentage": 5,
+      "days_count": 7
+    }
+  },
   "logging": {
     "debug": false,
     "json": false,
@@ -5086,7 +5070,17 @@ Modifies the Fleet's configuration with the supplied information.
       "overrides": {}
     }
   },
-  "vulnerability_settings": null,
+    "vulnerability_settings": {
+    "databases_path": ""
+  },
+  "webhook_settings": {
+    "host_status_webhook": {
+      "enable_host_status_webhook": true,
+       "destination_url": "https://server.com",
+      "host_percentage": 5,
+      "days_count": 7
+    }
+  },
   "logging": {
       "debug": false,
       "json": false,
