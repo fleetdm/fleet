@@ -6,6 +6,7 @@ import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
 import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
 import Modal from "components/modals/Modal";
 import inviteInterface from "interfaces/invite";
 import configInterface from "interfaces/config";
@@ -556,6 +557,7 @@ export class UserManagementPage extends Component {
       invites,
       currentUser,
       isBasicTier,
+      userErrors,
     } = this.props;
 
     const tableHeaders = generateTableHeaders(onActionSelect, isBasicTier);
@@ -577,20 +579,24 @@ export class UserManagementPage extends Component {
           Fleet.
         </p>
         {/* TODO: find a way to move these controls into the table component */}
-        <TableContainer
-          columns={tableHeaders}
-          data={tableData}
-          isLoading={loadingTableData}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search"}
-          actionButtonText={"Create user"}
-          onActionButtonClick={toggleCreateUserModal}
-          onQueryChange={onTableQueryChange}
-          resultsTitle={"users"}
-          emptyComponent={EmptyUsers}
-          searchable
-        />
+        {Object.keys(userErrors).length > 0 ? (
+          <TableDataError />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={tableData}
+            isLoading={loadingTableData}
+            defaultSortHeader={"name"}
+            defaultSortDirection={"asc"}
+            inputPlaceHolder={"Search"}
+            actionButtonText={"Create user"}
+            onActionButtonClick={toggleCreateUserModal}
+            onQueryChange={onTableQueryChange}
+            resultsTitle={"users"}
+            emptyComponent={EmptyUsers}
+            searchable
+          />
+        )}
         {renderCreateUserModal()}
         {renderEditUserModal()}
         {renderDeleteUserModal()}

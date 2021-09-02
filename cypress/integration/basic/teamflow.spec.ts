@@ -8,6 +8,8 @@ describe("Teams flow", () => {
   it("Create, edit, and delete a team successfully", () => {
     cy.visit("/settings/teams");
 
+    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+
     cy.findByRole("button", { name: /create team/i }).click();
 
     cy.findByLabelText(/team name/i)

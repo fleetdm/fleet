@@ -102,13 +102,13 @@ const SelectQueryModal = (props) => {
           </span>
           <span className="info__data">Refresh the page or log in again.</span>
           <span className="info__data">
-            If this keeps happening, please{" "}
+            If this keeps happening, please&nbsp;
             <a
               href="https://github.com/fleetdm/fleet/issues"
               target="_blank"
               rel="noopener noreferrer"
             >
-              file an issue.
+              file an issue
               <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
             </a>
           </span>

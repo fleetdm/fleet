@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
+import Button from "components/buttons/Button";
 import permissionUtils from "utilities/permissions";
 import TableContainer from "components/TableContainer";
 import generateTableHeaders from "./QueriesTableConfig";
@@ -12,6 +13,7 @@ const noQueriesClass = "no-queries";
 
 interface IQueriesListWrapperProps {
   onRemoveQueryClick: any;
+  onCreateQueryClick: any;
   queriesList: IQuery[];
 }
 
@@ -30,7 +32,7 @@ interface IRootState {
 const QueriesListWrapper = (
   listProps: IQueriesListWrapperProps
 ): JSX.Element | null => {
-  const { onRemoveQueryClick, queriesList } = listProps;
+  const { onRemoveQueryClick, onCreateQueryClick, queriesList } = listProps;
 
   const loadingQueries = useSelector(
     (state: IRootState) => state.entities.queries.loading
@@ -72,17 +74,35 @@ const QueriesListWrapper = (
         <div className={`${noQueriesClass}__inner`}>
           <div className={`${noQueriesClass}__inner-text`}>
             {!searchString ? (
-              <h2>You don&apos;t have any queries.</h2>
+              <>
+                <h2>You don&apos;t have any queries.</h2>
+                <p>
+                  A query is a specific question you can ask about your devices.
+                </p>
+                <p>
+                  Create a new query, or go to GitHub to{" "}
+                  <a href="https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/standard-query-library#importing-the-queries-in-fleet">
+                    import Fleet’s standard query library
+                  </a>
+                  .
+                </p>
+                <Button
+                  variant="brand"
+                  className={`${baseClass}__create-button`}
+                  onClick={onCreateQueryClick}
+                >
+                  Create new query
+                </Button>
+              </>
             ) : (
-              <h2>No queries match your search.</h2>
+              <>
+                <h2>No queries match the current search criteria.</h2>
+                <p>
+                  Expecting to see queries? Try again in a few seconds as the
+                  system catches up.
+                </p>
+              </>
             )}
-            <p>
-              Create a new query, or{" "}
-              <a href="https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/standard-query-library">
-                go to GitHub
-              </a>{" "}
-              to import Fleet’s standard query library.
-            </p>
           </div>
         </div>
       </div>
@@ -104,7 +124,7 @@ const QueriesListWrapper = (
         isAllPagesSelected={false}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
-        searchable
+        searchable={queriesList.length > 0}
         disablePagination
         onPrimarySelectActionClick={onRemoveQueryClick}
         primarySelectActionButtonVariant="text-icon"
