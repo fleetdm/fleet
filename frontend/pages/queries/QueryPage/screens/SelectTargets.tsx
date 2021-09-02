@@ -10,7 +10,7 @@ import { ITarget, ITargets, ITargetsAPIResponse } from "interfaces/target";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
-import { BUILTIN_LABELS } from "utilities/constants";
+import { PLATFORM_LABEL_DISPLAY_NAMES } from "utilities/constants";
 
 // @ts-ignore
 import TargetsInput from "pages/queries/QueryPage/components/TargetsInput";
@@ -117,16 +117,17 @@ const SelectTargets = ({
       }: IModifiedUseQueryTargetsResponse) => {
         if ("labels" in results) {
           // this will only run once
-          const { ALL, MAC, WINDOWS, LINUX } = BUILTIN_LABELS;
           const { labels, teams: targetTeams } = results as ITargets;
           const allHosts = filter(
             labels,
-            ({ display_text: text }) => text === ALL
+            ({ display_text: text }) => text === PLATFORM_LABEL_DISPLAY_NAMES["All Hosts"]
           );
           const platforms = filter(
             labels,
             ({ display_text: text }) =>
-              text === MAC || text === WINDOWS || text === LINUX
+              text === PLATFORM_LABEL_DISPLAY_NAMES["macOS"] || 
+              text === PLATFORM_LABEL_DISPLAY_NAMES["MS Windows"] || 
+              text === PLATFORM_LABEL_DISPLAY_NAMES["All Linux"]
           );
           const other = filter(
             labels,
