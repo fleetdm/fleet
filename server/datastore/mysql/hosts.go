@@ -209,7 +209,18 @@ func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 				user_time,
 				wall_time
 			)
-			VALUES %s
+			VALUES %s ON DUPLICATE KEY UPDATE
+				scheduled_query_id = VALUES(scheduled_query_id),
+				host_id = VALUES(host_id),
+				average_memory = VALUES(average_memory),
+				denylisted = VALUES(denylisted),
+				executions = VALUES(executions),
+				schedule_interval = VALUES(schedule_interval),
+				last_executed = VALUES(last_executed),
+				output_size = VALUES(output_size),
+				system_time = VALUES(system_time),
+				user_time = VALUES(user_time),
+				wall_time = VALUES(wall_time)
 		`, values)
 		if _, err := tx.Exec(sql, args...); err != nil {
 			return errors.Wrap(err, "insert pack stats")
