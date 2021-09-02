@@ -23,7 +23,7 @@ func (d *Datastore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
 	  VALUES ( ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	result, err := d.db.Exec(sqlStmt, i.InvitedBy, i.Email,
+	result, err := d.writer.Exec(sqlStmt, i.InvitedBy, i.Email,
 		i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Invite", i.Email)
@@ -45,10 +45,11 @@ func (d *Datastore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
 	for _, userTeam := range i.Teams {
 		args = append(args, i.ID, userTeam.Team.ID, userTeam.Role)
 	}
+	// TODO: seems like this should be in a transaction?
 	sql := "INSERT INTO invite_teams (invite_id, team_id, role) VALUES " +
 		strings.Repeat(valueStr, len(i.Teams))
 	sql = strings.TrimSuffix(sql, ",")
-	if _, err := d.db.Exec(sql, args...); err != nil {
+	if _, err := d.writer.Exec(sql, args...); err != nil {
 		return nil, errors.Wrap(err, "insert teams")
 	}
 
@@ -63,7 +64,7 @@ func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) 
 	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
 	query = appendListOptionsToSQL(query, opt)
 
-	err := d.db.Select(&invites, query, params...)
+	err := d.reader.Select(&invites, query, params...)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite")
 	} else if err != nil {
@@ -80,7 +81,7 @@ func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) 
 // Invite returns Invite identified by id.
 func (d *Datastore) Invite(id uint) (*fleet.Invite, error) {
 	var invite fleet.Invite
-	err := d.db.Get(&invite, "SELECT * FROM invites WHERE id = ?", id)
+	err := d.reader.Get(&invite, "SELECT * FROM invites WHERE id = ?", id)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").WithID(id)
 	} else if err != nil {
@@ -97,7 +98,7 @@ func (d *Datastore) Invite(id uint) (*fleet.Invite, error) {
 // InviteByEmail finds an Invite with a particular email, if one exists.
 func (d *Datastore) InviteByEmail(email string) (*fleet.Invite, error) {
 	var invite fleet.Invite
-	err := d.db.Get(&invite, "SELECT * FROM invites WHERE email = ?", email)
+	err := d.reader.Get(&invite, "SELECT * FROM invites WHERE email = ?", email)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").
 			WithMessage(fmt.Sprintf("with email %s", email))
@@ -115,7 +116,7 @@ func (d *Datastore) InviteByEmail(email string) (*fleet.Invite, error) {
 // InviteByToken finds an Invite with a particular token, if one exists.
 func (d *Datastore) InviteByToken(token string) (*fleet.Invite, error) {
 	var invite fleet.Invite
-	err := d.db.Get(&invite, "SELECT * FROM invites WHERE token = ?", token)
+	err := d.reader.Get(&invite, "SELECT * FROM invites WHERE token = ?", token)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").
 			WithMessage(fmt.Sprintf("with token %s", token))
@@ -163,7 +164,7 @@ func (d *Datastore) loadTeamsForInvites(invites []*fleet.Invite) error {
 		fleet.UserTeam
 		InviteID uint `db:"invite_id"`
 	}
-	if err := d.db.Select(&rows, sql, args...); err != nil {
+	if err := d.reader.Select(&rows, sql, args...); err != nil {
 		return errors.Wrap(err, "get loadTeamsForInvites")
 	}
 

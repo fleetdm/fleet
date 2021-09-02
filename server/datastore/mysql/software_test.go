@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -205,7 +207,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 	})
 	incoming[soft2Key] = true
 
-	tx, err := ds.db.Beginx()
+	tx, err := ds.writer.Beginx()
 	require.NoError(t, err)
 	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
@@ -218,7 +220,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 	})
 	incoming[soft3Key] = true
 
-	tx, err = ds.db.Beginx()
+	tx, err = ds.writer.Beginx()
 	require.NoError(t, err)
 	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
@@ -286,4 +288,55 @@ func TestAllCPEs(t *testing.T) {
 	cpes, err := ds.AllCPEs()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, cpes, []string{"somecpe", "someothercpewithoutvulns"})
+}
+
+func TestLoadSupportsTonsOfCVEs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	//_, err := ds.db.Exec("SET GLOBAL group_concat_max_len = 4194304")
+	//require.NoError(t, err)
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "apps"},
+			{Name: "blah", Version: "1.0", Source: "apps"},
+		},
+	}
+	host.HostSoftware = soft
+	require.NoError(t, ds.SaveHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(host.Software[1], "someothercpewithoutvulns"))
+	for i := 0; i < 1000; i++ {
+		part1 := rand.Intn(1000)
+		part2 := rand.Intn(1000)
+		part3 := rand.Intn(1000)
+		cve := fmt.Sprintf("cve-%d-%d-%d", part1, part2, part3)
+		require.NoError(t, ds.InsertCVEForCPE(cve, []string{"somecpe"}))
+	}
+
+	require.NoError(t, ds.LoadHostSoftware(host))
+
+	for _, software := range host.Software {
+		switch software.Name {
+		case "foo":
+			assert.Equal(t, "somecpe", software.GenerateCPE)
+			require.Len(t, software.Vulnerabilities, 1000)
+			assert.True(t, strings.HasPrefix(software.Vulnerabilities[0].CVE, "cve-"))
+			assert.Equal(t,
+				"https://nvd.nist.gov/vuln/detail/"+software.Vulnerabilities[0].CVE,
+				software.Vulnerabilities[0].DetailsLink,
+			)
+		case "bar":
+			assert.Len(t, software.Vulnerabilities, 0)
+			assert.Equal(t, "someothercpewithoutvulns", software.GenerateCPE)
+		case "blah":
+			assert.Len(t, software.Vulnerabilities, 0)
+		}
+	}
 }

@@ -34,7 +34,7 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) 
 	query = appendListOptionsToSQL(query, opts)
 	results := []*fleet.ScheduledQuery{}
 
-	if err := d.db.Select(&results, query, id); err != nil {
+	if err := d.reader.Select(&results, query, id); err != nil {
 		return nil, errors.Wrap(err, "listing scheduled queries")
 	}
 
@@ -46,8 +46,8 @@ func (d *Datastore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.Op
 }
 
 func (d *Datastore) insertScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	selectFunc := d.db.Select
-	execFunc := d.db.Exec
+	selectFunc := d.writer.Select
+	execFunc := d.writer.Exec
 	if tx != nil {
 		selectFunc = tx.Select
 		execFunc = tx.Exec
@@ -108,7 +108,7 @@ func (d *Datastore) SaveScheduledQuery(sq *fleet.ScheduledQuery) (*fleet.Schedul
 }
 
 func (d *Datastore) saveScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	updateFunc := d.db.Exec
+	updateFunc := d.writer.Exec
 	if tx != nil {
 		updateFunc = tx.Exec
 	}
@@ -160,7 +160,7 @@ func (d *Datastore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
 		WHERE sq.id = ?
 	`
 	sq := &fleet.ScheduledQuery{}
-	if err := d.db.Get(sq, query, id); err != nil {
+	if err := d.reader.Get(sq, query, id); err != nil {
 		return nil, errors.Wrap(err, "select scheduled query")
 	}
 
@@ -168,11 +168,11 @@ func (d *Datastore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
 }
 
 func (d *Datastore) CleanupOrphanScheduledQueryStats() error {
-	_, err := d.db.Exec(`DELETE FROM scheduled_query_stats where scheduled_query_id not in (select id from scheduled_queries where id=scheduled_query_id)`)
+	_, err := d.writer.Exec(`DELETE FROM scheduled_query_stats where scheduled_query_id not in (select id from scheduled_queries where id=scheduled_query_id)`)
 	if err != nil {
 		return errors.Wrap(err, "cleaning orphan scheduled_query_stats by scheduled_query")
 	}
-	_, err = d.db.Exec(`DELETE FROM scheduled_query_stats where host_id not in (select id from hosts where id=host_id)`)
+	_, err = d.writer.Exec(`DELETE FROM scheduled_query_stats where host_id not in (select id from hosts where id=host_id)`)
 	if err != nil {
 		return errors.Wrap(err, "cleaning orphan scheduled_query_stats by host")
 	}

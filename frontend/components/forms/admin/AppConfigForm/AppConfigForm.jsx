@@ -60,25 +60,6 @@ const formFields = [
   "agent_options",
   "enable_analytics",
 ];
-const Header = ({ showAdvancedOptions }) => {
-  const CaratIcon = (
-    <Button
-      className={`button button--unstyled ${
-        showAdvancedOptions ? "upcarat" : "downcarat"
-      }`}
-    />
-  );
-
-  return (
-    <span>
-      Advanced Options {CaratIcon}{" "}
-      <small>Most users do not need to modify these options.</small>
-    </span>
-  );
-};
-
-Header.propTypes = { showAdvancedOptions: PropTypes.bool.isRequired };
-
 class AppConfigForm extends Component {
   static propTypes = {
     fields: PropTypes.shape({
@@ -111,7 +92,7 @@ class AppConfigForm extends Component {
       agent_options: formFieldInterface.isRequired,
       enable_analytics: formFieldInterface.isRequired,
     }).isRequired,
-    enrollSecret: enrollSecretInterface.isRequired,
+    enrollSecret: PropTypes.arrayOf(enrollSecretInterface).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     smtpConfigured: PropTypes.bool.isRequired,
   };
@@ -120,20 +101,9 @@ class AppConfigForm extends Component {
     super(props);
 
     this.state = {
-      showAdvancedOptions: false,
       showUsageStatsPreviewModal: false,
     };
   }
-
-  onToggleAdvancedOptions = (evt) => {
-    evt.preventDefault();
-
-    const { showAdvancedOptions } = this.state;
-
-    this.setState({ showAdvancedOptions: !showAdvancedOptions });
-
-    return false;
-  };
 
   toggleUsageStatsPreviewModal = () => {
     const { showUsageStatsPreviewModal } = this.state;
@@ -144,29 +114,26 @@ class AppConfigForm extends Component {
 
   renderAdvancedOptions = () => {
     const { fields } = this.props;
-    const { showAdvancedOptions } = this.state;
-
-    if (!showAdvancedOptions) {
-      return false;
-    }
 
     return (
       <div>
+        <p className={`${baseClass}__section-description`}>
+          Most users do not need to modify these options.
+        </p>
         <div className={`${baseClass}__inputs`}>
           <div className={`${baseClass}__smtp-section`}>
             <InputField {...fields.domain} label="Domain" />
-            <Slider {...fields.verify_ssl_certs} label="Verify SSL Certs?" />
-            <Slider {...fields.enable_start_tls} label="Enable STARTTLS?" />
-            <Slider {...fields.host_expiry_enabled} label="Host Expiry" />
+            <Checkbox {...fields.verify_ssl_certs}>Verify SSL certs</Checkbox>
+            <Checkbox {...fields.enable_start_tls}>Enable STARTTLS</Checkbox>
+            <Checkbox {...fields.host_expiry_enabled}>Host expiry</Checkbox>
             <InputField
               {...fields.host_expiry_window}
               disabled={!fields.host_expiry_enabled.value}
               label="Host Expiry Window"
             />
-            <Slider
-              {...fields.live_query_disabled}
-              label="Disable Live Queries?"
-            />
+            <Checkbox {...fields.live_query_disabled}>
+              Disable live queries
+            </Checkbox>
           </div>
         </div>
 
@@ -248,13 +215,11 @@ class AppConfigForm extends Component {
   render() {
     const { fields, handleSubmit, smtpConfigured, enrollSecret } = this.props;
     const {
-      onToggleAdvancedOptions,
       renderAdvancedOptions,
       renderSmtpSection,
       toggleUsageStatsPreviewModal,
       renderUsageStatsPreviewModal,
     } = this;
-    const { showAdvancedOptions } = this.state;
 
     return (
       <>
@@ -554,15 +519,7 @@ class AppConfigForm extends Component {
           </div>
 
           <div className={`${baseClass}__section`}>
-            <h2>
-              <a
-                id="advanced-options"
-                onClick={onToggleAdvancedOptions}
-                className={`${baseClass}__show-options`}
-              >
-                <Header showAdvancedOptions={showAdvancedOptions} />
-              </a>
-            </h2>
+            <h2>Advanced options</h2>
             {renderAdvancedOptions()}
           </div>
           <Button type="submit" variant="brand">

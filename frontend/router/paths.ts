@@ -42,6 +42,7 @@ export default {
   MANAGE_TEAM_SCHEDULE: (teamId: number): string => {
     return `${URL_PREFIX}/schedule/manage/teams/${teamId}`;
   },
+  MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
