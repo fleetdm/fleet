@@ -66,9 +66,9 @@ describe(
 
       // Queries pages: Can create, edit, and run query
       cy.visit("/queries/manage");
-      cy.get("thead").within(() => {
-        cy.findByText(/observer can run/i).should("exist");
-      });
+      // cy.get("thead").within(() => {
+      //   cy.findByText(/observer can run/i).should("exist");
+      // });
 
       cy.findByRole("button", { name: /create new query/i }).click();
 
