@@ -26,6 +26,7 @@ describe(
 
       // Host manage page: Can see team column
       cy.visit("/hosts/manage");
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.get("thead").within(() => {
         cy.findByText(/team/i).should("exist");
@@ -65,6 +66,7 @@ describe(
     it("Can perform the appropriate basic team observer only actions", () => {
       cy.login("toni@organization.com", "user123#");
       cy.visit("/hosts/manage");
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.findByText("Hosts").should("exist");
 
