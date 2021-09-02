@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
-import { filter, forEach, isEmpty, reduce, remove, unionBy } from "lodash";
+import { filter, forEach, isEmpty, remove, unionBy } from "lodash";
 
 // @ts-ignore
 import { formatSelectedTargetsForApi } from "fleet/helpers";
@@ -10,7 +10,6 @@ import { ITarget, ITargets, ITargetsAPIResponse } from "interfaces/target";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
-import { PLATFORM_LABEL_DISPLAY_NAMES } from "utilities/constants";
 
 // @ts-ignore
 import TargetsInput from "pages/queries/QueryPage/components/TargetsInput";
@@ -74,7 +73,6 @@ const SelectTargets = ({
   const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
-  const [linuxLabels, setLinuxLabels] = useState<ILabel[] | null>(null);
   const [teams, setTeams] = useState<ITeam[] | null>(null);
   const [otherLabels, setOtherLabels] = useState<ILabel[] | null>(null);
   const [selectedLabels, setSelectedLabels] = useState<any>([]);
@@ -118,15 +116,12 @@ const SelectTargets = ({
           const { labels, teams: targetTeams } = results as ITargets;
           const allHosts = filter(
             labels,
-            ({ display_text: text }) =>
-              text === PLATFORM_LABEL_DISPLAY_NAMES["All Hosts"]
+            ({ display_text: text }) => text === "All Hosts"
           );
           const platforms = filter(
             labels,
             ({ display_text: text }) =>
-              text === PLATFORM_LABEL_DISPLAY_NAMES.macOS ||
-              text === PLATFORM_LABEL_DISPLAY_NAMES["MS Windows"] ||
-              text === PLATFORM_LABEL_DISPLAY_NAMES["All Linux"]
+              text === "macOS" || text === "MS Windows" || text === "All Linux"
           );
           const other = filter(
             labels,

@@ -1,27 +1,16 @@
-describe("Premium tier - Team observer/maintainer user", () => {
-  beforeEach(() => {
-    cy.setup();
-    cy.login();
-    cy.seedPremium();
-    cy.seedQueries();
-    cy.addDockerHost();
-    cy.logout();
-  });
-  afterEach(() => {
-    cy.stopDockerHost();
-  });
-
-  it("Can perform the appropriate maintainer actions", () => {
-    cy.login("marco@organization.com", "user123#");
-    cy.visit("/");
-
-    // Ensure page is loaded and appropriate nav links are displayed
-    cy.contains("Hosts");
-    cy.get("nav").within(() => {
-      cy.findByText(/hosts/i).should("exist");
-      cy.findByText(/queries/i).should("exist");
-      cy.findByText(/schedule/i).should("not.exist");
-      cy.findByText(/settings/i).should("not.exist");
+describe(
+  "Basic tier - Team observer/maintainer user",
+  {
+    defaultCommandTimeout: 20000,
+  },
+  () => {
+    beforeEach(() => {
+      cy.setup();
+      cy.login();
+      cy.seedPremium();
+      cy.seedQueries();
+      cy.addDockerHost();
+      cy.logout();
     });
     afterEach(() => {
       cy.stopDockerHost();
@@ -210,5 +199,5 @@ describe("Premium tier - Team observer/maintainer user", () => {
         .next()
         .contains(/various/i);
     });
-  });
-});
+  }
+);

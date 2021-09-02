@@ -1,3 +1,5 @@
+// @ts-nocheck
+// better than a bunch of ts-ignore lines for non-ts components
 import React from "react";
 import {
   browserHistory,
@@ -52,10 +54,14 @@ import PATHS from "router/paths";
 import store from "redux/store";
 import AppProvider from "context/app";
 
+interface IAppWrapperProps {
+  children: JSX.Element;
+}
+
 const history = syncHistoryWithStore(browserHistory, store);
 
 // App.tsx needs the context for user and config
-const AppWrapper = ({ children }) => (
+const AppWrapper = ({ children }: IAppWrapperProps) => (
   <AppProvider>
     <App>{children}</App>
   </AppProvider>

@@ -14,8 +14,8 @@ import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
 
 import Button from "components/buttons/Button"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
-import InputField from "components/forms/fields/InputField"; // @ts-ignore
-import QueryResultsRow from "components/queries/QueryResultsTable/QueryResultsRow";
+import InputField from "components/forms/fields/InputField";
+import QueryResultsRow from "components/queries/QueryResultsRow";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
