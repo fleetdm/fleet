@@ -28,6 +28,13 @@ const authTypeOptions = [
   { label: "Username and Password", value: "authtype_username_password" },
   { label: "None", value: "authtype_none" },
 ];
+const percentageOfHosts = Array.from({ length: 100 }, (v, k) => {
+  return { label: (k + 1).toString() + "%", value: k + 1 };
+});
+const numberOfDays = Array.from({ length: 30 }, (v, k) => {
+  return { label: (k + 1).toString(), value: k + 1 };
+});
+
 const baseClass = "app-config-form";
 const formFields = [
   "authentication_method",
@@ -101,9 +108,27 @@ class AppConfigForm extends Component {
     super(props);
 
     this.state = {
+      showHostStatusWebhookPreviewModal: false,
       showUsageStatsPreviewModal: false,
     };
   }
+
+  onToggleAdvancedOptions = (evt) => {
+    evt.preventDefault();
+
+    const { showAdvancedOptions } = this.state;
+
+    this.setState({ showAdvancedOptions: !showAdvancedOptions });
+
+    return false;
+  };
+
+  toggleHostStatusWebhookPreviewModal = () => {
+    const { showHostStatusWebhookPreviewModal } = this.state;
+    this.setState({
+      showHostStatusWebhookPreviewModal: !showHostStatusWebhookPreviewModal,
+    });
+  };
 
   toggleUsageStatsPreviewModal = () => {
     const { showUsageStatsPreviewModal } = this.state;
@@ -181,6 +206,38 @@ class AppConfigForm extends Component {
     );
   };
 
+  renderHostStatusWebhookPreviewModal = () => {
+    const { toggleHostStatusWebhookPreviewModal } = this;
+    const { showHostStatusWebhookPreviewModal } = this.state;
+
+    if (!showHostStatusWebhookPreviewModal) {
+      return null;
+    }
+
+    const json = {
+      message:
+        "More than X% of your hosts have not checked into Fleet for more than X days. You’ve been sent this message because the Host status webhook is enabeld in your Fleet instance.",
+    };
+
+    return (
+      <Modal
+        title="Host status webhook"
+        onExit={toggleHostStatusWebhookPreviewModal}
+        className={`${baseClass}__host-status-webhook-preview-modal`}
+      >
+        <p>
+          An example request sent to your configured <b>Destination URL</b>.
+        </p>
+        <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
+        <div className="flex-end">
+          <Button type="button" onClick={toggleHostStatusWebhookPreviewModal}>
+            Done
+          </Button>
+        </div>
+      </Modal>
+    );
+  };
+
   renderUsageStatsPreviewModal = () => {
     const { toggleUsageStatsPreviewModal } = this;
     const { showUsageStatsPreviewModal } = this.state;
@@ -217,7 +274,9 @@ class AppConfigForm extends Component {
     const {
       renderAdvancedOptions,
       renderSmtpSection,
+      toggleHostStatusWebhookPreviewModal,
       toggleUsageStatsPreviewModal,
+      renderHostStatusWebhookPreviewModal,
       renderUsageStatsPreviewModal,
     } = this;
 
@@ -398,7 +457,7 @@ class AppConfigForm extends Component {
             <div className={`${baseClass}__details`}>
               <IconToolTip
                 text={
-                  "The hostname / IP address and corresponding port of your organization&apos;s SMTP server."
+                  "The hostname / IP address and corresponding port of your organization's SMTP server."
                 }
               />
             </div>
@@ -481,9 +540,9 @@ class AppConfigForm extends Component {
 
           <div className={`${baseClass}__section`}>
             <h2>
-              <a id="agent-options">Host status webhook</a>
+              <a id="host-status-webhook">Host status webhook</a>
             </h2>
-            <div className={`${baseClass}__yaml`}>
+            <div className={`${baseClass}__host-status-webhook`}>
               <p className={`${baseClass}__section-description`}>
                 Send an alert if a portion of your hosts go offline.
               </p>
@@ -493,55 +552,69 @@ class AppConfigForm extends Component {
                 if the configured <b>Percentage of hosts</b> have not checked
                 into Fleet for the configured <b>Number of days</b>.
               </p>
-              <p>preview request</p>
-              <div className={`${baseClass}__inputs`}>
-                <InputField {...fields.password} label="Destination URL" />
-              </div>
-              <div className={`${baseClass}__details`}>
-                <IconToolTip
-                  isHtml
-                  text={
-                    "\
-                  <p>Provide a URL to deliver <br/>the webhook request to.</p>\
+            </div>
+            <div
+              className={`${baseClass}__inputs ${baseClass}__inputs--webhook`}
+            >
+              <Button
+                type="button"
+                variant="inverse"
+                onClick={toggleHostStatusWebhookPreviewModal}
+              >
+                Preview request
+              </Button>
+            </div>
+            <div className={`${baseClass}__inputs`}>
+              <InputField
+                {...fields.password}
+                placeholder="https://server.com/example"
+                label="Destination URL"
+              />
+            </div>
+            <div className={`${baseClass}__details`}>
+              <IconToolTip
+                isHtml
+                text={
+                  "\
+                  <center><p>Provide a URL to deliver <br/>the webhook request to.</p></center>\
                 "
-                  }
-                />
-              </div>
-              <div className={`${baseClass}__inputs`}>
-                <Dropdown
-                  {...fields.authentication_method}
-                  label="Percentage of hosts"
-                  options={authMethodOptions}
-                  placeholder=""
-                />
-              </div>
-              <div className={`${baseClass}__details`}>
-                <IconToolTip
-                  isHtml
-                  text={
-                    "\
-                  <p>Provide a URL to deliver <br/>the webhook request to.</p>\
+                }
+              />
+            </div>
+            <div className={`${baseClass}__inputs`}>
+              <Dropdown
+                {...fields.authentication_method}
+                label="Percentage of hosts"
+                options={percentageOfHosts}
+                placeholder=""
+              />
+            </div>
+            <div className={`${baseClass}__details`}>
+              <IconToolTip
+                isHtml
+                text={
+                  "\
+                  <center><p>Select the minimum percentage of hosts that<br/>must fail to check into Fleet in order to trigger<br/>the webhook request.</p></center>\
                 "
-                  }
-                />
-              </div>
-              <div className={`${baseClass}__inputs`}>
-                <Dropdown
-                  {...fields.authentication_type}
-                  label="Number of days"
-                  options={authTypeOptions}
-                />
-              </div>
-              <div className={`${baseClass}__details`}>
-                <IconToolTip
-                  isHtml
-                  text={
-                    "\
-                  <p>Provide a URL to deliver <br/>the webhook request to.</p>\
+                }
+              />
+            </div>
+            <div className={`${baseClass}__inputs`}>
+              <Dropdown
+                {...fields.authentication_type}
+                label="Number of days"
+                options={numberOfDays}
+              />
+            </div>
+            <div className={`${baseClass}__details`}>
+              <IconToolTip
+                isHtml
+                text={
+                  "\
+                  <center><p>Select the minimum number of days that the<br/>configured <b>Percentage of hosts</b> must fail to<br/>check into Fleet in order to trigger the<br/>webhook request.</p></center>\
                 "
-                  }
-                />
-              </div>
+                }
+              />
             </div>
           </div>
 
@@ -593,6 +666,7 @@ class AppConfigForm extends Component {
           </Button>
         </form>
         {renderUsageStatsPreviewModal()}
+        {renderHostStatusWebhookPreviewModal()}
       </>
     );
   }

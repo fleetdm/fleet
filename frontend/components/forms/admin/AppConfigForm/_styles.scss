@@ -123,7 +123,7 @@
   &__inputs {
     width: 60%;
     float: left;
-    padding: 0 $pad-xxlarge 0 0;
+    padding-right: $pad-small;
     box-sizing: border-box;
 
     .input-field {
@@ -151,6 +151,9 @@
     }
     &--usage {
       margin-top: 24px;
+    }
+    &--webhook {
+      margin-bottom: 24px;
     }
   }
 
@@ -216,7 +219,8 @@
     ); // because the outline extended beyond the sticky page description
   }
 
-  &__usage-stats-preview-modal {
+  &__usage-stats-preview-modal,
+  &__host-status-webhook-preview-modal {
     .flex-end {
       margin-top: 20px;
       display: flex;
