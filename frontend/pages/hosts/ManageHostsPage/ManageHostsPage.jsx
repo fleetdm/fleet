@@ -139,7 +139,8 @@ export class ManageHostsPage extends PureComponent {
     loadingLabels: false,
   };
 
-  static contextType = QueryContext;
+  static contextType = QueryContext; // eslint-disable-line react/sort-comp
+  
   constructor(props) {
     super(props);
 
@@ -216,8 +217,10 @@ export class ManageHostsPage extends PureComponent {
 
     // TODO: Very temporary until this component becomes functional
     // this was so we could remove redux for selectedOsqueryTable - 8/31/21 - MP
+    /* eslint-disable react/no-did-mount-set-state */
     const { selectedOsqueryTable, setSelectedOsqueryTable } = this.context;
     this.setState({ selectedOsqueryTable, setSelectedOsqueryTable });
+    /* eslint-enable no-alert, react/no-did-mount-set-state */
   }
 
   componentWillReceiveProps() {
@@ -254,6 +257,7 @@ export class ManageHostsPage extends PureComponent {
 
   // TODO: Very temporary until this component becomes functional
   // this was so we could remove redux for selectedOsqueryTable - 8/31/21 - MP
+  /* eslint-disable react/no-did-mount-set-state */
   componentDidUpdate() {
     if (
       !isEqual(
@@ -265,6 +269,7 @@ export class ManageHostsPage extends PureComponent {
       this.setState({ selectedOsqueryTable });
     }
   }
+  /* eslint-enable react/no-did-mount-set-state */
 
   componentWillUnmount() {
     this.clearHostUpdates();

@@ -71,17 +71,17 @@ const LoginPage = ({
     const { HOME } = paths;
     const redirectTime = 1500;
     return dispatch(loginUser(formData))
-      .then((user: IUser) => {
+      .then((returnedUser: IUser) => {
         setLoginVisible(false);
 
         // Redirect to password reset page if user is forced to reset password.
         // Any other requests will fail.
-        if (user.force_password_reset) {
+        if (returnedUser.force_password_reset) {
           return dispatch(push(paths.RESET_PASSWORD));
         }
 
         // transitioning to context API - 9/1/21 MP
-        setCurrentUser(user);
+        setCurrentUser(returnedUser);
 
         setTimeout(() => {
           const nextLocation = redirectLocation || HOME;
