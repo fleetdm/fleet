@@ -1,38 +1,45 @@
-.query-form1 {
+.query-form {
   &__wrapper {
     position: relative;
     font-size: $x-small;
 
-    h1 {
-      margin: $pad-large 0;
-    }
-
     .query-page__warning {
-      margin: $pad-large 0;
+      margin: 0;
+      margin-top: $pad-large;
     }
   }
 
-  &__query-name,
+  &__query-name {
+    width: 100%;
+    margin: 0;
+    margin-top: $pad-large;
+  }
+  
   &__query-description {
     width: 100%;
+    margin-top: $pad-small;
   }
 
-  &__query-observer-can-run {
-    font-size: $x-small;
-    font-weight: $bold;
-    font-style: normal;
-
-    &__label {
-      margin-left: $pad-small;
-    }
+  &__text-editor-wrapper {
+    margin: 0;
+    margin-top: $pad-large;
   }
 
   &__query-observer-can-run-wrapper {
-    margin-bottom: $pad-xsmall;
-    font-weight: $bold !important; //override checkbox default
+    margin: 0;
+    margin-top: $pad-large;
+    font-weight: $bold !important; // override checkbox default
+
+    & + p {
+      margin: 0;
+      margin-top: $pad-small;
+    }
   }
 
   &__button-wrap {
+    margin: 0;
+    margin-top: $pad-large;
+    
     &--new-query {
       display: flex;
       align-items: center;
@@ -50,10 +57,6 @@
   &__save-query-btn,
   &__cancel-btn {
     margin-right: $pad-xsmall;
-  }
-
-  &__text-editor-wrapper {
-    margin: $pad-medium 0;
   }
 
   &__title {

@@ -19,7 +19,7 @@ import { INewQueryModalProps } from "./NewQueryModal/NewQueryModal";
 
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
-const baseClass = "query-form1";
+const baseClass = "query-form";
 
 interface IQueryFormProps {
   baseError: string;
@@ -162,8 +162,8 @@ const QueryForm = ({
     query,
   }: IRenderProps) => (
     <form className={`${baseClass}__wrapper`}>
-      <h1>{nameText}</h1>
-      <p>{descText}</p>
+      <h1 className={`${baseClass}__query-name`}>{nameText}</h1>
+      <p className={`${baseClass}__query-description`}>{descText}</p>
       <Button
         className={`${baseClass}__toggle-sql`}
         variant="text-link"
@@ -209,7 +209,7 @@ const QueryForm = ({
       <form className={`${baseClass}__wrapper`}>
         {isEditMode ? (
           <ContentEditable
-            className="query-name"
+            className={`${baseClass}__query-name`}
             innerRef={nameEditable}
             html={nameText}
             tagName="h1"
@@ -218,11 +218,11 @@ const QueryForm = ({
             }
           />
         ) : (
-          <h1>New query</h1>
+          <h1 className={`${baseClass}__query-name`}>New query</h1>
         )}
         {isEditMode && (
           <ContentEditable
-            className="description"
+            className={`${baseClass}__query-description`}
             innerRef={descriptionEditable}
             html={descText}
             onChange={(evt: ContentEditableEvent) =>
@@ -247,7 +247,7 @@ const QueryForm = ({
             <Checkbox
               {...observer_can_run}
               value={observerCanRun}
-              wrapperClassName={`query-observer-can-run-wrapper`}
+              wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
             >
               Observers can run
             </Checkbox>
