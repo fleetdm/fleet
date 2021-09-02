@@ -1,5 +1,6 @@
 {
   "baseUrl": "https://localhost:8642",
   "fixturesFolder": false,
-  "testFiles": "**/*.ts"
+  "testFiles": "**/*.ts",
+  "defaultCommandTimeout": 8000
 }

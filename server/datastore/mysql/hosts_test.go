@@ -1,11 +1,13 @@
 package mysql
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1193,6 +1195,42 @@ func TestSaveUsers(t *testing.T) {
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }
 
+func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Duration(days) * 24 * time.Hour),
+		OsqueryHostID:   fmt.Sprintf("%d", i),
+		NodeKey:         fmt.Sprintf("%d", i),
+		UUID:            fmt.Sprintf("%d", i),
+		Hostname:        fmt.Sprintf("foo.local%d", i),
+		PrimaryIP:       fmt.Sprintf("192.168.1.%d", i),
+		PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-5%d", i),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+}
+
+func TestTotalAndUnseenHostsSince(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	addHostSeenLast(t, ds, 1, 0)
+
+	total, unseen, err := ds.TotalAndUnseenHostsSince(1)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Equal(t, 0, unseen)
+
+	addHostSeenLast(t, ds, 2, 2)
+	addHostSeenLast(t, ds, 3, 4)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(1)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, 2, unseen)
+}
+
 func TestListHostsByPolicy(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -1249,4 +1287,153 @@ func TestListHostsByPolicy(t *testing.T) {
 	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
 	require.NoError(t, err)
 	require.Len(t, hosts, 8)
+}
+
+func TestSaveTonsOfUsers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host1, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OsqueryHostID:   "1",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host1)
+
+	host2, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		Hostname:        "foo2.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OsqueryHostID:   "2",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host2)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	errCh := make(chan error)
+	var count1 int32
+	var count2 int32
+
+	go func() {
+		for {
+			host1, err := ds.Host(host1.ID)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			u1 := fleet.HostUser{
+				Uid:       42,
+				Username:  "user",
+				Type:      "aaa",
+				GroupName: "group",
+			}
+			u2 := fleet.HostUser{
+				Uid:       43,
+				Username:  "user2",
+				Type:      "aaa",
+				GroupName: "group",
+			}
+			host1.Users = []fleet.HostUser{u1, u2}
+			host1.SeenTime = time.Now()
+			host1.Modified = true
+			soft := fleet.HostSoftware{
+				Modified: true,
+				Software: []fleet.Software{
+					{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+					{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+				},
+			}
+			host1.HostSoftware = soft
+			additional := json.RawMessage(`{"some":"thing"}`)
+			host1.Additional = &additional
+
+			err = ds.SaveHost(host1)
+			if err != nil {
+				errCh <- err
+				return
+			}
+			atomic.AddInt32(&count1, 1)
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			host2, err := ds.Host(host2.ID)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			u1 := fleet.HostUser{
+				Uid:       99,
+				Username:  "user",
+				Type:      "aaa",
+				GroupName: "group",
+			}
+			u2 := fleet.HostUser{
+				Uid:       98,
+				Username:  "user2",
+				Type:      "aaa",
+				GroupName: "group",
+			}
+			host2.Users = []fleet.HostUser{u1, u2}
+			host2.SeenTime = time.Now()
+			host2.Modified = true
+			soft := fleet.HostSoftware{
+				Modified: true,
+				Software: []fleet.Software{
+					{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+					{Name: "foo4", Version: "0.0.3", Source: "chrome_extensions"},
+				},
+			}
+			host2.HostSoftware = soft
+			additional := json.RawMessage(`{"some":"thing"}`)
+			host2.Additional = &additional
+
+			err = ds.SaveHost(host2)
+			if err != nil {
+				errCh <- err
+				return
+			}
+			atomic.AddInt32(&count2, 1)
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+
+	ticker := time.NewTicker(10 * time.Second)
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+		cancelFunc()
+	case <-ticker.C:
+	}
+	fmt.Println("Count1", atomic.LoadInt32(&count1))
+	fmt.Println("Count2", atomic.LoadInt32(&count2))
 }

@@ -21,14 +21,14 @@ func (d *Datastore) ShouldSendStatistics(frequency time.Duration) (fleet.Statist
 	}
 
 	dest := statistics{}
-	err = d.db.Get(&dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
+	err = d.writer.Get(&dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			anonIdentifier, err := server.GenerateRandomText(64)
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, err
 			}
-			_, err = d.db.Exec(`INSERT INTO statistics(anonymous_identifier) VALUES (?)`, anonIdentifier)
+			_, err = d.writer.Exec(`INSERT INTO statistics(anonymous_identifier) VALUES (?)`, anonIdentifier)
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, err
 			}
@@ -55,6 +55,6 @@ func (d *Datastore) ShouldSendStatistics(frequency time.Duration) (fleet.Statist
 }
 
 func (d *Datastore) RecordStatisticsSent() error {
-	_, err := d.db.Exec(`UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
+	_, err := d.writer.Exec(`UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
 	return err
 }

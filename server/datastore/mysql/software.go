@@ -206,34 +206,64 @@ func (d *Datastore) insertNewInstalledHostSoftware(
 }
 
 func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Software, error) {
-	selectFunc := d.db.Select
+	selectFunc := d.reader.Select
 	if tx != nil {
 		selectFunc = tx.Select
 	}
 	sql := `
-		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe,
-			IF(
-				COUNT(scv.cve) = 0,
-				null,
-				GROUP_CONCAT(
-					JSON_OBJECT(
-						"cve", scv.cve,
-						"details_link", CONCAT('https://nvd.nist.gov/vuln/detail/', scv.cve)
-					)
-				)
-			) as vulnerabilities FROM software s
+		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe
+		FROM software s
 		LEFT JOIN software_cpe scp ON (s.id=scp.software_id)
-		LEFT JOIN software_cve scv ON (scp.id=scv.cpe_id)
 		WHERE s.id IN
 			(SELECT software_id FROM host_software WHERE host_id = ?)
 		group by s.id, s.name, s.version, s.source, generated_cpe
 	`
-	var result []fleet.Software
+	var result []*fleet.Software
 	if err := selectFunc(&result, sql, id); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 
-	return result, nil
+	sql = `
+		SELECT s.id, scv.cve
+		FROM software s
+		JOIN software_cpe scp ON (s.id=scp.software_id)
+		JOIN software_cve scv ON (scp.id=scv.cpe_id)
+		WHERE s.id IN
+			(SELECT software_id FROM host_software WHERE host_id = ?)
+	`
+	queryFunc := d.reader.Queryx
+	if tx != nil {
+		queryFunc = tx.Queryx
+	}
+
+	rows, err := queryFunc(sql, id)
+	if err != nil {
+		return nil, errors.Wrap(err, "load host software")
+	}
+	defer rows.Close()
+
+	cvesBySoftware := make(map[uint]fleet.VulnerabilitiesSlice)
+	for rows.Next() {
+		var id uint
+		var cve string
+		if err := rows.Scan(&id, &cve); err != nil {
+			return nil, errors.Wrap(err, "scanning cve")
+		}
+		cvesBySoftware[id] = append(cvesBySoftware[id], fleet.SoftwareCVE{
+			CVE:         cve,
+			DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
+		})
+	}
+	var resultWithCVEs []fleet.Software
+	for _, software := range result {
+		software.Vulnerabilities = cvesBySoftware[software.ID]
+		resultWithCVEs = append(resultWithCVEs, *software)
+		if err := rows.Err(); err != nil {
+			return nil, errors.Wrap(err, "error iterating through cve rows")
+		}
+	}
+
+	return resultWithCVEs, nil
 }
 
 func (d *Datastore) LoadHostSoftware(host *fleet.Host) error {
@@ -275,7 +305,7 @@ func (d *Datastore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, err
 	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
-	rows, err := d.db.Queryx(sql) //nolint:sqlclosecheck
+	rows, err := d.reader.Queryx(sql) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
@@ -284,7 +314,7 @@ func (d *Datastore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, err
 
 func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error {
 	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
-	if _, err := d.db.Exec(sql, software.ID, cpe); err != nil {
+	if _, err := d.writer.Exec(sql, software.ID, cpe); err != nil {
 		return errors.Wrap(err, "insert software cpe")
 	}
 	return nil
@@ -293,7 +323,7 @@ func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error
 func (d *Datastore) AllCPEs() ([]string, error) {
 	sql := `SELECT cpe FROM software_cpe`
 	var cpes []string
-	err := d.db.Select(&cpes, sql)
+	err := d.reader.Select(&cpes, sql)
 	if err != nil {
 		return nil, errors.Wrap(err, "loads cpes")
 	}
@@ -307,7 +337,7 @@ func (d *Datastore) InsertCVEForCPE(cve string, cpes []string) error {
 	for _, cpe := range cpes {
 		args = append(args, cpe, cve)
 	}
-	_, err := d.db.Exec(sql, args...)
+	_, err := d.writer.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "insert software cve")
 	}

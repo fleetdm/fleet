@@ -31,9 +31,11 @@ import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
+import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackPageWrapper from "components/packs/PackPageWrapper";
 import PackComposerPage from "pages/packs/PackComposerPage";
+import PoliciesPageWrapper from "components/policies/PoliciesPageWrapper";
 import QueryPage from "pages/queries/QueryPage";
 import QueryPage1 from "pages/queries/QueryPage1";
 import QueryPageWrapper from "components/queries/QueryPageWrapper";
@@ -110,6 +112,9 @@ const routes = (
                   <IndexRoute component={EditPackPage} />
                   <Route path="edit" component={EditPackPage} />
                 </Route>
+              </Route>
+              <Route path="policies" component={PoliciesPageWrapper}>
+                <Route path="manage" component={ManagePoliciesPage} />
               </Route>
               <Route path="schedule" component={SchedulePageWrapper}>
                 <Route path="manage" component={ManageSchedulePage} />

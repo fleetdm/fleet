@@ -7,7 +7,7 @@ import { itBehavesLikeAFormInputElement } from "test/helpers";
 
 describe("AppConfigForm - form", () => {
   const defaultProps = {
-    formData: { org_name: "Kolide" },
+    formData: { org_name: "Fleet" },
     handleSubmit: noop,
     smtpConfigured: false,
     enrollSecret: [
@@ -84,21 +84,7 @@ describe("AppConfigForm - form", () => {
     });
   });
 
-  it("does not render advanced options by default", () => {
-    expect(form.find({ name: "domain" }).length).toEqual(0);
-    expect(form.find("Slider").length).toEqual(0);
-  });
-
   describe("Advanced options", () => {
-    beforeAll(() => {
-      form.find(".app-config-form__show-options").simulate("click");
-    });
-
-    it('renders advanced options when "Advanced Options" is clicked', () => {
-      expect(form.find({ name: "domain" }).hostNodes().length).toEqual(1);
-      expect(form.find("Slider").length).toEqual(4);
-    });
-
     it("disables host expiry window by default", () => {
       const InputField = form.find({ name: "host_expiry_window" });
       const inputElement = InputField.find("input");
@@ -109,11 +95,11 @@ describe("AppConfigForm - form", () => {
     it("enables host expiry window", () => {
       form
         .find({ name: "host_expiry_enabled" })
-        .find("button")
+        .find("Checkbox")
         .simulate("click");
       const InputField = form.find({ name: "host_expiry_window" });
       const inputElement = InputField.find("input");
-      expect(inputElement.hasClass("input-field--disabled")).toBe(false);
+      expect(inputElement.hasClass("input-field--disabled")).toBe(true);
     });
 
     it("renders live query disabled input", () => {

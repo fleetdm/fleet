@@ -28,6 +28,7 @@ func TestDoubleUserCreationErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
@@ -61,6 +62,7 @@ func TestUserWithoutRoleErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
@@ -86,6 +88,7 @@ func TestUserWithWrongRoleErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	params := fleet.UserPayload{
@@ -112,6 +115,7 @@ func TestUserCreationWrongTeamErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	teams := []fleet.UserTeam{
@@ -210,6 +214,7 @@ func TestQueryCreationLogsActivity(t *testing.T) {
 	defer ds.Close()
 
 	users, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	admin1 := users["admin1@example.com"]
@@ -251,6 +256,7 @@ func TestAppConfigAdditionalQueriesCanBeRemoved(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	spec := []byte(`
@@ -281,6 +287,7 @@ func TestAppConfigUpdateInterval(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	config := getConfig(t, server, token)
@@ -292,6 +299,7 @@ func TestAppConfigHasLogging(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	config := getConfig(t, server, token)
@@ -318,6 +326,7 @@ func TestUserRolesSpec(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	_, err := ds.NewTeam(&fleet.Team{
 		ID:          42,
 		Name:        "team1",
@@ -364,6 +373,7 @@ func TestGlobalSchedule(t *testing.T) {
 	test.AddAllHostsLabel(t, ds)
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	gs := fleet.GlobalSchedulePayload{}
@@ -420,7 +430,8 @@ func TestTeamSpecs(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Tier: fleet.TierBasic})
+	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierBasic}})
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	// create a team through the service so it initializes the agent ops
@@ -484,6 +495,7 @@ func TestTranslator(t *testing.T) {
 	defer ds.Close()
 
 	users, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	payload := translatorResponse{}
@@ -508,6 +520,7 @@ func TestTeamSchedule(t *testing.T) {
 	test.AddAllHostsLabel(t, ds)
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	team1, err := ds.NewTeam(&fleet.Team{
@@ -577,6 +590,7 @@ func TestLogger(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	getConfig(t, server, token)
@@ -626,6 +640,7 @@ func TestVulnerableSoftware(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	host, err := ds.NewHost(&fleet.Host{
@@ -692,6 +707,7 @@ func TestGlobalPolicies(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds)
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	for i := 0; i < 3; i++ {
@@ -771,6 +787,7 @@ func TestOsqueryEndpointsLogErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	defer server.Close()
 
 	_, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -804,6 +821,7 @@ func TestSubmitStatusLog(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	defer server.Close()
 	token := getTestAdminToken(t, server)
 
 	_, err := ds.NewHost(&fleet.Host{
@@ -840,6 +858,7 @@ func TestEnrollAgentLogsErrors(t *testing.T) {
 	defer ds.Close()
 
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
+	defer server.Close()
 
 	_, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -872,4 +891,40 @@ func TestEnrollAgentLogsErrors(t *testing.T) {
 	logData := make(map[string]json.RawMessage)
 	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
 	assert.Equal(t, json.RawMessage(`["enroll failed: no matching secret found"]`), logData["err"])
+}
+
+func TestLicenseExpiration(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	testCases := []struct {
+		name             string
+		tier             string
+		expiration       time.Time
+		shouldHaveHeader bool
+	}{
+		{"basic expired", fleet.TierBasic, time.Now().Add(-24 * time.Hour), true},
+		{"basic not expired", fleet.TierBasic, time.Now().Add(24 * time.Hour), false},
+		{"core expired", fleet.TierCore, time.Now().Add(-24 * time.Hour), false},
+		{"core not expired", fleet.TierCore, time.Now().Add(24 * time.Hour), false},
+	}
+
+	_ = createTestUsers(t, ds)
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			license := &fleet.LicenseInfo{Tier: tt.tier, Expiration: tt.expiration}
+			_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{License: license, SkipCreateTestUsers: true})
+			defer server.Close()
+
+			token := getTestAdminToken(t, server)
+
+			resp, closeFunc := doReq(t, nil, "GET", server, "/api/v1/fleet/config", token, http.StatusOK)
+			defer closeFunc()
+			if tt.shouldHaveHeader {
+				require.Equal(t, fleet.HeaderLicenseValueExpired, resp.Header.Get(fleet.HeaderLicenseKey))
+			} else {
+				require.Equal(t, "", resp.Header.Get(fleet.HeaderLicenseKey))
+			}
+		})
+	}
 }

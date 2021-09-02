@@ -56,6 +56,14 @@ go run agent.go --host_count 200 --enroll_secret <your enroll secret goes here>
 
 After about 10 seconds, the Fleet UI should be populated with 200 simulated hosts.
 
+### Host details page
+
+Select a host from the "Hosts" table as a global user with the Maintainer role.
+
+You should be able to see and select the "Delete" button on this host's **Host details** page.
+
+You should be able to see and select the "Query" button on this host's **Host details** page.
+
 ### Label flow
 
 `Flow is covered by e2e testing`

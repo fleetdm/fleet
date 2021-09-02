@@ -132,6 +132,16 @@ func printHost(c *cli.Context, host *service.HostResponse) error {
 	return printSpec(c, spec)
 }
 
+func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
+	spec := specGeneric{
+		Kind:    fleet.HostKind,
+		Version: fleet.ApiVersion,
+		Spec:    host,
+	}
+
+	return printSpec(c, spec)
+}
+
 func printConfig(c *cli.Context, config *fleet.AppConfig) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
@@ -368,7 +378,7 @@ func getPacksCommand() *cli.Command {
 					return errors.Wrap(err, "could not list packs")
 				}
 
-				if c.Bool(yamlFlagName) {
+				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, pack := range packs {
 						if err := printPack(c, pack); err != nil {
 							return errors.Wrap(err, "unable to print pack")
@@ -625,12 +635,10 @@ func getHostsCommand() *cli.Command {
 				if err != nil {
 					return errors.Wrap(err, "could not get host")
 				}
-				b, err := yaml.Marshal(host)
+				err = printHostDetail(c, host)
 				if err != nil {
 					return err
 				}
-
-				fmt.Print(string(b))
 			}
 			return nil
 		},

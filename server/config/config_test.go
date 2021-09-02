@@ -58,6 +58,7 @@ func TestConfigRoundtrip(t *testing.T) {
 	// Marshal the generated config
 	buf, err := yaml.Marshal(original)
 	require.Nil(t, err)
+	t.Log(string(buf))
 
 	// Manually load the serialized config
 	man.viper.SetConfigType("yaml")

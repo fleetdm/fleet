@@ -3,19 +3,17 @@ import URL_PREFIX from "router/url_prefix";
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
 
+export enum PolicyResponse {
+  PASSING = "passing",
+  FAILING = "failing",
+}
+
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 3600, label: "Every hour" },
   { value: 21600, label: "Every 6 hours" },
   { value: 43200, label: "Every 12 hours" },
   { value: 86400, label: "Every day" },
   { value: 604800, label: "Every week" },
-];
-
-export const PLATFORM_OPTIONS = [
-  { label: "All", value: "" },
-  { label: "Windows", value: "windows" },
-  { label: "Linux", value: "linux" },
-  { label: "macOS", value: "darwin" },
 ];
 
 export const LOGGING_TYPE_OPTIONS = [
@@ -107,3 +105,38 @@ export const DEFAULT_CAMPAIGN_STATE = {
   targetsError: null,
   campaign: { ...DEFAULT_CAMPAIGN },
 };
+export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
+  "All Hosts": "All Hosts",
+  "All Linux": "Linux",
+  "CentOS Linux": "CentOS Linux",
+  macOS: "macOS",
+  "MS Windows": "Windows",
+  "Red Hat Linux": "Red Hat Linux",
+  "Ubuntu Linux": "Ubuntu Linux",
+};
+
+export const PLATFORM_LABEL_DISPLAY_ORDER = [
+  "macOS",
+  "All Linux",
+  "CentOS Linux",
+  "Red Hat Linux",
+  "Ubuntu Linux",
+  "MS Windows",
+];
+
+export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
+  "All Hosts": "all",
+  "All Linux": "platform",
+  "CentOS Linux": "platform",
+  macOS: "platform",
+  "MS Windows": "platform",
+  "Red Hat Linux": "platform",
+  "Ubuntu Linux": "platform",
+};
+
+export const PLATFORM_OPTIONS = [
+  { label: "All", value: "" },
+  { label: "Windows", value: "windows" },
+  { label: "Linux", value: "linux" },
+  { label: "macOS", value: "darwin" },
+];

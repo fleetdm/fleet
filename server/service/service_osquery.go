@@ -224,10 +224,13 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		return nil, osqueryError{message: "internal error: fetch base config: " + err.Error()}
 	}
 
-	var config map[string]interface{}
-	err = json.Unmarshal(baseConfig, &config)
-	if err != nil {
-		return nil, osqueryError{message: "internal error: parse base configuration: " + err.Error()}
+	config := make(map[string]interface{})
+
+	if baseConfig != nil {
+		err = json.Unmarshal(baseConfig, &config)
+		if err != nil {
+			return nil, osqueryError{message: "internal error: parse base configuration: " + err.Error()}
+		}
 	}
 
 	packs, err := svc.ds.ListPacksForHost(host.ID)
@@ -564,8 +567,8 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
 		}
 
-		if campaign.CreatedAt.After(svc.clock.Now().Add(-5 * time.Second)) {
-			// Give the client 5 seconds to connect before considering the
+		if campaign.CreatedAt.After(svc.clock.Now().Add(-1 * time.Minute)) {
+			// Give the client a minute to connect before considering the
 			// campaign orphaned
 			return osqueryError{message: "campaign waiting for listener (please retry)"}
 		}
@@ -582,7 +585,7 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 		}
 
 		// No need to record query completion in this case
-		return nil
+		return osqueryError{message: "campaign stopped"}
 	}
 
 	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
@@ -649,11 +652,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
 		case strings.HasPrefix(query, hostDistributedQueryPrefix):
 			err = svc.ingestDistributedQuery(host, query, rows, failed, messages[query])
+
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}
 
 		if err != nil {
+			logging.WithErr(ctx, errors.New("error in live query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}
 	}

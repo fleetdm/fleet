@@ -12,7 +12,7 @@ import (
 )
 
 func (ds *Datastore) NewGlobalPolicy(queryID uint) (*fleet.Policy, error) {
-	res, err := ds.db.Exec(`INSERT INTO policies (query_id) VALUES (?)`, queryID)
+	res, err := ds.writer.Exec(`INSERT INTO policies (query_id) VALUES (?)`, queryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting new policy")
 	}
@@ -26,12 +26,12 @@ func (ds *Datastore) NewGlobalPolicy(queryID uint) (*fleet.Policy, error) {
 
 func (ds *Datastore) Policy(id uint) (*fleet.Policy, error) {
 	var policy fleet.Policy
-	err := ds.db.Get(
+	err := ds.reader.Get(
 		&policy,
-		`SELECT 
-       		p.*, 
-       		q.name as query_name, 
-       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count, 
+		`SELECT
+       		p.*,
+       		q.name as query_name,
+       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
        		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
 		FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE p.id=?`,
 		id,
@@ -66,7 +66,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(host *fleet.Host, results map[u
 		strings.Join(bindvars, ","),
 	)
 
-	_, err := ds.db.Exec(query, vals...)
+	_, err := ds.writer.Exec(query, vals...)
 	if err != nil {
 		return errors.Wrapf(err, "insert policy_membership (%v)", vals)
 	}
@@ -76,13 +76,13 @@ func (ds *Datastore) RecordPolicyQueryExecutions(host *fleet.Host, results map[u
 
 func (ds *Datastore) ListGlobalPolicies() ([]*fleet.Policy, error) {
 	var policies []*fleet.Policy
-	err := ds.db.Select(
+	err := ds.reader.Select(
 		&policies,
-		`SELECT 
-       		p.*, 
-       		q.name as query_name, 
-       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count, 
-       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count 
+		`SELECT
+       		p.*,
+       		q.name as query_name,
+       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
 		FROM policies p JOIN queries q ON (p.query_id=q.id)`,
 	)
 	if err != nil {
@@ -97,8 +97,8 @@ func (ds *Datastore) DeleteGlobalPolicies(ids []uint) ([]uint, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "IN for DELETE FROM policies")
 	}
-	stmt = ds.db.Rebind(stmt)
-	if _, err := ds.db.Exec(stmt, args...); err != nil {
+	stmt = ds.writer.Rebind(stmt)
+	if _, err := ds.writer.Exec(stmt, args...); err != nil {
 		return nil, errors.Wrap(err, "delete policies")
 	}
 	return ids, nil
@@ -106,10 +106,10 @@ func (ds *Datastore) DeleteGlobalPolicies(ids []uint) ([]uint, error) {
 
 func (ds *Datastore) PolicyQueriesForHost(_ *fleet.Host) (map[string]string, error) {
 	var rows []struct {
-		id    string `db:"id"`
-		query string `db:"query"`
+		Id    string `db:"id"`
+		Query string `db:"query"`
 	}
-	err := ds.db.Select(&rows, `SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id)`)
+	err := ds.reader.Select(&rows, `SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id)`)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting policies for host")
 	}
@@ -117,7 +117,7 @@ func (ds *Datastore) PolicyQueriesForHost(_ *fleet.Host) (map[string]string, err
 	results := map[string]string{}
 
 	for _, row := range rows {
-		results[row.id] = row.query
+		results[row.Id] = row.Query
 	}
 
 	return results, nil

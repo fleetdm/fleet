@@ -23,9 +23,9 @@ func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error
 }
 
 func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
-	var info fleet.AppConfig
+	info := &fleet.AppConfig{}
 	var bytes []byte
-	err := d.db.Get(&bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
+	err := d.reader.Get(&bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "selecting app config")
 	}
@@ -33,15 +33,17 @@ func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	err = json.Unmarshal(bytes, &info)
+	info.ApplyDefaults()
+
+	err = json.Unmarshal(bytes, info)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshaling config")
 	}
-	return &info, nil
+	return info, nil
 }
 
 func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
-	rows, err := d.db.Query("SELECT @@event_scheduler")
+	rows, err := d.writer.Query("SELECT @@event_scheduler")
 	if err != nil {
 		return false, err
 	}
@@ -134,7 +136,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 
 func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, error) {
 	var s fleet.EnrollSecret
-	err := d.db.Get(&s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
+	err := d.reader.Get(&s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
 		return nil, errors.New("no matching secret found")
 	}
@@ -182,7 +184,7 @@ func (d *Datastore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error
 		args = append(args, teamID)
 	}
 	var secrets []*fleet.EnrollSecret
-	if err := d.db.Select(&secrets, sql, args...); err != nil {
+	if err := d.reader.Select(&secrets, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "get secrets")
 	}
 	return secrets, nil

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
@@ -30,6 +31,8 @@ type Client struct {
 	token              string
 	http               httpClient
 	insecureSkipVerify bool
+
+	writer io.Writer
 }
 
 type ClientOption func(*Client) error
@@ -105,6 +108,13 @@ func EnableClientDebug() ClientOption {
 	}
 }
 
+func SetClientWriter(w io.Writer) ClientOption {
+	return func(c *Client) error {
+		c.writer = w
+		return nil
+	}
+}
+
 func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
 	var bodyBytes []byte
 	var err error
@@ -128,7 +138,16 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 		request.Header.Set(k, v)
 	}
 
-	return c.http.Do(request)
+	resp, err := c.http.Do(request)
+	if err != nil {
+		return nil, errors.Wrap(err, "do request")
+	}
+
+	if resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
+		fleet.WriteExpiredLicenseBanner(c.writer)
+	}
+
+	return resp, nil
 }
 
 func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
