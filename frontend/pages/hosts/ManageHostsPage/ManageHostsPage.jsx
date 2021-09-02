@@ -125,7 +125,7 @@ export class ManageHostsPage extends PureComponent {
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
     isOnGlobalTeam: PropTypes.bool,
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
     currentUser: userInterface,
     policyId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     policyResponse: PropTypes.oneOf([
@@ -219,12 +219,12 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentWillReceiveProps() {
-    const { config, dispatch, isBasicTier } = this.props;
+    const { config, dispatch, isPremiumTier } = this.props;
     const { isConfigLoaded, isTeamsLoaded, isTeamsLoading } = this.state;
     if (!isConfigLoaded && !isEmpty(config)) {
       this.setState({ isConfigLoaded: true });
     }
-    if (isConfigLoaded && isBasicTier && !isTeamsLoaded && !isTeamsLoading) {
+    if (isConfigLoaded && isPremiumTier && !isTeamsLoaded && !isTeamsLoading) {
       this.setState({ isTeamsLoading: true });
       dispatch(teamActions.loadAll({}))
         .then(() => {
@@ -882,7 +882,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderTeamsFilterDropdown = () => {
-    const { isBasicTier, selectedTeam, teams } = this.props;
+    const { isPremiumTier, selectedTeam, teams } = this.props;
     const { isConfigLoaded, isTeamsLoaded } = this.state;
     const {
       generateTeamFilterDropdownOptions,
@@ -890,11 +890,11 @@ export class ManageHostsPage extends PureComponent {
       handleChangeSelectedTeamFilter,
     } = this;
 
-    if (!isConfigLoaded || (isBasicTier && !isTeamsLoaded)) {
+    if (!isConfigLoaded || (isPremiumTier && !isTeamsLoaded)) {
       return null;
     }
 
-    if (!isBasicTier) {
+    if (!isPremiumTier) {
       return <h1>Hosts</h1>;
     }
 
@@ -962,7 +962,7 @@ export class ManageHostsPage extends PureComponent {
   renderEnrollSecretModal = () => {
     const { toggleEnrollSecretModal } = this;
     const { showEnrollSecretModal } = this.state;
-    const { canEnrollHosts, teams, selectedTeam, isBasicTier } = this.props;
+    const { canEnrollHosts, teams, selectedTeam, isPremiumTier } = this.props;
 
     if (!canEnrollHosts || !showEnrollSecretModal) {
       return null;
@@ -978,7 +978,7 @@ export class ManageHostsPage extends PureComponent {
           selectedTeam={selectedTeam}
           teams={teams}
           onReturnToApp={toggleEnrollSecretModal}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
         />
       </Modal>
     );
@@ -1301,7 +1301,7 @@ export class ManageHostsPage extends PureComponent {
       isEditLabel,
       loadingLabels,
       canAddNewHosts,
-      isBasicTier,
+      isPremiumTier,
       canEnrollHosts,
     } = this.props;
     const { isConfigLoaded, isTeamsLoaded } = this.state;
@@ -1334,7 +1334,9 @@ export class ManageHostsPage extends PureComponent {
               </div>
             </div>
             {renderLabelOrPolicyBlock()}
-            {isConfigLoaded && (!isBasicTier || isTeamsLoaded) && renderTable()}
+            {isConfigLoaded &&
+              (!isPremiumTier || isTeamsLoaded) &&
+              renderTable()}
           </div>
         )}
         {!loadingLabels && renderSidePanel()}
@@ -1404,7 +1406,7 @@ const mapStateToProps = (state, ownProps) => {
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
   const isOnGlobalTeam = permissionUtils.isOnGlobalTeam(currentUser);
-  const isBasicTier = permissionUtils.isBasicTier(config);
+  const isPremiumTier = permissionUtils.isPremiumTier(config);
 
   return {
     selectedFilters,
@@ -1426,7 +1428,7 @@ const mapStateToProps = (state, ownProps) => {
     canAddNewLabels,
     isGlobalAdmin,
     isOnGlobalTeam,
-    isBasicTier,
+    isPremiumTier,
     teams,
     selectedTeam,
     policyId,

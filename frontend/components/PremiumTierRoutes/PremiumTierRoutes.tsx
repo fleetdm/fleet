@@ -6,7 +6,7 @@ import { IConfig } from "interfaces/config";
 import permissionUtils from "utilities/permissions";
 import paths from "router/paths";
 
-interface IBasicTierRoutes {
+interface IPremiumTierRoutes {
   children: JSX.Element;
 }
 
@@ -18,7 +18,7 @@ interface IRootState {
 
 const { FLEET_403 } = paths;
 
-const BasicTierRoutes = (props: IBasicTierRoutes): JSX.Element | null => {
+const PremiumTierRoutes = (props: IPremiumTierRoutes): JSX.Element | null => {
   const { children } = props;
 
   const dispatch = useDispatch();
@@ -30,11 +30,11 @@ const BasicTierRoutes = (props: IBasicTierRoutes): JSX.Element | null => {
     return null;
   }
 
-  if (!permissionUtils.isBasicTier(config)) {
+  if (!permissionUtils.isPremiumTier(config)) {
     dispatch(push(FLEET_403));
     return null;
   }
   return <>{children}</>;
 };
 
-export default BasicTierRoutes;
+export default PremiumTierRoutes;

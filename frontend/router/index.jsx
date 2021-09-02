@@ -18,7 +18,7 @@ import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerGlobalAdminRoutes from "components/AuthAnyMaintainerGlobalAdminRoutes";
-import BasicTierRoutes from "components/BasicTierRoutes";
+import PremiumTierRoutes from "components/PremiumTierRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
@@ -85,7 +85,7 @@ const routes = (
               <Route component={SettingsWrapper}>
                 <Route path="organization" component={AdminAppSettingsPage} />
                 <Route path="users" component={AdminUserManagementPage} />
-                <Route component={BasicTierRoutes}>
+                <Route component={PremiumTierRoutes}>
                   <Route path="teams" component={AdminTeamManagementPage} />
                 </Route>
               </Route>

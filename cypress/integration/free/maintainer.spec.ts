@@ -1,5 +1,5 @@
 describe(
-  "Core tier - Maintainer user",
+  "Free tier - Maintainer user",
   {
     defaultCommandTimeout: 20000,
   },
@@ -7,7 +7,7 @@ describe(
     beforeEach(() => {
       cy.setup();
       cy.login();
-      cy.seedCore();
+      cy.seedFree();
       cy.seedQueries();
       cy.addDockerHost();
       cy.logout();
@@ -61,8 +61,8 @@ describe(
       //   .click();
       // cy.contains("button", /cancel/i).click();
 
-      cy.contains("button", /query/i).click();
-      cy.contains("button", /create custom query/i).click();
+      // cy.contains("button", /query/i).click();
+      // cy.contains("button", /create custom query/i).click();
 
       // Queries pages: Can create, edit, and run query
       cy.visit("/queries/manage");

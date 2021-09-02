@@ -288,8 +288,8 @@ const generateAvailableTableHeaders = (
 ): IHostDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
-      // skip over column headers that are not shown in core tier
-      if (permissionUtils.isCoreTier(config)) {
+      // skip over column headers that are not shown in free tier
+      if (permissionUtils.isFreeTier(config)) {
         if (
           currentColumn.accessor === "team_name" ||
           currentColumn.id === "selection"

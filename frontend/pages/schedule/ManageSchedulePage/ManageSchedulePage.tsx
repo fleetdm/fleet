@@ -122,8 +122,8 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     );
   }, [dispatch, teamId]);
 
-  const isBasicTier = useSelector((state: IRootState) => {
-    return state.app.config.tier === "basic";
+  const isPremiumTier = useSelector((state: IRootState) => {
+    return state.app.config.tier === "premium";
   });
 
   const allQueries = useSelector((state: IRootState) => state.entities.queries);
@@ -308,7 +308,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
       <div className={`${baseClass}__wrapper body-wrap`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
-            {!isBasicTier ? (
+            {!isPremiumTier ? (
               <div className={`${baseClass}__text`}>
                 <h1 className={`${baseClass}__title`}>
                   <span>Schedule</span>

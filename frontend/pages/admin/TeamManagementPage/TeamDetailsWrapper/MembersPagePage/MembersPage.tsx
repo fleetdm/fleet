@@ -76,8 +76,8 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
 
-  const isBasicTier = useSelector((state: IRootState) => {
-    return state.app.config.tier === "basic";
+  const isPremiumTier = useSelector((state: IRootState) => {
+    return state.app.config.tier === "premium";
   });
   const loadingTableData = useSelector(
     (state: IRootState) => state.entities.users.loading
@@ -278,7 +278,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           defaultTeams={userEditing?.teams}
           availableTeams={teams}
           validationErrors={[]}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
           smtpConfigured={smtpConfigured}
           canUseSso={canUseSso}
           isSsoEnabled={userEditing?.sso_enabled}

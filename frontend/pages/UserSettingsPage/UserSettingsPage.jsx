@@ -44,7 +44,7 @@ export class UserSettingsPage extends Component {
       new_password: PropTypes.string,
       old_password: PropTypes.string,
     }),
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -319,7 +319,7 @@ export class UserSettingsPage extends Component {
       renderPasswordModal,
       renderApiTokenModal,
     } = this;
-    const { version, errors, user, config, isBasicTier } = this.props;
+    const { version, errors, user, config, isPremiumTier } = this.props;
     const { pendingEmail } = this.state;
 
     if (!user) {
@@ -358,7 +358,7 @@ export class UserSettingsPage extends Component {
               Change photo at Gravatar
             </a>
           </div>
-          {isBasicTier && (
+          {isPremiumTier && (
             <div className={`${baseClass}__more-info-detail`}>
               <p className={`${baseClass}__header`}>Teams</p>
               <p
@@ -416,9 +416,9 @@ const mapStateToProps = (state) => {
   const { errors, user } = state.auth;
   const { config } = state.app;
   const { errors: userErrors } = state.entities.users;
-  const isBasicTier = permissionUtils.isBasicTier(config);
+  const isPremiumTier = permissionUtils.isPremiumTier(config);
 
-  return { version, errors, user, userErrors, config, isBasicTier };
+  return { version, errors, user, userErrors, config, isPremiumTier };
 };
 
 export default connect(mapStateToProps)(UserSettingsPage);
