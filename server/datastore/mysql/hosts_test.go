@@ -386,8 +386,8 @@ func TestSaveHostPackStatsOverwrites(t *testing.T) {
 	gotHost, err := ds.Host(host.ID)
 	require.NoError(t, err)
 
-	sort.Slice(host.PackStats, func(i, j int) bool {
-		return host.PackStats[i].PackName < host.PackStats[j].PackName
+	sort.Slice(gotHost.PackStats, func(i, j int) bool {
+		return gotHost.PackStats[i].PackName < gotHost.PackStats[j].PackName
 	})
 
 	require.Len(t, gotHost.PackStats, 2)
