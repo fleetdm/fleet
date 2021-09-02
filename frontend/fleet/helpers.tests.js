@@ -214,8 +214,10 @@ describe("redux app node - helpers", () => {
         server_settings: serverSettings,
         smtp_settings: smtpSettings,
         host_expiry_settings: hostExpirySettings,
-        webhook_settings: webhookSettings,
       } = configStub;
+      const {
+        host_status_webhook: webhookSettings,
+      } = configStub.webhook_settings;
 
       expect(frontendFormattedConfig(configStub)).toEqual({
         ...orgInfo,
