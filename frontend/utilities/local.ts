@@ -6,17 +6,17 @@ const local = {
 
     localStorage.clear();
   },
-  getItem: (itemName) => {
+  getItem: (itemName: string) => {
     const { localStorage } = window;
 
     return localStorage.getItem(`FLEET::${itemName}`);
   },
-  setItem: (itemName, value) => {
+  setItem: (itemName: string, value: any) => {
     const { localStorage } = window;
 
     return localStorage.setItem(`FLEET::${itemName}`, value);
   },
-  removeItem: (itemName) => {
+  removeItem: (itemName: string) => {
     const { localStorage } = window;
 
     localStorage.removeItem(`FLEET::${itemName}`);

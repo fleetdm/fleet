@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { push } from "react-router-redux";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -7,6 +7,7 @@ import { IRedirectLocation } from "interfaces/redirect_location"; // @ts-ignore
 import { setRedirectLocation } from "redux/nodes/redirectLocation/actions";
 import { IUser } from "interfaces/user";
 import { useDeepEffect } from "utilities/hooks";
+import { authToken } from "utilities/local";
 
 interface IAppProps {
   children: JSX.Element;
@@ -25,12 +26,10 @@ interface IRootState {
 
 export const AuthenticatedRoutes = ({ children }: IAppProps) => {
   const dispatch = useDispatch();
-  const { loading, user, isLoggingOut } = useSelector((state: IRootState) => state.auth);
+  const { user } = useSelector((state: IRootState) => state.auth);
   const { locationBeforeTransitions } = useSelector(
     (state: IRootState) => state.routing
   );
-
-  const [mulligan, setMulligan] = useState(false);
 
   const redirectToLogin = () => {
     const { LOGIN } = paths;
@@ -52,15 +51,9 @@ export const AuthenticatedRoutes = ({ children }: IAppProps) => {
   };
 
   useDeepEffect(() => {
-    // TODO: refreshing the page always begins with `loading` and `user` false.
-    // In a nutshell, Redux is not playing nice with a functional component in App.tsx
-    // because the fetchCurrentUser() call doesn't make it in time, so `mulligan` helps for now
-    if (!loading && !user && !mulligan && !isLoggingOut) {
-      setMulligan(true);
-      return;
-    }
-
-    if (!loading && !user && (mulligan || isLoggingOut)) {
+    // this works with App.tsx. if authToken does
+    // exist, user state is checked and fetched if null
+    if (!authToken()) {
       return redirectToLogin();
     }
 
@@ -71,7 +64,7 @@ export const AuthenticatedRoutes = ({ children }: IAppProps) => {
     if (user && user.api_only) {
       return redirectToApiUserOnly();
     }
-  }, [loading, user]);
+  }, [user]);
 
   if (!user) {
     return false;

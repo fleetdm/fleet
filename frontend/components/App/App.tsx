@@ -4,7 +4,6 @@ import classnames from "classnames";
 
 import { QueryClient, QueryClientProvider } from "react-query";
 
-// @ts-ignore
 import { authToken } from "utilities/local"; // @ts-ignore
 import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
 import { fetchCurrentUser } from "redux/nodes/auth/actions"; // @ts-ignore
@@ -32,6 +31,7 @@ const App = ({ children }: IAppProps) => {
   const queryClient = new QueryClient();
 
   useDeepEffect(() => {
+    // on page refresh
     if (!user && authToken()) {
       dispatch(fetchCurrentUser()).catch(() => false);
     }
