@@ -249,6 +249,152 @@ func TestSaveHostPackStats(t *testing.T) {
 	require.Len(t, host.PackStats, 2)
 }
 
+func TestSaveHostPackStatsOverwrites(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	// Pack and query must exist for stats to save successfully
+	pack1 := test.NewPack(t, ds, "test1")
+	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
+	pack2 := test.NewPack(t, ds, "test2")
+	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query1.ID, 30, true, true, "time-scheduled")
+	query2 := test.NewQuery(t, ds, "processes", "select * from processes", 0, true)
+
+	execTime1 := time.Unix(1620325191, 0).UTC()
+
+	host.PackStats = []fleet.PackStats{
+		{
+			PackName: "test1",
+			QueryStats: []fleet.ScheduledQueryStats{
+				{
+					ScheduledQueryName: squery1.Name,
+					ScheduledQueryID:   squery1.ID,
+					QueryName:          query1.Name,
+					PackName:           pack1.Name,
+					PackID:             pack1.ID,
+					AverageMemory:      8000,
+					Denylisted:         false,
+					Executions:         164,
+					Interval:           30,
+					LastExecuted:       execTime1,
+					OutputSize:         1337,
+					SystemTime:         150,
+					UserTime:           180,
+					WallTime:           0,
+				},
+			},
+		},
+		{
+			PackName: "test2",
+			QueryStats: []fleet.ScheduledQueryStats{
+				{
+					ScheduledQueryName: squery2.Name,
+					ScheduledQueryID:   squery2.ID,
+					QueryName:          query2.Name,
+					PackName:           pack2.Name,
+					PackID:             pack2.ID,
+					AverageMemory:      431,
+					Denylisted:         true,
+					Executions:         1,
+					Interval:           30,
+					LastExecuted:       execTime1,
+					OutputSize:         134,
+					SystemTime:         1656,
+					UserTime:           18453,
+					WallTime:           10,
+				},
+			},
+		},
+	}
+
+	require.NoError(t, ds.SaveHost(host))
+
+	host, err = ds.Host(host.ID)
+	require.NoError(t, err)
+
+	sort.Slice(host.PackStats, func(i, j int) bool {
+		return host.PackStats[i].PackName < host.PackStats[j].PackName
+	})
+
+	require.Len(t, host.PackStats, 2)
+	assert.Equal(t, host.PackStats[0].PackName, "test1")
+	assert.Equal(t, execTime1, host.PackStats[0].QueryStats[0].LastExecuted)
+
+	execTime2 := execTime1.Add(24 * time.Hour)
+
+	host.PackStats = []fleet.PackStats{
+		{
+			PackName: "test1",
+			QueryStats: []fleet.ScheduledQueryStats{
+				{
+					ScheduledQueryName: squery1.Name,
+					ScheduledQueryID:   squery1.ID,
+					QueryName:          query1.Name,
+					PackName:           pack1.Name,
+					PackID:             pack1.ID,
+					AverageMemory:      8000,
+					Denylisted:         false,
+					Executions:         164,
+					Interval:           30,
+					LastExecuted:       execTime2,
+					OutputSize:         1337,
+					SystemTime:         150,
+					UserTime:           180,
+					WallTime:           0,
+				},
+			},
+		},
+		{
+			PackName: "test2",
+			QueryStats: []fleet.ScheduledQueryStats{
+				{
+					ScheduledQueryName: squery2.Name,
+					ScheduledQueryID:   squery2.ID,
+					QueryName:          query2.Name,
+					PackName:           pack2.Name,
+					PackID:             pack2.ID,
+					AverageMemory:      431,
+					Denylisted:         true,
+					Executions:         1,
+					Interval:           30,
+					LastExecuted:       execTime1,
+					OutputSize:         134,
+					SystemTime:         1656,
+					UserTime:           18453,
+					WallTime:           10,
+				},
+			},
+		},
+	}
+
+	require.NoError(t, ds.SaveHost(host))
+
+	gotHost, err := ds.Host(host.ID)
+	require.NoError(t, err)
+
+	sort.Slice(host.PackStats, func(i, j int) bool {
+		return host.PackStats[i].PackName < host.PackStats[j].PackName
+	})
+
+	require.Len(t, gotHost.PackStats, 2)
+	assert.Equal(t, gotHost.PackStats[0].PackName, "test1")
+	assert.Equal(t, execTime2, gotHost.PackStats[0].QueryStats[0].LastExecuted)
+}
+
 func TestIgnoresTeamPackStats(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
