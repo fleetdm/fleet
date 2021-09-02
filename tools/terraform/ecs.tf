@@ -24,6 +24,8 @@ resource "aws_alb_target_group" "main" {
   vpc_id               = module.vpc.vpc_id
   deregistration_delay = 30
 
+  load_balancing_algorithm_type = "least_outstanding_requests"
+
   health_check {
     path                = "/healthz"
     matcher             = "200"
@@ -121,7 +123,6 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  # task_role_arn = ...
   cpu    = 256
   memory = 512
   container_definitions = jsonencode(
@@ -163,7 +164,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql.this_rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql_serverless.rds_cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
@@ -247,7 +248,7 @@ resource "aws_ecs_task_definition" "migration" {
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql.this_rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql_serverless.rds_cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
@@ -256,4 +257,43 @@ resource "aws_ecs_task_definition" "migration" {
         ]
       }
   ])
+}
+
+resource "aws_appautoscaling_target" "ecs_target" {
+  max_capacity       = 5
+  min_capacity       = 1
+  resource_id        = "service/${aws_ecs_cluster.fleet.name}/${aws_ecs_service.fleet.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "ecs_policy_memory" {
+  name               = "fleet-memory-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.ecs_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_target.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+    target_value = 80
+  }
+}
+
+resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
+  name               = "fleet-cpu-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.ecs_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_target.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+
+    target_value = 60
+  }
 }
