@@ -11,16 +11,16 @@
       </div>
   
       <!-- TODO: bring back search -->
-      <!-- <div purpose="search" class="d-flex p-0 pt-4 mt-3">
+      <div class="d-flex p-0 pt-4 mt-3">
         <div class="input-group">
           <div class="input-group-prepend border-right-0">
             <span class="input-group-text bg-transparent border-right-0 pl-3 pr-2">
               <img style="height: 16px; width: auto;" class="search" alt="search" src="/images/icon-search-16x16@2x.png"></span>
           </div>
-          <input class="form-control border-left-0 px-0" placeholder="Search the docs..." aria-label="Search the docs"
+          <input id="docsearch-query"class="form-control border-left-0 px-0" placeholder="Search the docs..." aria-label="Search the docs"
             v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
         </div>
-      </div> -->
+      </div>
   
       <div purpose="cta-cards">
         <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 pt-4 mt-3">

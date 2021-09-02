@@ -36,7 +36,7 @@
     else { %>
     <meta name="robots" content="noindex">
     <% } %>
-
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.css" />
     <% /*
         Stylesheets
         ========================
@@ -238,7 +238,21 @@
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <!--SCRIPTS END-->
-
+    <script src="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js"></script>
+    <script>
+      docsearch({
+        // Your apiKey and indexName will be given to you once
+        // we create your config
+        apiKey: '25626fae796133dc1e734c6bcaaeac3c',
+        indexName: 'docsearch',
+        //appId: '<APP_ID>', // Should be only included if you are running DocSearch on your own.
+        // Replace inputSelector with a CSS selector
+        // matching your search input
+        inputSelector: '#docsearch-query',
+        // Set debug to true to inspect the dropdown
+        debug: false,
+      });
+    </script>
     <% /* Display an overlay if the current browser is not supported.
     (Relies on `bowser`, which is loaded inline above.) */ %>
     <script>
