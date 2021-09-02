@@ -196,7 +196,7 @@ func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 
 		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
 		sql := fmt.Sprintf(`
-			INSERT INTO scheduled_query_stats (
+			INSERT IGNORE INTO scheduled_query_stats (
 				scheduled_query_id,
 				host_id,
 				average_memory,
