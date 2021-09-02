@@ -22,6 +22,10 @@ export default (formData) => {
     host_expiry_enabled: hostExpiryEnabled,
     host_expiry_window: hostExpiryWindow = 0,
     agent_options: agentOptions,
+    enable_host_status_webhook: enableHostStatusWebhook,
+    destination_url: destinationUrl,
+    host_percentage: hostPercentage,
+    days_count: daysCount,
   } = formData;
 
   if (enableSSO) {
@@ -65,6 +69,20 @@ export default (formData) => {
       if (!smtpPassword) {
         errors.password = "SMTP Password must be present";
       }
+    }
+  }
+
+  if (enableHostStatusWebhook) {
+    if (!destinationUrl) {
+      errors.destination_url = "Destination URL must be present";
+    }
+
+    if (!hostPercentage) {
+      errors.host_percentage = "Host percentage must be present";
+    }
+
+    if (!daysCount) {
+      errors.days_count = "Days count must be present";
     }
   }
 
