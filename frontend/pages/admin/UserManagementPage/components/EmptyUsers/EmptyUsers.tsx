@@ -10,10 +10,10 @@ const EmptyUsers = (): JSX.Element => {
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
         <div className={`${baseClass}__empty-filter-results`}>
-          <h1>No users match the current criteria</h1>
+          <h1>No users match the current criteria.</h1>
           <p>
             Expecting to see users? Try again in a few seconds as the system
-            catches up
+            catches up.
           </p>
         </div>
       </div>

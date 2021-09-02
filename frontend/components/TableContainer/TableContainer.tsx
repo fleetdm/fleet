@@ -34,7 +34,8 @@ interface ITableContainerProps {
   actionButtonText?: string;
   actionButtonIcon?: string;
   actionButtonVariant?: ButtonVariant;
-  onQueryChange?: (queryData: ITableQueryData) => void;
+  hideActionButton?: boolean;
+  onQueryChange: (queryData: ITableQueryData) => void;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
@@ -83,6 +84,7 @@ const TableContainer = ({
   actionButtonText,
   actionButtonIcon,
   actionButtonVariant = "brand",
+  hideActionButton,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
@@ -217,7 +219,7 @@ const TableContainer = ({
           <p />
         )}
         <div className={`${baseClass}__table-controls`}>
-          {actionButtonText && (
+          {!hideActionButton && actionButtonText && (
             <Button
               disabled={disableActionButton}
               onClick={onActionButtonClick}

@@ -12,6 +12,7 @@ import LabelForm from "components/forms/LabelForm";
 import Modal from "components/modals/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
 import labelInterface from "interfaces/label";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
@@ -180,6 +181,7 @@ export class ManageHostsPage extends PureComponent {
       searchQuery: "",
       hosts: [],
       isHostsLoading: true,
+      hostErrors: false,
       sortBy: initialSortBy,
       isConfigLoaded: !isEmpty(this.props.config),
       isTeamsLoaded: !isEmpty(this.props.teams),
@@ -663,9 +665,7 @@ export class ManageHostsPage extends PureComponent {
       this.setState({ hosts });
     } catch (error) {
       console.log(error);
-      dispatch(
-        renderFlash("error", "Sorry, we could not retrieve your hosts.")
-      );
+      this.setState({ hostErrors: true });
     } finally {
       this.setState({ isHostsLoading: false });
     }
@@ -1221,6 +1221,7 @@ export class ManageHostsPage extends PureComponent {
       isAllMatchingHostsSelected,
       hosts,
       isHostsLoading,
+      hostErrors,
       isConfigLoaded,
       sortBy,
     } = this.state;
@@ -1240,6 +1241,10 @@ export class ManageHostsPage extends PureComponent {
       selectedLabel === undefined
     ) {
       return null;
+    }
+
+    if (hostErrors) {
+      return <TableDataError />;
     }
 
     // Hosts have not been set up for this instance yet.
