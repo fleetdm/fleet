@@ -1,5 +1,5 @@
 describe(
-  "Core tier - Maintainer user",
+  "Free tier - Maintainer user",
   {
     defaultCommandTimeout: 20000,
   },
@@ -7,7 +7,7 @@ describe(
     beforeEach(() => {
       cy.setup();
       cy.login();
-      cy.seedCore();
+      cy.seedFree();
       cy.seedQueries();
       cy.addDockerHost();
       cy.logout();

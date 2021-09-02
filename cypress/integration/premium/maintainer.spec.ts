@@ -1,5 +1,5 @@
 describe(
-  "Basic tier - Maintainer user",
+  "Premium tier - Maintainer user",
   {
     defaultCommandTimeout: 20000,
   },
@@ -7,7 +7,7 @@ describe(
     beforeEach(() => {
       cy.setup();
       cy.login();
-      cy.seedBasic();
+      cy.seedPremium();
       cy.seedQueries();
       cy.addDockerHost();
       cy.logout();
@@ -83,7 +83,7 @@ describe(
 
       // On the Packs pages (manage, new, and edit), they should…
       // On the Schedule pages (manage, new, and edit), they should…
-      // ^^General maintainer functionality for packs page is being tested in core/maintainer.spec.ts
+      // ^^General maintainer functionality for packs page is being tested in free/maintainer.spec.ts
 
       // On the Profile page, they should…
       // See Global in the Team section and Maintainer in the Role section

@@ -14,7 +14,7 @@ const SelectTargetsMenuWrapper = (
   onMoreInfoClick,
   moreInfoTarget,
   handleBackToResults,
-  isBasicTier
+  isPremiumTier
 ) => {
   const SelectTargetsMenu = ({
     focusedOption,
@@ -107,7 +107,7 @@ const SelectTargetsMenuWrapper = (
     const renderTargetGroups = (
       <>
         {renderTargets("all")}
-        {isBasicTier && renderTargets("teams")}
+        {isPremiumTier && renderTargets("teams")}
         {renderTargets("labels")}
         {renderTargets("hosts")}
       </>
@@ -150,7 +150,7 @@ const SelectTargetsMenuWrapper = (
     valueArray: PropTypes.arrayOf(targetInterface),
     valueKey: PropTypes.string,
     onOptionRef: PropTypes.func,
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
   };
 
   return SelectTargetsMenu;

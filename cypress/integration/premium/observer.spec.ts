@@ -1,5 +1,5 @@
 describe(
-  "Basic tier - Observer user",
+  "Premium tier - Observer user",
   {
     defaultCommandTimeout: 20000,
   },
@@ -7,7 +7,7 @@ describe(
     beforeEach(() => {
       cy.setup();
       cy.login();
-      cy.seedBasic();
+      cy.seedPremium();
       cy.seedQueries();
       cy.addDockerHost("apples");
       cy.logout();

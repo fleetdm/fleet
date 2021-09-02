@@ -20,7 +20,7 @@ export class PackComposerPage extends Component {
     serverErrors: PropTypes.shape({
       base: PropTypes.string,
     }),
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -71,7 +71,7 @@ export class PackComposerPage extends Component {
   render() {
     const { handleSubmit, onFetchTargets } = this;
     const { selectedTargetsCount } = this.state;
-    const { serverErrors, isBasicTier } = this.props;
+    const { serverErrors, isPremiumTier } = this.props;
 
     return (
       <div className="has-sidebar">
@@ -81,7 +81,7 @@ export class PackComposerPage extends Component {
           onFetchTargets={onFetchTargets}
           selectedTargetsCount={selectedTargetsCount}
           serverErrors={serverErrors}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
         />
         <PackInfoSidePanel />
       </div>
@@ -91,9 +91,9 @@ export class PackComposerPage extends Component {
 
 const mapStateToProps = (state) => {
   const { errors: serverErrors } = state.entities.packs;
-  const isBasicTier = permissionUtils.isBasicTier(state.app.config);
+  const isPremiumTier = permissionUtils.isPremiumTier(state.app.config);
 
-  return { serverErrors, isBasicTier };
+  return { serverErrors, isPremiumTier };
 };
 
 export default connect(mapStateToProps)(PackComposerPage);
