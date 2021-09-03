@@ -143,6 +143,7 @@ const RunQuery = ({
     }
 
     const selected = formatSelectedTargetsForApi(selectedTargets);
+    setIsQueryFinished(false);
     removeSocket();
     destroyCampaign();
 
