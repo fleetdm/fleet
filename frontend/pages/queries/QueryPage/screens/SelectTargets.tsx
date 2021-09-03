@@ -148,7 +148,7 @@ const SelectTargets = ({
 
         setTargetsTotalCount(targetsCount);
         if (targetsCount > 0) {
-          setTargetsOnlinePercent(Math.round(onlineCount / targetsCount));
+          setTargetsOnlinePercent(Math.round(onlineCount / targetsCount * 100));
         }
       },
     }
