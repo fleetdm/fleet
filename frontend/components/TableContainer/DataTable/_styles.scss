@@ -149,6 +149,18 @@
       color: $core-fleet-black;
     }
 
+    &__pill {
+      color: $core-fleet-black;
+      font-weight: $bold;
+      padding: 4px 12px;
+      border-radius: 29px;
+
+      span {
+        border-radius: 29px;
+        background-color: $core-fleet-purple;
+      }
+    }
+
     &__status {
       color: $core-fleet-blue;
       text-transform: capitalize;

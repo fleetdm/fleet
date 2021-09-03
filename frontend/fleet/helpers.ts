@@ -4,6 +4,10 @@ import moment from "moment";
 import yaml from "js-yaml";
 import stringUtils from "utilities/strings";
 import { ITeam } from "interfaces/team";
+import {
+  DEFAULT_GRAVATAR_LINK,
+  PLATFORM_LABEL_DISPLAY_TYPES,
+} from "utilities/constants";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -12,8 +16,9 @@ export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
 
   const emailHash = md5(email.toLowerCase());
-  const gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=blank&size=200`;
-
+  const gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+    DEFAULT_GRAVATAR_LINK
+  )}&size=200`;
   return {
     ...resource,
     gravatarURL,
@@ -176,20 +181,11 @@ export const frontendFormattedConfig = (config: any) => {
 };
 
 const formatLabelResponse = (response: any): { [index: string]: any } => {
-  const labelTypeForDisplayText: { [index: string]: any } = {
-    "All Hosts": "all",
-    "MS Windows": "platform",
-    "CentOS Linux": "platform",
-    macOS: "platform",
-    "Ubuntu Linux": "platform",
-    "Red Hat Linux": "platform",
-  };
-
   const labels = response.labels.map((label: any) => {
     return {
       ...label,
       slug: labelSlug(label),
-      type: labelTypeForDisplayText[label.display_text] || "custom",
+      type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
     };
   });
 
@@ -553,7 +549,7 @@ export const humanQueryLastRun = (lastRun: string): string => {
   // Handles the case when a query has never been ran.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
   if (lastRun < "2016-07-28T00:00:00Z") {
-    return "Never";
+    return "Has not run";
   }
 
   return moment(lastRun).fromNow();
