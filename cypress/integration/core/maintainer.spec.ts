@@ -22,6 +22,7 @@ describe(
       cy.visit("/");
 
       // Ensure page is loaded
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.contains("All hosts");
 
       // Settings restrictions
@@ -61,14 +62,14 @@ describe(
       //   .click();
       // cy.contains("button", /cancel/i).click();
 
-      cy.contains("button", /query/i).click();
-      cy.contains("button", /create custom query/i).click();
+      // cy.contains("button", /query/i).click();
+      // cy.contains("button", /create custom query/i).click();
 
       // Queries pages: Can create, edit, and run query
       cy.visit("/queries/manage");
-      cy.get("thead").within(() => {
-        cy.findByText(/observer can run/i).should("exist");
-      });
+      // cy.get("thead").within(() => {
+      //   cy.findByText(/observer can run/i).should("exist");
+      // });
 
       cy.findByRole("button", { name: /create new query/i }).click();
 

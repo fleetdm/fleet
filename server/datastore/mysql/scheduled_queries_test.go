@@ -209,9 +209,9 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 	test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "1")
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "2")
 
-	_, err := ds.db.Exec(`INSERT INTO scheduled_query_stats (
-                                   host_id, scheduled_query_id, average_memory, denylisted, 
-                                   executions, schedule_interval, output_size, system_time, 
+	_, err := ds.writer.Exec(`INSERT INTO scheduled_query_stats (
+                                   host_id, scheduled_query_id, average_memory, denylisted,
+                                   executions, schedule_interval, output_size, system_time,
                                    user_time, wall_time
                                 ) VALUES (?, ?, 32, false, 4, 4, 4, 4, 4, 4);`, h1.ID, sq1.ID)
 	require.NoError(t, err)
@@ -224,12 +224,12 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 	require.Len(t, h1.PackStats, 1)
 
 	// now we insert a bogus stat
-	_, err = ds.db.Exec(`INSERT INTO scheduled_query_stats (
+	_, err = ds.writer.Exec(`INSERT INTO scheduled_query_stats (
                                    host_id, scheduled_query_id, average_memory, denylisted, executions
                                ) VALUES (?, 999, 32, false, 2);`, h1.ID)
 	require.NoError(t, err)
 	// and also for an unknown host
-	_, err = ds.db.Exec(`INSERT INTO scheduled_query_stats (
+	_, err = ds.writer.Exec(`INSERT INTO scheduled_query_stats (
                                    host_id, scheduled_query_id, average_memory, denylisted, executions
                                ) VALUES (888, 999, 32, true, 4);`)
 	require.NoError(t, err)
@@ -241,14 +241,14 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 
 	// but there are definitely there
 	var count int
-	err = ds.db.Get(&count, `SELECT count(*) FROM scheduled_query_stats`)
+	err = ds.writer.Get(&count, `SELECT count(*) FROM scheduled_query_stats`)
 	require.NoError(t, err)
 	assert.Equal(t, 3, count)
 
 	// now we clean it up
 	require.NoError(t, ds.CleanupOrphanScheduledQueryStats())
 
-	err = ds.db.Get(&count, `SELECT count(*) FROM scheduled_query_stats`)
+	err = ds.writer.Get(&count, `SELECT count(*) FROM scheduled_query_stats`)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 

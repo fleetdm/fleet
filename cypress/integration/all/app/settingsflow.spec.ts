@@ -66,8 +66,6 @@ describe("Settings flow", () => {
       .click()
       .type("rachelspassword");
 
-    cy.get("#advanced-options").click();
-
     cy.findByLabelText(/domain/i)
       .click()
       .type("http://www.fleetdm.com");
@@ -75,11 +73,15 @@ describe("Settings flow", () => {
     // can't grab button from the label because the button is a child element and doesn't have a for attribute
     // couldn't figure out how to write a for attribute on kolide button
     // Repeated Error Message: Timed out retrying after 4000ms: Found a label with the text of: /verify ssl certs/i, however no form control was found associated to that label. Make sure you're using the "for" attribute or "aria-labelledby" attribute correctly.
-    cy.get(".kolide-slider__dot").click({ multiple: true });
+    cy.findByLabelText(/verify ssl certs/i).check({ force: true });
+    cy.findByLabelText(/enable starttls/i).check({ force: true });
+    cy.findByLabelText(/^host expiry$/i).check({ force: true });
 
     cy.findByLabelText(/host expiry window/i)
       .click()
       .type("{selectall}{backspace}5");
+
+    cy.findByLabelText(/disable live queries/i).check({ force: true });
 
     // Update settings
     cy.findByRole("button", { name: /update settings/i }).click();
@@ -132,8 +134,6 @@ describe("Settings flow", () => {
       "have.value",
       "rachelsusername"
     );
-
-    cy.get("#advanced-options").click();
 
     cy.findByLabelText(/host expiry window/i).should("have.value", "5");
 

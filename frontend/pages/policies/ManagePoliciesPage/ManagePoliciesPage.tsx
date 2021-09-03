@@ -15,9 +15,9 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 import { inMilliseconds, secondsToHms } from "fleet/helpers";
 
+import TableDataError from "components/TableDataError";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
-import PolicyError from "./components/PolicyError";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
@@ -46,7 +46,7 @@ const renderTable = (
   toggleAddPolicyModal: () => void
 ): JSX.Element => {
   if (isLoadingError) {
-    return <PolicyError />;
+    return <TableDataError />;
   }
 
   return (
@@ -83,9 +83,6 @@ const ManagePolicyPage = (): JSX.Element => {
       setPolicies(response.policies);
     } catch (error) {
       console.log(error);
-      dispatch(
-        renderFlash("error", "Sorry, we could not retrieve your policies.")
-      );
       setIsLoadingError(true);
     } finally {
       setIsLoading(false);

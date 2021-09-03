@@ -11,7 +11,7 @@ func (d *Datastore) NewPasswordResetRequest(req *fleet.PasswordResetRequest) (*f
 		( user_id, token, expires_at)
 		VALUES (?,?, NOW())
 	`
-	response, err := d.db.Exec(sqlStatement, req.UserID, req.Token)
+	response, err := d.writer.Exec(sqlStatement, req.UserID, req.Token)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting password reset requests")
 	}
@@ -30,7 +30,7 @@ func (d *Datastore) SavePasswordResetRequest(req *fleet.PasswordResetRequest) er
 			token = ?
 		WHERE id = ?
 	`
-	result, err := d.db.Exec(sqlStatement, req.ExpiresAt, req.UserID, req.Token, req.ID)
+	result, err := d.writer.Exec(sqlStatement, req.ExpiresAt, req.UserID, req.Token, req.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating password reset requests")
 	}
@@ -58,7 +58,7 @@ func (d *Datastore) DeletePasswordResetRequestsForUser(userID uint) error {
 	sqlStatement := `
 		DELETE FROM password_reset_requests WHERE user_id = ?
 	`
-	_, err := d.db.Exec(sqlStatement, userID)
+	_, err := d.writer.Exec(sqlStatement, userID)
 	if err != nil {
 		return errors.Wrap(err, "deleting password reset request by user")
 	}
@@ -72,7 +72,7 @@ func (d *Datastore) FindPassswordResetByID(id uint) (*fleet.PasswordResetRequest
 		WHERE id = ? LIMIT 1
 	`
 	passwordResetRequest := &fleet.PasswordResetRequest{}
-	err := d.db.Get(&passwordResetRequest, sqlStatement, id)
+	err := d.reader.Get(&passwordResetRequest, sqlStatement, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting password reset by id")
 	}
@@ -87,7 +87,7 @@ func (d *Datastore) FindPassswordResetsByUserID(id uint) ([]*fleet.PasswordReset
 	`
 
 	passwordResetRequests := []*fleet.PasswordResetRequest{}
-	err := d.db.Select(&passwordResetRequests, sqlStatement, id)
+	err := d.reader.Select(&passwordResetRequests, sqlStatement, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding password resets by user id")
 	}
@@ -102,7 +102,7 @@ func (d *Datastore) FindPassswordResetByToken(token string) (*fleet.PasswordRese
 		WHERE token = ? LIMIT 1
 	`
 	passwordResetRequest := &fleet.PasswordResetRequest{}
-	err := d.db.Get(passwordResetRequest, sqlStatement, token)
+	err := d.reader.Get(passwordResetRequest, sqlStatement, token)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting password reset requests")
 	}
@@ -118,7 +118,7 @@ func (d *Datastore) FindPassswordResetByTokenAndUserID(token string, id uint) (*
 		LIMIT 1
 	`
 	passwordResetRequest := &fleet.PasswordResetRequest{}
-	err := d.db.Get(passwordResetRequest, sqlStatement, id, token)
+	err := d.reader.Get(passwordResetRequest, sqlStatement, id, token)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting password reset by token and user id")
 	}
