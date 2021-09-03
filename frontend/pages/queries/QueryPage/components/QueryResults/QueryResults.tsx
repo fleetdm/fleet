@@ -17,6 +17,7 @@ import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import QueryResultsRow from "components/queries/QueryResultsRow";
 import Spinner from "components/loaders/Spinner";
+import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -185,9 +186,9 @@ const QueryResults = ({
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
           variant="text-link"
-        >
-          Export results
-        </Button>
+        ><>
+          Export results <img alt="" src={DownloadIcon}/>
+        </></Button>
         <div className={`${baseClass}__results-table-wrapper`}>
           <table className={`${baseClass}__table`}>
             <thead>{renderTableHeaderRow(queryResults)}</thead>
@@ -205,9 +206,9 @@ const QueryResults = ({
           className={`${baseClass}__export-btn`}
           onClick={onExportErrorsResults}
           variant="text-link"
-        >
-          Export errors
-        </Button>
+        ><>
+          Export errors <img alt="" src={DownloadIcon}/>
+        </></Button>
         <div className={`${baseClass}__error-table-wrapper`}>
           <table className={`${baseClass}__table`}>
             <thead>{renderTableHeaderRow(errors)}</thead>
