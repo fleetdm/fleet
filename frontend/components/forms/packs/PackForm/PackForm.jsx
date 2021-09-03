@@ -24,7 +24,7 @@ class PackForm extends Component {
     handleSubmit: PropTypes.func,
     onFetchTargets: PropTypes.func,
     selectedTargetsCount: PropTypes.number,
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
   };
 
   render() {
@@ -35,7 +35,7 @@ class PackForm extends Component {
       handleSubmit,
       onFetchTargets,
       selectedTargetsCount,
-      isBasicTier,
+      isPremiumTier,
     } = this.props;
 
     const packFormClass = classnames(baseClass, className);
@@ -65,7 +65,7 @@ class PackForm extends Component {
             onFetchTargets={onFetchTargets}
             selectedTargets={fields.targets.value}
             targetsCount={selectedTargetsCount}
-            isBasicTier={isBasicTier}
+            isPremiumTier={isPremiumTier}
           />
         </div>
         <div className={`${baseClass}__pack-buttons`}>

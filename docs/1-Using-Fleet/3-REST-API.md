@@ -4892,7 +4892,7 @@ None.
     }
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "vulnerability_settings": null,
@@ -4918,7 +4918,7 @@ None.
       }
   }
   "license": {
-    "tier": "core",
+    "tier": "free",
     "organization": "fleet",
     "device_count": 100,
     "expiration": "2021-12-31T19:00:00-05:00",
@@ -5056,11 +5056,11 @@ Modifies the Fleet's configuration with the supplied information.
     "additional_queries": null
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "agent_options": {

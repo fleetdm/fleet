@@ -1,8 +1,8 @@
-describe("Core tier - Observer user", () => {
+describe("Free tier - Observer user", () => {
   beforeEach(() => {
     cy.setup();
     cy.login();
-    cy.seedCore();
+    cy.seedFree();
     cy.seedQueries();
     cy.addDockerHost();
     cy.logout();
@@ -12,7 +12,7 @@ describe("Core tier - Observer user", () => {
     cy.stopDockerHost();
   });
 
-  it("Can perform the appropriate core global observer actions", () => {
+  it("Can perform the appropriate free global observer actions", () => {
     cy.login("oliver@organization.com", "user123#");
     cy.visit("/");
 

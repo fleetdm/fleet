@@ -1,5 +1,5 @@
 describe(
-  "Core tier - Admin user",
+  "Free tier - Admin user",
   {
     defaultCommandTimeout: 20000,
   },
@@ -8,7 +8,7 @@ describe(
       cy.setup();
       cy.login();
       cy.setupSMTP();
-      cy.seedCore();
+      cy.seedFree();
       cy.seedQueries();
       cy.addDockerHost();
       cy.logout();
@@ -17,7 +17,7 @@ describe(
       cy.stopDockerHost();
     });
 
-    it("Can perform the appropriate core-tier admin actions", () => {
+    it("Can perform the appropriate free-tier admin actions", () => {
       cy.login("anna@organization.com", "user123#");
       cy.visit("/");
 

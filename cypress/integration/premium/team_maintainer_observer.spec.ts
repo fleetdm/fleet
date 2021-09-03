@@ -7,7 +7,7 @@ describe(
     beforeEach(() => {
       cy.setup();
       cy.login();
-      cy.seedBasic();
+      cy.seedPremium();
       cy.seedQueries();
       cy.addDockerHost();
       cy.logout();

@@ -62,9 +62,9 @@ func createServeCmd(configManager config.Manager) *cobra.Command {
 	debug := false
 	// Whether to enable developer options
 	dev := false
-	// Whether to enable development Fleet Basic license
+	// Whether to enable development Fleet Premium license
 	devLicense := false
-	// Whether to enable development Fleet Basic license with an expired license
+	// Whether to enable development Fleet Premium license with an expired license
 	devExpiredLicense := false
 
 	serveCmd := &cobra.Command{
@@ -101,7 +101,7 @@ the way that the Fleet server works.
 				)
 			}
 
-			if license != nil && license.Tier == fleet.TierBasic && license.Expiration.Before(time.Now()) {
+			if license != nil && license.IsPremium() && license.IsExpired() {
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
@@ -226,10 +226,10 @@ the way that the Fleet server works.
 				initFatal(err, "initializing service")
 			}
 
-			if license.Tier == fleet.TierBasic {
+			if license.IsPremium() {
 				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
 				if err != nil {
-					initFatal(err, "initial Fleet Basic service")
+					initFatal(err, "initial Fleet Premium service")
 				}
 			}
 
