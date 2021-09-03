@@ -662,14 +662,12 @@ The endpoint returns the host's installed `software` if the software inventory f
     "percent_disk_space_available": 73,
     "users": [
       {
-        "id": 98,
         "uid": 0,
         "username": "root",
         "type": "",
         "groupname": "root"
       },
       {
-        "id": 99,
         "uid": 1,
         "username": "bin",
         "type": "",
