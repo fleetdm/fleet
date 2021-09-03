@@ -9,6 +9,7 @@ import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
 import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
+import { useDeepEffect } from "utilities/hooks";
 
 export interface INewQueryModalProps {
   baseClass: string;
@@ -38,6 +39,12 @@ const NewQueryModal = ({
 }: INewQueryModalProps) => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
 
+  useDeepEffect(() => {
+    if (fields.name.value) {
+      setErrors({});
+    }
+  }, [fields])
+
   const handleUpdate = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
@@ -65,13 +72,13 @@ const NewQueryModal = ({
         <InputField
           {...fields.name}
           error={fields.name.error || errors.name}
-          inputClassName={`${baseClass}__query-name`}
+          inputClassName={`${baseClass}__query-save-modal-name`}
           label="Name"
           placeholder="What is your query called?"
         />
         <InputField
           {...fields.description}
-          inputClassName={`${baseClass}__query-description`}
+          inputClassName={`${baseClass}__query-save-modal-description`}
           label="Description"
           type="textarea"
           placeholder="What information does your query reveal?"
@@ -79,7 +86,7 @@ const NewQueryModal = ({
         <Checkbox
           {...fields.observer_can_run}
           value={!!fields.observer_can_run.value}
-          wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+          wrapperClassName={`${baseClass}__query-save-modal-observer-can-run-wrapper`}
         >
           Observers can run
         </Checkbox>
