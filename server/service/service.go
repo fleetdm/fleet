@@ -4,7 +4,6 @@ package service
 
 import (
 	"html/template"
-	"strings"
 	"sync"
 
 	"github.com/WatchBeam/clock"
@@ -14,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/kit/version"
 	"github.com/pkg/errors"
 )
 
@@ -80,17 +78,9 @@ type validationMiddleware struct {
 	ssoSessionStore sso.SessionStore
 }
 
-// getAssetURL gets the URL prefix used for retrieving assets from Github. This
-// function will determine the appropriate version to use, and create a URL
-// prefix for retrieving assets from that tag.
+// getAssetURL simply returns the base url used for retrieving image assets from fleetdm.com.
 func getAssetURL() template.URL {
-	v := version.Version().Version
-	tag := strings.Split(v, "-")[0]
-	if tag == "unknown" {
-		tag = "main"
-	}
-
-	return template.URL("https://github.com/fleetdm/fleet/blob/" + tag)
+	return template.URL("https://fleetdm.com/images/permanent")
 }
 
 // seenHostSet implements synchronized storage for the set of seen hosts.
