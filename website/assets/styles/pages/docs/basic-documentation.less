@@ -1,37 +1,4 @@
 #basic-documentation {
-  /* Main dropdown wrapper */
-  .algolia-autocomplete .ds-dropdown-menu {
-    width: 500px;
-  }
-
-  /* Main category (eg. Getting Started) */
-  .algolia-autocomplete .algolia-docsearch-suggestion--category-header {
-    color: @core-fleet-black-50;
-    border: none;
-  }
-
-  /* Category (eg. Downloads) */
-  .algolia-autocomplete .algolia-docsearch-suggestion--subcategory-column {
-    color: black;
-  }
-
-  /* Title (eg. Bootstrap CDN) */
-  .algolia-autocomplete .algolia-docsearch-suggestion--title {
-    font-weight: bold;
-    color: black;
-  }
-
-  /* Description description (eg. Bootstrap currently works...) */
-  .algolia-autocomplete .algolia-docsearch-suggestion--text {
-    font-size: 0.8rem;
-    color: @core-fleet-black;
-  }
-
-  /* Highlighted text */
-  .algolia-autocomplete .algolia-docsearch-suggestion--highlight {
-    border: 2px white;
-    color: @core-vibrant-blue;
-  }
 
   h1 {
     font-size: 36px;
@@ -65,6 +32,71 @@
     }
 
   }
+  // Algolia search styles 
+  [purpose='search'] {
+
+    .algolia-autocomplete .ds-dropdown-menu {
+      min-width: 600px;
+    }
+    
+    .algolia-autocomplete .algolia-docsearch-suggestion--subcategory-column {
+      color: @core-fleet-black;
+    }
+
+    .algolia-autocomplete .algolia-docsearch-suggestion--category-header, 
+    .algolia-autocomplete .algolia-docsearch-suggestion--title {
+      font-weight: 700;
+      color: @core-fleet-black;
+    }
+
+    .algolia-autocomplete .algolia-docsearch-suggestion--highlight {
+      color: @core-vibrant-blue;
+    }
+        input {
+      padding-top: 6px;
+      padding-bottom: 6px;
+      border: none;
+
+      &::placeholder {
+        font-size: 16px;
+        line-height: 24px;
+      }
+    }
+
+    .input-group {
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      border: 1px solid @core-fleet-black-25;
+    }
+
+    .input-group:focus-within  {
+      border: 1px solid @core-vibrant-blue;
+    }
+
+    .docsearch {
+      height: 100%;
+      width: 98%;
+    }
+
+    .ds-input:focus-visible {
+      outline: rgba(0,0,0,0)
+    }
+    
+    .input-group-text {
+      color: @core-fleet-black-50;
+    }
+
+    .form-control {
+      height: 48px;
+      padding: 0px;
+      font-size: 16px;
+    } &:focus {
+      border: none;
+    }
+
+  }
 
   [purpose='docs-landing-page'] {
 
@@ -75,42 +107,6 @@
 
     a {
       color: @core-vibrant-blue;
-    }
-
-    [purpose='search'] {
-
-      input {
-        padding-top: 6px;
-        padding-bottom: 6px;
-
-        &::placeholder {
-          font-size: 16px;
-          line-height: 24px;
-
-        }
-
-      }
-
-      .input-group-text {
-        color: @core-fleet-black-50;
-        border-color: @core-fleet-black-25;
-        border-top-left-radius: 6px;
-        border-bottom-left-radius: 6px;
-      }
-
-      .form-control {
-        height: 48px;
-        font-size: 16px;
-        border-color: @core-fleet-black-25;
-        border-top-right-radius: 6px;
-        border-bottom-right-radius: 6px;
-
-        &:focus {
-          border: 1px solid @core-fleet-black-25;
-        }
-
-      }
-
     }
 
     [purpose='cta-cards'] {
@@ -208,45 +204,10 @@
 
     [purpose='search'] {
 
-      input {
-        padding-top: 6px;
-        padding-bottom: 6px;
-        border-radius: 6px;
-        border-top-left-radius: 0px;
-        border-bottom-left-radius: 0px;
-
-        &::placeholder {
-          font-size: 16px;
-          line-height: 24px;
-        }
-
-      }
-
-      .input-group-prepend {
-        border-radius: 6px;
-        border-top-right-radius: 0px;
-        border-bottom-right-radius: 0px;
-
-      }
-
-      .input-group-text {
-        color: #8b8fa2;
-        border-color: #c5c7d1;
-        border-top-left-radius: 8px;
-        border-bottom-left-radius: 8px;
-      }
-
       .form-control {
-        height: 40px;
+        height: 36px;
         font-size: 16px;
-        border-color: #c5c7d1;
-        border-top-right-radius: 8px;
-        border-bottom-right-radius: 8px;
-
-        &:focus {
-          border: 1px solid #c5c7d1;
-        }
-
+        padding: 0;
       }
 
     }
