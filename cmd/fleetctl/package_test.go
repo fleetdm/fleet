@@ -30,7 +30,6 @@ func TestPackage(t *testing.T) {
 
 	//runAppForTest(t, []string{"package", "--type=pkg", "--insecure"}) TODO: had a hard time getting xar installed on Ubuntu
 
-
 	dir, err := os.Getwd()
 	require.NoError(t, err)
 	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
