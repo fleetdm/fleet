@@ -45,12 +45,12 @@ The key generated above contains the following payload:
   "sub": "development",
   "devices": 100,
   "note": "for development only",
-  "tier": "basic",
+  "tier": "premium",
   "iat": 1622426586
 }
 ```
 
 - `devices` refers to the number of licensed devices.
 - `note` includes any additional note about the terms of the license.
-- `tier` is the license Tier: currently `basic` = paid, `core` = free (though we do not plan to issue license keys for `core`)
+- `tier` is the license Tier: currently `premium` = paid, `free` = free (though we do not plan to issue license keys for `free`)
 - Other claims use the meanings [described in the JWT specification](https://datatracker.ietf.org/doc/html/rfc7519#section-4.1).

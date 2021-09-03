@@ -14,15 +14,14 @@
       margin: 0;
       font-size: $x-small;
     }
-
   }
-  
+
   &__learn-more {
     color: $core-vibrant-blue;
     font-size: $x-small;
     font-weight: $bold;
     text-decoration: none;
-    
+
     &--inline {
       margin-left: $pad-medium;
     }
@@ -32,7 +31,6 @@
       margin-left: $pad-small;
     }
   }
-
 
   &__enroll-secret-label {
     font-size: 15px;
@@ -196,25 +194,14 @@
   &__smtp-section {
     @include clearfix;
 
-    .slide-wrapper {
-      .slider-option {
-        font-size: 18px;
-        font-weight: $regular;
-        text-align: left;
-        vertical-align: text-bottom;
-
-        &--off {
-          color: $core-fleet-blue;
-        }
-
-        &--on {
-          color: $core-vibrant-blue;
-        }
-      }
-
-      .button {
-        margin: 0 10px;
-      }
+    .fleet-checkbox__tick {
+      position: relative;
+      left: 150px;
+      top: 12px;
+    }
+    .fleet-checkbox__label {
+      position: relative;
+      left: -48px;
     }
   }
 
@@ -224,7 +211,9 @@
   }
 
   &__yaml {
-    width: calc(100% - 2px); // because the outline extended beyond the sticky page description
+    width: calc(
+      100% - 2px
+    ); // because the outline extended beyond the sticky page description
   }
 
   &__usage-stats-preview-modal {
