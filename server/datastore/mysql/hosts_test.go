@@ -1341,6 +1341,64 @@ func TestSaveUsers(t *testing.T) {
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }
 
+func TestSaveUsersWithoutUid(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	assert.Len(t, host.Users, 0)
+
+	u1 := fleet.HostUser{
+		Username:  "user",
+		Type:      "aaa",
+		GroupName: "group",
+	}
+	u2 := fleet.HostUser{
+		Username:  "user2",
+		Type:      "aaa",
+		GroupName: "group",
+	}
+	host.Users = []fleet.HostUser{u1, u2}
+	host.Modified = true
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	require.Len(t, host.Users, 2)
+	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
+
+	// remove u1 user
+	host.Users = []fleet.HostUser{u2}
+	host.Modified = true
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	require.Len(t, host.Users, 1)
+	assert.Equal(t, host.Users[0].Uid, u2.Uid)
+}
+
 func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	host, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
