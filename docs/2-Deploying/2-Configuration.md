@@ -185,7 +185,7 @@ The password to use when connecting to the MySQL instance.
   	password: fleet
   ```
 
-##### mysql_password_path
+###### mysql_password_path
 
 File path to a file that contains the password to use when connecting to the MySQL instance.
 
@@ -198,7 +198,7 @@ File path to a file that contains the password to use when connecting to the MyS
   	password_path: '/run/secrets/fleetdm-mysql-password'
   ```
 
-##### mysql_tls_ca
+###### mysql_tls_ca
 
 The path to a PEM encoded certificate of MYSQL's CA for client certificate authentication.
 
@@ -457,7 +457,7 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
 
 ##### Auth
 
-##### auth_bcrypt_cost
+###### auth_bcrypt_cost
 
 The bcrypt cost to use when hashing user passwords.
 
