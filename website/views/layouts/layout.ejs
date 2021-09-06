@@ -64,7 +64,18 @@
             <% } else { %>
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
             <% } %>
-          </button>
+          </a>
+          <div class="d-flex d-lg-none">
+            <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+              <span class="mr-2">Menu</span>
+              <% /* The hamburger icon on the homepage is white */ %>
+              <% if (isHomepage) { %>
+              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-16x14@2x.png" style="width: 16px;" />
+              <% } else { %>
+              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png" style="width: 16px;" />
+              <% } %>
+            </button>
+          </div>
           <div class="mobile-menu collapse px-4 px-sm-5" id="navbarToggleExternalContent">
             <div class="d-flex justify-content-between">
               <a href="/">
