@@ -1,0 +1,1 @@
+* Make SMTP timeout when configuring email 30 seconds
