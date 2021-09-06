@@ -851,7 +851,8 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 		incomingUsers[u.Uid] = true
 
 		if _, err := d.writer.Exec(
-			`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES (?, ?, ?, ?, ?)`,
+			`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES (?, ?, ?, ?, ?)
+				ON DUPLICATE KEY UPDATE removed_at=NULL`,
 			host.ID, u.Uid, u.Username, u.Type, u.GroupName,
 		); err != nil {
 			return errors.Wrap(err, "insert users")
