@@ -20,12 +20,14 @@ interface IRunQueryProps {
   typedQueryBody: string;
   storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
+  isEditMode: boolean;
 }
 
 const RunQuery = ({
   typedQueryBody,
   storedQuery,
   selectedTargets,
+  isEditMode,
 }: IRunQueryProps) => {
   const dispatch = useDispatch();
 
@@ -130,8 +132,8 @@ const RunQuery = ({
   };
 
   const onRunQuery = debounce(async () => {
-    const sql = typedQueryBody || storedQuery?.query;
-
+    const sql = isEditMode ? storedQuery?.query : typedQueryBody;
+    
     if (!sql) {
       dispatch(
         renderFlash(

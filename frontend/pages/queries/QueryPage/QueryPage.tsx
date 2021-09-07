@@ -142,6 +142,7 @@ const QueryPage = ({ params: { id: queryIdForEdit } }: IQueryPageProps) => {
       typedQueryBody,
       storedQuery,
       selectedTargets,
+      isEditMode: !!queryIdForEdit,
     };
 
     switch (step) {
