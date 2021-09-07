@@ -262,14 +262,6 @@ func checkConfig(conf *config.MysqlConfig) error {
 	return nil
 }
 
-func (d *Datastore) Begin() (fleet.Transaction, error) {
-	return d.writer.Beginx()
-}
-
-func (d *Datastore) Name() string {
-	return "mysql"
-}
-
 func (d *Datastore) MigrateTables() error {
 	return tables.MigrationClient.Up(d.writer.DB, "")
 }
@@ -314,45 +306,6 @@ func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
 	default:
 		return fleet.AllMigrationsCompleted, nil
 	}
-}
-
-// Drop removes database
-func (d *Datastore) Drop() error {
-	tables := []struct {
-		Name string `db:"TABLE_NAME"`
-	}{}
-
-	sql := `
-		SELECT TABLE_NAME
-		FROM INFORMATION_SCHEMA.TABLES
-		WHERE TABLE_SCHEMA = ?;
-	`
-
-	if err := d.writer.Select(&tables, sql, d.config.Database); err != nil {
-		return err
-	}
-
-	tx, err := d.writer.Begin()
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 0")
-	if err != nil {
-		return tx.Rollback()
-	}
-
-	for _, table := range tables {
-		_, err = tx.Exec(fmt.Sprintf("DROP TABLE %s;", table.Name))
-		if err != nil {
-			return tx.Rollback()
-		}
-	}
-	_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 1")
-	if err != nil {
-		return tx.Rollback()
-	}
-	return tx.Commit()
 }
 
 // HealthCheck returns an error if the MySQL backend is not healthy.

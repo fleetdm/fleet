@@ -46,7 +46,6 @@ func (d *Datastore) ListSessionsForUser(id uint) ([]*fleet.Session, error) {
 	}
 
 	return sessions, nil
-
 }
 
 func (d *Datastore) NewSession(session *fleet.Session) (*fleet.Session, error) {
