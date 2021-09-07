@@ -14,13 +14,14 @@
       <div purpose="search" class="d-flex p-0 mt-5">
         <div class="input-group">
           <div class="input-group-prepend">
-              <span class="input-group-text border-0 bg-transparent pl-3" >
-                <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+            <span class="input-group-text border-0 bg-transparent pl-3" >
+              <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+            </span>
           </div>
           <div class="form-control border-0 ">
-              <input id="docsearch-query"class="docsearch
-               pr-1" placeholder="Search the docs..." aria-label="Search the docs"
-              v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" /></span>
+          <input id="docsearch-query"class="docsearch
+            pr-1" placeholder="Search the docs..." aria-label="Search the docs"
+            v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
           </div>
         </div>
       </div>
@@ -91,17 +92,18 @@
         </div>
   
         <div purpose="search" class="d-flex p-0 mb-2 mb-lg-0">
-        <div class="input-group">
-          <div class="input-group-prepend">
-            <span class="input-group-text border-0 bg-transparent pl-3">
-              <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text border-0 bg-transparent pl-3">
+                <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+              </span>
+            </div>
+            <div class="form-control border-0 ">
+              <input id="docsearch-query" class="docsearch
+                pr-1" placeholder="Search the docs..." aria-label="Search the docs" v-model="inputTextValue"
+                @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+            </div>
           </div>
-          <div class="form-control border-0 ">
-            <input id="docsearch-query" class="docsearch
-                       pr-1" placeholder="Search the docs..." aria-label="Search the docs" v-model="inputTextValue"
-              @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" /></span>
-          </div>
-        </div>
         </div>
   
         <div purpose="mobile-docs-nav" class="d-flex-block d-lg-none">
