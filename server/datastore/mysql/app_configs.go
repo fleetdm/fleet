@@ -145,39 +145,41 @@ func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, erro
 }
 
 func (d *Datastore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
-	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		if teamID != nil {
-			sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
-			if _, err := tx.Exec(sql, teamID); err != nil {
-				return errors.Wrap(err, "clear before insert")
-			}
-		} else {
-			sql := `DELETE FROM enroll_secrets WHERE team_id IS NULL`
-			if _, err := tx.Exec(sql); err != nil {
-				return errors.Wrap(err, "clear before insert")
-			}
-		}
+	return d.withRetryTxx(func(tx *sqlx.Tx) error {
+		return d.applyEnrollSecretsDB(tx, teamID, secrets)
+	})
+}
 
-		for _, secret := range secrets {
-			sql := `
+func (d *Datastore) applyEnrollSecretsDB(exec sqlx.Execer, teamID *uint, secrets []*fleet.EnrollSecret) error {
+	if teamID != nil {
+		sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
+		if _, err := exec.Exec(sql, teamID); err != nil {
+			return errors.Wrap(err, "clear before insert")
+		}
+	} else {
+		sql := `DELETE FROM enroll_secrets WHERE team_id IS NULL`
+		if _, err := exec.Exec(sql); err != nil {
+			return errors.Wrap(err, "clear before insert")
+		}
+	}
+
+	for _, secret := range secrets {
+		sql := `
 				INSERT INTO enroll_secrets (secret, team_id)
 				VALUES ( ?, ? )
 			`
-			if _, err := tx.Exec(sql, secret.Secret, teamID); err != nil {
-				return errors.Wrap(err, "upsert secret")
-			}
+		if _, err := exec.Exec(sql, secret.Secret, teamID); err != nil {
+			return errors.Wrap(err, "upsert secret")
 		}
-		return nil
-	})
-
-	return err
+	}
+	return nil
 }
 
 func (d *Datastore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error) {
-	return d.getEnrollSecretsDB(d.reader, teamID)
+	return getEnrollSecretsDB(d.reader, teamID)
 }
 
-func (d *Datastore) getEnrollSecretsDB(q sqlx.Queryer, teamID *uint) ([]*fleet.EnrollSecret, error) {
+func getEnrollSecretsDB(q sqlx.Queryer, teamID *uint) ([]*fleet.EnrollSecret, error) {
 	var args []interface{}
 	sql := "SELECT * FROM enroll_secrets WHERE "
 	// MySQL requires comparing NULL with IS. NULL = NULL evaluates to FALSE.
