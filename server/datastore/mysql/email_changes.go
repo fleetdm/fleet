@@ -32,13 +32,6 @@ func (ds *Datastore) ConfirmPendingEmailChange(id uint, token string) (newEmail 
 		Token    string
 		NewEmail string `db:"new_email"`
 	}{}
-	err = ds.writer.Get(&changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", notFound("email change with token")
-		}
-		return "", errors.Wrap(err, "email change")
-	}
 
 	err = ds.withRetryTxx(func(tx *sqlx.Tx) error {
 		err := tx.Get(&changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
