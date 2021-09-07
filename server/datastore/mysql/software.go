@@ -56,24 +56,28 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 		return nil
 	}
 
-	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		if len(host.HostSoftware.Software) == 0 {
-			// Clear join table for this host
-			sql := "DELETE FROM host_software WHERE host_id = ?"
-			if _, err := tx.Exec(sql, host.ID); err != nil {
-				return errors.Wrap(err, "clear join table entries")
-			}
+	return d.withRetryTxx(func(tx *sqlx.Tx) error {
+		return d.saveHostSoftwareDB(tx, host)
+	})
+}
 
-			return nil
-		}
+func (d *Datastore) saveHostSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
+	if !host.HostSoftware.Modified {
+		return nil
+	}
 
-		if err := d.applyChangesForNewSoftware(tx, host); err != nil {
-			return err
+	if len(host.HostSoftware.Software) == 0 {
+		// Clear join table for this host
+		sql := "DELETE FROM host_software WHERE host_id = ?"
+		if _, err := tx.Exec(sql, host.ID); err != nil {
+			return errors.Wrap(err, "clear join table entries")
 		}
 
 		return nil
-	}); err != nil {
-		return errors.Wrap(err, "save host software")
+	}
+
+	if err := d.applyChangesForNewSoftware(tx, host); err != nil {
+		return err
 	}
 
 	host.HostSoftware.Modified = false

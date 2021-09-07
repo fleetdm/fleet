@@ -76,7 +76,7 @@ func TestSaveHosts(t *testing.T) {
 	host.Additional = &additionalJSON
 
 	require.NoError(t, ds.SaveHost(host))
-	require.NoError(t, ds.saveHostAdditional(host))
+	require.NoError(t, saveHostAdditional(ds.writer, host))
 
 	host, err = ds.Host(host.ID)
 	require.Nil(t, err)
@@ -520,7 +520,7 @@ func TestListHostsFilterAdditional(t *testing.T) {
 	// Add additional
 	additional := json.RawMessage(`{"field1": "v1", "field2": "v2"}`)
 	h.Additional = &additional
-	require.NoError(t, ds.saveHostAdditional(h))
+	require.NoError(t, saveHostAdditional(ds.writer, h))
 
 	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
 	require.Nil(t, err)
@@ -1145,7 +1145,7 @@ func TestHostAdditional(t *testing.T) {
 	// Add additional
 	additional := json.RawMessage(`{"additional": "result"}`)
 	h.Additional = &additional
-	require.NoError(t, ds.saveHostAdditional(h))
+	require.NoError(t, saveHostAdditional(ds.writer, h))
 
 	// Additional should not be loaded for authenticatehost
 	h, err = ds.AuthenticateHost("nodekey")
@@ -1178,7 +1178,7 @@ func TestHostAdditional(t *testing.T) {
 	h, err = ds.AuthenticateHost("nodekey")
 	require.Nil(t, err)
 	h.Additional = &additional
-	err = ds.saveHostAdditional(h)
+	err = saveHostAdditional(ds.writer, h)
 	require.Nil(t, err)
 
 	h, err = ds.AuthenticateHost("nodekey")
