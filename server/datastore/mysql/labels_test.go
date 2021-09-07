@@ -65,21 +65,21 @@ func TestLabels(t *testing.T) {
 
 	newLabels := []*fleet.LabelSpec{
 		// Note these are intentionally out of order
-		&fleet.LabelSpec{
+		{
 			Name:     "label3",
 			Query:    "query3",
 			Platform: "darwin",
 		},
-		&fleet.LabelSpec{
+		{
 			Name:  "label1",
 			Query: "query1",
 		},
-		&fleet.LabelSpec{
+		{
 			Name:     "label2",
 			Query:    "query2",
 			Platform: "darwin",
 		},
-		&fleet.LabelSpec{
+		{
 			Name:     "label4",
 			Query:    "query4",
 			Platform: "darwin",
@@ -129,7 +129,7 @@ func TestLabels(t *testing.T) {
 	// A new label targeting another platform should not effect the labels for
 	// this host
 	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{
-		&fleet.LabelSpec{
+		{
 			Name:     "label5",
 			Platform: "not-matching",
 			Query:    "query5",
@@ -142,7 +142,7 @@ func TestLabels(t *testing.T) {
 
 	// If a new label is added, all labels should be returned
 	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{
-		&fleet.LabelSpec{
+		{
 			Name:     "label6",
 			Platform: "",
 			Query:    "query6",
@@ -676,4 +676,30 @@ func TestLabelQueriesForCentOSHost(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, queries, 1)
 	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
+}
+
+func TestRecordNonexistentQueryLabelExecution(t *testing.T) {
+	db := CreateMySQLDS(t)
+	defer db.Close()
+
+	h1, err := db.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.Nil(t, err)
+
+	l1 := &fleet.LabelSpec{
+		ID:    1,
+		Name:  "label foo",
+		Query: "query1",
+	}
+	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{l1})
+	require.Nil(t, err)
+
+	require.NoError(t, db.RecordLabelQueryExecutions(h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now()))
 }
