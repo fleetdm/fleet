@@ -17,4 +17,4 @@ jobs:
           # specified without patch version: we always use the latest patch
           # version.
           version: v1.42
-          args: --verbose --timeout 3m --max-same-issues 0
+          args: --timeout 3m
