@@ -170,8 +170,8 @@
           </div>
         </div>
       </div>
+      <input class="d-none" id="docsearch-query">
     </div>
-    <input style="display: none;" id="docsearch-query">
 
     <% /*
       Client-side JavaScript
@@ -237,8 +237,11 @@
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <!--SCRIPTS END-->
+
+    <% /* Algolia Docsearch */ %>
     <script src="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js"></script>
-    <script> docsearch({ apiKey: '25626fae796133dc1e734c6bcaaeac3c', indexName: 'docsearch', inputSelector: '#docsearch-query', debug: true, });</script>
+    <script type="text/javascript"> docsearch({ apiKey: '8c492befdb9f5b5166253a0f8eeb789d', indexName: 'fleetdm', inputSelector: '#docsearch-query', debug: false,});</script>
+
     <% /* Display an overlay if the current browser is not supported.
     (Relies on `bowser`, which is loaded inline above.) */ %>
     <script>
