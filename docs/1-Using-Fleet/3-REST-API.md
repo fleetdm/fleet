@@ -2801,7 +2801,7 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough with example data
 
-##### `webSocket.onopen()`
+##### webSocket.onopen()
 
 ###### Response data
 
@@ -2809,7 +2809,7 @@ socket.onmessage = ({ data }) => {
 o
 ```
 
-##### `webSocket.send()`
+##### webSocket.send()
 
 ###### Request data
 
@@ -2831,7 +2831,7 @@ o
 ]
 ```
 
-##### `webSocket.onmessage()`
+##### webSocket.onmessage()
 
 ###### Response data
 
@@ -2943,7 +2943,7 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough
 
-##### `socket.onopen()`
+##### socket.onopen()
 
 ###### Response data
 
@@ -2951,7 +2951,7 @@ socket.onmessage = ({ data }) => {
 o
 ```
 
-##### `socket.send()`
+##### socket.send()
 
 ###### Request data
 
