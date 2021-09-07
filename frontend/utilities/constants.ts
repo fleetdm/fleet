@@ -7,6 +7,7 @@ export const DEFAULT_GRAVATAR_LINK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-128x128-2x.png";
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
+  { value: 900, label: "Every 15 minutes" },
   { value: 3600, label: "Every hour" },
   { value: 21600, label: "Every 6 hours" },
   { value: 43200, label: "Every 12 hours" },

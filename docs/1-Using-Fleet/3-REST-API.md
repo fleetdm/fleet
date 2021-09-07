@@ -662,14 +662,12 @@ The endpoint returns the host's installed `software` if the software inventory f
     "percent_disk_space_available": 73,
     "users": [
       {
-        "id": 98,
         "uid": 0,
         "username": "root",
         "type": "",
         "groupname": "root"
       },
       {
-        "id": 99,
         "uid": 1,
         "username": "bin",
         "type": "",
@@ -2803,7 +2801,7 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough with example data
 
-##### `webSocket.onopen()`
+##### webSocket.onopen()
 
 ###### Response data
 
@@ -2811,7 +2809,7 @@ socket.onmessage = ({ data }) => {
 o
 ```
 
-##### `webSocket.send()`
+##### webSocket.send()
 
 ###### Request data
 
@@ -2833,7 +2831,7 @@ o
 ]
 ```
 
-##### `webSocket.onmessage()`
+##### webSocket.onmessage()
 
 ###### Response data
 
@@ -2945,7 +2943,7 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough
 
-##### `socket.onopen()`
+##### socket.onopen()
 
 ###### Response data
 
@@ -2953,7 +2951,7 @@ socket.onmessage = ({ data }) => {
 o
 ```
 
-##### `socket.send()`
+##### socket.send()
 
 ###### Request data
 
@@ -4892,7 +4890,7 @@ None.
     }
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "vulnerability_settings": null,
@@ -4918,7 +4916,7 @@ None.
       }
   }
   "license": {
-    "tier": "core",
+    "tier": "free",
     "organization": "fleet",
     "device_count": 100,
     "expiration": "2021-12-31T19:00:00-05:00",
@@ -5056,11 +5054,11 @@ Modifies the Fleet's configuration with the supplied information.
     "additional_queries": null
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "agent_options": {

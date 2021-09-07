@@ -300,3 +300,40 @@ func TestHostIDsInTargets(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 3, 4, 5, 6}, ids)
 }
+
+func TestHostIDsInTargetsTeam(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	filter := fleet.TeamFilter{User: user}
+
+	mockClock := clock.NewMockClock()
+
+	hostCount := 0
+	initHost := func(seenTime time.Time, distributedInterval uint, configTLSRefresh uint, teamID *uint) *fleet.Host {
+		hostCount += 1
+		h, err := ds.NewHost(&fleet.Host{
+			OsqueryHostID:       strconv.Itoa(hostCount),
+			DetailUpdatedAt:     mockClock.Now(),
+			LabelUpdatedAt:      mockClock.Now(),
+			SeenTime:            mockClock.Now(),
+			NodeKey:             strconv.Itoa(hostCount),
+			DistributedInterval: distributedInterval,
+			ConfigTLSRefresh:    configTLSRefresh,
+			TeamID:              teamID,
+		})
+		require.Nil(t, err)
+		require.Nil(t, ds.MarkHostSeen(h, seenTime))
+		return h
+	}
+
+	team1, err := ds.NewTeam(&fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	h1 := initHost(mockClock.Now().Add(-1*time.Second), 10, 60, &team1.ID)
+
+	targets, err := ds.HostIDsInTargets(filter, fleet.HostTargets{TeamIDs: []uint{team1.ID}})
+	require.NoError(t, err)
+	assert.Equal(t, []uint{h1.ID}, targets)
+}

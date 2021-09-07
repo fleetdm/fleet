@@ -67,7 +67,7 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       title: "Query name",
       Header: "Query name",
       disableSortBy: true,
-      accessor: "scheduled_query_name",
+      accessor: "query_name",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {

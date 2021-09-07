@@ -49,9 +49,8 @@ require (
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.8
 	github.com/mitchellh/gon v0.2.3
-	github.com/mna/redisc v1.2.1
+	github.com/mna/redisc v1.3.2
 	github.com/oklog/run v1.1.0
-	github.com/oleiade/reflections v1.0.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
 	github.com/pkg/errors v0.9.1

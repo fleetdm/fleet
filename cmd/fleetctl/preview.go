@@ -43,7 +43,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			debugFlag(),
 			&cli.StringFlag{
 				Name:  licenseKeyFlagName,
-				Usage: "License key to enable Fleet Basic (optional)",
+				Usage: "License key to enable Fleet Premium (optional)",
 			},
 		},
 		Action: func(c *cli.Context) error {

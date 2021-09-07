@@ -63,7 +63,7 @@ export class UserManagementPage extends Component {
       base: PropTypes.string,
       email: PropTypes.string,
     }),
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
     users: PropTypes.arrayOf(userInterface),
     userErrors: PropTypes.shape({
       base: PropTypes.string,
@@ -87,8 +87,8 @@ export class UserManagementPage extends Component {
   }
 
   componentDidMount() {
-    const { dispatch, isBasicTier } = this.props;
-    if (isBasicTier) {
+    const { dispatch, isPremiumTier } = this.props;
+    if (isPremiumTier) {
       dispatch(teamActions.loadAll({}));
     }
   }
@@ -413,7 +413,7 @@ export class UserManagementPage extends Component {
       inviteErrors,
       config,
       teams,
-      isBasicTier,
+      isPremiumTier,
     } = this.props;
     const { showEditUserModal, userEditing } = this.state;
     const { onEditUser, toggleEditUserModal, getUser } = this;
@@ -439,7 +439,7 @@ export class UserManagementPage extends Component {
           onSubmit={onEditUser}
           availableTeams={teams}
           submitText={"Save"}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
           smtpConfigured={config.configured}
           canUseSso={config.enable_sso}
           isSsoEnabled={userData.sso_enabled}
@@ -454,7 +454,7 @@ export class UserManagementPage extends Component {
       inviteErrors,
       config,
       teams,
-      isBasicTier,
+      isPremiumTier,
     } = this.props;
     const { showCreateUserModal } = this.state;
     const { onCreateUserSubmit, toggleCreateUserModal } = this;
@@ -477,7 +477,7 @@ export class UserManagementPage extends Component {
           defaultTeams={[]}
           defaultNewUserType={false}
           submitText={"Create"}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
           smtpConfigured={config.configured}
           canUseSso={config.enable_sso}
           isNewUser
@@ -556,11 +556,11 @@ export class UserManagementPage extends Component {
       users,
       invites,
       currentUser,
-      isBasicTier,
+      isPremiumTier,
       userErrors,
     } = this.props;
 
-    const tableHeaders = generateTableHeaders(onActionSelect, isBasicTier);
+    const tableHeaders = generateTableHeaders(onActionSelect, isPremiumTier);
 
     let tableData = [];
     if (!loadingTableData) {
@@ -621,7 +621,7 @@ const mapStateToProps = (state) => {
   } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;
   const loadingTableData = loadingUsers || loadingInvites;
-  const isBasicTier = permissionUtils.isBasicTier(config);
+  const isPremiumTier = permissionUtils.isPremiumTier(config);
 
   return {
     appConfigLoading,
@@ -631,7 +631,7 @@ const mapStateToProps = (state) => {
     userErrors,
     invites,
     inviteErrors,
-    isBasicTier,
+    isPremiumTier,
     loadingTableData,
     teams,
   };
