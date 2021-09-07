@@ -863,7 +863,7 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 
 	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(host.Users)), ",")
 	insertSql := fmt.Sprintf(
-		`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s`,
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s ON DUPLICATE KEY UPDATE removed_at=NULL`,
 		insertValues,
 	)
 	if _, err := d.writer.Exec(insertSql, insertArgs...); err != nil {
