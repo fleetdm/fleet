@@ -174,6 +174,10 @@ func (d *Datastore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecr
 }
 
 func (d *Datastore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error) {
+	return d.getEnrollSecretsDB(d.reader, teamID)
+}
+
+func (d *Datastore) getEnrollSecretsDB(q sqlx.Queryer, teamID *uint) ([]*fleet.EnrollSecret, error) {
 	var args []interface{}
 	sql := "SELECT * FROM enroll_secrets WHERE "
 	// MySQL requires comparing NULL with IS. NULL = NULL evaluates to FALSE.
@@ -184,7 +188,7 @@ func (d *Datastore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error
 		args = append(args, teamID)
 	}
 	var secrets []*fleet.EnrollSecret
-	if err := d.reader.Select(&secrets, sql, args...); err != nil {
+	if err := sqlx.Select(q, &secrets, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "get secrets")
 	}
 	return secrets, nil

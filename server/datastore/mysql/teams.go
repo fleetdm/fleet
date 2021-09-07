@@ -41,21 +41,25 @@ func (d *Datastore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
 }
 
 func (d *Datastore) Team(tid uint) (*fleet.Team, error) {
+	return d.teamDB(d.reader, tid)
+}
+
+func (d *Datastore) teamDB(q sqlx.Queryer, tid uint) (*fleet.Team, error) {
 	sql := `
 		SELECT * FROM teams
 			WHERE id = ?
 	`
 	team := &fleet.Team{}
 
-	if err := d.reader.Get(team, sql, tid); err != nil {
+	if err := sqlx.Get(q, team, sql, tid); err != nil {
 		return nil, errors.Wrap(err, "select team")
 	}
 
-	if err := d.loadSecretsForTeams([]*fleet.Team{team}); err != nil {
+	if err := d.loadSecretsForTeams(q, []*fleet.Team{team}); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 
-	if err := d.loadUsersForTeam(team); err != nil {
+	if err := loadUsersForTeam(q, team); err != nil {
 		return nil, err
 	}
 
@@ -88,25 +92,25 @@ func (d *Datastore) TeamByName(name string) (*fleet.Team, error) {
 		return nil, errors.Wrap(err, "select team")
 	}
 
-	if err := d.loadSecretsForTeams([]*fleet.Team{team}); err != nil {
+	if err := d.loadSecretsForTeams(d.reader, []*fleet.Team{team}); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 
-	if err := d.loadUsersForTeam(team); err != nil {
+	if err := loadUsersForTeam(d.reader, team); err != nil {
 		return nil, err
 	}
 
 	return team, nil
 }
 
-func (d *Datastore) loadUsersForTeam(team *fleet.Team) error {
+func loadUsersForTeam(q sqlx.Queryer, team *fleet.Team) error {
 	sql := `
 		SELECT u.name, u.id, u.email, ut.role
 		FROM user_teams ut JOIN users u ON (ut.user_id = u.id)
 		WHERE ut.team_id = ?
 	`
 	rows := []fleet.TeamUser{}
-	if err := d.reader.Select(&rows, sql, team.ID); err != nil {
+	if err := sqlx.Select(q, &rows, sql, team.ID); err != nil {
 		return errors.Wrap(err, "load users for team")
 	}
 
@@ -198,15 +202,15 @@ func (d *Datastore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([
 	if err := d.reader.Select(&teams, query, params...); err != nil {
 		return nil, errors.Wrap(err, "list teams")
 	}
-	if err := d.loadSecretsForTeams(teams); err != nil {
+	if err := d.loadSecretsForTeams(d.reader, teams); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 	return teams, nil
 }
 
-func (d *Datastore) loadSecretsForTeams(teams []*fleet.Team) error {
+func (d *Datastore) loadSecretsForTeams(q sqlx.Queryer, teams []*fleet.Team) error {
 	for _, team := range teams {
-		secrets, err := d.GetEnrollSecrets(ptr.Uint(team.ID))
+		secrets, err := d.getEnrollSecretsDB(q, ptr.Uint(team.ID))
 		if err != nil {
 			return err
 		}
@@ -232,7 +236,7 @@ func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit
 	if err := d.reader.Select(&teams, sql, params...); err != nil {
 		return nil, errors.Wrap(err, "search teams")
 	}
-	if err := d.loadSecretsForTeams(teams); err != nil {
+	if err := d.loadSecretsForTeams(d.reader, teams); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 	return teams, nil

@@ -236,7 +236,7 @@ func (d *Datastore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet
 		id, _ := result.LastInsertId()
 		pack.ID = uint(id)
 
-		if err := d.replacePackTargets(tx, pack); err != nil {
+		if err := replacePackTargets(tx, pack); err != nil {
 			return err
 		}
 
@@ -247,7 +247,7 @@ func (d *Datastore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet
 	return pack, nil
 }
 
-func (d *Datastore) replacePackTargets(tx *sqlx.Tx, pack *fleet.Pack) error {
+func replacePackTargets(tx *sqlx.Tx, pack *fleet.Pack) error {
 	sql := `DELETE FROM pack_targets WHERE pack_id = ?`
 	if _, err := tx.Exec(sql, pack.ID); err != nil {
 		return errors.Wrap(err, "delete pack targets")
@@ -313,10 +313,10 @@ func (d *Datastore) replacePackTargets(tx *sqlx.Tx, pack *fleet.Pack) error {
 	return nil
 }
 
-func loadPackTargets(db dbReader, pack *fleet.Pack) error {
+func loadPackTargets(q sqlx.Queryer, pack *fleet.Pack) error {
 	var targets []fleet.PackTarget
 	sql := `SELECT * FROM pack_targets WHERE pack_id = ?`
-	if err := db.Select(&targets, sql, pack.ID); err != nil {
+	if err := sqlx.Select(q, &targets, sql, pack.ID); err != nil {
 		return errors.Wrap(err, "select pack targets")
 	}
 
@@ -358,7 +358,7 @@ func (d *Datastore) SavePack(pack *fleet.Pack) error {
 			return notFound("Pack").WithID(pack.ID)
 		}
 
-		return d.replacePackTargets(tx, pack)
+		return replacePackTargets(tx, pack)
 	})
 }
 
@@ -369,16 +369,20 @@ func (d *Datastore) DeletePack(name string) error {
 
 // Pack fetch fleet.Pack with matching ID
 func (d *Datastore) Pack(pid uint) (*fleet.Pack, error) {
+	return d.packDB(d.reader, pid)
+}
+
+func (d *Datastore) packDB(q sqlx.Queryer, pid uint) (*fleet.Pack, error) {
 	query := `SELECT * FROM packs WHERE id = ?`
 	pack := &fleet.Pack{}
-	err := d.reader.Get(pack, query, pid)
+	err := sqlx.Get(q, pack, query, pid)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Pack").WithID(pid)
 	} else if err != nil {
 		return nil, errors.Wrap(err, "get pack")
 	}
 
-	if err := loadPackTargets(d.reader, pack); err != nil {
+	if err := loadPackTargets(q, pack); err != nil {
 		return nil, err
 	}
 
@@ -388,71 +392,74 @@ func (d *Datastore) Pack(pid uint) (*fleet.Pack, error) {
 // EnsureGlobalPack gets or inserts a pack with type global
 func (d *Datastore) EnsureGlobalPack() (*fleet.Pack, error) {
 	pack := &fleet.Pack{}
-	// read from primary as we will create the pack if it doesn't exist
-	err := d.writer.Get(pack, `SELECT * FROM packs WHERE pack_type = 'global'`)
-	if err == sql.ErrNoRows {
-		return d.insertNewGlobalPack()
-	} else if err != nil {
-		return nil, errors.Wrap(err, "get pack")
-	}
+	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		// read from primary as we will create the pack if it doesn't exist
+		err := tx.Get(pack, `SELECT * FROM packs WHERE pack_type = 'global'`)
+		if err == sql.ErrNoRows {
+			pack, err = d.insertNewGlobalPack(tx)
+			return err
+		} else if err != nil {
+			return errors.Wrap(err, "get pack")
+		}
 
-	if err := loadPackTargets(d.writer, pack); err != nil {
+		return loadPackTargets(tx, pack)
+	})
+	if err != nil {
 		return nil, err
 	}
-
 	return pack, nil
 }
 
-func (d *Datastore) insertNewGlobalPack() (*fleet.Pack, error) {
+func (d *Datastore) insertNewGlobalPack(q sqlx.Ext) (*fleet.Pack, error) {
 	var packID uint
-	err := d.withTx(func(tx *sqlx.Tx) error {
-		res, err := tx.Exec(
-			`INSERT INTO packs (name, description, platform, pack_type) VALUES ('Global', 'Global pack', '','global')`,
-		)
-		if err != nil {
+	res, err := q.Exec(
+		`INSERT INTO packs (name, description, platform, pack_type) VALUES ('Global', 'Global pack', '','global')`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	packId, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	packID = uint(packId)
+	if _, err := q.Exec(
+		`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))`,
+		packID, fleet.TargetLabel, "All Hosts",
+	); err != nil {
+		return nil, errors.Wrap(err, "adding label to pack")
+	}
+
+	return d.packDB(q, packID)
+}
+
+func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
+	pack := &fleet.Pack{}
+	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		t, err := d.teamDB(tx, teamID)
+		if err != nil || t == nil {
+			return errors.Wrap(err, "Error finding team")
+		}
+
+		teamType := fmt.Sprintf("team-%d", teamID)
+		// read from primary as we will create the team pack if it doesn't exist
+		err = tx.Get(pack, `SELECT * FROM packs WHERE pack_type = ?`, teamType)
+		if err == sql.ErrNoRows {
+			pack, err = d.insertNewTeamPack(tx, t)
+			return err
+		} else if err != nil {
+			return errors.Wrap(err, "get pack")
+		}
+
+		if err := loadPackTargets(tx, pack); err != nil {
 			return err
 		}
-		packId, err := res.LastInsertId()
-		if err != nil {
-			return err
-		}
-		packID = uint(packId)
-		if _, err := tx.Exec(
-			`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))`,
-			packID, fleet.TargetLabel, "All Hosts",
-		); err != nil {
-			return errors.Wrap(err, "adding label to pack")
-		}
+
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	return d.Pack(packID)
-}
-
-func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
-	pack := &fleet.Pack{}
-	// TODO: should pass d.writer here
-	t, err := d.Team(teamID)
-	if err != nil || t == nil {
-		return nil, errors.Wrap(err, "Error finding team")
-	}
-
-	teamType := fmt.Sprintf("team-%d", teamID)
-	// read from primary as we will create the team pack if it doesn't exist
-	err = d.writer.Get(pack, `SELECT * FROM packs WHERE pack_type = ?`, teamType)
-	if err == sql.ErrNoRows {
-		return d.insertNewTeamPack(t)
-	} else if err != nil {
-		return nil, errors.Wrap(err, "get pack")
-	}
-
-	if err := loadPackTargets(d.writer, pack); err != nil {
-		return nil, err
-	}
-
 	return pack, nil
 }
 
@@ -464,36 +471,28 @@ func teamSchedulePackType(team *fleet.Team) string {
 	return fmt.Sprintf("team-%d", team.ID)
 }
 
-func (d *Datastore) insertNewTeamPack(team *fleet.Team) (*fleet.Pack, error) {
+func (d *Datastore) insertNewTeamPack(q sqlx.Ext, team *fleet.Team) (*fleet.Pack, error) {
 	var packID uint
-	err := d.withTx(func(tx *sqlx.Tx) error {
-		res, err := tx.Exec(
-			`INSERT INTO packs (name, description, platform, pack_type)
+	res, err := q.Exec(
+		`INSERT INTO packs (name, description, platform, pack_type)
                    VALUES (?, 'Schedule additional queries for all hosts assigned to this team.', '',?)`,
-			teamScheduleName(team), teamSchedulePackType(team),
-		)
-		if err != nil {
-			return err
-		}
-		packId, err := res.LastInsertId()
-		if err != nil {
-			return err
-		}
-		packID = uint(packId)
-		if _, err := tx.Exec(
-			`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, ?)`,
-			packID, fleet.TargetTeam, team.ID,
-		); err != nil {
-			return errors.Wrap(err, "adding team id target to pack")
-		}
-		return nil
-	})
+		teamScheduleName(team), teamSchedulePackType(team),
+	)
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: must read from writer, otherwise will not get the inserted pack
-	return d.Pack(packID)
+	packId, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	packID = uint(packId)
+	if _, err := q.Exec(
+		`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, ?)`,
+		packID, fleet.TargetTeam, team.ID,
+	); err != nil {
+		return nil, errors.Wrap(err, "adding team id target to pack")
+	}
+	return d.packDB(q, packID)
 }
 
 // ListPacks returns all fleet.Pack records limited and sorted by fleet.ListOptions
