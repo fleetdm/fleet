@@ -38,18 +38,18 @@ resource "aws_alb_target_group" "main" {
   depends_on = [aws_alb.main]
 }
 
-//resource "aws_alb_listener" "main" {
-//  load_balancer_arn = aws_alb.main.arn
-//  port = 443
-//  protocol = "HTTPS"
-//  ssl_policy = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
-//  certificate_arn = var.cert_arn
-//
-//  default_action {
-//    target_group_arn = aws_alb_target_group.main.arn
-//    type = "forward"
-//  }
-//}
+resource "aws_alb_listener" "main" {
+  load_balancer_arn = aws_alb.main.arn
+  port = 443
+  protocol = "HTTPS"
+  ssl_policy = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
+  certificate_arn = var.cert_arn
+
+  default_action {
+    target_group_arn = aws_alb_target_group.main.arn
+    type = "forward"
+  }
+}
 
 resource "aws_alb_listener" "http" {
   load_balancer_arn = aws_alb.main.arn
@@ -163,6 +163,10 @@ resource "aws_ecs_task_definition" "backend" {
             value = "fleet"
           },
           {
+            name  = "FLEET_MYSQL_DATABASE"
+            value = "fleet"
+          },
+          {
             name  = "FLEET_MYSQL_ADDRESS"
             value = "${module.aurora_mysql_serverless.rds_cluster_endpoint}:3306"
           },
@@ -205,7 +209,6 @@ resource "aws_ecs_task_definition" "migration" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  # task_role_arn = ...
   cpu    = 256
   memory = 512
   container_definitions = jsonencode(
@@ -244,6 +247,10 @@ resource "aws_ecs_task_definition" "migration" {
         environment = [
           {
             name  = "FLEET_MYSQL_USERNAME"
+            value = "fleet"
+          },
+          {
+            name  = "FLEET_MYSQL_DATABASE"
             value = "fleet"
           },
           {
