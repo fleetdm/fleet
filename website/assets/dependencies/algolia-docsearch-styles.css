@@ -1,6 +1,4 @@
 
-
-
 .algolia-autocomplete {
   width: 100% !important;
   height: 100% !important;
@@ -198,7 +196,7 @@
   right: -2px !important;
   left: initial !important;
 }
-.algolia-autocomplete.algolia-autocomplete-right{
+.algolia-autocomplete.algolia-autocomplete-right {
   right: 0 !important;
   left: inherit !important;
 }
@@ -224,7 +222,6 @@
   padding: 0;
   text-align: left;
   height: auto;
-  position: relative;
   background: transparent;
   border: none;
   z-index: 999;
@@ -442,7 +439,6 @@
     color: #02060c;
     font-size: 0.9em;
     font-weight: bold;
-    text-align: left;
     opacity: 0.5;
   }
   .algolia-autocomplete .algolia-docsearch-suggestion .algolia-docsearch-suggestion--subcategory-column:before {
@@ -567,6 +563,7 @@
   height: 100%;
   display: block;
 }
+
 @media (max-width: 768px) {
   .algolia-autocomplete .ds-dropdown-menu {
     max-width: calc(100vw - 32px) !important;

@@ -94,7 +94,7 @@ parasails.registerPage('basic-documentation', {
     // let subtopics = $('#body-content').find('h1 + ul').children().map((_, el) => el.innerHTML);
     // subtopics = $.makeArray(subtopics);
     // console.log(subtopics);
-
+    docsearch({ apiKey: '8c492befdb9f5b5166253a0f8eeb789d', indexName: 'fleetdm', inputSelector: '#docsearch-query', debug: false,});
     this.subtopics = (() => {
       let subtopics = $('#body-content').find('h2').map((_, el) => el.innerHTML);
       subtopics = $.makeArray(subtopics).map((title) => {

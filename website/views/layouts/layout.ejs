@@ -47,7 +47,9 @@
 
     <% /* Auto-injected «link» tags: */ %>
     <!--STYLES-->
+    <link rel="stylesheet" href="/dependencies/algolia-docsearch-styles.css">
     <link rel="stylesheet" href="/dependencies/bootstrap-4/bootstrap-4.css">
+    <link rel="stylesheet" href="/dependencies/docsearch.css">
     <link rel="stylesheet" href="/dependencies/fontawesome.css">
     <link rel="stylesheet" href="/styles/importer.css">
     <!--STYLES END-->
@@ -170,7 +172,6 @@
           </div>
         </div>
       </div>
-      <input class="d-none" id="docsearch-query">
     </div>
 
     <% /*
@@ -205,6 +206,7 @@
     <script src="/dependencies/vue-router.js"></script>
     <script src="/dependencies/bootstrap-4/bootstrap-4.bundle.js"></script>
     <script src="/dependencies/cloud.js"></script>
+    <script src="/dependencies/docsearch.min.js"></script>
     <script src="/dependencies/highlight.min.js"></script>
     <script src="/dependencies/moment.js"></script>
     <script src="/dependencies/parasails.js"></script>
@@ -237,10 +239,6 @@
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <!--SCRIPTS END-->
-
-    <% /* Algolia Docsearch */ %>
-    <script src="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js"></script>
-    <script type="text/javascript"> docsearch({ apiKey: '8c492befdb9f5b5166253a0f8eeb789d', indexName: 'fleetdm', inputSelector: '#docsearch-query', debug: false,});</script>
 
     <% /* Display an overlay if the current browser is not supported.
     (Relies on `bowser`, which is loaded inline above.) */ %>
