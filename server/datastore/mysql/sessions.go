@@ -11,7 +11,7 @@ func (d *Datastore) SessionByKey(key string) (*fleet.Session, error) {
 			WHERE ` + "`key`" + ` = ? LIMIT 1
 	`
 	session := &fleet.Session{}
-	err := d.db.Get(session, sqlStatement, key)
+	err := d.reader.Get(session, sqlStatement, key)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting sessions")
 	}
@@ -26,7 +26,7 @@ func (d *Datastore) SessionByID(id uint) (*fleet.Session, error) {
 		LIMIT 1
 	`
 	session := &fleet.Session{}
-	err := d.db.Get(session, sqlStatement, id)
+	err := d.reader.Get(session, sqlStatement, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting session by id")
 	}
@@ -40,7 +40,7 @@ func (d *Datastore) ListSessionsForUser(id uint) ([]*fleet.Session, error) {
 		WHERE user_id = ?
 	`
 	sessions := []*fleet.Session{}
-	err := d.db.Select(&sessions, sqlStatement, id)
+	err := d.reader.Select(&sessions, sqlStatement, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting sessions for user")
 	}
@@ -56,7 +56,7 @@ func (d *Datastore) NewSession(session *fleet.Session) (*fleet.Session, error) {
 		)
 		VALUES(?,?)
 	`
-	result, err := d.db.Exec(sqlStatement, session.UserID, session.Key)
+	result, err := d.writer.Exec(sqlStatement, session.UserID, session.Key)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting session")
 	}
@@ -79,7 +79,7 @@ func (d *Datastore) DestroyAllSessionsForUser(id uint) error {
 	sqlStatement := `
 		DELETE FROM sessions WHERE user_id = ?
 	`
-	_, err := d.db.Exec(sqlStatement, id)
+	_, err := d.writer.Exec(sqlStatement, id)
 	if err != nil {
 		return errors.Wrap(err, "deleting sessions for user")
 	}
@@ -93,7 +93,7 @@ func (d *Datastore) MarkSessionAccessed(session *fleet.Session) error {
 		accessed_at = ?
 		WHERE id = ?
 	`
-	results, err := d.db.Exec(sqlStatement, d.clock.Now(), session.ID)
+	results, err := d.writer.Exec(sqlStatement, d.clock.Now(), session.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating mark session as accessed")
 	}

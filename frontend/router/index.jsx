@@ -18,7 +18,7 @@ import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerGlobalAdminRoutes from "components/AuthAnyMaintainerGlobalAdminRoutes";
-import BasicTierRoutes from "components/BasicTierRoutes";
+import PremiumTierRoutes from "components/PremiumTierRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
@@ -31,9 +31,11 @@ import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
+import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackPageWrapper from "components/packs/PackPageWrapper";
 import PackComposerPage from "pages/packs/PackComposerPage";
+import PoliciesPageWrapper from "components/policies/PoliciesPageWrapper";
 import QueryPage from "pages/queries/QueryPage";
 import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
@@ -75,7 +77,7 @@ const routes = (
               <Route component={SettingsWrapper}>
                 <Route path="organization" component={AdminAppSettingsPage} />
                 <Route path="users" component={AdminUserManagementPage} />
-                <Route component={BasicTierRoutes}>
+                <Route component={PremiumTierRoutes}>
                   <Route path="teams" component={AdminTeamManagementPage} />
                 </Route>
               </Route>
@@ -109,6 +111,9 @@ const routes = (
                   <IndexRoute component={EditPackPage} />
                   <Route path="edit" component={EditPackPage} />
                 </Route>
+              </Route>
+              <Route path="policies" component={PoliciesPageWrapper}>
+                <Route path="manage" component={ManagePoliciesPage} />
               </Route>
               <Route path="schedule" component={SchedulePageWrapper}>
                 <Route path="manage" component={ManageSchedulePage} />

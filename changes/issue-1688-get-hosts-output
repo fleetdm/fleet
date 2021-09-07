@@ -1,0 +1,1 @@
+* fix `fleetctl get host <hostname>` to properly output JSON when the command line flag is supplied i.e `fleetctl get host --json foobar`

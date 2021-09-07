@@ -31,6 +31,7 @@ func TestOrgInfo(t *testing.T) {
 	// Checking some defaults
 	require.Equal(t, 24*time.Hour, info.WebhookSettings.Interval.Duration)
 	require.False(t, info.WebhookSettings.HostStatusWebhook.Enable)
+	require.NotNil(t, info.AgentOptions)
 
 	info2, err := ds.AppConfig()
 	require.Nil(t, err)
@@ -259,7 +260,7 @@ func TestAppConfigDefaults(t *testing.T) {
 	defer ds.Close()
 
 	insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
-	_, err := ds.db.Exec(insertAppConfigQuery, `{}`)
+	_, err := ds.writer.Exec(insertAppConfigQuery, `{}`)
 	require.NoError(t, err)
 
 	ac, err := ds.AppConfig()
@@ -269,7 +270,7 @@ func TestAppConfigDefaults(t *testing.T) {
 	require.True(t, ac.HostSettings.EnableHostUsers)
 	require.False(t, ac.HostSettings.EnableSoftwareInventory)
 
-	_, err = ds.db.Exec(
+	_, err = ds.writer.Exec(
 		insertAppConfigQuery,
 		`{"webhook_settings": {"interval": "12h"}, "host_settings": {"enable_host_users": false}}`,
 	)

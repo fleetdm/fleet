@@ -27,6 +27,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
@@ -61,9 +62,9 @@ func createServeCmd(configManager config.Manager) *cobra.Command {
 	debug := false
 	// Whether to enable developer options
 	dev := false
-	// Whether to enable development Fleet Basic license
+	// Whether to enable development Fleet Premium license
 	devLicense := false
-	// Whether to enable development Fleet Basic license with an expired license
+	// Whether to enable development Fleet Premium license with an expired license
 	devExpiredLicense := false
 
 	serveCmd := &cobra.Command{
@@ -100,7 +101,7 @@ the way that the Fleet server works.
 				)
 			}
 
-			if license != nil && license.Tier == fleet.TierBasic && license.Expiration.Before(time.Now()) {
+			if license != nil && license.IsPremium() && license.IsExpired() {
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
@@ -149,7 +150,11 @@ the way that the Fleet server works.
 			var carveStore fleet.CarveStore
 			mailService := mail.NewService()
 
-			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger))
+			var replicaOpt mysql.DBOption
+			if config.MysqlReadReplica.Address != "" {
+				replicaOpt = mysql.Replica(&config.MysqlReadReplica)
+			}
+			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger), replicaOpt)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
@@ -195,12 +200,20 @@ the way that the Fleet server works.
 				}
 			}
 
-			redisPool, err := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password, config.Redis.Database, config.Redis.UseTLS)
+			redisPool, err := redis.NewRedisPool(config.Redis.Address, config.Redis.Password, config.Redis.Database, config.Redis.UseTLS)
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
+			// TODO: should that only be done when a certain "migrate" flag is set,
+			// to prevent affecting every startup?
+			if err := liveQueryStore.MigrateKeys(); err != nil {
+				level.Info(logger).Log(
+					"err", err,
+					"msg", "failed to migrate live query redis keys",
+				)
+			}
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
 			osqueryLogger, err := logging.New(config, logger)
@@ -213,10 +226,10 @@ the way that the Fleet server works.
 				initFatal(err, "initializing service")
 			}
 
-			if license.Tier == fleet.TierBasic {
+			if license.IsPremium() {
 				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
 				if err != nil {
-					initFatal(err, "initial Fleet Basic service")
+					initFatal(err, "initial Fleet Premium service")
 				}
 			}
 
@@ -467,7 +480,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("waiting", "done")
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
-			break
+			return
 		}
 		if locked, err := locker.Lock(lockKeyLeader, identifier, time.Hour); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
@@ -536,6 +549,15 @@ func cronVulnerabilities(
 	level.Info(logger).Log("databases-path", vulnPath)
 	level.Info(logger).Log("periodicity", config.Vulnerabilities.Periodicity)
 
+	if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
+		level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
+		err := os.MkdirAll(vulnPath, 0o755)
+		if err != nil {
+			level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
+			return
+		}
+	}
+
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
@@ -545,7 +567,7 @@ func cronVulnerabilities(
 			ticker.Reset(config.Vulnerabilities.Periodicity)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
-			break
+			return
 		}
 		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
 			if locked, err := locker.Lock(lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
@@ -586,7 +608,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("waiting", "done")
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
-			break
+			return
 		}
 		if locked, err := locker.Lock(lockKeyWebhooks, identifier, interval); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")

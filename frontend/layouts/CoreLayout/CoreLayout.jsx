@@ -7,6 +7,7 @@ import { TableContext } from "context/table";
 
 import { isEqual } from "lodash";
 
+import permissionUtils from "utilities/permissions";
 import configInterface from "interfaces/config";
 import FlashMessage from "components/flash_messages/FlashMessage";
 import PersistentFlash from "components/flash_messages/PersistentFlash";
@@ -14,6 +15,22 @@ import SiteTopNav from "components/side_panels/SiteTopNav";
 import userInterface from "interfaces/user";
 import notificationInterface from "interfaces/notification";
 import { hideFlash } from "redux/nodes/notifications/actions";
+import { licenseExpirationWarning } from "fleet/helpers";
+
+const expirationMessage = (
+  <>
+    Your license for Fleet Premium is about to expire. If you’d like to renew or
+    have questions about downgrading,{" "}
+    <a
+      href="https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md#expired_license"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      please head to the Fleet documentation
+    </a>
+    .
+  </>
+);
 
 export class CoreLayout extends Component {
   static propTypes = {
@@ -27,10 +44,19 @@ export class CoreLayout extends Component {
       showFlash: PropTypes.bool.isRequired,
       message: PropTypes.string.isRequired,
     }).isRequired,
+    isPremiumTier: PropTypes.bool,
   };
 
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      showExpirationFlashMessage: false,
+    };
+  }
+
   componentWillReceiveProps(nextProps) {
-    const { notifications } = nextProps;
+    const { notifications, config } = nextProps;
     const table = this.context;
 
     // on success of an action, the table will reset its checkboxes.
@@ -46,6 +72,10 @@ export class CoreLayout extends Component {
         }, 0);
       }
     }
+
+    this.setState({
+      showExpirationFlashMessage: licenseExpirationWarning(config.expiration),
+    });
   }
 
   onLogoutUser = () => {
@@ -82,6 +112,14 @@ export class CoreLayout extends Component {
     return false;
   };
 
+  onRemoveExpirationWarning = () => {
+    const { showExpirationFlashMessage } = this.state;
+
+    this.setState({
+      showExpirationFlashMessage: !showExpirationFlashMessage,
+    });
+  };
+
   onUndoActionClick = (undoAction) => {
     return (evt) => {
       evt.preventDefault();
@@ -105,8 +143,20 @@ export class CoreLayout extends Component {
       config,
       persistentFlash,
       user,
+      isPremiumTier,
     } = this.props;
-    const { onRemoveFlash, onUndoActionClick } = this;
+    const { showExpirationFlashMessage } = this.state;
+    const {
+      onRemoveFlash,
+      onRemoveExpirationWarning,
+      onUndoActionClick,
+    } = this;
+
+    const expirationNotification = {
+      alertType: "warning-filled",
+      isVisible: true,
+      message: expirationMessage,
+    };
 
     if (!user) return false;
 
@@ -127,6 +177,13 @@ export class CoreLayout extends Component {
         <div className="core-wrapper">
           {persistentFlash.showFlash && (
             <PersistentFlash message={persistentFlash.message} />
+          )}
+          {isPremiumTier && showExpirationFlashMessage && (
+            <FlashMessage
+              fullWidth={fullWidthFlash}
+              notification={expirationNotification}
+              onRemoveFlash={onRemoveExpirationWarning}
+            />
           )}
           <FlashMessage
             fullWidth={fullWidthFlash}
@@ -149,6 +206,8 @@ const mapStateToProps = (state) => {
     persistentFlash,
   } = state;
 
+  const isPremiumTier = permissionUtils.isPremiumTier(state.app.config);
+
   const fullWidthFlash = !user;
 
   return {
@@ -157,6 +216,7 @@ const mapStateToProps = (state) => {
     notifications,
     persistentFlash,
     user,
+    isPremiumTier,
   };
 };
 

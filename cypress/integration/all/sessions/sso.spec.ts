@@ -21,7 +21,7 @@ describe("SSO Sessions", () => {
     cy.contains("All Hosts");
 
     // Log out
-    cy.findByAltText(/user avatar/i).click();
+    cy.get(".avatar").first().click();
     cy.contains("button", "Sign out").click();
 
     cy.url().should("match", /\/login$/);

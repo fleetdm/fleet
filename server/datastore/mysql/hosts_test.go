@@ -1,11 +1,14 @@
 package mysql
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -245,6 +248,152 @@ func TestSaveHostPackStats(t *testing.T) {
 	host, err = ds.Host(host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.PackStats, 2)
+}
+
+func TestSaveHostPackStatsOverwrites(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	// Pack and query must exist for stats to save successfully
+	pack1 := test.NewPack(t, ds, "test1")
+	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
+	pack2 := test.NewPack(t, ds, "test2")
+	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query1.ID, 30, true, true, "time-scheduled")
+	query2 := test.NewQuery(t, ds, "processes", "select * from processes", 0, true)
+
+	execTime1 := time.Unix(1620325191, 0).UTC()
+
+	host.PackStats = []fleet.PackStats{
+		{
+			PackName: "test1",
+			QueryStats: []fleet.ScheduledQueryStats{
+				{
+					ScheduledQueryName: squery1.Name,
+					ScheduledQueryID:   squery1.ID,
+					QueryName:          query1.Name,
+					PackName:           pack1.Name,
+					PackID:             pack1.ID,
+					AverageMemory:      8000,
+					Denylisted:         false,
+					Executions:         164,
+					Interval:           30,
+					LastExecuted:       execTime1,
+					OutputSize:         1337,
+					SystemTime:         150,
+					UserTime:           180,
+					WallTime:           0,
+				},
+			},
+		},
+		{
+			PackName: "test2",
+			QueryStats: []fleet.ScheduledQueryStats{
+				{
+					ScheduledQueryName: squery2.Name,
+					ScheduledQueryID:   squery2.ID,
+					QueryName:          query2.Name,
+					PackName:           pack2.Name,
+					PackID:             pack2.ID,
+					AverageMemory:      431,
+					Denylisted:         true,
+					Executions:         1,
+					Interval:           30,
+					LastExecuted:       execTime1,
+					OutputSize:         134,
+					SystemTime:         1656,
+					UserTime:           18453,
+					WallTime:           10,
+				},
+			},
+		},
+	}
+
+	require.NoError(t, ds.SaveHost(host))
+
+	host, err = ds.Host(host.ID)
+	require.NoError(t, err)
+
+	sort.Slice(host.PackStats, func(i, j int) bool {
+		return host.PackStats[i].PackName < host.PackStats[j].PackName
+	})
+
+	require.Len(t, host.PackStats, 2)
+	assert.Equal(t, host.PackStats[0].PackName, "test1")
+	assert.Equal(t, execTime1, host.PackStats[0].QueryStats[0].LastExecuted)
+
+	execTime2 := execTime1.Add(24 * time.Hour)
+
+	host.PackStats = []fleet.PackStats{
+		{
+			PackName: "test1",
+			QueryStats: []fleet.ScheduledQueryStats{
+				{
+					ScheduledQueryName: squery1.Name,
+					ScheduledQueryID:   squery1.ID,
+					QueryName:          query1.Name,
+					PackName:           pack1.Name,
+					PackID:             pack1.ID,
+					AverageMemory:      8000,
+					Denylisted:         false,
+					Executions:         164,
+					Interval:           30,
+					LastExecuted:       execTime2,
+					OutputSize:         1337,
+					SystemTime:         150,
+					UserTime:           180,
+					WallTime:           0,
+				},
+			},
+		},
+		{
+			PackName: "test2",
+			QueryStats: []fleet.ScheduledQueryStats{
+				{
+					ScheduledQueryName: squery2.Name,
+					ScheduledQueryID:   squery2.ID,
+					QueryName:          query2.Name,
+					PackName:           pack2.Name,
+					PackID:             pack2.ID,
+					AverageMemory:      431,
+					Denylisted:         true,
+					Executions:         1,
+					Interval:           30,
+					LastExecuted:       execTime1,
+					OutputSize:         134,
+					SystemTime:         1656,
+					UserTime:           18453,
+					WallTime:           10,
+				},
+			},
+		},
+	}
+
+	require.NoError(t, ds.SaveHost(host))
+
+	gotHost, err := ds.Host(host.ID)
+	require.NoError(t, err)
+
+	sort.Slice(gotHost.PackStats, func(i, j int) bool {
+		return gotHost.PackStats[i].PackName < gotHost.PackStats[j].PackName
+	})
+
+	require.Len(t, gotHost.PackStats, 2)
+	assert.Equal(t, gotHost.PackStats[0].PackName, "test1")
+	assert.Equal(t, execTime2, gotHost.PackStats[0].QueryStats[0].LastExecuted)
 }
 
 func TestIgnoresTeamPackStats(t *testing.T) {
@@ -1193,6 +1342,64 @@ func TestSaveHostUsers(t *testing.T) {
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }
 
+func TestSaveUsersWithoutUid(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	assert.Len(t, host.Users, 0)
+
+	u1 := fleet.HostUser{
+		Username:  "user",
+		Type:      "aaa",
+		GroupName: "group",
+	}
+	u2 := fleet.HostUser{
+		Username:  "user2",
+		Type:      "aaa",
+		GroupName: "group",
+	}
+	host.Users = []fleet.HostUser{u1, u2}
+	host.Modified = true
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	require.Len(t, host.Users, 2)
+	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
+
+	// remove u1 user
+	host.Users = []fleet.HostUser{u2}
+	host.Modified = true
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	require.Len(t, host.Users, 1)
+	assert.Equal(t, host.Users[0].Uid, u2.Uid)
+}
+
 func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	host, err := ds.NewHost(&fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -1285,4 +1492,326 @@ func TestListHostsByPolicy(t *testing.T) {
 	hosts, err = ds.ListHosts(filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
 	require.NoError(t, err)
 	require.Len(t, hosts, 8)
+}
+
+func TestSaveTonsOfUsers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host1, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OsqueryHostID:   "1",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host1)
+
+	host2, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		Hostname:        "foo2.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OsqueryHostID:   "2",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host2)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	errCh := make(chan error)
+	var count1 int32
+	var count2 int32
+
+	go func() {
+		for {
+			host1, err := ds.Host(host1.ID)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			u1 := fleet.HostUser{
+				Uid:       42,
+				Username:  "user",
+				Type:      "aaa",
+				GroupName: "group",
+			}
+			u2 := fleet.HostUser{
+				Uid:       43,
+				Username:  "user2",
+				Type:      "aaa",
+				GroupName: "group",
+			}
+			host1.Users = []fleet.HostUser{u1, u2}
+			host1.SeenTime = time.Now()
+			host1.Modified = true
+			soft := fleet.HostSoftware{
+				Modified: true,
+				Software: []fleet.Software{
+					{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+					{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+				},
+			}
+			host1.HostSoftware = soft
+			additional := json.RawMessage(`{"some":"thing"}`)
+			host1.Additional = &additional
+
+			err = ds.SaveHost(host1)
+			if err != nil {
+				errCh <- err
+				return
+			}
+			atomic.AddInt32(&count1, 1)
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			host2, err := ds.Host(host2.ID)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			u1 := fleet.HostUser{
+				Uid:       99,
+				Username:  "user",
+				Type:      "aaa",
+				GroupName: "group",
+			}
+			u2 := fleet.HostUser{
+				Uid:       98,
+				Username:  "user2",
+				Type:      "aaa",
+				GroupName: "group",
+			}
+			host2.Users = []fleet.HostUser{u1, u2}
+			host2.SeenTime = time.Now()
+			host2.Modified = true
+			soft := fleet.HostSoftware{
+				Modified: true,
+				Software: []fleet.Software{
+					{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+					{Name: "foo4", Version: "0.0.3", Source: "chrome_extensions"},
+				},
+			}
+			host2.HostSoftware = soft
+			additional := json.RawMessage(`{"some":"thing"}`)
+			host2.Additional = &additional
+
+			err = ds.SaveHost(host2)
+			if err != nil {
+				errCh <- err
+				return
+			}
+			atomic.AddInt32(&count2, 1)
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+
+	ticker := time.NewTicker(10 * time.Second)
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+		cancelFunc()
+	case <-ticker.C:
+	}
+	fmt.Println("Count1", atomic.LoadInt32(&count1))
+	fmt.Println("Count2", atomic.LoadInt32(&count2))
+}
+
+func TestSaveHostPackStatsConcurrent(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host1, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OsqueryHostID:   "1",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host1)
+
+	host2, err := ds.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OsqueryHostID:   "2",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host2)
+
+	pack1 := test.NewPack(t, ds, "test1")
+	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
+
+	pack2 := test.NewPack(t, ds, "test2")
+	query2 := test.NewQuery(t, ds, "time2", "select * from time", 0, true)
+	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query2.ID, 30, true, true, "time-scheduled")
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	saveHostRandomStats := func(host *fleet.Host) error {
+		host.PackStats = []fleet.PackStats{
+			{
+				PackName: pack1.Name,
+				QueryStats: []fleet.ScheduledQueryStats{
+					{
+						ScheduledQueryName: squery1.Name,
+						ScheduledQueryID:   squery1.ID,
+						QueryName:          query1.Name,
+						PackName:           pack1.Name,
+						PackID:             pack1.ID,
+						AverageMemory:      8000,
+						Denylisted:         false,
+						Executions:         rand.Intn(1000),
+						Interval:           30,
+						LastExecuted:       time.Now().UTC(),
+						OutputSize:         1337,
+						SystemTime:         150,
+						UserTime:           180,
+						WallTime:           0,
+					},
+				},
+			},
+			{
+				PackName: pack2.Name,
+				QueryStats: []fleet.ScheduledQueryStats{
+					{
+						ScheduledQueryName: squery2.Name,
+						ScheduledQueryID:   squery2.ID,
+						QueryName:          query2.Name,
+						PackName:           pack2.Name,
+						PackID:             pack2.ID,
+						AverageMemory:      8000,
+						Denylisted:         false,
+						Executions:         rand.Intn(1000),
+						Interval:           30,
+						LastExecuted:       time.Now().UTC(),
+						OutputSize:         1337,
+						SystemTime:         150,
+						UserTime:           180,
+						WallTime:           0,
+					},
+				},
+			},
+		}
+		return ds.SaveHost(host1)
+	}
+
+	errCh := make(chan error)
+	var counter int32
+	total := int32(1000)
+
+	loopAndSaveHost := func(host *fleet.Host) {
+		for {
+			err := saveHostRandomStats(host)
+			if err != nil {
+				errCh <- err
+				return
+			}
+			atomic.AddInt32(&counter, 1)
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if atomic.LoadInt32(&counter) > total {
+					cancelFunc()
+					return
+				}
+			}
+		}
+	}
+
+	go loopAndSaveHost(host1)
+	go loopAndSaveHost(host2)
+
+	go func() {
+		for {
+			specs := []*fleet.PackSpec{
+				{
+					Name: "test1",
+					Queries: []fleet.PackSpecQuery{
+						{
+							QueryName: "time",
+							Interval:  uint(rand.Intn(1000)),
+						},
+						{
+							QueryName: "time2",
+							Interval:  uint(rand.Intn(1000)),
+						},
+					},
+				},
+				{
+					Name: "test2",
+					Queries: []fleet.PackSpecQuery{
+						{
+							QueryName: "time",
+							Interval:  uint(rand.Intn(1000)),
+						},
+						{
+							QueryName: "time2",
+							Interval:  uint(rand.Intn(1000)),
+						},
+					},
+				},
+			}
+			err := ds.ApplyPackSpecs(specs)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+
+	ticker := time.NewTicker(1 * time.Minute)
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-ctx.Done():
+		return
+	case <-ticker.C:
+		t.Fail()
+	}
 }

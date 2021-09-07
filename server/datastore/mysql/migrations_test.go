@@ -73,14 +73,14 @@ func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
 	defer ds.Close()
 
 	for {
-		version, err := tables.MigrationClient.GetDBVersion(ds.db.DB)
+		version, err := tables.MigrationClient.GetDBVersion(ds.writer.DB)
 		require.NoError(t, err)
 
 		// break right before the the constraint migration
 		if version == 20210818182258 {
 			break
 		}
-		require.NoError(t, tables.MigrationClient.UpByOne(ds.db.DB, ""))
+		require.NoError(t, tables.MigrationClient.UpByOne(ds.writer.DB, ""))
 	}
 
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
@@ -110,7 +110,7 @@ func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
 
 	require.NoError(t, ds.DeleteHost(host1.ID))
 
-	require.NoError(t, tables.MigrationClient.UpByOne(ds.db.DB, ""))
+	require.NoError(t, tables.MigrationClient.UpByOne(ds.writer.DB, ""))
 
 	// Make sure we don't delete more than we need
 	hostCheck, err := ds.Host(host2.ID)

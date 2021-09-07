@@ -1,12 +1,12 @@
 import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
 
-export const isCoreTier = (config: IConfig): boolean => {
-  return config.tier === "core";
+export const isFreeTier = (config: IConfig): boolean => {
+  return config.tier === "free";
 };
 
-export const isBasicTier = (config: IConfig): boolean => {
-  return config.tier === "basic";
+export const isPremiumTier = (config: IConfig): boolean => {
+  return config.tier === "premium";
 };
 
 export const isGlobalAdmin = (user: IUser): boolean => {
@@ -59,8 +59,8 @@ const isOnlyObserver = (user: IUser): boolean => {
 };
 
 export default {
-  isCoreTier,
-  isBasicTier,
+  isFreeTier,
+  isPremiumTier,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,

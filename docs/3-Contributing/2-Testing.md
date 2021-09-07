@@ -135,14 +135,14 @@ For Fleet Free tests:
 
 ```
 make e2e-reset-db
-make e2e-serve-core
+make e2e-serve-free
 ```
 
 For Fleet Premium tests:
 
 ```
 make e2e-reset-db
-make e2e-serve-basic
+make e2e-serve-premium
 ```
 
 This will start a local Fleet server connected to the E2E database. Leave this server running for the duration of end-to-end testing.
@@ -162,13 +162,13 @@ Tests can be run in interactive mode, or from the command line.
 For Fleet Free tests:
 
 ```
-yarn e2e-browser:core
+yarn e2e-browser:free
 ```
 
 For Fleet Premium tests:
 
 ```
-yarn e2e-browser:basic
+yarn e2e-browser:premium
 ```
 
 Use the graphical UI controls to run and view tests.
@@ -178,13 +178,13 @@ Use the graphical UI controls to run and view tests.
 For Fleet Free tests:
 
 ```
-yarn e2e-cli:core
+yarn e2e-cli:free
 ```
 
 For Fleet Premium tests:
 
 ```
-yarn e2e-cli:basic
+yarn e2e-cli:premium
 ```
 
 Tests will run automatically and results are reported to the shell.
@@ -248,16 +248,16 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
 
 Finally run one of the bash scripts located in the [/tools/api](../../tools/api/README.md) directory.
 
-The `fleet/create_core` script will generate an environment to roughly reflect an installation of Fleet Free. The script creates 3 users with different roles.
+The `fleet/create_free` script will generate an environment to roughly reflect an installation of Fleet Free. The script creates 3 users with different roles.
 
 ```
-./tools/api/fleet/teams/create_core
+./tools/api/fleet/teams/create_free
 ```
 
-The `fleet/create_basic` script will generate an environment to roughly reflect an installation of Fleet Premium. The script will create 2 teams 4 users with different roles.
+The `fleet/create_premium` script will generate an environment to roughly reflect an installation of Fleet Premium. The script will create 2 teams 4 users with different roles.
 
 ```
-./tools/api/fleet/teams/create_basic
+./tools/api/fleet/teams/create_premium
 ```
 
 The `fleet/create_figma` script will generate an environment to reflect the mockups in the Fleet EE (current) Figma file. The script creates 3 teams and 12 users with different roles.

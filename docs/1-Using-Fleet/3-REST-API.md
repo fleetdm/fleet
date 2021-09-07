@@ -480,7 +480,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
@@ -662,14 +662,12 @@ The endpoint returns the host's installed `software` if the software inventory f
     "percent_disk_space_available": 73,
     "users": [
       {
-        "id": 98,
         "uid": 0,
         "username": "root",
         "type": "",
         "groupname": "root"
       },
       {
-        "id": 99,
         "uid": 1,
         "username": "bin",
         "type": "",
@@ -4892,7 +4890,7 @@ None.
     }
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "vulnerability_settings": null,
@@ -4918,7 +4916,7 @@ None.
       }
   }
   "license": {
-    "tier": "core",
+    "tier": "free",
     "organization": "fleet",
     "device_count": 100,
     "expiration": "2021-12-31T19:00:00-05:00",
@@ -5056,11 +5054,11 @@ Modifies the Fleet's configuration with the supplied information.
     "additional_queries": null
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "agent_options": {

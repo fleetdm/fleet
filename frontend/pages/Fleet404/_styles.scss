@@ -7,10 +7,27 @@
   a {
     color: $core-vibrant-blue;
     text-decoration: none;
+  }
 
-    &:hover {
-      text-decoration: underline;
+  button {
+    margin: $pad-medium;
+    width: 197px;
+    font-size: $small;
+
+    img {
+      width: 24px;
+      height: 24px;
+      margin-right: $pad-medium;
     }
+  }
+
+  &__button-wrapper {
+    margin-bottom: $pad-large;
+  }
+
+  &__slack-btn {
+    border: 1px solid $ui-fleet-black-25;
+    height: 41px;
   }
 
   .primary-header {

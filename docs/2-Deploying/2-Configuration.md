@@ -25,7 +25,7 @@ Your Fleet server's two main purposes are:
 - To serve as your [osquery TLS server](https://osquery.readthedocs.io/en/stable/deployment/remote/)
 - To serve the Fleet web UI, which allows you to manage osquery configuration, query hosts, etc.
 
-The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
+The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. It is also possible to configure connection to a MySQL replica in addition to the primary, to be used for reading only. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
 
 > Fleet does not support Redis Cluster or Redis Sentinel. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
 
@@ -118,11 +118,20 @@ mysql:
   address: 127.0.0.1:3306
 ```
 
+And `mysql_read_replica_address` would be:
+
+```
+mysql_read_replica:
+  address: 127.0.0.1:3307
+```
+
 Basically, just capitalize the option and prepend `FLEET_` to it in order to get the environment variable. The conversion works the same the opposite way.
 
 All duration-based settings accept valid time units of `s`, `m`, `h`.
 
 ##### MySQL
+
+This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for fleet to use a read replica.
 
 ###### `mysql_address`
 
@@ -1246,6 +1255,8 @@ AWS STS role ARN to use for S3 authentication.
 
 The path specified needs to exist and fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
+When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
+
 - Default value: none
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
 - Config file format:
@@ -1393,15 +1404,15 @@ After supplying the above information, the IDP will generate an issuer URI and a
 
   ![Example Okta IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
-> The names of the items required to configure an Identity Provider may vary from provider to provider and may not conform to the SAML spec. 
+> The names of the items required to configure an Identity Provider may vary from provider to provider and may not conform to the SAML spec.
 
-> Individual users must also be setup on the IDP before they can sign in to Fleet. 
+> Individual users must also be setup on the IDP before they can sign in to Fleet.
 
 ### Fleet SSO Configuration
 
-A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML Single Sign On Options**. 
+A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML Single Sign On Options**.
 
-If your IDP supports dynamic configuration, like Okta, you only need to provide an _Identity Provider Name_ and _Entity ID_, then paste a link in the metadata URL field. 
+If your IDP supports dynamic configuration, like Okta, you only need to provide an _Identity Provider Name_ and _Entity ID_, then paste a link in the metadata URL field.
 
 Otherwise, the following values are required:
 
@@ -1428,7 +1439,7 @@ Otherwise, the following values are required:
 ### Creating SSO users in Fleet
 
 When an admin creates a new user to Fleet, they may select the `Enable Single Sign On` option. The
-SSO enabled users will not be able to sign in with a regular user ID and password. 
+SSO enabled users will not be able to sign in with a regular user ID and password.
 
 It is strongly recommended that at least one admin user is set up to use the traditional password
 based log in so that there is a fallback method for logging into Fleet in the event of SSO
