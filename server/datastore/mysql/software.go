@@ -209,11 +209,7 @@ func (d *Datastore) insertNewInstalledHostSoftware(
 	return nil
 }
 
-func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Software, error) {
-	selectFunc := d.reader.Select
-	if tx != nil {
-		selectFunc = tx.Select
-	}
+func (d *Datastore) hostSoftwareFromHostID(q sqlx.Queryer, id uint) ([]fleet.Software, error) {
 	sql := `
 		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe
 		FROM software s
@@ -223,7 +219,7 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 		group by s.id, s.name, s.version, s.source, generated_cpe
 	`
 	var result []*fleet.Software
-	if err := selectFunc(&result, sql, id); err != nil {
+	if err := sqlx.Select(q, &result, sql, id); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 
@@ -235,12 +231,8 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 		WHERE s.id IN
 			(SELECT software_id FROM host_software WHERE host_id = ?)
 	`
-	queryFunc := d.reader.Queryx
-	if tx != nil {
-		queryFunc = tx.Queryx
-	}
 
-	rows, err := queryFunc(sql, id)
+	rows, err := q.Queryx(sql, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
@@ -258,13 +250,14 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 			DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "error iterating through cve rows")
+	}
+
 	var resultWithCVEs []fleet.Software
 	for _, software := range result {
 		software.Vulnerabilities = cvesBySoftware[software.ID]
 		resultWithCVEs = append(resultWithCVEs, *software)
-		if err := rows.Err(); err != nil {
-			return nil, errors.Wrap(err, "error iterating through cve rows")
-		}
 	}
 
 	return resultWithCVEs, nil
@@ -272,7 +265,7 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 
 func (d *Datastore) LoadHostSoftware(host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := d.hostSoftwareFromHostID(nil, host.ID)
+	software, err := d.hostSoftwareFromHostID(d.reader, host.ID)
 	if err != nil {
 		return err
 	}
