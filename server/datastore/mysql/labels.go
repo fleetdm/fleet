@@ -361,7 +361,7 @@ func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uin
 	// Complete inserts if necessary
 	if len(vals) > 0 {
 		sql := `
-			INSERT INTO label_membership (updated_at, label_id, host_id) VALUES
+			INSERT IGNORE INTO label_membership (updated_at, label_id, host_id) VALUES
 		`
 		sql += strings.Join(bindvars, ",") +
 			`
