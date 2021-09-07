@@ -213,7 +213,7 @@ func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.P
 		return nil, false, errors.Wrap(err, "fetch pack by name")
 	}
 
-	if err := d.loadPackTargets(d.reader, &pack); err != nil {
+	if err := loadPackTargets(d.reader, &pack); err != nil {
 		return nil, false, err
 	}
 
@@ -313,7 +313,7 @@ func (d *Datastore) replacePackTargets(tx *sqlx.Tx, pack *fleet.Pack) error {
 	return nil
 }
 
-func (d *Datastore) loadPackTargets(db dbReader, pack *fleet.Pack) error {
+func loadPackTargets(db dbReader, pack *fleet.Pack) error {
 	var targets []fleet.PackTarget
 	sql := `SELECT * FROM pack_targets WHERE pack_id = ?`
 	if err := db.Select(&targets, sql, pack.ID); err != nil {
@@ -378,7 +378,7 @@ func (d *Datastore) Pack(pid uint) (*fleet.Pack, error) {
 		return nil, errors.Wrap(err, "get pack")
 	}
 
-	if err := d.loadPackTargets(d.reader, pack); err != nil {
+	if err := loadPackTargets(d.reader, pack); err != nil {
 		return nil, err
 	}
 
@@ -396,7 +396,7 @@ func (d *Datastore) EnsureGlobalPack() (*fleet.Pack, error) {
 		return nil, errors.Wrap(err, "get pack")
 	}
 
-	if err := d.loadPackTargets(d.writer, pack); err != nil {
+	if err := loadPackTargets(d.writer, pack); err != nil {
 		return nil, err
 	}
 
@@ -434,6 +434,7 @@ func (d *Datastore) insertNewGlobalPack() (*fleet.Pack, error) {
 
 func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
 	pack := &fleet.Pack{}
+	// TODO: should pass d.writer here
 	t, err := d.Team(teamID)
 	if err != nil || t == nil {
 		return nil, errors.Wrap(err, "Error finding team")
@@ -448,7 +449,7 @@ func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
 		return nil, errors.Wrap(err, "get pack")
 	}
 
-	if err := d.loadPackTargets(d.writer, pack); err != nil {
+	if err := loadPackTargets(d.writer, pack); err != nil {
 		return nil, err
 	}
 
@@ -491,6 +492,7 @@ func (d *Datastore) insertNewTeamPack(team *fleet.Team) (*fleet.Pack, error) {
 		return nil, err
 	}
 
+	// TODO: must read from writer, otherwise will not get the inserted pack
 	return d.Pack(packID)
 }
 
@@ -507,7 +509,7 @@ func (d *Datastore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) 
 	}
 
 	for _, pack := range packs {
-		if err := d.loadPackTargets(d.reader, pack); err != nil {
+		if err := loadPackTargets(d.reader, pack); err != nil {
 			return nil, err
 		}
 	}
