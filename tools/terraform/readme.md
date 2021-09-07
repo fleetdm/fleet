@@ -15,11 +15,16 @@ Typical settings to override in an existing environment:
 In this reference architecture we are placing ECS, RDS MySQL, and Redis (ElastiCache) in separate subnets, each associated to a route table, allowing communication between.
 This is not required, as long as Fleet can resolve the MySQL and Redis hosts, that should be adequate.
 
-The ALB is in the public subnet 
+#### HTTPS
+
+The ALB is in the public subnet with an ENI to bridge into the private subnet. SSL is terminated at the ALB and `fleet serve` is launched with `FLEET_SERVER_TLS=false` as an
+environment variable.
+
+Replace `cert_arn` with the **certificate ARN** that applies to your environment. This is the **certificate ARN** used in the **ALB HTTPS Listener**.
 
 ### Migrating the DB
 
-After applying terraform run:
+After applying terraform run the following to migrate the database:
 ```
 aws ecs run-task --cluster fleet-backend --task-definition fleet-migrate:<latest_version> --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[<private_subnet_id>],securityGroups=[<desired_security_group>]}"
 ```
