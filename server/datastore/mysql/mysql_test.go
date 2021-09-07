@@ -1,12 +1,23 @@
 package mysql
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/pem"
+	"fmt"
+	"math/big"
+	"net"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/VividCortex/mysqlerr"
+	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
@@ -507,6 +518,229 @@ func TestWhereOmitIDs(t *testing.T) {
 			t.Parallel()
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereOmitIDs("id", tt.omits)
+			assert.Equal(t, tt.expected, sql)
+		})
+	}
+}
+
+func TestWithRetryTxWithRollback(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
+	mock.ExpectRollback()
+
+	assert.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
+		_, err := tx.Exec("SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryTxWillRollbackWhenPanic(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+	defer func() { recover() }()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
+	mock.ExpectRollback()
+
+	assert.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
+		panic("ROLLBACK")
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithTxWithRollback(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
+	mock.ExpectRollback()
+
+	assert.Error(t, ds.withTx(func(tx *sqlx.Tx) error {
+		_, err := tx.Exec("SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithTxWillRollbackWhenPanic(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+	defer func() { recover() }()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
+	mock.ExpectRollback()
+
+	assert.Error(t, ds.withTx(func(tx *sqlx.Tx) error {
+		panic("ROLLBACK")
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestNewReadsPasswordFromDisk(t *testing.T) {
+	passwordFile, err := os.CreateTemp(t.TempDir(), "*.passwordtest")
+	require.NoError(t, err)
+	_, err = passwordFile.WriteString(testPassword)
+	require.NoError(t, err)
+	passwordPath := passwordFile.Name()
+	require.NoError(t, passwordFile.Close())
+
+	dbName := t.Name()
+
+	// Create a datastore client in order to run migrations as usual
+	mysqlConfig := config.MysqlConfig{
+		Username:     testUsername,
+		Password:     "",
+		PasswordPath: passwordPath,
+		Address:      testAddress,
+		Database:     dbName,
+	}
+	ds, err := newDSWithConfig(t, dbName, mysqlConfig)
+	require.NoError(t, err)
+	defer ds.Close()
+	require.NoError(t, ds.HealthCheck())
+}
+
+func newDSWithConfig(t *testing.T, dbName string, config config.MysqlConfig) (*Datastore, error) {
+	db, err := sql.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+	)
+	require.NoError(t, err)
+	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
+	require.NoError(t, err)
+
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	return ds, err
+}
+
+func generateTestCert(t *testing.T) (string, string) {
+	privateKeyCA, err := rsa.GenerateKey(rand.Reader, 1024)
+	require.NoError(t, err)
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	require.NoError(t, err)
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"aa"},
+		},
+		NotBefore:             time.Now().Add(-1 * time.Duration(24) * time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKeyCA.PublicKey, privateKeyCA)
+	require.NoError(t, err)
+
+	publicPem, err := os.CreateTemp(t.TempDir(), "*-ca.pem")
+	require.NoError(t, err)
+	require.NoError(t, pem.Encode(publicPem, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}))
+	require.NoError(t, publicPem.Close())
+
+	keyPem, err := os.CreateTemp(t.TempDir(), "*-key.pem")
+	require.NoError(t, err)
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKeyCA)
+	require.NoError(t, pem.Encode(keyPem, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: privateKeyBytes}))
+	require.NoError(t, keyPem.Close())
+
+	return publicPem.Name(), keyPem.Name()
+}
+
+func TestNewUsesRegisterTLS(t *testing.T) {
+	dbName := t.Name()
+
+	ca, _ := generateTestCert(t)
+	cert, key := generateTestCert(t)
+
+	mysqlConfig := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Address:  testAddress,
+		Database: dbName,
+		TLSCA:    ca,
+		TLSCert:  cert,
+		TLSKey:   key,
+	}
+	// This fails because the certificate mysql is using is different than the one generated here
+	_, err := newDSWithConfig(t, dbName, mysqlConfig)
+	require.Error(t, err)
+	require.Equal(t, "x509: certificate is not valid for any names, but wanted to match localhost", err.Error())
+}
+
+func TestWhereFilterTeas(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		filter   fleet.TeamFilter
+		expected string
+	}{
+		// No teams or global role
+		{
+			filter:   fleet.TeamFilter{User: nil},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			},
+			expected: "TRUE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: false,
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+			},
+			expected: "TRUE",
+		},
+		{
+			filter:   fleet.TeamFilter{User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}},
+			expected: "t.id IN (1)",
+		},
+		{
+			filter:   fleet.TeamFilter{User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}}},
+			expected: "t.id IN (1)",
+		},
+		{
+			filter:   fleet.TeamFilter{User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+				IncludeObserver: true,
+			},
+			expected: "t.id IN (1)",
+		},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			ds := &Datastore{logger: log.NewNopLogger()}
+			sql := ds.whereFilterTeams(tt.filter, "t")
 			assert.Equal(t, tt.expected, sql)
 		})
 	}
