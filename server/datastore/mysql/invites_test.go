@@ -41,7 +41,6 @@ func TestCreateInvite(t *testing.T) {
 }
 
 func setupTestInvites(t *testing.T, ds fleet.Datastore) {
-	var err error
 	admin := &fleet.Invite{
 		Email:      "admin@foo.com",
 		Name:       "Xadmin",
@@ -49,8 +48,8 @@ func setupTestInvites(t *testing.T, ds fleet.Datastore) {
 		GlobalRole: null.StringFrom("admin"),
 	}
 
-	admin, err = ds.NewInvite(admin)
-	require.Nil(t, err)
+	admin, err := ds.NewInvite(admin)
+	require.NoError(t, err)
 
 	for user := 0; user < 23; user++ {
 		i := fleet.Invite{
@@ -62,7 +61,7 @@ func setupTestInvites(t *testing.T, ds fleet.Datastore) {
 		}
 
 		_, err := ds.NewInvite(&i)
-		assert.Nil(t, err, "Failure creating user", user)
+		require.NoError(t, err, "Failure creating user", user)
 	}
 
 }
@@ -183,4 +182,23 @@ func TestInviteByEmail(t *testing.T) {
 
 		})
 	}
+}
+
+func TestInvite(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	admin := &fleet.Invite{
+		Email:      "admin@foo.com",
+		Name:       "Xadmin",
+		Token:      "admin",
+		GlobalRole: null.StringFrom("admin"),
+	}
+
+	admin, err := ds.NewInvite(admin)
+	require.NoError(t, err)
+
+	gotI, err := ds.Invite(admin.ID)
+	require.NoError(t, err)
+	assert.Equal(t, admin.ID, gotI.ID)
 }

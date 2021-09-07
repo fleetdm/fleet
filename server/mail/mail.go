@@ -212,7 +212,7 @@ func dialTimeout(addr string) (client *smtp.Client, err error) {
 	// Ensure that errors are always returned after at least 5s to
 	// eliminate (some) timing attacks (in which a malicious user tries to
 	// port scan using the email functionality in Fleet)
-	c := time.After(5 * time.Second)
+	c := time.After(30 * time.Second)
 	defer func() {
 		if err != nil {
 			// Wait until timer has elapsed to return anything
@@ -220,7 +220,7 @@ func dialTimeout(addr string) (client *smtp.Client, err error) {
 		}
 	}()
 
-	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	conn, err := net.DialTimeout("tcp", addr, 28*time.Second)
 	if err != nil {
 		return nil, errors.Wrap(err, "dialing with timeout")
 	}
@@ -232,7 +232,7 @@ func dialTimeout(addr string) (client *smtp.Client, err error) {
 	// Set a deadline to ensure we time out quickly when there is a TCP
 	// server listening but it's not an SMTP server (otherwise this seems
 	// to time out in 20s)
-	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetDeadline(time.Now().Add(28 * time.Second))
 	client, err = smtp.NewClient(conn, host)
 	if err != nil {
 		return nil, errors.New("SMTP connection error")

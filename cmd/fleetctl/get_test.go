@@ -99,12 +99,12 @@ func TestGetTeams(t *testing.T) {
 	}{
 		{
 			"not expired license",
-			&fleet.LicenseInfo{Tier: fleet.TierBasic, Expiration: time.Now().Add(24 * time.Hour)},
+			&fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 			false,
 		},
 		{
 			"expired license",
-			&fleet.LicenseInfo{Tier: fleet.TierBasic, Expiration: time.Now().Add(-24 * time.Hour)},
+			&fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(-24 * time.Hour)},
 			true,
 		},
 	}

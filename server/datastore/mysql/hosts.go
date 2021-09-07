@@ -209,7 +209,18 @@ func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 				user_time,
 				wall_time
 			)
-			VALUES %s
+			VALUES %s ON DUPLICATE KEY UPDATE
+				scheduled_query_id = VALUES(scheduled_query_id),
+				host_id = VALUES(host_id),
+				average_memory = VALUES(average_memory),
+				denylisted = VALUES(denylisted),
+				executions = VALUES(executions),
+				schedule_interval = VALUES(schedule_interval),
+				last_executed = VALUES(last_executed),
+				output_size = VALUES(output_size),
+				system_time = VALUES(system_time),
+				user_time = VALUES(user_time),
+				wall_time = VALUES(wall_time)
 		`, values)
 		if _, err := tx.Exec(sql, args...); err != nil {
 			return errors.Wrap(err, "insert pack stats")
@@ -269,7 +280,7 @@ WHERE host_id = ? AND p.pack_type IS NULL
 }
 
 func (d *Datastore) loadHostUsers(db dbReader, host *fleet.Host) error {
-	sql := `SELECT id, username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
+	sql := `SELECT username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
 	if err := db.Select(&host.Users, sql, host.ID); err != nil {
 		return errors.Wrap(err, "load pack stats")
 	}
@@ -835,23 +846,28 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 		return err
 	}
 
-	incomingUsers := make(map[uint]bool)
+	keyForUser := func(u *fleet.HostUser) string { return fmt.Sprintf("%d\x00%s", u.Uid, u.Username) }
+	incomingUsers := make(map[string]bool)
+	var insertArgs []interface{}
 	for _, u := range host.Users {
-		incomingUsers[u.Uid] = true
-
-		if _, err := d.writer.Exec(
-			`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES (?, ?, ?, ?, ?)`,
-			host.ID, u.Uid, u.Username, u.Type, u.GroupName,
-		); err != nil {
-			return errors.Wrap(err, "insert users")
-		}
+		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName)
+		incomingUsers[keyForUser(&u)] = true
 	}
 
 	var removedArgs []interface{}
 	for _, u := range currentHost.Users {
-		if _, ok := incomingUsers[u.Uid]; !ok {
-			removedArgs = append(removedArgs, u.ID)
+		if _, ok := incomingUsers[keyForUser(&u)]; !ok {
+			removedArgs = append(removedArgs, u.Username)
 		}
+	}
+
+	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(host.Users)), ",")
+	insertSql := fmt.Sprintf(
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s ON DUPLICATE KEY UPDATE removed_at=NULL`,
+		insertValues,
+	)
+	if _, err := d.writer.Exec(insertSql, insertArgs...); err != nil {
+		return errors.Wrap(err, "insert users")
 	}
 
 	if len(removedArgs) == 0 {
@@ -859,10 +875,10 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 	}
 	removedValues := strings.TrimSuffix(strings.Repeat("?,", len(removedArgs)), ",")
 	removedSql := fmt.Sprintf(
-		`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE id IN (%s)`,
+		`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE host_id = ? and username IN (%s)`,
 		removedValues,
 	)
-	if _, err := d.writer.Exec(removedSql, removedArgs...); err != nil {
+	if _, err := d.writer.Exec(removedSql, append([]interface{}{host.ID}, removedArgs...)...); err != nil {
 		return errors.Wrap(err, "mark users as removed")
 	}
 

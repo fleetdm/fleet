@@ -31,6 +31,7 @@ func TestOrgInfo(t *testing.T) {
 	// Checking some defaults
 	require.Equal(t, 24*time.Hour, info.WebhookSettings.Interval.Duration)
 	require.False(t, info.WebhookSettings.HostStatusWebhook.Enable)
+	require.NotNil(t, info.AgentOptions)
 
 	info2, err := ds.AppConfig()
 	require.Nil(t, err)

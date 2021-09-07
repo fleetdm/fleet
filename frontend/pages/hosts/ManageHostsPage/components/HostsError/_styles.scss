@@ -1,0 +1,48 @@
+.hosts-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: $pad-xxxlarge;
+
+  #error-icon {
+    height: 12px;
+    width: 12px;
+    margin-right: 8px;
+  }
+
+  #new-tab-icon {
+    height: 12px;
+    width: 12px;
+    margin-left: 6px;
+  }
+
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
+  &__inner {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .info {
+    &__header {
+      display: block;
+      color: $core-fleet-black;
+      font-weight: $bold;
+      font-size: $x-small;
+      text-align: left;
+    }
+    &__data {
+      display: block;
+      color: $core-fleet-black;
+      font-weight: normal;
+      font-size: $x-small;
+      text-align: left;
+      margin-top: 10px;
+    }
+  }
+}

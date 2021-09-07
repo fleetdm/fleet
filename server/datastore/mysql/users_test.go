@@ -2,8 +2,11 @@ package mysql
 
 import (
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server"
+	"strings"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/test"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -297,4 +300,31 @@ func TestUserCreateWithTeams(t *testing.T) {
 	assert.Equal(t, "observer", user.Teams[1].Role)
 	assert.Equal(t, uint(9), user.Teams[2].ID)
 	assert.Equal(t, "maintainer", user.Teams[2].Role)
+}
+
+func TestSaveUsers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	u1 := test.NewUser(t, ds, t.Name()+"Admin1", t.Name()+"admin1@fleet.co", true)
+	u2 := test.NewUser(t, ds, t.Name()+"Admin2", t.Name()+"admin2@fleet.co", true)
+	u3 := test.NewUser(t, ds, t.Name()+"Admin3", t.Name()+"admin3@fleet.co", true)
+
+	u1.Email += "m"
+	u2.Email += "m"
+	u3.Email += "m"
+
+	require.NoError(t, ds.SaveUsers([]*fleet.User{u1, u2, u3}))
+
+	gotU1, err := ds.UserByID(u1.ID)
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(gotU1.Email, "fleet.com"))
+
+	gotU2, err := ds.UserByID(u3.ID)
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(gotU2.Email, "fleet.com"))
+
+	gotU3, err := ds.UserByID(u3.ID)
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(gotU3.Email, "fleet.com"))
 }

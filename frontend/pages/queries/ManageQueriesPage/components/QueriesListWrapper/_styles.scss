@@ -1,6 +1,13 @@
 .queries-list-wrapper {
   border-collapse: collapse;
 
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
   &__wrapper {
     border: 1px solid $ui-fleet-blue-15;
     border-radius: 4px;
@@ -96,7 +103,6 @@
   }
 
   &__inner-text {
-    padding-left: $pad-xlarge;
-    width: 290px;
+    width: 485px;
   }
 }
