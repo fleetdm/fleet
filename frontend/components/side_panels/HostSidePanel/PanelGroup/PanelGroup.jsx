@@ -21,7 +21,8 @@ class PanelGroup extends Component {
 
   renderGroupItem = (item) => {
     const { onLabelClick, selectedFilter, statusLabels, type } = this.props;
-    const selected = item.slug === selectedFilter || type === selectedFilter;
+    const selected =
+      (item && item.slug === selectedFilter) || type === selectedFilter;
 
     return (
       <PanelGroupItem

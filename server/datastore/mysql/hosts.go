@@ -211,7 +211,18 @@ func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 				user_time,
 				wall_time
 			)
-			VALUES %s
+			VALUES %s ON DUPLICATE KEY UPDATE
+				scheduled_query_id = VALUES(scheduled_query_id),
+				host_id = VALUES(host_id),
+				average_memory = VALUES(average_memory),
+				denylisted = VALUES(denylisted),
+				executions = VALUES(executions),
+				schedule_interval = VALUES(schedule_interval),
+				last_executed = VALUES(last_executed),
+				output_size = VALUES(output_size),
+				system_time = VALUES(system_time),
+				user_time = VALUES(user_time),
+				wall_time = VALUES(wall_time)
 		`, values)
 		if _, err := tx.Exec(sql, args...); err != nil {
 			return errors.Wrap(err, "insert pack stats")
@@ -836,10 +847,15 @@ func (d *Datastore) saveHostUsers(host *fleet.Host) error {
 	}
 
 	incomingUsers := make(map[uint]bool)
-	var insertArgs []interface{}
 	for _, u := range host.Users {
-		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName)
 		incomingUsers[u.Uid] = true
+
+		if _, err := d.writer.Exec(
+			`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES (?, ?, ?, ?, ?)`,
+			host.ID, u.Uid, u.Username, u.Type, u.GroupName,
+		); err != nil {
+			return errors.Wrap(err, "insert users")
+		}
 	}
 
 	var removedArgs []interface{}
@@ -847,15 +863,6 @@ func (d *Datastore) saveHostUsers(host *fleet.Host) error {
 		if _, ok := incomingUsers[u.Uid]; !ok {
 			removedArgs = append(removedArgs, u.ID)
 		}
-	}
-
-	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(host.Users)), ",")
-	insertSql := fmt.Sprintf(
-		`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s`,
-		insertValues,
-	)
-	if _, err := d.writer.Exec(insertSql, insertArgs...); err != nil {
-		return errors.Wrap(err, "insert users")
 	}
 
 	if len(removedArgs) == 0 {

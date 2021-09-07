@@ -100,7 +100,7 @@ spec:
 }
 
 func TestApplyTeamSpecs(t *testing.T) {
-	license := &fleet.LicenseInfo{Tier: fleet.TierBasic, Expiration: time.Now().Add(24 * time.Hour)}
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	server, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
 	defer server.Close()
 

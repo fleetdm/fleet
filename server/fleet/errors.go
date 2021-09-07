@@ -183,7 +183,7 @@ func (e PermissionError) PermissionError() []map[string]string {
 type licenseError struct{}
 
 func (e licenseError) Error() string {
-	return "Requires Fleet Basic license"
+	return "Requires Fleet Premium license"
 }
 
 func (e licenseError) StatusCode() int {

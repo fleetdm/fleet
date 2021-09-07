@@ -12,6 +12,7 @@ import LabelForm from "components/forms/LabelForm";
 import Modal from "components/modals/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
 import labelInterface from "interfaces/label";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
@@ -33,7 +34,10 @@ import policiesClient from "services/entities/policies";
 import permissionUtils from "utilities/permissions";
 import sortUtils from "utilities/sort";
 
-import { PolicyResponse } from "utilities/constants";
+import {
+  PLATFORM_LABEL_DISPLAY_NAMES,
+  PolicyResponse,
+} from "utilities/constants";
 import { getNextLocationPath } from "./helpers";
 import {
   defaultHiddenColumns,
@@ -124,10 +128,13 @@ export class ManageHostsPage extends PureComponent {
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
     isOnGlobalTeam: PropTypes.bool,
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
     currentUser: userInterface,
-    policyId: PropTypes.number,
-    policyResponse: PolicyResponse,
+    policyId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    policyResponse: PropTypes.oneOf([
+      PolicyResponse.PASSING,
+      PolicyResponse.FAILING,
+    ]),
   };
 
   static defaultProps = {
@@ -175,6 +182,7 @@ export class ManageHostsPage extends PureComponent {
       searchQuery: "",
       hosts: [],
       isHostsLoading: true,
+      hostErrors: false,
       sortBy: initialSortBy,
       isConfigLoaded: !isEmpty(this.props.config),
       isTeamsLoaded: !isEmpty(this.props.teams),
@@ -207,12 +215,12 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentWillReceiveProps() {
-    const { config, dispatch, isBasicTier } = this.props;
+    const { config, dispatch, isPremiumTier } = this.props;
     const { isConfigLoaded, isTeamsLoaded, isTeamsLoading } = this.state;
     if (!isConfigLoaded && !isEmpty(config)) {
       this.setState({ isConfigLoaded: true });
     }
-    if (isConfigLoaded && isBasicTier && !isTeamsLoaded && !isTeamsLoading) {
+    if (isConfigLoaded && isPremiumTier && !isTeamsLoaded && !isTeamsLoading) {
       this.setState({ isTeamsLoading: true });
       dispatch(teamActions.loadAll({}))
         .then(() => {
@@ -642,9 +650,7 @@ export class ManageHostsPage extends PureComponent {
       this.setState({ hosts });
     } catch (error) {
       console.log(error);
-      dispatch(
-        renderFlash("error", "Sorry, we could not retrieve your hosts.")
-      );
+      this.setState({ hostErrors: true });
     } finally {
       this.setState({ isHostsLoading: false });
     }
@@ -861,7 +867,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderTeamsFilterDropdown = () => {
-    const { isBasicTier, selectedTeam, teams } = this.props;
+    const { isPremiumTier, selectedTeam, teams } = this.props;
     const { isConfigLoaded, isTeamsLoaded } = this.state;
     const {
       generateTeamFilterDropdownOptions,
@@ -869,11 +875,11 @@ export class ManageHostsPage extends PureComponent {
       handleChangeSelectedTeamFilter,
     } = this;
 
-    if (!isConfigLoaded || (isBasicTier && !isTeamsLoaded)) {
+    if (!isConfigLoaded || (isPremiumTier && !isTeamsLoaded)) {
       return null;
     }
 
-    if (!isBasicTier) {
+    if (!isPremiumTier) {
       return <h1>Hosts</h1>;
     }
 
@@ -941,7 +947,7 @@ export class ManageHostsPage extends PureComponent {
   renderEnrollSecretModal = () => {
     const { toggleEnrollSecretModal } = this;
     const { showEnrollSecretModal } = this.state;
-    const { canEnrollHosts, teams, selectedTeam, isBasicTier } = this.props;
+    const { canEnrollHosts, teams, selectedTeam, isPremiumTier } = this.props;
 
     if (!canEnrollHosts || !showEnrollSecretModal) {
       return null;
@@ -957,7 +963,7 @@ export class ManageHostsPage extends PureComponent {
           selectedTeam={selectedTeam}
           teams={teams}
           onReturnToApp={toggleEnrollSecretModal}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
         />
       </Modal>
     );
@@ -1036,15 +1042,17 @@ export class ManageHostsPage extends PureComponent {
   renderHeaderLabelBlock = ({
     description,
     display_text: displayText,
-    type,
+    label_type: labelType,
   }) => {
     const { onEditLabelClick, toggleDeleteLabelModal } = this;
+
+    displayText = PLATFORM_LABEL_DISPLAY_NAMES[displayText] || displayText;
 
     return (
       <div className={`${baseClass}__label-block`}>
         <div className="title">
           <span>{displayText}</span>
-          {type !== "platform" && (
+          {labelType !== "builtin" && (
             <>
               <Button onClick={onEditLabelClick} variant={"text-icon"}>
                 <img src={PencilIcon} alt="Edit label" />
@@ -1091,6 +1099,7 @@ export class ManageHostsPage extends PureComponent {
         </div>
       );
     }
+    return null;
   };
 
   renderForm = () => {
@@ -1197,6 +1206,7 @@ export class ManageHostsPage extends PureComponent {
       isAllMatchingHostsSelected,
       hosts,
       isHostsLoading,
+      hostErrors,
       isConfigLoaded,
       sortBy,
     } = this.state;
@@ -1216,6 +1226,10 @@ export class ManageHostsPage extends PureComponent {
       selectedLabel === undefined
     ) {
       return null;
+    }
+
+    if (hostErrors) {
+      return <TableDataError />;
     }
 
     // Hosts have not been set up for this instance yet.
@@ -1277,7 +1291,7 @@ export class ManageHostsPage extends PureComponent {
       isEditLabel,
       loadingLabels,
       canAddNewHosts,
-      isBasicTier,
+      isPremiumTier,
       canEnrollHosts,
     } = this.props;
     const { isConfigLoaded, isTeamsLoaded } = this.state;
@@ -1310,7 +1324,9 @@ export class ManageHostsPage extends PureComponent {
               </div>
             </div>
             {renderLabelOrPolicyBlock()}
-            {isConfigLoaded && (!isBasicTier || isTeamsLoaded) && renderTable()}
+            {isConfigLoaded &&
+              (!isPremiumTier || isTeamsLoaded) &&
+              renderTable()}
           </div>
         )}
         {!loadingLabels && renderSidePanel()}
@@ -1381,7 +1397,7 @@ const mapStateToProps = (state, ownProps) => {
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
   const isOnGlobalTeam = permissionUtils.isOnGlobalTeam(currentUser);
-  const isBasicTier = permissionUtils.isBasicTier(config);
+  const isPremiumTier = permissionUtils.isPremiumTier(config);
 
   return {
     selectedFilters,
@@ -1404,7 +1420,7 @@ const mapStateToProps = (state, ownProps) => {
     canAddNewLabels,
     isGlobalAdmin,
     isOnGlobalTeam,
-    isBasicTier,
+    isPremiumTier,
     teams,
     selectedTeam,
     policyId,
