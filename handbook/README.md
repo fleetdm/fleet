@@ -156,22 +156,14 @@ or
 #### Next steps after a customer conversation
 After a customer conversation, it can sometimes feel like there are 1001 things to do, but it can be hard to know where to start.  Here are some tips:
 
-##### For commitments made by Fleet
-- Where is the issue tracked?
-  - Search for an existing issue (± ask other participants on the call for help if unsure) to avoid making a duplicate.
-  - Is the issue clear and easy to understand, with appropriate context?  (Default to public: declassify into public issues in fleetdm/fleet whenever possible)
-  - Is there a key date or timeframe that the customer is hoping to meet?  If so, is that noted in the issue?
-  - Is it labeled as with "customer request" (and any other appropriate labels, such as "bug")?
-  - Is its "project" set to the proper [GitHub project release board](https://github.com/orgs/fleetdm/projects/7), and in the proper stage?  Is it assigned to the right person who is directly responsible for seeing it through to completion?
-  - For bug fixes and enhancements:
-    - What is the version number of the Fleet release that will include this change will go out?
-    - Is it going into our next already-scheduled release, or is it a special patch release?
-- Have we provided a link to that issue for the customer to remind everyone of the plan, and for the sake of visibility, so other folks who weren't directly involved are up to speed?  (e.g. In a confidential customer Slack channel: "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")
-
-##### For other customer requests
-- Locate the appropriate issue, or create it if it doesn't already exist.  (Be creative when searching for duplicates- it can often take a couple of tries with different keywords to find an existing issue.)
+##### For customer requests
+- Locate the appropriate issue, or create it if it doesn't already exist.  (To avoid duplication, be creative when searching GitHub for issues- it can often take a couple of tries with different keywords to find an existing issue.)
+- Is the issue clear and easy to understand, with appropriate context?  (Default to public: declassify into public issues in fleetdm/fleet whenever possible)
+- Is there a key date or timeframe that the customer is hoping to meet, please note that in the the issue.
 - Make sure the issue has a "customer request" label.
-- Post in #g-product with a link to the issue to draw extra attention to the customer request so that its visible to Fleet's product team.
+- Post in #g-product with a link to the issue to draw extra attention to the customer request so it is visible ASAP for Fleet's product team.
+- Have we provided a link to that issue for the customer to remind everyone of the plan, and for the sake of visibility, so other folks who weren't directly involved are up to speed?  (e.g. "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")
+
 
 ### About the handbook
 #### Why bother?
