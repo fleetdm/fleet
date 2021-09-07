@@ -18,8 +18,8 @@
             </span>
           </div>
           <div class="form-control border-0 ">
-          <input id="docsearch-query"class="docsearch
-            pr-1" placeholder="Search the docs..." aria-label="Search the docs"
+          <input id="docsearch-query-landing" class="docsearch-input pr-1"
+            placeholder="Search the docs..." aria-label="Search the docs"
             v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
           </div>
         </div>
@@ -98,9 +98,9 @@
               </span>
             </div>
             <div class="form-control border-0 ">
-              <input id="docsearch-query" class="docsearch
-                pr-1" placeholder="Search the docs..." aria-label="Search the docs" v-model="inputTextValue"
-                @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+              <input id="docsearch-query" class="docsearch-input pr-1"
+              placeholder="Search the docs..." aria-label="Search the docs"
+              v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
             </div>
           </div>
         </div>
