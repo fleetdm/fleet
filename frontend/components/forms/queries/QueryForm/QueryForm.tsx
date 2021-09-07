@@ -303,7 +303,7 @@ const QueryForm = ({
   const { name, description, query, observer_can_run } = fields;
   const nameText = (name?.value || storedQuery.name) as string;
   const descText = (description?.value || storedQuery.description) as string;
-  const queryValue = (query?.value || storedQuery.query) as string;
+  const queryValue = (query?.value || query?.value === '' ? query.value : storedQuery.query) as string;
   const queryError = query?.error || errors.query;
   const queryOnChange = query?.onChange;
   const observerCanRun = (observer_can_run?.value ||
