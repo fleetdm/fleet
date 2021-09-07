@@ -1340,6 +1340,18 @@ func TestSaveUsers(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
+
+	// readd u1
+	host.Users = []fleet.HostUser{u1, u2}
+	host.Modified = true
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	require.Len(t, host.Users, 2)
+	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
 }
 
 func TestSaveUsersWithoutUid(t *testing.T) {
