@@ -40,9 +40,11 @@ interface IQueryFormProps {
 interface IRenderProps {
   nameText: string;
   descText: string;
+  queryValue: string;
+  queryError?: any;
+  queryOnChange?: any;
   name?: IFormField;
   description?: IFormField;
-  query?: IFormField;
   observer_can_run?: IFormField;
   observerCanRun?: boolean;
   modalProps?: INewQueryModalProps;
@@ -159,7 +161,7 @@ const QueryForm = ({
   const renderRunForObserverOrTeamMaintainer = ({
     nameText,
     descText,
-    query,
+    queryValue,
   }: IRenderProps) => (
     <form className={`${baseClass}__wrapper`}>
       <h1 className={`${baseClass}__query-name`}>{nameText}</h1>
@@ -174,7 +176,7 @@ const QueryForm = ({
       </Button>
       {showQueryEditor && (
         <FleetAce
-          value={query?.value || storedQuery.query}
+          value={queryValue}
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           readOnly
@@ -200,7 +202,9 @@ const QueryForm = ({
     descText,
     name,
     description,
-    query,
+    queryValue,
+    queryOnChange,
+    queryError,
     observer_can_run,
     observerCanRun,
     modalProps,
@@ -224,7 +228,7 @@ const QueryForm = ({
           <ContentEditable
             className={`${baseClass}__query-description`}
             innerRef={descriptionEditable}
-            html={descText}
+            html={descText || "Add description here."}
             onChange={(evt: ContentEditableEvent) =>
               description?.onChange(evt.target.value)
             }
@@ -232,14 +236,14 @@ const QueryForm = ({
         )}
         {baseError && <div className="form__base-error">{baseError}</div>}
         <FleetAce
-          value={query?.value || storedQuery.query}
-          error={query?.error || errors.query}
+          value={queryValue}
+          error={queryError}
           label="Query:"
           labelActionComponent={renderLabelComponent()}
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={query?.onChange}
+          onChange={queryOnChange}
           handleSubmit={promptSaveQuery}
         />
         {isEditMode && (
@@ -299,12 +303,15 @@ const QueryForm = ({
   const { name, description, query, observer_can_run } = fields;
   const nameText = (name?.value || storedQuery.name) as string;
   const descText = (description?.value || storedQuery.description) as string;
+  const queryValue = (query?.value || storedQuery.query) as string;
+  const queryError = query?.error || errors.query;
+  const queryOnChange = query?.onChange;
   const observerCanRun = (observer_can_run?.value ||
     storedQuery.observer_can_run) as boolean;
   const modalProps = {
     baseClass,
     fields,
-    queryValue: fields.query.value as string,
+    queryValue,
     onCreateQuery,
     setIsSaveModalOpen,
   };
@@ -318,18 +325,20 @@ const QueryForm = ({
     isAnyTeamMaintainer ||
     isGlobalMaintainer
   ) {
-    return renderRunForObserverOrTeamMaintainer({ nameText, descText });
+    return renderRunForObserverOrTeamMaintainer({ nameText, descText, queryValue });
   }
 
   return renderForGlobalAdminOrMaintainer({
     name,
     description,
-    query,
+    queryValue,
+    queryError,
     observer_can_run,
     nameText,
     descText,
     observerCanRun,
     modalProps,
+    queryOnChange,
   });
 };
 
