@@ -1,0 +1,1 @@
+* Update the schema for host_users to allow for bulk inserts without locking, and allow for users without unique uid.
