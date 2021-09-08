@@ -12,7 +12,7 @@ func (svc *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.Scheduled
 		return nil, err
 	}
 
-	gp, err := svc.ds.EnsureGlobalPack()
+	gp, err := svc.ds.EnsureGlobalPack(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.Li
 		return nil, err
 	}
 
-	gp, err := svc.ds.EnsureGlobalPack()
+	gp, err := svc.ds.EnsureGlobalPack(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (svc *Service) ModifyGlobalScheduledQueries(
 		return nil, err
 	}
 
-	gp, err := svc.ds.EnsureGlobalPack()
+	gp, err := svc.ds.EnsureGlobalPack(ctx)
 	if err != nil {
 		return nil, err
 	}

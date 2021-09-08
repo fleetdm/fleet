@@ -37,7 +37,7 @@ func TestListScheduledQueriesInPack(t *testing.T) {
 			},
 		},
 	}
-	err = ds.ApplyPackSpecs(specs)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
 	gotQueries, err := ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
@@ -73,7 +73,7 @@ func TestListScheduledQueriesInPack(t *testing.T) {
 			},
 		},
 	}
-	err = ds.ApplyPackSpecs(specs)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
 	gotQueries, err = ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
@@ -184,7 +184,7 @@ func TestCascadingDeletionOfQueries(t *testing.T) {
 			},
 		},
 	}
-	err = ds.ApplyPackSpecs(specs)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
 	gotQueries, err := ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})

@@ -238,7 +238,7 @@ func TestLoadPacksForQueries(t *testing.T) {
 		&fleet.PackSpec{Name: "p2"},
 		&fleet.PackSpec{Name: "p3"},
 	}
-	err = ds.ApplyPackSpecs(specs)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
 	q0, err := ds.QueryByName(context.Background(), queries[0].Name)
@@ -261,7 +261,7 @@ func TestLoadPacksForQueries(t *testing.T) {
 			},
 		},
 	}
-	err = ds.ApplyPackSpecs(specs)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
 	q0, err = ds.QueryByName(context.Background(), queries[0].Name)
@@ -294,7 +294,7 @@ func TestLoadPacksForQueries(t *testing.T) {
 			},
 		},
 	}
-	err = ds.ApplyPackSpecs(specs)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
 	q0, err = ds.QueryByName(context.Background(), queries[0].Name)
@@ -328,7 +328,7 @@ func TestLoadPacksForQueries(t *testing.T) {
 			},
 		},
 	}
-	err = ds.ApplyPackSpecs(specs)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
 	q0, err = ds.QueryByName(context.Background(), queries[0].Name)

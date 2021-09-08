@@ -424,7 +424,7 @@ func TestLabelQueries(t *testing.T) {
 
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
-	ds.ListPacksForHostFunc = func(hid uint) ([]*fleet.Pack, error) {
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
 	ds.ListScheduledQueriesInPackFunc = func(pid uint, opt fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
@@ -475,7 +475,7 @@ func TestGetClientConfig(t *testing.T) {
 	assert.Equal(t, expectedConfig, conf)
 
 	// Now add packs
-	ds.ListPacksForHostFunc = func(hid uint) ([]*fleet.Pack, error) {
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		switch hid {
 		case 1:
 			return []*fleet.Pack{
@@ -1327,7 +1327,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc := newTestService(ds, nil, nil)
 
-	ds.ListPacksForHostFunc = func(hid uint) ([]*fleet.Pack, error) {
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
 

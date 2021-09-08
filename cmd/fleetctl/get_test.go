@@ -255,7 +255,7 @@ func TestGetHosts(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
 	}
-	ds.ListPacksForHostFunc = func(hid uint) (packs []*fleet.Pack, err error) {
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return make([]*fleet.Pack, 0), nil
 	}
 

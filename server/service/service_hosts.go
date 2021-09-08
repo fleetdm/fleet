@@ -70,7 +70,7 @@ func (svc Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet
 		return nil, errors.Wrap(err, "get labels for host")
 	}
 
-	packs, err := svc.ds.ListPacksForHost(host.ID)
+	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "get packs for host")
 	}

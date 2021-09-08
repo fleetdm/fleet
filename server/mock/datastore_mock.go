@@ -75,29 +75,29 @@ type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fle
 
 type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
 
-type ApplyPackSpecsFunc func(specs []*fleet.PackSpec) error
+type ApplyPackSpecsFunc func(ctx context.Context, specs []*fleet.PackSpec) error
 
-type GetPackSpecsFunc func() ([]*fleet.PackSpec, error)
+type GetPackSpecsFunc func(ctx context.Context) ([]*fleet.PackSpec, error)
 
-type GetPackSpecFunc func(name string) (*fleet.PackSpec, error)
+type GetPackSpecFunc func(ctx context.Context, name string) (*fleet.PackSpec, error)
 
-type NewPackFunc func(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error)
+type NewPackFunc func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error)
 
-type SavePackFunc func(pack *fleet.Pack) error
+type SavePackFunc func(ctx context.Context, pack *fleet.Pack) error
 
-type DeletePackFunc func(name string) error
+type DeletePackFunc func(ctx context.Context, name string) error
 
-type PackFunc func(pid uint) (*fleet.Pack, error)
+type PackFunc func(ctx context.Context, pid uint) (*fleet.Pack, error)
 
-type ListPacksFunc func(opt fleet.PackListOptions) ([]*fleet.Pack, error)
+type ListPacksFunc func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error)
 
-type PackByNameFunc func(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error)
+type PackByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error)
 
-type ListPacksForHostFunc func(hid uint) (packs []*fleet.Pack, err error)
+type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error)
 
-type EnsureGlobalPackFunc func() (*fleet.Pack, error)
+type EnsureGlobalPackFunc func(ctx context.Context) (*fleet.Pack, error)
 
-type EnsureTeamPackFunc func(teamID uint) (*fleet.Pack, error)
+type EnsureTeamPackFunc func(ctx context.Context, teamID uint) (*fleet.Pack, error)
 
 type ApplyLabelSpecsFunc func(specs []*fleet.LabelSpec) error
 
@@ -833,64 +833,64 @@ func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now ti
 	return s.CleanupDistributedQueryCampaignsFunc(ctx, now)
 }
 
-func (s *DataStore) ApplyPackSpecs(specs []*fleet.PackSpec) error {
+func (s *DataStore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
 	s.ApplyPackSpecsFuncInvoked = true
-	return s.ApplyPackSpecsFunc(specs)
+	return s.ApplyPackSpecsFunc(ctx, specs)
 }
 
-func (s *DataStore) GetPackSpecs() ([]*fleet.PackSpec, error) {
+func (s *DataStore) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
 	s.GetPackSpecsFuncInvoked = true
-	return s.GetPackSpecsFunc()
+	return s.GetPackSpecsFunc(ctx)
 }
 
-func (s *DataStore) GetPackSpec(name string) (*fleet.PackSpec, error) {
+func (s *DataStore) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
 	s.GetPackSpecFuncInvoked = true
-	return s.GetPackSpecFunc(name)
+	return s.GetPackSpecFunc(ctx, name)
 }
 
-func (s *DataStore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
+func (s *DataStore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
 	s.NewPackFuncInvoked = true
-	return s.NewPackFunc(pack, opts...)
+	return s.NewPackFunc(ctx, pack, opts...)
 }
 
-func (s *DataStore) SavePack(pack *fleet.Pack) error {
+func (s *DataStore) SavePack(ctx context.Context, pack *fleet.Pack) error {
 	s.SavePackFuncInvoked = true
-	return s.SavePackFunc(pack)
+	return s.SavePackFunc(ctx, pack)
 }
 
-func (s *DataStore) DeletePack(name string) error {
+func (s *DataStore) DeletePack(ctx context.Context, name string) error {
 	s.DeletePackFuncInvoked = true
-	return s.DeletePackFunc(name)
+	return s.DeletePackFunc(ctx, name)
 }
 
-func (s *DataStore) Pack(pid uint) (*fleet.Pack, error) {
+func (s *DataStore) Pack(ctx context.Context, pid uint) (*fleet.Pack, error) {
 	s.PackFuncInvoked = true
-	return s.PackFunc(pid)
+	return s.PackFunc(ctx, pid)
 }
 
-func (s *DataStore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+func (s *DataStore) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 	s.ListPacksFuncInvoked = true
-	return s.ListPacksFunc(opt)
+	return s.ListPacksFunc(ctx, opt)
 }
 
-func (s *DataStore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
+func (s *DataStore) PackByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
 	s.PackByNameFuncInvoked = true
-	return s.PackByNameFunc(name, opts...)
+	return s.PackByNameFunc(ctx, name, opts...)
 }
 
-func (s *DataStore) ListPacksForHost(hid uint) (packs []*fleet.Pack, err error) {
+func (s *DataStore) ListPacksForHost(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 	s.ListPacksForHostFuncInvoked = true
-	return s.ListPacksForHostFunc(hid)
+	return s.ListPacksForHostFunc(ctx, hid)
 }
 
-func (s *DataStore) EnsureGlobalPack() (*fleet.Pack, error) {
+func (s *DataStore) EnsureGlobalPack(ctx context.Context) (*fleet.Pack, error) {
 	s.EnsureGlobalPackFuncInvoked = true
-	return s.EnsureGlobalPackFunc()
+	return s.EnsureGlobalPackFunc(ctx)
 }
 
-func (s *DataStore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
+func (s *DataStore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pack, error) {
 	s.EnsureTeamPackFuncInvoked = true
-	return s.EnsureTeamPackFunc(teamID)
+	return s.EnsureTeamPackFunc(ctx, teamID)
 }
 
 func (s *DataStore) ApplyLabelSpecs(specs []*fleet.LabelSpec) error {

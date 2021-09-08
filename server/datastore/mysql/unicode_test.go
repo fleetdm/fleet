@@ -55,7 +55,7 @@ func TestUnicode(t *testing.T) {
 
 	pack := test.NewPack(t, ds, "👨🏾‍🚒")
 
-	pack, err = ds.Pack(pack.ID)
+	pack, err = ds.Pack(context.Background(), pack.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "👨🏾‍🚒", pack.Name)
 }

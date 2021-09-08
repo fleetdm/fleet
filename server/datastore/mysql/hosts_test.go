@@ -416,7 +416,7 @@ func TestIgnoresTeamPackStats(t *testing.T) {
 	team, err := ds.NewTeam(&fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(&team.ID, []uint{host.ID}))
-	tp, err := ds.EnsureTeamPack(team.ID)
+	tp, err := ds.EnsureTeamPack(context.Background(), team.ID)
 	require.NoError(t, err)
 
 	tpQuery := test.NewQuery(t, ds, "tp-time", "select * from time", 0, true)
@@ -1803,7 +1803,7 @@ func TestSaveHostPackStatsConcurrent(t *testing.T) {
 					},
 				},
 			}
-			err := ds.ApplyPackSpecs(specs)
+			err := ds.ApplyPackSpecs(context.Background(), specs)
 			if err != nil {
 				errCh <- err
 				return

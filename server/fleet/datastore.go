@@ -90,38 +90,38 @@ type Datastore interface {
 	// PackStore is the datastore interface for managing query packs.
 
 	// ApplyPackSpecs applies a list of PackSpecs to the datastore, creating and updating packs as necessary.
-	ApplyPackSpecs(specs []*PackSpec) error
+	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) error
 	// GetPackSpecs returns all of the stored PackSpecs.
-	GetPackSpecs() ([]*PackSpec, error)
+	GetPackSpecs(ctx context.Context) ([]*PackSpec, error)
 	// GetPackSpec returns the spec for the named pack.
-	GetPackSpec(name string) (*PackSpec, error)
+	GetPackSpec(ctx context.Context, name string) (*PackSpec, error)
 
 	// NewPack creates a new pack in the datastore.
-	NewPack(pack *Pack, opts ...OptionalArg) (*Pack, error)
+	NewPack(ctx context.Context, pack *Pack, opts ...OptionalArg) (*Pack, error)
 
 	// SavePack updates an existing pack in the datastore.
-	SavePack(pack *Pack) error
+	SavePack(ctx context.Context, pack *Pack) error
 
 	// DeletePack deletes a pack record from the datastore.
-	DeletePack(name string) error
+	DeletePack(ctx context.Context, name string) error
 
 	// Pack retrieves a pack from the datastore by ID.
-	Pack(pid uint) (*Pack, error)
+	Pack(ctx context.Context, pid uint) (*Pack, error)
 
 	// ListPacks lists all packs in the datastore.
-	ListPacks(opt PackListOptions) ([]*Pack, error)
+	ListPacks(ctx context.Context, opt PackListOptions) ([]*Pack, error)
 
 	// PackByName fetches pack if it exists, if the pack exists the bool return value is true
-	PackByName(name string, opts ...OptionalArg) (*Pack, bool, error)
+	PackByName(ctx context.Context, name string, opts ...OptionalArg) (*Pack, bool, error)
 
 	// ListPacksForHost lists the packs that a host should execute.
-	ListPacksForHost(hid uint) (packs []*Pack, err error)
+	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
 
 	// EnsureGlobalPack gets or inserts a pack with type global
-	EnsureGlobalPack() (*Pack, error)
+	EnsureGlobalPack(ctx context.Context) (*Pack, error)
 
 	// EnsureTeamPack gets or inserts a pack with type global
-	EnsureTeamPack(teamID uint) (*Pack, error)
+	EnsureTeamPack(ctx context.Context, teamID uint) (*Pack, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// LabelStore

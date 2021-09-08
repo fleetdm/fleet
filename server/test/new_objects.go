@@ -32,11 +32,11 @@ func NewQuery(t *testing.T, ds fleet.Datastore, name, q string, authorID uint, s
 }
 
 func NewPack(t *testing.T, ds fleet.Datastore, name string) *fleet.Pack {
-	err := ds.ApplyPackSpecs([]*fleet.PackSpec{{Name: name}})
+	err := ds.ApplyPackSpecs(context.Background(), []*fleet.PackSpec{{Name: name}})
 	require.Nil(t, err)
 
 	// Loading gives us the timestamps
-	pack, ok, err := ds.PackByName(name)
+	pack, ok, err := ds.PackByName(context.Background(), name)
 	require.True(t, ok)
 	require.NoError(t, err)
 

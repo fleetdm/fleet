@@ -40,7 +40,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 		return nil, err
 	}
 
-	gp, err := svc.ds.EnsureTeamPack(teamID)
+	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.
 		return nil, err
 	}
 
-	gp, err := svc.ds.EnsureTeamPack(teamID)
+	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (svc Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, 
 		return nil, err
 	}
 
-	gp, err := svc.ds.EnsureTeamPack(teamID)
+	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -82,7 +83,7 @@ func TestHostDetails(t *testing.T) {
 			Name: "pack2",
 		},
 	}
-	ds.ListPacksForHostFunc = func(hid uint) ([]*fleet.Pack, error) {
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return expectedPacks, nil
 	}
 	ds.LoadHostSoftwareFunc = func(host *fleet.Host) error {

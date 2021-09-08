@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) ApplyPackSpecs(specs []*fleet.PackSpec) (err error) {
+func (d *Datastore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) (err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		for _, spec := range specs {
 			if err := applyPackSpecDB(tx, spec); err != nil {
@@ -105,7 +106,7 @@ func applyPackSpecDB(tx *sqlx.Tx, spec *fleet.PackSpec) error {
 	return nil
 }
 
-func (d *Datastore) GetPackSpecs() (specs []*fleet.PackSpec, err error) {
+func (d *Datastore) GetPackSpecs(ctx context.Context) (specs []*fleet.PackSpec, err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic specs
 		query := "SELECT id, name, description, platform, disabled FROM packs WHERE pack_type IS NULL OR pack_type = ''"
@@ -149,7 +150,7 @@ WHERE pack_id = ?
 	return specs, nil
 }
 
-func (d *Datastore) GetPackSpec(name string) (spec *fleet.PackSpec, err error) {
+func (d *Datastore) GetPackSpec(ctx context.Context, name string) (spec *fleet.PackSpec, err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic spec
 		var specs []*fleet.PackSpec
@@ -198,7 +199,7 @@ WHERE pack_id = ?
 	return spec, nil
 }
 
-func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
+func (d *Datastore) PackByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
 	sqlStatement := `
 		SELECT *
 			FROM packs
@@ -221,7 +222,7 @@ func (d *Datastore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.P
 }
 
 // NewPack creates a new Pack
-func (d *Datastore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
+func (d *Datastore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
 	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
 		query := `
 			INSERT INTO packs
@@ -338,7 +339,7 @@ func loadPackTargetsDB(q sqlx.Queryer, pack *fleet.Pack) error {
 }
 
 // SavePack stores changes to pack
-func (d *Datastore) SavePack(pack *fleet.Pack) error {
+func (d *Datastore) SavePack(ctx context.Context, pack *fleet.Pack) error {
 	return d.withRetryTxx(func(tx *sqlx.Tx) error {
 		query := `
 			UPDATE packs
@@ -363,12 +364,12 @@ func (d *Datastore) SavePack(pack *fleet.Pack) error {
 }
 
 // DeletePack deletes a fleet.Pack so that it won't show up in results.
-func (d *Datastore) DeletePack(name string) error {
+func (d *Datastore) DeletePack(ctx context.Context, name string) error {
 	return d.deleteEntityByName("packs", name)
 }
 
 // Pack fetch fleet.Pack with matching ID
-func (d *Datastore) Pack(pid uint) (*fleet.Pack, error) {
+func (d *Datastore) Pack(ctx context.Context, pid uint) (*fleet.Pack, error) {
 	return packDB(d.reader, pid)
 }
 
@@ -390,7 +391,7 @@ func packDB(q sqlx.Queryer, pid uint) (*fleet.Pack, error) {
 }
 
 // EnsureGlobalPack gets or inserts a pack with type global
-func (d *Datastore) EnsureGlobalPack() (*fleet.Pack, error) {
+func (d *Datastore) EnsureGlobalPack(ctx context.Context) (*fleet.Pack, error) {
 	pack := &fleet.Pack{}
 	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// read from primary as we will create the pack if it doesn't exist
@@ -433,7 +434,7 @@ func insertNewGlobalPackDB(q sqlx.Ext) (*fleet.Pack, error) {
 	return packDB(q, packID)
 }
 
-func (d *Datastore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
+func (d *Datastore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pack, error) {
 	pack := &fleet.Pack{}
 	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
 		t, err := teamDB(tx, teamID)
@@ -496,7 +497,7 @@ func insertNewTeamPackDB(q sqlx.Ext, team *fleet.Team) (*fleet.Pack, error) {
 }
 
 // ListPacks returns all fleet.Pack records limited and sorted by fleet.ListOptions
-func (d *Datastore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+func (d *Datastore) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 	query := `SELECT * FROM packs WHERE pack_type IS NULL OR pack_type = ''`
 	if opt.IncludeSystemPacks {
 		query = `SELECT * FROM packs`
@@ -516,7 +517,7 @@ func (d *Datastore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) 
 	return packs, nil
 }
 
-func (d *Datastore) ListPacksForHost(hid uint) ([]*fleet.Pack, error) {
+func (d *Datastore) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 	query := `
 		SELECT DISTINCT packs.*
 		FROM
