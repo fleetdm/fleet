@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery, useMutation } from "react-query";
 import { Params } from "react-router/lib/Router";
+import { Location } from "react-router/node_modules/@types/history";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
 import { QueryContext } from "context/query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
+import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
+import { IHost } from "interfaces/host";
 import { AppContext } from "context/app";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -19,20 +22,27 @@ import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2
 
 interface IQueryPageProps {
   params: Params;
+  location: Location;
 }
 
 interface IStoredQueryResponse {
   query: IQuery;
 }
 
+interface IHostResponse {
+  host: IHost;
+}
+
 const baseClass = "query-page";
 
-const QueryPage = ({ params: { id: queryIdForEdit } }: IQueryPageProps) => {
+const QueryPage = ({ 
+  params: { id: queryIdForEdit },
+  location: { query: URLQuerySearch }
+}: IQueryPageProps) => {
   const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
-
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
@@ -56,6 +66,26 @@ const QueryPage = ({ params: { id: queryIdForEdit } }: IQueryPageProps) => {
     {
       enabled: !!queryIdForEdit,
       select: (data: IStoredQueryResponse) => data.query,
+    }
+  );
+
+  // if URL is like `/queries/1?host_ids=22`, add the host
+  // to the selected targets automatically
+  useQuery<IHostResponse, Error, IHost>(
+    "hostFromURL", 
+    () => hostAPI.load(parseInt(URLQuerySearch.host_ids as string)),
+    {
+      enabled: !!URLQuerySearch.host_ids,
+      select: (data: IHostResponse) => data.host,
+      onSuccess: (data) => {
+        const targets = selectedTargets;
+        const hostTarget = data as any; // intentional so we can add to the object
+
+        hostTarget.target_type = "hosts";
+
+        targets.push(hostTarget as IHost);
+        setSelectedTargets([...targets]);
+      }
     }
   );
 

@@ -184,7 +184,7 @@ const SelectTargets = ({
 
   const handleRowSelect = (row: Row) => {
     const targets = selectedTargets;
-    const hostTarget = row.original as any; // intentional
+    const hostTarget = row.original as any; // intentional so we can add to the object
 
     hostTarget.target_type = "hosts";
 
