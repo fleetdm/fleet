@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
@@ -45,7 +46,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				return nil
 			}
 
-			err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), "")
+			err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), config.FleetConfig{})
 			require.NoError(t, err)
 
 			require.Equal(t, []string{tt.cve}, cvesFound)
@@ -55,7 +56,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 }
 
 func TestSyncsCVEFromURL(t *testing.T) {
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.RequestURI, ".meta") {
 			fmt.Fprint(w, "lastModifiedDate:2021-08-04T11:10:30-04:00\r\n")
@@ -68,7 +68,8 @@ func TestSyncsCVEFromURL(t *testing.T) {
 	defer ts.Close()
 
 	tempDir := t.TempDir()
-	err := syncCVEData(tempDir, ts.URL)
+	err := SyncCVEData(
+		tempDir, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{CVEFeedPrefixURL: ts.URL}})
 	require.Error(t, err)
 	require.Equal(t,
 		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
