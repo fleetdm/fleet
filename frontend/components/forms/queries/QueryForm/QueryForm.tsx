@@ -140,7 +140,7 @@ const QueryForm = ({
         onUpdate({
           description: description.value,
           name: name.value,
-          query: query.value || typedQueryBody, // this means we came back to the form without editing again
+          query: query.value,
           observer_can_run: observer_can_run.value,
         });
       }
@@ -308,14 +308,10 @@ const QueryForm = ({
   const nameText = (name?.value || storedQuery.name) as string;
   const descText = (description?.value || storedQuery.description) as string;
 
-  let queryValue = query?.value as string;
-  if (!queryValue) {
-    if (isEditMode) {
-      queryValue = isEditorUsingDefaultQuery ? storedQuery.query : typedQueryBody;
-    } else {
-      queryValue = typedQueryBody;
-    }
-  }
+  // `typedQueryBody` and `query?.value` will always be the same but
+  // `typedQueryBody` keeps the value as user goes to other page steps
+  // this makes sure to show what the user typed when they return to the editor
+  const queryValue = (typedQueryBody || query?.value || storedQuery.query) as string;
 
   const queryError = query?.error || errors.query;
   const queryOnChange = query?.onChange;
