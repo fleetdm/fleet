@@ -6,7 +6,7 @@ import { ITeam } from "interfaces/team";
 
 interface ITargetsProps {
   query?: string;
-  queryId?: string | null;
+  queryId?: number | null;
   selected?: {
     hosts: IHost[];
     labels: ILabel[];
