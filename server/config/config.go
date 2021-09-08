@@ -40,8 +40,10 @@ type RedisConfig struct {
 	Address          string
 	Password         string
 	Database         int
-	UseTLS           bool `yaml:"use_tls"`
-	DuplicateResults bool `yaml:"duplicate_results"`
+	UseTLS           bool          `yaml:"use_tls"`
+	DuplicateResults bool          `yaml:"duplicate_results"`
+	ConnectTimeout   time.Duration `yaml:"connect_timeout"`
+	KeepAlive        time.Duration `yaml:"keep_alive"`
 }
 
 const (
@@ -238,6 +240,8 @@ func (man Manager) addConfigs() {
 		"Redis server database number")
 	man.addConfigBool("redis.use_tls", false, "Redis server enable TLS")
 	man.addConfigBool("redis.duplicate_results", false, "Duplicate Live Query results to another Redis channel")
+	man.addConfigDuration("redis.connection_timeout", 5*time.Second, "Timeout at connection time")
+	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -415,6 +419,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			Database:         man.getConfigInt("redis.database"),
 			UseTLS:           man.getConfigBool("redis.use_tls"),
 			DuplicateResults: man.getConfigBool("redis.duplicate_results"),
+			ConnectTimeout:   man.getConfigDuration("redis.connect_timeout"),
+			KeepAlive:        man.getConfigDuration("redis.keep_alive"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
