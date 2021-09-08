@@ -95,7 +95,7 @@ parasails.registerPage('basic-documentation', {
       apiKey: '8c492befdb9f5b5166253a0f8eeb789d',
       indexName: 'fleetdm',
       inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
-      debug: true,
+      debug: false,
     });
 
     // // Alternative jQuery approach to grab `on this page` links from top of markdown files
