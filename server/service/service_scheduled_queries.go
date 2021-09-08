@@ -33,7 +33,7 @@ func (svc *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery)
 	// Fill in the name with query name if it is unset (because the UI
 	// doesn't provide a way to set it)
 	if sq.Name == "" {
-		query, err := svc.ds.Query(sq.QueryID)
+		query, err := svc.ds.Query(ctx, sq.QueryID)
 		if err != nil {
 			return nil, errors.Wrap(err, "lookup name for query")
 		}
@@ -47,7 +47,7 @@ func (svc *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery)
 		sq.Name = findNextNameForQuery(query.Name, packQueries)
 		sq.QueryName = query.Name
 	} else if sq.QueryName == "" {
-		query, err := svc.ds.Query(sq.QueryID)
+		query, err := svc.ds.Query(ctx, sq.QueryID)
 		if err != nil {
 			return nil, errors.Wrap(err, "lookup name for query")
 		}

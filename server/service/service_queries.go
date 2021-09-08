@@ -48,7 +48,7 @@ func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec
 		}
 	}
 
-	err := svc.ds.ApplyQueries(vc.UserID(), queries)
+	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries)
 	if err != nil {
 		return errors.Wrap(err, "applying queries")
 	}
@@ -65,7 +65,7 @@ func (svc Service) GetQuerySpecs(ctx context.Context) ([]*fleet.QuerySpec, error
 		return nil, err
 	}
 
-	queries, err := svc.ds.ListQueries(fleet.ListOptions{})
+	queries, err := svc.ds.ListQueries(ctx, fleet.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting queries")
 	}
@@ -82,7 +82,7 @@ func (svc Service) GetQuerySpec(ctx context.Context, name string) (*fleet.QueryS
 		return nil, err
 	}
 
-	query, err := svc.ds.QueryByName(name)
+	query, err := svc.ds.QueryByName(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (svc Service) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*f
 		return nil, err
 	}
 
-	return svc.ds.ListQueries(opt)
+	return svc.ds.ListQueries(ctx, opt)
 }
 
 func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -102,7 +102,7 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 		return nil, err
 	}
 
-	return svc.ds.Query(id)
+	return svc.ds.Query(ctx, id)
 }
 
 func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
@@ -140,7 +140,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
-	query, err := svc.ds.NewQuery(query)
+	query, err := svc.ds.NewQuery(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
-	query, err := svc.ds.Query(id)
+	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
-	if err := svc.ds.SaveQuery(query); err != nil {
+	if err := svc.ds.SaveQuery(ctx, query); err != nil {
 		return nil, err
 	}
 
@@ -208,7 +208,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 		return err
 	}
 
-	if err := svc.ds.DeleteQuery(name); err != nil {
+	if err := svc.ds.DeleteQuery(ctx, name); err != nil {
 		return err
 	}
 
@@ -224,12 +224,12 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return err
 	}
 
-	query, err := svc.ds.Query(id)
+	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		return errors.Wrap(err, "lookup query by ID")
 	}
 
-	if err := svc.ds.DeleteQuery(query.Name); err != nil {
+	if err := svc.ds.DeleteQuery(ctx, query.Name); err != nil {
 		return errors.Wrap(err, "delete query")
 	}
 
@@ -245,7 +245,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		return 0, err
 	}
 
-	n, err := svc.ds.DeleteQueries(ids)
+	n, err := svc.ds.DeleteQueries(ctx, ids)
 	if err != nil {
 		return n, err
 	}

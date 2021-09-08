@@ -45,7 +45,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewQueryFunc = func(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return query, nil
 	}
 	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
@@ -138,7 +138,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.DistributedQueryCampaignTargetIDsFunc = func(id uint) (targets *fleet.HostTargets, err error) {
 		return &fleet.HostTargets{HostIDs: []uint{1}}, nil
 	}
-	ds.QueryFunc = func(id uint) (*fleet.Query, error) {
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{}, nil
 	}
 

@@ -924,7 +924,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		return nil
 	}
 	var gotQuery *fleet.Query
-	ds.NewQueryFunc = func(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		gotQuery = query
 		query.ID = 42
 		return query, nil
@@ -1681,7 +1681,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		return camp, nil
 	}
-	ds.QueryFunc = func(id uint) (*fleet.Query, error) {
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{
 			ID:             42,
 			Name:           "query",
@@ -1703,7 +1703,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	_, err = svc.NewDistributedQueryCampaign(viewerCtx, "", ptr.Uint(42), fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.Error(t, err)
 
-	ds.QueryFunc = func(id uint) (*fleet.Query, error) {
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{
 			ID:             42,
 			Name:           "query",

@@ -16,7 +16,7 @@ func NewQuery(t *testing.T, ds fleet.Datastore, name, q string, authorID uint, s
 	if authorID == 0 {
 		authorPtr = nil
 	}
-	query, err := ds.NewQuery(&fleet.Query{
+	query, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:     name,
 		Query:    q,
 		AuthorID: authorPtr,
@@ -25,14 +25,14 @@ func NewQuery(t *testing.T, ds fleet.Datastore, name, q string, authorID uint, s
 	require.NoError(t, err)
 
 	// Loading gives us the timestamps
-	query, err = ds.Query(query.ID)
+	query, err = ds.Query(context.Background(), query.ID)
 	require.NoError(t, err)
 
 	return query
 }
 
 func NewPack(t *testing.T, ds fleet.Datastore, name string) *fleet.Pack {
-	err := ds.ApplyPackSpecs([]*fleet.PackSpec{&fleet.PackSpec{Name: name}})
+	err := ds.ApplyPackSpecs([]*fleet.PackSpec{{Name: name}})
 	require.Nil(t, err)
 
 	// Loading gives us the timestamps

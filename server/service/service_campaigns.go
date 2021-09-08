@@ -55,7 +55,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	var query *fleet.Query
 	var err error
 	if queryID != nil {
-		query, err = svc.ds.Query(*queryID)
+		query, err = svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +74,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		if err != nil {
 			return nil, err
 		}
-		query, err = svc.ds.NewQuery(query)
+		query, err = svc.ds.NewQuery(ctx, query)
 		if err != nil {
 			return nil, errors.Wrap(err, "new query")
 		}

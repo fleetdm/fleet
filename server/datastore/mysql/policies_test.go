@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -15,7 +16,7 @@ func TestNewGlobalPolicy(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	q, err := ds.NewQuery(&fleet.Query{
+	q, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:        "query1",
 		Description: "query1 desc",
 		Query:       "select 1;",
@@ -27,7 +28,7 @@ func TestNewGlobalPolicy(t *testing.T) {
 
 	assert.Equal(t, "query1", p.QueryName)
 
-	q2, err := ds.NewQuery(&fleet.Query{
+	q2, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:        "query2",
 		Description: "query2 desc",
 		Query:       "select 42;",
@@ -44,7 +45,7 @@ func TestNewGlobalPolicy(t *testing.T) {
 	assert.Equal(t, q2.ID, policies[1].QueryID)
 
 	// Cannot delete a query if it's in a policy
-	require.Error(t, ds.DeleteQuery(q.Name))
+	require.Error(t, ds.DeleteQuery(context.Background(), q.Name))
 
 	_, err = ds.DeleteGlobalPolicies([]uint{policies[0].ID, policies[1].ID})
 	require.NoError(t, err)
@@ -54,7 +55,7 @@ func TestNewGlobalPolicy(t *testing.T) {
 	require.Len(t, policies, 0)
 
 	// But you can delete the query if the policy is gone
-	require.NoError(t, ds.DeleteQuery(q.Name))
+	require.NoError(t, ds.DeleteQuery(context.Background(), q.Name))
 }
 
 func TestPolicyMembershipView(t *testing.T) {
@@ -83,7 +84,7 @@ func TestPolicyMembershipView(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	q, err := ds.NewQuery(&fleet.Query{
+	q, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:        "query1",
 		Description: "query1 desc",
 		Query:       "select 1;",
@@ -93,7 +94,7 @@ func TestPolicyMembershipView(t *testing.T) {
 	p, err := ds.NewGlobalPolicy(q.ID)
 	require.NoError(t, err)
 
-	q2, err := ds.NewQuery(&fleet.Query{
+	q2, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:        "query2",
 		Description: "query2 desc",
 		Query:       "select 42;",

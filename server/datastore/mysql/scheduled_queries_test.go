@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ func TestListScheduledQueriesInPack(t *testing.T) {
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
-	err := ds.ApplyQueries(zwass.ID, queries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
 	require.Nil(t, err)
 
 	specs := []*fleet.PackSpec{
@@ -155,7 +156,7 @@ func TestCascadingDeletionOfQueries(t *testing.T) {
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
-	err := ds.ApplyQueries(zwass.ID, queries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
 	require.Nil(t, err)
 
 	specs := []*fleet.PackSpec{
@@ -190,7 +191,7 @@ func TestCascadingDeletionOfQueries(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 3)
 
-	err = ds.DeleteQuery(queries[1].Name)
+	err = ds.DeleteQuery(context.Background(), queries[1].Name)
 	require.Nil(t, err)
 
 	gotQueries, err = ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})

@@ -19,7 +19,7 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 
 	includeObserver := false
 	if queryID != nil {
-		query, err := svc.ds.Query(*queryID)
+		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +66,7 @@ func (svc Service) CountHostsInTargets(ctx context.Context, queryID *uint, targe
 
 	includeObserver := false
 	if queryID != nil {
-		query, err := svc.ds.Query(*queryID)
+		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}

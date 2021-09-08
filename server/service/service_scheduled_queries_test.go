@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -40,7 +41,7 @@ func TestScheduleQueryNoName(t *testing.T) {
 		QueryID:   3,
 	}
 
-	ds.QueryFunc = func(qid uint) (*fleet.Query, error) {
+	ds.QueryFunc = func(ctx context.Context, qid uint) (*fleet.Query, error) {
 		require.Equal(t, expectedQuery.QueryID, qid)
 		return &fleet.Query{Name: expectedQuery.QueryName}, nil
 	}
@@ -75,7 +76,7 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 		QueryID:   3,
 	}
 
-	ds.QueryFunc = func(qid uint) (*fleet.Query, error) {
+	ds.QueryFunc = func(ctx context.Context, qid uint) (*fleet.Query, error) {
 		require.Equal(t, expectedQuery.QueryID, qid)
 		return &fleet.Query{Name: expectedQuery.QueryName}, nil
 	}

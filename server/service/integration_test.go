@@ -381,7 +381,7 @@ func TestGlobalSchedule(t *testing.T) {
 	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
 	assert.Len(t, gs.GlobalSchedule, 0)
 
-	qr, err := ds.NewQuery(&fleet.Query{
+	qr, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQuery",
 		Description:    "Some description",
 		Query:          "select * from osquery;",
@@ -535,7 +535,7 @@ func TestTeamSchedule(t *testing.T) {
 	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
 	assert.Len(t, ts.Scheduled, 0)
 
-	qr, err := ds.NewQuery(&fleet.Query{Name: "TestQuery", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	qr, err := ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
 	require.NoError(t, err)
 
 	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: ptr.Uint(42)}}
@@ -724,7 +724,7 @@ func TestGlobalPolicies(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	qr, err := ds.NewQuery(&fleet.Query{
+	qr, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQuery",
 		Description:    "Some description",
 		Query:          "select * from osquery;",

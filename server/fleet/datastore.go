@@ -46,24 +46,24 @@ type Datastore interface {
 
 	// ApplyQueries applies a list of queries (likely from a yaml file) to the datastore. Existing queries are updated,
 	// and new queries are created.
-	ApplyQueries(authorID uint, queries []*Query) error
+	ApplyQueries(ctx context.Context, authorID uint, queries []*Query) error
 
 	// NewQuery creates a new query object in thie datastore. The returned query should have the ID updated.
-	NewQuery(query *Query, opts ...OptionalArg) (*Query, error)
+	NewQuery(ctx context.Context, query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
-	SaveQuery(query *Query) error
+	SaveQuery(ctx context.Context, query *Query) error
 	// DeleteQuery deletes an existing query object.
-	DeleteQuery(name string) error
+	DeleteQuery(ctx context.Context, name string) error
 	// DeleteQueries deletes the existing query objects with the provided IDs. The number of deleted queries is returned
 	// along with any error.
-	DeleteQueries(ids []uint) (uint, error)
+	DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 	// Query returns the query associated with the provided ID. Associated packs should also be loaded.
-	Query(id uint) (*Query, error)
+	Query(ctx context.Context, id uint) (*Query, error)
 	// ListQueries returns a list of queries with the provided sorting and paging options. Associated packs should also
 	// be loaded.
-	ListQueries(opt ListOptions) ([]*Query, error)
+	ListQueries(ctx context.Context, opt ListOptions) ([]*Query, error)
 	// QueryByName looks up a query by name.
-	QueryByName(name string, opts ...OptionalArg) (*Query, error)
+	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods

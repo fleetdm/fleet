@@ -47,21 +47,21 @@ type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail stri
 
 type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token string) (string, error)
 
-type ApplyQueriesFunc func(authorID uint, queries []*fleet.Query) error
+type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query) error
 
-type NewQueryFunc func(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
+type NewQueryFunc func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
-type SaveQueryFunc func(query *fleet.Query) error
+type SaveQueryFunc func(ctx context.Context, query *fleet.Query) error
 
-type DeleteQueryFunc func(name string) error
+type DeleteQueryFunc func(ctx context.Context, name string) error
 
-type DeleteQueriesFunc func(ids []uint) (uint, error)
+type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
 
-type QueryFunc func(id uint) (*fleet.Query, error)
+type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
-type ListQueriesFunc func(opt fleet.ListOptions) ([]*fleet.Query, error)
+type ListQueriesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Query, error)
 
-type QueryByNameFunc func(name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
+type QueryByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
 type NewDistributedQueryCampaignFunc func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
@@ -763,44 +763,44 @@ func (s *DataStore) ConfirmPendingEmailChange(ctx context.Context, userID uint, 
 	return s.ConfirmPendingEmailChangeFunc(ctx, userID, token)
 }
 
-func (s *DataStore) ApplyQueries(authorID uint, queries []*fleet.Query) error {
+func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) error {
 	s.ApplyQueriesFuncInvoked = true
-	return s.ApplyQueriesFunc(authorID, queries)
+	return s.ApplyQueriesFunc(ctx, authorID, queries)
 }
 
-func (s *DataStore) NewQuery(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+func (s *DataStore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	s.NewQueryFuncInvoked = true
-	return s.NewQueryFunc(query, opts...)
+	return s.NewQueryFunc(ctx, query, opts...)
 }
 
-func (s *DataStore) SaveQuery(query *fleet.Query) error {
+func (s *DataStore) SaveQuery(ctx context.Context, query *fleet.Query) error {
 	s.SaveQueryFuncInvoked = true
-	return s.SaveQueryFunc(query)
+	return s.SaveQueryFunc(ctx, query)
 }
 
-func (s *DataStore) DeleteQuery(name string) error {
+func (s *DataStore) DeleteQuery(ctx context.Context, name string) error {
 	s.DeleteQueryFuncInvoked = true
-	return s.DeleteQueryFunc(name)
+	return s.DeleteQueryFunc(ctx, name)
 }
 
-func (s *DataStore) DeleteQueries(ids []uint) (uint, error) {
+func (s *DataStore) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
 	s.DeleteQueriesFuncInvoked = true
-	return s.DeleteQueriesFunc(ids)
+	return s.DeleteQueriesFunc(ctx, ids)
 }
 
-func (s *DataStore) Query(id uint) (*fleet.Query, error) {
+func (s *DataStore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	s.QueryFuncInvoked = true
-	return s.QueryFunc(id)
+	return s.QueryFunc(ctx, id)
 }
 
-func (s *DataStore) ListQueries(opt fleet.ListOptions) ([]*fleet.Query, error) {
+func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Query, error) {
 	s.ListQueriesFuncInvoked = true
-	return s.ListQueriesFunc(opt)
+	return s.ListQueriesFunc(ctx, opt)
 }
 
-func (s *DataStore) QueryByName(name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+func (s *DataStore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	s.QueryByNameFuncInvoked = true
-	return s.QueryByNameFunc(name, opts...)
+	return s.QueryByNameFunc(ctx, name, opts...)
 }
 
 func (s *DataStore) NewDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
