@@ -161,7 +161,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	}
 
 	// Get and log in user
-	user, err := svc.ds.UserByEmail(auth.UserID())
+	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
 		return nil, errors.Wrap(err, "find user in sso callback")
 	}
@@ -196,7 +196,7 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 		}
 	}(time.Now())
 
-	user, err := svc.ds.UserByEmail(email)
+	user, err := svc.ds.UserByEmail(ctx, email)
 	if _, ok := err.(fleet.NotFoundError); ok {
 		return nil, "", fleet.NewAuthFailedError("user not found")
 	}

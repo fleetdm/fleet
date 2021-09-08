@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -11,7 +12,7 @@ func TestUserDelete(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return &fleet.User{
 			ID:    42,
 			Name:  "test1",

@@ -64,7 +64,7 @@ func (d *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User,
 	return user, nil
 }
 
-func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.User, error) {
+func (d *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
 		"SELECT * FROM users "+
 			"WHERE %s = ? LIMIT 1",
@@ -117,12 +117,12 @@ func (d *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 
 }
 
-func (d *Datastore) UserByEmail(email string) (*fleet.User, error) {
-	return d.findUser("email", email)
+func (d *Datastore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
+	return d.findUser(ctx, "email", email)
 }
 
-func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
-	return d.findUser("id", id)
+func (d *Datastore) UserByID(ctx context.Context, id uint) (*fleet.User, error) {
+	return d.findUser(ctx, "id", id)
 }
 
 func (d *Datastore) SaveUser(user *fleet.User) error {

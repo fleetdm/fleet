@@ -48,7 +48,7 @@ func TestApplyUserRoles(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
-	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "admin1@example.com" {
 			return userRoleSpecList[0], nil
 		}
@@ -192,7 +192,7 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
-	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "admin1@example.com" {
 			return userRoleSpecList[0], nil
 		}

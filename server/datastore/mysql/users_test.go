@@ -38,7 +38,7 @@ func TestCreateUser(t *testing.T) {
 		user, err := ds.NewUser(context.Background(), u)
 		assert.Nil(t, err)
 
-		verify, err := ds.UserByEmail(tt.email)
+		verify, err := ds.UserByEmail(context.Background(), tt.email)
 		assert.Nil(t, err)
 
 		assert.Equal(t, user.ID, verify.ID)
@@ -54,13 +54,13 @@ func TestUserByID(t *testing.T) {
 
 	users := createTestUsers(t, ds)
 	for _, tt := range users {
-		returned, err := ds.UserByID(tt.ID)
+		returned, err := ds.UserByID(context.Background(), tt.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, tt.ID, returned.ID)
 	}
 
 	// test missing user
-	_, err := ds.UserByID(10000000000)
+	_, err := ds.UserByID(context.Background(), 10000000000)
 	assert.NotNil(t, err)
 }
 
@@ -110,7 +110,7 @@ func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 		err = ds.SaveUser(user)
 		assert.Nil(t, err)
 
-		verify, err := ds.UserByID(user.ID)
+		verify, err := ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.Password, verify.Password)
 	}
@@ -122,7 +122,7 @@ func testEmailAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		err := ds.SaveUser(user)
 		assert.Nil(t, err)
 
-		verify, err := ds.UserByID(user.ID)
+		verify, err := ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.Email, verify.Email)
 	}
@@ -134,7 +134,7 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		err := ds.SaveUser(user)
 		assert.Nil(t, err)
 
-		verify, err := ds.UserByID(user.ID)
+		verify, err := ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.GlobalRole, verify.GlobalRole)
 	}
@@ -294,7 +294,7 @@ func TestUserCreateWithTeams(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, user.Teams, 3)
 
-	user, err = ds.UserByID(user.ID)
+	user, err = ds.UserByID(context.Background(), user.ID)
 	require.NoError(t, err)
 	assert.Len(t, user.Teams, 3)
 
@@ -320,15 +320,15 @@ func TestSaveUsers(t *testing.T) {
 
 	require.NoError(t, ds.SaveUsers([]*fleet.User{u1, u2, u3}))
 
-	gotU1, err := ds.UserByID(u1.ID)
+	gotU1, err := ds.UserByID(context.Background(), u1.ID)
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(gotU1.Email, "fleet.com"))
 
-	gotU2, err := ds.UserByID(u3.ID)
+	gotU2, err := ds.UserByID(context.Background(), u3.ID)
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(gotU2.Email, "fleet.com"))
 
-	gotU3, err := ds.UserByID(u3.ID)
+	gotU3, err := ds.UserByID(context.Background(), u3.ID)
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(gotU3.Email, "fleet.com"))
 }

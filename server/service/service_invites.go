@@ -20,7 +20,7 @@ func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayloa
 	}
 
 	// verify that the user with the given email does not already exist
-	_, err := svc.ds.UserByEmail(*payload.Email)
+	_, err := svc.ds.UserByEmail(ctx, *payload.Email)
 	if err == nil {
 		return nil, fleet.NewInvalidArgumentError("email", "a user with this account already exists")
 	}

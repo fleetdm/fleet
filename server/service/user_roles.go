@@ -33,7 +33,7 @@ func (svc Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRol
 
 	var users []*fleet.User
 	for email, spec := range specs.Roles {
-		user, err := svc.ds.UserByEmail(email)
+		user, err := svc.ds.UserByEmail(ctx, email)
 		if err != nil {
 			return err
 		}

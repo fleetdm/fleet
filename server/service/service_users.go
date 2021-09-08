@@ -220,12 +220,12 @@ func (svc *Service) User(ctx context.Context, id uint) (*fleet.User, error) {
 		return nil, err
 	}
 
-	return svc.ds.UserByID(id)
+	return svc.ds.UserByID(ctx, id)
 }
 
 func (svc *Service) UserUnauthorized(ctx context.Context, id uint) (*fleet.User, error) {
 	// Explicitly no authorization check. Should only be used by middleware.
-	return svc.ds.UserByID(id)
+	return svc.ds.UserByID(ctx, id)
 }
 
 func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {
@@ -308,7 +308,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	if err != nil {
 		return errors.Wrap(err, "looking up reset by token")
 	}
-	user, err := svc.ds.UserByID(reset.UserID)
+	user, err := svc.ds.UserByID(ctx, reset.UserID)
 	if err != nil {
 		return errors.Wrap(err, "retrieving user")
 	}
@@ -381,7 +381,7 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 		return nil, err
 	}
 
-	user, err := svc.ds.UserByID(uid)
+	user, err := svc.ds.UserByID(ctx, uid)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading user by ID")
 	}
@@ -415,7 +415,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		time.Sleep(time.Until(start.Add(1 * time.Second)))
 	}(time.Now())
 
-	user, err := svc.ds.UserByEmail(email)
+	user, err := svc.ds.UserByEmail(ctx, email)
 	if err != nil {
 		return err
 	}

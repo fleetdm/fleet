@@ -336,7 +336,7 @@ func TestUserRolesSpec(t *testing.T) {
 	require.NoError(t, err)
 	token := getTestAdminToken(t, server)
 
-	user, err := ds.UserByEmail("user1@example.com")
+	user, err := ds.UserByEmail(context.Background(), "user1@example.com")
 	require.NoError(t, err)
 	assert.Len(t, user.Teams, 0)
 
@@ -356,7 +356,7 @@ func TestUserRolesSpec(t *testing.T) {
 	_, closeFunc := doReq(t, userRoleSpec, "POST", server, "/api/v1/fleet/users/roles/spec", token, http.StatusOK)
 	closeFunc()
 
-	user, err = ds.UserByEmail("user1@example.com")
+	user, err = ds.UserByEmail(context.Background(), "user1@example.com")
 	require.NoError(t, err)
 	require.Len(t, user.Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
@@ -456,7 +456,7 @@ func TestTeamSpecs(t *testing.T) {
 	require.JSONEq(t, string(agentOpts), string(*team.AgentOptions))
 
 	// creates a team with default agent options
-	user, err := ds.UserByEmail("admin1@example.com")
+	user, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
 
 	teams, err := ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})

@@ -126,7 +126,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.MarkSessionAccessedFunc = func(*fleet.Session) error {
 		return nil
 	}
-	ds.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
 	}
 	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {

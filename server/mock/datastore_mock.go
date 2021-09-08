@@ -33,9 +33,9 @@ type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
-type UserByEmailFunc func(email string) (*fleet.User, error)
+type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error)
 
-type UserByIDFunc func(id uint) (*fleet.User, error)
+type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
 type SaveUserFunc func(user *fleet.User) error
 
@@ -728,14 +728,14 @@ func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return s.ListUsersFunc(ctx, opt)
 }
 
-func (s *DataStore) UserByEmail(email string) (*fleet.User, error) {
+func (s *DataStore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
 	s.UserByEmailFuncInvoked = true
-	return s.UserByEmailFunc(email)
+	return s.UserByEmailFunc(ctx, email)
 }
 
-func (s *DataStore) UserByID(id uint) (*fleet.User, error) {
+func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) {
 	s.UserByIDFuncInvoked = true
-	return s.UserByIDFunc(id)
+	return s.UserByIDFunc(ctx, id)
 }
 
 func (s *DataStore) SaveUser(user *fleet.User) error {

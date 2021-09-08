@@ -28,8 +28,8 @@ type Datastore interface {
 
 	NewUser(ctx context.Context, user *User) (*User, error)
 	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, error)
-	UserByEmail(email string) (*User, error)
-	UserByID(id uint) (*User, error)
+	UserByEmail(ctx context.Context, email string) (*User, error)
+	UserByID(ctx context.Context, id uint) (*User, error)
 	SaveUser(user *User) error
 	SaveUsers(users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.

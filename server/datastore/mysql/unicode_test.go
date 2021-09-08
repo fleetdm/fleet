@@ -49,7 +49,7 @@ func TestUnicode(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	user, err = ds.UserByID(user.ID)
+	user, err = ds.UserByID(context.Background(), user.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "🍱", user.Name)
 

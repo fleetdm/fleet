@@ -38,7 +38,7 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 	ds.MarkSessionAccessedFunc = func(session *fleet.Session) error {
 		return nil
 	}
-	ds.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return admin, nil
 	}
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {

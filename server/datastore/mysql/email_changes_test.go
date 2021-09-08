@@ -27,7 +27,7 @@ func TestChangeEmail(t *testing.T) {
 	newMail, err := ds.ConfirmPendingEmailChange(user.ID, "abcd12345")
 	require.Nil(t, err)
 	assert.Equal(t, "xxxx@yyy.com", newMail)
-	user, err = ds.UserByID(user.ID)
+	user, err = ds.UserByID(context.Background(), user.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "xxxx@yyy.com", user.Email)
 	// this should fail because it doesn't exist

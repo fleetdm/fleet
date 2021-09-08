@@ -81,7 +81,7 @@ func TestOrgInfo(t *testing.T) {
 	_, err = ds.NewUser(context.Background(), u)
 	assert.Nil(t, err)
 
-	verify, err := ds.UserByEmail(email)
+	verify, err := ds.UserByEmail(context.Background(), email)
 	assert.Nil(t, err)
 	assert.True(t, verify.SSOEnabled)
 
@@ -89,7 +89,7 @@ func TestOrgInfo(t *testing.T) {
 	err = ds.SaveAppConfig(info4)
 	assert.Nil(t, err)
 
-	verify, err = ds.UserByEmail(email)
+	verify, err = ds.UserByEmail(context.Background(), email)
 	assert.Nil(t, err)
 	assert.False(t, verify.SSOEnabled)
 }
