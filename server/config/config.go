@@ -240,7 +240,7 @@ func (man Manager) addConfigs() {
 		"Redis server database number")
 	man.addConfigBool("redis.use_tls", false, "Redis server enable TLS")
 	man.addConfigBool("redis.duplicate_results", false, "Duplicate Live Query results to another Redis channel")
-	man.addConfigDuration("redis.connection_timeout", 5*time.Second, "Timeout at connection time")
+	man.addConfigDuration("redis.connect_timeout", 5*time.Second, "Timeout at connection time")
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 
 	// Server
