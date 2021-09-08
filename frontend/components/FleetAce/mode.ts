@@ -1,4 +1,5 @@
 /* eslint-disable */
+// @ts-nocheck
 import { osqueryTableNames } from "utilities/osquery_tables";
 
 ace.define(

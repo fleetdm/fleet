@@ -1,4 +1,5 @@
 /* eslint-disable */
+// @ts-nocheck
 ace.define(
   "ace/theme/fleet",
   ["require", "exports", "module", "ace/lib/dom"],
