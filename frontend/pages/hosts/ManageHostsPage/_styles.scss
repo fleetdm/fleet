@@ -6,6 +6,8 @@
     margin-bottom: $pad-medium;
 
     .button-wrap {
+      display: flex;
+      justify-content: flex-end;
       min-width: 266px;
     }
   }

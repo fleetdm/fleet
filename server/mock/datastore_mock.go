@@ -158,8 +158,6 @@ type HostByIdentifierFunc func(identifier string) (*fleet.Host, error)
 
 type AddHostsToTeamFunc func(teamID *uint, hostIDs []uint) error
 
-type SaveHostAdditionalFunc func(host *fleet.Host) error
-
 type TotalAndUnseenHostsSinceFunc func(daysCount int) (int, int, error)
 
 type CountHostsInTargetsFunc func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
@@ -168,19 +166,9 @@ type HostIDsInTargetsFunc func(filter fleet.TeamFilter, targets fleet.HostTarget
 
 type NewPasswordResetRequestFunc func(req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error)
 
-type SavePasswordResetRequestFunc func(req *fleet.PasswordResetRequest) error
-
-type DeletePasswordResetRequestFunc func(req *fleet.PasswordResetRequest) error
-
 type DeletePasswordResetRequestsForUserFunc func(userID uint) error
 
-type FindPassswordResetByIDFunc func(id uint) (*fleet.PasswordResetRequest, error)
-
-type FindPassswordResetsByUserIDFunc func(id uint) ([]*fleet.PasswordResetRequest, error)
-
 type FindPassswordResetByTokenFunc func(token string) (*fleet.PasswordResetRequest, error)
-
-type FindPassswordResetByTokenAndUserIDFunc func(token string, id uint) (*fleet.PasswordResetRequest, error)
 
 type SessionByKeyFunc func(key string) (*fleet.Session, error)
 
@@ -280,17 +268,11 @@ type DeleteGlobalPoliciesFunc func(ids []uint) ([]uint, error)
 
 type PolicyQueriesForHostFunc func(host *fleet.Host) (map[string]string, error)
 
-type NameFunc func() string
-
-type DropFunc func() error
-
 type MigrateTablesFunc func() error
 
 type MigrateDataFunc func() error
 
 type MigrationStatusFunc func() (fleet.MigrationStatus, error)
-
-type BeginFunc func() (fleet.Transaction, error)
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -515,9 +497,6 @@ type DataStore struct {
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
 
-	SaveHostAdditionalFunc        SaveHostAdditionalFunc
-	SaveHostAdditionalFuncInvoked bool
-
 	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
 	TotalAndUnseenHostsSinceFuncInvoked bool
 
@@ -530,26 +509,11 @@ type DataStore struct {
 	NewPasswordResetRequestFunc        NewPasswordResetRequestFunc
 	NewPasswordResetRequestFuncInvoked bool
 
-	SavePasswordResetRequestFunc        SavePasswordResetRequestFunc
-	SavePasswordResetRequestFuncInvoked bool
-
-	DeletePasswordResetRequestFunc        DeletePasswordResetRequestFunc
-	DeletePasswordResetRequestFuncInvoked bool
-
 	DeletePasswordResetRequestsForUserFunc        DeletePasswordResetRequestsForUserFunc
 	DeletePasswordResetRequestsForUserFuncInvoked bool
 
-	FindPassswordResetByIDFunc        FindPassswordResetByIDFunc
-	FindPassswordResetByIDFuncInvoked bool
-
-	FindPassswordResetsByUserIDFunc        FindPassswordResetsByUserIDFunc
-	FindPassswordResetsByUserIDFuncInvoked bool
-
 	FindPassswordResetByTokenFunc        FindPassswordResetByTokenFunc
 	FindPassswordResetByTokenFuncInvoked bool
-
-	FindPassswordResetByTokenAndUserIDFunc        FindPassswordResetByTokenAndUserIDFunc
-	FindPassswordResetByTokenAndUserIDFuncInvoked bool
 
 	SessionByKeyFunc        SessionByKeyFunc
 	SessionByKeyFuncInvoked bool
@@ -698,12 +662,6 @@ type DataStore struct {
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
 
-	NameFunc        NameFunc
-	NameFuncInvoked bool
-
-	DropFunc        DropFunc
-	DropFuncInvoked bool
-
 	MigrateTablesFunc        MigrateTablesFunc
 	MigrateTablesFuncInvoked bool
 
@@ -712,9 +670,6 @@ type DataStore struct {
 
 	MigrationStatusFunc        MigrationStatusFunc
 	MigrationStatusFuncInvoked bool
-
-	BeginFunc        BeginFunc
-	BeginFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1087,11 +1042,6 @@ func (s *DataStore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
 	return s.AddHostsToTeamFunc(teamID, hostIDs)
 }
 
-func (s *DataStore) SaveHostAdditional(host *fleet.Host) error {
-	s.SaveHostAdditionalFuncInvoked = true
-	return s.SaveHostAdditionalFunc(host)
-}
-
 func (s *DataStore) TotalAndUnseenHostsSince(daysCount int) (int, int, error) {
 	s.TotalAndUnseenHostsSinceFuncInvoked = true
 	return s.TotalAndUnseenHostsSinceFunc(daysCount)
@@ -1112,39 +1062,14 @@ func (s *DataStore) NewPasswordResetRequest(req *fleet.PasswordResetRequest) (*f
 	return s.NewPasswordResetRequestFunc(req)
 }
 
-func (s *DataStore) SavePasswordResetRequest(req *fleet.PasswordResetRequest) error {
-	s.SavePasswordResetRequestFuncInvoked = true
-	return s.SavePasswordResetRequestFunc(req)
-}
-
-func (s *DataStore) DeletePasswordResetRequest(req *fleet.PasswordResetRequest) error {
-	s.DeletePasswordResetRequestFuncInvoked = true
-	return s.DeletePasswordResetRequestFunc(req)
-}
-
 func (s *DataStore) DeletePasswordResetRequestsForUser(userID uint) error {
 	s.DeletePasswordResetRequestsForUserFuncInvoked = true
 	return s.DeletePasswordResetRequestsForUserFunc(userID)
 }
 
-func (s *DataStore) FindPassswordResetByID(id uint) (*fleet.PasswordResetRequest, error) {
-	s.FindPassswordResetByIDFuncInvoked = true
-	return s.FindPassswordResetByIDFunc(id)
-}
-
-func (s *DataStore) FindPassswordResetsByUserID(id uint) ([]*fleet.PasswordResetRequest, error) {
-	s.FindPassswordResetsByUserIDFuncInvoked = true
-	return s.FindPassswordResetsByUserIDFunc(id)
-}
-
 func (s *DataStore) FindPassswordResetByToken(token string) (*fleet.PasswordResetRequest, error) {
 	s.FindPassswordResetByTokenFuncInvoked = true
 	return s.FindPassswordResetByTokenFunc(token)
-}
-
-func (s *DataStore) FindPassswordResetByTokenAndUserID(token string, id uint) (*fleet.PasswordResetRequest, error) {
-	s.FindPassswordResetByTokenAndUserIDFuncInvoked = true
-	return s.FindPassswordResetByTokenAndUserIDFunc(token, id)
 }
 
 func (s *DataStore) SessionByKey(key string) (*fleet.Session, error) {
@@ -1392,16 +1317,6 @@ func (s *DataStore) PolicyQueriesForHost(host *fleet.Host) (map[string]string, e
 	return s.PolicyQueriesForHostFunc(host)
 }
 
-func (s *DataStore) Name() string {
-	s.NameFuncInvoked = true
-	return s.NameFunc()
-}
-
-func (s *DataStore) Drop() error {
-	s.DropFuncInvoked = true
-	return s.DropFunc()
-}
-
 func (s *DataStore) MigrateTables() error {
 	s.MigrateTablesFuncInvoked = true
 	return s.MigrateTablesFunc()
@@ -1415,9 +1330,4 @@ func (s *DataStore) MigrateData() error {
 func (s *DataStore) MigrationStatus() (fleet.MigrationStatus, error) {
 	s.MigrationStatusFuncInvoked = true
 	return s.MigrationStatusFunc()
-}
-
-func (s *DataStore) Begin() (fleet.Transaction, error) {
-	s.BeginFuncInvoked = true
-	return s.BeginFunc()
 }

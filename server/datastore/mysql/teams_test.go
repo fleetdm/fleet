@@ -205,3 +205,26 @@ func TestTeamSearchTeams(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, teams, 0)
 }
+
+func TestTeamEnrollSecrets(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	secrets := []*fleet.EnrollSecret{{Secret: "secret1"}, {Secret: "secret2"}}
+	team1, err := ds.NewTeam(&fleet.Team{
+		Name:    "team1",
+		Secrets: secrets,
+	})
+	require.NoError(t, err)
+
+	enrollSecrets, err := ds.TeamEnrollSecrets(team1.ID)
+	require.NoError(t, err)
+
+	var justSecrets []*fleet.EnrollSecret
+	for _, secret := range enrollSecrets {
+		require.NotNil(t, secret.TeamID)
+		assert.Equal(t, team1.ID, *secret.TeamID)
+		justSecrets = append(justSecrets, &fleet.EnrollSecret{Secret: secret.Secret})
+	}
+	test.ElementsMatchSkipTimestampsID(t, secrets, justSecrets)
+}

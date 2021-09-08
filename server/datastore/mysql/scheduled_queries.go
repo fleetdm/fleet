@@ -42,16 +42,10 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) 
 }
 
 func (d *Datastore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	return d.insertScheduledQuery(nil, sq)
+	return insertScheduledQueryDB(d.writer, sq)
 }
 
-func (d *Datastore) insertScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	selectFunc := d.writer.Select
-	execFunc := d.writer.Exec
-	if tx != nil {
-		selectFunc = tx.Select
-		execFunc = tx.Exec
-	}
+func insertScheduledQueryDB(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	// This query looks up the query name using the ID (for backwards
 	// compatibility with the UI)
 	query := `
@@ -72,7 +66,7 @@ func (d *Datastore) insertScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) 
 		FROM queries
 		WHERE id = ?
 		`
-	result, err := execFunc(query, sq.QueryID, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
+	result, err := q.Exec(query, sq.QueryID, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "insert scheduled query")
 	}
@@ -86,7 +80,7 @@ func (d *Datastore) insertScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) 
 		Name  string
 	}{}
 
-	err = selectFunc(&metadata, query, sq.QueryID)
+	err = sqlx.Select(q, &metadata, query, sq.QueryID)
 	if err != nil && err == sql.ErrNoRows {
 		return nil, notFound("Query").WithID(sq.QueryID)
 	} else if err != nil {
@@ -104,20 +98,16 @@ func (d *Datastore) insertScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) 
 }
 
 func (d *Datastore) SaveScheduledQuery(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	return d.saveScheduledQuery(nil, sq)
+	return saveScheduledQueryDB(d.writer, sq)
 }
 
-func (d *Datastore) saveScheduledQuery(tx *sqlx.Tx, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	updateFunc := d.writer.Exec
-	if tx != nil {
-		updateFunc = tx.Exec
-	}
+func saveScheduledQueryDB(exec sqlx.Execer, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	query := `
 		UPDATE scheduled_queries
 			SET pack_id = ?, query_id = ?, ` + "`interval`" + ` = ?, snapshot = ?, removed = ?, platform = ?, version = ?, shard = ?, denylist = ?
 			WHERE id = ?
 	`
-	result, err := updateFunc(query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.ID)
+	result, err := exec.Exec(query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving a scheduled query")
 	}

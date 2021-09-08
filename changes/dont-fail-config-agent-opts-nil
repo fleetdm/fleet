@@ -1,1 +1,0 @@
-* Handle properly the case where the agent opts is nil in the app config.

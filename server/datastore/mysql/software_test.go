@@ -3,6 +3,7 @@ package mysql
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -120,6 +121,7 @@ func TestSoftwareCPE(t *testing.T) {
 	require.NoError(t, err)
 
 	iterator, err := ds.AllSoftwareWithoutCPEIterator()
+	defer iterator.Close()
 	require.NoError(t, err)
 
 	loops := 0
@@ -142,11 +144,13 @@ func TestSoftwareCPE(t *testing.T) {
 		loops++
 	}
 	assert.Equal(t, len(host1.Software), loops)
+	require.NoError(t, iterator.Close())
 
 	err = ds.AddCPEForSoftware(fleet.Software{ID: id}, "some:cpe")
 	require.NoError(t, err)
 
 	iterator, err = ds.AllSoftwareWithoutCPEIterator()
+	defer iterator.Close()
 	require.NoError(t, err)
 
 	loops = 0
@@ -168,6 +172,7 @@ func TestSoftwareCPE(t *testing.T) {
 		loops++
 	}
 	assert.Equal(t, len(host1.Software)-1, loops)
+	require.NoError(t, iterator.Close())
 }
 
 func TestInsertCVEs(t *testing.T) {
@@ -209,7 +214,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 
 	tx, err := ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, insertNewInstalledHostSoftwareDB(tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
 
 	incoming = make(map[string]bool)
@@ -222,7 +227,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 
 	tx, err = ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, insertNewInstalledHostSoftwareDB(tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
 }
 
@@ -290,6 +295,23 @@ func TestAllCPEs(t *testing.T) {
 	assert.ElementsMatch(t, cpes, []string{"somecpe", "someothercpewithoutvulns"})
 }
 
+func TestNothingChanged(t *testing.T) {
+	assert.False(t, nothingChanged(nil, []fleet.Software{{}}))
+	assert.True(t, nothingChanged(nil, nil))
+	assert.True(t, nothingChanged(
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+	))
+	assert.False(t, nothingChanged(
+		[]fleet.Software{{Name: "A", Version: "1.1", Source: "ASD"}},
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+	))
+	assert.False(t, nothingChanged(
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "B", Version: "1.0", Source: "ASD"}},
+	))
+}
+
 func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -310,6 +332,7 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 	require.NoError(t, ds.SaveHostSoftware(host))
 	require.NoError(t, ds.LoadHostSoftware(host))
 
+	sort.Slice(host.Software, func(i, j int) bool { return host.Software[i].Name < host.Software[j].Name })
 	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
 	require.NoError(t, ds.AddCPEForSoftware(host.Software[1], "someothercpewithoutvulns"))
 	for i := 0; i < 1000; i++ {
@@ -324,7 +347,7 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 
 	for _, software := range host.Software {
 		switch software.Name {
-		case "foo":
+		case "bar":
 			assert.Equal(t, "somecpe", software.GenerateCPE)
 			require.Len(t, software.Vulnerabilities, 1000)
 			assert.True(t, strings.HasPrefix(software.Vulnerabilities[0].CVE, "cve-"))
@@ -332,10 +355,10 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 				"https://nvd.nist.gov/vuln/detail/"+software.Vulnerabilities[0].CVE,
 				software.Vulnerabilities[0].DetailsLink,
 			)
-		case "bar":
+		case "blah":
 			assert.Len(t, software.Vulnerabilities, 0)
 			assert.Equal(t, "someothercpewithoutvulns", software.GenerateCPE)
-		case "blah":
+		case "foo":
 			assert.Len(t, software.Vulnerabilities, 0)
 		}
 	}

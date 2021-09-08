@@ -1400,7 +1400,7 @@ const mapStateToProps = (state, ownProps) => {
   const teams = memoizedGetEntity(state.entities.teams.data);
 
   // If there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
-  const selectedTeam = location.query?.team_id || 0;
+  const selectedTeam = parseInt(location.query?.team_id, 10) || 0;
 
   const currentUser = state.auth.user;
   const canAddNewHosts =
@@ -1410,7 +1410,8 @@ const mapStateToProps = (state, ownProps) => {
   const canEnrollHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser) ||
-    (permissionUtils.isAnyTeamMaintainer(currentUser) && selectedTeam !== 0);
+    (selectedTeam !== 0 &&
+      permissionUtils.isTeamMaintainer(currentUser, selectedTeam));
   const canAddNewLabels =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
