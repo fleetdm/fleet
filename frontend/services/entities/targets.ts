@@ -30,7 +30,7 @@ export default {
 
     return sendRequest("POST", TARGETS, {
       query,
-      queryId,
+      query_id: queryId,
       selected,
     });
   },
