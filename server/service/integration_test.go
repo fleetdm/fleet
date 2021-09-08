@@ -220,7 +220,7 @@ func TestQueryCreationLogsActivity(t *testing.T) {
 
 	admin1 := users["admin1@example.com"]
 	admin1.GravatarURL = "http://iii.com"
-	err := ds.SaveUser(&admin1)
+	err := ds.SaveUser(context.Background(), &admin1)
 	require.NoError(t, err)
 
 	params := fleet.QueryPayload{

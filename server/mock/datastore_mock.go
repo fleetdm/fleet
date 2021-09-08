@@ -37,15 +37,15 @@ type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
-type SaveUserFunc func(user *fleet.User) error
+type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
-type SaveUsersFunc func(users []*fleet.User) error
+type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
 
-type DeleteUserFunc func(id uint) error
+type DeleteUserFunc func(ctx context.Context, id uint) error
 
-type PendingEmailChangeFunc func(userID uint, newEmail string, token string) error
+type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
-type ConfirmPendingEmailChangeFunc func(userID uint, token string) (string, error)
+type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token string) (string, error)
 
 type ApplyQueriesFunc func(authorID uint, queries []*fleet.Query) error
 
@@ -738,29 +738,29 @@ func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	return s.UserByIDFunc(ctx, id)
 }
 
-func (s *DataStore) SaveUser(user *fleet.User) error {
+func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
 	s.SaveUserFuncInvoked = true
-	return s.SaveUserFunc(user)
+	return s.SaveUserFunc(ctx, user)
 }
 
-func (s *DataStore) SaveUsers(users []*fleet.User) error {
+func (s *DataStore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 	s.SaveUsersFuncInvoked = true
-	return s.SaveUsersFunc(users)
+	return s.SaveUsersFunc(ctx, users)
 }
 
-func (s *DataStore) DeleteUser(id uint) error {
+func (s *DataStore) DeleteUser(ctx context.Context, id uint) error {
 	s.DeleteUserFuncInvoked = true
-	return s.DeleteUserFunc(id)
+	return s.DeleteUserFunc(ctx, id)
 }
 
-func (s *DataStore) PendingEmailChange(userID uint, newEmail string, token string) error {
+func (s *DataStore) PendingEmailChange(ctx context.Context, userID uint, newEmail string, token string) error {
 	s.PendingEmailChangeFuncInvoked = true
-	return s.PendingEmailChangeFunc(userID, newEmail, token)
+	return s.PendingEmailChangeFunc(ctx, userID, newEmail, token)
 }
 
-func (s *DataStore) ConfirmPendingEmailChange(userID uint, token string) (string, error) {
+func (s *DataStore) ConfirmPendingEmailChange(ctx context.Context, userID uint, token string) (string, error) {
 	s.ConfirmPendingEmailChangeFuncInvoked = true
-	return s.ConfirmPendingEmailChangeFunc(userID, token)
+	return s.ConfirmPendingEmailChangeFunc(ctx, userID, token)
 }
 
 func (s *DataStore) ApplyQueries(authorID uint, queries []*fleet.Query) error {

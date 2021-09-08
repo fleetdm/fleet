@@ -22,7 +22,7 @@ func TestUserDelete(t *testing.T) {
 
 	deletedUser := uint(0)
 
-	ds.DeleteUserFunc = func(id uint) error {
+	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
 		deletedUser = id
 		return nil
 	}

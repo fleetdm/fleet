@@ -22,20 +22,20 @@ func TestChangeEmail(t *testing.T) {
 	}
 	user, err := ds.NewUser(context.Background(), user)
 	require.Nil(t, err)
-	err = ds.PendingEmailChange(user.ID, "xxxx@yyy.com", "abcd12345")
+	err = ds.PendingEmailChange(context.Background(), user.ID, "xxxx@yyy.com", "abcd12345")
 	require.Nil(t, err)
-	newMail, err := ds.ConfirmPendingEmailChange(user.ID, "abcd12345")
+	newMail, err := ds.ConfirmPendingEmailChange(context.Background(), user.ID, "abcd12345")
 	require.Nil(t, err)
 	assert.Equal(t, "xxxx@yyy.com", newMail)
 	user, err = ds.UserByID(context.Background(), user.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "xxxx@yyy.com", user.Email)
 	// this should fail because it doesn't exist
-	_, err = ds.ConfirmPendingEmailChange(user.ID, "abcd12345")
+	_, err = ds.ConfirmPendingEmailChange(context.Background(), user.ID, "abcd12345")
 	assert.NotNil(t, err)
 
 	// test that wrong user can't confirm e-mail change
-	err = ds.PendingEmailChange(user.ID, "other@bob.com", "uniquetoken")
+	err = ds.PendingEmailChange(context.Background(), user.ID, "other@bob.com", "uniquetoken")
 	require.Nil(t, err)
 	otheruser, err := ds.NewUser(context.Background(), &fleet.User{
 		Password:   []byte("supersecret"),
@@ -43,7 +43,7 @@ func TestChangeEmail(t *testing.T) {
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	})
 	require.Nil(t, err)
-	_, err = ds.ConfirmPendingEmailChange(otheruser.ID, "uniquetoken")
+	_, err = ds.ConfirmPendingEmailChange(context.Background(), otheruser.ID, "uniquetoken")
 	assert.NotNil(t, err)
 
 }

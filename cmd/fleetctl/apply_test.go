@@ -63,7 +63,7 @@ func TestApplyUserRoles(t *testing.T) {
 		}, nil
 	}
 
-	ds.SaveUsersFunc = func(users []*fleet.User) error {
+	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
 		for _, u := range users {
 			switch u.Email {
 			case "admin1@example.com":

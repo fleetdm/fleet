@@ -30,16 +30,16 @@ type Datastore interface {
 	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, error)
 	UserByEmail(ctx context.Context, email string) (*User, error)
 	UserByID(ctx context.Context, id uint) (*User, error)
-	SaveUser(user *User) error
-	SaveUsers(users []*User) error
+	SaveUser(ctx context.Context, user *User) error
+	SaveUsers(ctx context.Context, users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
-	DeleteUser(id uint) error
+	DeleteUser(ctx context.Context, id uint) error
 	// PendingEmailChange creates a record with a pending email change for a user identified by uid. The change record
 	// is keyed by a unique token. The token is emailed to the user with a link that they can use to confirm the change.
-	PendingEmailChange(userID uint, newEmail, token string) error
+	PendingEmailChange(ctx context.Context, userID uint, newEmail, token string) error
 	// ConfirmPendingEmailChange will confirm new email address identified by token is valid. The new email will be
 	// written to user record. userID is the ID of the user whose e-mail is being changed.
-	ConfirmPendingEmailChange(userID uint, token string) (string, error)
+	ConfirmPendingEmailChange(ctx context.Context, userID uint, token string) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryStore

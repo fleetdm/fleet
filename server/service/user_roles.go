@@ -58,7 +58,7 @@ func (svc Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRol
 		users = append(users, user)
 	}
 
-	return svc.ds.SaveUsers(users)
+	return svc.ds.SaveUsers(ctx, users)
 }
 
 func (svc Service) checkAtLeastOneAdmin(ctx context.Context, user *fleet.User, spec *fleet.UserRoleSpec, email string) error {

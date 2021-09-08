@@ -125,13 +125,13 @@ func (d *Datastore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	return d.findUser(ctx, "id", id)
 }
 
-func (d *Datastore) SaveUser(user *fleet.User) error {
+func (d *Datastore) SaveUser(ctx context.Context, user *fleet.User) error {
 	return d.withTx(func(tx *sqlx.Tx) error {
 		return saveUserDB(tx, user)
 	})
 }
 
-func (d *Datastore) SaveUsers(users []*fleet.User) error {
+func (d *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 	return d.withTx(func(tx *sqlx.Tx) error {
 		for _, user := range users {
 			err := saveUserDB(tx, user)
@@ -266,6 +266,6 @@ func saveTeamsForUserDB(tx *sqlx.Tx, user *fleet.User) error {
 }
 
 // DeleteUser deletes the associated user
-func (d *Datastore) DeleteUser(id uint) error {
+func (d *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	return d.deleteEntity("users", id)
 }

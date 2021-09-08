@@ -46,7 +46,7 @@ func TestModifyUserEmail(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
@@ -64,7 +64,7 @@ func TestModifyUserEmail(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		// verify this isn't changed yet
 		assert.Equal(t, "foo@bar.com", u.Email)
 		// verify is changed per bug 1123
@@ -93,7 +93,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
@@ -111,7 +111,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
@@ -139,7 +139,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
@@ -157,7 +157,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
@@ -185,7 +185,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
@@ -203,7 +203,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)

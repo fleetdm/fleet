@@ -32,7 +32,7 @@ func TestActivityUsernameChange(t *testing.T) {
 	assert.Equal(t, "fullname", activities[0].ActorFullName)
 
 	u.Name = "newname"
-	err = ds.SaveUser(u)
+	err = ds.SaveUser(context.Background(), u)
 	require.NoError(t, err)
 
 	activities, err = ds.ListActivities(fleet.ListOptions{})
@@ -42,7 +42,7 @@ func TestActivityUsernameChange(t *testing.T) {
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
 	assert.Equal(t, "email@asd.com", *activities[0].ActorEmail)
 
-	err = ds.DeleteUser(u.ID)
+	err = ds.DeleteUser(context.Background(), u.ID)
 	require.NoError(t, err)
 
 	activities, err = ds.ListActivities(fleet.ListOptions{})

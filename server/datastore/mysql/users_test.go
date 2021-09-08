@@ -107,7 +107,7 @@ func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 		randomText, err := server.GenerateRandomText(8) //GenerateRandomText(8)
 		assert.Nil(t, err)
 		user.Password = []byte(randomText)
-		err = ds.SaveUser(user)
+		err = ds.SaveUser(context.Background(), user)
 		assert.Nil(t, err)
 
 		verify, err := ds.UserByID(context.Background(), user.ID)
@@ -119,7 +119,7 @@ func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 func testEmailAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
 		user.Email = fmt.Sprintf("test.%s", user.Email)
-		err := ds.SaveUser(user)
+		err := ds.SaveUser(context.Background(), user)
 		assert.Nil(t, err)
 
 		verify, err := ds.UserByID(context.Background(), user.ID)
@@ -131,14 +131,14 @@ func testEmailAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
 		user.GlobalRole = ptr.String("admin")
-		err := ds.SaveUser(user)
+		err := ds.SaveUser(context.Background(), user)
 		assert.Nil(t, err)
 
 		verify, err := ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.GlobalRole, verify.GlobalRole)
 	}
-	err := ds.SaveUser(&fleet.User{
+	err := ds.SaveUser(context.Background(), &fleet.User{
 		Name:       "some@email.asd",
 		Password:   []byte("asdasd"),
 		Email:      "some@email.asd",
@@ -192,7 +192,7 @@ func TestUserTeams(t *testing.T) {
 			Role: "foobar",
 		},
 	}
-	err := ds.SaveUser(users[0])
+	err := ds.SaveUser(context.Background(), users[0])
 	require.Error(t, err)
 
 	// Add valid team should succeed
@@ -203,7 +203,7 @@ func TestUserTeams(t *testing.T) {
 		},
 	}
 	users[0].GlobalRole = nil
-	err = ds.SaveUser(users[0])
+	err = ds.SaveUser(context.Background(), users[0])
 	require.NoError(t, err)
 
 	users, err = ds.ListUsers(
@@ -232,7 +232,7 @@ func TestUserTeams(t *testing.T) {
 		},
 	}
 	users[1].GlobalRole = nil
-	err = ds.SaveUser(users[1])
+	err = ds.SaveUser(context.Background(), users[1])
 	require.NoError(t, err)
 
 	users, err = ds.ListUsers(
@@ -249,7 +249,7 @@ func TestUserTeams(t *testing.T) {
 	// Clear teams
 	users[1].Teams = []fleet.UserTeam{}
 	users[1].GlobalRole = ptr.String(fleet.RoleObserver)
-	err = ds.SaveUser(users[1])
+	err = ds.SaveUser(context.Background(), users[1])
 	require.NoError(t, err)
 
 	users, err = ds.ListUsers(
@@ -318,7 +318,7 @@ func TestSaveUsers(t *testing.T) {
 	u2.Email += "m"
 	u3.Email += "m"
 
-	require.NoError(t, ds.SaveUsers([]*fleet.User{u1, u2, u3}))
+	require.NoError(t, ds.SaveUsers(context.Background(), []*fleet.User{u1, u2, u3}))
 
 	gotU1, err := ds.UserByID(context.Background(), u1.ID)
 	require.NoError(t, err)

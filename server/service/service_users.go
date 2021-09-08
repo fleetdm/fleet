@@ -151,7 +151,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.GlobalRole = nil
 	}
 
-	err = svc.saveUser(user)
+	err = svc.saveUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		return err
 	}
 	token := base64.URLEncoding.EncodeToString([]byte(random))
-	err = svc.ds.PendingEmailChange(user.ID, email, token)
+	err = svc.ds.PendingEmailChange(ctx, user.ID, email, token)
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 		return err
 	}
 
-	return svc.ds.DeleteUser(id)
+	return svc.ds.DeleteUser(ctx, id)
 }
 
 func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
@@ -212,7 +212,7 @@ func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, 
 		return "", err
 	}
 
-	return svc.ds.ConfirmPendingEmailChange(vc.UserID(), token)
+	return svc.ds.ConfirmPendingEmailChange(ctx, vc.UserID(), token)
 }
 
 func (svc *Service) User(ctx context.Context, id uint) (*fleet.User, error) {
@@ -263,7 +263,7 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 	if user.SSOEnabled {
 		return errors.New("set password for single sign on user not allowed")
 	}
-	err = svc.saveUser(user)
+	err = svc.saveUser(ctx, user)
 	if err != nil {
 		return errors.Wrap(err, "saving changed password")
 	}
@@ -390,7 +390,7 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 	}
 	// Require reset on next login
 	user.AdminForcedPasswordReset = require
-	if err := svc.saveUser(user); err != nil {
+	if err := svc.saveUser(ctx, user); err != nil {
 		return nil, errors.Wrap(err, "saving user")
 	}
 
@@ -461,6 +461,6 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 // saves user in datastore.
 // doesn't need to be exposed to the transport
 // the service should expose actions for modifying a user instead
-func (svc *Service) saveUser(user *fleet.User) error {
-	return svc.ds.SaveUser(user)
+func (svc *Service) saveUser(ctx context.Context, user *fleet.User) error {
+	return svc.ds.SaveUser(ctx, user)
 }
