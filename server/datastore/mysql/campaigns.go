@@ -127,7 +127,7 @@ func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uin
 
 	exp, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "rows effected updating distributed query campaign")
+		return 0, errors.Wrap(err, "rows affected updating distributed query campaign")
 	}
 
 	return uint(exp), nil
