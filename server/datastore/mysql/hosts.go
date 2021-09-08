@@ -145,7 +145,7 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 		}
 
 		if host.HostSoftware.Modified {
-			if err := d.saveHostSoftwareDB(tx, host); err != nil {
+			if err := saveHostSoftwareDB(tx, host); err != nil {
 				return errors.Wrap(err, "failed to save host software")
 			}
 		}

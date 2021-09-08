@@ -57,11 +57,11 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 	}
 
 	return d.withRetryTxx(func(tx *sqlx.Tx) error {
-		return d.saveHostSoftwareDB(tx, host)
+		return saveHostSoftwareDB(tx, host)
 	})
 }
 
-func (d *Datastore) saveHostSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
+func saveHostSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
 	if !host.HostSoftware.Modified {
 		return nil
 	}
