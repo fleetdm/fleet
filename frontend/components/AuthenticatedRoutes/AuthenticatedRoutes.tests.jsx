@@ -6,20 +6,26 @@ import AuthenticatedRoutes from "./index";
 import helpers from "../../test/helpers";
 
 describe("AuthenticatedRoutes - component", () => {
-  const redirectToLoginAction = {
-    type: "@@router/CALL_HISTORY_METHOD",
-    payload: {
-      method: "push",
-      args: ["/login"],
-    },
-  };
-  const redirectToPasswordResetAction = {
-    type: "@@router/CALL_HISTORY_METHOD",
-    payload: {
-      method: "push",
-      args: ["/login/reset"],
-    },
-  };
+  const redirectToLoginAction = [
+    {
+      "payload": {"redirectLocation": {}}, 
+      "type": "SET_REDIRECT_LOCATION"
+    }, 
+    {
+      "payload": {"args": ["/login"], "method": "push"}, 
+      "type": "@@router/CALL_HISTORY_METHOD"
+    }
+  ];
+  const redirectToPasswordResetAction = [
+    {
+    "payload": {"redirectLocation": {}}, 
+      "type": "SET_REDIRECT_LOCATION"
+    }, 
+    {
+      "payload": {"args": ["/login"], "method": "push"}, 
+      "type": "@@router/CALL_HISTORY_METHOD"
+    }
+  ];
   const renderedText = "This text was rendered";
   const storeWithUser = {
     auth: {
@@ -91,7 +97,7 @@ describe("AuthenticatedRoutes - component", () => {
       </Provider>
     );
 
-    expect(mockStore.getActions()).toContainEqual(
+    expect(mockStore.getActions()).toEqual(
       redirectToPasswordResetAction
     );
   });
