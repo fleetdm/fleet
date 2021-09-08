@@ -249,7 +249,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 		return nil, err
 	}
 
-	return svc.ds.ListUsers(opt)
+	return svc.ds.ListUsers(ctx, opt)
 }
 
 // setNewPassword is a helper for changing a user's password. It should be

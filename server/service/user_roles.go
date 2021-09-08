@@ -38,7 +38,7 @@ func (svc Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRol
 			return err
 		}
 		// If an admin is downgraded, make sure there is at least one other admin
-		err = svc.checkAtLeastOneAdmin(user, spec, email)
+		err = svc.checkAtLeastOneAdmin(ctx, user, spec, email)
 		if err != nil {
 			return err
 		}
@@ -61,10 +61,10 @@ func (svc Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRol
 	return svc.ds.SaveUsers(users)
 }
 
-func (svc Service) checkAtLeastOneAdmin(user *fleet.User, spec *fleet.UserRoleSpec, email string) error {
+func (svc Service) checkAtLeastOneAdmin(ctx context.Context, user *fleet.User, spec *fleet.UserRoleSpec, email string) error {
 	if null.StringFromPtr(user.GlobalRole).ValueOrZero() == fleet.RoleAdmin &&
 		null.StringFromPtr(spec.GlobalRole).ValueOrZero() != fleet.RoleAdmin {
-		users, err := svc.ds.ListUsers(fleet.UserListOptions{})
+		users, err := svc.ds.ListUsers(ctx, fleet.UserListOptions{})
 		if err != nil {
 			return err
 		}

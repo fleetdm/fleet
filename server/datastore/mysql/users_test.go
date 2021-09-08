@@ -156,16 +156,16 @@ func TestListUsers(t *testing.T) {
 
 	createTestUsers(t, ds)
 
-	users, err := ds.ListUsers(fleet.UserListOptions{})
+	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
 	assert.NoError(t, err)
 	require.Len(t, users, 2)
 
-	users, err = ds.ListUsers(fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "jason"}})
+	users, err = ds.ListUsers(context.Background(), fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "jason"}})
 	assert.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "jason@fleet.co", users[0].Email)
 
-	users, err = ds.ListUsers(fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "ike"}})
+	users, err = ds.ListUsers(context.Background(), fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "ike"}})
 	assert.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "mike@fleet.co", users[0].Email)
@@ -207,6 +207,7 @@ func TestUserTeams(t *testing.T) {
 	require.NoError(t, err)
 
 	users, err = ds.ListUsers(
+		context.Background(),
 		fleet.UserListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
 		},
@@ -235,6 +236,7 @@ func TestUserTeams(t *testing.T) {
 	require.NoError(t, err)
 
 	users, err = ds.ListUsers(
+		context.Background(),
 		fleet.UserListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
 		},
@@ -251,6 +253,7 @@ func TestUserTeams(t *testing.T) {
 	require.NoError(t, err)
 
 	users, err = ds.ListUsers(
+		context.Background(),
 		fleet.UserListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
 		},

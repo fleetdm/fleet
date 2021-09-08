@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"io/ioutil"
@@ -43,7 +44,7 @@ func TestApplyUserRoles(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
 	}
 
@@ -187,7 +188,7 @@ func TestApplyAppConfig(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
 	}
 

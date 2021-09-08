@@ -128,7 +128,7 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 	ds.UserByIDFunc = func(id uint) (*fleet.User, error) {
 		return admin, nil
 	}
-	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return users, nil
 	}
 	ds.ListSessionsForUserFunc = func(id uint) ([]*fleet.Session, error) {

@@ -170,7 +170,7 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 }
 
 func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
-	users, err := svc.ds.ListUsers(fleet.UserListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 1}})
+	users, err := svc.ds.ListUsers(ctx, fleet.UserListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 1}})
 	if err != nil {
 		return false, err
 	}

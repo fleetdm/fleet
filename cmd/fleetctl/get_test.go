@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
-	"github.com/ghodss/yaml"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/ghodss/yaml"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -56,7 +58,7 @@ func TestGetUserRoles(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleList, nil
 	}
 

@@ -90,7 +90,7 @@ func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.Us
 
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
 // UserListOptions.
-func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (d *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	sqlStatement := `
 		SELECT * FROM users
 		WHERE TRUE

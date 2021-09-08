@@ -186,7 +186,7 @@ func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.Li
 		return nil, err
 	}
 
-	return svc.ds.ListUsers(fleet.UserListOptions{ListOptions: opt, TeamID: team.ID})
+	return svc.ds.ListUsers(ctx, fleet.UserListOptions{ListOptions: opt, TeamID: team.ID})
 }
 
 func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, error) {

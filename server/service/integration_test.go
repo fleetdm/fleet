@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -361,7 +362,7 @@ func TestUserRolesSpec(t *testing.T) {
 	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
 
 	// But users are not deleted
-	users, err := ds.ListUsers(fleet.UserListOptions{})
+	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, users, 3)
 }

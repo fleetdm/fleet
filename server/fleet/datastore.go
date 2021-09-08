@@ -27,7 +27,7 @@ type Datastore interface {
 	// UserStore contains methods for managing users in a datastore
 
 	NewUser(ctx context.Context, user *User) (*User, error)
-	ListUsers(opt UserListOptions) ([]*User, error)
+	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, error)
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
 	SaveUser(user *User) error

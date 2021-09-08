@@ -31,7 +31,7 @@ type CleanupCarvesFunc func(now time.Time) (expired int, err error)
 
 type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
 
-type ListUsersFunc func(opt fleet.UserListOptions) ([]*fleet.User, error)
+type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
 type UserByEmailFunc func(email string) (*fleet.User, error)
 
@@ -723,9 +723,9 @@ func (s *DataStore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User,
 	return s.NewUserFunc(ctx, user)
 }
 
-func (s *DataStore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	s.ListUsersFuncInvoked = true
-	return s.ListUsersFunc(opt)
+	return s.ListUsersFunc(ctx, opt)
 }
 
 func (s *DataStore) UserByEmail(email string) (*fleet.User, error) {
