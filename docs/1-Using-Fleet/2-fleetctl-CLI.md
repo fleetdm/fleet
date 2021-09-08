@@ -37,7 +37,7 @@ make
 
 The `fleet serve` command will be the long running command that runs the Fleet server.
 
-### `fleetctl config`
+### fleetctl config
 
 At this point, the MySQL database doesn't have any users in it. Because of this, Fleet is exposing a one-time setup endpoint. Before we can hit that endpoint (by running `fleetctl setup`), we have to first configure the local `fleetctl` context.
 
@@ -56,7 +56,7 @@ fleetctl config set --address https://fleet.corp.example.com
 [+] Set the address config key to "https://fleet.corp.example.com" in the "default" context
 ```
 
-### `fleetctl setup`
+### fleetctl setup
 
 Now that we've configured our local CLI context, lets go ahead and create our admin account:
 
@@ -143,17 +143,17 @@ A Fleet configuration is defined using one or more declarative "messages" in yam
 
 Fleet configuration can be retrieved and applied using the `fleetctl` tool.
 
-### `fleetctl get`
+### fleetctl get
 
 The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` command allows you retrieve the current configuration and create a new file for specified Fleet entity (queries, packs, etc.)
 
-### `fleetctl apply`
+### fleetctl apply
 
 The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file.
 
 Check out the [configuration files](./configuration-files/README.md) section of the documentation for example yaml files.
 
-### `fleetctl convert`
+### fleetctl convert
 
 `fleetctl` includes easy tooling to convert osquery pack JSON into the
 `fleetctl` format. Use `fleetctl convert` with a path to the pack file:
@@ -271,7 +271,7 @@ fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
 
 can be helpful to debug carving problems.
 
-#### Ensure `carver_block_size` is set appropriately
+#### Ensure carver_block_size is set appropriately
 
 This value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
 

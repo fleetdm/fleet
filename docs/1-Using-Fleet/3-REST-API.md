@@ -662,14 +662,12 @@ The endpoint returns the host's installed `software` if the software inventory f
     "percent_disk_space_available": 73,
     "users": [
       {
-        "id": 98,
         "uid": 0,
         "username": "root",
         "type": "",
         "groupname": "root"
       },
       {
-        "id": 99,
         "uid": 1,
         "username": "bin",
         "type": "",
@@ -2803,7 +2801,7 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough with example data
 
-##### `webSocket.onopen()`
+##### webSocket.onopen()
 
 ###### Response data
 
@@ -2811,7 +2809,7 @@ socket.onmessage = ({ data }) => {
 o
 ```
 
-##### `webSocket.send()`
+##### webSocket.send()
 
 ###### Request data
 
@@ -2833,7 +2831,7 @@ o
 ]
 ```
 
-##### `webSocket.onmessage()`
+##### webSocket.onmessage()
 
 ###### Response data
 
@@ -2945,7 +2943,7 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough
 
-##### `socket.onopen()`
+##### socket.onopen()
 
 ###### Response data
 
@@ -2953,7 +2951,7 @@ socket.onmessage = ({ data }) => {
 o
 ```
 
-##### `socket.send()`
+##### socket.send()
 
 ###### Request data
 
