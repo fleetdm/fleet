@@ -43,14 +43,13 @@ const QueryPage = ({
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
+  
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isEditorUsingDefaultQuery, setIsEditorUsingDefaultQuery] = useState<boolean>(true);
-  const [typedQueryBody, setTypedQueryBody] = useState<string>(
-    DEFAULT_QUERY.query
-  );
+  const [typedQueryBody, setTypedQueryBody] = useState<string>("");
 
   const [
     showOpenSchemaActionText,
@@ -193,7 +192,7 @@ const QueryPage = ({
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
   const sidebarClass = isFirstStep && isSidebarOpen && "has-sidebar";
   const showSidebar =
-    isFirstStep && isSidebarOpen && isGlobalAdmin && isGlobalMaintainer;
+    isFirstStep && isSidebarOpen && (isGlobalAdmin || isGlobalMaintainer);
 
   return (
     <div className={`${baseClass} ${sidebarClass}`}>
