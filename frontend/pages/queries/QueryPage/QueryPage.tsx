@@ -47,6 +47,7 @@ const QueryPage = ({
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isEditorUsingDefaultQuery, setIsEditorUsingDefaultQuery] = useState<boolean>(true);
   const [typedQueryBody, setTypedQueryBody] = useState<string>(
     DEFAULT_QUERY.query
   );
@@ -147,10 +148,13 @@ const QueryPage = ({
     const step1Opts = {
       baseClass,
       storedQuery,
+      typedQueryBody,
       isEditMode: !!queryIdForEdit,
       showOpenSchemaActionText,
       isStoredQueryLoading,
       error: storedQueryError,
+      isEditorUsingDefaultQuery,
+      setIsEditorUsingDefaultQuery,
       createQuery,
       onOsqueryTableSelect,
       goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
@@ -167,12 +171,13 @@ const QueryPage = ({
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
     };
-
+    
     const step3Opts = {
       typedQueryBody,
       storedQuery,
       selectedTargets,
       isEditMode: !!queryIdForEdit,
+      goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
     };
 
     switch (step) {

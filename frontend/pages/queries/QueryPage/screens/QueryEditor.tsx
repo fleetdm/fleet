@@ -19,10 +19,13 @@ import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.p
 interface IQueryEditorProps {
   baseClass: string;
   storedQuery: IQuery | undefined;
+  typedQueryBody: string;
   isEditMode: boolean;
   error: any;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
+  isEditorUsingDefaultQuery: boolean;
+  setIsEditorUsingDefaultQuery: (value: boolean) => void;
   createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -34,10 +37,13 @@ interface IQueryEditorProps {
 const QueryEditor = ({
   baseClass,
   storedQuery,
+  typedQueryBody,
   isEditMode,
   error,
   showOpenSchemaActionText,
   isStoredQueryLoading,
+  isEditorUsingDefaultQuery,
+  setIsEditorUsingDefaultQuery,
   createQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -92,6 +98,10 @@ const QueryEditor = ({
       setTypedQueryBody(value);
     }
 
+    if (!!value && isEditorUsingDefaultQuery) {
+      setIsEditorUsingDefaultQuery(false);
+    }
+
     return false;
   };
 
@@ -113,8 +123,10 @@ const QueryEditor = ({
         onUpdate={onUpdateQuery}
         serverErrors={error || {}}
         storedQuery={storedQuery}
+        typedQueryBody={typedQueryBody}
         isEditMode={isEditMode}
         isStoredQueryLoading={isStoredQueryLoading}
+        isEditorUsingDefaultQuery={isEditorUsingDefaultQuery}
         hasSavePermissions={hasSavePermissions(currentUser)}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}

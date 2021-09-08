@@ -25,10 +25,12 @@ interface IQueryFormProps {
   baseError: string;
   fields: IQueryFormFields;
   storedQuery: IQuery;
+  typedQueryBody: string;
   isEditMode: boolean;
   hasSavePermissions: boolean;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
+  isEditorUsingDefaultQuery: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -66,10 +68,12 @@ const QueryForm = ({
   baseError,
   fields,
   storedQuery,
+  typedQueryBody,
   isEditMode,
   hasSavePermissions,
   showOpenSchemaActionText,
   isStoredQueryLoading,
+  isEditorUsingDefaultQuery,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -136,7 +140,7 @@ const QueryForm = ({
         onUpdate({
           description: description.value,
           name: name.value,
-          query: query.value,
+          query: query.value || typedQueryBody, // this means we came back to the form without editing again
           observer_can_run: observer_can_run.value,
         });
       }
@@ -303,7 +307,16 @@ const QueryForm = ({
   const { name, description, query, observer_can_run } = fields;
   const nameText = (name?.value || storedQuery.name) as string;
   const descText = (description?.value || storedQuery.description) as string;
-  const queryValue = (query?.value || query?.value === '' ? query.value : storedQuery.query) as string;
+
+  let queryValue = query?.value as string;
+  if (!queryValue) {
+    if (isEditMode) {
+      queryValue = isEditorUsingDefaultQuery ? storedQuery.query : typedQueryBody;
+    } else {
+      queryValue = typedQueryBody;
+    }
+  }
+
   const queryError = query?.error || errors.query;
   const queryOnChange = query?.onChange;
   const observerCanRun = (observer_can_run?.value ||

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Dispatch } from "redux";
 import { push } from "react-router-redux";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import moment from "moment";
@@ -24,7 +23,7 @@ interface IQueryResultsProps {
   isQueryFinished: boolean;
   onRunQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
-  dispatch: Dispatch;
+  goToQueryEditor: () => void;
 }
 
 const baseClass = "query-results";
@@ -43,7 +42,7 @@ const QueryResults = ({
   isQueryFinished,
   onRunQuery,
   onStopQuery,
-  dispatch,
+  goToQueryEditor,
 }: IQueryResultsProps) => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
@@ -223,7 +222,7 @@ const QueryResults = ({
     <div className={`${baseClass}__btn-wrapper`}>
       <Button
         className={`${baseClass}__done-btn`}
-        onClick={() => dispatch(push(PATHS.MANAGE_QUERIES))}
+        onClick={goToQueryEditor}
         variant="brand"
       >
         Done

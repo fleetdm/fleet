@@ -21,6 +21,7 @@ interface IRunQueryProps {
   storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
   isEditMode: boolean;
+  goToQueryEditor: () => void;
 }
 
 const RunQuery = ({
@@ -28,6 +29,7 @@ const RunQuery = ({
   storedQuery,
   selectedTargets,
   isEditMode,
+  goToQueryEditor,
 }: IRunQueryProps) => {
   const dispatch = useDispatch();
 
@@ -185,7 +187,7 @@ const RunQuery = ({
       onRunQuery={onRunQuery}
       onStopQuery={onStopQuery}
       isQueryFinished={isQueryFinished}
-      dispatch={dispatch}
+      goToQueryEditor={goToQueryEditor}
     />
   );
 };
