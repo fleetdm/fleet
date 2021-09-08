@@ -162,7 +162,49 @@ const QueryForm = ({
     );
   };
 
-  const renderRunForObserverOrTeamMaintainer = ({
+  const renderRunForObserver = ({
+    nameText,
+    descText,
+    queryValue,
+    observerCanRun,
+  }: IRenderProps) => (
+    <form className={`${baseClass}__wrapper`}>
+      <h1 className={`${baseClass}__query-name`}>{nameText}</h1>
+      <p className={`${baseClass}__query-description`}>{descText}</p>
+      <Button
+        className={`${baseClass}__toggle-sql`}
+        variant="text-link"
+        onClick={() => setShowQueryEditor(!showQueryEditor)}
+        disabled={false}
+      >
+        {showQueryEditor ? "Hide SQL" : "Show SQL"}
+      </Button>
+      {showQueryEditor && (
+        <FleetAce
+          value={queryValue}
+          name="query editor"
+          wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          readOnly
+        />
+      )}
+      {renderLiveQueryWarning()}
+      {observerCanRun && (
+        <div
+          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+        >
+          <Button
+            className={`${baseClass}__run`}
+            variant="blue-green"
+            onClick={goToSelectTargets}
+          >
+            Run query
+          </Button>
+        </div>
+      )}
+    </form>
+  );
+
+  const renderRunForMaintainer = ({
     nameText,
     descText,
     queryValue,
@@ -329,12 +371,17 @@ const QueryForm = ({
     return <Spinner />;
   }
 
-  if (
-    ((isOnlyObserver || isGlobalObserver) && observerCanRun) ||
-    isAnyTeamMaintainer ||
-    isGlobalMaintainer
-  ) {
-    return renderRunForObserverOrTeamMaintainer({ nameText, descText, queryValue });
+  if (isOnlyObserver || isGlobalObserver) {
+    return renderRunForObserver({ 
+      nameText, 
+      descText, 
+      queryValue, 
+      observerCanRun 
+    });
+  }
+
+  if (isAnyTeamMaintainer || isGlobalMaintainer) {
+    return renderRunForMaintainer({ nameText, descText, queryValue });
   }
 
   return renderForGlobalAdminOrMaintainer({
