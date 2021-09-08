@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -117,7 +118,7 @@ func NewUser(t *testing.T, ds fleet.Datastore, name, email string, admin bool) *
 	if admin {
 		role = fleet.RoleAdmin
 	}
-	u, err := ds.NewUser(&fleet.User{
+	u, err := ds.NewUser(context.Background(), &fleet.User{
 		Password:   []byte("garbage"),
 		Salt:       "garbage",
 		Name:       name,

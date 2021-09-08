@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -13,7 +14,7 @@ import (
 var userSearchColumns = []string{"name", "email"}
 
 // NewUser creates a new user
-func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
+func (d *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return nil, err
 	}

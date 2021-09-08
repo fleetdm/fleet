@@ -3,6 +3,7 @@
 package mock
 
 import (
+	"context"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -28,7 +29,7 @@ type GetBlockFunc func(metadata *fleet.CarveMetadata, blockId int64) ([]byte, er
 
 type CleanupCarvesFunc func(now time.Time) (expired int, err error)
 
-type NewUserFunc func(user *fleet.User) (*fleet.User, error)
+type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
 
 type ListUsersFunc func(opt fleet.UserListOptions) ([]*fleet.User, error)
 
@@ -717,9 +718,9 @@ func (s *DataStore) CleanupCarves(now time.Time) (expired int, err error) {
 	return s.CleanupCarvesFunc(now)
 }
 
-func (s *DataStore) NewUser(user *fleet.User) (*fleet.User, error) {
+func (s *DataStore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 	s.NewUserFuncInvoked = true
-	return s.NewUserFunc(user)
+	return s.NewUserFunc(ctx, user)
 }
 
 func (s *DataStore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {

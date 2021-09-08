@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -111,7 +112,7 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 	var users []*fleet.User
 	var admin *fleet.User
 	sessions := make(map[string]*fleet.Session)
-	ds.NewUserFunc = func(user *fleet.User) (*fleet.User, error) {
+	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
 			admin = user
 		}

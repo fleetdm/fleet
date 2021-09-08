@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func TestCreateUser(t *testing.T) {
 			SSOEnabled:               tt.sso,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
-		user, err := ds.NewUser(u)
+		user, err := ds.NewUser(context.Background(), u)
 		assert.Nil(t, err)
 
 		verify, err := ds.UserByEmail(tt.email)
@@ -82,7 +83,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 
-		user, err := ds.NewUser(u)
+		user, err := ds.NewUser(context.Background(), u)
 		assert.Nil(t, err)
 
 		users = append(users, user)
@@ -286,7 +287,7 @@ func TestUserCreateWithTeams(t *testing.T) {
 			},
 		},
 	}
-	user, err := ds.NewUser(u)
+	user, err := ds.NewUser(context.Background(), u)
 	assert.Nil(t, err)
 	assert.Len(t, user.Teams, 3)
 

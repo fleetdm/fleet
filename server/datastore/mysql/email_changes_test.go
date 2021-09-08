@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -19,7 +20,7 @@ func TestChangeEmail(t *testing.T) {
 		Email:      "bob@bob.com",
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
-	user, err := ds.NewUser(user)
+	user, err := ds.NewUser(context.Background(), user)
 	require.Nil(t, err)
 	err = ds.PendingEmailChange(user.ID, "xxxx@yyy.com", "abcd12345")
 	require.Nil(t, err)
@@ -36,7 +37,7 @@ func TestChangeEmail(t *testing.T) {
 	// test that wrong user can't confirm e-mail change
 	err = ds.PendingEmailChange(user.ID, "other@bob.com", "uniquetoken")
 	require.Nil(t, err)
-	otheruser, err := ds.NewUser(&fleet.User{
+	otheruser, err := ds.NewUser(context.Background(), &fleet.User{
 		Password:   []byte("supersecret"),
 		Email:      "other@bobcom",
 		GlobalRole: ptr.String(fleet.RoleObserver),

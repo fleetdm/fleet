@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -13,7 +14,7 @@ func TestSessionGetters(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	user, err := ds.NewUser(&fleet.User{
+	user, err := ds.NewUser(context.Background(), &fleet.User{
 		Password:   []byte("supersecret"),
 		Email:      "other@bobcom",
 		GlobalRole: ptr.String(fleet.RoleObserver),

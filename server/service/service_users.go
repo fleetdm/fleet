@@ -29,7 +29,7 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
 
-	user, err := svc.newUser(p)
+	user, err := svc.newUser(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		return nil, errors.Errorf("%s already invited", *p.Email)
 	}
 
-	return svc.newUser(p)
+	return svc.newUser(ctx, p)
 }
 
 func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
@@ -70,10 +70,10 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 	p.GlobalRole = ptr.String(fleet.RoleAdmin)
 	p.Teams = nil
 
-	return svc.newUser(p)
+	return svc.newUser(ctx, p)
 }
 
-func (svc *Service) newUser(p fleet.UserPayload) (*fleet.User, error) {
+func (svc *Service) newUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	var ssoEnabled bool
 	// if user is SSO generate a fake password
 	if (p.SSOInvite != nil && *p.SSOInvite) || (p.SSOEnabled != nil && *p.SSOEnabled) {
@@ -89,7 +89,7 @@ func (svc *Service) newUser(p fleet.UserPayload) (*fleet.User, error) {
 		return nil, err
 	}
 	user.SSOEnabled = ssoEnabled
-	user, err = svc.ds.NewUser(user)
+	user, err = svc.ds.NewUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}

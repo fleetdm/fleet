@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -18,7 +19,7 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 	ds := new(mock.Store)
 	var users []*fleet.User
 	var admin *fleet.User
-	ds.NewUserFunc = func(user *fleet.User) (*fleet.User, error) {
+	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
 			admin = user
 		}

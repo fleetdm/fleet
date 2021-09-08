@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,7 +21,7 @@ func TestActivityUsernameChange(t *testing.T) {
 		GravatarURL: "http://asd.com",
 		GlobalRole:  ptr.String(fleet.RoleObserver),
 	}
-	_, err := ds.NewUser(u)
+	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
 	require.NoError(t, ds.NewActivity(u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
 	require.NoError(t, ds.NewActivity(u, "test2", &map[string]interface{}{"detail": 2}))
@@ -61,7 +62,7 @@ func TestNewActivity(t *testing.T) {
 		Email:      "email@asd.com",
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
-	_, err := ds.NewUser(u)
+	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
 	require.NoError(t, ds.NewActivity(u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
 	require.NoError(t, ds.NewActivity(u, "test2", &map[string]interface{}{"detail": 2}))

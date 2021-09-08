@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -40,7 +41,7 @@ func TestUnicode(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, "🍌", host.Hostname)
 
-	user, err := ds.NewUser(&fleet.User{
+	user, err := ds.NewUser(context.Background(), &fleet.User{
 		Name:       "🍱",
 		Email:      "test@example.com",
 		Password:   []byte{},

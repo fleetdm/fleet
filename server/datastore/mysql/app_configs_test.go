@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"encoding/json"
 	"sort"
 	"testing"
@@ -77,7 +78,7 @@ func TestOrgInfo(t *testing.T) {
 		SSOEnabled: true,
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	}
-	_, err = ds.NewUser(u)
+	_, err = ds.NewUser(context.Background(), u)
 	assert.Nil(t, err)
 
 	verify, err := ds.UserByEmail(email)

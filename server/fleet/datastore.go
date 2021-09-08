@@ -1,6 +1,9 @@
 package fleet
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type CarveStore interface {
 	NewCarve(metadata *CarveMetadata) (*CarveMetadata, error)
@@ -23,7 +26,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// UserStore contains methods for managing users in a datastore
 
-	NewUser(user *User) (*User, error)
+	NewUser(ctx context.Context, user *User) (*User, error)
 	ListUsers(opt UserListOptions) ([]*User, error)
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
