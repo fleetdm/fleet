@@ -631,7 +631,7 @@ func TestPackApplyStatsNotLocking(t *testing.T) {
 				schedQueries, err := ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
 				require.NoError(t, err)
 
-				require.NoError(t, saveHostPackStats(ds.writer, randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+				require.NoError(t, saveHostPackStatsDB(ds.writer, randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
 			}
 		}
 	}()
@@ -684,7 +684,7 @@ func TestPackApplyStatsNotLockingTryTwo(t *testing.T) {
 					schedQueries, err := ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
 					require.NoError(t, err)
 
-					require.NoError(t, saveHostPackStats(ds.writer, randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+					require.NoError(t, saveHostPackStatsDB(ds.writer, randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
 				}
 			}
 		}()

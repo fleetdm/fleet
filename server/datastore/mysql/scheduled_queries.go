@@ -42,10 +42,10 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) 
 }
 
 func (d *Datastore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	return insertScheduledQuery(d.writer, sq)
+	return insertScheduledQueryDB(d.writer, sq)
 }
 
-func insertScheduledQuery(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+func insertScheduledQueryDB(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	// This query looks up the query name using the ID (for backwards
 	// compatibility with the UI)
 	query := `
@@ -98,10 +98,10 @@ func insertScheduledQuery(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.Schedule
 }
 
 func (d *Datastore) SaveScheduledQuery(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	return d.saveScheduledQuery(d.writer, sq)
+	return saveScheduledQueryDB(d.writer, sq)
 }
 
-func (d *Datastore) saveScheduledQuery(exec sqlx.Execer, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+func saveScheduledQueryDB(exec sqlx.Execer, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	query := `
 		UPDATE scheduled_queries
 			SET pack_id = ?, query_id = ?, ` + "`interval`" + ` = ?, snapshot = ?, removed = ?, platform = ?, version = ?, shard = ?, denylist = ?

@@ -58,10 +58,10 @@ func (d *Datastore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadat
 // UpdateCarve updates the carve metadata in database
 // Only max_block and expired are updatable
 func (d *Datastore) UpdateCarve(metadata *fleet.CarveMetadata) error {
-	return updateCarve(d.writer, metadata)
+	return updateCarveDB(d.writer, metadata)
 }
 
-func updateCarve(exec sqlx.Execer, metadata *fleet.CarveMetadata) error {
+func updateCarveDB(exec sqlx.Execer, metadata *fleet.CarveMetadata) error {
 	stmt := `
 		UPDATE carve_metadata SET
 			max_block = ?,
@@ -243,7 +243,7 @@ func (d *Datastore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data 
 		if metadata.MaxBlock < blockId {
 			// Update max_block
 			metadata.MaxBlock = blockId
-			if err := updateCarve(tx, metadata); err != nil {
+			if err := updateCarveDB(tx, metadata); err != nil {
 				return errors.Wrap(err, "update carve max block")
 			}
 		}

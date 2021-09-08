@@ -15,7 +15,7 @@ type statistics struct {
 }
 
 func (d *Datastore) ShouldSendStatistics(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
-	amountEnrolledHosts, err := amountEnrolledHosts(d.writer)
+	amountEnrolledHosts, err := amountEnrolledHostsDB(d.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, err
 	}

@@ -51,7 +51,7 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 		id, _ := result.LastInsertId()
 		user.ID = uint(id)
 
-		if err := d.saveTeamsForUser(tx, user); err != nil {
+		if err := saveTeamsForUserDB(tx, user); err != nil {
 			return err
 		}
 		return nil
@@ -126,14 +126,14 @@ func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
 
 func (d *Datastore) SaveUser(user *fleet.User) error {
 	return d.withTx(func(tx *sqlx.Tx) error {
-		return d.saveUser(tx, user)
+		return saveUserDB(tx, user)
 	})
 }
 
 func (d *Datastore) SaveUsers(users []*fleet.User) error {
 	return d.withTx(func(tx *sqlx.Tx) error {
 		for _, user := range users {
-			err := d.saveUser(tx, user)
+			err := saveUserDB(tx, user)
 			if err != nil {
 				return err
 			}
@@ -142,7 +142,7 @@ func (d *Datastore) SaveUsers(users []*fleet.User) error {
 	})
 }
 
-func (d *Datastore) saveUser(tx *sqlx.Tx, user *fleet.User) error {
+func saveUserDB(tx *sqlx.Tx, user *fleet.User) error {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (d *Datastore) saveUser(tx *sqlx.Tx, user *fleet.User) error {
 	}
 
 	// REVIEW: Check if teams have been set?
-	if err := d.saveTeamsForUser(tx, user); err != nil {
+	if err := saveTeamsForUserDB(tx, user); err != nil {
 		return err
 	}
 
@@ -234,7 +234,7 @@ func (d *Datastore) loadTeamsForUsers(users []*fleet.User) error {
 	return nil
 }
 
-func (d *Datastore) saveTeamsForUser(tx *sqlx.Tx, user *fleet.User) error {
+func saveTeamsForUserDB(tx *sqlx.Tx, user *fleet.User) error {
 	// Do a full teams update by deleting existing teams and then inserting all
 	// the current teams in a single transaction.
 

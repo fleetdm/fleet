@@ -64,7 +64,7 @@ func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
 	return value == "ON", nil
 }
 
-func manageHostExpiryEvent(tx *sqlx.Tx, hostExpiryEnabled bool, hostExpiryWindow int) error {
+func manageHostExpiryEventDB(tx *sqlx.Tx, hostExpiryEnabled bool, hostExpiryWindow int) error {
 	var err error
 	hostExpiryConfig := struct {
 		Window int `db:"host_expiry_window"`
@@ -111,7 +111,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 	}
 
 	return d.withTx(func(tx *sqlx.Tx) error {
-		if err := manageHostExpiryEvent(tx, expiryEnabled, expiryWindow); err != nil {
+		if err := manageHostExpiryEventDB(tx, expiryEnabled, expiryWindow); err != nil {
 			return err
 		}
 
@@ -146,11 +146,11 @@ func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, erro
 
 func (d *Datastore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
 	return d.withRetryTxx(func(tx *sqlx.Tx) error {
-		return d.applyEnrollSecretsDB(tx, teamID, secrets)
+		return applyEnrollSecretsDB(tx, teamID, secrets)
 	})
 }
 
-func (d *Datastore) applyEnrollSecretsDB(exec sqlx.Execer, teamID *uint, secrets []*fleet.EnrollSecret) error {
+func applyEnrollSecretsDB(exec sqlx.Execer, teamID *uint, secrets []*fleet.EnrollSecret) error {
 	if teamID != nil {
 		sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
 		if _, err := exec.Exec(sql, teamID); err != nil {
