@@ -42,10 +42,10 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) 
 }
 
 func (d *Datastore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	return d.insertScheduledQuery(d.writer, sq)
+	return insertScheduledQuery(d.writer, sq)
 }
 
-func (d *Datastore) insertScheduledQuery(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+func insertScheduledQuery(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	// This query looks up the query name using the ID (for backwards
 	// compatibility with the UI)
 	query := `
