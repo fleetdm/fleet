@@ -103,7 +103,7 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 }
 
 func (d *Datastore) applyChangesForNewSoftware(tx *sqlx.Tx, host *fleet.Host) error {
-	storedCurrentSoftware, err := d.hostSoftwareFromHostID(tx, host.ID)
+	storedCurrentSoftware, err := hostSoftwareFromHostID(tx, host.ID)
 	if err != nil {
 		return errors.Wrap(err, "loading current software for host")
 	}
@@ -209,7 +209,7 @@ func (d *Datastore) insertNewInstalledHostSoftware(
 	return nil
 }
 
-func (d *Datastore) hostSoftwareFromHostID(q sqlx.Queryer, id uint) ([]fleet.Software, error) {
+func hostSoftwareFromHostID(q sqlx.Queryer, id uint) ([]fleet.Software, error) {
 	sql := `
 		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe
 		FROM software s
@@ -265,7 +265,7 @@ func (d *Datastore) hostSoftwareFromHostID(q sqlx.Queryer, id uint) ([]fleet.Sof
 
 func (d *Datastore) LoadHostSoftware(host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := d.hostSoftwareFromHostID(d.reader, host.ID)
+	software, err := hostSoftwareFromHostID(d.reader, host.ID)
 	if err != nil {
 		return err
 	}
