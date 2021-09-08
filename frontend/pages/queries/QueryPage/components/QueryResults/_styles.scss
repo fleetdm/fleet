@@ -109,10 +109,8 @@
       &--disabled {
         cursor: not-allowed;
       }
-      &.no-count {
-        &.react-tabs__tab--selected::after {
-          bottom: -2px;
-        }
+      &.no-count:not(.errors-empty).react-tabs__tab--selected::after {
+        bottom: -2px;
       }
       .count {
         margin-right: $pad-small;

@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { push } from "react-router-redux";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import moment from "moment";
 import classnames from "classnames";
 import FileSaver from "file-saver";
 import { filter, get, keys, omit } from "lodash";
 
-import PATHS from "router/paths"; // @ts-ignore
+// @ts-ignore
 import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
 import filterArrayByHash from "utilities/filter_array_by_hash";
 import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
@@ -255,6 +254,11 @@ const QueryResults = ({
   const hasNoResults =
     isQueryFinished &&
     (!hostsCount.successful || !queryResults || !queryResults.length);
+
+  const firstTabClass = classnames("react-tabs__tab", "no-count", {
+    ["errors-empty"]: !errors || errors?.length === 0
+  });
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -275,9 +279,13 @@ const QueryResults = ({
       <div className={`${baseClass}__nav-header`}>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
-            <Tab className="react-tabs__tab no-count">{NAV_TITLES.RESULTS}</Tab>
+            <Tab className={firstTabClass}>
+              {NAV_TITLES.RESULTS}
+            </Tab>
             <Tab disabled={!errors?.length}>
-              <span className="count">{errors?.length || 0}</span>
+              {errors?.length > 0 && (
+                <span className="count">{errors.length}</span>
+              )}
               {NAV_TITLES.ERRORS}
             </Tab>
           </TabList>
