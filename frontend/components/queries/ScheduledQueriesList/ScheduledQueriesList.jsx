@@ -179,7 +179,7 @@ class ScheduledQueriesList extends Component {
           <tbody>
             {renderHelpText()}
             {!!scheduledQueries.length &&
-              sortBy(scheduledQueries, ["name"]).map((scheduledQuery) => {
+              sortBy(scheduledQueries, ["query_name"]).map((scheduledQuery) => {
                 return (
                   <QueriesListItem
                     checked={this.isChecked(scheduledQuery)}

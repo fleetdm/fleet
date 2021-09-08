@@ -358,36 +358,44 @@ func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uin
 		}
 	}
 
-	// Complete inserts if necessary
-	if len(vals) > 0 {
-		sql := `
-			INSERT INTO label_membership (updated_at, label_id, host_id) VALUES
-		`
-		sql += strings.Join(bindvars, ",") +
-			`
-			ON DUPLICATE KEY UPDATE
-			updated_at = VALUES(updated_at)
-		`
+	if len(vals) > 0 || len(removes) > 0 {
+		err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+			// Complete inserts if necessary
+			if len(vals) > 0 {
+				sql := `
+        INSERT IGNORE INTO label_membership (updated_at, label_id, host_id) VALUES
+        `
+				sql += strings.Join(bindvars, ",") +
+					`
+          ON DUPLICATE KEY UPDATE
+          updated_at = VALUES(updated_at)
+        `
 
-		_, err := d.writer.Exec(sql, vals...)
-		if err != nil {
-			return errors.Wrapf(err, "insert label query executions (%v)", vals)
-		}
-	}
+				_, err := tx.Exec(sql, vals...)
+				if err != nil {
+					return errors.Wrapf(err, "insert label query executions (%v)", vals)
+				}
+			}
 
-	// Complete deletions if necessary
-	if len(removes) > 0 {
-		sql := `
+			// Complete deletions if necessary
+			if len(removes) > 0 {
+				sql := `
 			DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)
 		`
-		query, args, err := sqlx.In(sql, host.ID, removes)
+				query, args, err := sqlx.In(sql, host.ID, removes)
+				if err != nil {
+					return errors.Wrap(err, "IN for DELETE FROM label_membership")
+				}
+				query = tx.Rebind(query)
+				_, err = tx.Exec(query, args...)
+				if err != nil {
+					return errors.Wrap(err, "delete label query executions")
+				}
+			}
+			return nil
+		})
 		if err != nil {
-			return errors.Wrap(err, "IN for DELETE FROM label_membership")
-		}
-		query = d.writer.Rebind(query)
-		_, err = d.writer.Exec(query, args...)
-		if err != nil {
-			return errors.Wrap(err, "delete label query executions")
+			return err
 		}
 	}
 

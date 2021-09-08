@@ -150,3 +150,26 @@ func TestCleanupDistributedQueryCampaigns(t *testing.T) {
 	}
 
 }
+
+func TestSaveDistributedQueryCampaign(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	user := test.NewUser(t, ds, t.Name(), t.Name()+"zwass@fleet.co", true)
+
+	mockClock := clock.NewMockClock()
+
+	query := test.NewQuery(t, ds, t.Name()+"test", "select * from time", user.ID, false)
+
+	c1 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now())
+	gotC, err := ds.DistributedQueryCampaign(c1.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.QueryWaiting, gotC.Status)
+
+	c1.Status = fleet.QueryComplete
+	require.NoError(t, ds.SaveDistributedQueryCampaign(c1))
+
+	gotC, err = ds.DistributedQueryCampaign(c1.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.QueryComplete, gotC.Status)
+}

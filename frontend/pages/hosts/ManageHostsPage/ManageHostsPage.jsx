@@ -1,7 +1,7 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { push, goBack } from "react-router-redux";
+import { goBack, push, replace } from "react-router-redux";
 import { find, isEmpty, memoize, omit } from "lodash";
 
 import Button from "components/buttons/Button";
@@ -381,7 +381,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -635,7 +635,6 @@ export class ManageHostsPage extends PureComponent {
   };
 
   retrieveHosts = async (options = {}) => {
-    const { dispatch } = this.props;
     const { getValidatedTeamId } = this;
 
     this.setState({ isHostsLoading: true });
@@ -727,7 +726,7 @@ export class ManageHostsPage extends PureComponent {
     });
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -760,7 +759,7 @@ export class ManageHostsPage extends PureComponent {
       teamId: selectedTeam,
     });
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -806,7 +805,7 @@ export class ManageHostsPage extends PureComponent {
         ? omit(queryParams, "team_id")
         : Object.assign({}, queryParams, { team_id: teamIdParam }),
     });
-    dispatch(push(nextLocation));
+    dispatch(replace(nextLocation));
   };
 
   handleLabelChange = ({ slug }) => {
@@ -843,7 +842,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: isAllHosts
             ? MANAGE_HOSTS
@@ -1381,7 +1380,7 @@ const mapStateToProps = (state, ownProps) => {
   const teams = memoizedGetEntity(state.entities.teams.data);
 
   // If there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
-  const selectedTeam = location.query?.team_id || 0;
+  const selectedTeam = parseInt(location.query?.team_id, 10) || 0;
 
   const currentUser = state.auth.user;
   const canAddNewHosts =
@@ -1391,7 +1390,8 @@ const mapStateToProps = (state, ownProps) => {
   const canEnrollHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser) ||
-    (permissionUtils.isAnyTeamMaintainer(currentUser) && selectedTeam !== 0);
+    (selectedTeam !== 0 &&
+      permissionUtils.isTeamMaintainer(currentUser, selectedTeam));
   const canAddNewLabels =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
