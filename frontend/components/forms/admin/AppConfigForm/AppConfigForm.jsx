@@ -231,6 +231,11 @@ class AppConfigForm extends Component {
     const json = {
       message:
         "More than X% of your hosts have not checked into Fleet for more than Y days. You’ve been sent this message because the Host status webhook is enabled in your Fleet instance.",
+      data: {
+        unseen_hosts: 1,
+        total_hosts: 2,
+        days_unseen: 3,
+      },
     };
 
     return (
