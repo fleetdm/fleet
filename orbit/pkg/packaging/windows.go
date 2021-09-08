@@ -18,19 +18,17 @@ import (
 // BuildMSI builds a Windows .msi.
 func BuildMSI(opt Options) error {
 	// Initialize directories
-	dir, err := os.UserHomeDir()
+	tmpDir, err := ioutil.TempDir("", "orbit-package")
 	if err != nil {
-		return errors.Wrap(err, "user home directory")
+		return errors.Wrap(err, "failed to create temp dir")
 	}
+	os.Chmod(tmpDir, 0755)
+	defer os.RemoveAll(tmpDir)
 
-	packageDir := filepath.Join(dir, ".fleet", "orbit-package")
-	defer os.RemoveAll(packageDir)
-
-	filesystemRoot := filepath.Join(packageDir, "root")
+	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create root dir")
 	}
-	log.Debug().Str("path", packageDir).Msg("created temp dir")
 	orbitRoot := filesystemRoot
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create orbit dir")
@@ -64,33 +62,33 @@ func BuildMSI(opt Options) error {
 		}
 	}
 
-	if err := writeWixFile(opt, packageDir); err != nil {
+	if err := writeWixFile(opt, tmpDir); err != nil {
 		return errors.Wrap(err, "write wix file")
 	}
 
 	// Make sure permissions are permissive so that the `wine` user in the Wix Docker container can access files.
-	if err := chmodRecursive(packageDir, os.ModePerm); err != nil {
+	if err := chmodRecursive(tmpDir, os.ModePerm); err != nil {
 		return err
 	}
 
-	if err := wix.Heat(packageDir); err != nil {
+	if err := wix.Heat(tmpDir); err != nil {
 		return errors.Wrap(err, "package root files")
 	}
 
-	if err := wix.TransformHeat(filepath.Join(packageDir, "heat.wxs")); err != nil {
+	if err := wix.TransformHeat(filepath.Join(tmpDir, "heat.wxs")); err != nil {
 		return errors.Wrap(err, "transform heat")
 	}
 
-	if err := wix.Candle(packageDir); err != nil {
+	if err := wix.Candle(tmpDir); err != nil {
 		return errors.Wrap(err, "build package")
 	}
 
-	if err := wix.Light(packageDir); err != nil {
+	if err := wix.Light(tmpDir); err != nil {
 		return errors.Wrap(err, "build package")
 	}
 
 	filename := fmt.Sprintf("orbit-osquery_%s.msi", opt.Version)
-	if err := os.Rename(filepath.Join(packageDir, "orbit.msi"), filename); err != nil {
+	if err := os.Rename(filepath.Join(tmpDir, "orbit.msi"), filename); err != nil {
 		return errors.Wrap(err, "rename msi")
 	}
 	log.Info().Str("path", filename).Msg("wrote msi package")
