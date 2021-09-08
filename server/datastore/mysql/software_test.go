@@ -214,7 +214,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 
 	tx, err := ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, insertNewInstalledHostSoftwareDB(tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
 
 	incoming = make(map[string]bool)
@@ -227,7 +227,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 
 	tx, err = ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, ds.insertNewInstalledHostSoftware(tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, insertNewInstalledHostSoftwareDB(tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
 }
 

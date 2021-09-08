@@ -56,24 +56,28 @@ func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
 		return nil
 	}
 
-	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		if len(host.HostSoftware.Software) == 0 {
-			// Clear join table for this host
-			sql := "DELETE FROM host_software WHERE host_id = ?"
-			if _, err := tx.Exec(sql, host.ID); err != nil {
-				return errors.Wrap(err, "clear join table entries")
-			}
+	return d.withRetryTxx(func(tx *sqlx.Tx) error {
+		return saveHostSoftwareDB(tx, host)
+	})
+}
 
-			return nil
-		}
+func saveHostSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
+	if !host.HostSoftware.Modified {
+		return nil
+	}
 
-		if err := d.applyChangesForNewSoftware(tx, host); err != nil {
-			return err
+	if len(host.HostSoftware.Software) == 0 {
+		// Clear join table for this host
+		sql := "DELETE FROM host_software WHERE host_id = ?"
+		if _, err := tx.Exec(sql, host.ID); err != nil {
+			return errors.Wrap(err, "clear join table entries")
 		}
 
 		return nil
-	}); err != nil {
-		return errors.Wrap(err, "save host software")
+	}
+
+	if err := applyChangesForNewSoftwareDB(tx, host); err != nil {
+		return err
 	}
 
 	host.HostSoftware.Modified = false
@@ -98,8 +102,8 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 	return true
 }
 
-func (d *Datastore) applyChangesForNewSoftware(tx *sqlx.Tx, host *fleet.Host) error {
-	storedCurrentSoftware, err := d.hostSoftwareFromHostID(tx, host.ID)
+func applyChangesForNewSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
+	storedCurrentSoftware, err := hostSoftwareFromHostIDDB(tx, host.ID)
 	if err != nil {
 		return errors.Wrap(err, "loading current software for host")
 	}
@@ -111,18 +115,18 @@ func (d *Datastore) applyChangesForNewSoftware(tx *sqlx.Tx, host *fleet.Host) er
 	current := softwareSliceToIdMap(storedCurrentSoftware)
 	incoming := softwareSliceToSet(host.Software)
 
-	if err = d.deleteUninstalledHostSoftware(tx, host.ID, current, incoming); err != nil {
+	if err = deleteUninstalledHostSoftwareDB(tx, host.ID, current, incoming); err != nil {
 		return err
 	}
 
-	if err = d.insertNewInstalledHostSoftware(tx, host.ID, current, incoming); err != nil {
+	if err = insertNewInstalledHostSoftwareDB(tx, host.ID, current, incoming); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (d *Datastore) deleteUninstalledHostSoftware(
+func deleteUninstalledHostSoftwareDB(
 	tx *sqlx.Tx,
 	hostID uint,
 	currentIdmap map[string]uint,
@@ -151,7 +155,7 @@ func (d *Datastore) deleteUninstalledHostSoftware(
 	return nil
 }
 
-func (d *Datastore) getOrGenerateSoftwareId(tx *sqlx.Tx, s fleet.Software) (uint, error) {
+func getOrGenerateSoftwareIdDB(tx *sqlx.Tx, s fleet.Software) (uint, error) {
 	var existingId []int64
 	if err := tx.Select(
 		&existingId,
@@ -178,7 +182,7 @@ func (d *Datastore) getOrGenerateSoftwareId(tx *sqlx.Tx, s fleet.Software) (uint
 	return uint(id), nil
 }
 
-func (d *Datastore) insertNewInstalledHostSoftware(
+func insertNewInstalledHostSoftwareDB(
 	tx *sqlx.Tx,
 	hostID uint,
 	currentIdmap map[string]uint,
@@ -187,7 +191,7 @@ func (d *Datastore) insertNewInstalledHostSoftware(
 	var insertsHostSoftware []interface{}
 	for s := range incomingBitmap {
 		if _, ok := currentIdmap[s]; !ok {
-			id, err := d.getOrGenerateSoftwareId(tx, uniqueStringToSoftware(s))
+			id, err := getOrGenerateSoftwareIdDB(tx, uniqueStringToSoftware(s))
 			if err != nil {
 				return err
 			}
@@ -205,11 +209,7 @@ func (d *Datastore) insertNewInstalledHostSoftware(
 	return nil
 }
 
-func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Software, error) {
-	selectFunc := d.reader.Select
-	if tx != nil {
-		selectFunc = tx.Select
-	}
+func hostSoftwareFromHostIDDB(q sqlx.Queryer, id uint) ([]fleet.Software, error) {
 	sql := `
 		SELECT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe
 		FROM software s
@@ -219,7 +219,7 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 		group by s.id, s.name, s.version, s.source, generated_cpe
 	`
 	var result []*fleet.Software
-	if err := selectFunc(&result, sql, id); err != nil {
+	if err := sqlx.Select(q, &result, sql, id); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 
@@ -231,12 +231,8 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 		WHERE s.id IN
 			(SELECT software_id FROM host_software WHERE host_id = ?)
 	`
-	queryFunc := d.reader.Queryx
-	if tx != nil {
-		queryFunc = tx.Queryx
-	}
 
-	rows, err := queryFunc(sql, id)
+	rows, err := q.Queryx(sql, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
@@ -254,13 +250,14 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 			DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "error iterating through cve rows")
+	}
+
 	var resultWithCVEs []fleet.Software
 	for _, software := range result {
 		software.Vulnerabilities = cvesBySoftware[software.ID]
 		resultWithCVEs = append(resultWithCVEs, *software)
-		if err := rows.Err(); err != nil {
-			return nil, errors.Wrap(err, "error iterating through cve rows")
-		}
 	}
 
 	return resultWithCVEs, nil
@@ -268,7 +265,7 @@ func (d *Datastore) hostSoftwareFromHostID(tx *sqlx.Tx, id uint) ([]fleet.Softwa
 
 func (d *Datastore) LoadHostSoftware(host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := d.hostSoftwareFromHostID(nil, host.ID)
+	software, err := hostSoftwareFromHostIDDB(d.reader, host.ID)
 	if err != nil {
 		return err
 	}

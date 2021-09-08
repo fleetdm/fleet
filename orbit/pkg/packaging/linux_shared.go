@@ -23,6 +23,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp dir")
 	}
+	os.Chmod(tmpDir, 0755)
 	defer os.RemoveAll(tmpDir)
 	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 

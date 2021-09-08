@@ -356,6 +356,32 @@ Whether or not to duplicate Live Query results to another Redis channel named `L
     duplicate_results: true
   ```
 
+###### redis_connect_timeout
+
+Timeout for redis connection. 
+
+- Default value: 5s
+- Environment variable: `FLEET_REDIS_CONNECT_TIMEOUT`
+- Config file format:
+
+  ```
+  redis:
+    connect_timeout: 10s
+  ```
+
+###### redis_keep_alive
+
+Interval between keep alive probes.
+
+- Default value: 10s
+- Environment variable: `FLEET_REDIS_KEEP_ALIVE`
+- Config file format:
+
+  ```
+  redis:
+    keep_alive: 30s
+  ```
+
 ##### Server
 
 ###### server_address

@@ -647,10 +647,6 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	var gotHost *fleet.Host
 	ds.SaveHostFunc = func(host *fleet.Host) error {
 		gotHost = host
-		return nil
-	}
-
-	ds.SaveHostAdditionalFunc = func(host *fleet.Host) error {
 		gotHost.Additional = host.Additional
 		return nil
 	}
@@ -843,10 +839,6 @@ func TestDetailQueries(t *testing.T) {
 	var gotHost *fleet.Host
 	ds.SaveHostFunc = func(host *fleet.Host) error {
 		gotHost = host
-		return nil
-	}
-
-	ds.SaveHostAdditionalFunc = func(host *fleet.Host) error {
 		gotHost.Additional = host.Additional
 		return nil
 	}
