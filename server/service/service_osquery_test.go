@@ -930,13 +930,13 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		return query, nil
 	}
 	var gotCampaign *fleet.DistributedQueryCampaign
-	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		gotCampaign = camp
 		camp.ID = 21
 		return camp, nil
 	}
 	var gotTargets []*fleet.DistributedQueryCampaignTarget
-	ds.NewDistributedQueryCampaignTargetFunc = func(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 		gotTargets = append(gotTargets, target)
 		return target, nil
 	}
@@ -1086,7 +1086,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 	}
 
 	host := fleet.Host{ID: 1}
-	err := svc.ingestDistributedQuery(host, "bad_name", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "bad_name", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unable to parse campaign")
 }
@@ -1104,7 +1104,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 		clock:          mockClock,
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
 		return nil, fmt.Errorf("missing campaign")
 	}
 
@@ -1112,7 +1112,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
 }
@@ -1139,13 +1139,13 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 		},
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
 		return campaign, nil
 	}
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaign waiting for listener")
 }
@@ -1172,16 +1172,16 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 		},
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
 		return campaign, nil
 	}
-	ds.SaveDistributedQueryCampaignFunc = func(campaign *fleet.DistributedQueryCampaign) error {
+	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return fmt.Errorf("failed save")
 	}
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
 }
@@ -1208,17 +1208,17 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 		},
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
 		return campaign, nil
 	}
-	ds.SaveDistributedQueryCampaignFunc = func(campaign *fleet.DistributedQueryCampaign) error {
+	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
 	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(fmt.Errorf("failed"))
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
 }
@@ -1245,17 +1245,17 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 		},
 	}
 
-	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
 		return campaign, nil
 	}
-	ds.SaveDistributedQueryCampaignFunc = func(campaign *fleet.DistributedQueryCampaign) error {
+	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
 	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(nil)
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaign stopped")
 	lq.AssertExpectations(t)
@@ -1286,7 +1286,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "record query completion")
 	lq.AssertExpectations(t)
@@ -1317,7 +1317,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.NoError(t, err)
 	lq.AssertExpectations(t)
 }
@@ -1678,7 +1678,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		return camp, nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -1716,11 +1716,11 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 		return map[string]string{}, nil
 	}
 	ds.SaveHostFunc = func(host *fleet.Host) error { return nil }
-	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		camp.ID = 21
 		return camp, nil
 	}
-	ds.NewDistributedQueryCampaignTargetFunc = func(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 		return target, nil
 	}
 	ds.CountHostsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {

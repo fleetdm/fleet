@@ -531,7 +531,7 @@ func ingestMembershipQuery(
 
 // ingestDistributedQuery takes the results of a distributed query and modifies the
 // provided fleet.Host appropriately.
-func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
+func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
 	campaignID, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
@@ -559,7 +559,7 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 		// If there are no subscribers, the campaign is "orphaned"
 		// and should be closed so that we don't continue trying to
 		// execute that query when we can't write to any subscriber
-		campaign, err := svc.ds.DistributedQueryCampaign(uint(campaignID))
+		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID))
 		if err != nil {
 			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
 				return osqueryError{message: "stop orphaned campaign after load failure: " + err.Error()}
@@ -575,7 +575,7 @@ func (svc *Service) ingestDistributedQuery(host fleet.Host, name string, rows []
 
 		if campaign.Status != fleet.QueryComplete {
 			campaign.Status = fleet.QueryComplete
-			if err := svc.ds.SaveDistributedQueryCampaign(campaign); err != nil {
+			if err := svc.ds.SaveDistributedQueryCampaign(ctx, campaign); err != nil {
 				return osqueryError{message: "closing orphaned campaign: " + err.Error()}
 			}
 		}
@@ -651,7 +651,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		case strings.HasPrefix(query, hostPolicyQueryPrefix):
 			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
 		case strings.HasPrefix(query, hostDistributedQueryPrefix):
-			err = svc.ingestDistributedQuery(host, query, rows, failed, messages[query])
+			err = svc.ingestDistributedQuery(ctx, host, query, rows, failed, messages[query])
 
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}

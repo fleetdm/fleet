@@ -44,7 +44,7 @@ func NewPack(t *testing.T, ds fleet.Datastore, name string) *fleet.Pack {
 }
 
 func NewCampaign(t *testing.T, ds fleet.Datastore, queryID uint, status fleet.DistributedQueryStatus, now time.Time) *fleet.DistributedQueryCampaign {
-	campaign, err := ds.NewDistributedQueryCampaign(&fleet.DistributedQueryCampaign{
+	campaign, err := ds.NewDistributedQueryCampaign(context.Background(), &fleet.DistributedQueryCampaign{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{
 				CreatedAt: now,
@@ -56,7 +56,7 @@ func NewCampaign(t *testing.T, ds fleet.Datastore, queryID uint, status fleet.Di
 	require.NoError(t, err)
 
 	// Loading gives us the timestamps
-	campaign, err = ds.DistributedQueryCampaign(campaign.ID)
+	campaign, err = ds.DistributedQueryCampaign(context.Background(), campaign.ID)
 	require.NoError(t, err)
 
 	return campaign
@@ -64,6 +64,7 @@ func NewCampaign(t *testing.T, ds fleet.Datastore, queryID uint, status fleet.Di
 
 func AddHostToCampaign(t *testing.T, ds fleet.Datastore, campaignID, hostID uint) {
 	_, err := ds.NewDistributedQueryCampaignTarget(
+		context.Background(),
 		&fleet.DistributedQueryCampaignTarget{
 			Type:                       fleet.TargetHost,
 			TargetID:                   hostID,
@@ -74,6 +75,7 @@ func AddHostToCampaign(t *testing.T, ds fleet.Datastore, campaignID, hostID uint
 
 func AddLabelToCampaign(t *testing.T, ds fleet.Datastore, campaignID, labelID uint) {
 	_, err := ds.NewDistributedQueryCampaignTarget(
+		context.Background(),
 		&fleet.DistributedQueryCampaignTarget{
 			Type:                       fleet.TargetLabel,
 			TargetID:                   labelID,

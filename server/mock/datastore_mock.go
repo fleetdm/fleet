@@ -63,17 +63,17 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.
 
 type QueryByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
-type NewDistributedQueryCampaignFunc func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
+type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
-type DistributedQueryCampaignFunc func(id uint) (*fleet.DistributedQueryCampaign, error)
+type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
 
-type SaveDistributedQueryCampaignFunc func(camp *fleet.DistributedQueryCampaign) error
+type SaveDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) error
 
-type DistributedQueryCampaignTargetIDsFunc func(id uint) (targets *fleet.HostTargets, err error)
+type DistributedQueryCampaignTargetIDsFunc func(ctx context.Context, id uint) (targets *fleet.HostTargets, err error)
 
-type NewDistributedQueryCampaignTargetFunc func(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error)
+type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error)
 
-type CleanupDistributedQueryCampaignsFunc func(now time.Time) (expired uint, err error)
+type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
 
 type ApplyPackSpecsFunc func(specs []*fleet.PackSpec) error
 
@@ -803,34 +803,34 @@ func (s *DataStore) QueryByName(ctx context.Context, name string, opts ...fleet.
 	return s.QueryByNameFunc(ctx, name, opts...)
 }
 
-func (s *DataStore) NewDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	s.NewDistributedQueryCampaignFuncInvoked = true
-	return s.NewDistributedQueryCampaignFunc(camp)
+	return s.NewDistributedQueryCampaignFunc(ctx, camp)
 }
 
-func (s *DataStore) DistributedQueryCampaign(id uint) (*fleet.DistributedQueryCampaign, error) {
+func (s *DataStore) DistributedQueryCampaign(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
 	s.DistributedQueryCampaignFuncInvoked = true
-	return s.DistributedQueryCampaignFunc(id)
+	return s.DistributedQueryCampaignFunc(ctx, id)
 }
 
-func (s *DataStore) SaveDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) error {
+func (s *DataStore) SaveDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) error {
 	s.SaveDistributedQueryCampaignFuncInvoked = true
-	return s.SaveDistributedQueryCampaignFunc(camp)
+	return s.SaveDistributedQueryCampaignFunc(ctx, camp)
 }
 
-func (s *DataStore) DistributedQueryCampaignTargetIDs(id uint) (targets *fleet.HostTargets, err error) {
+func (s *DataStore) DistributedQueryCampaignTargetIDs(ctx context.Context, id uint) (targets *fleet.HostTargets, err error) {
 	s.DistributedQueryCampaignTargetIDsFuncInvoked = true
-	return s.DistributedQueryCampaignTargetIDsFunc(id)
+	return s.DistributedQueryCampaignTargetIDsFunc(ctx, id)
 }
 
-func (s *DataStore) NewDistributedQueryCampaignTarget(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+func (s *DataStore) NewDistributedQueryCampaignTarget(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 	s.NewDistributedQueryCampaignTargetFuncInvoked = true
-	return s.NewDistributedQueryCampaignTargetFunc(target)
+	return s.NewDistributedQueryCampaignTargetFunc(ctx, target)
 }
 
-func (s *DataStore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, err error) {
+func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error) {
 	s.CleanupDistributedQueryCampaignsFuncInvoked = true
-	return s.CleanupDistributedQueryCampaignsFunc(now)
+	return s.CleanupDistributedQueryCampaignsFunc(ctx, now)
 }
 
 func (s *DataStore) ApplyPackSpecs(specs []*fleet.PackSpec) error {

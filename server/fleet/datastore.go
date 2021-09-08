@@ -69,22 +69,22 @@ type Datastore interface {
 	// CampaignStore defines the distributed query campaign related datastore methods
 
 	// NewDistributedQueryCampaign creates a new distributed query campaign
-	NewDistributedQueryCampaign(camp *DistributedQueryCampaign) (*DistributedQueryCampaign, error)
+	NewDistributedQueryCampaign(ctx context.Context, camp *DistributedQueryCampaign) (*DistributedQueryCampaign, error)
 	// DistributedQueryCampaign loads a distributed query campaign by ID
-	DistributedQueryCampaign(id uint) (*DistributedQueryCampaign, error)
+	DistributedQueryCampaign(ctx context.Context, id uint) (*DistributedQueryCampaign, error)
 	// SaveDistributedQueryCampaign updates an existing distributed query campaign
-	SaveDistributedQueryCampaign(camp *DistributedQueryCampaign) error
+	SaveDistributedQueryCampaign(ctx context.Context, camp *DistributedQueryCampaign) error
 	// DistributedQueryCampaignTargetIDs gets the IDs of the targets for the query campaign of the provided ID
-	DistributedQueryCampaignTargetIDs(id uint) (targets *HostTargets, err error)
+	DistributedQueryCampaignTargetIDs(ctx context.Context, id uint) (targets *HostTargets, err error)
 
 	// NewDistributedQueryCampaignTarget adds a new target to an existing distributed query campaign
-	NewDistributedQueryCampaignTarget(target *DistributedQueryCampaignTarget) (*DistributedQueryCampaignTarget, error)
+	NewDistributedQueryCampaignTarget(ctx context.Context, target *DistributedQueryCampaignTarget) (*DistributedQueryCampaignTarget, error)
 
 	// CleanupDistributedQueryCampaigns will clean and trim metadata for old distributed query campaigns. Any campaign
 	// in the QueryWaiting state will be moved to QueryComplete after one minute. Any campaign in the QueryRunning state
 	// will be moved to QueryComplete after one day. Times are from creation time. The now parameter makes this method
 	// easier to test. The return values indicate how many campaigns were expired and any error.
-	CleanupDistributedQueryCampaigns(now time.Time) (expired uint, err error)
+	CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// PackStore is the datastore interface for managing query packs.

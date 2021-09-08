@@ -1,13 +1,14 @@
 package mysql
 
 import (
+	"context"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+func (d *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 
 	sqlStatement := `
 		INSERT INTO distributed_query_campaigns (
@@ -27,7 +28,7 @@ func (d *Datastore) NewDistributedQueryCampaign(camp *fleet.DistributedQueryCamp
 	return camp, nil
 }
 
-func (d *Datastore) DistributedQueryCampaign(id uint) (*fleet.DistributedQueryCampaign, error) {
+func (d *Datastore) DistributedQueryCampaign(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
 	sql := `
 		SELECT * FROM distributed_query_campaigns WHERE id = ?
 	`
@@ -39,7 +40,7 @@ func (d *Datastore) DistributedQueryCampaign(id uint) (*fleet.DistributedQueryCa
 	return campaign, nil
 }
 
-func (d *Datastore) SaveDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) error {
+func (d *Datastore) SaveDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) error {
 	sqlStatement := `
 		UPDATE distributed_query_campaigns SET
 			query_id = ?,
@@ -62,7 +63,7 @@ func (d *Datastore) SaveDistributedQueryCampaign(camp *fleet.DistributedQueryCam
 	return nil
 }
 
-func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*fleet.HostTargets, error) {
+func (d *Datastore) DistributedQueryCampaignTargetIDs(ctx context.Context, id uint) (*fleet.HostTargets, error) {
 	sqlStatement := `
 		SELECT * FROM distributed_query_campaign_targets WHERE distributed_query_campaign_id = ?
 	`
@@ -91,7 +92,7 @@ func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (*fleet.HostTarge
 	return &fleet.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs, TeamIDs: teamIDs}, nil
 }
 
-func (d *Datastore) NewDistributedQueryCampaignTarget(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+func (d *Datastore) NewDistributedQueryCampaignTarget(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 	sqlStatement := `
 		INSERT into distributed_query_campaign_targets (
 			type,
@@ -110,7 +111,7 @@ func (d *Datastore) NewDistributedQueryCampaignTarget(target *fleet.DistributedQ
 	return target, nil
 }
 
-func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, err error) {
+func (d *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error) {
 	// Expire old waiting/running campaigns
 	sqlStatement := `
 		UPDATE distributed_query_campaigns

@@ -493,7 +493,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
-		_, err := ds.CleanupDistributedQueryCampaigns(time.Now())
+		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
 		}
