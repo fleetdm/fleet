@@ -1,7 +1,7 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { push, goBack } from "react-router-redux";
+import { goBack, push, replace } from "react-router-redux";
 import { find, isEmpty, isEqual, memoize, omit } from "lodash";
 
 import Button from "components/buttons/Button";
@@ -406,7 +406,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -660,7 +660,6 @@ export class ManageHostsPage extends PureComponent {
   };
 
   retrieveHosts = async (options = {}) => {
-    const { dispatch } = this.props;
     const { getValidatedTeamId } = this;
 
     this.setState({ isHostsLoading: true });
@@ -752,7 +751,7 @@ export class ManageHostsPage extends PureComponent {
     });
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -785,7 +784,7 @@ export class ManageHostsPage extends PureComponent {
       teamId: selectedTeam,
     });
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -831,7 +830,7 @@ export class ManageHostsPage extends PureComponent {
         ? omit(queryParams, "team_id")
         : Object.assign({}, queryParams, { team_id: teamIdParam }),
     });
-    dispatch(push(nextLocation));
+    dispatch(replace(nextLocation));
   };
 
   handleLabelChange = ({ slug }) => {
@@ -868,7 +867,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: isAllHosts
             ? MANAGE_HOSTS
