@@ -24,6 +24,7 @@ func BuildMSI(opt Options) error {
 	}
 	os.Chmod(tmpDir, 0755)
 	defer os.RemoveAll(tmpDir)
+	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {

@@ -26,7 +26,7 @@ func TestPackage(t *testing.T) {
 	// orbit-osquery-0.0.3.x86_64.rpm
 	runAppForTest(t, []string{"package", "--type=rpm", "--insecure"})
 	// orbit-osquery_0.0.3.msi
-	runAppForTest(t, []string{"package", "--type=msi", "--insecure"})
+	//runAppForTest(t, []string{"package", "--type=msi", "--insecure"}) TODO: this is currently failing on Github runners due to permission issues
 
 	//runAppForTest(t, []string{"package", "--type=pkg", "--insecure"}) TODO: had a hard time getting xar installed on Ubuntu
 
