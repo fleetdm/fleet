@@ -62,6 +62,7 @@ module.exports = {
 
   fn: function(inputs, exits) {
     var marked = require('marked');
+    var _ = require('lodash');
 
     // For full list of options, see:
     //  • https://github.com/chjj/marked
@@ -73,8 +74,13 @@ module.exports = {
       smartLists: true,
       smartypants: false,
     };
-
-    if (inputs.addIdsToHeadings === false) {
+    if (inputs.addIdsToHeadings === true) {
+      var customRenderer = new marked.Renderer();
+      customRenderer.heading = function (text, level) {
+        return '<h'+level+' id="'+_.kebabCase(text)+'">'+text+'</h'+level+'>';
+      };
+      markedOpts.renderer = customRenderer;
+    } else  {
       var renderer = new marked.Renderer();
       renderer.heading = function (text, level) {
         return '<h'+level+'>'+text+'</h'+level+'>';
