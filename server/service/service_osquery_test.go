@@ -139,6 +139,9 @@ func TestAuthenticateHost(t *testing.T) {
 		gotHostIDs = hostIDs
 		return nil
 	}
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 
 	_, _, err := svc.AuthenticateHost(context.Background(), "test")
 	require.Nil(t, err)
@@ -1493,6 +1496,9 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
+	}
+	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
 	}
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NoError(t, err)

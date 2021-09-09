@@ -192,6 +192,9 @@ func TestAuthenticatedHost(t *testing.T) {
 	expectedHost := fleet.Host{Hostname: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
 
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 	ds.AuthenticateHostFunc = func(secret string) (*fleet.Host, error) {
 		switch secret {
 		case goodNodeKey:
