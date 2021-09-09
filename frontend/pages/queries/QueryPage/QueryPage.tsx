@@ -11,7 +11,7 @@ import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 import { IHost } from "interfaces/host";
-import { AppContext } from "context/app1";
+import { AppContext } from "context/app";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";

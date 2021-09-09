@@ -12,7 +12,7 @@ import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
-import { AppContext } from "context/app1";
+import { AppContext } from "context/app";
 
 interface IAppProps {
   children: JSX.Element;

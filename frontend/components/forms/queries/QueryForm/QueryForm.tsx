@@ -13,7 +13,7 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/loaders/Spinner";
 import { IFormField } from "interfaces/form_field";
-import { AppContext } from "context/app1";
+import { AppContext } from "context/app";
 import NewQueryModal from "./NewQueryModal";
 import { INewQueryModalProps } from "./NewQueryModal/NewQueryModal";
 

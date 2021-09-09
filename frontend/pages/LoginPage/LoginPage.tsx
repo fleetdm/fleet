@@ -21,7 +21,7 @@ import paths from "router/paths";
 import { IRedirectLocation } from "interfaces/redirect_location";
 import { IUser } from "interfaces/user";
 import { ISSOSettings } from "interfaces/ssoSettings";
-import { AppContext } from "context/app1";
+import { AppContext } from "context/app";
 
 interface ILoginPageProps {
   dispatch: Dispatch;
