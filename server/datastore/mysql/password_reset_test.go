@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -29,7 +30,7 @@ func TestPasswordResetRequests(t *testing.T) {
 			ExpiresAt: tt.expires,
 			Token:     tt.token,
 		}
-		req, err := db.NewPasswordResetRequest(r)
+		req, err := db.NewPasswordResetRequest(context.Background(), r)
 		assert.Nil(t, err)
 		assert.Equal(t, tt.userID, req.UserID)
 	}

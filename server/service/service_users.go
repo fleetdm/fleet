@@ -304,7 +304,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	// reset token.
 	svc.authz.SkipAuthorization(ctx)
 
-	reset, err := svc.ds.FindPassswordResetByToken(token)
+	reset, err := svc.ds.FindPassswordResetByToken(ctx, token)
 	if err != nil {
 		return errors.Wrap(err, "looking up reset by token")
 	}
@@ -328,7 +328,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	}
 
 	// delete password reset tokens for user
-	if err := svc.ds.DeletePasswordResetRequestsForUser(user.ID); err != nil {
+	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
 		return errors.Wrap(err, "delete password reset requests")
 	}
 
@@ -434,7 +434,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		UserID:    user.ID,
 		Token:     token,
 	}
-	_, err = svc.ds.NewPasswordResetRequest(request)
+	_, err = svc.ds.NewPasswordResetRequest(ctx, request)
 	if err != nil {
 		return err
 	}

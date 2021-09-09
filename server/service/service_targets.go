@@ -75,7 +75,7 @@ func (svc Service) CountHostsInTargets(ctx context.Context, queryID *uint, targe
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
-	metrics, err := svc.ds.CountHostsInTargets(filter, targets, svc.clock.Now())
+	metrics, err := svc.ds.CountHostsInTargets(ctx, filter, targets, svc.clock.Now())
 	if err != nil {
 		return nil, err
 	}

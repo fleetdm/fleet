@@ -161,15 +161,15 @@ type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) 
 
 type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int, int, error)
 
-type CountHostsInTargetsFunc func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
+type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
-type HostIDsInTargetsFunc func(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
+type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
 
-type NewPasswordResetRequestFunc func(req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error)
+type NewPasswordResetRequestFunc func(ctx context.Context, req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error)
 
-type DeletePasswordResetRequestsForUserFunc func(userID uint) error
+type DeletePasswordResetRequestsForUserFunc func(ctx context.Context, userID uint) error
 
-type FindPassswordResetByTokenFunc func(token string) (*fleet.PasswordResetRequest, error)
+type FindPassswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
 
 type SessionByKeyFunc func(key string) (*fleet.Session, error)
 
@@ -1048,29 +1048,29 @@ func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
 }
 
-func (s *DataStore) CountHostsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	s.CountHostsInTargetsFuncInvoked = true
-	return s.CountHostsInTargetsFunc(filter, targets, now)
+	return s.CountHostsInTargetsFunc(ctx, filter, targets, now)
 }
 
-func (s *DataStore) HostIDsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+func (s *DataStore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 	s.HostIDsInTargetsFuncInvoked = true
-	return s.HostIDsInTargetsFunc(filter, targets)
+	return s.HostIDsInTargetsFunc(ctx, filter, targets)
 }
 
-func (s *DataStore) NewPasswordResetRequest(req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error) {
+func (s *DataStore) NewPasswordResetRequest(ctx context.Context, req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error) {
 	s.NewPasswordResetRequestFuncInvoked = true
-	return s.NewPasswordResetRequestFunc(req)
+	return s.NewPasswordResetRequestFunc(ctx, req)
 }
 
-func (s *DataStore) DeletePasswordResetRequestsForUser(userID uint) error {
+func (s *DataStore) DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error {
 	s.DeletePasswordResetRequestsForUserFuncInvoked = true
-	return s.DeletePasswordResetRequestsForUserFunc(userID)
+	return s.DeletePasswordResetRequestsForUserFunc(ctx, userID)
 }
 
-func (s *DataStore) FindPassswordResetByToken(token string) (*fleet.PasswordResetRequest, error) {
+func (s *DataStore) FindPassswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
 	s.FindPassswordResetByTokenFuncInvoked = true
-	return s.FindPassswordResetByTokenFunc(token)
+	return s.FindPassswordResetByTokenFunc(ctx, token)
 }
 
 func (s *DataStore) SessionByKey(key string) (*fleet.Session, error) {

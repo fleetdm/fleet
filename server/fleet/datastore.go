@@ -204,17 +204,17 @@ type Datastore interface {
 	// TargetStore
 
 	// CountHostsInTargets returns the metrics of the hosts in the provided labels, teams, and explicit host IDs.
-	CountHostsInTargets(filter TeamFilter, targets HostTargets, now time.Time) (TargetMetrics, error)
+	CountHostsInTargets(ctx context.Context, filter TeamFilter, targets HostTargets, now time.Time) (TargetMetrics, error)
 	// HostIDsInTargets returns the host IDs of the hosts in the provided labels, teams, and explicit host IDs. The
 	// returned host IDs should be sorted in ascending order.
-	HostIDsInTargets(filter TeamFilter, targets HostTargets) ([]uint, error)
+	HostIDsInTargets(ctx context.Context, filter TeamFilter, targets HostTargets) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// PasswordResetStore manages password resets in the Datastore
 
-	NewPasswordResetRequest(req *PasswordResetRequest) (*PasswordResetRequest, error)
-	DeletePasswordResetRequestsForUser(userID uint) error
-	FindPassswordResetByToken(token string) (*PasswordResetRequest, error)
+	NewPasswordResetRequest(ctx context.Context, req *PasswordResetRequest) (*PasswordResetRequest, error)
+	DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error
+	FindPassswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SessionStore is the abstract interface that all session backends must conform to.

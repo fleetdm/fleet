@@ -496,7 +496,7 @@ func TestResetPassword(t *testing.T) {
 				UserID:    1,
 				Token:     "abcd",
 			}
-			_, err := ds.NewPasswordResetRequest(request)
+			_, err := ds.NewPasswordResetRequest(context.Background(), request)
 			assert.Nil(t, err)
 
 			serr := svc.ResetPassword(test.UserContext(&fleet.User{ID: 1}), tt.token, tt.newPassword)

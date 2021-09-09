@@ -139,7 +139,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		}
 	}
 
-	hostIDs, err := svc.ds.HostIDsInTargets(filter, targets)
+	hostIDs, err := svc.ds.HostIDsInTargets(ctx, filter, targets)
 	if err != nil {
 		return nil, errors.Wrap(err, "get target IDs")
 	}
@@ -149,7 +149,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		return nil, errors.Wrap(err, "run query")
 	}
 
-	campaign.Metrics, err = svc.ds.CountHostsInTargets(filter, targets, time.Now())
+	campaign.Metrics, err = svc.ds.CountHostsInTargets(ctx, filter, targets, time.Now())
 	if err != nil {
 		return nil, errors.Wrap(err, "counting hosts")
 	}
