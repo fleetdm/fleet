@@ -62,7 +62,7 @@ func TestPolicyMembershipView(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	host1, err := ds.NewHost(&fleet.Host{
+	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -73,7 +73,7 @@ func TestPolicyMembershipView(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	host2, err := ds.NewHost(&fleet.Host{
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "5679",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"sort"
 	"testing"
 	"time"
@@ -138,8 +139,8 @@ func TestTeamListTeams(t *testing.T) {
 	host1 := test.NewHost(t, ds, "1", "1", "1", "1", time.Now())
 	host2 := test.NewHost(t, ds, "2", "2", "2", "2", time.Now())
 	host3 := test.NewHost(t, ds, "3", "3", "3", "3", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(&team1.ID, []uint{host1.ID}))
-	require.NoError(t, ds.AddHostsToTeam(&team2.ID, []uint{host2.ID, host3.ID}))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{host2.ID, host3.ID}))
 
 	team1.Users = []fleet.TeamUser{
 		{User: user1, Role: "maintainer"},

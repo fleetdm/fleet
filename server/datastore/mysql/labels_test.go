@@ -45,12 +45,12 @@ func TestLabels(t *testing.T) {
 	var host *fleet.Host
 	var err error
 	for i := 0; i < 10; i++ {
-		host, err = db.EnrollHost(fmt.Sprint(i), fmt.Sprint(i), nil, 0)
+		host, err = db.EnrollHost(context.Background(), fmt.Sprint(i), fmt.Sprint(i), nil, 0)
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
 	host.Platform = "darwin"
-	require.NoError(t, db.SaveHost(host))
+	require.NoError(t, db.SaveHost(context.Background(), host))
 
 	baseTime := time.Now()
 
@@ -116,7 +116,7 @@ func TestLabels(t *testing.T) {
 		}, baseTime)
 	assert.Nil(t, err)
 
-	host, err = db.Host(host.ID)
+	host, err = db.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	host.LabelUpdatedAt = baseTime
 
@@ -245,7 +245,7 @@ func TestListHostsInLabel(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
 
-	h1, err := db.NewHost(&fleet.Host{
+	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -256,7 +256,7 @@ func TestListHostsInLabel(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	h2, err := db.NewHost(&fleet.Host{
+	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -267,7 +267,7 @@ func TestListHostsInLabel(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	h3, err := db.NewHost(&fleet.Host{
+	h3, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -310,7 +310,7 @@ func TestListHostsInLabelAndStatus(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
 
-	h1, err := db.NewHost(&fleet.Host{
+	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -322,7 +322,7 @@ func TestListHostsInLabelAndStatus(t *testing.T) {
 	require.Nil(t, err)
 
 	lastSeenTime := time.Now().Add(-1000 * time.Hour)
-	h2, err := db.NewHost(&fleet.Host{
+	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: lastSeenTime,
 		LabelUpdatedAt:  lastSeenTime,
 		SeenTime:        lastSeenTime,
@@ -366,7 +366,7 @@ func TestListHostsInLabelAndTeamFilter(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
 
-	h1, err := db.NewHost(&fleet.Host{
+	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -378,7 +378,7 @@ func TestListHostsInLabelAndTeamFilter(t *testing.T) {
 	require.Nil(t, err)
 
 	lastSeenTime := time.Now().Add(-1000 * time.Hour)
-	h2, err := db.NewHost(&fleet.Host{
+	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: lastSeenTime,
 		LabelUpdatedAt:  lastSeenTime,
 		SeenTime:        lastSeenTime,
@@ -403,7 +403,7 @@ func TestListHostsInLabelAndTeamFilter(t *testing.T) {
 	team2, err := db.NewTeam(&fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	require.NoError(t, db.AddHostsToTeam(&team1.ID, []uint{h1.ID}))
+	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	for _, h := range []*fleet.Host{h1, h2} {
@@ -462,7 +462,7 @@ func TestListUniqueHostsInLabels(t *testing.T) {
 
 	hosts := []*fleet.Host{}
 	for i := 0; i < 4; i++ {
-		h, err := db.NewHost(&fleet.Host{
+		h, err := db.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			SeenTime:        time.Now(),
@@ -536,7 +536,7 @@ func TestChangeLabelDetails(t *testing.T) {
 
 func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	for i := 0; i < 10; i++ {
-		_, err := ds.NewHost(&fleet.Host{
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			SeenTime:        time.Now(),
@@ -652,11 +652,11 @@ func TestLabelQueriesForCentOSHost(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
 
-	host, err := db.EnrollHost("0", "0", nil, 0)
+	host, err := db.EnrollHost(context.Background(), "0", "0", nil, 0)
 	require.Nil(t, err, "enrollment should succeed")
 	host.Platform = "rhel"
 	host.OSVersion = "CentOS 6"
-	require.NoError(t, db.SaveHost(host))
+	require.NoError(t, db.SaveHost(context.Background(), host))
 
 	label, err := db.NewLabel(context.Background(), &fleet.Label{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -684,7 +684,7 @@ func TestRecordNonexistentQueryLabelExecution(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
 
-	h1, err := db.NewHost(&fleet.Host{
+	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),

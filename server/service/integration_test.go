@@ -644,7 +644,7 @@ func TestVulnerableSoftware(t *testing.T) {
 	defer server.Close()
 	token := getTestAdminToken(t, server)
 
-	host, err := ds.NewHost(&fleet.Host{
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -712,7 +712,7 @@ func TestGlobalPolicies(t *testing.T) {
 	token := getTestAdminToken(t, server)
 
 	for i := 0; i < 3; i++ {
-		_, err := ds.NewHost(&fleet.Host{
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
@@ -790,7 +790,7 @@ func TestOsqueryEndpointsLogErrors(t *testing.T) {
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
 	defer server.Close()
 
-	_, err := ds.NewHost(&fleet.Host{
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -825,7 +825,7 @@ func TestSubmitStatusLog(t *testing.T) {
 	defer server.Close()
 	token := getTestAdminToken(t, server)
 
-	_, err := ds.NewHost(&fleet.Host{
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -861,7 +861,7 @@ func TestEnrollAgentLogsErrors(t *testing.T) {
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
 	defer server.Close()
 
-	_, err := ds.NewHost(&fleet.Host{
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),

@@ -24,7 +24,7 @@ func (svc Service) NewDistributedQueryCampaignByNames(ctx context.Context, query
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	hostIDs, err := svc.ds.HostIDsByName(filter, hosts)
+	hostIDs, err := svc.ds.HostIDsByName(ctx, filter, hosts)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding host IDs")
 	}

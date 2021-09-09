@@ -15,7 +15,7 @@ func TestDeleteEntity(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	host, err := ds.NewHost(&fleet.Host{
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -31,7 +31,7 @@ func TestDeleteEntity(t *testing.T) {
 
 	require.NoError(t, ds.deleteEntity("hosts", host.ID))
 
-	host, err = ds.Host(host.ID)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.Error(t, err)
 	assert.Nil(t, host)
 }

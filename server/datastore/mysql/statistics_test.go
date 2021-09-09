@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -13,7 +14,7 @@ func TestShouldSendStatistics(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	_, err := ds.NewHost(&fleet.Host{
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -44,7 +45,7 @@ func TestShouldSendStatistics(t *testing.T) {
 
 	time.Sleep(2)
 
-	_, err = ds.NewHost(&fleet.Host{
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),

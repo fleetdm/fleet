@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -46,7 +47,7 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NotEqual(t, ds.reader, ds.writer)
 
 		// create a new host
-		host, err := ds.NewHost(&fleet.Host{
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			SeenTime:        time.Now(),
@@ -60,14 +61,14 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NotNil(t, host)
 
 		// trying to read it fails, not replicated yet
-		_, err = ds.Host(host.ID)
+		_, err = ds.Host(context.Background(), host.ID)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 
 		opts.RunReplication()
 
 		// now it can read it
-		host2, err := ds.Host(host.ID)
+		host2, err := ds.Host(context.Background(), host.ID)
 		require.NoError(t, err)
 		require.Equal(t, host.ID, host2.ID)
 	})

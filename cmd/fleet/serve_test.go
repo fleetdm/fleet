@@ -138,7 +138,7 @@ func TestCronWebhooks(t *testing.T) {
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
-	ds.TotalAndUnseenHostsSinceFunc = func(daysCount int) (int, int, error) {
+	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, daysCount int) (int, int, error) {
 		defer func() {
 			select {
 			case <-calledOnce:

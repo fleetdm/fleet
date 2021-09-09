@@ -167,38 +167,38 @@ type Datastore interface {
 	// HostStore
 
 	// NewHost is deprecated and will be removed. Hosts should always be enrolled via EnrollHost.
-	NewHost(host *Host) (*Host, error)
-	SaveHost(host *Host) error
-	DeleteHost(hid uint) error
-	Host(id uint) (*Host, error)
+	NewHost(ctx context.Context, host *Host) (*Host, error)
+	SaveHost(ctx context.Context, host *Host) error
+	DeleteHost(ctx context.Context, hid uint) error
+	Host(ctx context.Context, id uint) (*Host, error)
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
-	EnrollHost(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
-	ListHosts(filter TeamFilter, opt HostListOptions) ([]*Host, error)
+	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
+	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
 	// AuthenticateHost authenticates and returns host metadata by node key. This method should not return the host
 	// "additional" information as this is not typically necessary for the operations performed by the osquery
 	// endpoints.
-	AuthenticateHost(nodeKey string) (*Host, error)
-	MarkHostSeen(host *Host, t time.Time) error
-	MarkHostsSeen(hostIDs []uint, t time.Time) error
-	SearchHosts(filter TeamFilter, query string, omit ...uint) ([]*Host, error)
+	AuthenticateHost(ctx context.Context, nodeKey string) (*Host, error)
+	MarkHostSeen(ctx context.Context, host *Host, t time.Time) error
+	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
+	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
 	// "incoming hosts" that never complete their registration.
 	// A host is considered incoming if both the hostname and osquery_version fields are empty. This means that multiple
 	// different osquery queries failed to populate details.
-	CleanupIncomingHosts(now time.Time) error
+	CleanupIncomingHosts(ctx context.Context, now time.Time) error
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
-	GenerateHostStatusStatistics(filter TeamFilter, now time.Time) (online, offline, mia, new uint, err error)
+	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time) (online, offline, mia, new uint, err error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
-	HostIDsByName(filter TeamFilter, hostnames []string) ([]uint, error)
+	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
-	HostByIdentifier(identifier string) (*Host, error)
+	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
-	AddHostsToTeam(teamID *uint, hostIDs []uint) error
+	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-	TotalAndUnseenHostsSince(daysCount int) (int, int, error)
+	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore

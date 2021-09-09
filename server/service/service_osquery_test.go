@@ -45,7 +45,7 @@ func TestEnrollAgent(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 	}
-	ds.EnrollHostFunc = func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+	ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 		assert.Equal(t, ptr.Uint(3), teamID)
 		return &fleet.Host{
 			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
@@ -85,13 +85,13 @@ func TestEnrollAgentDetails(t *testing.T) {
 	ds.VerifyEnrollSecretFunc = func(secret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{}, nil
 	}
-	ds.EnrollHostFunc = func(osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+	ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 		return &fleet.Host{
 			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
 		}, nil
 	}
 	var gotHost *fleet.Host
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
 		return nil
 	}
@@ -130,12 +130,12 @@ func TestAuthenticateHost(t *testing.T) {
 
 	var gotKey string
 	host := fleet.Host{ID: 1, Hostname: "foobar"}
-	ds.AuthenticateHostFunc = func(key string) (*fleet.Host, error) {
+	ds.AuthenticateHostFunc = func(ctx context.Context, key string) (*fleet.Host, error) {
 		gotKey = key
 		return &host, nil
 	}
 	var gotHostIDs []uint
-	ds.MarkHostsSeenFunc = func(hostIDs []uint, t time.Time) error {
+	ds.MarkHostsSeenFunc = func(ctx context.Context, hostIDs []uint, t time.Time) error {
 		gotHostIDs = hostIDs
 		return nil
 	}
@@ -172,7 +172,7 @@ func TestAuthenticateHostFailure(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.AuthenticateHostFunc = func(key string) (*fleet.Host, error) {
+	ds.AuthenticateHostFunc = func(ctx context.Context, key string) (*fleet.Host, error) {
 		return nil, errors.New("not found")
 	}
 
@@ -324,10 +324,10 @@ func TestLabelQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
@@ -448,7 +448,7 @@ func TestGetClientConfig(t *testing.T) {
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`))}, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 
@@ -645,13 +645,13 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	require.Nil(t, err)
 
 	var gotHost *fleet.Host
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
 		gotHost.Additional = host.Additional
 		return nil
 	}
 
-	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &host, nil
 	}
 
@@ -837,13 +837,13 @@ func TestDetailQueries(t *testing.T) {
 	require.Nil(t, err)
 
 	var gotHost *fleet.Host
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
 		gotHost.Additional = host.Additional
 		return nil
 	}
 
-	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &host, nil
 	}
 
@@ -920,7 +920,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	var gotQuery *fleet.Query
@@ -992,7 +992,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
@@ -1452,7 +1452,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 			}
 
 			saveHostCalled := false
-			ds.SaveHostFunc = func(host *fleet.Host) error {
+			ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 				saveHostCalled = true
 				assert.Equal(t, tt.finalHost, *host)
 				return nil
@@ -1477,10 +1477,10 @@ func (e notFoundError) IsNotFound() bool {
 
 func TestAuthenticationErrors(t *testing.T) {
 	ms := new(mock.Store)
-	ms.MarkHostSeenFunc = func(*fleet.Host, time.Time) error {
+	ms.MarkHostSeenFunc = func(context.Context, *fleet.Host, time.Time) error {
 		return nil
 	}
-	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
+	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, nil
 	}
 
@@ -1491,14 +1491,14 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, err.(osqueryError).NodeInvalid())
 
-	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
+	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
 	}
 	_, err = svc.AuthenticateHost(ctx, "foo")
 	require.NoError(t, err)
 
 	// return not found error
-	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
+	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, notFoundError{}
 	}
 
@@ -1507,7 +1507,7 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.True(t, err.(osqueryError).NodeInvalid())
 
 	// return other error
-	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
+	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, errors.New("foo")
 	}
 
@@ -1598,7 +1598,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 
 	host := &fleet.Host{Platform: "darwin"}
 
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return authz.CheckMissingWithResponse(nil)
 	}
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
@@ -1637,11 +1637,11 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 	host := &fleet.Host{ID: 42, Platform: "darwin"}
 	ip := "1.1.1.1"
 
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		assert.Equal(t, ip, host.PrimaryIP)
 		return nil
 	}
-	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		require.Equal(t, uint(42), id)
 		return &fleet.Host{ID: 42, Platform: "darwin", PrimaryIP: ip}, nil
 	}
@@ -1715,7 +1715,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error { return nil }
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		camp.ID = 21
 		return camp, nil
@@ -1750,10 +1750,10 @@ func TestPolicyQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {

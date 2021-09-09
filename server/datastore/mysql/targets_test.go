@@ -26,7 +26,7 @@ func TestCountHostsInTargets(t *testing.T) {
 	hostCount := 0
 	initHost := func(seenTime time.Time, distributedInterval uint, configTLSRefresh uint, teamID *uint) *fleet.Host {
 		hostCount += 1
-		h, err := ds.NewHost(&fleet.Host{
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			OsqueryHostID:       strconv.Itoa(hostCount),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
@@ -37,7 +37,7 @@ func TestCountHostsInTargets(t *testing.T) {
 			TeamID:              teamID,
 		})
 		require.Nil(t, err)
-		require.Nil(t, ds.MarkHostSeen(h, seenTime))
+		require.Nil(t, ds.MarkHostSeen(context.Background(), h, seenTime))
 		return h
 	}
 
@@ -167,7 +167,7 @@ func TestHostStatus(t *testing.T) {
 
 	mockClock := clock.NewMockClock()
 
-	h, err := ds.EnrollHost("1", "key1", nil, 0)
+	h, err := ds.EnrollHost(context.Background(), "1", "key1", nil, 0)
 	require.Nil(t, err)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -209,10 +209,10 @@ func TestHostStatus(t *testing.T) {
 			// Save interval values
 			h.DistributedInterval = tt.distributedInterval
 			h.ConfigTLSRefresh = tt.configTLSRefresh
-			require.Nil(t, ds.SaveHost(h))
+			require.Nil(t, ds.SaveHost(context.Background(), h))
 
 			// Mark seen
-			require.Nil(t, ds.MarkHostSeen(h, tt.seenTime))
+			require.Nil(t, ds.MarkHostSeen(context.Background(), h, tt.seenTime))
 
 			// Verify status
 			metrics, err := ds.CountHostsInTargets(filter, fleet.HostTargets{HostIDs: []uint{h.ID}}, mockClock.Now())
@@ -232,7 +232,7 @@ func TestHostIDsInTargets(t *testing.T) {
 	hostCount := 0
 	initHost := func() *fleet.Host {
 		hostCount += 1
-		h, err := ds.NewHost(&fleet.Host{
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			OsqueryHostID:   strconv.Itoa(hostCount),
 			NodeKey:         strconv.Itoa(hostCount),
 			DetailUpdatedAt: time.Now(),
@@ -314,7 +314,7 @@ func TestHostIDsInTargetsTeam(t *testing.T) {
 	hostCount := 0
 	initHost := func(seenTime time.Time, distributedInterval uint, configTLSRefresh uint, teamID *uint) *fleet.Host {
 		hostCount += 1
-		h, err := ds.NewHost(&fleet.Host{
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			OsqueryHostID:       strconv.Itoa(hostCount),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
@@ -325,7 +325,7 @@ func TestHostIDsInTargetsTeam(t *testing.T) {
 			TeamID:              teamID,
 		})
 		require.Nil(t, err)
-		require.Nil(t, ds.MarkHostSeen(h, seenTime))
+		require.Nil(t, ds.MarkHostSeen(context.Background(), h, seenTime))
 		return h
 	}
 

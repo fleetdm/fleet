@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"bytes"
+	"context"
 	"os/exec"
 	"testing"
 	"time"
@@ -108,12 +109,12 @@ func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
 	require.NoError(t, ds.SaveHostSoftware(host1))
 	require.NoError(t, ds.SaveHostSoftware(host2))
 
-	require.NoError(t, ds.DeleteHost(host1.ID))
+	require.NoError(t, ds.DeleteHost(context.Background(), host1.ID))
 
 	require.NoError(t, tables.MigrationClient.UpByOne(ds.writer.DB, ""))
 
 	// Make sure we don't delete more than we need
-	hostCheck, err := ds.Host(host2.ID)
+	hostCheck, err := ds.Host(context.Background(), host2.ID)
 	require.NoError(t, err)
 	require.NoError(t, ds.LoadHostSoftware(hostCheck))
 	require.Len(t, hostCheck.Software, 3)

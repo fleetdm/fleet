@@ -29,7 +29,7 @@ func TestUnicode(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, "測試", label.Name)
 
-	host, err := ds.NewHost(&fleet.Host{
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		Hostname:        "🍌",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -37,7 +37,7 @@ func TestUnicode(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	host, err = ds.Host(host.ID)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "🍌", host.Hostname)
 

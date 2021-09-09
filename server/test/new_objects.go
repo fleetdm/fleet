@@ -99,7 +99,7 @@ func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 
 func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now time.Time) *fleet.Host {
 	osqueryHostID, _ := server.GenerateRandomText(10)
-	h, err := ds.NewHost(&fleet.Host{
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		Hostname:        name,
 		NodeKey:         key,
 		UUID:            uuid,
@@ -111,7 +111,7 @@ func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now t
 
 	require.NoError(t, err)
 	require.NotZero(t, h.ID)
-	require.NoError(t, ds.MarkHostSeen(h, now))
+	require.NoError(t, ds.MarkHostSeen(context.Background(), h, now))
 
 	return h
 }

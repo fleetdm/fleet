@@ -129,37 +129,37 @@ type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query s
 
 type LabelIDsByNameFunc func(ctx context.Context, labels []string) ([]uint, error)
 
-type NewHostFunc func(host *fleet.Host) (*fleet.Host, error)
+type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error)
 
-type SaveHostFunc func(host *fleet.Host) error
+type SaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
-type DeleteHostFunc func(hid uint) error
+type DeleteHostFunc func(ctx context.Context, hid uint) error
 
-type HostFunc func(id uint) (*fleet.Host, error)
+type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
 
-type EnrollHostFunc func(osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
+type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
-type ListHostsFunc func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
+type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type AuthenticateHostFunc func(nodeKey string) (*fleet.Host, error)
+type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
-type MarkHostSeenFunc func(host *fleet.Host, t time.Time) error
+type MarkHostSeenFunc func(ctx context.Context, host *fleet.Host, t time.Time) error
 
-type MarkHostsSeenFunc func(hostIDs []uint, t time.Time) error
+type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
-type SearchHostsFunc func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
+type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
 
-type CleanupIncomingHostsFunc func(now time.Time) error
+type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) error
 
-type GenerateHostStatusStatisticsFunc func(filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error)
+type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error)
 
-type HostIDsByNameFunc func(filter fleet.TeamFilter, hostnames []string) ([]uint, error)
+type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
-type HostByIdentifierFunc func(identifier string) (*fleet.Host, error)
+type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
 
-type AddHostsToTeamFunc func(teamID *uint, hostIDs []uint) error
+type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-type TotalAndUnseenHostsSinceFunc func(daysCount int) (int, int, error)
+type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int, int, error)
 
 type CountHostsInTargetsFunc func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
@@ -968,84 +968,84 @@ func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) ([]uint
 	return s.LabelIDsByNameFunc(ctx, labels)
 }
 
-func (s *DataStore) NewHost(host *fleet.Host) (*fleet.Host, error) {
+func (s *DataStore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	s.NewHostFuncInvoked = true
-	return s.NewHostFunc(host)
+	return s.NewHostFunc(ctx, host)
 }
 
-func (s *DataStore) SaveHost(host *fleet.Host) error {
+func (s *DataStore) SaveHost(ctx context.Context, host *fleet.Host) error {
 	s.SaveHostFuncInvoked = true
-	return s.SaveHostFunc(host)
+	return s.SaveHostFunc(ctx, host)
 }
 
-func (s *DataStore) DeleteHost(hid uint) error {
+func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 	s.DeleteHostFuncInvoked = true
-	return s.DeleteHostFunc(hid)
+	return s.DeleteHostFunc(ctx, hid)
 }
 
-func (s *DataStore) Host(id uint) (*fleet.Host, error) {
+func (s *DataStore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	s.HostFuncInvoked = true
-	return s.HostFunc(id)
+	return s.HostFunc(ctx, id)
 }
 
-func (s *DataStore) EnrollHost(osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	s.EnrollHostFuncInvoked = true
-	return s.EnrollHostFunc(osqueryHostId, nodeKey, teamID, cooldown)
+	return s.EnrollHostFunc(ctx, osqueryHostId, nodeKey, teamID, cooldown)
 }
 
-func (s *DataStore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	s.ListHostsFuncInvoked = true
-	return s.ListHostsFunc(filter, opt)
+	return s.ListHostsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) AuthenticateHost(nodeKey string) (*fleet.Host, error) {
+func (s *DataStore) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 	s.AuthenticateHostFuncInvoked = true
-	return s.AuthenticateHostFunc(nodeKey)
+	return s.AuthenticateHostFunc(ctx, nodeKey)
 }
 
-func (s *DataStore) MarkHostSeen(host *fleet.Host, t time.Time) error {
+func (s *DataStore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.Time) error {
 	s.MarkHostSeenFuncInvoked = true
-	return s.MarkHostSeenFunc(host, t)
+	return s.MarkHostSeenFunc(ctx, host, t)
 }
 
-func (s *DataStore) MarkHostsSeen(hostIDs []uint, t time.Time) error {
+func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	s.MarkHostsSeenFuncInvoked = true
-	return s.MarkHostsSeenFunc(hostIDs, t)
+	return s.MarkHostsSeenFunc(ctx, hostIDs, t)
 }
 
-func (s *DataStore) SearchHosts(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 	s.SearchHostsFuncInvoked = true
-	return s.SearchHostsFunc(filter, query, omit...)
+	return s.SearchHostsFunc(ctx, filter, query, omit...)
 }
 
-func (s *DataStore) CleanupIncomingHosts(now time.Time) error {
+func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
 	s.CleanupIncomingHostsFuncInvoked = true
-	return s.CleanupIncomingHostsFunc(now)
+	return s.CleanupIncomingHostsFunc(ctx, now)
 }
 
-func (s *DataStore) GenerateHostStatusStatistics(filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
+func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
 	s.GenerateHostStatusStatisticsFuncInvoked = true
-	return s.GenerateHostStatusStatisticsFunc(filter, now)
+	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now)
 }
 
-func (s *DataStore) HostIDsByName(filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 	s.HostIDsByNameFuncInvoked = true
-	return s.HostIDsByNameFunc(filter, hostnames)
+	return s.HostIDsByNameFunc(ctx, filter, hostnames)
 }
 
-func (s *DataStore) HostByIdentifier(identifier string) (*fleet.Host, error) {
+func (s *DataStore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
 	s.HostByIdentifierFuncInvoked = true
-	return s.HostByIdentifierFunc(identifier)
+	return s.HostByIdentifierFunc(ctx, identifier)
 }
 
-func (s *DataStore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
+func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	s.AddHostsToTeamFuncInvoked = true
-	return s.AddHostsToTeamFunc(teamID, hostIDs)
+	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
-func (s *DataStore) TotalAndUnseenHostsSince(daysCount int) (int, int, error) {
+func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error) {
 	s.TotalAndUnseenHostsSinceFuncInvoked = true
-	return s.TotalAndUnseenHostsSinceFunc(daysCount)
+	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
 }
 
 func (s *DataStore) CountHostsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {

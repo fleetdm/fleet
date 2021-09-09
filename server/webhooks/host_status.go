@@ -23,7 +23,7 @@ func TriggerHostStatusWebhook(
 
 	level.Debug(logger).Log("enabled", "true")
 
-	total, unseen, err := ds.TotalAndUnseenHostsSince(appConfig.WebhookSettings.HostStatusWebhook.DaysCount)
+	total, unseen, err := ds.TotalAndUnseenHostsSince(ctx, appConfig.WebhookSettings.HostStatusWebhook.DaysCount)
 	if err != nil {
 		return errors.Wrap(err, "getting total and unseen hosts")
 	}

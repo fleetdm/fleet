@@ -27,7 +27,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
 		return &fleet.Host{ID: 42}, nil
 	}
@@ -37,7 +37,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{42}, hostIDs)
@@ -51,7 +51,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
 		return &fleet.Host{ID: 42}, nil
 	}
@@ -72,7 +72,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
@@ -86,7 +86,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
 		return &fleet.Host{ID: 42}, nil
 	}
@@ -101,12 +101,12 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return []uint{uint(11)}, nil
 	}
 
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		require.Equal(t, fleet.StatusOnline, opt.StatusFilter)
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
@@ -121,7 +121,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
 		return &fleet.Host{ID: 42}, nil
 	}
@@ -136,13 +136,13 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return []uint{uint(11)}, nil
 	}
 
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		require.Equal(t, fleet.StatusOnline, opt.StatusFilter)
 		require.Equal(t, "somequery", opt.MatchQuery)
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)

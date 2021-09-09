@@ -220,7 +220,7 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 	// Cleanup doesn't remove stats that are ok
 	require.NoError(t, ds.CleanupOrphanScheduledQueryStats())
 
-	h1, err = ds.Host(h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 
@@ -236,7 +236,7 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 	require.NoError(t, err)
 
 	// And we don't see it in the host
-	h1, err = ds.Host(h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 
@@ -253,7 +253,7 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 
-	h1, err = ds.Host(h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 }

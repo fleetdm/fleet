@@ -27,7 +27,7 @@ func TestListHosts(t *testing.T) {
 
 	storedTime := time.Now().UTC()
 
-	_, err = ds.NewHost(&fleet.Host{
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
 		Hostname:        "foo",
 		SeenTime:        storedTime,
 		DetailUpdatedAt: time.Now(),
@@ -56,7 +56,7 @@ func TestDeleteHost(t *testing.T) {
 	assert.Nil(t, err)
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
-	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
+	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 }
@@ -102,10 +102,10 @@ func TestRefetchHost(t *testing.T) {
 
 	host := &fleet.Host{ID: 3}
 
-	ds.HostFunc = func(hid uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		assert.True(t, host.RefetchRequested)
 		return nil
 	}
@@ -121,10 +121,10 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 
 	host := &fleet.Host{ID: 3, TeamID: ptr.Uint(4)}
 
-	ds.HostFunc = func(hid uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		assert.True(t, host.RefetchRequested)
 		return nil
 	}
@@ -155,14 +155,14 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 	expectedHostIDs := []uint{1, 2, 4}
 	expectedTeam := (*uint)(nil)
 
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		var hosts []*fleet.Host
 		for _, id := range expectedHostIDs {
 			hosts = append(hosts, &fleet.Host{ID: id})
 		}
 		return hosts, nil
 	}
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		assert.Equal(t, expectedTeam, teamID)
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
@@ -187,7 +187,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		}
 		return hosts, nil
 	}
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
@@ -199,10 +199,10 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return []*fleet.Host{}, nil
 	}
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		t.Error("add hosts func should not have been called")
 		return nil
 	}

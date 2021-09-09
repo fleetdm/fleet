@@ -200,7 +200,7 @@ func TestGetHosts(t *testing.T) {
 	defer server.Close()
 
 	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		hosts := []*fleet.Host{
 			{
 				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -233,7 +233,7 @@ func TestGetHosts(t *testing.T) {
 	}
 
 	// these are run when host is specified `fleetctl get hosts --json test_host`
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.NotEmpty(t, identifier)
 		return &fleet.Host{
 			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{

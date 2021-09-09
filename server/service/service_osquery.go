@@ -48,7 +48,7 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 		}
 	}
 
-	host, err := svc.ds.AuthenticateHost(nodeKey)
+	host, err := svc.ds.AuthenticateHost(ctx, nodeKey)
 	if err != nil {
 		switch err.(type) {
 		case fleet.NotFoundError:
@@ -99,7 +99,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 
 	hostIdentifier = getHostIdentifier(svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 
-	host, err := svc.ds.EnrollHost(hostIdentifier, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
+	host, err := svc.ds.EnrollHost(ctx, hostIdentifier, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
 	if err != nil {
 		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
 	}
@@ -133,7 +133,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		save = true
 	}
 	if save {
-		if err := svc.ds.SaveHost(host); err != nil {
+		if err := svc.ds.SaveHost(ctx, host); err != nil {
 			return "", osqueryError{message: "saving host details: " + err.Error(), nodeInvalid: true}
 		}
 	}
@@ -316,7 +316,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	}
 
 	if saveHost {
-		err := svc.ds.SaveHost(&host)
+		err := svc.ds.SaveHost(ctx, &host)
 		if err != nil {
 			return nil, err
 		}
@@ -618,7 +618,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	// any existing host additional info.
 	for query := range results {
 		if strings.HasPrefix(query, hostDetailQueryPrefix) {
-			fullHost, err := svc.ds.Host(host.ID)
+			fullHost, err := svc.ds.Host(ctx, host.ID)
 			if err != nil {
 				// leave this error return here, we don't want to drop host additionals
 				// if we can't get a host, everything is lost
@@ -692,7 +692,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if host.Modified {
-		err = svc.ds.SaveHost(&host)
+		err = svc.ds.SaveHost(ctx, &host)
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}

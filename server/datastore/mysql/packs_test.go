@@ -610,7 +610,7 @@ func TestPackApplyStatsNotLocking(t *testing.T) {
 
 	specs := setupPackSpecsTest(t, ds)
 
-	host, err := ds.NewHost(&fleet.Host{
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -658,7 +658,7 @@ func TestPackApplyStatsNotLockingTryTwo(t *testing.T) {
 
 	setupPackSpecsTest(t, ds)
 
-	host, err := ds.NewHost(&fleet.Host{
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
