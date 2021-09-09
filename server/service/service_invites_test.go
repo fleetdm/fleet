@@ -23,7 +23,7 @@ func TestInviteNewUserMock(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://acme.co"}}, nil
 	}
 
-	ms.NewInviteFunc = func(i *fleet.Invite) (*fleet.Invite, error) {
+	ms.NewInviteFunc = func(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error) {
 		return i, nil
 	}
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
@@ -57,7 +57,7 @@ func TestVerifyInvite(t *testing.T) {
 	ms := new(mock.Store)
 	svc := newTestService(ms, nil, nil)
 
-	ms.InviteByTokenFunc = func(token string) (*fleet.Invite, error) {
+	ms.InviteByTokenFunc = func(ctx context.Context, token string) (*fleet.Invite, error) {
 		return &fleet.Invite{
 			ID:    1,
 			Token: "abcd",
@@ -82,7 +82,7 @@ func TestDeleteInvite(t *testing.T) {
 	ms := new(mock.Store)
 	svc := newTestService(ms, nil, nil)
 
-	ms.DeleteInviteFunc = func(uint) error { return nil }
+	ms.DeleteInviteFunc = func(context.Context, uint) error { return nil }
 	err := svc.DeleteInvite(test.UserContext(test.UserAdmin), 1)
 	require.Nil(t, err)
 	assert.True(t, ms.DeleteInviteFuncInvoked)
@@ -92,7 +92,7 @@ func TestListInvites(t *testing.T) {
 	ms := new(mock.Store)
 	svc := newTestService(ms, nil, nil)
 
-	ms.ListInvitesFunc = func(fleet.ListOptions) ([]*fleet.Invite, error) {
+	ms.ListInvitesFunc = func(context.Context, fleet.ListOptions) ([]*fleet.Invite, error) {
 		return nil, nil
 	}
 	_, err := svc.ListInvites(test.UserContext(test.UserAdmin), fleet.ListOptions{})

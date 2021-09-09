@@ -34,7 +34,7 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 		return nil, err
 	}
 
-	err = svc.ds.DeleteInvite(invite.ID)
+	err = svc.ds.DeleteInvite(ctx, invite.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		return nil, err
 	}
 
-	if invite, err := svc.ds.InviteByEmail(*p.Email); err == nil && invite != nil {
+	if invite, err := svc.ds.InviteByEmail(ctx, *p.Email); err == nil && invite != nil {
 		return nil, errors.Errorf("%s already invited", *p.Email)
 	}
 
