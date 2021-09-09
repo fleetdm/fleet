@@ -52,7 +52,7 @@ import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/Membe
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import PATHS from "router/paths";
 import store from "redux/store";
-import AppProvider from "context/app";
+import AppProvider from "context/app1";
 
 interface IAppWrapperProps {
   children: JSX.Element;

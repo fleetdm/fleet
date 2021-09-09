@@ -10,7 +10,7 @@ import PATHS from "router/paths"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { IQueryFormData, IQuery } from "interfaces/query";
-import { AppContext } from "context/app";
+import { AppContext } from "context/app1";
 
 import QueryForm from "components/forms/queries/QueryForm";
 import { hasSavePermissions } from "pages/queries/QueryPage/helpers";
