@@ -28,18 +28,18 @@ func TestShouldSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 
 	// First time running, we send statistics
-	stats, shouldSend, err := ds.ShouldSendStatistics(fleet.StatisticsFrequency)
+	stats, shouldSend, err := ds.ShouldSendStatistics(context.Background(), fleet.StatisticsFrequency)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.NotEmpty(t, stats.AnonymousIdentifier)
 	assert.Equal(t, stats.NumHostsEnrolled, 1)
 	firstIdentifier := stats.AnonymousIdentifier
 
-	err = ds.RecordStatisticsSent()
+	err = ds.RecordStatisticsSent(context.Background())
 	require.NoError(t, err)
 
 	// If we try right away, it shouldn't ask to send
-	stats, shouldSend, err = ds.ShouldSendStatistics(fleet.StatisticsFrequency)
+	stats, shouldSend, err = ds.ShouldSendStatistics(context.Background(), fleet.StatisticsFrequency)
 	require.NoError(t, err)
 	assert.False(t, shouldSend)
 
@@ -59,7 +59,7 @@ func TestShouldSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 
 	// Lower the frequency to trigger an "outdated" sent
-	stats, shouldSend, err = ds.ShouldSendStatistics(time.Millisecond)
+	stats, shouldSend, err = ds.ShouldSendStatistics(context.Background(), time.Millisecond)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)

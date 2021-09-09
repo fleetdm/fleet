@@ -249,13 +249,13 @@ type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
 type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
 
-type NewActivityFunc func(user *fleet.User, activityType string, details *map[string]interface{}) error
+type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
-type ListActivitiesFunc func(opt fleet.ListOptions) ([]*fleet.Activity, error)
+type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
 
-type ShouldSendStatisticsFunc func(frequency time.Duration) (fleet.StatisticsPayload, bool, error)
+type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error)
 
-type RecordStatisticsSentFunc func() error
+type RecordStatisticsSentFunc func(ctx context.Context) error
 
 type NewGlobalPolicyFunc func(queryID uint) (*fleet.Policy, error)
 
@@ -1268,24 +1268,24 @@ func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
 
-func (s *DataStore) NewActivity(user *fleet.User, activityType string, details *map[string]interface{}) error {
+func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 	s.NewActivityFuncInvoked = true
-	return s.NewActivityFunc(user, activityType, details)
+	return s.NewActivityFunc(ctx, user, activityType, details)
 }
 
-func (s *DataStore) ListActivities(opt fleet.ListOptions) ([]*fleet.Activity, error) {
+func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error) {
 	s.ListActivitiesFuncInvoked = true
-	return s.ListActivitiesFunc(opt)
+	return s.ListActivitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) ShouldSendStatistics(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 	s.ShouldSendStatisticsFuncInvoked = true
-	return s.ShouldSendStatisticsFunc(frequency)
+	return s.ShouldSendStatisticsFunc(ctx, frequency)
 }
 
-func (s *DataStore) RecordStatisticsSent() error {
+func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	s.RecordStatisticsSentFuncInvoked = true
-	return s.RecordStatisticsSentFunc()
+	return s.RecordStatisticsSentFunc(ctx)
 }
 
 func (s *DataStore) NewGlobalPolicy(queryID uint) (*fleet.Policy, error) {

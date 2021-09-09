@@ -23,10 +23,10 @@ func TestActivityUsernameChange(t *testing.T) {
 	}
 	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
-	require.NoError(t, ds.NewActivity(u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
-	require.NoError(t, ds.NewActivity(u, "test2", &map[string]interface{}{"detail": 2}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, "test2", &map[string]interface{}{"detail": 2}))
 
-	activities, err := ds.ListActivities(fleet.ListOptions{})
+	activities, err := ds.ListActivities(context.Background(), fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", activities[0].ActorFullName)
@@ -35,7 +35,7 @@ func TestActivityUsernameChange(t *testing.T) {
 	err = ds.SaveUser(context.Background(), u)
 	require.NoError(t, err)
 
-	activities, err = ds.ListActivities(fleet.ListOptions{})
+	activities, err = ds.ListActivities(context.Background(), fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "newname", activities[0].ActorFullName)
@@ -45,7 +45,7 @@ func TestActivityUsernameChange(t *testing.T) {
 	err = ds.DeleteUser(context.Background(), u.ID)
 	require.NoError(t, err)
 
-	activities, err = ds.ListActivities(fleet.ListOptions{})
+	activities, err = ds.ListActivities(context.Background(), fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", activities[0].ActorFullName)
@@ -64,14 +64,14 @@ func TestNewActivity(t *testing.T) {
 	}
 	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
-	require.NoError(t, ds.NewActivity(u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
-	require.NoError(t, ds.NewActivity(u, "test2", &map[string]interface{}{"detail": 2}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, "test2", &map[string]interface{}{"detail": 2}))
 
 	opt := fleet.ListOptions{
 		Page:    0,
 		PerPage: 1,
 	}
-	activities, err := ds.ListActivities(opt)
+	activities, err := ds.ListActivities(context.Background(), opt)
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "fullname", activities[0].ActorFullName)
@@ -81,7 +81,7 @@ func TestNewActivity(t *testing.T) {
 		Page:    1,
 		PerPage: 1,
 	}
-	activities, err = ds.ListActivities(opt)
+	activities, err = ds.ListActivities(context.Background(), opt)
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "fullname", activities[0].ActorFullName)

@@ -321,14 +321,14 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
-	NewActivity(user *User, activityType string, details *map[string]interface{}) error
-	ListActivities(opt ListOptions) ([]*Activity, error)
+	NewActivity(ctx context.Context, user *User, activityType string, details *map[string]interface{}) error
+	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(frequency time.Duration) (StatisticsPayload, bool, error)
-	RecordStatisticsSent() error
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration) (StatisticsPayload, bool, error)
+	RecordStatisticsSent(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore interface {
