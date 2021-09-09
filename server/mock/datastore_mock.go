@@ -269,11 +269,11 @@ type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, err
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
-type MigrateTablesFunc func() error
+type MigrateTablesFunc func(ctx context.Context) error
 
-type MigrateDataFunc func() error
+type MigrateDataFunc func(ctx context.Context) error
 
-type MigrationStatusFunc func() (fleet.MigrationStatus, error)
+type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error)
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -1318,17 +1318,17 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return s.PolicyQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) MigrateTables() error {
+func (s *DataStore) MigrateTables(ctx context.Context) error {
 	s.MigrateTablesFuncInvoked = true
-	return s.MigrateTablesFunc()
+	return s.MigrateTablesFunc(ctx)
 }
 
-func (s *DataStore) MigrateData() error {
+func (s *DataStore) MigrateData(ctx context.Context) error {
 	s.MigrateDataFuncInvoked = true
-	return s.MigrateDataFunc()
+	return s.MigrateDataFunc(ctx)
 }
 
-func (s *DataStore) MigrationStatus() (fleet.MigrationStatus, error) {
+func (s *DataStore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus, error) {
 	s.MigrationStatusFuncInvoked = true
-	return s.MigrationStatusFunc()
+	return s.MigrationStatusFunc(ctx)
 }

@@ -443,7 +443,7 @@ func TestBuiltInLabels(t *testing.T) {
 	db := CreateMySQLDS(t)
 	defer db.Close()
 
-	require.Nil(t, db.MigrateData())
+	require.Nil(t, db.MigrateData(context.Background()))
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
