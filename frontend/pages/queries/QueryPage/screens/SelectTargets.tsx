@@ -86,7 +86,7 @@ const SelectTargets = ({
     () =>
       targetsAPI.loadAll({
         query: searchText,
-        queryId: queryIdForEdit ? parseInt(queryIdForEdit) : null,
+        queryId: queryIdForEdit ? parseInt(queryIdForEdit, 10) : null,
         selected: formatSelectedTargetsForApi(selectedTargets) as any,
       }),
     {
@@ -148,7 +148,9 @@ const SelectTargets = ({
 
         setTargetsTotalCount(targetsCount);
         if (targetsCount > 0) {
-          setTargetsOnlinePercent(Math.round(onlineCount / targetsCount * 100));
+          setTargetsOnlinePercent(
+            Math.round((onlineCount / targetsCount) * 100)
+          );
         }
       },
     }

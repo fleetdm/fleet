@@ -135,7 +135,7 @@ const RunQuery = ({
 
   const onRunQuery = debounce(async () => {
     const sql = isEditMode ? storedQuery?.query : typedQueryBody;
-    
+
     if (!sql) {
       dispatch(
         renderFlash(
@@ -170,16 +170,13 @@ const RunQuery = ({
         if (message === "forbidden") {
           dispatch(
             renderFlash(
-              "error", 
+              "error",
               "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
             )
           );
         } else {
           dispatch(
-            renderFlash(
-              "error", 
-              "Something has gone wrong. Please try again."
-            )
+            renderFlash("error", "Something has gone wrong. Please try again.")
           );
         }
       }

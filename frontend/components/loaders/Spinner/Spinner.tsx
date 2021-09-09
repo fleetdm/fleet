@@ -4,9 +4,7 @@ interface ISpinnerProps {
   isInButton?: boolean;
 }
 
-const Spinner = ({ 
-  isInButton, 
-}: ISpinnerProps): JSX.Element => {
+const Spinner = ({ isInButton }: ISpinnerProps): JSX.Element => {
   if (isInButton) {
     return (
       <div className="ring ring-for-button">
@@ -17,7 +15,7 @@ const Spinner = ({
       </div>
     );
   }
-  
+
   return (
     <div className="card">
       <div className="ring">

@@ -43,7 +43,7 @@ const NewQueryModal = ({
     if (fields.name.value) {
       setErrors({});
     }
-  }, [fields])
+  }, [fields]);
 
   const handleUpdate = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();

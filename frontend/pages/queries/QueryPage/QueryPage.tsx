@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery, useMutation } from "react-query";
 import { Params } from "react-router/lib/Router";
-import { Location } from "react-router/node_modules/@types/history";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
@@ -22,7 +21,7 @@ import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2
 
 interface IQueryPageProps {
   params: Params;
-  location: Location;
+  location: any; // TODO: find Location type
 }
 
 interface IStoredQueryResponse {
@@ -35,20 +34,23 @@ interface IHostResponse {
 
 const baseClass = "query-page";
 
-const QueryPage = ({ 
+const QueryPage = ({
   params: { id: queryIdForEdit },
-  location: { query: URLQuerySearch }
+  location: { query: URLQuerySearch },
 }: IQueryPageProps) => {
   const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
-  
+
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const [isEditorUsingDefaultQuery, setIsEditorUsingDefaultQuery] = useState<boolean>(true);
+  const [
+    isEditorUsingDefaultQuery,
+    setIsEditorUsingDefaultQuery,
+  ] = useState<boolean>(true);
   const [typedQueryBody, setTypedQueryBody] = useState<string>("");
 
   const [
@@ -72,8 +74,8 @@ const QueryPage = ({
   // if URL is like `/queries/1?host_ids=22`, add the host
   // to the selected targets automatically
   useQuery<IHostResponse, Error, IHost>(
-    "hostFromURL", 
-    () => hostAPI.load(parseInt(URLQuerySearch.host_ids as string)),
+    "hostFromURL",
+    () => hostAPI.load(parseInt(URLQuerySearch.host_ids as string, 10)),
     {
       enabled: !!URLQuerySearch.host_ids,
       select: (data: IHostResponse) => data.host,
@@ -85,7 +87,7 @@ const QueryPage = ({
 
         targets.push(hostTarget as IHost);
         setSelectedTargets([...targets]);
-      }
+      },
     }
   );
 
@@ -170,7 +172,7 @@ const QueryPage = ({
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
     };
-    
+
     const step3Opts = {
       typedQueryBody,
       storedQuery,

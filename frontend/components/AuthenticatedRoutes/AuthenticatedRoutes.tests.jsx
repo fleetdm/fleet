@@ -8,23 +8,23 @@ import helpers from "../../test/helpers";
 describe("AuthenticatedRoutes - component", () => {
   const redirectToLoginAction = [
     {
-      "payload": {"redirectLocation": {}}, 
-      "type": "SET_REDIRECT_LOCATION"
-    }, 
+      payload: { redirectLocation: {} },
+      type: "SET_REDIRECT_LOCATION",
+    },
     {
-      "payload": {"args": ["/login"], "method": "push"}, 
-      "type": "@@router/CALL_HISTORY_METHOD"
-    }
+      payload: { args: ["/login"], method: "push" },
+      type: "@@router/CALL_HISTORY_METHOD",
+    },
   ];
   const redirectToPasswordResetAction = [
     {
-    "payload": {"redirectLocation": {}}, 
-      "type": "SET_REDIRECT_LOCATION"
-    }, 
+      payload: { redirectLocation: {} },
+      type: "SET_REDIRECT_LOCATION",
+    },
     {
-      "payload": {"args": ["/login"], "method": "push"}, 
-      "type": "@@router/CALL_HISTORY_METHOD"
-    }
+      payload: { args: ["/login"], method: "push" },
+      type: "@@router/CALL_HISTORY_METHOD",
+    },
   ];
   const renderedText = "This text was rendered";
   const storeWithUser = {
@@ -97,9 +97,7 @@ describe("AuthenticatedRoutes - component", () => {
       </Provider>
     );
 
-    expect(mockStore.getActions()).toEqual(
-      redirectToPasswordResetAction
-    );
+    expect(mockStore.getActions()).toEqual(redirectToPasswordResetAction);
   });
 
   // TODO: Cannot test functional components with state

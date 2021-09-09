@@ -353,7 +353,9 @@ const QueryForm = ({
   // `typedQueryBody` and `query?.value` will always be the same but
   // `typedQueryBody` keeps the value as user goes to other page steps
   // this makes sure to show what the user typed when they return to the editor
-  const queryValue = (typedQueryBody || query?.value || storedQuery.query) as string;
+  const queryValue = (typedQueryBody ||
+    query?.value ||
+    storedQuery.query) as string;
 
   const queryError = query?.error || errors.query;
   const queryOnChange = query?.onChange;
@@ -372,11 +374,11 @@ const QueryForm = ({
   }
 
   if (isOnlyObserver || isGlobalObserver) {
-    return renderRunForObserver({ 
-      nameText, 
-      descText, 
-      queryValue, 
-      observerCanRun 
+    return renderRunForObserver({
+      nameText,
+      descText,
+      queryValue,
+      observerCanRun,
     });
   }
 

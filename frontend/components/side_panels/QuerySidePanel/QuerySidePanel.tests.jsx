@@ -21,7 +21,7 @@ describe("QuerySidePanel - component", () => {
     expect(tableSelect.prop("value")).toEqual("users");
   });
 
-  // TODO: Functional components cannot test functions using Enzyme since 
+  // TODO: Functional components cannot test functions using Enzyme since
   // `instance()` is for class components - we should rethink only using Cypress
   // it("calls the onOsqueryTableSelect prop when a new table is selected in the dropdown", () => {
   //   const component = mount(<QuerySidePanel {...props} />);

@@ -184,9 +184,11 @@ const QueryResults = ({
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
           variant="text-link"
-        ><>
-          Export results <img alt="" src={DownloadIcon}/>
-        </></Button>
+        >
+          <>
+            Export results <img alt="" src={DownloadIcon} />
+          </>
+        </Button>
         <div className={`${baseClass}__results-table-wrapper`}>
           <table className={`${baseClass}__table`}>
             <thead>{renderTableHeaderRow(queryResults)}</thead>
@@ -204,9 +206,11 @@ const QueryResults = ({
           className={`${baseClass}__export-btn`}
           onClick={onExportErrorsResults}
           variant="text-link"
-        ><>
-          Export errors <img alt="" src={DownloadIcon}/>
-        </></Button>
+        >
+          <>
+            Export errors <img alt="" src={DownloadIcon} />
+          </>
+        </Button>
         <div className={`${baseClass}__error-table-wrapper`}>
           <table className={`${baseClass}__table`}>
             <thead>{renderTableHeaderRow(errors)}</thead>
@@ -256,7 +260,7 @@ const QueryResults = ({
     (!hostsCount.successful || !queryResults || !queryResults.length);
 
   const firstTabClass = classnames("react-tabs__tab", "no-count", {
-    ["errors-empty"]: !errors || errors?.length === 0
+    "errors-empty": !errors || errors?.length === 0,
   });
 
   return (
@@ -279,9 +283,7 @@ const QueryResults = ({
       <div className={`${baseClass}__nav-header`}>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
-            <Tab className={firstTabClass}>
-              {NAV_TITLES.RESULTS}
-            </Tab>
+            <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
               {errors?.length > 0 && (
                 <span className="count">{errors.length}</span>

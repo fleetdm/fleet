@@ -119,6 +119,6 @@ const FleetAce = ({
       {renderHint()}
     </div>
   );
-}
+};
 
 export default FleetAce;
