@@ -197,17 +197,17 @@ type GetEnrollSecretsFunc func(ctx context.Context, teamID *uint) ([]*fleet.Enro
 
 type ApplyEnrollSecretsFunc func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error
 
-type NewInviteFunc func(i *fleet.Invite) (*fleet.Invite, error)
+type NewInviteFunc func(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error)
 
-type ListInvitesFunc func(opt fleet.ListOptions) ([]*fleet.Invite, error)
+type ListInvitesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error)
 
-type InviteFunc func(id uint) (*fleet.Invite, error)
+type InviteFunc func(ctx context.Context, id uint) (*fleet.Invite, error)
 
-type InviteByEmailFunc func(email string) (*fleet.Invite, error)
+type InviteByEmailFunc func(ctx context.Context, email string) (*fleet.Invite, error)
 
-type InviteByTokenFunc func(token string) (*fleet.Invite, error)
+type InviteByTokenFunc func(ctx context.Context, token string) (*fleet.Invite, error)
 
-type DeleteInviteFunc func(id uint) error
+type DeleteInviteFunc func(ctx context.Context, id uint) error
 
 type ListScheduledQueriesInPackFunc func(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
 
@@ -1138,34 +1138,34 @@ func (s *DataStore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secret
 	return s.ApplyEnrollSecretsFunc(ctx, teamID, secrets)
 }
 
-func (s *DataStore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
+func (s *DataStore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error) {
 	s.NewInviteFuncInvoked = true
-	return s.NewInviteFunc(i)
+	return s.NewInviteFunc(ctx, i)
 }
 
-func (s *DataStore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) {
+func (s *DataStore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
 	s.ListInvitesFuncInvoked = true
-	return s.ListInvitesFunc(opt)
+	return s.ListInvitesFunc(ctx, opt)
 }
 
-func (s *DataStore) Invite(id uint) (*fleet.Invite, error) {
+func (s *DataStore) Invite(ctx context.Context, id uint) (*fleet.Invite, error) {
 	s.InviteFuncInvoked = true
-	return s.InviteFunc(id)
+	return s.InviteFunc(ctx, id)
 }
 
-func (s *DataStore) InviteByEmail(email string) (*fleet.Invite, error) {
+func (s *DataStore) InviteByEmail(ctx context.Context, email string) (*fleet.Invite, error) {
 	s.InviteByEmailFuncInvoked = true
-	return s.InviteByEmailFunc(email)
+	return s.InviteByEmailFunc(ctx, email)
 }
 
-func (s *DataStore) InviteByToken(token string) (*fleet.Invite, error) {
+func (s *DataStore) InviteByToken(ctx context.Context, token string) (*fleet.Invite, error) {
 	s.InviteByTokenFuncInvoked = true
-	return s.InviteByTokenFunc(token)
+	return s.InviteByTokenFunc(ctx, token)
 }
 
-func (s *DataStore) DeleteInvite(id uint) error {
+func (s *DataStore) DeleteInvite(ctx context.Context, id uint) error {
 	s.DeleteInviteFuncInvoked = true
-	return s.DeleteInviteFunc(id)
+	return s.DeleteInviteFunc(ctx, id)
 }
 
 func (s *DataStore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
