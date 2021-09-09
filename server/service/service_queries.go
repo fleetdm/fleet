@@ -54,6 +54,7 @@ func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec
 	}
 
 	return svc.ds.NewActivity(
+		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecSavedQuery,
 		&map[string]interface{}{"specs": specs},
@@ -146,6 +147,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	}
 
 	if err := svc.ds.NewActivity(
+		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedSavedQuery,
 		&map[string]interface{}{"query_id": query.ID, "query_name": query.Name},
@@ -193,6 +195,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 
 	if err := svc.ds.NewActivity(
+		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedSavedQuery,
 		&map[string]interface{}{"query_id": query.ID, "query_name": query.Name},
@@ -213,6 +216,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 	}
 
 	return svc.ds.NewActivity(
+		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery,
 		&map[string]interface{}{"query_name": name},
@@ -234,6 +238,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	}
 
 	return svc.ds.NewActivity(
+		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery,
 		&map[string]interface{}{"query_name": query.Name},
@@ -251,6 +256,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 	}
 
 	err = svc.ds.NewActivity(
+		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedMultipleSavedQuery,
 		&map[string]interface{}{"query_ids": ids},

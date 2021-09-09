@@ -37,7 +37,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{
 			AnonymousIdentifier: "ident",
 			FleetVersion:        "1.2.3",
@@ -45,7 +45,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 		}, true, nil
 	}
 	recorded := false
-	ds.RecordStatisticsSentFunc = func() error {
+	ds.RecordStatisticsSentFunc = func(ctx context.Context) error {
 		recorded = true
 		return nil
 	}
@@ -70,11 +70,11 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{}, false, nil
 	}
 	recorded := false
-	ds.RecordStatisticsSentFunc = func() error {
+	ds.RecordStatisticsSentFunc = func(ctx context.Context) error {
 		recorded = true
 		return nil
 	}

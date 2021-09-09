@@ -443,7 +443,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	stats, shouldSend, err := ds.ShouldSendStatistics(frequency)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency)
 	if err != nil {
 		return err
 	}
@@ -451,11 +451,11 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	err = server.PostJSONWithTimeout(context.Background(), url, stats)
+	err = server.PostJSONWithTimeout(ctx, url, stats)
 	if err != nil {
 		return err
 	}
-	return ds.RecordStatisticsSent()
+	return ds.RecordStatisticsSent(ctx)
 }
 
 func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {

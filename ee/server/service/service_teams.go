@@ -56,6 +56,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 
 	if err := svc.ds.NewActivity(
+		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedTeam,
 		&map[string]interface{}{"team_id": team.ID, "team_name": team.Name},
@@ -221,6 +222,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	logging.WithExtras(ctx, "id", teamID)
 
 	return svc.ds.NewActivity(
+		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedTeam,
 		&map[string]interface{}{"team_id": teamID, "team_name": name},

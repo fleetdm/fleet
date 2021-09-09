@@ -155,6 +155,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	}
 
 	if err := svc.ds.NewActivity(
+		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeLiveQuery,
 		&map[string]interface{}{"targets_count": campaign.Metrics.TotalHosts},
