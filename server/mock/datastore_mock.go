@@ -209,17 +209,17 @@ type InviteByTokenFunc func(ctx context.Context, token string) (*fleet.Invite, e
 
 type DeleteInviteFunc func(ctx context.Context, id uint) error
 
-type ListScheduledQueriesInPackFunc func(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
+type ListScheduledQueriesInPackFunc func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
 
-type NewScheduledQueryFunc func(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error)
+type NewScheduledQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error)
 
-type SaveScheduledQueryFunc func(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
+type SaveScheduledQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
-type DeleteScheduledQueryFunc func(id uint) error
+type DeleteScheduledQueryFunc func(ctx context.Context, id uint) error
 
-type ScheduledQueryFunc func(id uint) (*fleet.ScheduledQuery, error)
+type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error)
 
-type CleanupOrphanScheduledQueryStatsFunc func() error
+type CleanupOrphanScheduledQueryStatsFunc func(ctx context.Context) error
 
 type NewTeamFunc func(team *fleet.Team) (*fleet.Team, error)
 
@@ -1168,34 +1168,34 @@ func (s *DataStore) DeleteInvite(ctx context.Context, id uint) error {
 	return s.DeleteInviteFunc(ctx, id)
 }
 
-func (s *DataStore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	s.ListScheduledQueriesInPackFuncInvoked = true
-	return s.ListScheduledQueriesInPackFunc(id, opts)
+	return s.ListScheduledQueriesInPackFunc(ctx, id, opts)
 }
 
-func (s *DataStore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
+func (s *DataStore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 	s.NewScheduledQueryFuncInvoked = true
-	return s.NewScheduledQueryFunc(sq, opts...)
+	return s.NewScheduledQueryFunc(ctx, sq, opts...)
 }
 
-func (s *DataStore) SaveScheduledQuery(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+func (s *DataStore) SaveScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	s.SaveScheduledQueryFuncInvoked = true
-	return s.SaveScheduledQueryFunc(sq)
+	return s.SaveScheduledQueryFunc(ctx, sq)
 }
 
-func (s *DataStore) DeleteScheduledQuery(id uint) error {
+func (s *DataStore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 	s.DeleteScheduledQueryFuncInvoked = true
-	return s.DeleteScheduledQueryFunc(id)
+	return s.DeleteScheduledQueryFunc(ctx, id)
 }
 
-func (s *DataStore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
+func (s *DataStore) ScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
 	s.ScheduledQueryFuncInvoked = true
-	return s.ScheduledQueryFunc(id)
+	return s.ScheduledQueryFunc(ctx, id)
 }
 
-func (s *DataStore) CleanupOrphanScheduledQueryStats() error {
+func (s *DataStore) CleanupOrphanScheduledQueryStats(ctx context.Context) error {
 	s.CleanupOrphanScheduledQueryStatsFuncInvoked = true
-	return s.CleanupOrphanScheduledQueryStatsFunc()
+	return s.CleanupOrphanScheduledQueryStatsFunc(ctx)
 }
 
 func (s *DataStore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
