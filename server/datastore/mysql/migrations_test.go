@@ -106,8 +106,8 @@ func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
 	host2.HostSoftware = soft2
 	host2.Modified = true
 
-	require.NoError(t, ds.SaveHostSoftware(host1))
-	require.NoError(t, ds.SaveHostSoftware(host2))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
 
 	require.NoError(t, ds.DeleteHost(context.Background(), host1.ID))
 
@@ -116,6 +116,6 @@ func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
 	// Make sure we don't delete more than we need
 	hostCheck, err := ds.Host(context.Background(), host2.ID)
 	require.NoError(t, err)
-	require.NoError(t, ds.LoadHostSoftware(hostCheck))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), hostCheck))
 	require.Len(t, hostCheck.Software, 3)
 }

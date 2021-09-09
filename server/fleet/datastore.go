@@ -311,12 +311,12 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
-	SaveHostSoftware(host *Host) error
-	LoadHostSoftware(host *Host) error
-	AllSoftwareWithoutCPEIterator() (SoftwareIterator, error)
-	AddCPEForSoftware(software Software, cpe string) error
-	AllCPEs() ([]string, error)
-	InsertCVEForCPE(cve string, cpes []string) error
+	SaveHostSoftware(ctx context.Context, host *Host) error
+	LoadHostSoftware(ctx context.Context, host *Host) error
+	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
+	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
+	AllCPEs(ctx context.Context) ([]string, error)
+	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
