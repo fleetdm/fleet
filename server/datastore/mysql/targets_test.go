@@ -329,7 +329,7 @@ func TestHostIDsInTargetsTeam(t *testing.T) {
 		return h
 	}
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: t.Name() + "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 
 	h1 := initHost(mockClock.Now().Add(-1*time.Second), 10, 60, &team1.ID)

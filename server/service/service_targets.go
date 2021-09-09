@@ -45,7 +45,7 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 	}
 	results.Labels = labels
 
-	teams, err := svc.ds.SearchTeams(filter, matchQuery, targets.TeamIDs...)
+	teams, err := svc.ds.SearchTeams(ctx, filter, matchQuery, targets.TeamIDs...)
 	if err != nil {
 		return nil, err
 	}

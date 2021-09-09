@@ -328,7 +328,7 @@ func TestUserRolesSpec(t *testing.T) {
 
 	_, server := RunServerForTestsWithDS(t, ds)
 	defer server.Close()
-	_, err := ds.NewTeam(&fleet.Team{
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",
@@ -449,7 +449,7 @@ func TestTeamSpecs(t *testing.T) {
 	_, closeFunc = doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
 	defer closeFunc()
 
-	team, err := ds.TeamByName("team1")
+	team, err := ds.TeamByName(context.Background(), "team1")
 	require.NoError(t, err)
 
 	assert.Len(t, team.Secrets, 0)
@@ -459,7 +459,7 @@ func TestTeamSpecs(t *testing.T) {
 	user, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
 
-	teams, err := ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})
+	teams, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, teams, 1)
 
@@ -467,11 +467,11 @@ func TestTeamSpecs(t *testing.T) {
 	_, closeFunc = doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
 	defer closeFunc()
 
-	teams, err = ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})
+	teams, err = ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, teams, 2)
 
-	team, err = ds.TeamByName("team2")
+	team, err = ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
 
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
@@ -484,7 +484,7 @@ func TestTeamSpecs(t *testing.T) {
 	_, closeFunc = doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
 	defer closeFunc()
 
-	team, err = ds.TeamByName("team2")
+	team, err = ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
 
 	require.Len(t, team.Secrets, 1)
@@ -524,7 +524,7 @@ func TestTeamSchedule(t *testing.T) {
 	defer server.Close()
 	token := getTestAdminToken(t, server)
 
-	team1, err := ds.NewTeam(&fleet.Team{
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",

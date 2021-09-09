@@ -32,7 +32,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return &fleet.Host{ID: 42}, nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		require.Equal(t, "team1", name)
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
@@ -56,7 +56,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return &fleet.Host{ID: 42}, nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		require.Equal(t, "team1", name)
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
@@ -91,7 +91,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return &fleet.Host{ID: 42}, nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		require.Equal(t, "team1", name)
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
@@ -126,7 +126,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return &fleet.Host{ID: 42}, nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		require.Equal(t, "team1", name)
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}

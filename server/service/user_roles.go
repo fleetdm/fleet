@@ -45,7 +45,7 @@ func (svc Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRol
 		user.GlobalRole = spec.GlobalRole
 		var teams []fleet.UserTeam
 		for _, team := range spec.Teams {
-			t, err := svc.ds.TeamByName(team.Name)
+			t, err := svc.ds.TeamByName(ctx, team.Name)
 			if err != nil {
 				return err
 			}

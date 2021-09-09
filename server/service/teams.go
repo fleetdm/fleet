@@ -46,14 +46,14 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 			})
 		}
 
-		team, err := svc.ds.TeamByName(spec.Name)
+		team, err := svc.ds.TeamByName(ctx, spec.Name)
 		if err != nil {
 			if err := errors.Cause(err); err == sql.ErrNoRows {
 				agentOptions := spec.AgentOptions
 				if agentOptions == nil {
 					agentOptions = config.AgentOptions
 				}
-				_, err = svc.ds.NewTeam(&fleet.Team{
+				_, err = svc.ds.NewTeam(ctx, &fleet.Team{
 					Name:         spec.Name,
 					AgentOptions: agentOptions,
 					Secrets:      secrets,
@@ -70,7 +70,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		team.AgentOptions = spec.AgentOptions
 		team.Secrets = secrets
 
-		_, err = svc.ds.SaveTeam(team)
+		_, err = svc.ds.SaveTeam(ctx, team)
 		if err != nil {
 			return err
 		}

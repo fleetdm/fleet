@@ -40,7 +40,7 @@ func TestSearchTargets(t *testing.T) {
 		assert.Equal(t, user, filter.User)
 		return labels, nil
 	}
-	ds.SearchTeamsFunc = func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
+	ds.SearchTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
 		assert.Equal(t, user, filter.User)
 		return teams, nil
 	}
@@ -69,7 +69,7 @@ func TestSearchWithOmit(t *testing.T) {
 		assert.Equal(t, []uint{3, 4}, omit)
 		return nil, nil
 	}
-	ds.SearchTeamsFunc = func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
+	ds.SearchTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
 		assert.Equal(t, user, filter.User)
 		assert.Equal(t, []uint{5, 6}, omit)
 		return nil, nil

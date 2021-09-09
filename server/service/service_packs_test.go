@@ -165,7 +165,7 @@ func TestService_ApplyPackSpecs(t *testing.T) {
 	users := createTestUsers(t, ds)
 	user := users["admin1@example.com"]
 
-	team1, err := ds.NewTeam(&fleet.Team{
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",
@@ -250,7 +250,7 @@ func TestService_DeletePack(t *testing.T) {
 	users := createTestUsers(t, ds)
 	user := users["admin1@example.com"]
 
-	team1, err := ds.NewTeam(&fleet.Team{
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",

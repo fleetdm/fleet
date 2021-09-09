@@ -50,7 +50,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		team.Secrets = []*fleet.EnrollSecret{{Secret: secret}}
 	}
 
-	team, err = svc.ds.NewTeam(team)
+	team, err = svc.ds.NewTeam(ctx, team)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(teamID)
+	team, err := svc.ds.Team(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Secrets = payload.Secrets
 	}
 
-	return svc.ds.SaveTeam(team)
+	return svc.ds.SaveTeam(ctx, team)
 }
 
 func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, options json.RawMessage) (*fleet.Team, error) {
@@ -96,7 +96,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(teamID)
+	team, err := svc.ds.Team(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 		team.AgentOptions = nil
 	}
 
-	return svc.ds.SaveTeam(team)
+	return svc.ds.SaveTeam(ctx, team)
 }
 
 func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
@@ -123,7 +123,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		idMap[user.ID] = user
 	}
 
-	team, err := svc.ds.Team(teamID)
+	team, err := svc.ds.Team(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 
 	logging.WithExtras(ctx, "users", team.Users)
 
-	return svc.ds.SaveTeam(team)
+	return svc.ds.SaveTeam(ctx, team)
 }
 
 func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
@@ -156,7 +156,7 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 		idMap[user.ID] = true
 	}
 
-	team, err := svc.ds.Team(teamID)
+	team, err := svc.ds.Team(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 
 	logging.WithExtras(ctx, "users", team.Users)
 
-	return svc.ds.SaveTeam(team)
+	return svc.ds.SaveTeam(ctx, team)
 }
 
 func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
@@ -181,7 +181,7 @@ func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.Li
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(teamID)
+	team, err := svc.ds.Team(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	return svc.ds.ListTeams(filter, opt)
+	return svc.ds.ListTeams(ctx, filter, opt)
 }
 
 func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
@@ -208,13 +208,13 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 
-	team, err := svc.ds.Team(teamID)
+	team, err := svc.ds.Team(ctx, teamID)
 	if err != nil {
 		return err
 	}
 	name := team.Name
 
-	if err := svc.ds.DeleteTeam(teamID); err != nil {
+	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}
 
@@ -232,5 +232,5 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 		return nil, err
 	}
 
-	return svc.ds.TeamEnrollSecrets(teamID)
+	return svc.ds.TeamEnrollSecrets(ctx, teamID)
 }

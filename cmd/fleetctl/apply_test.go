@@ -55,7 +55,7 @@ func TestApplyUserRoles(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{
 			ID:        1,
 			CreatedAt: time.Now(),
@@ -113,7 +113,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		},
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		team, ok := teamsByName[name]
 		if !ok {
 			return nil, sql.ErrNoRows
@@ -122,7 +122,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	i := 1
-	ds.NewTeamFunc = func(team *fleet.Team) (*fleet.Team, error) {
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		team.ID = uint(i)
 		i++
 		teamsByName[team.Name] = team
@@ -134,7 +134,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return &fleet.AppConfig{AgentOptions: &agentOpts}, nil
 	}
 
-	ds.SaveTeamFunc = func(team *fleet.Team) (*fleet.Team, error) {
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		teamsByName[team.Name] = team
 		return team, nil
 	}

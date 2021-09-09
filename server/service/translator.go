@@ -45,7 +45,7 @@ func translateLabelToID(ctx context.Context, ds fleet.Datastore, identifier stri
 }
 
 func translateTeamToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
-	team, err := ds.TeamByName(identifier)
+	team, err := ds.TeamByName(ctx, identifier)
 	if err != nil {
 		return 0, err
 	}
