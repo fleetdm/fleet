@@ -1488,8 +1488,8 @@ func TestListHostsByPolicy(t *testing.T) {
 	require.Len(t, hosts, 0)
 
 	// Make one host pass the policy and another not pass
-	require.NoError(t, ds.RecordPolicyQueryExecutions(h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now()))
 
 	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)})
 	require.NoError(t, err)

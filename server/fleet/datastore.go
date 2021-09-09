@@ -332,14 +332,14 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore interface {
-	NewGlobalPolicy(queryID uint) (*Policy, error)
-	Policy(id uint) (*Policy, error)
-	RecordPolicyQueryExecutions(host *Host, results map[uint]*bool, updated time.Time) error
+	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
+	Policy(ctx context.Context, id uint) (*Policy, error)
+	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time) error
 
-	ListGlobalPolicies() ([]*Policy, error)
-	DeleteGlobalPolicies(ids []uint) ([]uint, error)
+	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
+	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
-	PolicyQueriesForHost(host *Host) (map[string]string, error)
+	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables() error
