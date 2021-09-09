@@ -397,10 +397,10 @@ func TestListHostsInLabelAndTeamFilter(t *testing.T) {
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{l1})
 	require.Nil(t, err)
 
-	team1, err := db.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	team2, err := db.NewTeam(&fleet.Team{Name: "team2"})
+	team2, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
 	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))

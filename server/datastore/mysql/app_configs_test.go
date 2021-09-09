@@ -127,7 +127,7 @@ func TestEnrollSecrets(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	secret, err := ds.VerifyEnrollSecret(context.Background(), "missing")
@@ -202,7 +202,7 @@ func TestEnrollSecretRoundtrip(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	secrets, err := ds.GetEnrollSecrets(context.Background(), nil)
@@ -244,7 +244,7 @@ func TestEnrollSecretUniqueness(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	expectedSecrets := []*fleet.EnrollSecret{

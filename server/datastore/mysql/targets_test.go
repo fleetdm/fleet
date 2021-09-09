@@ -41,11 +41,11 @@ func TestCountHostsInTargets(t *testing.T) {
 		return h
 	}
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
-	team3, err := ds.NewTeam(&fleet.Team{Name: "team3"})
+	team3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
 
 	h1 := initHost(mockClock.Now().Add(-1*time.Second), 10, 60, &team1.ID)

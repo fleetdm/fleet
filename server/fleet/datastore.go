@@ -292,21 +292,21 @@ type Datastore interface {
 	// TeamStore
 
 	// NewTeam creates a new Team object in the store.
-	NewTeam(team *Team) (*Team, error)
+	NewTeam(ctx context.Context, team *Team) (*Team, error)
 	// SaveTeam saves any changes to the team.
-	SaveTeam(team *Team) (*Team, error)
+	SaveTeam(ctx context.Context, team *Team) (*Team, error)
 	// Team retrieves the Team by ID.
-	Team(tid uint) (*Team, error)
+	Team(ctx context.Context, tid uint) (*Team, error)
 	// Team deletes the Team by ID.
-	DeleteTeam(tid uint) error
+	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name.
-	TeamByName(name string) (*Team, error)
+	TeamByName(ctx context.Context, name string) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided options.
-	ListTeams(filter TeamFilter, opt ListOptions) ([]*Team, error)
+	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, error)
 	// SearchTeams searches teams using the provided query and ommitting the provided existing selection.
-	SearchTeams(filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
+	SearchTeams(ctx context.Context, filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
-	TeamEnrollSecrets(teamID uint) ([]*EnrollSecret, error)
+	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore

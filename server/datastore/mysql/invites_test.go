@@ -17,7 +17,7 @@ func TestCreateInvite(t *testing.T) {
 	defer ds.Close()
 
 	for i := 0; i < 3; i++ {
-		_, err := ds.NewTeam(&fleet.Team{Name: fmt.Sprintf("%d", i)})
+		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
 	}
 

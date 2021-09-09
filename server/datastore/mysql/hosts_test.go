@@ -413,7 +413,7 @@ func TestIgnoresTeamPackStats(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	team, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
 	tp, err := ds.EnsureTeamPack(context.Background(), team.ID)
@@ -603,9 +603,9 @@ func TestListHostsQuery(t *testing.T) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
 	for _, host := range hosts {
@@ -675,7 +675,7 @@ func TestEnrollHost(t *testing.T) {
 
 	test.AddAllHostsLabel(t, ds)
 
-	team, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
@@ -1236,9 +1236,9 @@ func TestAddHostsToTeam(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {

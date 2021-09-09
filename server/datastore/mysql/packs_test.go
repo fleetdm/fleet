@@ -461,7 +461,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	_, err = ds.EnsureTeamPack(context.Background(), 12)
 	require.Error(t, err)
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
@@ -483,7 +483,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	assert.Len(t, packs, 1)
 	assert.Equal(t, tp.ID, packs[0].ID)
 
-	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
 	tp2, err := ds.EnsureTeamPack(context.Background(), team2.ID)
@@ -503,7 +503,7 @@ func TestTeamNameChangesTeamSchedule(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
@@ -512,7 +512,7 @@ func TestTeamNameChangesTeamSchedule(t *testing.T) {
 	assert.Equal(t, firstName, tp.Name)
 
 	team1.Name = "new name!!"
-	team1, err = ds.SaveTeam(team1)
+	team1, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
 
 	tp, err = ds.EnsureTeamPack(context.Background(), team1.ID)
@@ -525,7 +525,7 @@ func TestTeamScheduleNamesMigrateToNewFormat(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	// insert team pack by hand with the old naming scheme
