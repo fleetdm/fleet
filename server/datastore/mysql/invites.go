@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -13,7 +14,7 @@ import (
 var inviteSearchColumns = []string{"name", "email"}
 
 // NewInvite generates a new invitation.
-func (d *Datastore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
+func (d *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error) {
 	if err := fleet.ValidateRole(i.GlobalRole.Ptr(), i.Teams); err != nil {
 		return nil, err
 	}
@@ -63,7 +64,7 @@ func (d *Datastore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
 
 // ListInvites lists all invites in the Fleet database. Supply query options
 // using the opt parameter. See fleet.ListOptions
-func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) {
+func (d *Datastore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
 	invites := []*fleet.Invite{}
 	query := "SELECT * FROM invites WHERE true"
 	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
@@ -84,7 +85,7 @@ func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) 
 }
 
 // Invite returns Invite identified by id.
-func (d *Datastore) Invite(id uint) (*fleet.Invite, error) {
+func (d *Datastore) Invite(ctx context.Context, id uint) (*fleet.Invite, error) {
 	var invite fleet.Invite
 	err := d.reader.Get(&invite, "SELECT * FROM invites WHERE id = ?", id)
 	if err == sql.ErrNoRows {
@@ -101,7 +102,7 @@ func (d *Datastore) Invite(id uint) (*fleet.Invite, error) {
 }
 
 // InviteByEmail finds an Invite with a particular email, if one exists.
-func (d *Datastore) InviteByEmail(email string) (*fleet.Invite, error) {
+func (d *Datastore) InviteByEmail(ctx context.Context, email string) (*fleet.Invite, error) {
 	var invite fleet.Invite
 	err := d.reader.Get(&invite, "SELECT * FROM invites WHERE email = ?", email)
 	if err == sql.ErrNoRows {
@@ -119,7 +120,7 @@ func (d *Datastore) InviteByEmail(email string) (*fleet.Invite, error) {
 }
 
 // InviteByToken finds an Invite with a particular token, if one exists.
-func (d *Datastore) InviteByToken(token string) (*fleet.Invite, error) {
+func (d *Datastore) InviteByToken(ctx context.Context, token string) (*fleet.Invite, error) {
 	var invite fleet.Invite
 	err := d.reader.Get(&invite, "SELECT * FROM invites WHERE token = ?", token)
 	if err == sql.ErrNoRows {
@@ -136,7 +137,7 @@ func (d *Datastore) InviteByToken(token string) (*fleet.Invite, error) {
 	return &invite, nil
 }
 
-func (d *Datastore) DeleteInvite(id uint) error {
+func (d *Datastore) DeleteInvite(ctx context.Context, id uint) error {
 	return d.deleteEntity("invites", id)
 }
 

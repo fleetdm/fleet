@@ -261,22 +261,22 @@ type Datastore interface {
 	// InviteStore contains the methods for managing user invites in a datastore.
 
 	// NewInvite creates and stores a new invitation in a DB.
-	NewInvite(i *Invite) (*Invite, error)
+	NewInvite(ctx context.Context, i *Invite) (*Invite, error)
 
 	// ListInvites lists all invites in the datastore.
-	ListInvites(opt ListOptions) ([]*Invite, error)
+	ListInvites(ctx context.Context, opt ListOptions) ([]*Invite, error)
 
 	// Invite retrieves an invite by its ID.
-	Invite(id uint) (*Invite, error)
+	Invite(ctx context.Context, id uint) (*Invite, error)
 
 	// InviteByEmail retrieves an invite for a specific email address.
-	InviteByEmail(email string) (*Invite, error)
+	InviteByEmail(ctx context.Context, email string) (*Invite, error)
 
 	// InviteByToken retrieves and invite using the token string.
-	InviteByToken(token string) (*Invite, error)
+	InviteByToken(ctx context.Context, token string) (*Invite, error)
 
 	// DeleteInvite deletes an invitation.
-	DeleteInvite(id uint) error
+	DeleteInvite(ctx context.Context, id uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ScheduledQueryStore
