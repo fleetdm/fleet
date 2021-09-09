@@ -198,6 +198,7 @@ type ServerSettings struct {
 	ServerURL         string `json:"server_url"`
 	LiveQueryDisabled bool   `json:"live_query_disabled"`
 	EnableAnalytics   bool   `json:"enable_analytics"`
+	DebugHostIDs      string `json:"debug_host_ids"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.

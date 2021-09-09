@@ -691,6 +691,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	svc.maybeDebugHost(host, results, statuses, messages)
+
 	if host.Modified {
 		err = svc.ds.SaveHost(&host)
 		if err != nil {
@@ -699,4 +701,34 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	return nil
+}
+
+func logJSON(logger log.Logger, v interface{}, key string) {
+	jsonV, err := json.Marshal(v)
+	if err != nil {
+		level.Debug(logger).Log("err", errors.Wrapf(err, "marshaling %s for debug", key))
+		return
+	}
+	level.Debug(logger).Log(key, string(jsonV))
+}
+
+func (svc *Service) maybeDebugHost(
+	host fleet.Host,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
+) {
+	hlogger := log.With(svc.logger, "host-id", host.ID)
+	ac, err := svc.ds.AppConfig()
+	if err != nil {
+		level.Debug(hlogger).Log("err", errors.Wrap(err, "getting app config for host debug"))
+		return
+	}
+
+	if strings.Contains(ac.ServerSettings.DebugHostIDs, fmt.Sprint(host.ID)) {
+		logJSON(hlogger, host, "host")
+		logJSON(hlogger, results, "results")
+		logJSON(hlogger, statuses, "statuses")
+		logJSON(hlogger, messages, "messages")
+	}
 }
