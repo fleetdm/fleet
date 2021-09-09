@@ -154,7 +154,7 @@ const RunQuery = ({
     try {
       const returnedCampaign = await queryAPI.run({ query: sql, selected });
       connectAndRunLiveQuery(returnedCampaign);
-    } catch (campaignError) {
+    } catch (campaignError: any) {
       if (campaignError === "resource already created") {
         dispatch(
           renderFlash(
@@ -162,11 +162,29 @@ const RunQuery = ({
             "A campaign with the provided query text has already been created"
           )
         );
-
-        return false;
       }
 
-      dispatch(renderFlash("error", campaignError));
+      if ("message" in campaignError) {
+        const { message } = campaignError;
+
+        if (message === "forbidden") {
+          dispatch(
+            renderFlash(
+              "error", 
+              "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
+            )
+          );
+        } else {
+          dispatch(
+            renderFlash(
+              "error", 
+              "Something has gone wrong. Please try again."
+            )
+          );
+        }
+      }
+
+      return teardownDistributedQuery();
     }
   });
 
