@@ -1468,7 +1468,7 @@ func TestListHostsByPolicy(t *testing.T) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	p, err := ds.NewGlobalPolicy(q.ID)
+	p, err := ds.NewGlobalPolicy(context.Background(), q.ID)
 	require.NoError(t, err)
 
 	// When policy response is null, we list all hosts that haven't reported at all for the policy, or errored out

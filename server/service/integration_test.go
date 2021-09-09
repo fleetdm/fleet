@@ -762,8 +762,8 @@ func TestGlobalPolicies(t *testing.T) {
 	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
 
 	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}

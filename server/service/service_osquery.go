@@ -456,7 +456,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		queries[hostDistributedQueryPrefix+name] = query
 	}
 
-	policyQueries, err := svc.ds.PolicyQueriesForHost(&host)
+	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, &host)
 	if err != nil {
 		return nil, 0, osqueryError{message: "retrieving policy queries: " + err.Error()}
 	}
@@ -673,7 +673,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
-		err = svc.ds.RecordPolicyQueryExecutions(&host, policyResults, svc.clock.Now())
+		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now())
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}

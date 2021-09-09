@@ -333,7 +333,7 @@ func TestLabelQueries(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
-	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 
@@ -539,7 +539,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 
@@ -715,7 +715,7 @@ func TestDetailQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 
@@ -989,7 +989,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -1762,11 +1762,11 @@ func TestPolicyQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
 
-	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
 	}
 	recordedResults := make(map[uint]*bool)
-	ds.RecordPolicyQueryExecutionsFunc = func(host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
 		recordedResults = results
 		return nil
 	}
