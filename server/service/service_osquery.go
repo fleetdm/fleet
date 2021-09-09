@@ -727,22 +727,9 @@ func (svc *Service) maybeDebugHost(
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
 ) {
-	hlogger := log.With(svc.logger, "host-id", host.ID)
-	ac, err := svc.ds.AppConfig()
-	if err != nil {
-		level.Debug(hlogger).Log("err", errors.Wrap(err, "getting app config for host debug"))
-		return
-	}
+	if svc.debugEnabledForHost(&host) {
+		hlogger := log.With(svc.logger, "host-id", host.ID)
 
-	doDebug := false
-	for _, hostID := range ac.ServerSettings.DebugHostIDs {
-		if host.ID == hostID {
-			doDebug = true
-			break
-		}
-	}
-
-	if doDebug {
 		logJSON(hlogger, host, "host")
 		logJSON(hlogger, results, "results")
 		logJSON(hlogger, statuses, "statuses")

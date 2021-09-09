@@ -42,8 +42,9 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 			return nil, err
 		}
 
+		hlogger := log.With(logger, "host-id", host.ID)
 		if debug {
-			logJSON(logger, request, "request")
+			logJSON(hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, *host)
@@ -54,7 +55,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 		}
 
 		if debug {
-			logJSON(logger, request, "response")
+			logJSON(hlogger, request, "response")
 		}
 
 		if errResp, ok := resp.(errorer); ok {
