@@ -19,19 +19,19 @@ func TestMigrationStatus(t *testing.T) {
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	defer ds.Close()
 
-	status, err := ds.MigrationStatus()
+	status, err := ds.MigrationStatus(context.Background())
 	require.Nil(t, err)
 	assert.EqualValues(t, fleet.NoMigrationsCompleted, status)
 
-	require.Nil(t, ds.MigrateTables())
+	require.Nil(t, ds.MigrateTables(context.Background()))
 
-	status, err = ds.MigrationStatus()
+	status, err = ds.MigrationStatus(context.Background())
 	require.Nil(t, err)
 	assert.EqualValues(t, fleet.SomeMigrationsCompleted, status)
 
-	require.Nil(t, ds.MigrateData())
+	require.Nil(t, ds.MigrateData(context.Background()))
 
-	status, err = ds.MigrationStatus()
+	status, err = ds.MigrationStatus(context.Background())
 	require.Nil(t, err)
 	assert.EqualValues(t, fleet.AllMigrationsCompleted, status)
 }
@@ -41,7 +41,7 @@ func TestMigrations(t *testing.T) {
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	defer ds.Close()
 
-	require.NoError(t, ds.MigrateTables())
+	require.NoError(t, ds.MigrateTables(context.Background()))
 
 	// Dump schema to dumpfile
 	cmd := exec.Command(

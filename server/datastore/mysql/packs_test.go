@@ -539,7 +539,7 @@ func TestTeamScheduleNamesMigrateToNewFormat(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, teamSchedulePackType(team1), tp.Name)
 
-	require.NoError(t, ds.MigrateData())
+	require.NoError(t, ds.MigrateData(context.Background()))
 
 	tp, err = ds.EnsureTeamPack(context.Background(), team1.ID)
 	require.NoError(t, err)

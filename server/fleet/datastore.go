@@ -342,11 +342,11 @@ type Datastore interface {
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
 	// MigrateTables creates and migrates the table schemas
-	MigrateTables() error
+	MigrateTables(ctx context.Context) error
 	// MigrateData populates built-in data
-	MigrateData() error
+	MigrateData(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
-	MigrationStatus() (MigrationStatus, error)
+	MigrationStatus(ctx context.Context) (MigrationStatus, error)
 }
 
 type MigrationStatus int

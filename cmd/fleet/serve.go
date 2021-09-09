@@ -167,7 +167,7 @@ the way that the Fleet server works.
 				carveStore = ds
 			}
 
-			migrationStatus, err := ds.MigrationStatus()
+			migrationStatus, err := ds.MigrationStatus(cmd.Context())
 			if err != nil {
 				initFatal(err, "retrieving migration status")
 			}
