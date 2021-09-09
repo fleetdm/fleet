@@ -169,8 +169,8 @@ const QueryForm = ({
     observerCanRun,
   }: IRenderProps) => (
     <form className={`${baseClass}__wrapper`}>
-      <h1 className={`${baseClass}__query-name`}>{nameText}</h1>
-      <p className={`${baseClass}__query-description`}>{descText}</p>
+      <h1 className={`${baseClass}__query-name no-hover`}>{nameText}</h1>
+      <p className={`${baseClass}__query-description no-hover`}>{descText}</p>
       <Button
         className={`${baseClass}__toggle-sql`}
         variant="text-link"
