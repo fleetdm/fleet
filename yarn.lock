@@ -2072,7 +2072,7 @@ accepts@~1.3.5:
     mime-types "~2.1.24"
     negotiator "0.6.2"
 
-ace-builds@1.4.12, ace-builds@^1.4.12:
+ace-builds@1.4.12, ace-builds@^1.4.6:
   version "1.4.12"
   resolved "https://registry.yarnpkg.com/ace-builds/-/ace-builds-1.4.12.tgz#888efa386e36f4345f40b5233fcc4fe4c588fae7"
   integrity sha512-G+chJctFPiiLGvs3+/Mly3apXTcfgE45dT5yp12BcWZ1kUs+gm0qd3/fv4gsz6fVag4mM0moHVpjHDIgph6Psg==
@@ -4927,7 +4927,7 @@ detect-node@^2.0.4, detect-node@^2.1.0:
   resolved "https://registry.yarnpkg.com/detect-node/-/detect-node-2.1.0.tgz#c9c70775a49c3d03bc2c06d9a73be550f978f8b1"
   integrity sha512-T0NIuQpnTvFDATNuHN5roPwSBG83rFsuO+MXXH9/3N1eFbn4wcPjttvjMLEPWJ0RGUYgQE7cGgS3tNxbqCGM7g==
 
-diff-match-patch@^1.0.5:
+diff-match-patch@^1.0.4:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/diff-match-patch/-/diff-match-patch-1.0.5.tgz#abb584d5f10cd1196dfc55aa03701592ae3f7b37"
   integrity sha512-IayShXAgj/QMXgB0IWmKx+rOPuGMhqm5w6jvFxmVenXKIzRqTAAsbBPT3kWQeGANj3jGgvcvv4yK6SxqYmikgw==
@@ -10776,13 +10776,13 @@ react-accessible-accordion@^3.3.4:
   resolved "https://registry.yarnpkg.com/react-accessible-accordion/-/react-accessible-accordion-3.3.4.tgz#84b08015e74d6b3b225e0101b518b2ea8969e292"
   integrity sha512-EUq+KmVRIIG5u1fR5XIbb2JU7w7NouLjuyfuPvnhuDIfNNWNYap1I8ijn2rdA6OQi1gGSRGbVzHs+3wxH/M0Sw==
 
-react-ace@^9.3.0:
-  version "9.4.3"
-  resolved "https://registry.yarnpkg.com/react-ace/-/react-ace-9.4.3.tgz#4534f4bbbfba4bdc723c8b0cd33e7d876f8d78ed"
-  integrity sha512-WKknvcOZLhMtTSicRll94SjfZe6XEvZO6OpjJQCUGDcygZwfopkizeVntHX2ldMystbcmVES1RrjXUmyw0+wfQ==
+react-ace@9.3.0:
+  version "9.3.0"
+  resolved "https://registry.yarnpkg.com/react-ace/-/react-ace-9.3.0.tgz#9643fdd30026e2d7b5202536962c48c4d94de279"
+  integrity sha512-RWPDwVobLvyD0wDoHHQqEnn9pNQBhMnmo6LmRACkaXxAg3UQZpse6x9JFLC5EXyWby+P3uolIlQPct4NFEBPNg==
   dependencies:
-    ace-builds "^1.4.12"
-    diff-match-patch "^1.0.5"
+    ace-builds "^1.4.6"
+    diff-match-patch "^1.0.4"
     lodash.get "^4.4.2"
     lodash.isequal "^4.5.0"
     prop-types "^15.7.2"

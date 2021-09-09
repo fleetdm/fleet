@@ -46,7 +46,7 @@
     "rc-pagination": "1.16.3",
     "react": "^16.8.6",
     "react-accessible-accordion": "^3.3.4",
-    "react-ace": "^9.3.0",
+    "react-ace": "9.3.0",
     "react-contenteditable": "^3.3.6",
     "react-dom": "^16",
     "react-entity-getter": "0.0.8",
