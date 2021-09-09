@@ -1,11 +1,13 @@
 package mysql
 
 import (
+	"context"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) SessionByKey(key string) (*fleet.Session, error) {
+func (d *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
 	sqlStatement := `
 		SELECT * FROM sessions
 			WHERE ` + "`key`" + ` = ? LIMIT 1
@@ -19,7 +21,7 @@ func (d *Datastore) SessionByKey(key string) (*fleet.Session, error) {
 	return session, nil
 }
 
-func (d *Datastore) SessionByID(id uint) (*fleet.Session, error) {
+func (d *Datastore) SessionByID(ctx context.Context, id uint) (*fleet.Session, error) {
 	sqlStatement := `
 		SELECT * FROM sessions
 		WHERE id = ?
@@ -34,7 +36,7 @@ func (d *Datastore) SessionByID(id uint) (*fleet.Session, error) {
 	return session, nil
 }
 
-func (d *Datastore) ListSessionsForUser(id uint) ([]*fleet.Session, error) {
+func (d *Datastore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
 	sqlStatement := `
 		SELECT * FROM sessions
 		WHERE user_id = ?
@@ -48,7 +50,7 @@ func (d *Datastore) ListSessionsForUser(id uint) ([]*fleet.Session, error) {
 	return sessions, nil
 }
 
-func (d *Datastore) NewSession(session *fleet.Session) (*fleet.Session, error) {
+func (d *Datastore) NewSession(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
 	sqlStatement := `
 		INSERT INTO sessions (
 			user_id,
@@ -66,7 +68,7 @@ func (d *Datastore) NewSession(session *fleet.Session) (*fleet.Session, error) {
 	return session, nil
 }
 
-func (d *Datastore) DestroySession(session *fleet.Session) error {
+func (d *Datastore) DestroySession(ctx context.Context, session *fleet.Session) error {
 	err := d.deleteEntity("sessions", session.ID)
 	if err != nil {
 		return errors.Wrap(err, "deleting session")
@@ -75,7 +77,7 @@ func (d *Datastore) DestroySession(session *fleet.Session) error {
 	return nil
 }
 
-func (d *Datastore) DestroyAllSessionsForUser(id uint) error {
+func (d *Datastore) DestroyAllSessionsForUser(ctx context.Context, id uint) error {
 	sqlStatement := `
 		DELETE FROM sessions WHERE user_id = ?
 	`
@@ -87,7 +89,7 @@ func (d *Datastore) DestroyAllSessionsForUser(id uint) error {
 	return nil
 }
 
-func (d *Datastore) MarkSessionAccessed(session *fleet.Session) error {
+func (d *Datastore) MarkSessionAccessed(ctx context.Context, session *fleet.Session) error {
 	sqlStatement := `
 		UPDATE sessions SET
 		accessed_at = ?

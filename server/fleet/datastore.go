@@ -221,26 +221,26 @@ type Datastore interface {
 
 	// SessionByKey returns, given a session key, a session object or an error if one could not be found for the given
 	// key
-	SessionByKey(key string) (*Session, error)
+	SessionByKey(ctx context.Context, key string) (*Session, error)
 
 	// SessionByID returns, given a session id, find and return a session object or an error if one could not be found
 	// for the given id
-	SessionByID(id uint) (*Session, error)
+	SessionByID(ctx context.Context, id uint) (*Session, error)
 
 	// ListSessionsForUser finds all the active sessions for a given user
-	ListSessionsForUser(id uint) ([]*Session, error)
+	ListSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
 
 	// NewSession stores a new session struct
-	NewSession(session *Session) (*Session, error)
+	NewSession(ctx context.Context, session *Session) (*Session, error)
 
 	// DestroySession destroys the currently tracked session
-	DestroySession(session *Session) error
+	DestroySession(ctx context.Context, session *Session) error
 
 	// DestroyAllSessionsForUser destroys all of the sessions for a given user
-	DestroyAllSessionsForUser(id uint) error
+	DestroyAllSessionsForUser(ctx context.Context, id uint) error
 
 	// MarkSessionAccessed marks the currently tracked session as access to extend expiration
-	MarkSessionAccessed(session *Session) error
+	MarkSessionAccessed(ctx context.Context, session *Session) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigStore contains method for saving and retrieving application configuration

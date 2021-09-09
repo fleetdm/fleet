@@ -82,7 +82,7 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, tt.email, jsn.User.Email)
 
 		// ensure that a session was created for our test user and stored
-		sessions, err := ds.ListSessionsForUser(testUser.ID)
+		sessions, err := ds.ListSessionsForUser(context.Background(), testUser.ID)
 		assert.Nil(t, err)
 		assert.Len(t, sessions, 1)
 
@@ -101,7 +101,7 @@ func TestLogin(t *testing.T) {
 		assert.Nil(t, err)
 
 		// ensure that our user's session was deleted from the store
-		sessions, err = ds.ListSessionsForUser(testUser.ID)
+		sessions, err = ds.ListSessionsForUser(context.Background(), testUser.ID)
 		assert.Nil(t, err)
 		assert.Len(t, sessions, 0)
 	}
@@ -119,10 +119,10 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		users = append(users, user)
 		return user, nil
 	}
-	ds.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return sessions[key], nil
 	}
-	ds.MarkSessionAccessedFunc = func(session *fleet.Session) error {
+	ds.MarkSessionAccessedFunc = func(ctx context.Context, session *fleet.Session) error {
 		return nil
 	}
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
@@ -131,7 +131,7 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return users, nil
 	}
-	ds.ListSessionsForUserFunc = func(id uint) ([]*fleet.Session, error) {
+	ds.ListSessionsForUserFunc = func(ctx context.Context, id uint) ([]*fleet.Session, error) {
 		for _, session := range sessions {
 			if session.UserID == id {
 				return []*fleet.Session{session}, nil
@@ -139,7 +139,7 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		}
 		return nil, nil
 	}
-	ds.SessionByIDFunc = func(id uint) (*fleet.Session, error) {
+	ds.SessionByIDFunc = func(ctx context.Context, id uint) (*fleet.Session, error) {
 		for _, session := range sessions {
 			if session.ID == id {
 				return session, nil
@@ -147,7 +147,7 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		}
 		return nil, nil
 	}
-	ds.DestroySessionFunc = func(session *fleet.Session) error {
+	ds.DestroySessionFunc = func(ctx context.Context, session *fleet.Session) error {
 		delete(sessions, session.Key)
 		return nil
 	}
@@ -156,7 +156,7 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		user := usersMap[email]
 		return &user, nil
 	}
-	ds.NewSessionFunc = func(session *fleet.Session) (*fleet.Session, error) {
+	ds.NewSessionFunc = func(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
 		sessions[session.Key] = session
 		return session, nil
 	}

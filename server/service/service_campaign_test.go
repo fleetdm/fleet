@@ -63,7 +63,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
 	}
-	ds.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			ID:              42,
@@ -123,7 +123,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ds.MarkSessionAccessedFunc = func(*fleet.Session) error {
+	ds.MarkSessionAccessedFunc = func(context.Context, *fleet.Session) error {
 		return nil
 	}
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {

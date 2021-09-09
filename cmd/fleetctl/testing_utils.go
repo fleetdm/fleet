@@ -26,7 +26,7 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 		users = append(users, user)
 		return user, nil
 	}
-	ds.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			ID:              1,
@@ -35,7 +35,7 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 			Key:             key,
 		}, nil
 	}
-	ds.MarkSessionAccessedFunc = func(session *fleet.Session) error {
+	ds.MarkSessionAccessedFunc = func(ctx context.Context, session *fleet.Session) error {
 		return nil
 	}
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {

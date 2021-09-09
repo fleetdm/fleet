@@ -334,7 +334,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 
 	// Clear sessions so that any other browsers will have to log in with
 	// the new password
-	if err := svc.ds.DestroyAllSessionsForUser(user.ID); err != nil {
+	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
 		return errors.Wrap(err, "delete user sessions")
 	}
 

@@ -171,19 +171,19 @@ type DeletePasswordResetRequestsForUserFunc func(ctx context.Context, userID uin
 
 type FindPassswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
 
-type SessionByKeyFunc func(key string) (*fleet.Session, error)
+type SessionByKeyFunc func(ctx context.Context, key string) (*fleet.Session, error)
 
-type SessionByIDFunc func(id uint) (*fleet.Session, error)
+type SessionByIDFunc func(ctx context.Context, id uint) (*fleet.Session, error)
 
-type ListSessionsForUserFunc func(id uint) ([]*fleet.Session, error)
+type ListSessionsForUserFunc func(ctx context.Context, id uint) ([]*fleet.Session, error)
 
-type NewSessionFunc func(session *fleet.Session) (*fleet.Session, error)
+type NewSessionFunc func(ctx context.Context, session *fleet.Session) (*fleet.Session, error)
 
-type DestroySessionFunc func(session *fleet.Session) error
+type DestroySessionFunc func(ctx context.Context, session *fleet.Session) error
 
-type DestroyAllSessionsForUserFunc func(id uint) error
+type DestroyAllSessionsForUserFunc func(ctx context.Context, id uint) error
 
-type MarkSessionAccessedFunc func(session *fleet.Session) error
+type MarkSessionAccessedFunc func(ctx context.Context, session *fleet.Session) error
 
 type NewAppConfigFunc func(info *fleet.AppConfig) (*fleet.AppConfig, error)
 
@@ -1073,39 +1073,39 @@ func (s *DataStore) FindPassswordResetByToken(ctx context.Context, token string)
 	return s.FindPassswordResetByTokenFunc(ctx, token)
 }
 
-func (s *DataStore) SessionByKey(key string) (*fleet.Session, error) {
+func (s *DataStore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
 	s.SessionByKeyFuncInvoked = true
-	return s.SessionByKeyFunc(key)
+	return s.SessionByKeyFunc(ctx, key)
 }
 
-func (s *DataStore) SessionByID(id uint) (*fleet.Session, error) {
+func (s *DataStore) SessionByID(ctx context.Context, id uint) (*fleet.Session, error) {
 	s.SessionByIDFuncInvoked = true
-	return s.SessionByIDFunc(id)
+	return s.SessionByIDFunc(ctx, id)
 }
 
-func (s *DataStore) ListSessionsForUser(id uint) ([]*fleet.Session, error) {
+func (s *DataStore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
 	s.ListSessionsForUserFuncInvoked = true
-	return s.ListSessionsForUserFunc(id)
+	return s.ListSessionsForUserFunc(ctx, id)
 }
 
-func (s *DataStore) NewSession(session *fleet.Session) (*fleet.Session, error) {
+func (s *DataStore) NewSession(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
 	s.NewSessionFuncInvoked = true
-	return s.NewSessionFunc(session)
+	return s.NewSessionFunc(ctx, session)
 }
 
-func (s *DataStore) DestroySession(session *fleet.Session) error {
+func (s *DataStore) DestroySession(ctx context.Context, session *fleet.Session) error {
 	s.DestroySessionFuncInvoked = true
-	return s.DestroySessionFunc(session)
+	return s.DestroySessionFunc(ctx, session)
 }
 
-func (s *DataStore) DestroyAllSessionsForUser(id uint) error {
+func (s *DataStore) DestroyAllSessionsForUser(ctx context.Context, id uint) error {
 	s.DestroyAllSessionsForUserFuncInvoked = true
-	return s.DestroyAllSessionsForUserFunc(id)
+	return s.DestroyAllSessionsForUserFunc(ctx, id)
 }
 
-func (s *DataStore) MarkSessionAccessed(session *fleet.Session) error {
+func (s *DataStore) MarkSessionAccessed(ctx context.Context, session *fleet.Session) error {
 	s.MarkSessionAccessedFuncInvoked = true
-	return s.MarkSessionAccessedFunc(session)
+	return s.MarkSessionAccessedFunc(ctx, session)
 }
 
 func (s *DataStore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
