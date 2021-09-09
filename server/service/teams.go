@@ -75,7 +75,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 			return err
 		}
 
-		err = svc.ds.ApplyEnrollSecrets(ptr.Uint(team.ID), secrets)
+		err = svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets)
 		if err != nil {
 			return err
 		}

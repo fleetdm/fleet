@@ -37,7 +37,7 @@ var expectedDetailQueries = len(osquery_utils.GetDetailQueries(
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
-	ds.VerifyEnrollSecretFunc = func(secret string) (*fleet.EnrollSecret, error) {
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		switch secret {
 		case "valid_secret":
 			return &fleet.EnrollSecret{Secret: "valid_secret", TeamID: ptr.Uint(3)}, nil
@@ -51,7 +51,7 @@ func TestEnrollAgent(t *testing.T) {
 			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
 		}, nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -64,7 +64,7 @@ func TestEnrollAgent(t *testing.T) {
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	ds := new(mock.Store)
-	ds.VerifyEnrollSecretFunc = func(secret string) (*fleet.EnrollSecret, error) {
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		switch secret {
 		case "valid_secret":
 			return &fleet.EnrollSecret{Secret: "valid_secret", TeamID: ptr.Uint(3)}, nil
@@ -82,7 +82,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 
 func TestEnrollAgentDetails(t *testing.T) {
 	ds := new(mock.Store)
-	ds.VerifyEnrollSecretFunc = func(secret string) (*fleet.EnrollSecret, error) {
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{}, nil
 	}
 	ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
@@ -95,7 +95,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		gotHost = host
 		return nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -252,7 +252,7 @@ func TestSubmitResultLogs(t *testing.T) {
 func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
 	}
 
@@ -277,13 +277,13 @@ func TestHostDetailQueries(t *testing.T) {
 
 	svc := &Service{clock: mockClock, config: config.TestConfig(), ds: ds}
 
-	queries, err := svc.hostDetailQueries(host)
+	queries, err := svc.hostDetailQueries(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Empty(t, queries)
 
 	// With refetch requested queries should be returned
 	host.RefetchRequested = true
-	queries, err = svc.hostDetailQueries(host)
+	queries, err = svc.hostDetailQueries(context.Background(), host)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, queries)
 	host.RefetchRequested = false
@@ -291,7 +291,7 @@ func TestHostDetailQueries(t *testing.T) {
 	// Advance the time
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	queries, err = svc.hostDetailQueries(host)
+	queries, err = svc.hostDetailQueries(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Len(t, queries, expectedDetailQueries+2)
 	for name := range queries {
@@ -330,7 +330,7 @@ func TestLabelQueries(t *testing.T) {
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
@@ -445,7 +445,7 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`))}, nil
 	}
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -533,7 +533,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	host := fleet.Host{Platform: "windows"}
 	ctx := hostctx.NewContext(context.Background(), host)
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host, time.Time) (map[string]string, error) {
@@ -709,7 +709,7 @@ func TestDetailQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host, time.Time) (map[string]string, error) {
@@ -905,7 +905,7 @@ func TestDetailQueries(t *testing.T) {
 
 func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 	rs := &mock.QueryResultStore{
@@ -995,7 +995,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 
@@ -1447,7 +1447,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			ctx := hostctx.NewContext(context.Background(), tt.initHost)
 
-			ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":` + string(tt.configOptions) + `}`))}, nil
 			}
 
@@ -1645,7 +1645,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 		require.Equal(t, uint(42), id)
 		return &fleet.Host{ID: 42, Platform: "darwin", PrimaryIP: ip}, nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -1674,7 +1674,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -1756,7 +1756,7 @@ func TestPolicyQueries(t *testing.T) {
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 func TestInviteNewUserMock(t *testing.T) {
 	ms := new(mock.Store)
 	ms.UserByEmailFunc = mock.UserWithEmailNotFound()
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://acme.co"}}, nil
 	}
 

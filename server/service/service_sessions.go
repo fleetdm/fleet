@@ -23,7 +23,7 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 
 	logging.WithLevel(ctx, level.Info)
 
-	appConfig, err := svc.ds.AppConfig()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "SessionSSOSettings getting app config")
 	}
@@ -43,7 +43,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	logging.WithLevel(ctx, level.Info)
 
-	appConfig, err := svc.ds.AppConfig()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "InitiateSSO getting app config")
 	}
@@ -109,7 +109,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 
 	logging.WithLevel(ctx, level.Info)
 
-	appConfig, err := svc.ds.AppConfig()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "get config for sso")
 	}

@@ -434,8 +434,8 @@ const (
 	lockKeyWebhooks        = "webhooks"
 )
 
-func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) error {
-	ac, err := ds.AppConfig()
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string) error {
+	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Error(logger).Log("err", "cleaning scheduled query stats", "details", err)
 		}
 
-		err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
+		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
 		if err != nil {
 			level.Error(logger).Log("err", "sending statistics", "details", err)
 		}
@@ -531,7 +531,7 @@ func cronVulnerabilities(
 		return
 	}
 
-	appConfig, err := ds.AppConfig()
+	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
@@ -600,7 +600,7 @@ func cronVulnerabilities(
 }
 
 func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
-	appConfig, err := ds.AppConfig()
+	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
@@ -629,7 +629,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		}
 
 		// Reread app config to be able to change interval somewhat on the fly
-		appConfig, err = ds.AppConfig()
+		appConfig, err = ds.AppConfig(ctx)
 		if err != nil {
 			level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		} else {

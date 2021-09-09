@@ -185,17 +185,17 @@ type DestroyAllSessionsForUserFunc func(ctx context.Context, id uint) error
 
 type MarkSessionAccessedFunc func(ctx context.Context, session *fleet.Session) error
 
-type NewAppConfigFunc func(info *fleet.AppConfig) (*fleet.AppConfig, error)
+type NewAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error)
 
-type AppConfigFunc func() (*fleet.AppConfig, error)
+type AppConfigFunc func(ctx context.Context) (*fleet.AppConfig, error)
 
-type SaveAppConfigFunc func(info *fleet.AppConfig) error
+type SaveAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) error
 
-type VerifyEnrollSecretFunc func(secret string) (*fleet.EnrollSecret, error)
+type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
-type GetEnrollSecretsFunc func(teamID *uint) ([]*fleet.EnrollSecret, error)
+type GetEnrollSecretsFunc func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error)
 
-type ApplyEnrollSecretsFunc func(teamID *uint, secrets []*fleet.EnrollSecret) error
+type ApplyEnrollSecretsFunc func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error
 
 type NewInviteFunc func(i *fleet.Invite) (*fleet.Invite, error)
 
@@ -1108,34 +1108,34 @@ func (s *DataStore) MarkSessionAccessed(ctx context.Context, session *fleet.Sess
 	return s.MarkSessionAccessedFunc(ctx, session)
 }
 
-func (s *DataStore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
+func (s *DataStore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	s.NewAppConfigFuncInvoked = true
-	return s.NewAppConfigFunc(info)
+	return s.NewAppConfigFunc(ctx, info)
 }
 
-func (s *DataStore) AppConfig() (*fleet.AppConfig, error) {
+func (s *DataStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	s.AppConfigFuncInvoked = true
-	return s.AppConfigFunc()
+	return s.AppConfigFunc(ctx)
 }
 
-func (s *DataStore) SaveAppConfig(info *fleet.AppConfig) error {
+func (s *DataStore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	s.SaveAppConfigFuncInvoked = true
-	return s.SaveAppConfigFunc(info)
+	return s.SaveAppConfigFunc(ctx, info)
 }
 
-func (s *DataStore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, error) {
+func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 	s.VerifyEnrollSecretFuncInvoked = true
-	return s.VerifyEnrollSecretFunc(secret)
+	return s.VerifyEnrollSecretFunc(ctx, secret)
 }
 
-func (s *DataStore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error) {
+func (s *DataStore) GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 	s.GetEnrollSecretsFuncInvoked = true
-	return s.GetEnrollSecretsFunc(teamID)
+	return s.GetEnrollSecretsFunc(ctx, teamID)
 }
 
-func (s *DataStore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
+func (s *DataStore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 	s.ApplyEnrollSecretsFuncInvoked = true
-	return s.ApplyEnrollSecretsFunc(teamID, secrets)
+	return s.ApplyEnrollSecretsFunc(ctx, teamID, secrets)
 }
 
 func (s *DataStore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {

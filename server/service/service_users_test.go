@@ -52,7 +52,7 @@ func TestModifyUserEmail(t *testing.T) {
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -99,7 +99,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -145,7 +145,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -191,7 +191,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,

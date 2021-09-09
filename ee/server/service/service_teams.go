@@ -19,7 +19,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 
 	// Copy team options from global options
-	globalConfig, err := svc.ds.AppConfig()
+	globalConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}

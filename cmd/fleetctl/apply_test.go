@@ -17,7 +17,7 @@ import (
 )
 
 var userRoleSpecList = []*fleet.User{
-	&fleet.User{
+	{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
@@ -27,7 +27,7 @@ var userRoleSpecList = []*fleet.User{
 		Email:      "admin1@example.com",
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	},
-	&fleet.User{
+	{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
@@ -130,7 +130,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{AgentOptions: &agentOpts}, nil
 	}
 
@@ -140,7 +140,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	enrolledSecretsCalled := make(map[uint][]*fleet.EnrollSecret)
-	ds.ApplyEnrollSecretsFunc = func(teamID *uint, secrets []*fleet.EnrollSecret) error {
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecretsCalled[*teamID] = secrets
 		return nil
 	}
@@ -199,12 +199,12 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
 	var savedAppConfig *fleet.AppConfig
-	ds.SaveAppConfigFunc = func(config *fleet.AppConfig) error {
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
 	}

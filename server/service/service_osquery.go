@@ -81,7 +81,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 
 	logIPs(ctx, "hostIdentifier", hostIdentifier)
 
-	secret, err := svc.ds.VerifyEnrollSecret(enrollSecret)
+	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
 		return "", osqueryError{
 			message:     "enroll failed: " + err.Error(),
@@ -104,7 +104,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
 	}
 
-	appConfig, err := svc.ds.AppConfig()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
 	}
@@ -384,13 +384,13 @@ const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
 // hostDetailQueries returns the map of queries that should be executed by
 // osqueryd to fill in the host details
-func (svc *Service) hostDetailQueries(host fleet.Host) (map[string]string, error) {
+func (svc *Service) hostDetailQueries(ctx context.Context, host fleet.Host) (map[string]string, error) {
 	queries := make(map[string]string)
 	if host.DetailUpdatedAt.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) && !host.RefetchRequested {
 		// No need to update already fresh details
 		return queries, nil
 	}
-	config, err := svc.ds.AppConfig()
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, osqueryError{message: "get additional queries: " + err.Error()}
 	}
@@ -431,7 +431,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	queries, err := svc.hostDetailQueries(host)
+	queries, err := svc.hostDetailQueries(ctx, host)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -478,10 +478,10 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 
 // ingestDetailQuery takes the results of a detail query and modifies the
 // provided fleet.Host appropriately.
-func (svc *Service) ingestDetailQuery(host *fleet.Host, name string, rows []map[string]string) error {
+func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDetailQueryPrefix)
 
-	config, err := svc.ds.AppConfig()
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return osqueryError{message: "ingest detail query: " + err.Error()}
 	}
@@ -640,7 +640,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		failed := ok && status != fleet.StatusOK
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
-			err = svc.ingestDetailQuery(&host, query, rows)
+			err = svc.ingestDetailQuery(ctx, &host, query, rows)
 			detailUpdated = true
 		case strings.HasPrefix(query, hostAdditionalQueryPrefix):
 			name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)

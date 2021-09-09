@@ -346,7 +346,7 @@ func TestGetConfig(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			HostSettings:          fleet.HostSettings{EnableHostUsers: true},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},

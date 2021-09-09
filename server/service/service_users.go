@@ -439,7 +439,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		return err
 	}
 
-	config, err := svc.ds.AppConfig()
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}

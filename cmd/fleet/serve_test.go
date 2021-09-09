@@ -33,7 +33,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
@@ -50,7 +50,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","numHostsEnrolled":999}`, requestBody)
@@ -66,7 +66,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
@@ -79,7 +79,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.False(t, recorded)
 	assert.False(t, called)
@@ -95,11 +95,11 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.False(t, called)
 }
@@ -122,7 +122,7 @@ func TestCronWebhooks(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			WebhookSettings: fleet.WebhookSettings{
 				HostStatusWebhook: fleet.HostStatusWebhookSettings{
@@ -171,7 +171,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -201,7 +201,7 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -228,7 +228,7 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -259,7 +259,7 @@ func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 

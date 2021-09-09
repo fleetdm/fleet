@@ -27,7 +27,7 @@ func (svc *Service) AgentOptionsForHost(ctx context.Context, host *fleet.Host) (
 	}
 
 	// Otherwise return the appropriate override for global options.
-	appConfig, err := svc.ds.AppConfig()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "load global agent options")
 	}

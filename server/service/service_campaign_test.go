@@ -42,7 +42,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {

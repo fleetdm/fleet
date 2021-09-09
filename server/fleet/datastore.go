@@ -245,17 +245,17 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigStore contains method for saving and retrieving application configuration
 
-	NewAppConfig(info *AppConfig) (*AppConfig, error)
-	AppConfig() (*AppConfig, error)
-	SaveAppConfig(info *AppConfig) error
+	NewAppConfig(ctx context.Context, info *AppConfig) (*AppConfig, error)
+	AppConfig(ctx context.Context) (*AppConfig, error)
+	SaveAppConfig(ctx context.Context, info *AppConfig) error
 
 	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
 	// matched, that secret is returned. Otherwise, an error is returned.
-	VerifyEnrollSecret(secret string) (*EnrollSecret, error)
+	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).
-	GetEnrollSecrets(teamID *uint) ([]*EnrollSecret, error)
+	GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*EnrollSecret, error)
 	// ApplyEnrollSecrets replaces the current enroll secrets for a team with the provided secrets.
-	ApplyEnrollSecrets(teamID *uint, secrets []*EnrollSecret) error
+	ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*EnrollSecret) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteStore contains the methods for managing user invites in a datastore.
