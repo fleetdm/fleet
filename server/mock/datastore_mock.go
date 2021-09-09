@@ -221,21 +221,21 @@ type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuer
 
 type CleanupOrphanScheduledQueryStatsFunc func(ctx context.Context) error
 
-type NewTeamFunc func(team *fleet.Team) (*fleet.Team, error)
+type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
-type SaveTeamFunc func(team *fleet.Team) (*fleet.Team, error)
+type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
-type TeamFunc func(tid uint) (*fleet.Team, error)
+type TeamFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
-type DeleteTeamFunc func(tid uint) error
+type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
-type TeamByNameFunc func(name string) (*fleet.Team, error)
+type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
 
-type ListTeamsFunc func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
+type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
 
-type SearchTeamsFunc func(filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error)
+type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error)
 
-type TeamEnrollSecretsFunc func(teamID uint) ([]*fleet.EnrollSecret, error)
+type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
 type SaveHostSoftwareFunc func(host *fleet.Host) error
 
@@ -1198,44 +1198,44 @@ func (s *DataStore) CleanupOrphanScheduledQueryStats(ctx context.Context) error 
 	return s.CleanupOrphanScheduledQueryStatsFunc(ctx)
 }
 
-func (s *DataStore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
+func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.NewTeamFuncInvoked = true
-	return s.NewTeamFunc(team)
+	return s.NewTeamFunc(ctx, team)
 }
 
-func (s *DataStore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
+func (s *DataStore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.SaveTeamFuncInvoked = true
-	return s.SaveTeamFunc(team)
+	return s.SaveTeamFunc(ctx, team)
 }
 
-func (s *DataStore) Team(tid uint) (*fleet.Team, error) {
+func (s *DataStore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.TeamFuncInvoked = true
-	return s.TeamFunc(tid)
+	return s.TeamFunc(ctx, tid)
 }
 
-func (s *DataStore) DeleteTeam(tid uint) error {
+func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
 	s.DeleteTeamFuncInvoked = true
-	return s.DeleteTeamFunc(tid)
+	return s.DeleteTeamFunc(ctx, tid)
 }
 
-func (s *DataStore) TeamByName(name string) (*fleet.Team, error) {
+func (s *DataStore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {
 	s.TeamByNameFuncInvoked = true
-	return s.TeamByNameFunc(name)
+	return s.TeamByNameFunc(ctx, name)
 }
 
-func (s *DataStore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	s.ListTeamsFuncInvoked = true
-	return s.ListTeamsFunc(filter, opt)
+	return s.ListTeamsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
+func (s *DataStore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	s.SearchTeamsFuncInvoked = true
-	return s.SearchTeamsFunc(filter, matchQuery, omit...)
+	return s.SearchTeamsFunc(ctx, filter, matchQuery, omit...)
 }
 
-func (s *DataStore) TeamEnrollSecrets(teamID uint) ([]*fleet.EnrollSecret, error) {
+func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	s.TeamEnrollSecretsFuncInvoked = true
-	return s.TeamEnrollSecretsFunc(teamID)
+	return s.TeamEnrollSecretsFunc(ctx, teamID)
 }
 
 func (s *DataStore) SaveHostSoftware(host *fleet.Host) error {
