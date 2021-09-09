@@ -21,21 +21,23 @@ func (ds *Datastore) NewGlobalPolicy(queryID uint) (*fleet.Policy, error) {
 		return nil, errors.Wrap(err, "getting last id after inserting policy")
 	}
 
-	return ds.Policy(uint(lastIdInt64))
+	return policyDB(ds.writer, uint(lastIdInt64))
 }
 
 func (ds *Datastore) Policy(id uint) (*fleet.Policy, error) {
+	return policyDB(ds.reader, id)
+}
+
+func policyDB(q sqlx.Queryer, id uint) (*fleet.Policy, error) {
 	var policy fleet.Policy
-	err := ds.reader.Get(
-		&policy,
+	err := sqlx.Get(q, &policy,
 		`SELECT
        		p.*,
        		q.name as query_name,
        		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
        		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
 		FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE p.id=?`,
-		id,
-	)
+		id)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting policy")
 	}
