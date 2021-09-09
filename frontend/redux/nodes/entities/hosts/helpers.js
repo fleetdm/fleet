@@ -22,7 +22,7 @@ export const parseEntityFunc = (host) => {
   }
 
   const additionalAttrs = {
-    host_cpu: hostCpuOutput,
+    cpu_type: hostCpuOutput,
     target_type: "hosts",
   };
 
