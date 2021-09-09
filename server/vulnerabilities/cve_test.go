@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -75,4 +77,25 @@ func TestSyncsCVEFromURL(t *testing.T) {
 		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
 		err.Error(),
 	)
+}
+
+func TestSyncsCVEFromURLSkipsIfDisableSync(t *testing.T) {
+	tempDir := t.TempDir()
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DisableDataSync: true,
+		},
+	}
+	err := SyncCVEData(tempDir, fleetConfig)
+	require.NoError(t, err)
+	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if match, err := regexp.MatchString("nvdcve.*\\.gz$", path); !match || err != nil {
+			return nil
+		}
+
+		t.FailNow()
+
+		return nil
+	})
+	require.NoError(t, err)
 }

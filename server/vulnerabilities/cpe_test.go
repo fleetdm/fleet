@@ -216,3 +216,20 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
 }
+
+func TestSyncsCPESkipsIfDisableSync(t *testing.T) {
+	client := &http.Client{}
+	tempDir := t.TempDir()
+	dbPath := path.Join(tempDir, "cpe.sqlite")
+
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DisableDataSync: true,
+		},
+	}
+	err := SyncCPEDatabase(client, dbPath, fleetConfig)
+	require.NoError(t, err)
+
+	_, err = os.Stat(dbPath)
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
