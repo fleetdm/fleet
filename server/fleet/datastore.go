@@ -281,12 +281,12 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ScheduledQueryStore
 
-	ListScheduledQueriesInPack(id uint, opts ListOptions) ([]*ScheduledQuery, error)
-	NewScheduledQuery(sq *ScheduledQuery, opts ...OptionalArg) (*ScheduledQuery, error)
-	SaveScheduledQuery(sq *ScheduledQuery) (*ScheduledQuery, error)
-	DeleteScheduledQuery(id uint) error
-	ScheduledQuery(id uint) (*ScheduledQuery, error)
-	CleanupOrphanScheduledQueryStats() error
+	ListScheduledQueriesInPack(ctx context.Context, id uint, opts ListOptions) ([]*ScheduledQuery, error)
+	NewScheduledQuery(ctx context.Context, sq *ScheduledQuery, opts ...OptionalArg) (*ScheduledQuery, error)
+	SaveScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
+	DeleteScheduledQuery(ctx context.Context, id uint) error
+	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
+	CleanupOrphanScheduledQueryStats(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
