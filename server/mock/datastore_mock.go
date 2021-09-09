@@ -11,23 +11,23 @@ import (
 
 var _ fleet.Datastore = (*DataStore)(nil)
 
-type NewCarveFunc func(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
+type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
 
-type UpdateCarveFunc func(metadata *fleet.CarveMetadata) error
+type UpdateCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) error
 
-type CarveFunc func(carveId int64) (*fleet.CarveMetadata, error)
+type CarveFunc func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error)
 
-type CarveBySessionIdFunc func(sessionId string) (*fleet.CarveMetadata, error)
+type CarveBySessionIdFunc func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error)
 
-type CarveByNameFunc func(name string) (*fleet.CarveMetadata, error)
+type CarveByNameFunc func(ctx context.Context, name string) (*fleet.CarveMetadata, error)
 
-type ListCarvesFunc func(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
+type ListCarvesFunc func(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
 
-type NewBlockFunc func(metadata *fleet.CarveMetadata, blockId int64, data []byte) error
+type NewBlockFunc func(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error
 
-type GetBlockFunc func(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error)
+type GetBlockFunc func(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64) ([]byte, error)
 
-type CleanupCarvesFunc func(now time.Time) (expired int, err error)
+type CleanupCarvesFunc func(ctx context.Context, now time.Time) (expired int, err error)
 
 type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
 
@@ -673,49 +673,49 @@ type DataStore struct {
 	MigrationStatusFuncInvoked bool
 }
 
-func (s *DataStore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	s.NewCarveFuncInvoked = true
-	return s.NewCarveFunc(metadata)
+	return s.NewCarveFunc(ctx, metadata)
 }
 
-func (s *DataStore) UpdateCarve(metadata *fleet.CarveMetadata) error {
+func (s *DataStore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetadata) error {
 	s.UpdateCarveFuncInvoked = true
-	return s.UpdateCarveFunc(metadata)
+	return s.UpdateCarveFunc(ctx, metadata)
 }
 
-func (s *DataStore) Carve(carveId int64) (*fleet.CarveMetadata, error) {
+func (s *DataStore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
 	s.CarveFuncInvoked = true
-	return s.CarveFunc(carveId)
+	return s.CarveFunc(ctx, carveId)
 }
 
-func (s *DataStore) CarveBySessionId(sessionId string) (*fleet.CarveMetadata, error) {
+func (s *DataStore) CarveBySessionId(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 	s.CarveBySessionIdFuncInvoked = true
-	return s.CarveBySessionIdFunc(sessionId)
+	return s.CarveBySessionIdFunc(ctx, sessionId)
 }
 
-func (s *DataStore) CarveByName(name string) (*fleet.CarveMetadata, error) {
+func (s *DataStore) CarveByName(ctx context.Context, name string) (*fleet.CarveMetadata, error) {
 	s.CarveByNameFuncInvoked = true
-	return s.CarveByNameFunc(name)
+	return s.CarveByNameFunc(ctx, name)
 }
 
-func (s *DataStore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (s *DataStore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 	s.ListCarvesFuncInvoked = true
-	return s.ListCarvesFunc(opt)
+	return s.ListCarvesFunc(ctx, opt)
 }
 
-func (s *DataStore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
+func (s *DataStore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
 	s.NewBlockFuncInvoked = true
-	return s.NewBlockFunc(metadata, blockId, data)
+	return s.NewBlockFunc(ctx, metadata, blockId, data)
 }
 
-func (s *DataStore) GetBlock(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
+func (s *DataStore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
 	s.GetBlockFuncInvoked = true
-	return s.GetBlockFunc(metadata, blockId)
+	return s.GetBlockFunc(ctx, metadata, blockId)
 }
 
-func (s *DataStore) CleanupCarves(now time.Time) (expired int, err error) {
+func (s *DataStore) CleanupCarves(ctx context.Context, now time.Time) (expired int, err error) {
 	s.CleanupCarvesFuncInvoked = true
-	return s.CleanupCarvesFunc(now)
+	return s.CleanupCarvesFunc(ctx, now)
 }
 
 func (s *DataStore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
