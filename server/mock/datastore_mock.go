@@ -237,17 +237,17 @@ type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQue
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
-type SaveHostSoftwareFunc func(host *fleet.Host) error
+type SaveHostSoftwareFunc func(ctx context.Context, host *fleet.Host) error
 
-type LoadHostSoftwareFunc func(host *fleet.Host) error
+type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host) error
 
-type AllSoftwareWithoutCPEIteratorFunc func() (fleet.SoftwareIterator, error)
+type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
 
-type AddCPEForSoftwareFunc func(software fleet.Software, cpe string) error
+type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
 
-type AllCPEsFunc func() ([]string, error)
+type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
-type InsertCVEForCPEFunc func(cve string, cpes []string) error
+type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
 
 type NewActivityFunc func(user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -1238,34 +1238,34 @@ func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	return s.TeamEnrollSecretsFunc(ctx, teamID)
 }
 
-func (s *DataStore) SaveHostSoftware(host *fleet.Host) error {
+func (s *DataStore) SaveHostSoftware(ctx context.Context, host *fleet.Host) error {
 	s.SaveHostSoftwareFuncInvoked = true
-	return s.SaveHostSoftwareFunc(host)
+	return s.SaveHostSoftwareFunc(ctx, host)
 }
 
-func (s *DataStore) LoadHostSoftware(host *fleet.Host) error {
+func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	s.LoadHostSoftwareFuncInvoked = true
-	return s.LoadHostSoftwareFunc(host)
+	return s.LoadHostSoftwareFunc(ctx, host)
 }
 
-func (s *DataStore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
+func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
 	s.AllSoftwareWithoutCPEIteratorFuncInvoked = true
-	return s.AllSoftwareWithoutCPEIteratorFunc()
+	return s.AllSoftwareWithoutCPEIteratorFunc(ctx)
 }
 
-func (s *DataStore) AddCPEForSoftware(software fleet.Software, cpe string) error {
+func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
 	s.AddCPEForSoftwareFuncInvoked = true
-	return s.AddCPEForSoftwareFunc(software, cpe)
+	return s.AddCPEForSoftwareFunc(ctx, software, cpe)
 }
 
-func (s *DataStore) AllCPEs() ([]string, error) {
+func (s *DataStore) AllCPEs(ctx context.Context) ([]string, error) {
 	s.AllCPEsFuncInvoked = true
-	return s.AllCPEsFunc()
+	return s.AllCPEsFunc(ctx)
 }
 
-func (s *DataStore) InsertCVEForCPE(cve string, cpes []string) error {
+func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
 	s.InsertCVEForCPEFuncInvoked = true
-	return s.InsertCVEForCPEFunc(cve, cpes)
+	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
 
 func (s *DataStore) NewActivity(user *fleet.User, activityType string, details *map[string]interface{}) error {
