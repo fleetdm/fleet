@@ -257,17 +257,17 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
-type NewGlobalPolicyFunc func(queryID uint) (*fleet.Policy, error)
+type NewGlobalPolicyFunc func(ctx context.Context, queryID uint) (*fleet.Policy, error)
 
-type PolicyFunc func(id uint) (*fleet.Policy, error)
+type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
-type RecordPolicyQueryExecutionsFunc func(host *fleet.Host, results map[uint]*bool, updated time.Time) error
+type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error
 
-type ListGlobalPoliciesFunc func() ([]*fleet.Policy, error)
+type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
 
-type DeleteGlobalPoliciesFunc func(ids []uint) ([]uint, error)
+type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
-type PolicyQueriesForHostFunc func(host *fleet.Host) (map[string]string, error)
+type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
 type MigrateTablesFunc func() error
 
@@ -1288,34 +1288,34 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
-func (s *DataStore) NewGlobalPolicy(queryID uint) (*fleet.Policy, error) {
+func (s *DataStore) NewGlobalPolicy(ctx context.Context, queryID uint) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
-	return s.NewGlobalPolicyFunc(queryID)
+	return s.NewGlobalPolicyFunc(ctx, queryID)
 }
 
-func (s *DataStore) Policy(id uint) (*fleet.Policy, error) {
+func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
 	s.PolicyFuncInvoked = true
-	return s.PolicyFunc(id)
+	return s.PolicyFunc(ctx, id)
 }
 
-func (s *DataStore) RecordPolicyQueryExecutions(host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
 	s.RecordPolicyQueryExecutionsFuncInvoked = true
-	return s.RecordPolicyQueryExecutionsFunc(host, results, updated)
+	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated)
 }
 
-func (s *DataStore) ListGlobalPolicies() ([]*fleet.Policy, error) {
+func (s *DataStore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
 	s.ListGlobalPoliciesFuncInvoked = true
-	return s.ListGlobalPoliciesFunc()
+	return s.ListGlobalPoliciesFunc(ctx)
 }
 
-func (s *DataStore) DeleteGlobalPolicies(ids []uint) ([]uint, error) {
+func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	s.DeleteGlobalPoliciesFuncInvoked = true
-	return s.DeleteGlobalPoliciesFunc(ids)
+	return s.DeleteGlobalPoliciesFunc(ctx, ids)
 }
 
-func (s *DataStore) PolicyQueriesForHost(host *fleet.Host) (map[string]string, error) {
+func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.PolicyQueriesForHostFuncInvoked = true
-	return s.PolicyQueriesForHostFunc(host)
+	return s.PolicyQueriesForHostFunc(ctx, host)
 }
 
 func (s *DataStore) MigrateTables() error {
