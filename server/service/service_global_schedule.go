@@ -31,7 +31,7 @@ func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.Li
 		return nil, err
 	}
 
-	return svc.ds.ListScheduledQueriesInPack(gp.ID, opts)
+	return svc.ds.ListScheduledQueriesInPack(ctx, gp.ID, opts)
 }
 
 func (svc *Service) ModifyGlobalScheduledQueries(

@@ -633,7 +633,7 @@ func TestPackApplyStatsNotLocking(t *testing.T) {
 			case <-ticker.C:
 				pack, _, err := ds.PackByName(context.Background(), "test_pack")
 				require.NoError(t, err)
-				schedQueries, err := ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
+				schedQueries, err := ds.ListScheduledQueriesInPack(context.Background(), pack.ID, fleet.ListOptions{})
 				require.NoError(t, err)
 
 				require.NoError(t, saveHostPackStatsDB(ds.writer, randomPackStatsForHost(host.ID, pack.ID, schedQueries)))

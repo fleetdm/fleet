@@ -45,7 +45,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 		return nil, err
 	}
 
-	return svc.ds.ListScheduledQueriesInPack(gp.ID, opts)
+	return svc.ds.ListScheduledQueriesInPack(ctx, gp.ID, opts)
 }
 
 /////////////////////////////////////////////////////////////////////////////////

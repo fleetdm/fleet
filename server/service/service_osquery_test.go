@@ -427,7 +427,7 @@ func TestGetClientConfig(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(pid uint, opt fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint, opt fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		tru := true
 		fals := false
 		fortytwo := uint(42)

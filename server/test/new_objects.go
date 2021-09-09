@@ -136,7 +136,7 @@ func NewUser(t *testing.T, ds fleet.Datastore, name, email string, admin bool) *
 }
 
 func NewScheduledQuery(t *testing.T, ds fleet.Datastore, pid, qid, interval uint, snapshot, removed bool, name string) *fleet.ScheduledQuery {
-	sq, err := ds.NewScheduledQuery(&fleet.ScheduledQuery{
+	sq, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
 		Name:     name,
 		PackID:   pid,
 		QueryID:  qid,

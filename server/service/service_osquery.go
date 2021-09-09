@@ -241,7 +241,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	packConfig := fleet.Packs{}
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
-		queries, err := svc.ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
+		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID, fleet.ListOptions{})
 		if err != nil {
 			return nil, osqueryError{message: "database error: " + err.Error()}
 		}
