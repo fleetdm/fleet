@@ -2,11 +2,15 @@
 
   p {
     font-size: 14px;
-    font: 'Nunito Sans', sans-serif;
+    font-family: 'Nunito Sans', sans-serif;
+  }
+  h1, h2 {
+    padding-top: 80px
   }
   hr {
     border-image-width: 2px;
     color: @core-vibrant-blue-15;
+    margin-top: 80px;
   }
   a {
     color: @core-vibrant-blue;
@@ -25,7 +29,17 @@
   }
 
   .preview-image {
-    width: 400px;
+    max-width: 400px;
+  }
+
+  @media (max-width: 576px) {
+
+    hr {
+      margin-top: 20px;
+    }
+    .preview-image {
+      max-width: 100%;
+    }
   }
 
 }
