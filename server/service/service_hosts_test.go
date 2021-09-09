@@ -72,7 +72,7 @@ func TestHostDetails(t *testing.T) {
 			Description: "the foobar label",
 		},
 	}
-	ds.ListLabelsForHostFunc = func(hid uint) ([]*fleet.Label, error) {
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return expectedLabels, nil
 	}
 	expectedPacks := []*fleet.Pack{
@@ -179,7 +179,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	expectedTeam := ptr.Uint(1)
 	expectedLabel := ptr.Uint(2)
 
-	ds.ListHostsInLabelFunc = func(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		assert.Equal(t, *expectedLabel, lid)
 		var hosts []*fleet.Host
 		for _, id := range expectedHostIDs {

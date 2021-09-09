@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -12,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) ApplyLabelSpecs(specs []*fleet.LabelSpec) (err error) {
+func (d *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		sql := `
 		INSERT INTO labels (
@@ -111,7 +112,7 @@ func batchHostnames(hostnames []string) [][]string {
 	return batches
 }
 
-func (d *Datastore) GetLabelSpecs() ([]*fleet.LabelSpec, error) {
+func (d *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	// Get basic specs
 	query := "SELECT id, name, description, query, platform, label_type, label_membership_type FROM labels"
@@ -131,7 +132,7 @@ func (d *Datastore) GetLabelSpecs() ([]*fleet.LabelSpec, error) {
 	return specs, nil
 }
 
-func (d *Datastore) GetLabelSpec(name string) (*fleet.LabelSpec, error) {
+func (d *Datastore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	query := `
 SELECT name, description, query, platform, label_type, label_membership_type
@@ -179,7 +180,7 @@ func (d *Datastore) getLabelHostnames(label *fleet.LabelSpec) error {
 }
 
 // NewLabel creates a new fleet.Label
-func (d *Datastore) NewLabel(label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+func (d *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 	query := `
 	INSERT INTO labels (
 		name,
@@ -209,7 +210,7 @@ func (d *Datastore) NewLabel(label *fleet.Label, opts ...fleet.OptionalArg) (*fl
 
 }
 
-func (d *Datastore) SaveLabel(label *fleet.Label) (*fleet.Label, error) {
+func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
 	query := `
 		UPDATE labels SET
 			name = ?,
@@ -224,12 +225,12 @@ func (d *Datastore) SaveLabel(label *fleet.Label) (*fleet.Label, error) {
 }
 
 // DeleteLabel deletes a fleet.Label
-func (d *Datastore) DeleteLabel(name string) error {
+func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 	return d.deleteEntityByName("labels", name)
 }
 
 // Label returns a fleet.Label identified by lid if one exists.
-func (d *Datastore) Label(lid uint) (*fleet.Label, error) {
+func (d *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
 	sql := `
 		SELECT * FROM labels
 			WHERE id = ?
@@ -244,7 +245,7 @@ func (d *Datastore) Label(lid uint) (*fleet.Label, error) {
 }
 
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.
-func (d *Datastore) ListLabels(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (d *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	query := fmt.Sprintf(`
 			SELECT *,
 				(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
@@ -276,7 +277,7 @@ func platformForHost(host *fleet.Host) string {
 	return host.Platform
 }
 
-func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+func (d *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 	var rows *sql.Rows
 	var err error
 	platform := platformForHost(host)
@@ -332,7 +333,7 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 	return results, nil
 }
 
-func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
 	// Sort the results to have generated SQL queries ordered to minimize
 	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
@@ -403,7 +404,7 @@ func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uin
 }
 
 // ListLabelsForHost returns a list of fleet.Label for a given host id.
-func (d *Datastore) ListLabelsForHost(hid uint) ([]*fleet.Label, error) {
+func (d *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 	sqlStatement := `
 		SELECT labels.* from labels JOIN label_membership lm
 		WHERE lm.host_id = ?
@@ -422,7 +423,7 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]*fleet.Label, error) {
 
 // ListHostsInLabel returns a list of fleet.Host that are associated
 // with fleet.Label referened by Label ID
-func (d *Datastore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+func (d *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := fmt.Sprintf(`
 			SELECT h.*, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
 			FROM label_membership lm
@@ -447,7 +448,7 @@ func (d *Datastore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt flee
 	return hosts, nil
 }
 
-func (d *Datastore) ListUniqueHostsInLabels(filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
+func (d *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
 	if len(labels) == 0 {
 		return []*fleet.Host{}, nil
 	}
@@ -597,7 +598,7 @@ func (d *Datastore) searchLabelsDefault(filter fleet.TeamFilter, omit ...uint) (
 }
 
 // SearchLabels performs wildcard searches on fleet.Label name
-func (d *Datastore) SearchLabels(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+func (d *Datastore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 	transformedQuery := transformQuery(query)
 	if !queryMinLength(transformedQuery) {
 		return d.searchLabelsDefault(filter, omit...)
@@ -637,7 +638,7 @@ func (d *Datastore) SearchLabels(filter fleet.TeamFilter, query string, omit ...
 	return matches, nil
 }
 
-func (d *Datastore) LabelIDsByName(labels []string) ([]uint, error) {
+func (d *Datastore) LabelIDsByName(ctx context.Context, labels []string) ([]uint, error) {
 	if len(labels) == 0 {
 		return []uint{}, nil
 	}

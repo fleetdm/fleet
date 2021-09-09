@@ -141,7 +141,7 @@ func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 			Query: "select * from bing",
 		},
 	}
-	err = ds.ApplyLabelSpecs(labels)
+	err = ds.ApplyLabelSpecs(context.Background(), labels)
 	require.Nil(t, err)
 
 	expectedSpecs := []*fleet.PackSpec{
@@ -318,7 +318,7 @@ func TestListPacksForHost(t *testing.T) {
 		ID:   2,
 		Name: "bar",
 	}
-	err := ds.ApplyLabelSpecs([]*fleet.LabelSpec{l1, l2})
+	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{l1, l2})
 	require.Nil(t, err)
 
 	p1 := &fleet.PackSpec{
@@ -350,6 +350,7 @@ func TestListPacksForHost(t *testing.T) {
 	require.Len(t, packs, 0)
 
 	err = ds.RecordLabelQueryExecutions(
+		context.Background(),
 		h1,
 		map[uint]*bool{l1.ID: ptr.Bool(true)},
 		mockClock.Now(),
@@ -363,6 +364,7 @@ func TestListPacksForHost(t *testing.T) {
 	}
 
 	err = ds.RecordLabelQueryExecutions(
+		context.Background(),
 		h1,
 		map[uint]*bool{l1.ID: ptr.Bool(false), l2.ID: ptr.Bool(true)},
 		mockClock.Now(),
@@ -374,6 +376,7 @@ func TestListPacksForHost(t *testing.T) {
 	assert.Len(t, packs, 2)
 
 	err = ds.RecordLabelQueryExecutions(
+		context.Background(),
 		h1,
 		map[uint]*bool{l1.ID: ptr.Bool(true), l2.ID: ptr.Bool(true)},
 		mockClock.Now(),
@@ -387,6 +390,7 @@ func TestListPacksForHost(t *testing.T) {
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", mockClock.Now())
 
 	err = ds.RecordLabelQueryExecutions(
+		context.Background(),
 		h2,
 		map[uint]*bool{l2.ID: ptr.Bool(true)},
 		mockClock.Now(),
@@ -398,6 +402,7 @@ func TestListPacksForHost(t *testing.T) {
 	assert.Len(t, packs, 2)
 
 	err = ds.RecordLabelQueryExecutions(
+		context.Background(),
 		h1,
 		map[uint]*bool{l2.ID: ptr.Bool(false)},
 		mockClock.Now(),
@@ -430,7 +435,7 @@ func TestEnsureGlobalPack(t *testing.T) {
 	assert.Equal(t, gp.ID, packs[0].ID)
 	assert.Equal(t, "global", *gp.Type)
 
-	labels, err := ds.LabelIDsByName([]string{"All Hosts"})
+	labels, err := ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
 	require.Nil(t, err)
 
 	assert.Equal(t, []uint{labels[0]}, gp.LabelIDs)

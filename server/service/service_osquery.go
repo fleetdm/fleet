@@ -438,7 +438,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 
 	// Retrieve the label queries that should be updated
 	cutoff := svc.clock.Now().Add(-svc.config.Osquery.LabelUpdateInterval)
-	labelQueries, err := svc.ds.LabelQueriesForHost(&host, cutoff)
+	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, &host, cutoff)
 	if err != nil {
 		return nil, 0, osqueryError{message: "retrieving label queries: " + err.Error()}
 	}
@@ -666,7 +666,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	if len(labelResults) > 0 {
 		host.Modified = true
 		host.LabelUpdatedAt = svc.clock.Now()
-		err = svc.ds.RecordLabelQueryExecutions(&host, labelResults, svc.clock.Now())
+		err = svc.ds.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now())
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}

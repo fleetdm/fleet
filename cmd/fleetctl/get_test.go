@@ -20,7 +20,7 @@ import (
 )
 
 var userRoleList = []*fleet.User{
-	&fleet.User{
+	{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
@@ -30,7 +30,7 @@ var userRoleList = []*fleet.User{
 		Email:      "admin1@example.com",
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	},
-	&fleet.User{
+	{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
@@ -40,7 +40,7 @@ var userRoleList = []*fleet.User{
 		Email:      "admin2@example.com",
 		GlobalRole: nil,
 		Teams: []fleet.UserTeam{
-			fleet.UserTeam{
+			{
 				Team: fleet.Team{
 					ID:        1,
 					CreatedAt: time.Now(),
@@ -252,7 +252,7 @@ func TestGetHosts(t *testing.T) {
 	ds.LoadHostSoftwareFunc = func(host *fleet.Host) error {
 		return nil
 	}
-	ds.ListLabelsForHostFunc = func(hid uint) ([]*fleet.Label, error) {
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
 	}
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {

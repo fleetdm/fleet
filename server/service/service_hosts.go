@@ -65,7 +65,7 @@ func (svc Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet
 		return nil, errors.Wrap(err, "load host software")
 	}
 
-	labels, err := svc.ds.ListLabelsForHost(host.ID)
+	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "get labels for host")
 	}
@@ -161,7 +161,7 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	var hosts []*fleet.Host
 	var err error
 	if lid != nil {
-		hosts, err = svc.ds.ListHostsInLabel(filter, *lid, opt)
+		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
 		hosts, err = svc.ds.ListHosts(filter, opt)
 	}

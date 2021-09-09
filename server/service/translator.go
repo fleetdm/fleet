@@ -37,7 +37,7 @@ func translateEmailToUserID(ctx context.Context, ds fleet.Datastore, identifier 
 }
 
 func translateLabelToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
-	labelIDs, err := ds.LabelIDsByName([]string{identifier})
+	labelIDs, err := ds.LabelIDsByName(ctx, []string{identifier})
 	if err != nil {
 		return 0, err
 	}

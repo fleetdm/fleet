@@ -86,6 +86,7 @@ func AddLabelToCampaign(t *testing.T, ds fleet.Datastore, campaignID, labelID ui
 
 func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 	_, err := ds.NewLabel(
+		context.Background(),
 		&fleet.Label{
 			Name:                "All Hosts",
 			Query:               "select 1",

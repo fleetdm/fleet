@@ -22,10 +22,10 @@ func TestUnicode(t *testing.T) {
 		Name:  "測試",
 		Query: "query foo",
 	}
-	err := ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1})
+	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1})
 	require.Nil(t, err)
 
-	label, err := ds.Label(l1.ID)
+	label, err := ds.Label(context.Background(), l1.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "測試", label.Name)
 

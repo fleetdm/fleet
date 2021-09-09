@@ -39,7 +39,7 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 		results.Hosts = append(results.Hosts, h)
 	}
 
-	labels, err := svc.ds.SearchLabels(filter, matchQuery, targets.LabelIDs...)
+	labels, err := svc.ds.SearchLabels(ctx, filter, matchQuery, targets.LabelIDs...)
 	if err != nil {
 		return nil, err
 	}

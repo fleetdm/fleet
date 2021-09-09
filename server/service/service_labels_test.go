@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -20,7 +21,7 @@ func TestGetLabel(t *testing.T) {
 		Name:  "foo",
 		Query: "select * from foo;",
 	}
-	label, err := ds.NewLabel(label)
+	label, err := ds.NewLabel(context.Background(), label)
 	assert.Nil(t, err)
 	assert.NotZero(t, label.ID)
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -60,12 +61,12 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
 		return []uint{uint(11)}, nil
 	}
 
-	ds.ListHostsInLabelFunc = func(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		require.Equal(t, fleet.HostStatus(""), opt.StatusFilter)
 		require.Equal(t, uint(11), lid)
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
@@ -95,7 +96,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
 		return []uint{uint(11)}, nil
 	}
@@ -130,7 +131,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
 		return []uint{uint(11)}, nil
 	}

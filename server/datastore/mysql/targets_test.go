@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -65,15 +66,15 @@ func TestCountHostsInTargets(t *testing.T) {
 		Name:  "label bar",
 		Query: "query bar",
 	}
-	require.NoError(t, ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2}))
+	require.NoError(t, ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2}))
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*fleet.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l2.ID: ptr.Bool(true)}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l2.ID: ptr.Bool(true)}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
@@ -259,16 +260,16 @@ func TestHostIDsInTargets(t *testing.T) {
 		Name:  "label bar",
 		Query: "query bar",
 	}
-	err := ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2})
+	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*fleet.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now())
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 

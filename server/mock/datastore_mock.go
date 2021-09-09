@@ -99,35 +99,35 @@ type EnsureGlobalPackFunc func(ctx context.Context) (*fleet.Pack, error)
 
 type EnsureTeamPackFunc func(ctx context.Context, teamID uint) (*fleet.Pack, error)
 
-type ApplyLabelSpecsFunc func(specs []*fleet.LabelSpec) error
+type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
-type GetLabelSpecsFunc func() ([]*fleet.LabelSpec, error)
+type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
-type GetLabelSpecFunc func(name string) (*fleet.LabelSpec, error)
+type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
 
-type NewLabelFunc func(Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
+type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(label *fleet.Label) (*fleet.Label, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label) (*fleet.Label, error)
 
-type DeleteLabelFunc func(name string) error
+type DeleteLabelFunc func(ctx context.Context, name string) error
 
-type LabelFunc func(lid uint) (*fleet.Label, error)
+type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, error)
 
-type ListLabelsFunc func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
+type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
-type LabelQueriesForHostFunc func(host *fleet.Host, cutoff time.Time) (map[string]string, error)
+type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error)
 
-type RecordLabelQueryExecutionsFunc func(host *fleet.Host, results map[uint]*bool, t time.Time) error
+type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error
 
-type ListLabelsForHostFunc func(hid uint) ([]*fleet.Label, error)
+type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, error)
 
-type ListHostsInLabelFunc func(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
+type ListHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type ListUniqueHostsInLabelsFunc func(filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error)
+type ListUniqueHostsInLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error)
 
-type SearchLabelsFunc func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
+type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
 
-type LabelIDsByNameFunc func(labels []string) ([]uint, error)
+type LabelIDsByNameFunc func(ctx context.Context, labels []string) ([]uint, error)
 
 type NewHostFunc func(host *fleet.Host) (*fleet.Host, error)
 
@@ -893,79 +893,79 @@ func (s *DataStore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pac
 	return s.EnsureTeamPackFunc(ctx, teamID)
 }
 
-func (s *DataStore) ApplyLabelSpecs(specs []*fleet.LabelSpec) error {
+func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
 	s.ApplyLabelSpecsFuncInvoked = true
-	return s.ApplyLabelSpecsFunc(specs)
+	return s.ApplyLabelSpecsFunc(ctx, specs)
 }
 
-func (s *DataStore) GetLabelSpecs() ([]*fleet.LabelSpec, error) {
+func (s *DataStore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	s.GetLabelSpecsFuncInvoked = true
-	return s.GetLabelSpecsFunc()
+	return s.GetLabelSpecsFunc(ctx)
 }
 
-func (s *DataStore) GetLabelSpec(name string) (*fleet.LabelSpec, error) {
+func (s *DataStore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
 	s.GetLabelSpecFuncInvoked = true
-	return s.GetLabelSpecFunc(name)
+	return s.GetLabelSpecFunc(ctx, name)
 }
 
-func (s *DataStore) NewLabel(Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 	s.NewLabelFuncInvoked = true
-	return s.NewLabelFunc(Label, opts...)
+	return s.NewLabelFunc(ctx, Label, opts...)
 }
 
-func (s *DataStore) SaveLabel(label *fleet.Label) (*fleet.Label, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
 	s.SaveLabelFuncInvoked = true
-	return s.SaveLabelFunc(label)
+	return s.SaveLabelFunc(ctx, label)
 }
 
-func (s *DataStore) DeleteLabel(name string) error {
+func (s *DataStore) DeleteLabel(ctx context.Context, name string) error {
 	s.DeleteLabelFuncInvoked = true
-	return s.DeleteLabelFunc(name)
+	return s.DeleteLabelFunc(ctx, name)
 }
 
-func (s *DataStore) Label(lid uint) (*fleet.Label, error) {
+func (s *DataStore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
 	s.LabelFuncInvoked = true
-	return s.LabelFunc(lid)
+	return s.LabelFunc(ctx, lid)
 }
 
-func (s *DataStore) ListLabels(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	s.ListLabelsFuncInvoked = true
-	return s.ListLabelsFunc(filter, opt)
+	return s.ListLabelsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 	s.LabelQueriesForHostFuncInvoked = true
-	return s.LabelQueriesForHostFunc(host, cutoff)
+	return s.LabelQueriesForHostFunc(ctx, host, cutoff)
 }
 
-func (s *DataStore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]*bool, t time.Time) error {
+func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
 	s.RecordLabelQueryExecutionsFuncInvoked = true
-	return s.RecordLabelQueryExecutionsFunc(host, results, t)
+	return s.RecordLabelQueryExecutionsFunc(ctx, host, results, t)
 }
 
-func (s *DataStore) ListLabelsForHost(hid uint) ([]*fleet.Label, error) {
+func (s *DataStore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 	s.ListLabelsForHostFuncInvoked = true
-	return s.ListLabelsForHostFunc(hid)
+	return s.ListLabelsForHostFunc(ctx, hid)
 }
 
-func (s *DataStore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+func (s *DataStore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	s.ListHostsInLabelFuncInvoked = true
-	return s.ListHostsInLabelFunc(filter, lid, opt)
+	return s.ListHostsInLabelFunc(ctx, filter, lid, opt)
 }
 
-func (s *DataStore) ListUniqueHostsInLabels(filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
+func (s *DataStore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
 	s.ListUniqueHostsInLabelsFuncInvoked = true
-	return s.ListUniqueHostsInLabelsFunc(filter, labels)
+	return s.ListUniqueHostsInLabelsFunc(ctx, filter, labels)
 }
 
-func (s *DataStore) SearchLabels(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 	s.SearchLabelsFuncInvoked = true
-	return s.SearchLabelsFunc(filter, query, omit...)
+	return s.SearchLabelsFunc(ctx, filter, query, omit...)
 }
 
-func (s *DataStore) LabelIDsByName(labels []string) ([]uint, error) {
+func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) ([]uint, error) {
 	s.LabelIDsByNameFuncInvoked = true
-	return s.LabelIDsByNameFunc(labels)
+	return s.LabelIDsByNameFunc(ctx, labels)
 }
 
 func (s *DataStore) NewHost(host *fleet.Host) (*fleet.Host, error) {

@@ -53,7 +53,7 @@ func TestDistributedQueryCampaign(t *testing.T) {
 		Name:  "label bar",
 		Query: "query bar",
 	}
-	err := ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2})
+	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
 
 	checkTargets(t, ds, campaign.ID, fleet.HostTargets{})

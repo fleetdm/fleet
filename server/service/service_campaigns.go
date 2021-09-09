@@ -29,7 +29,7 @@ func (svc Service) NewDistributedQueryCampaignByNames(ctx context.Context, query
 		return nil, errors.Wrap(err, "finding host IDs")
 	}
 
-	labelIDs, err := svc.ds.LabelIDsByName(labels)
+	labelIDs, err := svc.ds.LabelIDsByName(ctx, labels)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding label IDs")
 	}

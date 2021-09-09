@@ -127,41 +127,41 @@ type Datastore interface {
 	// LabelStore
 
 	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
-	ApplyLabelSpecs(specs []*LabelSpec) error
+	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
 	// GetLabelSpecs returns all of the stored LabelSpecs.
-	GetLabelSpecs() ([]*LabelSpec, error)
+	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
 	// GetLabelSpec returns the spec for the named label.
-	GetLabelSpec(name string) (*LabelSpec, error)
+	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
-	NewLabel(Label *Label, opts ...OptionalArg) (*Label, error)
-	SaveLabel(label *Label) (*Label, error)
-	DeleteLabel(name string) error
-	Label(lid uint) (*Label, error)
-	ListLabels(filter TeamFilter, opt ListOptions) ([]*Label, error)
+	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
+	SaveLabel(ctx context.Context, label *Label) (*Label, error)
+	DeleteLabel(ctx context.Context, name string) error
+	Label(ctx context.Context, lid uint) (*Label, error)
+	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed for the given host. The cutoff is the
 	// minimum timestamp a query execution should have to be considered "fresh". Executions that are not fresh will be
 	// repeated. Results are returned in a map of label id -> query
-	LabelQueriesForHost(host *Host, cutoff time.Time) (map[string]string, error)
+	LabelQueriesForHost(ctx context.Context, host *Host, cutoff time.Time) (map[string]string, error)
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
-	RecordLabelQueryExecutions(host *Host, results map[uint]*bool, t time.Time) error
+	RecordLabelQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, t time.Time) error
 
 	// ListLabelsForHost returns the labels that the given host is in.
-	ListLabelsForHost(hid uint) ([]*Label, error)
+	ListLabelsForHost(ctx context.Context, hid uint) ([]*Label, error)
 
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
-	ListHostsInLabel(filter TeamFilter, lid uint, opt HostListOptions) ([]*Host, error)
+	ListHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) ([]*Host, error)
 
 	// ListUniqueHostsInLabels returns a slice of all of the hosts in the given label IDs. A host will only appear once
 	// in the results even if it is in multiple of the provided labels.
-	ListUniqueHostsInLabels(filter TeamFilter, labels []uint) ([]*Host, error)
+	ListUniqueHostsInLabels(ctx context.Context, filter TeamFilter, labels []uint) ([]*Host, error)
 
-	SearchLabels(filter TeamFilter, query string, omit ...uint) ([]*Label, error)
+	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
 	// LabelIDsByName Retrieve the IDs associated with the given labels
-	LabelIDsByName(labels []string) ([]uint, error)
+	LabelIDsByName(ctx context.Context, labels []string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// HostStore

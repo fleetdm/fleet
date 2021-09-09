@@ -321,7 +321,7 @@ func TestLabelQueries(t *testing.T) {
 		Platform: "darwin",
 	}
 
-	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.HostFunc = func(id uint) (*fleet.Host, error) {
@@ -358,7 +358,7 @@ func TestLabelQueries(t *testing.T) {
 	assert.Len(t, queries, 0)
 	assert.Zero(t, acc)
 
-	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{
 			"label1": "query1",
 			"label2": "query2",
@@ -375,7 +375,7 @@ func TestLabelQueries(t *testing.T) {
 	var gotHost *fleet.Host
 	var gotResults map[uint]*bool
 	var gotTime time.Time
-	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]*bool, t time.Time) error {
+	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
 		gotHost = host
 		gotResults = results
 		gotTime = t
@@ -536,7 +536,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
-	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
@@ -712,7 +712,7 @@ func TestDetailQueries(t *testing.T) {
 	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
-	ds.LabelQueriesForHostFunc = func(*fleet.Host, time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host, time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
@@ -917,7 +917,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
 
-	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.SaveHostFunc = func(host *fleet.Host) error {
@@ -986,7 +986,7 @@ func TestDistributedQueryResults(t *testing.T) {
 
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 
-	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(host *fleet.Host) (map[string]string, error) {
@@ -1601,7 +1601,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	ds.SaveHostFunc = func(host *fleet.Host) error {
 		return authz.CheckMissingWithResponse(nil)
 	}
-	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]*bool, t time.Time) error {
+	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
 		return errors.New("something went wrong")
 	}
 
@@ -1712,7 +1712,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 		}, nil
 	}
 
-	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.SaveHostFunc = func(host *fleet.Host) error { return nil }
@@ -1747,7 +1747,7 @@ func TestPolicyQueries(t *testing.T) {
 		Platform: "darwin",
 	}
 
-	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.HostFunc = func(id uint) (*fleet.Host, error) {
