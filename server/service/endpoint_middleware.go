@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/pkg/errors"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
@@ -13,20 +17,33 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
+func logJSON(logger log.Logger, v interface{}, key string) {
+	jsonV, err := json.Marshal(v)
+	if err != nil {
+		level.Debug(logger).Log("err", errors.Wrapf(err, "marshaling %s for debug", key))
+		return
+	}
+	level.Debug(logger).Log(key, string(jsonV))
+}
+
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
 // provided in the request, and attaches the corresponding osquery host to the
 // context for the request
-func authenticatedHost(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		nodeKey, err := getNodeKey(request)
 		if err != nil {
 			return nil, err
 		}
 
-		host, err := svc.AuthenticateHost(ctx, nodeKey)
+		host, debug, err := svc.AuthenticateHost(ctx, nodeKey)
 		if err != nil {
 			logging.WithErr(ctx, err)
 			return nil, err
+		}
+
+		if debug {
+			logJSON(logger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, *host)
@@ -35,6 +52,11 @@ func authenticatedHost(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			logging.WithErr(ctx, err)
 			return nil, err
 		}
+
+		if debug {
+			logJSON(logger, request, "response")
+		}
+
 		if errResp, ok := resp.(errorer); ok {
 			err = errResp.error()
 			if err != nil {

@@ -37,12 +37,12 @@ func (e osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
 }
 
-func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
 	if nodeKey == "" {
-		return nil, osqueryError{
+		return nil, false, osqueryError{
 			message:     "authentication error: missing node key",
 			nodeInvalid: true,
 		}
@@ -52,12 +52,12 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	if err != nil {
 		switch err.(type) {
 		case fleet.NotFoundError:
-			return nil, osqueryError{
+			return nil, false, osqueryError{
 				message:     "authentication error: invalid node key: " + nodeKey,
 				nodeInvalid: true,
 			}
 		default:
-			return nil, osqueryError{
+			return nil, false, osqueryError{
 				message: "authentication error: " + err.Error(),
 			}
 		}
@@ -72,7 +72,25 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	svc.seenHostSet.addHostID(host.ID)
 	host.SeenTime = svc.clock.Now()
 
-	return host, nil
+	return host, svc.debugEnabledForHost(host), nil
+}
+
+func (svc Service) debugEnabledForHost(host *fleet.Host) bool {
+	hlogger := log.With(svc.logger, "host-id", host.ID)
+	ac, err := svc.ds.AppConfig()
+	if err != nil {
+		level.Debug(hlogger).Log("err", errors.Wrap(err, "getting app config for host debug"))
+		return false
+	}
+
+	doDebug := false
+	for _, hostID := range ac.ServerSettings.DebugHostIDs {
+		if host.ID == hostID {
+			doDebug = true
+			break
+		}
+	}
+	return doDebug
 }
 
 func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
@@ -701,15 +719,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	return nil
-}
-
-func logJSON(logger log.Logger, v interface{}, key string) {
-	jsonV, err := json.Marshal(v)
-	if err != nil {
-		level.Debug(logger).Log("err", errors.Wrapf(err, "marshaling %s for debug", key))
-		return
-	}
-	level.Debug(logger).Log(key, string(jsonV))
 }
 
 func (svc *Service) maybeDebugHost(

@@ -140,19 +140,19 @@ func TestAuthenticateHost(t *testing.T) {
 		return nil
 	}
 
-	_, err := svc.AuthenticateHost(context.Background(), "test")
+	_, _, err := svc.AuthenticateHost(context.Background(), "test")
 	require.Nil(t, err)
 	assert.Equal(t, "test", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 
 	host = fleet.Host{ID: 7, Hostname: "foobar"}
-	_, err = svc.AuthenticateHost(context.Background(), "floobar")
+	_, _, err = svc.AuthenticateHost(context.Background(), "floobar")
 	require.Nil(t, err)
 	assert.Equal(t, "floobar", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 	// Host checks in twice
 	host = fleet.Host{ID: 7, Hostname: "foobar"}
-	_, err = svc.AuthenticateHost(context.Background(), "floobar")
+	_, _, err = svc.AuthenticateHost(context.Background(), "floobar")
 	require.Nil(t, err)
 	assert.Equal(t, "floobar", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
@@ -176,7 +176,7 @@ func TestAuthenticateHostFailure(t *testing.T) {
 		return nil, errors.New("not found")
 	}
 
-	_, err := svc.AuthenticateHost(context.Background(), "test")
+	_, _, err := svc.AuthenticateHost(context.Background(), "test")
 	require.NotNil(t, err)
 }
 
@@ -1487,14 +1487,14 @@ func TestAuthenticationErrors(t *testing.T) {
 	svc := newTestService(ms, nil, nil)
 	ctx := context.Background()
 
-	_, err := svc.AuthenticateHost(ctx, "")
+	_, _, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
 	require.True(t, err.(osqueryError).NodeInvalid())
 
 	ms.AuthenticateHostFunc = func(nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
 	}
-	_, err = svc.AuthenticateHost(ctx, "foo")
+	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NoError(t, err)
 
 	// return not found error
@@ -1502,7 +1502,7 @@ func TestAuthenticationErrors(t *testing.T) {
 		return nil, notFoundError{}
 	}
 
-	_, err = svc.AuthenticateHost(ctx, "foo")
+	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.Error(t, err)
 	require.True(t, err.(osqueryError).NodeInvalid())
 
@@ -1511,7 +1511,7 @@ func TestAuthenticationErrors(t *testing.T) {
 		return nil, errors.New("foo")
 	}
 
-	_, err = svc.AuthenticateHost(ctx, "foo")
+	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NotNil(t, err)
 	require.False(t, err.(osqueryError).NodeInvalid())
 }
