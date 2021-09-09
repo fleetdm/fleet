@@ -720,7 +720,7 @@ func (svc *Service) maybeDebugHost(
 ) {
 	hlogger := log.With(svc.logger, "host-id", host.ID)
 	ac, err := svc.ds.AppConfig()
-	if err != nil {
+	if err != nil || ac == nil {
 		level.Debug(hlogger).Log("err", errors.Wrap(err, "getting app config for host debug"))
 		return
 	}
