@@ -720,12 +720,20 @@ func (svc *Service) maybeDebugHost(
 ) {
 	hlogger := log.With(svc.logger, "host-id", host.ID)
 	ac, err := svc.ds.AppConfig()
-	if err != nil || ac == nil {
+	if err != nil {
 		level.Debug(hlogger).Log("err", errors.Wrap(err, "getting app config for host debug"))
 		return
 	}
 
-	if strings.Contains(ac.ServerSettings.DebugHostIDs, fmt.Sprint(host.ID)) {
+	doDebug := false
+	for _, hostID := range ac.ServerSettings.DebugHostIDs {
+		if host.ID == hostID {
+			doDebug = true
+			break
+		}
+	}
+
+	if doDebug {
 		logJSON(hlogger, host, "host")
 		logJSON(hlogger, results, "results")
 		logJSON(hlogger, statuses, "statuses")

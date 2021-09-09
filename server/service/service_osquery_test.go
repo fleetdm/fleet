@@ -1604,6 +1604,9 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	ds.RecordLabelQueryExecutionsFunc = func(host *fleet.Host, results map[uint]*bool, t time.Time) error {
 		return errors.New("something went wrong")
 	}
+	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 
 	lCtx := &fleetLogging.LoggingContext{}
 	ctx := fleetLogging.NewContext(context.Background(), lCtx)

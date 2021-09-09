@@ -421,7 +421,9 @@ apiVersion: v1
 kind: config
 spec:
   server_settings:
-    debug_host_ids: 342,98
+    debug_host_ids:
+      - 342
+      - 98
 ```
 
 Once you have collected the logs, you can easily disable the debug logging by applying the following configuration:
@@ -432,7 +434,7 @@ apiVersion: v1
 kind: config
 spec:
   server_settings:
-    debug_host_ids: ""
+    debug_host_ids: []
 ```
 
 WARNING: this will log potentially a lot of data. Some of that data might be private, please verify it before posting it
