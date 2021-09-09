@@ -2,9 +2,7 @@ package main
 
 import (
 	"github.com/stretchr/testify/require"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -23,26 +21,20 @@ func TestPackage(t *testing.T) {
 	// run package tests, each should output their respective package type
 	// orbit-osquery_0.0.3_amd64.deb
 	runAppForTest(t, []string{"package", "--type=deb", "--insecure"})
+	info, err := os.Stat("orbit-osquery_0.0.3_amd64.deb")
+	require.NoError(t, err)
+	require.Greater(t, info.Size(), int64(0)) // TODO verify contents
 	// orbit-osquery-0.0.3.x86_64.rpm
 	runAppForTest(t, []string{"package", "--type=rpm", "--insecure"})
+	info, err = os.Stat("orbit-osquery-0.0.3.x86_64.rpm")
+	require.NoError(t, err)
+	require.Greater(t, info.Size(), int64(0)) // TODO verify contents
 	// orbit-osquery_0.0.3.msi
 	//runAppForTest(t, []string{"package", "--type=msi", "--insecure"}) TODO: this is currently failing on Github runners due to permission issues
+	//info, err = os.Stat("orbit-osquery_0.0.3.msi")
+	//require.NoError(t, err)
+	//require.Greater(t, info.Size(), int64(0))
 
 	//runAppForTest(t, []string{"package", "--type=pkg", "--insecure"}) TODO: had a hard time getting xar installed on Ubuntu
-
-	dir, err := os.Getwd()
-	require.NoError(t, err)
-	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		require.NoError(t, err)
-
-		// TODO validate contents
-		switch filepath.Ext(path) {
-		case ".msi", ".deb", ".rpm", ".pkg":
-			info, err := d.Info()
-			require.NoError(t, err)
-			require.Greater(t, info.Size(), int64(0))
-		}
-		return nil
-	})
 
 }
