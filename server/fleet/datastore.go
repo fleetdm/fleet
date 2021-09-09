@@ -6,17 +6,17 @@ import (
 )
 
 type CarveStore interface {
-	NewCarve(metadata *CarveMetadata) (*CarveMetadata, error)
-	UpdateCarve(metadata *CarveMetadata) error
-	Carve(carveId int64) (*CarveMetadata, error)
-	CarveBySessionId(sessionId string) (*CarveMetadata, error)
-	CarveByName(name string) (*CarveMetadata, error)
-	ListCarves(opt CarveListOptions) ([]*CarveMetadata, error)
-	NewBlock(metadata *CarveMetadata, blockId int64, data []byte) error
-	GetBlock(metadata *CarveMetadata, blockId int64) ([]byte, error)
+	NewCarve(ctx context.Context, metadata *CarveMetadata) (*CarveMetadata, error)
+	UpdateCarve(ctx context.Context, metadata *CarveMetadata) error
+	Carve(ctx context.Context, carveId int64) (*CarveMetadata, error)
+	CarveBySessionId(ctx context.Context, sessionId string) (*CarveMetadata, error)
+	CarveByName(ctx context.Context, name string) (*CarveMetadata, error)
+	ListCarves(ctx context.Context, opt CarveListOptions) ([]*CarveMetadata, error)
+	NewBlock(ctx context.Context, metadata *CarveMetadata, blockId int64, data []byte) error
+	GetBlock(ctx context.Context, metadata *CarveMetadata, blockId int64) ([]byte, error)
 	// CleanupCarves will mark carves older than 24 hours expired, and delete the associated data blocks. This behaves
 	// differently for carves stored in S3 (check the implementation godoc comment for more details)
-	CleanupCarves(now time.Time) (expired int, err error)
+	CleanupCarves(ctx context.Context, now time.Time) (expired int, err error)
 }
 
 // Datastore combines all the interfaces in the Fleet DAL
