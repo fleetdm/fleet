@@ -62,6 +62,7 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		eefleetctl.UpdatesCommand(),
 		hostsCommand(),
 		vulnerabilityDataStreamCommand(),
+		packageCommand(),
 	}
 	return app
 }

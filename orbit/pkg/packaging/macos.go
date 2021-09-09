@@ -22,7 +22,6 @@ import (
 // Linux.
 func BuildPkg(opt Options) error {
 	// Initialize directories
-
 	tmpDir, err := ioutil.TempDir("", "orbit-package")
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp dir")

@@ -18,7 +18,6 @@ import (
 
 func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	// Initialize directories
-
 	tmpDir, err := ioutil.TempDir("", "orbit-package")
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp dir")
