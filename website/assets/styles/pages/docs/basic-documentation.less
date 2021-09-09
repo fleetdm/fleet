@@ -359,7 +359,7 @@
 
       img {
         display: flex;
-        width: 100%;
+        max-width: 100%;
         height: auto;
         margin: auto;
         padding-top: 24px;
@@ -402,71 +402,8 @@
 
     }
 
-    @media (max-width: 576px) {
-
-      [purpose='content'] {
-        width: 100%;
-
-        // padding: 0px 40px;
-
-        img {
-          display: flex;
-          max-width: 100%;
-          height: auto;
-          margin: auto;
-          padding-top: 24px;
-          padding-bottom: 24px;
-        }
-
-        h1:first-of-type {
-          display: none;  // hides on mobile
-        }
-
-      }
-
-    }
-
-    // for smaller screens
-    @media (max-width: 991px) and (min-width: 576px) {
-
-      [purpose='right-sidebar'] {
-        width: 100%;
-
-        [purpose='subtopics'] {
-          color: @core-fleet-black;
-
-          a {
-            color: @core-vibrant-blue;
-          }
-
-        }
-
-      }
-
-      [purpose='content'] {
-        width: 100%;
-
-        padding: 0px 40px;
-
-        img {
-          display: flex;
-          max-width: 600px;
-          height: auto;
-          margin: auto;
-          padding-top: 24px;
-          padding-bottom: 24px;
-        }
-
-        h1:first-of-type {
-          display: none;  // hides on mobile
-        }
-
-      }
-
-    }
-
     // for larger screens
-    @media (min-width: 992px) {
+    @media (min-width: 990px) {
 
       ul {
         .topic {
@@ -510,24 +447,53 @@
 
           }
 
-          // .active {
-          //   color: @core-vibrant-blue;
-          //   position: absolute;
-          //   height: 32px;
-          //   transform: translate(-2px, -4px);
-          //   border-left: 3px solid @core-vibrant-blue;
-          //   border-radius: 2px;
-          //   a {
-          //     color: @core-vibrant-blue;
-          //   }
-          // }
-
         }
 
       }
 
       [purpose='content'] {
         min-width: 0px; // in order for <pre> elements to shrink properly, the parent flex element needs to override min-width auto
+      }
+
+    }
+
+    // for smaller screens
+    @media (max-width: 990px) {
+
+      [purpose='right-sidebar'] {
+        width: 100%;
+
+        [purpose='subtopics'] {
+          color: @core-fleet-black;
+
+          a {
+            color: @core-vibrant-blue;
+          }
+
+        }
+
+      }
+
+      [purpose='content'] {
+        width: 100%;
+        padding: 0px 40px;
+
+        h1:first-of-type {
+          display: none;  // hides on mobile
+        }
+
+      }
+
+    }
+    // for mobile
+    @media (max-width: 576px) {
+
+      [purpose='content'] {
+        
+        padding-left: 24px;
+        padding-right: 24px;
+
+
       }
 
     }
