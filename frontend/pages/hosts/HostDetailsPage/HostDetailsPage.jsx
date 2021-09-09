@@ -651,7 +651,7 @@ export class HostDetailsPage extends Component {
       pick(host, [
         "status",
         "memory",
-        "host_cpu",
+        "cpu_type",
         "os_version",
         "enroll_secret_name",
         "detail_updated_at",
@@ -765,7 +765,7 @@ export class HostDetailsPage extends Component {
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">CPU</span>
-                <span className="info__data">{titleData.host_cpu}</span>
+                <span className="info__data">{titleData.cpu_type}</span>
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">OS</span>
