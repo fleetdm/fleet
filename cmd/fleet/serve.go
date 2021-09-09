@@ -501,7 +501,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
 		}
-		_, err = ds.CleanupCarves(time.Now())
+		_, err = ds.CleanupCarves(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning carves", "details", err)
 		}

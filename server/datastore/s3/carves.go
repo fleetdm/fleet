@@ -41,13 +41,13 @@ func (d *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata)
 		return nil, errors.Wrap(err, "s3 multipart carve create")
 	}
 	metadata.SessionId = *res.UploadId
-	return d.metadatadb.NewCarve(metadata)
+	return d.metadatadb.NewCarve(ctx, metadata)
 }
 
 // UpdateCarve updates carve definition in database
 // Only max_block and expired are updatable
 func (d *Datastore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetadata) error {
-	return d.metadatadb.UpdateCarve(metadata)
+	return d.metadatadb.UpdateCarve(ctx, metadata)
 }
 
 // listS3Carves lists all keys up to a given one or if the passed max number
@@ -92,7 +92,7 @@ func (d *Datastore) listS3Carves(lastPrefix string, maxKeys int) (map[string]boo
 func (d *Datastore) CleanupCarves(ctx context.Context, now time.Time) (int, error) {
 	var err error
 	// Get the 1000 oldest carves
-	nonExpiredCarves, err := d.ListCarves(fleet.CarveListOptions{
+	nonExpiredCarves, err := d.ListCarves(ctx, fleet.CarveListOptions{
 		ListOptions: fleet.ListOptions{PerPage: cleanupSize},
 		Expired:     false,
 	})
