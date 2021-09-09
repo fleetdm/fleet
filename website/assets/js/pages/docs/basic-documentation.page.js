@@ -90,6 +90,14 @@ parasails.registerPage('basic-documentation', {
 
   mounted: async function() {
 
+    // Algolia DocSearch
+    docsearch({
+      apiKey: '8c492befdb9f5b5166253a0f8eeb789d',
+      indexName: 'fleetdm',
+      inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
+      debug: false,
+    });
+
     // // Alternative jQuery approach to grab `on this page` links from top of markdown files
     // let subtopics = $('#body-content').find('h1 + ul').children().map((_, el) => el.innerHTML);
     // subtopics = $.makeArray(subtopics);

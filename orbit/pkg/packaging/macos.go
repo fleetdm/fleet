@@ -22,11 +22,11 @@ import (
 // Linux.
 func BuildPkg(opt Options) error {
 	// Initialize directories
-
 	tmpDir, err := ioutil.TempDir("", "orbit-package")
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp dir")
 	}
+	os.Chmod(tmpDir, 0755)
 	defer os.RemoveAll(tmpDir)
 	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
