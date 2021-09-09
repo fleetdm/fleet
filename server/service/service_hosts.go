@@ -61,7 +61,7 @@ func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*fl
 }
 
 func (svc Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet.HostDetail, error) {
-	if err := svc.ds.LoadHostSoftware(host); err != nil {
+	if err := svc.ds.LoadHostSoftware(ctx, host); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 

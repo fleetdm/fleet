@@ -124,7 +124,7 @@ func TestDeleteHostWithSoftware(t *testing.T) {
 		},
 	}
 	host.HostSoftware = soft
-	err = ds.SaveHostSoftware(host)
+	err = ds.SaveHostSoftware(context.Background(), host)
 	require.NoError(t, err)
 
 	err = ds.DeleteHost(context.Background(), host.ID)

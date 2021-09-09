@@ -249,7 +249,7 @@ func TestGetHosts(t *testing.T) {
 			Hostname:        "test_host"}, nil
 	}
 
-	ds.LoadHostSoftwareFunc = func(host *fleet.Host) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {

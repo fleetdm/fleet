@@ -665,16 +665,16 @@ func TestVulnerableSoftware(t *testing.T) {
 		},
 	}
 	host.HostSoftware = soft
-	require.NoError(t, ds.SaveHostSoftware(host))
-	require.NoError(t, ds.LoadHostSoftware(host))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	soft1 := host.Software[0]
 	if soft1.Name != "bar" {
 		soft1 = host.Software[1]
 	}
 
-	require.NoError(t, ds.AddCPEForSoftware(soft1, "somecpe"))
-	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"}))
 
 	path := fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID)
 	resp, closeFunc := doReq(t, nil, "GET", server, path, token, http.StatusOK)

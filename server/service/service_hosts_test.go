@@ -86,7 +86,7 @@ func TestHostDetails(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return expectedPacks, nil
 	}
-	ds.LoadHostSoftwareFunc = func(host *fleet.Host) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 
