@@ -104,7 +104,7 @@ const ConfirmationPage = ({
         disabled={!currentPage}
         className="button button--brand"
       >
-        Finish
+        Confirm
       </Button>
     </form>
   );
