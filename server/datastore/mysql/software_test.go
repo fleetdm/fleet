@@ -451,7 +451,7 @@ func TestListSoftware(t *testing.T) {
 	})
 
 	t.Run("filters by team and paginates", func(t *testing.T) {
-		team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+		team1, err := ds.NewTeam(&fleet.Team{Name: "team1-" + t.Name()})
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(&team1.ID, []uint{host1.ID}))
 
