@@ -406,3 +406,36 @@ are offline for the specified amount of time.
 - `webhook_settings.host_status_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
 - `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline  
 - `webhook_settings.host_status_webhook.days_count`: amount of days that hosts need to be offline for to count as part of the percentage.
+
+#### Debug host
+
+There's a lot of information coming from hosts, but it's sometimes useful to see exactly what a host is returning in order
+to debug different scenarios.
+
+So for example, let's say the hosts with ids 342 and 98 are not behaving as you expect in Fleet, you can enable verbose 
+logging with the following configuration:
+
+```yaml
+---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    debug_host_ids:
+      - 342
+      - 98
+```
+
+Once you have collected the logs, you can easily disable the debug logging by applying the following configuration:
+
+```yaml
+---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    debug_host_ids: []
+```
+
+WARNING: this will log potentially a lot of data. Some of that data might be private, please verify it before posting it
+in a public channel or a Github issue.
