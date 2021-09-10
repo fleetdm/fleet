@@ -152,7 +152,7 @@ class RegistrationForm extends Component {
             <ConfirmationPage
               formData={formData}
               handleSubmit={onSubmitConfirmation}
-              classNmae={confirmationClass}
+              className={confirmationClass}
               currentPage={isCurrentPage(4)}
             />
           </div>
