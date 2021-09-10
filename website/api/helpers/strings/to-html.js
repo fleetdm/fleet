@@ -77,7 +77,8 @@ module.exports = {
     if (inputs.addIdsToHeadings === true) {
       var customRenderer = new marked.Renderer();
       customRenderer.heading = function (text, level) {
-        return '<h'+level+' id="'+_.kebabCase(text)+'">'+text+'</h'+level+'>';
+        let headingName = _.kebabCase(text);
+        return '<span class="docs-heading"><h'+level+' id="'+headingName+'">'+text+'<a href="#'+headingName+'" class="docs-link"></a></h'+level+'></span>';
       };
       markedOpts.renderer = customRenderer;
     } else  {
