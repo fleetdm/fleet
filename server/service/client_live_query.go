@@ -140,10 +140,17 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 				Type string          `json:"type"`
 				Data json.RawMessage `json:"data"`
 			}{}
+
+			doneReadingChan := make(chan error)
+
+			go func() {
+				doneReadingChan <- conn.ReadJSON(&msg)
+			}()
+
 			select {
 			case <-ctx.Done():
 				return
-			case err := <- conn.ReadJSON(&msg):
+			case err := <-doneReadingChan:
 				if err != nil {
 					resHandler.errors <- errors.Wrap(err, "receive ws message")
 					if errors.Is(err, websocket.ErrCloseSent) {
@@ -151,6 +158,7 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 					}
 				}
 			}
+			close(doneReadingChan)
 
 			switch msg.Type {
 			case "result":
