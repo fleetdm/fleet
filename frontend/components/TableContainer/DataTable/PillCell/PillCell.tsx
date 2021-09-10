@@ -7,23 +7,44 @@ interface IPillCellProps {
   value: [string, number];
 }
 
+const CELL_WIDTH = 194;
+const CELL_PADDING = 27;
+
+const PILL_WIDTHS: Record<string, number> = {
+  Minimal: 75,
+  Considerable: 108,
+  Excessive: 86,
+  Denylisted: 71,
+};
+
+const getTooltipOffset = (pillText: string) => {
+  const offset: Record<string, number> = {};
+
+  if (PILL_WIDTHS[pillText]) {
+    offset.left = CELL_WIDTH / 2 - (PILL_WIDTHS[pillText] / 2 + CELL_PADDING);
+  }
+
+  return offset;
+};
+
 const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
 const PillCell = (props: IPillCellProps): JSX.Element => {
   const { value } = props;
+  const [pillText, id] = value;
 
   const pillClassName = classnames(
     "data-table__pill",
-    `data-table__pill--${generateClassTag(value[0])}`
+    `data-table__pill--${generateClassTag(pillText)}`
   );
 
   const disable = () => {
-    switch (value[0]) {
+    switch (pillText) {
       case "Minimal":
         return false;
-      case "Considerate":
+      case "Considerable":
         return false;
       case "Excessive":
         return false;
@@ -35,7 +56,7 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
   };
 
   const tooltipText = () => {
-    switch (value[0]) {
+    switch (pillText) {
       case "Minimal":
         return (
           <>
@@ -44,7 +65,7 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
             performance.
           </>
         );
-      case "Considerate":
+      case "Considerable":
         return (
           <>
             Running this query <br /> frequently can have a <br /> noticeable
@@ -72,19 +93,20 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
 
   return (
     <>
-      <div data-tip data-for={value[1].toString()} data-tip-disable={disable()}>
-        <span className={pillClassName}>{value[0]}</span>
+      <div data-tip data-for={id.toString()} data-tip-disable={disable()}>
+        <span className={pillClassName}>{pillText}</span>
       </div>
       <ReactTooltip
         place="bottom"
+        offset={getTooltipOffset(pillText)}
         type="dark"
         effect="solid"
         backgroundColor="#3e4771"
-        id={value[1].toString()}
+        id={id.toString()}
         data-html
       >
         <span
-          className={`tooltip ${generateClassTag(value[0])}__tooltip-text`}
+          className={`tooltip ${generateClassTag(pillText)}__tooltip-text`}
           style={{ width: "196px" }}
         >
           {tooltipText()}
