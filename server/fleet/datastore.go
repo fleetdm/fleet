@@ -1,6 +1,9 @@
 package fleet
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type CarveStore interface {
 	NewCarve(metadata *CarveMetadata) (*CarveMetadata, error)
@@ -344,6 +347,8 @@ type Datastore interface {
 	MigrateData() error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
 	MigrationStatus() (MigrationStatus, error)
+
+	ListSoftware(ctx context.Context, teamId *uint, opt ListOptions) ([]Software, error)
 }
 
 type MigrationStatus int

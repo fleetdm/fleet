@@ -3,6 +3,7 @@
 package mock
 
 import (
+	"context"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -273,6 +274,8 @@ type MigrateTablesFunc func() error
 type MigrateDataFunc func() error
 
 type MigrationStatusFunc func() (fleet.MigrationStatus, error)
+
+type ListSoftwareFunc func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error)
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -670,6 +673,9 @@ type DataStore struct {
 
 	MigrationStatusFunc        MigrationStatusFunc
 	MigrationStatusFuncInvoked bool
+
+	ListSoftwareFunc        ListSoftwareFunc
+	ListSoftwareFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1330,4 +1336,9 @@ func (s *DataStore) MigrateData() error {
 func (s *DataStore) MigrationStatus() (fleet.MigrationStatus, error) {
 	s.MigrationStatusFuncInvoked = true
 	return s.MigrationStatusFunc()
+}
+
+func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
+	s.ListSoftwareFuncInvoked = true
+	return s.ListSoftwareFunc(ctx, teamId, opt)
 }

@@ -346,3 +346,14 @@ allow {
   subject.global_role == maintainer
   action == [read, write][_]
 }
+
+##
+# Software
+##
+
+# All users can read software
+allow {
+  not is_null(subject)
+  object.type == "software"
+  action == read
+}
