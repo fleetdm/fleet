@@ -35,9 +35,10 @@ interface IHostResponse {
 const baseClass = "query-page";
 
 const QueryPage = ({
-  params: { id: queryIdForEdit },
+  params: { id: paramsQueryId },
   location: { query: URLQuerySearch },
 }: IQueryPageProps) => {
+  const queryIdForEdit = !!paramsQueryId ? parseInt(paramsQueryId, 10) : null;
   const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -64,7 +65,7 @@ const QueryPage = ({
     error: storedQueryError,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
     "query",
-    () => queryAPI.load(queryIdForEdit),
+    () => queryAPI.load(queryIdForEdit as number),
     {
       enabled: !!queryIdForEdit,
       select: (data: IStoredQueryResponse) => data.query,
@@ -177,7 +178,7 @@ const QueryPage = ({
       typedQueryBody,
       storedQuery,
       selectedTargets,
-      isEditMode: !!queryIdForEdit,
+      queryIdForEdit,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
     };
 

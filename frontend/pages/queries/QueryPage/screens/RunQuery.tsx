@@ -20,7 +20,7 @@ interface IRunQueryProps {
   typedQueryBody: string;
   storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
-  isEditMode: boolean;
+  queryIdForEdit: number | null;
   goToQueryEditor: () => void;
 }
 
@@ -28,7 +28,7 @@ const RunQuery = ({
   typedQueryBody,
   storedQuery,
   selectedTargets,
-  isEditMode,
+  queryIdForEdit,
   goToQueryEditor,
 }: IRunQueryProps) => {
   const dispatch = useDispatch();
@@ -134,7 +134,7 @@ const RunQuery = ({
   };
 
   const onRunQuery = debounce(async () => {
-    const sql = isEditMode ? storedQuery?.query : typedQueryBody;
+    const sql = !!queryIdForEdit ? storedQuery?.query : typedQueryBody;
 
     if (!sql) {
       dispatch(
@@ -152,7 +152,12 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      const returnedCampaign = await queryAPI.run({ query: sql, selected });
+      const returnedCampaign = await queryAPI.run({ 
+        query: sql, 
+        queryId: queryIdForEdit,
+        selected 
+      });
+      
       connectAndRunLiveQuery(returnedCampaign);
     } catch (campaignError: any) {
       if (campaignError === "resource already created") {

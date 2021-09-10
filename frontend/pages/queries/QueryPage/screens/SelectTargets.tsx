@@ -31,7 +31,7 @@ interface ITargetPillSelectorProps {
 interface ISelectTargetsProps {
   baseClass: string;
   selectedTargets: ITarget[];
-  queryIdForEdit: string | undefined;
+  queryIdForEdit: number | null;
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
@@ -86,7 +86,7 @@ const SelectTargets = ({
     () =>
       targetsAPI.loadAll({
         query: searchText,
-        queryId: queryIdForEdit ? parseInt(queryIdForEdit, 10) : null,
+        queryId: queryIdForEdit,
         selected: formatSelectedTargetsForApi(selectedTargets) as any,
       }),
     {
