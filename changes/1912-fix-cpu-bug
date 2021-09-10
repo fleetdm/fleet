@@ -1,0 +1,1 @@
+Fixes frontend CPU type bug from API change that was not reflected in frontend UI or tests

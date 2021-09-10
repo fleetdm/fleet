@@ -8,7 +8,7 @@ Cypress tests are designed solely for end-to-end testing. If this is your first 
 
 Cypress tests the integration of [entire features](integration/all/app) of the app.
 
-With the roll out of teams, Cypress tests the user interface of each role of a user on the Basic Tier ([Fleet Basic Documentation](integration/basic/README.md)) and Core Tier ([Fleet Core Documentation](integration/basic/README.md)).
+With the roll out of teams, Cypress tests the user interface of each role of a user on the Premium Tier ([Fleet Premium Documentation](integration/premium/README.md)) and Free Tier ([Fleet Free Documentation](integration/free/README.md)).
 
 ### Support directory
 

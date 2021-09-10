@@ -14,28 +14,20 @@ module.exports.routes = {
   //  ║║║║╣ ╠╩╗╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
   'GET /':                   { action: 'view-homepage-or-redirect', locals: { isHomepage: true } },
-  'GET /company/contact':    { action:   'view-contact' },
-  'GET /get-started':        { action:   'view-get-started' },
-  'GET /pricing':            { action: 'view-pricing'},
-
-  '/hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
-  '/company/about':          '/handbook', // FUTURE: brief "about" page explaining the origins of the company
+  'GET /company/contact':    { action: 'view-contact' },
+  'GET /get-started':        { action: 'view-get-started' },
+  'GET /pricing':            { action: 'view-pricing' },
+  'GET /press-kit':          { action: 'view-press-kit' },
 
   'GET /queries':            { action: 'view-query-library' },
   'GET /queries/:slug':      { action: 'view-query-detail' },
 
   'GET /docs/?*':            { skipAssets: false, action: 'docs/view-basic-documentation' },// handles /docs and /docs/foo/bar
   // 'GET /handbook/?*':        { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
-  'GET /handbook':           'https://github.com/fleetdm/fleet/tree/main/handbook',// TODO: Bring back the above when styles are ready
-
-  '/contribute':             '/docs/contribute',
-  '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
-  '/legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
-  '/security':               'https://github.com/fleetdm/fleet/security/policy',
 
   'GET /transparency':       { action: 'view-transparency' },
 
-  'GET /apply':              'https://fleet-device-management.breezy.hr',
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -44,32 +36,60 @@ module.exports.routes = {
   //  ┌─  ┌─┐┌─┐┬─┐  ┌┐ ┌─┐┌─┐┬┌─┬ ┬┌─┐┬─┐┌┬┐┌─┐  ┌─┐┌─┐┌┬┐┌─┐┌─┐┌┬┐  ─┐
   //  │   ├┤ │ │├┬┘  ├┴┐├─┤│  ├┴┐│││├─┤├┬┘ ││└─┐  │  │ ││││├─┘├─┤ │    │
   //  └─  └  └─┘┴└─  └─┘┴ ┴└─┘┴ ┴└┴┘┴ ┴┴└──┴┘└─┘  └─┘└─┘┴ ┴┴  ┴ ┴ ┴o  ─┘
-  // Use these redirects for deprecated/legacy links, so that they go to an appropriate new place instead of just being broken when docs/etc move or get renamed.
-  // > Note that these redirects take precedence over less specific wildcard routes like '/docs/*' and '/handbook/*'
+  // Add redirects here for deprecated/legacy links, so that they go to an appropriate new place instead of just being broken when pages move or get renamed.
+  //
+  // For example:
+  // If we were going to change fleetdm.com/company/about to fleetdm.com/company/story, we might do something like:
+  // ```
+  // 'GET /company/about': '/company/story',
+  // ```
+  //
+  // Or another example, if we were to rename a doc page:
+  // ```
+  // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
+  // ```
+  'GET /try-fleet':                  '/get-started',
 
-  'GET /docs/using-fleet/some-deprecated-link-like-this': '/docs/using-fleet/supported-browsers',// « this is just an example to show how
+
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
 
   // Convenience
-  '/documentation':              '/docs',
-  '/install':                    '/get-started',
-  '/company':                    '/company/about',
-  '/support':                    '/company/contact',
-  '/contact':                    '/company/contact',
-  '/legal':                      '/legal/terms',
-  '/terms':                      '/legal/terms',
+  // =============================================================================================================
+  // Things that people are used to typing in to the URL and just randomly trying.
+  //
+  // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
+  // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
+  'GET /documentation':              '/docs',
+  'GET /contribute':                 '/docs/contribute',
+  'GET /install':                    '/get-started',
+  'GET /company':                    '/company/about',
+  'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
+  'GET /support':                    '/company/contact',
+  'GET /contact':                    '/company/contact',
+  'GET /legal':                      '/legal/terms',
+  'GET /terms':                      '/legal/terms',
 
   // Sitemap
+  // =============================================================================================================
+  // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
+  // XML file, which helps search engines know which pages are available on the website.
   'GET /sitemap.xml':            { action: 'download-sitemap' },
 
-  // Blog
-  '/blog':                       'https://blog.fleetdm.com',
-
-  // Legacy (to avoid breaking links)
-  '/try-fleet':                  '/get-started',
+  // Potential future pages
+  // =============================================================================================================
+  // Things that are not webpages here (in the Sails app) yet, but could be in the future.  For now they are just
+  // redirects to somewhere else EXTERNAL to the Sails app.
+  'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
+  'GET /brand':                  '/contact',// FUTURE: a page like sailsjs.com/logos
+  'GET /blog':                   'https://blog.fleetdm.com',// Currently, Fleet's blog lives outside of this website source code (the Sails app).  We always link to fleetdm.com/blog, but since the blog lives elsewhere, we redirect to it.
+  'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
+  'GET /apply':                  'https://fleet-device-management.breezy.hr',
+  'GET /handbook':               'https://github.com/fleetdm/fleet/tree/main/handbook',// TODO: Bring back the above when styles are ready
+  'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
+  'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗

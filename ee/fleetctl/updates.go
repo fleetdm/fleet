@@ -443,7 +443,8 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 		}
 
 		fmt.Printf("Enter %s key passphrase: ", role)
-		passphrase, err := terminal.ReadPassword(syscall.Stdin)
+		// the int(...) conversion is required as on Windows syscall.Stdin is of type Handle.
+		passphrase, err := terminal.ReadPassword(int(syscall.Stdin)) //nolint:unconvert
 		fmt.Println()
 		if err != nil {
 			return nil, errors.Wrap(err, "read password")
@@ -454,7 +455,8 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 		}
 
 		fmt.Printf("Repeat %s key passphrase: ", role)
-		confirmation, err := terminal.ReadPassword(syscall.Stdin)
+		// the int(...) conversion is required as on Windows syscall.Stdin is of type Handle.
+		confirmation, err := terminal.ReadPassword(int(syscall.Stdin)) //nolint:unconvert
 		fmt.Println()
 		if err != nil {
 			return nil, errors.Wrap(err, "read password confirmation")

@@ -15,8 +15,14 @@
     padding-top: 24px;
   }
 
+  h5 {
+    font-weight: 800;
+  }
+
   h6 {
-    font-family: 'Nunito';
+    font-size: 16px;
+    font-weight: 700;
+    font-family: @main-font;
   }
 
   a {
@@ -33,6 +39,52 @@
 
   }
 
+  [purpose='search'] {
+
+    input {
+      padding-top: 6px;
+      padding-bottom: 6px;
+      border: none;
+      } &::placeholder {
+        font-size: 16px;
+        line-height: 24px;
+      }
+
+    .input-group {
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      border: 1px solid @core-fleet-black-25;
+    }
+
+    .input-group:focus-within {
+      border: 1px solid @core-vibrant-blue;
+    }
+
+    .docsearch-input {
+      height: 100%;
+      width: 98%;
+    }
+
+    .ds-input:focus-visible {
+      outline: rgba(0, 0, 0, 0);
+    }
+
+    .input-group-text {
+      color: @core-fleet-black-50;
+    }
+
+    .form-control {
+      height: 48px;
+      padding: 0px;
+      font-size: 16px;
+    } &:focus {
+      border: none;
+    }
+
+  }
+
   [purpose='docs-landing-page'] {
 
     h3 {
@@ -42,42 +94,6 @@
 
     a {
       color: @core-vibrant-blue;
-    }
-
-    [purpose='search'] {
-
-      input {
-        padding-top: 6px;
-        padding-bottom: 6px;
-
-        &::placeholder {
-          font-size: 16px;
-          line-height: 24px;
-
-        }
-
-      }
-
-      .input-group-text {
-        color: @core-fleet-black-50;
-        border-color: @core-fleet-black-25;
-        border-top-left-radius: 6px;
-        border-bottom-left-radius: 6px;
-      }
-
-      .form-control {
-        height: 48px;
-        font-size: 16px;
-        border-color: @core-fleet-black-25;
-        border-top-right-radius: 6px;
-        border-bottom-right-radius: 6px;
-
-        &:focus {
-          border: 1px solid @core-fleet-black-25;
-        }
-
-      }
-
     }
 
     [purpose='cta-cards'] {
@@ -175,45 +191,10 @@
 
     [purpose='search'] {
 
-      input {
-        padding-top: 6px;
-        padding-bottom: 6px;
-        border-radius: 6px;
-        border-top-left-radius: 0px;
-        border-bottom-left-radius: 0px;
-
-        &::placeholder {
-          font-size: 16px;
-          line-height: 24px;
-        }
-
-      }
-
-      .input-group-prepend {
-        border-radius: 6px;
-        border-top-right-radius: 0px;
-        border-bottom-right-radius: 0px;
-
-      }
-
-      .input-group-text {
-        color: #8b8fa2;
-        border-color: #c5c7d1;
-        border-top-left-radius: 8px;
-        border-bottom-left-radius: 8px;
-      }
-
       .form-control {
-        height: 40px;
+        height: 36px;
         font-size: 16px;
-        border-color: #c5c7d1;
-        border-top-right-radius: 8px;
-        border-bottom-right-radius: 8px;
-
-        &:focus {
-          border: 1px solid #c5c7d1;
-        }
-
+        padding: 0;
       }
 
     }
@@ -291,7 +272,7 @@
       }
 
       .topic {
-
+        padding-left: 0px;
         &.active {
           color: @core-vibrant-blue;
         }
@@ -318,6 +299,7 @@
 
       h1 {
         padding-bottom: 16px;
+        margin-bottom: 0px;
       }
 
       h2 {
@@ -333,6 +315,16 @@
         padding-top: 24px;
         padding-bottom: 24px;
         margin-bottom: 0px;
+      }
+
+      h4 {
+        padding-bottom: 16px;
+        margin-bottom: 0px;
+      }
+
+      h5 {
+        margin-top: 16px;
+        margin-bottom: 16px;
       }
 
       ul {
@@ -356,6 +348,26 @@
         padding-top: 8px;
       }
 
+      table {
+        border: 1px solid @border-lt-gray;
+        border-collapse: collapse;
+        font-size: 16px;
+        line-height: 24px;
+        margin-bottom: 16px;
+
+        th {
+          font-weight: @bold;
+          font-family: @header-font;
+          border: 1px solid @border-lt-gray;
+          padding: 8px 7px 7px 8px;
+        }
+
+        td {
+          font-family: @main-font;
+          border: 1px solid @border-lt-gray;
+          padding: 8px 7px 7px 8px;
+        }
+      }
       .note {
         background-color: @core-vibrant-blue-10;
         border-radius: 12px;

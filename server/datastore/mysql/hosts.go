@@ -33,7 +33,7 @@ func (d *Datastore) NewHost(host *fleet.Host) (*fleet.Host, error) {
 	)
 	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,? )
 	`
-	result, err := d.db.Exec(
+	result, err := d.writer.Exec(
 		sqlStatement,
 		host.OsqueryHostID,
 		host.DetailUpdatedAt,
@@ -58,7 +58,8 @@ func (d *Datastore) NewHost(host *fleet.Host) (*fleet.Host, error) {
 }
 
 func (d *Datastore) SaveHost(host *fleet.Host) error {
-	sqlStatement := `
+	return d.withRetryTxx(func(tx *sqlx.Tx) error {
+		sqlStatement := `
 		UPDATE hosts SET
 			detail_updated_at = ?,
 			label_updated_at = ?,
@@ -95,107 +96,106 @@ func (d *Datastore) SaveHost(host *fleet.Host) error {
 			percent_disk_space_available = ?
 		WHERE id = ?
 	`
-	_, err := d.db.Exec(sqlStatement,
-		host.DetailUpdatedAt,
-		host.LabelUpdatedAt,
-		host.NodeKey,
-		host.Hostname,
-		host.UUID,
-		host.Platform,
-		host.OsqueryVersion,
-		host.OSVersion,
-		host.Uptime,
-		host.Memory,
-		host.CPUType,
-		host.CPUSubtype,
-		host.CPUBrand,
-		host.CPUPhysicalCores,
-		host.HardwareVendor,
-		host.HardwareModel,
-		host.HardwareVersion,
-		host.HardwareSerial,
-		host.ComputerName,
-		host.Build,
-		host.PlatformLike,
-		host.CodeName,
-		host.CPULogicalCores,
-		host.SeenTime,
-		host.DistributedInterval,
-		host.ConfigTLSRefresh,
-		host.LoggerTLSPeriod,
-		host.TeamID,
-		host.PrimaryIP,
-		host.PrimaryMac,
-		host.RefetchRequested,
-		host.GigsDiskSpaceAvailable,
-		host.PercentDiskSpaceAvailable,
-		host.ID,
-	)
-	if err != nil {
-		return errors.Wrapf(err, "save host with id %d", host.ID)
-	}
-
-	// Save host pack stats only if it is non-nil. Empty stats should be
-	// represented by an empty slice.
-	if host.PackStats != nil {
-		if err := d.saveHostPackStats(host); err != nil {
-			return err
-		}
-	}
-
-	if host.HostSoftware.Modified {
-		if err := d.SaveHostSoftware(host); err != nil {
-			return errors.Wrap(err, "failed to save host software")
-		}
-	}
-
-	if host.Modified {
-		if err := d.SaveHostAdditional(host); err != nil {
-			return errors.Wrap(err, "failed to save host additional")
+		_, err := tx.Exec(sqlStatement,
+			host.DetailUpdatedAt,
+			host.LabelUpdatedAt,
+			host.NodeKey,
+			host.Hostname,
+			host.UUID,
+			host.Platform,
+			host.OsqueryVersion,
+			host.OSVersion,
+			host.Uptime,
+			host.Memory,
+			host.CPUType,
+			host.CPUSubtype,
+			host.CPUBrand,
+			host.CPUPhysicalCores,
+			host.HardwareVendor,
+			host.HardwareModel,
+			host.HardwareVersion,
+			host.HardwareSerial,
+			host.ComputerName,
+			host.Build,
+			host.PlatformLike,
+			host.CodeName,
+			host.CPULogicalCores,
+			host.SeenTime,
+			host.DistributedInterval,
+			host.ConfigTLSRefresh,
+			host.LoggerTLSPeriod,
+			host.TeamID,
+			host.PrimaryIP,
+			host.PrimaryMac,
+			host.RefetchRequested,
+			host.GigsDiskSpaceAvailable,
+			host.PercentDiskSpaceAvailable,
+			host.ID,
+		)
+		if err != nil {
+			return errors.Wrapf(err, "save host with id %d", host.ID)
 		}
 
-		if err := d.SaveHostUsers(host); err != nil {
-			return errors.Wrap(err, "failed to save host users")
-		}
-	}
-
-	host.Modified = false
-
-	return nil
-}
-
-func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
-	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		// Bulk insert software entries
-		var args []interface{}
-		queryCount := 0
-		for _, pack := range host.PackStats {
-			for _, query := range pack.QueryStats {
-				queryCount++
-
-				args = append(args,
-					query.PackName,
-					query.ScheduledQueryName,
-					host.ID,
-					query.AverageMemory,
-					query.Denylisted,
-					query.Executions,
-					query.Interval,
-					query.LastExecuted,
-					query.OutputSize,
-					query.SystemTime,
-					query.UserTime,
-					query.WallTime,
-				)
+		// Save host pack stats only if it is non-nil. Empty stats should be
+		// represented by an empty slice.
+		if host.PackStats != nil {
+			if err := saveHostPackStatsDB(tx, host); err != nil {
+				return err
 			}
 		}
 
-		if queryCount == 0 {
-			return nil
+		if host.HostSoftware.Modified {
+			if err := saveHostSoftwareDB(tx, host); err != nil {
+				return errors.Wrap(err, "failed to save host software")
+			}
 		}
 
-		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
-		sql := fmt.Sprintf(`
+		if host.Modified {
+			if err := saveHostAdditionalDB(tx, host); err != nil {
+				return errors.Wrap(err, "failed to save host additional")
+			}
+
+			if err := saveHostUsersDB(tx, host); err != nil {
+				return errors.Wrap(err, "failed to save host users")
+			}
+		}
+
+		host.Modified = false
+		return nil
+	})
+}
+
+func saveHostPackStatsDB(db sqlx.Execer, host *fleet.Host) error {
+	// Bulk insert software entries
+	var args []interface{}
+	queryCount := 0
+	for _, pack := range host.PackStats {
+		for _, query := range pack.QueryStats {
+			queryCount++
+
+			args = append(args,
+				query.PackName,
+				query.ScheduledQueryName,
+				host.ID,
+				query.AverageMemory,
+				query.Denylisted,
+				query.Executions,
+				query.Interval,
+				query.LastExecuted,
+				query.OutputSize,
+				query.SystemTime,
+				query.UserTime,
+				query.WallTime,
+			)
+		}
+	}
+
+	if queryCount == 0 {
+		return nil
+	}
+
+	values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
+	sql := fmt.Sprintf(`
 			INSERT IGNORE INTO scheduled_query_stats (
 				scheduled_query_id,
 				host_id,
@@ -209,20 +209,26 @@ func (d *Datastore) saveHostPackStats(host *fleet.Host) error {
 				user_time,
 				wall_time
 			)
-			VALUES %s
+			VALUES %s ON DUPLICATE KEY UPDATE
+				scheduled_query_id = VALUES(scheduled_query_id),
+				host_id = VALUES(host_id),
+				average_memory = VALUES(average_memory),
+				denylisted = VALUES(denylisted),
+				executions = VALUES(executions),
+				schedule_interval = VALUES(schedule_interval),
+				last_executed = VALUES(last_executed),
+				output_size = VALUES(output_size),
+				system_time = VALUES(system_time),
+				user_time = VALUES(user_time),
+				wall_time = VALUES(wall_time)
 		`, values)
-		if _, err := tx.Exec(sql, args...); err != nil {
-			return errors.Wrap(err, "insert pack stats")
-		}
-
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "save pack stats")
+	if _, err := db.Exec(sql, args...); err != nil {
+		return errors.Wrap(err, "insert pack stats")
 	}
 	return nil
 }
 
-func (d *Datastore) loadHostPackStats(host *fleet.Host) error {
+func loadHostPackStatsDB(db sqlx.Queryer, host *fleet.Host) error {
 	sql := `
 SELECT
 	sqs.scheduled_query_id,
@@ -248,7 +254,7 @@ FROM scheduled_query_stats sqs
 WHERE host_id = ? AND p.pack_type IS NULL
 `
 	var stats []fleet.ScheduledQueryStats
-	if err := d.db.Select(&stats, sql, host.ID); err != nil {
+	if err := sqlx.Select(db, &stats, sql, host.ID); err != nil {
 		return errors.Wrap(err, "load pack stats")
 	}
 
@@ -268,9 +274,9 @@ WHERE host_id = ? AND p.pack_type IS NULL
 	return nil
 }
 
-func (d *Datastore) loadHostUsers(host *fleet.Host) error {
-	sql := `SELECT id, username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
-	if err := d.db.Select(&host.Users, sql, host.ID); err != nil {
+func loadHostUsersDB(db sqlx.Queryer, host *fleet.Host) error {
+	sql := `SELECT username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
+	if err := sqlx.Select(db, &host.Users, sql, host.ID); err != nil {
 		return errors.Wrap(err, "load pack stats")
 	}
 	return nil
@@ -292,23 +298,23 @@ func (d *Datastore) Host(id uint) (*fleet.Host, error) {
 		LIMIT 1
 	`
 	host := &fleet.Host{}
-	err := d.db.Get(host, sqlStatement, id)
+	err := d.reader.Get(host, sqlStatement, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host by id")
 	}
-	if err := d.loadHostPackStats(host); err != nil {
+	if err := loadHostPackStatsDB(d.reader, host); err != nil {
 		return nil, err
 	}
-	if err := d.loadHostUsers(host); err != nil {
+	if err := loadHostUsersDB(d.reader, host); err != nil {
 		return nil, err
 	}
 
 	return host, nil
 }
 
-func (d *Datastore) amountEnrolledHosts() (int, error) {
+func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
 	var amount int
-	err := d.db.Get(&amount, `SELECT count(*) FROM hosts`)
+	err := sqlx.Get(db, &amount, `SELECT count(*) FROM hosts`)
 	if err != nil {
 		return 0, err
 	}
@@ -363,7 +369,7 @@ func (d *Datastore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 
 	hosts := []*fleet.Host{}
-	if err := d.db.Select(&hosts, sql, params...); err != nil {
+	if err := d.reader.Select(&hosts, sql, params...); err != nil {
 		return nil, errors.Wrap(err, "list hosts")
 	}
 
@@ -413,7 +419,7 @@ func (d *Datastore) CleanupIncomingHosts(now time.Time) error {
 		WHERE hostname = '' AND osquery_version = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 	`
-	if _, err := d.db.Exec(sqlStatement, now); err != nil {
+	if _, err := d.writer.Exec(sqlStatement, now); err != nil {
 		return errors.Wrap(err, "cleanup incoming hosts")
 	}
 
@@ -442,7 +448,7 @@ func (d *Datastore) GenerateHostStatusStatistics(filter fleet.TeamFilter, now ti
 		Online  uint `db:"online"`
 		New     uint `db:"new"`
 	}{}
-	err := d.db.Get(&counts, sqlStatement, now, now, now, now, now)
+	err := d.reader.Get(&counts, sqlStatement, now, now, now, now, now)
 	if err != nil && err != sql.ErrNoRows {
 		e = errors.Wrap(err, "generating host statistics")
 		return
@@ -582,7 +588,7 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*fleet.Host, error) {
 	`
 
 	host := &fleet.Host{}
-	if err := d.db.Get(host, sqlStatement, nodeKey); err != nil {
+	if err := d.reader.Get(host, sqlStatement, nodeKey); err != nil {
 		switch err {
 		case sql.ErrNoRows:
 			return nil, notFound("Host")
@@ -601,7 +607,7 @@ func (d *Datastore) MarkHostSeen(host *fleet.Host, t time.Time) error {
 		WHERE node_key=?
 	`
 
-	_, err := d.db.Exec(sqlStatement, t, host.NodeKey)
+	_, err := d.writer.Exec(sqlStatement, t, host.NodeKey)
 	if err != nil {
 		return errors.Wrap(err, "marking host seen")
 	}
@@ -659,11 +665,11 @@ func (d *Datastore) searchHostsWithOmits(filter fleet.TeamFilter, query string, 
 	if err != nil {
 		return nil, errors.Wrap(err, "searching hosts")
 	}
-	sql = d.db.Rebind(sql)
+	sql = d.reader.Rebind(sql)
 
 	hosts := []*fleet.Host{}
 
-	err = d.db.Select(&hosts, sql, args...)
+	err = d.reader.Select(&hosts, sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching hosts rebound")
 	}
@@ -695,8 +701,8 @@ func (d *Datastore) searchHostsDefault(filter fleet.TeamFilter, omit ...uint) ([
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default hosts")
 	}
-	sql = d.db.Rebind(sql)
-	err = d.db.Select(&hosts, sql, args...)
+	sql = d.reader.Rebind(sql)
+	err = d.reader.Select(&hosts, sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default hosts rebound")
 	}
@@ -730,7 +736,7 @@ func (d *Datastore) SearchHosts(filter fleet.TeamFilter, query string, omit ...u
 	)
 
 	hosts := []*fleet.Host{}
-	if err := d.db.Select(&hosts, sql, hostQuery, ipQuery); err != nil {
+	if err := d.reader.Select(&hosts, sql, hostQuery, ipQuery); err != nil {
 		return nil, errors.Wrap(err, "searching hosts")
 	}
 
@@ -755,7 +761,7 @@ func (d *Datastore) HostIDsByName(filter fleet.TeamFilter, hostnames []string) (
 	}
 
 	var hostIDs []uint
-	if err := d.db.Select(&hostIDs, sql, args...); err != nil {
+	if err := d.reader.Select(&hostIDs, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "get host IDs")
 	}
 
@@ -770,12 +776,12 @@ func (d *Datastore) HostByIdentifier(identifier string) (*fleet.Host, error) {
 		LIMIT 1
 	`
 	host := &fleet.Host{}
-	err := d.db.Get(host, sql, identifier)
+	err := d.reader.Get(host, sql, identifier)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host by identifier")
 	}
 
-	if err := d.loadHostPackStats(host); err != nil {
+	if err := loadHostPackStatsDB(d.reader, host); err != nil {
 		return nil, err
 	}
 
@@ -796,29 +802,29 @@ func (d *Datastore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
 		return errors.Wrap(err, "sqlx.In AddHostsToTeam")
 	}
 
-	if _, err := d.db.Exec(sql, args...); err != nil {
+	if _, err := d.writer.Exec(sql, args...); err != nil {
 		return errors.Wrap(err, "exec AddHostsToTeam")
 	}
 
 	return nil
 }
 
-func (d *Datastore) SaveHostAdditional(host *fleet.Host) error {
+func saveHostAdditionalDB(exec sqlx.Execer, host *fleet.Host) error {
 	sql := `
 		INSERT INTO host_additional (host_id, additional)
 		VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE additional = VALUES(additional)
 	`
-	if _, err := d.db.Exec(sql, host.ID, host.Additional); err != nil {
+	if _, err := exec.Exec(sql, host.ID, host.Additional); err != nil {
 		return errors.Wrap(err, "insert additional")
 	}
 
 	return nil
 }
 
-func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
+func saveHostUsersDB(tx *sqlx.Tx, host *fleet.Host) error {
 	if len(host.Users) == 0 {
-		if _, err := d.db.Exec(
+		if _, err := tx.Exec(
 			`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE host_id = ?`,
 			host.ID,
 		); err != nil {
@@ -829,30 +835,31 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 	}
 
 	currentHost := &fleet.Host{ID: host.ID}
-	if err := d.loadHostUsers(currentHost); err != nil {
+	if err := loadHostUsersDB(tx, currentHost); err != nil {
 		return err
 	}
 
-	incomingUsers := make(map[uint]bool)
+	keyForUser := func(u *fleet.HostUser) string { return fmt.Sprintf("%d\x00%s", u.Uid, u.Username) }
+	incomingUsers := make(map[string]bool)
 	var insertArgs []interface{}
 	for _, u := range host.Users {
 		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName)
-		incomingUsers[u.Uid] = true
+		incomingUsers[keyForUser(&u)] = true
 	}
 
 	var removedArgs []interface{}
 	for _, u := range currentHost.Users {
-		if _, ok := incomingUsers[u.Uid]; !ok {
-			removedArgs = append(removedArgs, u.ID)
+		if _, ok := incomingUsers[keyForUser(&u)]; !ok {
+			removedArgs = append(removedArgs, u.Username)
 		}
 	}
 
 	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(host.Users)), ",")
 	insertSql := fmt.Sprintf(
-		`INSERT IGNORE INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s`,
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s ON DUPLICATE KEY UPDATE removed_at=NULL`,
 		insertValues,
 	)
-	if _, err := d.db.Exec(insertSql, insertArgs...); err != nil {
+	if _, err := tx.Exec(insertSql, insertArgs...); err != nil {
 		return errors.Wrap(err, "insert users")
 	}
 
@@ -861,12 +868,30 @@ func (d *Datastore) SaveHostUsers(host *fleet.Host) error {
 	}
 	removedValues := strings.TrimSuffix(strings.Repeat("?,", len(removedArgs)), ",")
 	removedSql := fmt.Sprintf(
-		`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE id IN (%s)`,
+		`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE host_id = ? and username IN (%s)`,
 		removedValues,
 	)
-	if _, err := d.db.Exec(removedSql, removedArgs...); err != nil {
+	if _, err := tx.Exec(removedSql, append([]interface{}{host.ID}, removedArgs...)...); err != nil {
 		return errors.Wrap(err, "mark users as removed")
 	}
 
 	return nil
+}
+
+func (d *Datastore) TotalAndUnseenHostsSince(daysCount int) (int, int, error) {
+	var totalCount, unseenCount int
+	err := d.reader.Get(&totalCount, "SELECT count(*) FROM hosts")
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "getting total host count")
+	}
+
+	err = d.reader.Get(&unseenCount,
+		"SELECT count(*) FROM hosts WHERE DATEDIFF(CURRENT_DATE, seen_time) >= ?",
+		daysCount,
+	)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "getting unseen host count")
+	}
+
+	return totalCount, unseenCount, nil
 }

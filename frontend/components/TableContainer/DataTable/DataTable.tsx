@@ -1,12 +1,14 @@
 import React, { useMemo, useEffect, useCallback, useContext } from "react";
 import { TableContext } from "context/table";
 import PropTypes from "prop-types";
-import { useTable, useSortBy, useRowSelect } from "react-table";
+import classnames from "classnames";
+import { useTable, useSortBy, useRowSelect, Row } from "react-table";
 import { isString, kebabCase, noop } from "lodash";
 
-import useDeepEffect from "utilities/hooks/useDeepEffect";
+import { useDeepEffect } from "utilities/hooks";
 
 import Spinner from "components/loaders/Spinner";
+import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "../../buttons/Button";
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
@@ -20,16 +22,18 @@ interface IDataTableProps {
   sortHeader: any;
   sortDirection: any;
   onSort: any; // TODO: an event type
+  disableMultiRowSelect: boolean;
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
-  primarySelectActionButtonVariant?: string;
+  primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
-  onPrimarySelectActionClick: any; // TODO: an event type
+  onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
+  onSelectSingleRow?: (value: Row) => void;
 }
 
 // This data table uses react-table for implementation. The relevant documentation of the library
@@ -42,6 +46,7 @@ const DataTable = ({
   sortHeader,
   sortDirection,
   onSort,
+  disableMultiRowSelect,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
@@ -52,6 +57,7 @@ const DataTable = ({
   onPrimarySelectActionClick,
   primarySelectActionButtonText,
   secondarySelectActions,
+  onSelectSingleRow,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
 
@@ -152,6 +158,17 @@ const DataTable = ({
     toggleAllRowsSelected(false);
     toggleAllPagesSelected(false);
   }, [toggleAllRowsSelected]);
+
+  const onSingleRowClick = useCallback(
+    (row) => {
+      if (disableMultiRowSelect) {
+        row.toggleRowSelected();
+        onSelectSingleRow && onSelectSingleRow(row);
+        toggleAllRowsSelected(false);
+      }
+    },
+    [disableMultiRowSelect]
+  );
 
   const renderSelectedCount = (): JSX.Element => {
     return (
@@ -303,8 +320,20 @@ const DataTable = ({
           <tbody>
             {rows.map((row) => {
               prepareRow(row);
+
+              const rowStyles = classnames({
+                "single-row": disableMultiRowSelect,
+              });
               return (
-                <tr {...row.getRowProps()}>
+                <tr
+                  className={rowStyles}
+                  {...row.getRowProps({
+                    // @ts-ignore // TS complains about prop not existing
+                    onClick: () => {
+                      disableMultiRowSelect && onSingleRowClick(row);
+                    },
+                  })}
+                >
                   {row.cells.map((cell) => {
                     return (
                       <td {...cell.getCellProps()}>{cell.render("Cell")}</td>

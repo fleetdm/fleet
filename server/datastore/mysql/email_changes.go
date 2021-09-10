@@ -15,7 +15,7 @@ func (ds *Datastore) PendingEmailChange(uid uint, newEmail, token string) error 
       new_email
     ) VALUES( ?, ?, ? )
   `
-	_, err := ds.db.Exec(sqlStatement, uid, token, newEmail)
+	_, err := ds.writer.Exec(sqlStatement, uid, token, newEmail)
 	if err != nil {
 		return errors.Wrap(err, "inserting email change record")
 	}
@@ -32,15 +32,16 @@ func (ds *Datastore) ConfirmPendingEmailChange(id uint, token string) (newEmail 
 		Token    string
 		NewEmail string `db:"new_email"`
 	}{}
-	err = ds.db.Get(&changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", notFound("email change with token")
-		}
-		return "", errors.Wrap(err, "email change")
-	}
 
 	err = ds.withRetryTxx(func(tx *sqlx.Tx) error {
+		err := tx.Get(&changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return notFound("email change with token")
+			}
+			return errors.Wrap(err, "email change")
+		}
+
 		query := `
     		UPDATE users SET
       			email = ?
@@ -71,5 +72,5 @@ func (ds *Datastore) ConfirmPendingEmailChange(id uint, token string) (newEmail 
 		return "", err
 	}
 
-	return changeRecord.NewEmail, err
+	return changeRecord.NewEmail, nil
 }

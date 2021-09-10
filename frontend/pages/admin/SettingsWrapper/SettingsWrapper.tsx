@@ -50,10 +50,10 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
     location: { pathname },
   } = props;
 
-  // Add Teams tab for basic tier only
+  // Add Teams tab for premium tier only
   const config = useSelector((state: IRootState) => state.app.config);
 
-  if (settingsSubNav.length === 2 && permissionUtils.isBasicTier(config)) {
+  if (settingsSubNav.length === 2 && permissionUtils.isPremiumTier(config)) {
     settingsSubNav.push({
       name: "Teams",
       pathname: PATHS.ADMIN_TEAMS,

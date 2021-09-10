@@ -1,0 +1,1 @@
+* added `fleetctl package` command -- originally from the orbit package/project this simply enables one to run package with fleetctl

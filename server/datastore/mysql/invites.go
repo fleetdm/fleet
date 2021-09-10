@@ -18,40 +18,46 @@ func (d *Datastore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
 		return nil, err
 	}
 
-	sqlStmt := `
+	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		sqlStmt := `
 	INSERT INTO invites ( invited_by, email, name, position, token, sso_enabled, global_role )
 	  VALUES ( ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	result, err := d.db.Exec(sqlStmt, i.InvitedBy, i.Email,
-		i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
-	if err != nil && isDuplicate(err) {
-		return nil, alreadyExists("Invite", i.Email)
-	} else if err != nil {
-		return nil, errors.Wrap(err, "create invite")
-	}
+		result, err := tx.Exec(sqlStmt, i.InvitedBy, i.Email,
+			i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
+		if err != nil && isDuplicate(err) {
+			return alreadyExists("Invite", i.Email)
+		} else if err != nil {
+			return errors.Wrap(err, "create invite")
+		}
 
-	id, _ := result.LastInsertId()
-	i.ID = uint(id)
+		id, _ := result.LastInsertId()
+		i.ID = uint(id)
 
-	if len(i.Teams) == 0 {
-		i.Teams = []fleet.UserTeam{}
-		return i, nil
-	}
+		if len(i.Teams) == 0 {
+			i.Teams = []fleet.UserTeam{}
+			return nil
+		}
 
-	// Bulk insert teams
-	const valueStr = "(?,?,?),"
-	var args []interface{}
-	for _, userTeam := range i.Teams {
-		args = append(args, i.ID, userTeam.Team.ID, userTeam.Role)
-	}
-	sql := "INSERT INTO invite_teams (invite_id, team_id, role) VALUES " +
-		strings.Repeat(valueStr, len(i.Teams))
-	sql = strings.TrimSuffix(sql, ",")
-	if _, err := d.db.Exec(sql, args...); err != nil {
-		return nil, errors.Wrap(err, "insert teams")
-	}
+		// Bulk insert teams
+		const valueStr = "(?,?,?),"
+		var args []interface{}
+		for _, userTeam := range i.Teams {
+			args = append(args, i.ID, userTeam.Team.ID, userTeam.Role)
+		}
+		sql := "INSERT INTO invite_teams (invite_id, team_id, role) VALUES " +
+			strings.Repeat(valueStr, len(i.Teams))
+		sql = strings.TrimSuffix(sql, ",")
+		if _, err := tx.Exec(sql, args...); err != nil {
+			return errors.Wrap(err, "insert teams")
+		}
+		return nil
+	})
 
+	if err != nil {
+		return nil, err
+	}
 	return i, nil
 }
 
@@ -63,7 +69,7 @@ func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) 
 	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
 	query = appendListOptionsToSQL(query, opt)
 
-	err := d.db.Select(&invites, query, params...)
+	err := d.reader.Select(&invites, query, params...)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite")
 	} else if err != nil {
@@ -80,7 +86,7 @@ func (d *Datastore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) 
 // Invite returns Invite identified by id.
 func (d *Datastore) Invite(id uint) (*fleet.Invite, error) {
 	var invite fleet.Invite
-	err := d.db.Get(&invite, "SELECT * FROM invites WHERE id = ?", id)
+	err := d.reader.Get(&invite, "SELECT * FROM invites WHERE id = ?", id)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").WithID(id)
 	} else if err != nil {
@@ -97,7 +103,7 @@ func (d *Datastore) Invite(id uint) (*fleet.Invite, error) {
 // InviteByEmail finds an Invite with a particular email, if one exists.
 func (d *Datastore) InviteByEmail(email string) (*fleet.Invite, error) {
 	var invite fleet.Invite
-	err := d.db.Get(&invite, "SELECT * FROM invites WHERE email = ?", email)
+	err := d.reader.Get(&invite, "SELECT * FROM invites WHERE email = ?", email)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").
 			WithMessage(fmt.Sprintf("with email %s", email))
@@ -115,7 +121,7 @@ func (d *Datastore) InviteByEmail(email string) (*fleet.Invite, error) {
 // InviteByToken finds an Invite with a particular token, if one exists.
 func (d *Datastore) InviteByToken(token string) (*fleet.Invite, error) {
 	var invite fleet.Invite
-	err := d.db.Get(&invite, "SELECT * FROM invites WHERE token = ?", token)
+	err := d.reader.Get(&invite, "SELECT * FROM invites WHERE token = ?", token)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").
 			WithMessage(fmt.Sprintf("with token %s", token))
@@ -163,7 +169,7 @@ func (d *Datastore) loadTeamsForInvites(invites []*fleet.Invite) error {
 		fleet.UserTeam
 		InviteID uint `db:"invite_id"`
 	}
-	if err := d.db.Select(&rows, sql, args...); err != nil {
+	if err := d.reader.Select(&rows, sql, args...); err != nil {
 		return errors.Wrap(err, "get loadTeamsForInvites")
 	}
 

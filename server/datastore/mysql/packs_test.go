@@ -524,7 +524,7 @@ func TestTeamScheduleNamesMigrateToNewFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	// insert team pack by hand with the old naming scheme
-	_, err = ds.db.Exec(
+	_, err = ds.writer.Exec(
 		"INSERT INTO packs(name, description, platform, disabled, pack_type) VALUES (?, ?, ?, ?, ?)",
 		teamSchedulePackType(team1), "desc", "windows", false, teamSchedulePackType(team1),
 	)
@@ -631,7 +631,7 @@ func TestPackApplyStatsNotLocking(t *testing.T) {
 				schedQueries, err := ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
 				require.NoError(t, err)
 
-				require.NoError(t, ds.saveHostPackStats(randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+				require.NoError(t, saveHostPackStatsDB(ds.writer, randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
 			}
 		}
 	}()
@@ -684,7 +684,7 @@ func TestPackApplyStatsNotLockingTryTwo(t *testing.T) {
 					schedQueries, err := ds.ListScheduledQueriesInPack(pack.ID, fleet.ListOptions{})
 					require.NoError(t, err)
 
-					require.NoError(t, ds.saveHostPackStats(randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+					require.NoError(t, saveHostPackStatsDB(ds.writer, randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
 				}
 			}
 		}()

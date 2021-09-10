@@ -1,3 +1,4 @@
+//go:build !full
 // +build !full
 
 package bindata

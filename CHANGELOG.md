@@ -1,4 +1,12 @@
-## Fleet 4.2.3 (Aug 25, 2021)
+## Fleet 4.2.4 (Sept 2, 2021)
+
+* Fix a bug in which live queries would fail for deployments that use Redis Cluster.
+
+* Fix a bug in which some new Fleet deployments don't include the default global agent options. Documentation for global and team agent options can be found [here](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options).
+
+* Improve how a host's `users` are stored in MySQL to prevent deadlocks. This information is available in the "Users" table on each host's **Host details** page and in the `GET /api/v1/fleet/hosts/{id}` API route.
+
+## Fleet 4.2.3 (Aug 23, 2021)
 
 * Add ability to troubleshoot connection issues with the `fleetctl debug connection` command.
 

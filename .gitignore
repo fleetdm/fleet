@@ -20,6 +20,7 @@ server/bindata/generated.go
 *.cover
 *.test
 *.log
+coverage.txt
 
 # typescript generated test files
 tmp/
@@ -48,3 +49,6 @@ backup.sql.gz
 # Common mistake for new developers to run npm install and then end up
 # committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
 package-lock.json
+
+# generated installers
+orbit-osquery*

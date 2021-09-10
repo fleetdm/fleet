@@ -4,87 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gomodule/redigo/redis"
-	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 )
 
 type redisQueryResults struct {
 	// connection pool
-	pool             *redisc.Cluster
+	pool             fleet.RedisPool
 	duplicateResults bool
 }
 
 var _ fleet.QueryResultStore = &redisQueryResults{}
 
-// NewRedisPool creates a Redis connection pool using the provided server
-// address, password and database.
-func NewRedisPool(server, password string, database int, useTLS bool) (*redisc.Cluster, error) {
-	// Create the Cluster
-	cluster := &redisc.Cluster{
-		StartupNodes: []string{server},
-		CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
-			return &redis.Pool{
-				MaxIdle:     3,
-				IdleTimeout: 240 * time.Second,
-				Dial: func() (redis.Conn, error) {
-					c, err := redis.Dial(
-						"tcp",
-						server,
-						redis.DialDatabase(database),
-						redis.DialUseTLS(useTLS),
-						redis.DialConnectTimeout(5*time.Second),
-						redis.DialKeepAlive(10*time.Second),
-						// Read/Write timeouts not set here because we may see results
-						// only rarely on the pub/sub channel.
-					)
-					if err != nil {
-						return nil, err
-					}
-					if password != "" {
-						if _, err := c.Do("AUTH", password); err != nil {
-							c.Close()
-							return nil, err
-						}
-					}
-					return c, err
-				},
-				TestOnBorrow: func(c redis.Conn, t time.Time) error {
-					if time.Since(t) < time.Minute {
-						return nil
-					}
-					_, err := c.Do("PING")
-					return err
-				},
-			}, nil
-		},
-	}
-
-	if err := cluster.Refresh(); err != nil && !isClusterDisabled(err) && !isClusterCommandUnknown(err) {
-		return nil, errors.Wrap(err, "refresh cluster")
-	}
-
-	return cluster, nil
-}
-
-func isClusterDisabled(err error) bool {
-	return strings.Contains(err.Error(), "ERR This instance has cluster support disabled")
-}
-
-// On GCP Memorystore the CLUSTER command is entirely unavailable and fails with
-// this error. See
-// https://cloud.google.com/memorystore/docs/redis/product-constraints#blocked_redis_commands
-func isClusterCommandUnknown(err error) bool {
-	return strings.Contains(err.Error(), "ERR unknown command `CLUSTER`")
-}
-
 // NewRedisQueryResults creats a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisQueryResults(pool *redisc.Cluster, duplicateResults bool) *redisQueryResults {
+func NewRedisQueryResults(pool fleet.RedisPool, duplicateResults bool) *redisQueryResults {
 	return &redisQueryResults{pool: pool, duplicateResults: duplicateResults}
 }
 
@@ -93,7 +30,7 @@ func pubSubForID(id uint) string {
 }
 
 // Pool returns the redisc connection pool (used in tests).
-func (r *redisQueryResults) Pool() *redisc.Cluster {
+func (r *redisQueryResults) Pool() fleet.RedisPool {
 	return r.pool
 }
 

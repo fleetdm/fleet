@@ -216,7 +216,7 @@ const allHostTableHeaders: IHostDataColumn[] = [
     title: "CPU",
     Header: "CPU",
     disableSortBy: true,
-    accessor: "host_cpu",
+    accessor: "cpu_type",
     Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
@@ -269,7 +269,7 @@ const allHostTableHeaders: IHostDataColumn[] = [
 
 const defaultHiddenColumns = [
   "primary_mac",
-  "host_cpu",
+  "cpu_type",
   "memory",
   "uptime",
   "uuid",
@@ -288,8 +288,8 @@ const generateAvailableTableHeaders = (
 ): IHostDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
-      // skip over column headers that are not shown in core tier
-      if (permissionUtils.isCoreTier(config)) {
+      // skip over column headers that are not shown in free tier
+      if (permissionUtils.isFreeTier(config)) {
         if (
           currentColumn.accessor === "team_name" ||
           currentColumn.id === "selection"

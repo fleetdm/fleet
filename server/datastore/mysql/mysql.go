@@ -37,13 +37,28 @@ var (
 	columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
 )
 
+// dbReader is an interface that defines the methods required for reads.
+type dbReader interface {
+	sqlx.Queryer
+
+	Close() error
+	Rebind(string) string
+	Select(interface{}, string, ...interface{}) error
+	Get(interface{}, string, ...interface{}) error
+}
+
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
-	db     *sqlx.DB
+	reader dbReader // so it cannot be used to perform writes
+	writer *sqlx.DB
+
 	logger log.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
+
+	// nil if no read replica
+	readReplicaConfig *config.MysqlConfig
 }
 
 type txFn func(*sqlx.Tx) error
@@ -67,7 +82,7 @@ func retryableError(err error) bool {
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 	operation := func() error {
-		tx, err := d.db.Beginx()
+		tx, err := d.writer.Beginx()
 		if err != nil {
 			return errors.Wrap(err, "create transaction")
 		}
@@ -116,7 +131,7 @@ func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 
 // withTx provides a common way to commit/rollback a txFn
 func (d *Datastore) withTx(fn txFn) (err error) {
-	tx, err := d.db.Beginx()
+	tx, err := d.writer.Beginx()
 	if err != nil {
 		return errors.Wrap(err, "create transaction")
 	}
@@ -153,51 +168,64 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 
 	for _, setOpt := range opts {
-		setOpt(options)
+		if setOpt != nil {
+			setOpt(options)
+		}
 	}
 
-	if config.PasswordPath != "" && config.Password != "" {
-		return nil, errors.New("A MySQL password and a MySQL password file were provided - please specify only one")
+	if err := checkConfig(&config); err != nil {
+		return nil, err
+	}
+	if options.replicaConfig != nil {
+		if err := checkConfig(options.replicaConfig); err != nil {
+			return nil, errors.Wrap(err, "replica")
+		}
 	}
 
-	// Check to see if the flag is populated
-	// Check if file exists on disk
-	// If file exists read contents
-	if config.PasswordPath != "" {
-		fileContents, err := ioutil.ReadFile(config.PasswordPath)
+	dbWriter, err := newDB(&config, options)
+	if err != nil {
+		return nil, err
+	}
+	dbReader := dbWriter
+	if options.replicaConfig != nil {
+		dbReader, err = newDB(options.replicaConfig, options)
 		if err != nil {
 			return nil, err
 		}
-		config.Password = strings.TrimSpace(string(fileContents))
 	}
 
-	if config.TLSCA != "" {
-		config.TLSConfig = "custom"
-		err := registerTLS(config)
-		if err != nil {
-			return nil, errors.Wrap(err, "register TLS config for mysql")
-		}
+	ds := &Datastore{
+		writer:            dbWriter,
+		reader:            dbReader,
+		logger:            options.logger,
+		clock:             c,
+		config:            config,
+		readReplicaConfig: options.replicaConfig,
 	}
 
-	dsn := generateMysqlConnectionString(config)
+	return ds, nil
+}
+
+func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
+	dsn := generateMysqlConnectionString(*conf)
 	db, err := sqlx.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	db.SetMaxIdleConns(config.MaxIdleConns)
-	db.SetMaxOpenConns(config.MaxOpenConns)
-	db.SetConnMaxLifetime(time.Second * time.Duration(config.ConnMaxLifetime))
+	db.SetMaxIdleConns(conf.MaxIdleConns)
+	db.SetMaxOpenConns(conf.MaxOpenConns)
+	db.SetConnMaxLifetime(time.Second * time.Duration(conf.ConnMaxLifetime))
 
 	var dbError error
-	for attempt := 0; attempt < options.maxAttempts; attempt++ {
+	for attempt := 0; attempt < opts.maxAttempts; attempt++ {
 		dbError = db.Ping()
 		if dbError == nil {
 			// we're connected!
 			break
 		}
 		interval := time.Duration(attempt) * time.Second
-		options.logger.Log("mysql", fmt.Sprintf(
+		opts.logger.Log("mysql", fmt.Sprintf(
 			"could not connect to db: %v, sleeping %v", dbError, interval))
 		time.Sleep(interval)
 	}
@@ -205,32 +233,41 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	if dbError != nil {
 		return nil, dbError
 	}
+	return db, nil
+}
 
-	ds := &Datastore{
-		db:     db,
-		logger: options.logger,
-		clock:  c,
-		config: config,
+func checkConfig(conf *config.MysqlConfig) error {
+	if conf.PasswordPath != "" && conf.Password != "" {
+		return errors.New("A MySQL password and a MySQL password file were provided - please specify only one")
 	}
 
-	return ds, nil
+	// Check to see if the flag is populated
+	// Check if file exists on disk
+	// If file exists read contents
+	if conf.PasswordPath != "" {
+		fileContents, err := ioutil.ReadFile(conf.PasswordPath)
+		if err != nil {
+			return err
+		}
+		conf.Password = strings.TrimSpace(string(fileContents))
+	}
 
-}
-
-func (d *Datastore) Begin() (fleet.Transaction, error) {
-	return d.db.Beginx()
-}
-
-func (d *Datastore) Name() string {
-	return "mysql"
+	if conf.TLSCA != "" {
+		conf.TLSConfig = "custom"
+		err := registerTLS(*conf)
+		if err != nil {
+			return errors.Wrap(err, "register TLS config for mysql")
+		}
+	}
+	return nil
 }
 
 func (d *Datastore) MigrateTables() error {
-	return tables.MigrationClient.Up(d.db.DB, "")
+	return tables.MigrationClient.Up(d.writer.DB, "")
 }
 
 func (d *Datastore) MigrateData() error {
-	return data.MigrationClient.Up(d.db.DB, "")
+	return data.MigrationClient.Up(d.writer.DB, "")
 }
 
 func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
@@ -243,7 +280,7 @@ func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
 		return 0, errors.Wrap(err, "missing tables migrations")
 	}
 
-	currentTablesVersion, err := tables.MigrationClient.GetDBVersion(d.db.DB)
+	currentTablesVersion, err := tables.MigrationClient.GetDBVersion(d.writer.DB)
 	if err != nil {
 		return 0, errors.Wrap(err, "cannot get table migration status")
 	}
@@ -253,7 +290,7 @@ func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
 		return 0, errors.Wrap(err, "missing data migrations")
 	}
 
-	currentDataVersion, err := data.MigrationClient.GetDBVersion(d.db.DB)
+	currentDataVersion, err := data.MigrationClient.GetDBVersion(d.writer.DB)
 	if err != nil {
 		return 0, errors.Wrap(err, "cannot get data migration status")
 	}
@@ -271,54 +308,30 @@ func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
 	}
 }
 
-// Drop removes database
-func (d *Datastore) Drop() error {
-	tables := []struct {
-		Name string `db:"TABLE_NAME"`
-	}{}
-
-	sql := `
-		SELECT TABLE_NAME
-		FROM INFORMATION_SCHEMA.TABLES
-		WHERE TABLE_SCHEMA = ?;
-	`
-
-	if err := d.db.Select(&tables, sql, d.config.Database); err != nil {
-		return err
-	}
-
-	tx, err := d.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 0")
-	if err != nil {
-		return tx.Rollback()
-	}
-
-	for _, table := range tables {
-		_, err = tx.Exec(fmt.Sprintf("DROP TABLE %s;", table.Name))
-		if err != nil {
-			return tx.Rollback()
-		}
-	}
-	_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 1")
-	if err != nil {
-		return tx.Rollback()
-	}
-	return tx.Commit()
-}
-
 // HealthCheck returns an error if the MySQL backend is not healthy.
 func (d *Datastore) HealthCheck() error {
-	_, err := d.db.Exec("select 1")
-	return err
+	if _, err := d.writer.Exec("select 1"); err != nil {
+		return err
+	}
+	if d.readReplicaConfig != nil {
+		var dst int
+		if err := d.reader.Get(&dst, "select 1"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Close frees resources associated with underlying mysql connection
 func (d *Datastore) Close() error {
-	return d.db.Close()
+	err := d.writer.Close()
+	if d.readReplicaConfig != nil {
+		errRead := d.reader.Close()
+		if err == nil {
+			err = errRead
+		}
+	}
+	return err
 }
 
 func sanitizeColumn(col string) string {

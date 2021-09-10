@@ -39,7 +39,7 @@ export class EditPackPage extends Component {
     packLabels: PropTypes.arrayOf(labelInterface),
     packTeams: PropTypes.arrayOf(teamInterface),
     scheduledQueries: PropTypes.arrayOf(scheduledQueryInterface),
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -66,12 +66,11 @@ export class EditPackPage extends Component {
       packID,
       packLabels,
       packTeams,
-      scheduledQueries,
     } = this.props;
     const { load } = packActions;
     const { loadAll } = queryActions;
 
-    if (!pack && !isLoadingPack) {
+    if (!isLoadingPack) {
       dispatch(load(packID));
     }
 
@@ -89,9 +88,7 @@ export class EditPackPage extends Component {
       }
     }
 
-    if (!size(scheduledQueries)) {
-      dispatch(scheduledQueryActions.loadAll({ id: packID }));
-    }
+    dispatch(scheduledQueryActions.loadAll({ id: packID }));
 
     if (!size(allQueries)) {
       dispatch(loadAll());
@@ -280,7 +277,7 @@ export class EditPackPage extends Component {
       packLabels,
       packTeams,
       scheduledQueries,
-      isBasicTier,
+      isPremiumTier,
     } = this.props;
 
     const packTargets = [...packHosts, ...packLabels, ...packTeams];
@@ -302,7 +299,7 @@ export class EditPackPage extends Component {
             pack={pack}
             packTargets={packTargets}
             targetsCount={targetsCount}
-            isBasicTier={isBasicTier}
+            isPremiumTier={isPremiumTier}
           />
           <ScheduledQueriesListWrapper
             onRemoveScheduledQueries={handleRemoveScheduledQueries}
@@ -352,7 +349,7 @@ const mapStateToProps = (state, { params, route }) => {
         return includes(pack.team_ids, team.id);
       })
     : [];
-  const isBasicTier = permissionUtils.isBasicTier(state.app.config);
+  const isPremiumTier = permissionUtils.isPremiumTier(state.app.config);
 
   return {
     allQueries,
@@ -365,7 +362,7 @@ const mapStateToProps = (state, { params, route }) => {
     packLabels,
     packTeams,
     scheduledQueries,
-    isBasicTier,
+    isPremiumTier,
   };
 };
 

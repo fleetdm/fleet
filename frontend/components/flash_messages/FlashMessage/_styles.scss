@@ -40,6 +40,28 @@
     }
   }
 
+  &--warning-filled {
+    background-color: $ui-warning;
+    .fleeticon {
+      color: $core-fleet-black;
+    }
+
+    a {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
+    span {
+      margin-left: 15px;
+      margin-right: 15px;
+      font-size: $x-small;
+      color: $core-fleet-black;
+      white-space: nowrap;
+    }
+  }
+
   &__content {
     display: flex;
     align-items: center;
@@ -47,7 +69,7 @@
     span {
       margin-left: 15px;
       margin-right: 15px;
-      font-size: $small;
+      font-size: $x-small;
       white-space: nowrap;
     }
 

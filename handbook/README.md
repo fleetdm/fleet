@@ -105,6 +105,66 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign for fixing.
 - If in doubt about anything regarding design or layout, please reach out to the Design team.
 
+
+### Fleet docs
+
+#### Adding a link to Fleet docs
+You can link documentation pages to each other using relative paths. For example, in `docs/1-Using-Fleet/1-Fleet-UI.md`, you can link to `docs/1-Using-Fleet/9-Permissions.md` by writing `[permissions](./9-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+
+However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
+Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
+
+#### Linking to a location on GitHub
+When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
+
+To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
+
+#### How to fix a broken link
+For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
+
+An example of a link that lives outside of `/docs` is:
+
+```
+../../tools/app/prometheus
+```
+
+If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
+
+> Note that the instructions above also apply to adding links in the Fleet handbook.
+
+### Style and grammar guidelines
+
+#### How to write headings & subheadings
+Fleet uses sentence case capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels.
+In sentence case, we write titles as if they were sentences. For example:
+> **A**sk questions about your servers, containers, and laptops running **L**inux, **W**indows, and macOS
+
+As we are using sentence case, only the first word of a heading and subheading is capitalized. However, if a word in the sentence would normally be capitalized (e.g. a [proper noun](https://www.grammarly.com/blog/proper-nouns/?&utm_source=google&utm_medium=cpc&utm_campaign=11862361094&utm_targetid=dsa-1233402314764&gclid=Cj0KCQjwg7KJBhDyARIsAHrAXaFwpnEyL9qrS4z1PEAgFwh3RXmQ24zmwmowAyOQbHngsI8W_F730aAaArrwEALw_wcB&gclsrc=aw.ds),) these words should also be capitalized in the heading.
+> Note the capitalization of _“macOS”_ in the example above. Although this is a proper noun, macOS uses its own style guide from Apple, that we adhere to.
+
+#### How use osquery in sentences and headings
+Osquery should always be written in lowercase, unless used to start a sentence or heading. For example:
+> Open source software, built on osquery.
+
+or
+
+> Osquery and Fleet provide structured, convenient access to information about your devices.
+
+
+### Customer succcess
+
+#### Next steps after a customer conversation
+After a customer conversation, it can sometimes feel like there are 1001 things to do, but it can be hard to know where to start.  Here are some tips:
+
+##### For customer requests
+- Locate the appropriate issue, or create it if it doesn't already exist.  (To avoid duplication, be creative when searching GitHub for issues- it can often take a couple of tries with different keywords to find an existing issue.)
+- Is the issue clear and easy to understand, with appropriate context?  (Default to public: declassify into public issues in fleetdm/fleet whenever possible)
+- Is there a key date or timeframe that the customer is hoping to meet, please note that in the the issue.
+- Make sure the issue has a "customer request" label.
+- Post in #g-product with a link to the issue to draw extra attention to the customer request so it is visible ASAP for Fleet's product team.
+- Have we provided a link to that issue for the customer to remind everyone of the plan, and for the sake of visibility, so other folks who weren't directly involved are up to speed?  (e.g. "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")
+
+
 ### About the handbook
 #### Why bother?
 The Fleet handbook is inspired by (and heavily influenced by) the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).

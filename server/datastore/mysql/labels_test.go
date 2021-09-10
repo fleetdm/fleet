@@ -65,21 +65,21 @@ func TestLabels(t *testing.T) {
 
 	newLabels := []*fleet.LabelSpec{
 		// Note these are intentionally out of order
-		&fleet.LabelSpec{
+		{
 			Name:     "label3",
 			Query:    "query3",
 			Platform: "darwin",
 		},
-		&fleet.LabelSpec{
+		{
 			Name:  "label1",
 			Query: "query1",
 		},
-		&fleet.LabelSpec{
+		{
 			Name:     "label2",
 			Query:    "query2",
 			Platform: "darwin",
 		},
-		&fleet.LabelSpec{
+		{
 			Name:     "label4",
 			Query:    "query4",
 			Platform: "darwin",
@@ -129,7 +129,7 @@ func TestLabels(t *testing.T) {
 	// A new label targeting another platform should not effect the labels for
 	// this host
 	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{
-		&fleet.LabelSpec{
+		{
 			Name:     "label5",
 			Platform: "not-matching",
 			Query:    "query5",
@@ -142,7 +142,7 @@ func TestLabels(t *testing.T) {
 
 	// If a new label is added, all labels should be returned
 	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{
-		&fleet.LabelSpec{
+		{
 			Name:     "label6",
 			Platform: "",
 			Query:    "query6",
@@ -188,20 +188,19 @@ func TestSearchLabels(t *testing.T) {
 	defer db.Close()
 
 	specs := []*fleet.LabelSpec{
-		&fleet.LabelSpec{
-			ID:   1,
-			Name: "foo",
-		},
-		&fleet.LabelSpec{
-			ID:   2,
-			Name: "bar",
-		},
-		&fleet.LabelSpec{
-			ID:   3,
-			Name: "foo-bar",
-		},
-		&fleet.LabelSpec{
-			ID:        4,
+		{ID: 1, Name: "foo"},
+		{ID: 2, Name: "bar"},
+		{ID: 3, Name: "foo-bar"},
+		{ID: 4, Name: "bar2"},
+		{ID: 5, Name: "bar3"},
+		{ID: 6, Name: "bar4"},
+		{ID: 7, Name: "bar5"},
+		{ID: 8, Name: "bar6"},
+		{ID: 9, Name: "bar7"},
+		{ID: 10, Name: "bar8"},
+		{ID: 11, Name: "bar9"},
+		{
+			ID:        12,
 			Name:      "All Hosts",
 			LabelType: fleet.LabelTypeBuiltIn,
 		},
@@ -209,7 +208,7 @@ func TestSearchLabels(t *testing.T) {
 	err := db.ApplyLabelSpecs(specs)
 	require.Nil(t, err)
 
-	all, err := db.Label(specs[3].ID)
+	all, err := db.Label(specs[len(specs)-1].ID)
 	require.Nil(t, err)
 	l3, err := db.Label(specs[2].ID)
 	require.Nil(t, err)
@@ -221,6 +220,7 @@ func TestSearchLabels(t *testing.T) {
 	// don't error.
 	labels, err := db.SearchLabels(filter, "")
 	require.Nil(t, err)
+	assert.Len(t, labels, 12)
 	assert.Contains(t, labels, all)
 
 	labels, err = db.SearchLabels(filter, "foo")
@@ -237,33 +237,6 @@ func TestSearchLabels(t *testing.T) {
 	require.Nil(t, err)
 	assert.Len(t, labels, 1)
 	assert.Contains(t, labels, all)
-}
-
-func TestSearchLabelsLimit(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
-	all := &fleet.LabelSpec{
-		Name:      "All Hosts",
-		LabelType: fleet.LabelTypeBuiltIn,
-	}
-	err := db.ApplyLabelSpecs([]*fleet.LabelSpec{all})
-	require.Nil(t, err)
-
-	for i := 0; i < 15; i++ {
-		l := &fleet.LabelSpec{
-			Name: fmt.Sprintf("foo%d", i),
-		}
-		err := db.ApplyLabelSpecs([]*fleet.LabelSpec{l})
-		require.Nil(t, err)
-	}
-
-	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	filter := fleet.TeamFilter{User: user}
-
-	labels, err := db.SearchLabels(filter, "foo")
-	require.Nil(t, err)
-	assert.Len(t, labels, 11)
 }
 
 func TestListHostsInLabel(t *testing.T) {
@@ -703,4 +676,30 @@ func TestLabelQueriesForCentOSHost(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, queries, 1)
 	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
+}
+
+func TestRecordNonexistentQueryLabelExecution(t *testing.T) {
+	db := CreateMySQLDS(t)
+	defer db.Close()
+
+	h1, err := db.NewHost(&fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.Nil(t, err)
+
+	l1 := &fleet.LabelSpec{
+		ID:    1,
+		Name:  "label foo",
+		Query: "query1",
+	}
+	err = db.ApplyLabelSpecs([]*fleet.LabelSpec{l1})
+	require.Nil(t, err)
+
+	require.NoError(t, db.RecordLabelQueryExecutions(h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now()))
 }

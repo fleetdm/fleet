@@ -2,18 +2,14 @@ package mysql
 
 import (
 	"bytes"
-	"database/sql"
-	"fmt"
 	"os/exec"
 	"testing"
 	"time"
 
-	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -60,14 +56,6 @@ func TestMigrations(t *testing.T) {
 }
 
 func createMySQLDSForMigrationTests(t *testing.T, dbName string) *Datastore {
-	db, err := sql.Open(
-		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
-	)
-	require.NoError(t, err)
-	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
-	require.NoError(t, err)
-
 	// Create a datastore client in order to run migrations as usual
 	config := config.MysqlConfig{
 		Username: testUsername,
@@ -75,7 +63,7 @@ func createMySQLDSForMigrationTests(t *testing.T, dbName string) *Datastore {
 		Address:  testAddress,
 		Database: dbName,
 	}
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	ds, err := newDSWithConfig(t, dbName, config)
 	require.NoError(t, err)
 	return ds
 }
@@ -85,14 +73,14 @@ func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
 	defer ds.Close()
 
 	for {
-		version, err := tables.MigrationClient.GetDBVersion(ds.db.DB)
+		version, err := tables.MigrationClient.GetDBVersion(ds.writer.DB)
 		require.NoError(t, err)
 
 		// break right before the the constraint migration
 		if version == 20210818182258 {
 			break
 		}
-		require.NoError(t, tables.MigrationClient.UpByOne(ds.db.DB, ""))
+		require.NoError(t, tables.MigrationClient.UpByOne(ds.writer.DB, ""))
 	}
 
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
@@ -122,7 +110,7 @@ func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
 
 	require.NoError(t, ds.DeleteHost(host1.ID))
 
-	require.NoError(t, tables.MigrationClient.UpByOne(ds.db.DB, ""))
+	require.NoError(t, tables.MigrationClient.UpByOne(ds.writer.DB, ""))
 
 	// Make sure we don't delete more than we need
 	hostCheck, err := ds.Host(host2.ID)

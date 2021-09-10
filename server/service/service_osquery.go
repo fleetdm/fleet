@@ -37,12 +37,12 @@ func (e osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
 }
 
-func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
 	if nodeKey == "" {
-		return nil, osqueryError{
+		return nil, false, osqueryError{
 			message:     "authentication error: missing node key",
 			nodeInvalid: true,
 		}
@@ -52,12 +52,12 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	if err != nil {
 		switch err.(type) {
 		case fleet.NotFoundError:
-			return nil, osqueryError{
+			return nil, false, osqueryError{
 				message:     "authentication error: invalid node key: " + nodeKey,
 				nodeInvalid: true,
 			}
 		default:
-			return nil, osqueryError{
+			return nil, false, osqueryError{
 				message: "authentication error: " + err.Error(),
 			}
 		}
@@ -72,7 +72,25 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	svc.seenHostSet.addHostID(host.ID)
 	host.SeenTime = svc.clock.Now()
 
-	return host, nil
+	return host, svc.debugEnabledForHost(host), nil
+}
+
+func (svc Service) debugEnabledForHost(host *fleet.Host) bool {
+	hlogger := log.With(svc.logger, "host-id", host.ID)
+	ac, err := svc.ds.AppConfig()
+	if err != nil {
+		level.Debug(hlogger).Log("err", errors.Wrap(err, "getting app config for host debug"))
+		return false
+	}
+
+	doDebug := false
+	for _, hostID := range ac.ServerSettings.DebugHostIDs {
+		if host.ID == hostID {
+			doDebug = true
+			break
+		}
+	}
+	return doDebug
 }
 
 func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
@@ -224,10 +242,13 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		return nil, osqueryError{message: "internal error: fetch base config: " + err.Error()}
 	}
 
-	var config map[string]interface{}
-	err = json.Unmarshal(baseConfig, &config)
-	if err != nil {
-		return nil, osqueryError{message: "internal error: parse base configuration: " + err.Error()}
+	config := make(map[string]interface{})
+
+	if baseConfig != nil {
+		err = json.Unmarshal(baseConfig, &config)
+		if err != nil {
+			return nil, osqueryError{message: "internal error: parse base configuration: " + err.Error()}
+		}
 	}
 
 	packs, err := svc.ds.ListPacksForHost(host.ID)
@@ -688,6 +709,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	svc.maybeDebugHost(host, results, statuses, messages)
+
 	if host.Modified {
 		err = svc.ds.SaveHost(&host)
 		if err != nil {
@@ -696,4 +719,20 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	return nil
+}
+
+func (svc *Service) maybeDebugHost(
+	host fleet.Host,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
+) {
+	if svc.debugEnabledForHost(&host) {
+		hlogger := log.With(svc.logger, "host-id", host.ID)
+
+		logJSON(hlogger, host, "host")
+		logJSON(hlogger, results, "results")
+		logJSON(hlogger, statuses, "statuses")
+		logJSON(hlogger, messages, "messages")
+	}
 }

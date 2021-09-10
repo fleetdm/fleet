@@ -24,7 +24,7 @@ func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.Live
 
 func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-	license := &fleet.LicenseInfo{Tier: "core"}
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	writer, _ := logging.NewFilesystemLogWriter(
 		fleetConfig.Filesystem.StatusLogFile,
 		kitlog.NewNopLogger(),
@@ -49,7 +49,7 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 	if err != nil {
 		panic(err)
 	}
-	if license.Tier == fleet.TierBasic {
+	if license.IsPremium() {
 		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, clock.C, license)
 		if err != nil {
 			panic(err)
@@ -60,7 +60,7 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 
 func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-	license := fleet.LicenseInfo{Tier: "core"}
+	license := fleet.LicenseInfo{Tier: fleet.TierFree}
 	testConfig := config.TestConfig()
 	writer, err := logging.NewFilesystemLogWriter(
 		testConfig.Filesystem.StatusLogFile,

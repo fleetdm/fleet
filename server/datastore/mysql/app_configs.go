@@ -23,9 +23,9 @@ func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error
 }
 
 func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
-	var info fleet.AppConfig
+	info := &fleet.AppConfig{}
 	var bytes []byte
-	err := d.db.Get(&bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
+	err := d.reader.Get(&bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "selecting app config")
 	}
@@ -33,15 +33,17 @@ func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	err = json.Unmarshal(bytes, &info)
+	info.ApplyDefaults()
+
+	err = json.Unmarshal(bytes, info)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshaling config")
 	}
-	return &info, nil
+	return info, nil
 }
 
 func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
-	rows, err := d.db.Query("SELECT @@event_scheduler")
+	rows, err := d.writer.Query("SELECT @@event_scheduler")
 	if err != nil {
 		return false, err
 	}
@@ -62,7 +64,7 @@ func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
 	return value == "ON", nil
 }
 
-func (d *Datastore) ManageHostExpiryEvent(tx *sqlx.Tx, hostExpiryEnabled bool, hostExpiryWindow int) error {
+func manageHostExpiryEventDB(tx *sqlx.Tx, hostExpiryEnabled bool, hostExpiryWindow int) error {
 	var err error
 	hostExpiryConfig := struct {
 		Window int `db:"host_expiry_window"`
@@ -109,7 +111,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 	}
 
 	return d.withTx(func(tx *sqlx.Tx) error {
-		if err := d.ManageHostExpiryEvent(tx, expiryEnabled, expiryWindow); err != nil {
+		if err := manageHostExpiryEventDB(tx, expiryEnabled, expiryWindow); err != nil {
 			return err
 		}
 
@@ -134,7 +136,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 
 func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, error) {
 	var s fleet.EnrollSecret
-	err := d.db.Get(&s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
+	err := d.reader.Get(&s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
 		return nil, errors.New("no matching secret found")
 	}
@@ -143,35 +145,41 @@ func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, erro
 }
 
 func (d *Datastore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
-	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		if teamID != nil {
-			sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
-			if _, err := tx.Exec(sql, teamID); err != nil {
-				return errors.Wrap(err, "clear before insert")
-			}
-		} else {
-			sql := `DELETE FROM enroll_secrets WHERE team_id IS NULL`
-			if _, err := tx.Exec(sql); err != nil {
-				return errors.Wrap(err, "clear before insert")
-			}
-		}
+	return d.withRetryTxx(func(tx *sqlx.Tx) error {
+		return applyEnrollSecretsDB(tx, teamID, secrets)
+	})
+}
 
-		for _, secret := range secrets {
-			sql := `
+func applyEnrollSecretsDB(exec sqlx.Execer, teamID *uint, secrets []*fleet.EnrollSecret) error {
+	if teamID != nil {
+		sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
+		if _, err := exec.Exec(sql, teamID); err != nil {
+			return errors.Wrap(err, "clear before insert")
+		}
+	} else {
+		sql := `DELETE FROM enroll_secrets WHERE team_id IS NULL`
+		if _, err := exec.Exec(sql); err != nil {
+			return errors.Wrap(err, "clear before insert")
+		}
+	}
+
+	for _, secret := range secrets {
+		sql := `
 				INSERT INTO enroll_secrets (secret, team_id)
 				VALUES ( ?, ? )
 			`
-			if _, err := tx.Exec(sql, secret.Secret, teamID); err != nil {
-				return errors.Wrap(err, "upsert secret")
-			}
+		if _, err := exec.Exec(sql, secret.Secret, teamID); err != nil {
+			return errors.Wrap(err, "upsert secret")
 		}
-		return nil
-	})
-
-	return err
+	}
+	return nil
 }
 
 func (d *Datastore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error) {
+	return getEnrollSecretsDB(d.reader, teamID)
+}
+
+func getEnrollSecretsDB(q sqlx.Queryer, teamID *uint) ([]*fleet.EnrollSecret, error) {
 	var args []interface{}
 	sql := "SELECT * FROM enroll_secrets WHERE "
 	// MySQL requires comparing NULL with IS. NULL = NULL evaluates to FALSE.
@@ -182,7 +190,7 @@ func (d *Datastore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error
 		args = append(args, teamID)
 	}
 	var secrets []*fleet.EnrollSecret
-	if err := d.db.Select(&secrets, sql, args...); err != nil {
+	if err := sqlx.Select(q, &secrets, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "get secrets")
 	}
 	return secrets, nil

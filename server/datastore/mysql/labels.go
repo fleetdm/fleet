@@ -115,7 +115,7 @@ func (d *Datastore) GetLabelSpecs() ([]*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	// Get basic specs
 	query := "SELECT id, name, description, query, platform, label_type, label_membership_type FROM labels"
-	if err := d.db.Select(&specs, query); err != nil {
+	if err := d.reader.Select(&specs, query); err != nil {
 		return nil, errors.Wrap(err, "get labels")
 	}
 
@@ -138,7 +138,7 @@ SELECT name, description, query, platform, label_type, label_membership_type
 FROM labels
 WHERE name = ?
 `
-	if err := d.db.Select(&specs, query, name); err != nil {
+	if err := d.reader.Select(&specs, query, name); err != nil {
 		return nil, errors.Wrap(err, "get label")
 	}
 	if len(specs) == 0 {
@@ -171,7 +171,7 @@ func (d *Datastore) getLabelHostnames(label *fleet.LabelSpec) error {
 			WHERE label_id = (SELECT id FROM labels WHERE name = ?)
 		)
 	`
-	err := d.db.Select(&label.Hosts, sql, label.Name)
+	err := d.reader.Select(&label.Hosts, sql, label.Name)
 	if err != nil {
 		return errors.Wrap(err, "get hostnames for label")
 	}
@@ -190,7 +190,7 @@ func (d *Datastore) NewLabel(label *fleet.Label, opts ...fleet.OptionalArg) (*fl
 		label_membership_type
 	) VALUES ( ?, ?, ?, ?, ?, ?)
 	`
-	result, err := d.db.Exec(
+	result, err := d.writer.Exec(
 		query,
 		label.Name,
 		label.Description,
@@ -216,7 +216,7 @@ func (d *Datastore) SaveLabel(label *fleet.Label) (*fleet.Label, error) {
 			description = ?
 		WHERE id = ?
 	`
-	_, err := d.db.Exec(query, label.Name, label.Description, label.ID)
+	_, err := d.writer.Exec(query, label.Name, label.Description, label.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving label")
 	}
@@ -236,7 +236,7 @@ func (d *Datastore) Label(lid uint) (*fleet.Label, error) {
 	`
 	label := &fleet.Label{}
 
-	if err := d.db.Get(label, sql, lid); err != nil {
+	if err := d.reader.Get(label, sql, lid); err != nil {
 		return nil, errors.Wrap(err, "selecting label")
 	}
 
@@ -255,7 +255,7 @@ func (d *Datastore) ListLabels(filter fleet.TeamFilter, opt fleet.ListOptions) (
 	query = appendListOptionsToSQL(query, opt)
 	labels := []*fleet.Label{}
 
-	if err := d.db.Select(&labels, query); err != nil {
+	if err := d.reader.Select(&labels, query); err != nil {
 		// it's ok if no labels exist
 		if err == sql.ErrNoRows {
 			return labels, nil
@@ -288,7 +288,7 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 			WHERE platform = ? OR platform = ''
 			AND label_membership_type = ?
 `
-		rows, err = d.db.Query(sql, platform, fleet.LabelMembershipTypeDynamic)
+		rows, err = d.reader.Query(sql, platform, fleet.LabelMembershipTypeDynamic)
 	} else {
 		// Retrieve all labels (with matching platform) iff there is a label
 		// that has been created since this host last reported label query
@@ -300,7 +300,7 @@ func (d *Datastore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map
 			AND (platform = ? OR platform = '')
 			AND label_membership_type = ?
 `
-		rows, err = d.db.Query(
+		rows, err = d.reader.Query(
 			sql,
 			platform,
 			host.LabelUpdatedAt,
@@ -358,36 +358,44 @@ func (d *Datastore) RecordLabelQueryExecutions(host *fleet.Host, results map[uin
 		}
 	}
 
-	// Complete inserts if necessary
-	if len(vals) > 0 {
-		sql := `
-			INSERT INTO label_membership (updated_at, label_id, host_id) VALUES
-		`
-		sql += strings.Join(bindvars, ",") +
-			`
-			ON DUPLICATE KEY UPDATE
-			updated_at = VALUES(updated_at)
-		`
+	if len(vals) > 0 || len(removes) > 0 {
+		err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+			// Complete inserts if necessary
+			if len(vals) > 0 {
+				sql := `
+        INSERT IGNORE INTO label_membership (updated_at, label_id, host_id) VALUES
+        `
+				sql += strings.Join(bindvars, ",") +
+					`
+          ON DUPLICATE KEY UPDATE
+          updated_at = VALUES(updated_at)
+        `
 
-		_, err := d.db.Exec(sql, vals...)
-		if err != nil {
-			return errors.Wrapf(err, "insert label query executions (%v)", vals)
-		}
-	}
+				_, err := tx.Exec(sql, vals...)
+				if err != nil {
+					return errors.Wrapf(err, "insert label query executions (%v)", vals)
+				}
+			}
 
-	// Complete deletions if necessary
-	if len(removes) > 0 {
-		sql := `
+			// Complete deletions if necessary
+			if len(removes) > 0 {
+				sql := `
 			DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)
 		`
-		query, args, err := sqlx.In(sql, host.ID, removes)
+				query, args, err := sqlx.In(sql, host.ID, removes)
+				if err != nil {
+					return errors.Wrap(err, "IN for DELETE FROM label_membership")
+				}
+				query = tx.Rebind(query)
+				_, err = tx.Exec(query, args...)
+				if err != nil {
+					return errors.Wrap(err, "delete label query executions")
+				}
+			}
+			return nil
+		})
 		if err != nil {
-			return errors.Wrap(err, "IN for DELETE FROM label_membership")
-		}
-		query = d.db.Rebind(query)
-		_, err = d.db.Exec(query, args...)
-		if err != nil {
-			return errors.Wrap(err, "delete label query executions")
+			return err
 		}
 	}
 
@@ -403,7 +411,7 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]*fleet.Label, error) {
 	`
 
 	labels := []*fleet.Label{}
-	err := d.db.Select(&labels, sqlStatement, hid)
+	err := d.reader.Select(&labels, sqlStatement, hid)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting host labels")
 	}
@@ -432,7 +440,7 @@ func (d *Datastore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt flee
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 	hosts := []*fleet.Host{}
-	err := d.db.Select(&hosts, sql, params...)
+	err := d.reader.Select(&hosts, sql, params...)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting label query executions")
 	}
@@ -458,9 +466,9 @@ func (d *Datastore) ListUniqueHostsInLabels(filter fleet.TeamFilter, labels []ui
 		return nil, errors.Wrap(err, "building query listing unique hosts in labels")
 	}
 
-	query = d.db.Rebind(query)
+	query = d.reader.Rebind(query)
 	hosts := []*fleet.Host{}
-	err = d.db.Select(&hosts, query, args...)
+	err = d.reader.Select(&hosts, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing unique hosts in labels")
 	}
@@ -484,7 +492,6 @@ func (d *Datastore) searchLabelsWithOmits(filter fleet.TeamFilter, query string,
 			)
 			AND id NOT IN (?)
 			ORDER BY label_type DESC, id ASC
-			LIMIT 10
 		`, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
@@ -493,10 +500,10 @@ func (d *Datastore) searchLabelsWithOmits(filter fleet.TeamFilter, query string,
 		return nil, errors.Wrap(err, "building query for labels with omits")
 	}
 
-	sql = d.db.Rebind(sql)
+	sql = d.reader.Rebind(sql)
 
 	matches := []*fleet.Label{}
-	err = d.db.Select(&matches, sql, args...)
+	err = d.reader.Select(&matches, sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting labels with omits")
 	}
@@ -528,7 +535,7 @@ func (d *Datastore) addAllHostsLabelToList(filter fleet.TeamFilter, labels []*fl
 	)
 
 	var allHosts fleet.Label
-	if err := d.db.Get(&allHosts, sql, fleet.LabelTypeBuiltIn); err != nil {
+	if err := d.reader.Get(&allHosts, sql, fleet.LabelTypeBuiltIn); err != nil {
 		return nil, errors.Wrap(err, "get all hosts label")
 	}
 
@@ -558,7 +565,6 @@ func (d *Datastore) searchLabelsDefault(filter fleet.TeamFilter, omit ...uint) (
 			WHERE id NOT IN (?)
 			GROUP BY id
 			ORDER BY label_type DESC, id ASC
-			LIMIT 7
 		`, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
@@ -577,8 +583,8 @@ func (d *Datastore) searchLabelsDefault(filter fleet.TeamFilter, omit ...uint) (
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default labels")
 	}
-	sql = d.db.Rebind(sql)
-	if err := d.db.Select(&labels, sql, args...); err != nil {
+	sql = d.reader.Rebind(sql)
+	if err := d.reader.Select(&labels, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "searching default labels rebound")
 	}
 
@@ -615,12 +621,11 @@ func (d *Datastore) SearchLabels(filter fleet.TeamFilter, query string, omit ...
 				MATCH(name) AGAINST(? IN BOOLEAN MODE)
 			)
 			ORDER BY label_type DESC, id ASC
-			LIMIT 10
 		`, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	matches := []*fleet.Label{}
-	if err := d.db.Select(&matches, sql, transformedQuery); err != nil {
+	if err := d.reader.Select(&matches, sql, transformedQuery); err != nil {
 		return nil, errors.Wrap(err, "selecting labels for search")
 	}
 
@@ -648,7 +653,7 @@ func (d *Datastore) LabelIDsByName(labels []string) ([]uint, error) {
 	}
 
 	var labelIDs []uint
-	if err := d.db.Select(&labelIDs, sql, args...); err != nil {
+	if err := d.reader.Select(&labelIDs, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "get label IDs")
 	}
 

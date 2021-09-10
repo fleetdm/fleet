@@ -18,7 +18,7 @@ As with any enterprise software update, it's a good idea to back up your MySQL d
 
 ## Updating the Fleet binary
 
-To update to a new version of Fleet, follow the [same binary install instructions](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/1-Installation.md) from the original installation method you used to install Fleet.
+To update to a new version of Fleet, follow the [same binary install instructions](../2-Deploying/1-Installation.md) from the original installation method you used to install Fleet.
 
 ### Raw binaries
 
