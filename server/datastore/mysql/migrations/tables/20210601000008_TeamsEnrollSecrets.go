@@ -71,6 +71,7 @@ func Up_20210601000008(tx *sql.Tx) error {
 		ALTER TABLE enroll_secrets
 		DROP COLUMN active,
 		DROP COLUMN name,
+		ADD PRIMARY KEY (secret),
 		ADD UNIQUE INDEX (secret)
 	`
 	if _, err := tx.Exec(sql); err != nil {
