@@ -362,10 +362,5 @@ func (d *Datastore) InsertCVEForCPE(cve string, cpes []string) error {
 }
 
 func (d *Datastore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
-	software, err := listSoftwareDB(d.reader, nil, teamId, opt)
-	if err != nil {
-		return nil, err
-	}
-
-	return software, nil
+	return listSoftwareDB(d.reader, nil, teamId, opt)
 }
