@@ -32,7 +32,7 @@ describe("Teams flow", () => {
       .click()
       .type("{selectall}{backspace}apiVersion: v1{enter}kind: options");
 
-    cy.findByRole("button", { name: /save/i }).click();
+    cy.findByRole("button", { name: /save options/i }).click();
 
     cy.visit("/settings/teams/1/options");
 

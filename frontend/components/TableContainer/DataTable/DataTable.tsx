@@ -162,9 +162,9 @@ const DataTable = ({
   const onSingleRowClick = useCallback(
     (row) => {
       if (disableMultiRowSelect) {
-        toggleAllRowsSelected(false);
         row.toggleRowSelected();
         onSelectSingleRow && onSelectSingleRow(row);
+        toggleAllRowsSelected(false);
       }
     },
     [disableMultiRowSelect]

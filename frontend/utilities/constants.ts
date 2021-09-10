@@ -73,6 +73,10 @@ export const DEFAULT_QUERY = {
   observer_can_run: false,
   author_name: "",
   updated_at: "",
+  created_at: "",
+  saved: false,
+  author_id: 0,
+  packs: [],
 };
 
 export const DEFAULT_CAMPAIGN = {
@@ -109,6 +113,8 @@ export const DEFAULT_CAMPAIGN_STATE = {
   targetsError: null,
   campaign: { ...DEFAULT_CAMPAIGN },
 };
+
+// as returned by the TARGETS API; based on display_text
 export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
   "All Hosts": "All Hosts",
   "All Linux": "Linux",
@@ -138,7 +144,7 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
   "Ubuntu Linux": "platform",
 };
 
-export const PLATFORM_OPTIONS = [
+export const PLATFORM_DROPDOWN_OPTIONS = [
   { label: "All", value: "" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },

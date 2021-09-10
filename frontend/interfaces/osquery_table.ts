@@ -17,6 +17,9 @@ interface ITableColumn {
   description: string;
   name: string;
   type: string;
+  hidden: boolean;
+  required: boolean;
+  index: boolean;
 }
 
 export interface IOsqueryTable {
@@ -24,4 +27,8 @@ export interface IOsqueryTable {
   description: string;
   name: string;
   platform: string;
+  url: string;
+  platforms: string[];
+  evented: boolean;
+  cacheable: boolean;
 }
