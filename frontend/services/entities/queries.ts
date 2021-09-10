@@ -19,7 +19,7 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  load: (id: string) => {
+  load: (id: number) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 
@@ -30,11 +30,20 @@ export default {
 
     return sendRequest("GET", QUERIES);
   },
-  run: async ({ query, selected }: { query: string; selected: any }) => {
+  run: async ({
+    query,
+    queryId,
+    selected,
+  }: {
+    query: string;
+    queryId: number | null;
+    selected: any;
+  }) => {
     const { RUN_QUERY } = endpoints;
 
     const { campaign } = await sendRequest("POST", RUN_QUERY, {
       query,
+      query_id: queryId,
       selected,
     });
     return {

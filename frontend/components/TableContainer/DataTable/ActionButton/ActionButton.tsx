@@ -14,7 +14,7 @@ const baseClass = "action-button";
 export interface IActionButtonProps {
   name: string;
   buttonText: string;
-  onActionButtonClick: (targetIds: number[]) => void | undefined;
+  onActionButtonClick: (ids: number[]) => void | undefined;
   targetIds?: number[]; // TODO figure out undefined case
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);

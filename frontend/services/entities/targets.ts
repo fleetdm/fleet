@@ -6,7 +6,7 @@ import { ITeam } from "interfaces/team";
 
 interface ITargetsProps {
   query?: string;
-  queryId?: string | null;
+  queryId?: number | null;
   selected?: {
     hosts: IHost[];
     labels: ILabel[];
@@ -30,7 +30,7 @@ export default {
 
     return sendRequest("POST", TARGETS, {
       query,
-      queryId,
+      query_id: queryId,
       selected,
     });
   },

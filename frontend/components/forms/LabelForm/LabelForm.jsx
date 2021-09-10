@@ -6,7 +6,6 @@ import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
-import helpers from "components/forms/queries/QueryForm/helpers";
 import InputField from "components/forms/fields/InputField";
 import FleetAce from "components/FleetAce";
 import validate from "components/forms/LabelForm/validate";
@@ -19,6 +18,14 @@ const PLATFORM_STRINGS = {
   ubuntu: "Ubuntu Linux",
   centos: "CentOS Linux",
 };
+
+const platformOptions = [
+  { label: "All Platforms", value: "" },
+  { label: "macOS", value: "darwin" },
+  { label: "Windows", value: "windows" },
+  { label: "Ubuntu", value: "ubuntu" },
+  { label: "Centos", value: "centos" },
+];
 
 class LabelForm extends Component {
   static propTypes = {
@@ -123,7 +130,7 @@ class LabelForm extends Component {
             <label className="form-field__label" htmlFor="platform">
               Platform
             </label>
-            <Dropdown {...fields.platform} options={helpers.platformOptions} />
+            <Dropdown {...fields.platform} options={platformOptions} />
           </div>
         )}
         {isEdit && platform && (
