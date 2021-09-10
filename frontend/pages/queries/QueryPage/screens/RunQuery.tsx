@@ -134,7 +134,7 @@ const RunQuery = ({
   };
 
   const onRunQuery = debounce(async () => {
-    const sql = !!queryIdForEdit ? storedQuery?.query : typedQueryBody;
+    const sql = queryIdForEdit ? storedQuery?.query : typedQueryBody;
 
     if (!sql) {
       dispatch(
@@ -152,12 +152,12 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      const returnedCampaign = await queryAPI.run({ 
-        query: sql, 
+      const returnedCampaign = await queryAPI.run({
+        query: sql,
         queryId: queryIdForEdit,
-        selected 
+        selected,
       });
-      
+
       connectAndRunLiveQuery(returnedCampaign);
     } catch (campaignError: any) {
       if (campaignError === "resource already created") {

@@ -38,7 +38,7 @@ const QueryPage = ({
   params: { id: paramsQueryId },
   location: { query: URLQuerySearch },
 }: IQueryPageProps) => {
-  const queryIdForEdit = !!paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
   const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext

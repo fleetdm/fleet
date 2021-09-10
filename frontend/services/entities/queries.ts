@@ -30,12 +30,12 @@ export default {
 
     return sendRequest("GET", QUERIES);
   },
-  run: async ({ 
-    query, 
+  run: async ({
+    query,
     queryId,
-    selected, 
-  }: { 
-    query: string; 
+    selected,
+  }: {
+    query: string;
     queryId: number | null;
     selected: any;
   }) => {
