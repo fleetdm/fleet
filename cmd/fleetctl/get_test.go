@@ -418,8 +418,8 @@ func TestGetSoftawre(t *testing.T) {
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
 		Vulnerabilities: fleet.VulnerabilitiesSlice{
-			{"cve-321-432-543", "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
-			{"cve-333-444-555", "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
+			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
+			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
