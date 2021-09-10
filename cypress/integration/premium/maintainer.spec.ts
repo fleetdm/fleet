@@ -29,9 +29,7 @@ describe(
 
       cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-      cy.get("thead").within(() => {
-        cy.findByText(/team/i).should("exist");
-      });
+      cy.findByText(/show enroll secret/i).should("exist");
 
       cy.contains("button", /add new host/i).click();
       // TODO: Check Team Apples is in Select a team dropdown
