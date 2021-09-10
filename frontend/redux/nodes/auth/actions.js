@@ -232,7 +232,9 @@ export const logoutUser = () => {
 
     return Fleet.sessions
       .destroy()
-      .then(() => dispatch(logoutSuccess))
+      .then(() => {
+        dispatch(logoutSuccess);
+      })
       .catch((error) => {
         dispatch(logoutFailure({ base: "Unable to log out of your account" }));
 

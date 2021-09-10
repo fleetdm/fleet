@@ -1,4 +1,27 @@
 .query-side-panel {
+  position: relative;
+  overflow: unset !important; // was unnecessary and broke close button positioning
+
+  &__close-button {
+    width: 24px;
+    height: 24px;
+    border: 1px solid $ui-fleet-black-25;
+    border-radius: 12px;
+    background-color: $core-white;
+    position: absolute;
+    top: 40px;
+    left: -12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 9999;
+
+    img {
+      transform: scale(0.5);
+    }
+  }
+
   &__header {
     margin: 0 0 $pad-small;
     font-size: $x-small;
@@ -95,7 +118,7 @@
     align-items: center;
     justify-content: space-between;
     color: $core-fleet-black;
-    font-size: px-to-rem(14);
+    font-size: $x-small;
     padding: $pad-small 0;
 
     &:first-of-type {
