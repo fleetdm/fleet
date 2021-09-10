@@ -87,7 +87,7 @@ yargs(hideBin(process.argv))
         },
         tier: {
           description: "License tier",
-          default: "basic",
+          default: "premium",
           type: "string",
         },
       });

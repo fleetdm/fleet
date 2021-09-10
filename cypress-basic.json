@@ -1,5 +1,0 @@
-{
-  "baseUrl": "https://localhost:8642",
-  "fixturesFolder": false,
-  "testFiles": "{all,basic}/**/*.spec.ts"
-}

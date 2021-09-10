@@ -20,20 +20,34 @@ func TestLoadPublicKey(t *testing.T) {
 func TestLoadLicense(t *testing.T) {
 	t.Parallel()
 
-	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw"
+	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQxMDEzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6InByZW1pdW0iLCJpYXQiOjE2MzA0MjE2MTh9.KwTeOvr5FE-9yEyVmugEyMyGPG43t_VqIx5dJzI0zlG3t5FoFQUHSePBafzlhXuyH_u5NJnL0RsrHU21nUY8kg"
 	license, err := LoadLicense(key)
 	require.NoError(t, err)
 	assert.Equal(t,
 		&fleet.LicenseInfo{
-			Tier:         fleet.TierBasic,
-			Organization: "development",
+			Tier:         fleet.TierPremium,
+			Organization: "Dev license",
 			DeviceCount:  100,
-			Expiration:   time.Unix(1640995200, 0),
+			Expiration:   time.Unix(1641013200, 0),
 			Note:         "for development only",
 		},
 		license,
 	)
-	assert.Equal(t, fleet.TierBasic, license.Tier)
+	assert.Equal(t, fleet.TierPremium, license.Tier)
+	assert.True(t, license.IsPremium())
+}
+
+func TestLoadBasicLicense(t *testing.T) {
+	t.Parallel()
+
+	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw"
+	license, err := LoadLicense(key)
+	require.NoError(t, err)
+	assert.Equal(t, "development", license.Organization)
+	assert.Equal(t, 100, license.DeviceCount)
+	assert.Equal(t, time.Unix(1640995200, 0), license.Expiration, "development")
+	assert.Equal(t, "for development only", license.Note)
+	assert.True(t, license.IsPremium())
 }
 
 func TestLoadLicenseExpired(t *testing.T) {

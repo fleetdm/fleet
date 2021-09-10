@@ -1,7 +1,7 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { push, goBack } from "react-router-redux";
+import { goBack, push, replace } from "react-router-redux";
 import { find, isEmpty, memoize, omit } from "lodash";
 
 import Button from "components/buttons/Button";
@@ -12,6 +12,7 @@ import LabelForm from "components/forms/LabelForm";
 import Modal from "components/modals/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
 import labelInterface from "interfaces/label";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
@@ -127,7 +128,7 @@ export class ManageHostsPage extends PureComponent {
     teams: PropTypes.arrayOf(teamInterface),
     isGlobalAdmin: PropTypes.bool,
     isOnGlobalTeam: PropTypes.bool,
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
     currentUser: userInterface,
     policyId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     policyResponse: PropTypes.oneOf([
@@ -181,6 +182,7 @@ export class ManageHostsPage extends PureComponent {
       searchQuery: "",
       hosts: [],
       isHostsLoading: true,
+      hostErrors: false,
       sortBy: initialSortBy,
       isConfigLoaded: !isEmpty(this.props.config),
       isTeamsLoaded: !isEmpty(this.props.teams),
@@ -213,12 +215,12 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentWillReceiveProps() {
-    const { config, dispatch, isBasicTier } = this.props;
+    const { config, dispatch, isPremiumTier } = this.props;
     const { isConfigLoaded, isTeamsLoaded, isTeamsLoading } = this.state;
     if (!isConfigLoaded && !isEmpty(config)) {
       this.setState({ isConfigLoaded: true });
     }
-    if (isConfigLoaded && isBasicTier && !isTeamsLoaded && !isTeamsLoading) {
+    if (isConfigLoaded && isPremiumTier && !isTeamsLoaded && !isTeamsLoading) {
       this.setState({ isTeamsLoading: true });
       dispatch(teamActions.loadAll({}))
         .then(() => {
@@ -379,7 +381,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -633,7 +635,6 @@ export class ManageHostsPage extends PureComponent {
   };
 
   retrieveHosts = async (options = {}) => {
-    const { dispatch } = this.props;
     const { getValidatedTeamId } = this;
 
     this.setState({ isHostsLoading: true });
@@ -648,9 +649,7 @@ export class ManageHostsPage extends PureComponent {
       this.setState({ hosts });
     } catch (error) {
       console.log(error);
-      dispatch(
-        renderFlash("error", "Sorry, we could not retrieve your hosts.")
-      );
+      this.setState({ hostErrors: true });
     } finally {
       this.setState({ isHostsLoading: false });
     }
@@ -727,7 +726,7 @@ export class ManageHostsPage extends PureComponent {
     });
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -760,7 +759,7 @@ export class ManageHostsPage extends PureComponent {
       teamId: selectedTeam,
     });
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -806,7 +805,7 @@ export class ManageHostsPage extends PureComponent {
         ? omit(queryParams, "team_id")
         : Object.assign({}, queryParams, { team_id: teamIdParam }),
     });
-    dispatch(push(nextLocation));
+    dispatch(replace(nextLocation));
   };
 
   handleLabelChange = ({ slug }) => {
@@ -843,7 +842,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: isAllHosts
             ? MANAGE_HOSTS
@@ -867,7 +866,7 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderTeamsFilterDropdown = () => {
-    const { isBasicTier, selectedTeam, teams } = this.props;
+    const { isPremiumTier, selectedTeam, teams } = this.props;
     const { isConfigLoaded, isTeamsLoaded } = this.state;
     const {
       generateTeamFilterDropdownOptions,
@@ -875,11 +874,11 @@ export class ManageHostsPage extends PureComponent {
       handleChangeSelectedTeamFilter,
     } = this;
 
-    if (!isConfigLoaded || (isBasicTier && !isTeamsLoaded)) {
+    if (!isConfigLoaded || (isPremiumTier && !isTeamsLoaded)) {
       return null;
     }
 
-    if (!isBasicTier) {
+    if (!isPremiumTier) {
       return <h1>Hosts</h1>;
     }
 
@@ -947,7 +946,7 @@ export class ManageHostsPage extends PureComponent {
   renderEnrollSecretModal = () => {
     const { toggleEnrollSecretModal } = this;
     const { showEnrollSecretModal } = this.state;
-    const { canEnrollHosts, teams, selectedTeam, isBasicTier } = this.props;
+    const { canEnrollHosts, teams, selectedTeam, isPremiumTier } = this.props;
 
     if (!canEnrollHosts || !showEnrollSecretModal) {
       return null;
@@ -963,7 +962,7 @@ export class ManageHostsPage extends PureComponent {
           selectedTeam={selectedTeam}
           teams={teams}
           onReturnToApp={toggleEnrollSecretModal}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
         />
       </Modal>
     );
@@ -1206,6 +1205,7 @@ export class ManageHostsPage extends PureComponent {
       isAllMatchingHostsSelected,
       hosts,
       isHostsLoading,
+      hostErrors,
       isConfigLoaded,
       sortBy,
     } = this.state;
@@ -1225,6 +1225,10 @@ export class ManageHostsPage extends PureComponent {
       selectedLabel === undefined
     ) {
       return null;
+    }
+
+    if (hostErrors) {
+      return <TableDataError />;
     }
 
     // Hosts have not been set up for this instance yet.
@@ -1286,7 +1290,7 @@ export class ManageHostsPage extends PureComponent {
       isEditLabel,
       loadingLabels,
       canAddNewHosts,
-      isBasicTier,
+      isPremiumTier,
       canEnrollHosts,
     } = this.props;
     const { isConfigLoaded, isTeamsLoaded } = this.state;
@@ -1319,7 +1323,9 @@ export class ManageHostsPage extends PureComponent {
               </div>
             </div>
             {renderLabelOrPolicyBlock()}
-            {isConfigLoaded && (!isBasicTier || isTeamsLoaded) && renderTable()}
+            {isConfigLoaded &&
+              (!isPremiumTier || isTeamsLoaded) &&
+              renderTable()}
           </div>
         )}
         {!loadingLabels && renderSidePanel()}
@@ -1374,7 +1380,7 @@ const mapStateToProps = (state, ownProps) => {
   const teams = memoizedGetEntity(state.entities.teams.data);
 
   // If there is no team_id, set selectedTeam to 0 so dropdown defaults to "All teams"
-  const selectedTeam = location.query?.team_id || 0;
+  const selectedTeam = parseInt(location.query?.team_id, 10) || 0;
 
   const currentUser = state.auth.user;
   const canAddNewHosts =
@@ -1384,13 +1390,14 @@ const mapStateToProps = (state, ownProps) => {
   const canEnrollHosts =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser) ||
-    (permissionUtils.isAnyTeamMaintainer(currentUser) && selectedTeam !== 0);
+    (selectedTeam !== 0 &&
+      permissionUtils.isTeamMaintainer(currentUser, selectedTeam));
   const canAddNewLabels =
     permissionUtils.isGlobalAdmin(currentUser) ||
     permissionUtils.isGlobalMaintainer(currentUser);
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
   const isOnGlobalTeam = permissionUtils.isOnGlobalTeam(currentUser);
-  const isBasicTier = permissionUtils.isBasicTier(config);
+  const isPremiumTier = permissionUtils.isPremiumTier(config);
 
   return {
     selectedFilters,
@@ -1413,7 +1420,7 @@ const mapStateToProps = (state, ownProps) => {
     canAddNewLabels,
     isGlobalAdmin,
     isOnGlobalTeam,
-    isBasicTier,
+    isPremiumTier,
     teams,
     selectedTeam,
     policyId,

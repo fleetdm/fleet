@@ -176,6 +176,8 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
 	c.SMTPSettings.SMTPVerifySSLCerts = true
 	c.SMTPSettings.SMTPEnableTLS = true
+	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
+	c.AgentOptions = &agentOptions
 
 	c.ApplyDefaults()
 }
@@ -268,15 +270,18 @@ type EnrollSecretSpec struct {
 }
 
 const (
-	// TierBasic is Fleet Basic aka the paid license.
-	TierBasic = "basic"
-	// TierCore is Fleet Core aka the free license.
-	TierCore = "core"
+	// tierBasic is for backward compatibility with previous tier names
+	tierBasic = "basic"
+
+	// TierPremium is Fleet Premium aka the paid license.
+	TierPremium = "premium"
+	// TierFree is Fleet Free aka the free license.
+	TierFree = "free"
 )
 
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
-	// Tier is the license tier (currently "core" or "basic")
+	// Tier is the license tier (currently "free" or "premium")
 	Tier string `json:"tier"`
 	// Organization is the name of the licensed organization.
 	Organization string `json:"organization,omitempty"`
@@ -286,6 +291,14 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+}
+
+func (l *LicenseInfo) IsPremium() bool {
+	return l.Tier == TierPremium || l.Tier == tierBasic
+}
+
+func (l *LicenseInfo) IsExpired() bool {
+	return l.Expiration.Before(time.Now())
 }
 
 const (

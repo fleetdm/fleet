@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	redigo "github.com/gomodule/redigo/redis"
@@ -22,7 +23,7 @@ func SetupRedisForTest(t *testing.T, cluster bool) (store *redisQueryResults, te
 	}
 	addr += port
 
-	pool, err := redis.NewRedisPool(addr, password, database, useTLS)
+	pool, err := redis.NewRedisPool(addr, password, database, useTLS, 5*time.Second, 10*time.Second)
 	require.NoError(t, err)
 	store = NewRedisQueryResults(pool, dupResults)
 

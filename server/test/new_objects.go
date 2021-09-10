@@ -21,11 +21,11 @@ func NewQuery(t *testing.T, ds fleet.Datastore, name, q string, authorID uint, s
 		AuthorID: authorPtr,
 		Saved:    saved,
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Loading gives us the timestamps
 	query, err = ds.Query(query.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	return query
 }
@@ -37,7 +37,7 @@ func NewPack(t *testing.T, ds fleet.Datastore, name string) *fleet.Pack {
 	// Loading gives us the timestamps
 	pack, ok, err := ds.PackByName(name)
 	require.True(t, ok)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	return pack
 }
@@ -52,11 +52,11 @@ func NewCampaign(t *testing.T, ds fleet.Datastore, queryID uint, status fleet.Di
 		QueryID: queryID,
 		Status:  status,
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Loading gives us the timestamps
 	campaign, err = ds.DistributedQueryCampaign(campaign.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	return campaign
 }
@@ -68,7 +68,7 @@ func AddHostToCampaign(t *testing.T, ds fleet.Datastore, campaignID, hostID uint
 			TargetID:                   hostID,
 			DistributedQueryCampaignID: campaignID,
 		})
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func AddLabelToCampaign(t *testing.T, ds fleet.Datastore, campaignID, labelID uint) {
@@ -78,7 +78,7 @@ func AddLabelToCampaign(t *testing.T, ds fleet.Datastore, campaignID, labelID ui
 			TargetID:                   labelID,
 			DistributedQueryCampaignID: campaignID,
 		})
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
@@ -90,7 +90,7 @@ func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 		},
 	)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now time.Time) *fleet.Host {
@@ -105,9 +105,9 @@ func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now t
 		OsqueryHostID:   osqueryHostID,
 	})
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotZero(t, h.ID)
-	require.Nil(t, ds.MarkHostSeen(h, now))
+	require.NoError(t, ds.MarkHostSeen(h, now))
 
 	return h
 }
@@ -125,7 +125,7 @@ func NewUser(t *testing.T, ds fleet.Datastore, name, email string, admin bool) *
 		GlobalRole: &role,
 	})
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotZero(t, u.ID)
 
 	return u
@@ -140,7 +140,7 @@ func NewScheduledQuery(t *testing.T, ds fleet.Datastore, pid, qid, interval uint
 		Snapshot: &snapshot,
 		Removed:  &removed,
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotZero(t, sq.ID)
 
 	return sq

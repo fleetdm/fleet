@@ -128,8 +128,12 @@ fleetctl updates roots
 
 This output is _not sensitive_ and will be shared in agent deployments to verify the contents of updates and metadata. Provide the JSON output in the `--update-roots` flag of the [Orbit packager](https://github.com/fleetdm/orbit#packaging):
 
-For example:
 
-```
-go run ./cmd/package --type pkg --enroll-secret=ZB3QfaItRRUjlGo+LctfOMzLTjjyxLdg --fleet-url=https://localhost:8080 --update-url=http://localhost:8000 --update-roots='[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"9aac6f59f0e3f2f4ef6f789e4eff058af27db3743eaa6a47a228f23e5a1ad4d7"}}]' --insecure
-```
+### Packaging with Orbit
+
+See [Orbit Docs](https://github.com/fleetdm/fleet/blob/main/orbit/README.md) for more details
+
+You can use `fleetctl package` to generate installer packages of Orbit (a bootstrapped OSQuery wrapper) to integrate with your Fleet instance.
+
+For example running `fleetctl package --type deb --fleet-url=<fleet url> --enroll-secret=<enroll secret>` will build a `.deb` installer with everything needed
+to communicate with your fleet instance.

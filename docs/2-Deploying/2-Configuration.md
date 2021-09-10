@@ -133,7 +133,7 @@ All duration-based settings accept valid time units of `s`, `m`, `h`.
 
 This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for fleet to use a read replica.
 
-###### `mysql_address`
+###### mysql_address
 
 The address of the MySQL server which Fleet should connect to. Include the hostname and port.
 
@@ -146,7 +146,7 @@ The address of the MySQL server which Fleet should connect to. Include the hostn
   	address: localhost:3306
   ```
 
-###### `mysql_database`
+###### mysql_database
 
 The name of the MySQL database which Fleet will use.
 
@@ -159,7 +159,7 @@ The name of the MySQL database which Fleet will use.
   	database: fleet
   ```
 
-###### `mysql_username`
+###### mysql_username
 
 The username to use when connecting to the MySQL instance.
 
@@ -172,7 +172,7 @@ The username to use when connecting to the MySQL instance.
   	username: fleet
   ```
 
-###### `mysql_password`
+###### mysql_password
 
 The password to use when connecting to the MySQL instance.
 
@@ -185,7 +185,7 @@ The password to use when connecting to the MySQL instance.
   	password: fleet
   ```
 
-##### `mysql_password_path`
+###### mysql_password_path
 
 File path to a file that contains the password to use when connecting to the MySQL instance.
 
@@ -198,7 +198,7 @@ File path to a file that contains the password to use when connecting to the MyS
   	password_path: '/run/secrets/fleetdm-mysql-password'
   ```
 
-##### `mysql_tls_ca`
+###### mysql_tls_ca
 
 The path to a PEM encoded certificate of MYSQL's CA for client certificate authentication.
 
@@ -211,7 +211,7 @@ The path to a PEM encoded certificate of MYSQL's CA for client certificate authe
   	tls_ca: /path/to/server-ca.pem
   ```
 
-###### `mysql_tls_cert`
+###### mysql_tls_cert
 
 The path to a PEM encoded certificate use for tls authentication.
 
@@ -224,7 +224,7 @@ The path to a PEM encoded certificate use for tls authentication.
   	tls_cert: /path/to/certificate.pem
   ```
 
-###### `mysql_tls_key`
+###### mysql_tls_key
 
 The path to a PEM encoded private key use for tls authentication.
 
@@ -237,7 +237,7 @@ The path to a PEM encoded private key use for tls authentication.
   	tls_key: /path/to/key.pem
   ```
 
-###### `mysql_tls_config`
+###### mysql_tls_config
 
 The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN value of the certificate.
 
@@ -250,7 +250,7 @@ The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN valu
   	tls_config: true
   ```
 
-###### `mysql_tls_server_name`
+###### mysql_tls_server_name
 
 The server name or IP address used by the client certificate.
 
@@ -263,7 +263,7 @@ The server name or IP address used by the client certificate.
   	servername: 127.0.0.1
   ```
 
-###### `mysql_max_open_conns`
+###### mysql_max_open_conns
 
 Maximum open connections to database
 
@@ -276,7 +276,7 @@ Maximum open connections to database
   	max_open_conns: 50
   ```
 
-###### `mysql_max_idle_conns`
+###### mysql_max_idle_conns
 
 Maximum idle connections to database. This value should be equal to or less than `mysql_max_open_conns`
 
@@ -289,7 +289,7 @@ Maximum idle connections to database. This value should be equal to or less than
   	max_idle_conns: 50
   ```
 
-###### `conn_max_lifetime`
+###### conn_max_lifetime
 
 Maximum amount of time, in seconds, a connection may be reused.
 
@@ -304,7 +304,7 @@ Maximum amount of time, in seconds, a connection may be reused.
 
 ##### Redis
 
-###### `redis_address`
+###### redis_address
 
 The address of the Redis server which Fleet should connect to. Include the hostname and port.
 
@@ -317,7 +317,7 @@ The address of the Redis server which Fleet should connect to. Include the hostn
   	address: 127.0.0.1:7369
   ```
 
-###### `redis_password`
+###### redis_password
 
 The password to use when connecting to the Redis instance.
 
@@ -330,7 +330,7 @@ The password to use when connecting to the Redis instance.
   	password: foobar
   ```
 
-###### `redis_database`
+###### redis_database
 
 The database to use when connecting to the Redis instance.
 
@@ -343,7 +343,7 @@ The database to use when connecting to the Redis instance.
     database: 14
   ```
 
-###### `redis_duplicate_results`
+###### redis_duplicate_results
 
 Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario that would involve shipping the Live Query results outside of Fleet, near-realtime.
 
@@ -356,9 +356,35 @@ Whether or not to duplicate Live Query results to another Redis channel named `L
     duplicate_results: true
   ```
 
+###### redis_connect_timeout
+
+Timeout for redis connection. 
+
+- Default value: 5s
+- Environment variable: `FLEET_REDIS_CONNECT_TIMEOUT`
+- Config file format:
+
+  ```
+  redis:
+    connect_timeout: 10s
+  ```
+
+###### redis_keep_alive
+
+Interval between keep alive probes.
+
+- Default value: 10s
+- Environment variable: `FLEET_REDIS_KEEP_ALIVE`
+- Config file format:
+
+  ```
+  redis:
+    keep_alive: 30s
+  ```
+
 ##### Server
 
-###### `server_address`
+###### server_address
 
 The address to serve the Fleet webserver.
 
@@ -371,7 +397,7 @@ The address to serve the Fleet webserver.
   	address: 0.0.0.0:443
   ```
 
-###### `server_cert`
+###### server_cert
 
 The TLS cert to use when terminating TLS.
 
@@ -386,7 +412,7 @@ See [TLS certificate considerations](./1-Installation.md#tls-certificate-conside
   	cert: /tmp/fleet.crt
   ```
 
-###### `server_key`
+###### server_key
 
 The TLS key to use when terminating TLS.
 
@@ -399,7 +425,7 @@ The TLS key to use when terminating TLS.
   	key: /tmp/fleet.key
   ```
 
-###### `server_tls`
+###### server_tls
 
 Whether or not the server should be served over TLS.
 
@@ -412,7 +438,7 @@ Whether or not the server should be served over TLS.
   	tls: false
   ```
 
-###### `server_tls_compatibility`
+###### server_tls_compatibility
 
 Configures the TLS settings for compatibility with various user agents. Options are `modern` and `intermediate`. These correspond to the compatibility levels [defined by the Mozilla OpSec team](https://wiki.mozilla.org/index.php?title=Security/Server_Side_TLS&oldid=1229478) (updated July 24, 2020).
 
@@ -425,7 +451,7 @@ Configures the TLS settings for compatibility with various user agents. Options 
   	tls_compatibility: intermediate
   ```
 
-###### `server_url_prefix`
+###### server_url_prefix
 
 Sets a URL prefix to use when serving the Fleet API and frontend. Prefixes should be in the form `/apps/fleet` (no trailing slash).
 
@@ -440,7 +466,7 @@ Note that some other configurations may need to be changed when modifying the UR
   	url_prefix: /apps/fleet
   ```
 
-###### `server_keepalive`
+###### server_keepalive
 
 Controls the server side http keep alive property.
 
@@ -457,7 +483,7 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
 
 ##### Auth
 
-##### `auth_bcrypt_cost`
+###### auth_bcrypt_cost
 
 The bcrypt cost to use when hashing user passwords.
 
@@ -470,7 +496,7 @@ The bcrypt cost to use when hashing user passwords.
   	bcrypt_cost: 14
   ```
 
-###### `auth_salt_key_size`
+###### auth_salt_key_size
 
 The key size of the salt which is generated when hashing user passwords.
 
@@ -485,7 +511,7 @@ The key size of the salt which is generated when hashing user passwords.
 
 ##### App
 
-###### `app_token_key_size`
+###### app_token_key_size
 
 Size of generated app tokens.
 
@@ -498,7 +524,7 @@ Size of generated app tokens.
   	token_key_size: 36
   ```
 
-###### `app_invite_token_validity_period`
+###### app_invite_token_validity_period
 
 How long invite tokens should be valid for.
 
@@ -513,7 +539,7 @@ How long invite tokens should be valid for.
 
 ##### License
 
-###### `license_key`
+###### license_key
 
 The license key provided to Fleet customers which provides access to Fleet Premium features.
 
@@ -528,7 +554,7 @@ The license key provided to Fleet customers which provides access to Fleet Premi
 
 ##### Session
 
-###### `session_key_size`
+###### session_key_size
 
 The size of the session key.
 
@@ -541,7 +567,7 @@ The size of the session key.
   	key_size: 48
   ```
 
-###### `session_duration`
+###### session_duration
 
 The amount of time that a session should last for.
 
@@ -558,7 +584,7 @@ Valid time units are `s`, `m`, `h`.
 
 ##### Osquery
 
-###### `osquery_node_key_size`
+###### osquery_node_key_size
 
 The size of the node key which is negotiated with `osqueryd` clients.
 
@@ -571,7 +597,7 @@ The size of the node key which is negotiated with `osqueryd` clients.
   	node_key_size: 36
   ```
 
-###### `osquery_host_identifier`
+###### osquery_host_identifier
 
 The identifier to use when determining uniqueness of hosts.
 
@@ -590,7 +616,7 @@ Users that have duplicate UUIDs in their environment can benefit from setting th
   	host_identifier: uuid
   ```
 
-###### `osquery_enroll_cooldown`
+###### osquery_enroll_cooldown
 
 The cooldown period for host enrollment. If a host (uniquely identified by the `osquery_host_identifier` option) tries to enroll within this duration from the last enrollment, enroll will fail.
 
@@ -605,7 +631,7 @@ This flag can be used to control load on the database in scenarios in which many
   	enroll_cooldown: 1m
   ```
 
-###### `osquery_label_update_interval`
+###### osquery_label_update_interval
 
 The interval at which Fleet will ask osquery agents to update their results for label queries.
 
@@ -622,7 +648,7 @@ Valid time units are `s`, `m`, `h`.
   	label_update_interval: 30m
   ```
 
-###### `osquery_detail_update_interval`
+###### osquery_detail_update_interval
 
 The interval at which Fleet will ask osquery agents to update host details (such as uptime, hostname, network interfaces, etc.)
 
@@ -639,7 +665,7 @@ Valid time units are `s`, `m`, `h`.
   	detail_update_interval: 30m
   ```
 
-###### `osquery_status_log_plugin`
+###### osquery_status_log_plugin
 
 Which log output plugin should be used for osquery status logs received from clients.
 
@@ -654,7 +680,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
   	status_log_plugin: firehose
   ```
 
-###### `osquery_result_log_plugin`
+###### osquery_result_log_plugin
 
 Which log output plugin should be used for osquery result logs received from clients.
 
@@ -671,7 +697,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
 
 ##### Logging (Fleet server logging)
 
-###### `logging_debug`
+###### logging_debug
 
 Whether or not to enable debug logging.
 
@@ -684,7 +710,7 @@ Whether or not to enable debug logging.
   	debug: true
   ```
 
-###### `logging_json`
+###### logging_json
 
 Whether or not to log in JSON.
 
@@ -697,7 +723,7 @@ Whether or not to log in JSON.
   	json: true
   ```
 
-###### `logging_disable_banner`
+###### logging_disable_banner
 
 Whether or not to log the welcome banner.
 
@@ -712,7 +738,7 @@ Whether or not to log the welcome banner.
 
 ##### Filesystem
 
-###### `filesystem_status_log_file`
+###### filesystem_status_log_file
 
 This flag only has effect if `osquery_status_log_plugin` is set to `filesystem` (the default value).
 
@@ -727,7 +753,7 @@ The path which osquery status logs will be logged to.
   	status_log_file: /var/log/osquery/status.log
   ```
 
-###### `filesystem_result_log_file`
+###### filesystem_result_log_file
 
 This flag only has effect if `osquery_result_log_plugin` is set to `filesystem` (the default value).
 
@@ -742,7 +768,7 @@ The path which osquery result logs will be logged to.
   	result_log_file: /var/log/osquery/result.log
   ```
 
-###### `filesystem_enable_log_rotation`
+###### filesystem_enable_log_rotation
 
 This flag only has effect if `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
 
@@ -758,7 +784,7 @@ rotated when files reach a size of 500 Mb or an age of 28 days.
      enable_log_rotation: true
   ```
 
-###### `filesystem_enable_log_compression`
+###### filesystem_enable_log_compression
 
 This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
 
@@ -775,7 +801,7 @@ This flag will cause the rotated logs to be compressed with gzip.
 
 ##### Firehose
 
-###### `firehose_region`
+###### firehose_region
 
 This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
 
@@ -790,7 +816,7 @@ AWS region to use for Firehose connection
   	region: ca-central-1
   ```
 
-###### `firehose_access_key_id`
+###### firehose_access_key_id
 
 This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
 
@@ -807,7 +833,7 @@ AWS access key ID to use for Firehose authentication.
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-###### `firehose_secret_access_key`
+###### firehose_secret_access_key
 
 This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
 
@@ -822,7 +848,7 @@ AWS secret access key to use for Firehose authentication.
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-###### `firehose_sts_assume_role_arn`
+###### firehose_sts_assume_role_arn
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `firehose`.
@@ -838,7 +864,7 @@ AWS STS role ARN to use for Firehose authentication.
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
   ```
 
-###### `firehose_status_stream`
+###### firehose_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
 
@@ -859,7 +885,7 @@ the stream listed:
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
 
-###### `firehose_result_stream`
+###### firehose_result_stream
 
 This flag only has effect if `osquery_result_log_plugin` is set to `firehose`.
 
@@ -882,7 +908,7 @@ the stream listed:
 
 ##### Kinesis
 
-###### `kinesis_region`
+###### kinesis_region
 
 This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
 
@@ -897,7 +923,7 @@ AWS region to use for Kinesis connection
   	region: ca-central-1
   ```
 
-###### `kinesis_access_key_id`
+###### kinesis_access_key_id
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `kinesis`.
@@ -918,7 +944,7 @@ AWS access key ID to use for Kinesis authentication.
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-###### `kinesis_secret_access_key`
+###### kinesis_secret_access_key
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `kinesis`.
@@ -934,7 +960,7 @@ AWS secret access key to use for Kinesis authentication.
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-###### `kinesis_sts_assume_role_arn`
+###### kinesis_sts_assume_role_arn
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `kinesis`.
@@ -950,7 +976,7 @@ AWS STS role ARN to use for Kinesis authentication.
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
   ```
 
-###### `kinesis_status_stream`
+###### kinesis_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
 
@@ -971,7 +997,7 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
-###### `kinesis_result_stream`
+###### kinesis_result_stream
 
 This flag only has effect if `osquery_result_log_plugin` is set to `kinesis`.
 
@@ -994,7 +1020,7 @@ the stream listed:
 
 ##### Lambda
 
-###### `lambda_region`
+###### lambda_region
 
 This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
 
@@ -1009,7 +1035,7 @@ AWS region to use for Lambda connection
   	region: ca-central-1
   ```
 
-###### `lambda_access_key_id`
+###### lambda_access_key_id
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `lambda`.
@@ -1030,7 +1056,7 @@ AWS access key ID to use for Lambda authentication.
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-###### `lambda_secret_access_key`
+###### lambda_secret_access_key
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `lambda`.
@@ -1046,7 +1072,7 @@ AWS secret access key to use for Lambda authentication.
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-###### `lambda_sts_assume_role_arn`
+###### lambda_sts_assume_role_arn
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `lambda`.
@@ -1062,7 +1088,7 @@ AWS STS role ARN to use for Lambda authentication.
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
   ```
 
-###### `lambda_status_function`
+###### lambda_status_function
 
 This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
 
@@ -1082,7 +1108,7 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
-###### `lambda_result_function`
+###### lambda_result_function
 
 This flag only has effect if `osquery_result_log_plugin` is set to `lambda`.
 
@@ -1104,7 +1130,7 @@ the function listed:
 
 ##### PubSub
 
-###### `pubsub_project`
+###### pubsub_project
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1123,7 +1149,7 @@ for authentication with the service.
     project: my-gcp-project
   ```
 
-###### `pubsub_result_topic`
+###### pubsub_result_topic
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1138,7 +1164,7 @@ The identifier of the pubsub topic that client results will be published to.
     result_topic: osquery_result
   ```
 
-###### `pubsub_status_topic`
+###### pubsub_status_topic
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1153,7 +1179,7 @@ The identifier of the pubsub topic that osquery status logs will be published to
     status_topic: osquery_status
   ```
 
-###### `pubsub_add_attributes`
+###### pubsub_add_attributes
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1177,7 +1203,7 @@ This feature is useful when combined with [subscription filters](https://cloud.g
 
 ##### S3 file carving backend
 
-###### `s3_bucket`
+###### s3_bucket
 
 Name of the S3 bucket to use to store file carves.
 
@@ -1190,7 +1216,7 @@ Name of the S3 bucket to use to store file carves.
   	bucket: some-carve-bucket
   ```
 
-###### `s3_prefix`
+###### s3_prefix
 
 Prefix to prepend to carve objects.
 
@@ -1205,7 +1231,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
   	prefix: carves-go-here/
   ```
 
-###### `s3_access_key_id`
+###### s3_access_key_id
 
 AWS access key ID to use for S3 authentication.
 
@@ -1223,7 +1249,7 @@ The IAM identity used in this context must be allowed to perform the following a
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-###### `s3_secret_access_key`
+###### s3_secret_access_key
 
 AWS secret access key to use for S3 authentication.
 
@@ -1236,7 +1262,7 @@ AWS secret access key to use for S3 authentication.
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-###### `s3_sts_assume_role_arn`
+###### s3_sts_assume_role_arn
 
 AWS STS role ARN to use for S3 authentication.
 
@@ -1251,7 +1277,7 @@ AWS STS role ARN to use for S3 authentication.
 
 ##### Vulnerabilities
 
-###### `databases_path`
+###### databases_path
 
 The path specified needs to exist and fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
@@ -1266,7 +1292,7 @@ When `current_instance_checks` is set to `auto` (the default), Fleet instances w
   	databases_path: /some/path
   ```
 
-###### `periodicity`
+###### periodicity
 
 How often vulnerabilities are checked.
 
@@ -1279,7 +1305,7 @@ How often vulnerabilities are checked.
   	periodicity: 1hr
   ```
 
-###### `cpe_database_url`
+###### cpe_database_url
 
 URL to fetch the CPE dictionary database from. Some users want to control where fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
 
@@ -1292,7 +1318,7 @@ URL to fetch the CPE dictionary database from. Some users want to control where 
   	cpe_database_url: ""
   ```
 
-###### `cve_feed_prefix_url`
+###### cve_feed_prefix_url
 
 Similarly to the CPE dictionary, we allow users to define where to get the CVE feeds from. In this case, the url should be a host that serves the files in the path /feeds/json/cve/1.1/. Fleet expects to find there all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds. When not defined, Fleet downloads from the nvd.nist.gov host.
 
@@ -1305,7 +1331,7 @@ Similarly to the CPE dictionary, we allow users to define where to get the CVE f
   	cve_database_url: ""
   ```
 
-###### `current_instance_checks`
+###### current_instance_checks
 
 When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to no and one of them set to yes.
 

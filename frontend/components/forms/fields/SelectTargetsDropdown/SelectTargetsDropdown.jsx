@@ -21,7 +21,7 @@ class SelectTargetsDropdown extends Component {
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
     queryId: PropTypes.number,
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -201,12 +201,12 @@ class SelectTargetsDropdown extends Component {
       onTargetSelectMoreInfo,
       renderLabel,
     } = this;
-    const { disabled, onSelect, selectedTargets, isBasicTier } = this.props;
+    const { disabled, onSelect, selectedTargets, isPremiumTier } = this.props;
     const menuRenderer = Menu(
       onTargetSelectMoreInfo,
       moreInfoTarget,
       onBackToResults,
-      isBasicTier
+      isPremiumTier
     );
 
     const inputClasses = classnames({
@@ -229,7 +229,7 @@ class SelectTargetsDropdown extends Component {
           onTargetSelectInputChange={fetchTargets}
           selectedTargets={selectedTargets}
           targets={targets}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
         />
       </div>
     );

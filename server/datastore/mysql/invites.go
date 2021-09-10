@@ -18,41 +18,46 @@ func (d *Datastore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
 		return nil, err
 	}
 
-	sqlStmt := `
+	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		sqlStmt := `
 	INSERT INTO invites ( invited_by, email, name, position, token, sso_enabled, global_role )
 	  VALUES ( ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	result, err := d.writer.Exec(sqlStmt, i.InvitedBy, i.Email,
-		i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
-	if err != nil && isDuplicate(err) {
-		return nil, alreadyExists("Invite", i.Email)
-	} else if err != nil {
-		return nil, errors.Wrap(err, "create invite")
-	}
+		result, err := tx.Exec(sqlStmt, i.InvitedBy, i.Email,
+			i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
+		if err != nil && isDuplicate(err) {
+			return alreadyExists("Invite", i.Email)
+		} else if err != nil {
+			return errors.Wrap(err, "create invite")
+		}
 
-	id, _ := result.LastInsertId()
-	i.ID = uint(id)
+		id, _ := result.LastInsertId()
+		i.ID = uint(id)
 
-	if len(i.Teams) == 0 {
-		i.Teams = []fleet.UserTeam{}
-		return i, nil
-	}
+		if len(i.Teams) == 0 {
+			i.Teams = []fleet.UserTeam{}
+			return nil
+		}
 
-	// Bulk insert teams
-	const valueStr = "(?,?,?),"
-	var args []interface{}
-	for _, userTeam := range i.Teams {
-		args = append(args, i.ID, userTeam.Team.ID, userTeam.Role)
-	}
-	// TODO: seems like this should be in a transaction?
-	sql := "INSERT INTO invite_teams (invite_id, team_id, role) VALUES " +
-		strings.Repeat(valueStr, len(i.Teams))
-	sql = strings.TrimSuffix(sql, ",")
-	if _, err := d.writer.Exec(sql, args...); err != nil {
-		return nil, errors.Wrap(err, "insert teams")
-	}
+		// Bulk insert teams
+		const valueStr = "(?,?,?),"
+		var args []interface{}
+		for _, userTeam := range i.Teams {
+			args = append(args, i.ID, userTeam.Team.ID, userTeam.Role)
+		}
+		sql := "INSERT INTO invite_teams (invite_id, team_id, role) VALUES " +
+			strings.Repeat(valueStr, len(i.Teams))
+		sql = strings.TrimSuffix(sql, ",")
+		if _, err := tx.Exec(sql, args...); err != nil {
+			return errors.Wrap(err, "insert teams")
+		}
+		return nil
+	})
 
+	if err != nil {
+		return nil, err
+	}
 	return i, nil
 }
 

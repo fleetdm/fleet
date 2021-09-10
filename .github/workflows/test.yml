@@ -10,7 +10,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         go-version: ['^1.16.0']
-        fleet-tier: [core, basic]
+        fleet-tier: [free, premium]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Go

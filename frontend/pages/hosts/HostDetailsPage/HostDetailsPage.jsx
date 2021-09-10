@@ -67,7 +67,7 @@ export class HostDetailsPage extends Component {
     queries: PropTypes.arrayOf(queryInterface),
     queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     isGlobalAdmin: PropTypes.bool,
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
     isOnlyObserver: PropTypes.bool,
     canTransferTeam: PropTypes.bool,
     teams: PropTypes.arrayOf(teamInterface),
@@ -124,10 +124,10 @@ export class HostDetailsPage extends Component {
 
   // Loads teams
   componentDidUpdate(prevProps) {
-    const { dispatch, isBasicTier, canTransferTeam } = this.props;
+    const { dispatch, isPremiumTier, canTransferTeam } = this.props;
     if (
-      isBasicTier !== prevProps.isBasicTier &&
-      isBasicTier &&
+      isPremiumTier !== prevProps.isPremiumTier &&
+      isPremiumTier &&
       canTransferTeam
     ) {
       dispatch(teamActions.loadAll({}));
@@ -604,7 +604,7 @@ export class HostDetailsPage extends Component {
       dispatch,
       queries,
       queryErrors,
-      isBasicTier,
+      isPremiumTier,
       isGlobalAdmin,
       teams,
       isOnlyObserver,
@@ -651,7 +651,7 @@ export class HostDetailsPage extends Component {
       pick(host, [
         "status",
         "memory",
-        "host_cpu",
+        "cpu_type",
         "os_version",
         "enroll_secret_name",
         "detail_updated_at",
@@ -752,7 +752,7 @@ export class HostDetailsPage extends Component {
                   {titleData.status}
                 </span>
               </div>
-              {isBasicTier && hostTeam()}
+              {isPremiumTier && hostTeam()}
               <div className="info__item info__item--title">
                 <span className="info__header">Disk Space</span>
                 {renderDiskSpace()}
@@ -765,7 +765,7 @@ export class HostDetailsPage extends Component {
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">CPU</span>
-                <span className="info__data">{titleData.host_cpu}</span>
+                <span className="info__data">{titleData.cpu_type}</span>
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">OS</span>
@@ -872,11 +872,11 @@ const mapStateToProps = (state, ownProps) => {
   const config = state.app.config;
   const currentUser = state.auth.user;
   const isGlobalAdmin = permissionUtils.isGlobalAdmin(currentUser);
-  const isBasicTier = permissionUtils.isBasicTier(config);
+  const isPremiumTier = permissionUtils.isPremiumTier(config);
   const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
   const teams = memoizedGetEntity(state.entities.teams.data);
   const canTransferTeam =
-    isBasicTier &&
+    isPremiumTier &&
     (permissionUtils.isGlobalAdmin(currentUser) ||
       permissionUtils.isGlobalMaintainer(currentUser));
 
@@ -885,7 +885,7 @@ const mapStateToProps = (state, ownProps) => {
     queries,
     queryErrors,
     isGlobalAdmin,
-    isBasicTier,
+    isPremiumTier,
     isOnlyObserver,
     teams,
     canTransferTeam,
