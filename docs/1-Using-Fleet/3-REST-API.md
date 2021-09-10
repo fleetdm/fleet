@@ -4922,7 +4922,17 @@ None.
     "expiration": "2021-12-31T19:00:00-05:00",
     "note": ""
   },
-  "vulnerability_settings": null,
+    "vulnerability_settings": {
+    "databases_path": ""
+  },
+  "webhook_settings": {
+    "host_status_webhook": {
+      "enable_host_status_webhook": true,
+       "destination_url": "https://server.com",
+      "host_percentage": 5,
+      "days_count": 7
+    }
+  },
   "logging": {
     "debug": false,
     "json": false,
@@ -5084,7 +5094,17 @@ Modifies the Fleet's configuration with the supplied information.
       "overrides": {}
     }
   },
-  "vulnerability_settings": null,
+    "vulnerability_settings": {
+    "databases_path": ""
+  },
+  "webhook_settings": {
+    "host_status_webhook": {
+      "enable_host_status_webhook": true,
+       "destination_url": "https://server.com",
+      "host_percentage": 5,
+      "days_count": 7
+    }
+  },
   "logging": {
       "debug": false,
       "json": false,
