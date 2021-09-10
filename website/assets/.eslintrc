@@ -46,6 +46,7 @@
     "Vue": true,
     "VueRouter": true,
     "moment": true,
+    "docsearch": true,
     // "google": true,
     // ...etc.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

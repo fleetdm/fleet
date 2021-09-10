@@ -15,7 +15,7 @@ export const adminUserStub = {
 
 export const configStub = {
   org_info: {
-    org_name: "Kolide",
+    org_name: "Fleet",
     org_logo_url: "0.0.0.0:8080/logo.png",
   },
   server_settings: {
@@ -40,10 +40,18 @@ export const configStub = {
     host_expiry_enabled: false,
     host_expiry_window: 0,
   },
+  webhook_settings: {
+    host_status_webhook: {
+      enable_host_status_webhook: false,
+      destination_url: "http://server.com/example",
+      host_percentage: 5,
+      days_count: 7,
+    },
+  },
 };
 
 export const flatConfigStub = {
-  org_name: "Kolide",
+  org_name: "Fleet",
   org_logo_url: "0.0.0.0:8080/logo.png",
   server_url: "",
   configured: false,
@@ -61,6 +69,10 @@ export const flatConfigStub = {
   host_expiry_enabled: false,
   host_expiry_window: 0,
   live_query_disabled: false,
+  enable_host_status_webhook: false,
+  destination_url: "http://server.com/example",
+  host_percentage: 5,
+  days_count: 7,
 };
 
 export const hostStub = {
@@ -79,7 +91,7 @@ export const hostStub = {
   code_name: "",
   uptime: 45469000000000,
   memory: 2094940160,
-  cpu_type: "6",
+  cpu_type: "1 x 2.4Ghz",
   cpu_subtype: "78",
   cpu_brand: "Intel(R) Core(TM) i5-6267U CPU @ 2.90GHz",
   cpu_physical_cores: 2,
@@ -94,7 +106,6 @@ export const hostStub = {
   status: "online",
   display_text: "52883a0ba916",
   target_type: "hosts",
-  host_cpu: "1 x 2.4Ghz",
 };
 
 export const labelStub = {

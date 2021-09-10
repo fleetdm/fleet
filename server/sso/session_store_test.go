@@ -25,7 +25,7 @@ func newPool(t *testing.T, cluster bool) fleet.RedisPool {
 		}
 		addr += port
 
-		pool, err := redis.NewRedisPool(addr, password, database, useTLS)
+		pool, err := redis.NewRedisPool(addr, password, database, useTLS, 5*time.Second, 10*time.Second)
 		require.NoError(t, err)
 		conn := pool.Get()
 		defer conn.Close()

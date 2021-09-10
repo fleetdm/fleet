@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mock"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -18,7 +19,7 @@ func TestAPIRoutes(t *testing.T) {
 
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)
-	ke := MakeFleetServerEndpoints(svc, "", limitStore)
+	ke := MakeFleetServerEndpoints(svc, "", limitStore, kitlog.NewNopLogger())
 	kh := makeKitHandlers(ke, nil)
 	attachFleetAPIRoutes(r, kh)
 	handler := mux.NewRouter()

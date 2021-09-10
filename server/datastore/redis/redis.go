@@ -25,8 +25,10 @@ func (p *standalonePool) Stats() map[string]redis.PoolStats {
 
 // NewRedisPool creates a Redis connection pool using the provided server
 // address, password and database.
-func NewRedisPool(server, password string, database int, useTLS bool) (fleet.RedisPool, error) {
-	cluster := newCluster(server, password, database, useTLS)
+func NewRedisPool(
+	server, password string, database int, useTLS bool, connTimeout, keepAlive time.Duration,
+) (fleet.RedisPool, error) {
+	cluster := newCluster(server, password, database, useTLS, connTimeout, keepAlive)
 	if err := cluster.Refresh(); err != nil {
 		if isClusterDisabled(err) || isClusterCommandUnknown(err) {
 			// not a Redis Cluster setup, use a standalone Redis pool
@@ -70,7 +72,7 @@ func EachRedisNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
 	return fn(conn)
 }
 
-func newCluster(server, password string, database int, useTLS bool) *redisc.Cluster {
+func newCluster(server, password string, database int, useTLS bool, connTimeout, keepAlive time.Duration) *redisc.Cluster {
 	return &redisc.Cluster{
 		StartupNodes: []string{server},
 		CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
@@ -83,8 +85,8 @@ func newCluster(server, password string, database int, useTLS bool) *redisc.Clus
 						server,
 						redis.DialDatabase(database),
 						redis.DialUseTLS(useTLS),
-						redis.DialConnectTimeout(5*time.Second),
-						redis.DialKeepAlive(10*time.Second),
+						redis.DialConnectTimeout(connTimeout),
+						redis.DialKeepAlive(keepAlive),
 						// Read/Write timeouts not set here because we may see results
 						// only rarely on the pub/sub channel.
 					)

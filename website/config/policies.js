@@ -30,5 +30,6 @@ module.exports.policies = {
   'handbook/*': true,
   'download-sitemap': true,
   'view-transparency': true,
+  'view-press-kit': true,
 
 };

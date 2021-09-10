@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import classnames from "classnames";
-import { useAsyncDebounce } from "react-table";
-import Button from "components/buttons/Button";
+import { Row, useAsyncDebounce } from "react-table";
+
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import Pagination from "components/Pagination";
-// @ts-ignore
+import Button from "components/buttons/Button";
+import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
 import scrollToTop from "utilities/scroll_to_top";
 
 // @ts-ignore
@@ -28,16 +28,17 @@ interface ITableContainerProps {
   data: any; // TODO: Figure out type
   isLoading: boolean;
   manualSortBy?: boolean;
-  defaultSortHeader: string;
-  defaultSortDirection: string;
+  defaultSortHeader?: string;
+  defaultSortDirection?: string;
   onActionButtonClick?: () => void;
   actionButtonText?: string;
   actionButtonIcon?: string;
-  actionButtonVariant?: string;
+  actionButtonVariant?: ButtonVariant;
   hideActionButton?: boolean;
-  onQueryChange: (queryData: ITableQueryData) => void;
+  onQueryChange?: (queryData: ITableQueryData) => void;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
+  disableMultiRowSelect?: boolean;
   resultsTitle: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
@@ -49,12 +50,13 @@ interface ITableContainerProps {
   wideSearch?: boolean;
   disablePagination?: boolean;
   disableCount?: boolean;
-  primarySelectActionButtonVariant?: string;
+  primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
   customControl?: () => JSX.Element;
+  onSelectSingleRow?: (value: Row) => void;
 }
 
 const baseClass = "table-container";
@@ -68,19 +70,20 @@ const TableContainer = ({
   data,
   isLoading,
   manualSortBy = false,
-  defaultSortHeader,
-  defaultSortDirection,
+  defaultSortHeader = "name",
+  defaultSortDirection = "asc",
   onActionButtonClick,
-  inputPlaceHolder,
+  inputPlaceHolder = "Search",
   additionalQueries,
   onQueryChange,
   resultsTitle,
   emptyComponent,
   className,
   disableActionButton,
+  disableMultiRowSelect = false,
   actionButtonText,
   actionButtonIcon,
-  actionButtonVariant,
+  actionButtonVariant = "brand",
   hideActionButton,
   showMarkAllPages,
   isAllPagesSelected,
@@ -89,12 +92,13 @@ const TableContainer = ({
   wideSearch,
   disablePagination,
   disableCount,
-  primarySelectActionButtonVariant,
+  primarySelectActionButtonVariant = "brand",
   primarySelectActionButtonIcon,
   primarySelectActionButtonText,
   onPrimarySelectActionClick,
   secondarySelectActions,
   customControl,
+  onSelectSingleRow,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -139,7 +143,7 @@ const TableContainer = ({
   const prevSearchQuery = prevSearchQueryRef.current;
   const debounceOnQueryChange = useAsyncDebounce(
     (queryData: ITableQueryData) => {
-      onQueryChange(queryData);
+      onQueryChange && onQueryChange(queryData);
     },
     DEBOUNCE_QUERY_DELAY
   );
@@ -156,24 +160,26 @@ const TableContainer = ({
       pageIndex,
     };
     // Something besides the pageIndex has changed; we want to set it back to 0.
-    if (!hasPageIndexChangedRef.current) {
-      const updateQueryData = {
-        ...queryData,
-        pageIndex: 0,
-      };
-      // searchQuery has changed; we want to debounce calling the handler so the
-      // user can finish typing.
-      if (searchQuery !== prevSearchQuery) {
-        debounceOnQueryChange(updateQueryData);
+    if (onQueryChange) {
+      if (!hasPageIndexChangedRef.current) {
+        const updateQueryData = {
+          ...queryData,
+          pageIndex: 0,
+        };
+        // searchQuery has changed; we want to debounce calling the handler so the
+        // user can finish typing.
+        if (searchQuery !== prevSearchQuery) {
+          debounceOnQueryChange(updateQueryData);
+        } else {
+          onQueryChange(updateQueryData);
+        }
+        setPageIndex(0);
       } else {
-        onQueryChange(updateQueryData);
+        onQueryChange(queryData);
       }
-      setPageIndex(0);
-    } else {
-      onQueryChange(queryData);
-    }
 
-    hasPageIndexChangedRef.current = false;
+      hasPageIndexChangedRef.current = false;
+    }
   }, [
     searchQuery,
     sortHeader,
@@ -274,6 +280,7 @@ const TableContainer = ({
               sortHeader={sortHeader}
               sortDirection={sortDirection}
               onSort={onSortChange}
+              disableMultiRowSelect={disableMultiRowSelect}
               showMarkAllPages={showMarkAllPages}
               isAllPagesSelected={isAllPagesSelected}
               toggleAllPagesSelected={toggleAllPagesSelected}
@@ -286,6 +293,7 @@ const TableContainer = ({
               primarySelectActionButtonText={primarySelectActionButtonText}
               onPrimarySelectActionClick={onPrimarySelectActionClick}
               secondarySelectActions={secondarySelectActions}
+              onSelectSingleRow={onSelectSingleRow}
             />
             {!disablePagination && (
               <Pagination

@@ -17,6 +17,7 @@ module.exports.routes = {
   'GET /company/contact':    { action: 'view-contact' },
   'GET /get-started':        { action: 'view-get-started' },
   'GET /pricing':            { action: 'view-pricing' },
+  'GET /press-kit':          { action: 'view-press-kit' },
 
   'GET /queries':            { action: 'view-query-library' },
   'GET /queries/:slug':      { action: 'view-query-detail' },
