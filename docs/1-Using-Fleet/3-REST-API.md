@@ -110,7 +110,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "2020-11-13T22:57:12Z",
