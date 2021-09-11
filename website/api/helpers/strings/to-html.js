@@ -62,7 +62,6 @@ module.exports = {
 
   fn: function(inputs, exits) {
     var marked = require('marked');
-    var _ = require('lodash');
 
     // For full list of options, see:
     //  • https://github.com/chjj/marked
