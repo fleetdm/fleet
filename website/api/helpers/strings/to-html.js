@@ -75,12 +75,12 @@ module.exports = {
       smartypants: false,
     };
     if (inputs.addIdsToHeadings === true) {
-      var customRenderer = new marked.Renderer();
-      customRenderer.heading = function (text, level) {
-        let headingName = _.kebabCase(text);
-        return '<span class="docs-heading"><h'+level+' id="'+headingName+'">'+text+'<a href="#'+headingName+'" class="docs-link"></a></h'+level+'></span>';
+      var headingRenderer = new marked.Renderer();
+      headingRenderer.heading = function (text, level) {
+        var headingID = _.kebabCase(text);
+        return '<span class="docs-heading"><h'+level+' id="'+headingID+'">'+text+'<a href="#'+headingID+'" class="docs-link"></a></h'+level+'></span>';
       };
-      markedOpts.renderer = customRenderer;
+      markedOpts.renderer = headingRenderer;
     } else  {
       var renderer = new marked.Renderer();
       renderer.heading = function (text, level) {
