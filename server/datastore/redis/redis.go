@@ -23,18 +23,28 @@ func (p *standalonePool) Stats() map[string]redis.PoolStats {
 	}
 }
 
+// PoolConfig holds the redis pool configuration options.
+type PoolConfig struct {
+	Server                    string
+	Password                  string
+	Database                  int
+	UseTLS                    bool
+	ConnTimeout               time.Duration
+	KeepAlive                 time.Duration
+	ConnectRetryAttempts      int
+	ClusterFollowRedirections bool
+}
+
 // NewRedisPool creates a Redis connection pool using the provided server
 // address, password and database.
-func NewRedisPool(
-	server, password string, database int, useTLS bool, connTimeout, keepAlive time.Duration,
-) (fleet.RedisPool, error) {
-	cluster := newCluster(server, password, database, useTLS, connTimeout, keepAlive)
+func NewRedisPool(config PoolConfig) (fleet.RedisPool, error) {
+	cluster := newCluster(config)
 	if err := cluster.Refresh(); err != nil {
 		if isClusterDisabled(err) || isClusterCommandUnknown(err) {
 			// not a Redis Cluster setup, use a standalone Redis pool
-			pool, _ := cluster.CreatePool(server)
+			pool, _ := cluster.CreatePool(config.Server)
 			cluster.Close()
-			return &standalonePool{pool, server}, nil
+			return &standalonePool{pool, config.Server}, nil
 		}
 		return nil, errors.Wrap(err, "refresh cluster")
 	}
@@ -72,10 +82,10 @@ func EachRedisNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
 	return fn(conn)
 }
 
-func newCluster(server, password string, database int, useTLS bool, connTimeout, keepAlive time.Duration) *redisc.Cluster {
+func newCluster(config PoolConfig) *redisc.Cluster {
 	return &redisc.Cluster{
-		StartupNodes: []string{server},
-		CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
+		StartupNodes: []string{config.Server},
+		CreatePool: func(server string, _ ...redis.DialOption) (*redis.Pool, error) {
 			return &redis.Pool{
 				MaxIdle:     3,
 				IdleTimeout: 240 * time.Second,
@@ -83,18 +93,18 @@ func newCluster(server, password string, database int, useTLS bool, connTimeout,
 					c, err := redis.Dial(
 						"tcp",
 						server,
-						redis.DialDatabase(database),
-						redis.DialUseTLS(useTLS),
-						redis.DialConnectTimeout(connTimeout),
-						redis.DialKeepAlive(keepAlive),
+						redis.DialDatabase(config.Database),
+						redis.DialUseTLS(config.UseTLS),
+						redis.DialConnectTimeout(config.ConnTimeout),
+						redis.DialKeepAlive(config.KeepAlive),
 						// Read/Write timeouts not set here because we may see results
 						// only rarely on the pub/sub channel.
 					)
 					if err != nil {
 						return nil, err
 					}
-					if password != "" {
-						if _, err := c.Do("AUTH", password); err != nil {
+					if config.Password != "" {
+						if _, err := c.Do("AUTH", config.Password); err != nil {
 							c.Close()
 							return nil, err
 						}

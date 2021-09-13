@@ -200,14 +200,14 @@ the way that the Fleet server works.
 				}
 			}
 
-			redisPool, err := redis.NewRedisPool(
-				config.Redis.Address,
-				config.Redis.Password,
-				config.Redis.Database,
-				config.Redis.UseTLS,
-				config.Redis.ConnectTimeout,
-				config.Redis.KeepAlive,
-			)
+			redisPool, err := redis.NewRedisPool(redis.PoolConfig{
+				Server:      config.Redis.Address,
+				Password:    config.Redis.Password,
+				Database:    config.Redis.Database,
+				UseTLS:      config.Redis.UseTLS,
+				ConnTimeout: config.Redis.ConnectTimeout,
+				KeepAlive:   config.Redis.KeepAlive,
+			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
