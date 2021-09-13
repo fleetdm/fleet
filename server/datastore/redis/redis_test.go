@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,14 +17,31 @@ type netError struct {
 	error
 	timeout   bool
 	temporary bool
+	count     int // once this reaches 0, mockDial does not return an error
 }
 
-func (t netError) Timeout() bool   { return t.timeout }
-func (t netError) Temporary() bool { return t.temporary }
+func (t *netError) Timeout() bool   { return t.timeout }
+func (t *netError) Temporary() bool { return t.temporary }
+
+type redisConn struct{}
+
+func (redisConn) Close() error                                       { return io.EOF }
+func (redisConn) Err() error                                         { return io.EOF }
+func (redisConn) Do(_ string, _ ...interface{}) (interface{}, error) { return nil, io.EOF }
+func (redisConn) Send(_ string, _ ...interface{}) error              { return io.EOF }
+func (redisConn) Flush() error                                       { return io.EOF }
+func (redisConn) Receive() (interface{}, error)                      { return nil, io.EOF }
 
 func TestConnectRetry(t *testing.T) {
 	mockDial := func(err error) func(net, addr string, opts ...redis.DialOption) (redis.Conn, error) {
 		return func(net, addr string, opts ...redis.DialOption) (redis.Conn, error) {
+			var ne *netError
+			if errors.As(err, &ne) {
+				ne.count--
+				if ne.count <= 0 {
+					return redisConn{}, nil
+				}
+			}
 			return nil, err
 		}
 	}
@@ -33,12 +51,13 @@ func TestConnectRetry(t *testing.T) {
 		retries  int
 		min, max time.Duration
 	}{
-		{io.EOF, 0, 0, 100 * time.Millisecond},                           // non-retryable, no retry configured
-		{netError{io.EOF, true, false}, 0, 0, 100 * time.Millisecond},    // retryable, but no retry configured
-		{io.EOF, 3, 0, 100 * time.Millisecond},                           // non-retryable, retry configured
-		{netError{io.EOF, true, false}, 2, time.Second, 3 * time.Second}, // retryable, retry configured
-		{netError{io.EOF, false, true}, 2, time.Second, 3 * time.Second}, // retryable, retry configured
-		{netError{io.EOF, false, false}, 2, 0, 100 * time.Millisecond},   // net error, but non-retryable
+		{io.EOF, 0, 0, 100 * time.Millisecond},                                                  // non-retryable, no retry configured
+		{&netError{io.EOF, true, false, 10}, 0, 0, 100 * time.Millisecond},                      // retryable, but no retry configured
+		{io.EOF, 3, 0, 100 * time.Millisecond},                                                  // non-retryable, retry configured
+		{&netError{io.EOF, true, false, 10}, 2, time.Second, 3 * time.Second},                   // retryable, retry configured
+		{&netError{io.EOF, false, true, 10}, 2, time.Second, 3 * time.Second},                   // retryable, retry configured
+		{&netError{io.EOF, false, false, 10}, 2, 0, 100 * time.Millisecond},                     // net error, but non-retryable
+		{&netError{io.EOF, true, false, 2}, 10, 100 * time.Millisecond, 500 * time.Millisecond}, // retryable, but succeeded after one
 	}
 	for _, c := range cases {
 		t.Run(c.err.Error(), func(t *testing.T) {
