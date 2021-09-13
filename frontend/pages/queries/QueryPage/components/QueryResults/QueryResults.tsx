@@ -16,12 +16,14 @@ import InputField from "components/forms/fields/InputField";
 import QueryResultsRow from "components/queries/QueryResultsRow";
 import Spinner from "components/loaders/Spinner";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
+import { ITarget } from "interfaces/target";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
   onRunQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
 }
 
@@ -41,6 +43,7 @@ const QueryResults = ({
   isQueryFinished,
   onRunQuery,
   onStopQuery,
+  setSelectedTargets,
   goToQueryEditor,
 }: IQueryResultsProps) => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
@@ -122,6 +125,11 @@ const QueryResults = ({
 
       FileSaver.saveAs(file);
     }
+  };
+
+  const onQueryDone = () => {
+    setSelectedTargets([]);
+    goToQueryEditor();
   };
 
   const renderTableHeaderColumn = (column: string, index: number) => {
@@ -225,7 +233,7 @@ const QueryResults = ({
     <div className={`${baseClass}__btn-wrapper`}>
       <Button
         className={`${baseClass}__done-btn`}
-        onClick={goToQueryEditor}
+        onClick={onQueryDone}
         variant="brand"
       >
         Done

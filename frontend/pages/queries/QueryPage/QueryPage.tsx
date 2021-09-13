@@ -182,6 +182,7 @@ const QueryPage = ({
       storedQuery,
       selectedTargets,
       queryIdForEdit,
+      setSelectedTargets,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
     };
 
