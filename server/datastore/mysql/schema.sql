@@ -137,9 +137,9 @@ CREATE TABLE `email_changes` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `enroll_secrets` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `team_id` int(10) unsigned DEFAULT NULL,
-  UNIQUE KEY `secret` (`secret`),
+  PRIMARY KEY (`secret`),
   KEY `fk_enroll_secrets_team_id` (`team_id`),
   CONSTRAINT `enroll_secrets_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
