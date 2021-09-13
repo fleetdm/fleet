@@ -48,8 +48,6 @@ const NewQueryModal = ({
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validateQueryName(name);
-    console.log({ valid });
-    console.log({ newErrors });
     setErrors({
       ...errors,
       ...newErrors,
