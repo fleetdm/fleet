@@ -11,6 +11,7 @@ import Button from "components/buttons/Button";
 import FleetIcon from "components/icons/FleetIcon";
 import TableContainer from "components/TableContainer";
 
+// @ts-ignore
 import TableDataError from "components/TableDataError";
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
@@ -229,7 +230,7 @@ const TeamManagementPage = (): JSX.Element => {
           defaultSortDirection={"asc"}
           inputPlaceHolder={"Search"}
           actionButtonText={"Create team"}
-          actionButtonVariant={"primary"}
+          actionButtonVariant={"brand"}
           hideActionButton={teams.length === 0 && searchString === ""}
           onActionButtonClick={toggleCreateTeamModal}
           onQueryChange={onQueryChange}

@@ -137,10 +137,20 @@ type TestServerOpts struct {
 	Logger              kitlog.Logger
 	License             *fleet.LicenseInfo
 	SkipCreateTestUsers bool
+	Rs                  fleet.QueryResultStore
+	Lq                  fleet.LiveQueryStore
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
-	svc := newTestService(ds, nil, nil, opts...)
+	var rs fleet.QueryResultStore
+	if len(opts) > 0 && opts[0].Rs != nil {
+		rs = opts[0].Rs
+	}
+	var lq fleet.LiveQueryStore
+	if len(opts) > 0 && opts[0].Lq != nil {
+		lq = opts[0].Lq
+	}
+	svc := newTestService(ds, rs, lq, opts...)
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"sort"
 
@@ -20,10 +21,15 @@ type resultOutput struct {
 	Error          *string             `json:"error,omitempty"`
 }
 
-type jsonWriter struct{}
+type jsonWriter struct {
+	w io.Writer
+}
 
-func newJsonWriter() *jsonWriter {
-	return &jsonWriter{}
+func newJsonWriter(w io.Writer) *jsonWriter {
+	if w == nil {
+		w = os.Stdout
+	}
+	return &jsonWriter{w: w}
 }
 
 func (w *jsonWriter) WriteResult(res fleet.DistributedQueryResult) error {
@@ -32,7 +38,7 @@ func (w *jsonWriter) WriteResult(res fleet.DistributedQueryResult) error {
 		Rows:           res.Rows,
 		Error:          res.Error,
 	}
-	return json.NewEncoder(os.Stdout).Encode(out)
+	return json.NewEncoder(w.w).Encode(out)
 }
 
 type prettyWriter struct {

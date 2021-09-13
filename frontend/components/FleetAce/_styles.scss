@@ -10,6 +10,20 @@
     &--error {
       color: $ui-error;
     }
+    &--with-action {
+      min-height: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      p {
+        margin: 0;
+        flex: 1;
+      }
+      button {
+        height: 36px; // aligning space between label and textarea
+      }
+    }
   }
 
   &__wrapper {
