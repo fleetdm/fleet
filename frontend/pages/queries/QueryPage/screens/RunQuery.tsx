@@ -136,7 +136,7 @@ const RunQuery = ({
   };
 
   const onRunQuery = debounce(async () => {
-    const sql = queryIdForEdit ? storedQuery?.query : typedQueryBody;
+    const sql = typedQueryBody || storedQuery?.query;
 
     if (!sql) {
       dispatch(
