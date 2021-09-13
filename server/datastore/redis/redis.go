@@ -35,6 +35,9 @@ type PoolConfig struct {
 	KeepAlive                 time.Duration
 	ConnectRetryAttempts      int
 	ClusterFollowRedirections bool
+
+	// allows for testing dial retries and other dial-related scenarios
+	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)
 }
 
 // NewRedisPool creates a Redis connection pool using the provided server
@@ -97,6 +100,11 @@ func newCluster(config PoolConfig) *redisc.Cluster {
 		opts = append(opts, redis.DialPassword(config.Password))
 	}
 
+	dialFn := redis.Dial
+	if config.testRedisDialFunc != nil {
+		dialFn = config.testRedisDialFunc
+	}
+
 	return &redisc.Cluster{
 		StartupNodes: []string{config.Server},
 		CreatePool: func(server string, _ ...redis.DialOption) (*redis.Pool, error) {
@@ -107,7 +115,7 @@ func newCluster(config PoolConfig) *redisc.Cluster {
 				Dial: func() (redis.Conn, error) {
 					var conn redis.Conn
 					op := func() error {
-						c, err := redis.Dial("tcp", server, opts...)
+						c, err := dialFn("tcp", server, opts...)
 
 						var netErr net.Error
 						if errors.As(err, &netErr) {

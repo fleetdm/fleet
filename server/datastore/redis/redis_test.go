@@ -2,6 +2,7 @@ package redis
 
 import (
 	"fmt"
+	"io"
 	"testing"
 	"time"
 
@@ -10,6 +11,53 @@ import (
 	"github.com/mna/redisc"
 	"github.com/stretchr/testify/require"
 )
+
+type netError struct {
+	error
+	timeout   bool
+	temporary bool
+}
+
+func (t netError) Timeout() bool   { return t.timeout }
+func (t netError) Temporary() bool { return t.temporary }
+
+func TestConnectRetry(t *testing.T) {
+	mockDial := func(err error) func(net, addr string, opts ...redis.DialOption) (redis.Conn, error) {
+		return func(net, addr string, opts ...redis.DialOption) (redis.Conn, error) {
+			return nil, err
+		}
+	}
+
+	cases := []struct {
+		err      error
+		retries  int
+		min, max time.Duration
+	}{
+		{io.EOF, 0, 0, 100 * time.Millisecond},                           // non-retryable, no retry configured
+		{netError{io.EOF, true, false}, 0, 0, 100 * time.Millisecond},    // retryable, but no retry configured
+		{io.EOF, 3, 0, 100 * time.Millisecond},                           // non-retryable, retry configured
+		{netError{io.EOF, true, false}, 2, time.Second, 3 * time.Second}, // retryable, retry configured
+		{netError{io.EOF, false, true}, 2, time.Second, 3 * time.Second}, // retryable, retry configured
+		{netError{io.EOF, false, false}, 2, 0, 100 * time.Millisecond},   // net error, but non-retryable
+	}
+	for _, c := range cases {
+		t.Run(c.err.Error(), func(t *testing.T) {
+			start := time.Now()
+			_, err := NewRedisPool(PoolConfig{
+				Server:               "127.0.0.1:12345",
+				ConnectRetryAttempts: c.retries,
+				testRedisDialFunc:    mockDial(c.err),
+			})
+			diff := time.Since(start)
+			require.GreaterOrEqual(t, diff, c.min)
+			require.LessOrEqual(t, diff, c.max)
+			require.Error(t, err)
+			// the error is returned as part of the cluster.Refresh error, hence the
+			// check with Contains.
+			require.Contains(t, err.Error(), io.EOF.Error())
+		})
+	}
+}
 
 func TestEachRedisNode(t *testing.T) {
 	const prefix = "TestEachRedisNode:"
