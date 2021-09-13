@@ -9,10 +9,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20210816141251, Down_20210816141251)
+	MigrationClient.AddMigration(Up_20210818151828, Down_20210818151828)
 }
 
-func Up_20210816141251(tx *sql.Tx) error {
+func Up_20210818151828(tx *sql.Tx) error {
 	sql := `
 		CREATE TABLE IF NOT EXISTS app_config_json (
 			id int(10) unsigned NOT NULL UNIQUE default 1,
@@ -117,6 +117,6 @@ func Up_20210816141251(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20210816141251(tx *sql.Tx) error {
+func Down_20210818151828(tx *sql.Tx) error {
 	return nil
 }
