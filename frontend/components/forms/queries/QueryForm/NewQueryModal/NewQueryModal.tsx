@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { size } from "lodash";
 
-import { IQueryFormData, IQueryFormFields } from "interfaces/query";
+import { IQueryFormData, IQueryFormFieldsModal } from "interfaces/query";
 
 // @ts-ignore
 import Form from "components/forms/Form";
@@ -13,7 +13,7 @@ import { useDeepEffect } from "utilities/hooks";
 
 export interface INewQueryModalProps {
   baseClass: string;
-  fields: IQueryFormFields;
+  fields: IQueryFormFieldsModal;
   queryValue: string;
   onCreateQuery: (formData: IQueryFormData) => void;
   setIsSaveModalOpen: (isOpen: boolean) => void;
@@ -40,7 +40,7 @@ const NewQueryModal = ({
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
 
   useDeepEffect(() => {
-    if (fields.name.value) {
+    if (fields.nameModal.value) {
       setErrors({});
     }
   }, [fields]);
@@ -48,9 +48,9 @@ const NewQueryModal = ({
   const handleUpdate = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    const { description, name, observer_can_run } = fields;
+    const { descriptionModal, nameModal, observer_can_run_modal } = fields;
     const { valid, errors: newErrors } = validateQueryName(
-      name.value as string
+      nameModal.value as string
     );
     setErrors({
       ...errors,
@@ -59,10 +59,10 @@ const NewQueryModal = ({
 
     valid &&
       onCreateQuery({
-        description: description.value,
-        name: name.value,
+        description: descriptionModal.value,
+        name: nameModal.value,
         query: queryValue,
-        observer_can_run: observer_can_run.value,
+        observer_can_run: observer_can_run_modal.value,
       });
 
     setIsSaveModalOpen(false);
@@ -72,22 +72,22 @@ const NewQueryModal = ({
     <Modal title={"Save query"} onExit={() => setIsSaveModalOpen(false)}>
       <form className={`${baseClass}__save-modal-form`}>
         <InputField
-          {...fields.name}
-          error={fields.name.error || errors.name}
+          {...fields.nameModal}
+          error={fields.nameModal.error || errors.name}
           inputClassName={`${baseClass}__query-save-modal-name`}
           label="Name"
           placeholder="What is your query called?"
         />
         <InputField
-          {...fields.description}
+          {...fields.descriptionModal}
           inputClassName={`${baseClass}__query-save-modal-description`}
           label="Description"
           type="textarea"
           placeholder="What information does your query reveal?"
         />
         <Checkbox
-          {...fields.observer_can_run}
-          value={!!fields.observer_can_run.value}
+          {...fields.observer_can_run_modal}
+          value={!!fields.observer_can_run_modal.value}
           wrapperClassName={`${baseClass}__query-save-modal-observer-can-run-wrapper`}
         >
           Observers can run
@@ -122,6 +122,6 @@ const NewQueryModal = ({
 };
 
 export default Form(NewQueryModal, {
-  fields: ["description", "name", "query", "observer_can_run"],
+  fields: ["descriptionModal", "nameModal", "queryModal", "observer_can_run_modal"],
   validate: validateQueryName,
 });

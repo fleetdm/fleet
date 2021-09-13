@@ -36,9 +36,19 @@ export interface IQuery {
   packs: IPack[];
 }
 
+// TODO: How to type this knowing that we
+// may have multiple forms on the page. We
+// are not allowed to use the same keys.
 export interface IQueryFormFields {
   description: IFormField;
   name: IFormField;
   query: IFormField;
   observer_can_run: IFormField;
+}
+
+export interface IQueryFormFieldsModal {
+  descriptionModal: IFormField;
+  nameModal: IFormField;
+  queryModal: IFormField;
+  observer_can_run_modal: IFormField;
 }

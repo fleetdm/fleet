@@ -363,11 +363,10 @@ const QueryForm = ({
     storedQuery.observer_can_run) as boolean;
   const modalProps = {
     baseClass,
-    fields,
     queryValue,
     onCreateQuery,
     setIsSaveModalOpen,
-  };
+  } as INewQueryModalProps; // because we're missing "fields" which is added from the Form HOC
 
   if (isStoredQueryLoading) {
     return <Spinner />;
