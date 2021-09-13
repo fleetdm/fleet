@@ -150,8 +150,9 @@ Run the "Get the version of the resident operating system" query against your lo
 
 ### Pack flow
 
-Apply a pack by running the following command:
+Apply a pack by running the following commands:
 
+`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
 `fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
 
 Make sure the pack was successfully added by running the following command:
