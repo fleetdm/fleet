@@ -56,28 +56,13 @@ a {
   background-color: $core-white;
   border: solid 1px $core-white;
   min-width: 910px;
-
-  @at-root {
-    .has-sidebar & {
-      margin-right: 0;
-      min-width: calc(#{$app-min-width} - 30px - 30px - #{$sidepanel-width});
-      max-width: calc(
-        100vw - #{$pad-xlarge} - #{$pad-xlarge} - #{$pad-xxsmall} - #{$sidepanel-width}
-      );
-    }
-  }
 }
 
 .has-sidebar {
   display: flex;
-  flex-grow: 1;
 
-  > * {
-    &:first-child {
-      flex-grow: 1;
-      align-self: flex-start;
-      margin-right: 0;
-    }
+  & > *:first-child {
+    flex-grow: 1;
   }
 }
 

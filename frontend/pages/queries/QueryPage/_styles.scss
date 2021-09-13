@@ -1,23 +1,9 @@
 .query-page {
-  @at-root .has-sidebar > &__content {
-    display: flex;
-    flex-direction: column;
-    align-self: stretch;
-    margin-bottom: $pad-medium;
-  }
-
   &__results {
     display: flex;
     flex-grow: 1;
     position: relative;
     min-height: 400px;
-  }
-
-  &__content {
-    display: flex;
-    flex-direction: column;
-    align-self: stretch;
-    margin-bottom: $pad-medium;
   }
 
   &__warning {

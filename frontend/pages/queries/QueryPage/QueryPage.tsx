@@ -114,7 +114,7 @@ const QueryPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const onCloseSidebar = () => {
+  const onCloseSchemaSidebar = () => {
     setIsSidebarOpen(false);
   };
 
@@ -204,7 +204,7 @@ const QueryPage = ({
         <QuerySidePanel
           onOsqueryTableSelect={onOsqueryTableSelect}
           selectedOsqueryTable={selectedOsqueryTable}
-          onClose={onCloseSidebar}
+          onClose={onCloseSchemaSidebar}
         />
       )}
     </div>
