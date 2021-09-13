@@ -339,12 +339,14 @@ const QueryForm = ({
           </Button>
         </div>
       </form>
-      {isSaveModalOpen && (<NewQueryModal 
-        baseClass={baseClass}
-        queryValue={queryValue}
-        onCreateQuery={onCreateQuery}
-        setIsSaveModalOpen={setIsSaveModalOpen}
-      />)}
+      {isSaveModalOpen && (
+        <NewQueryModal
+          baseClass={baseClass}
+          queryValue={queryValue}
+          onCreateQuery={onCreateQuery}
+          setIsSaveModalOpen={setIsSaveModalOpen}
+        />
+      )}
     </>
   );
 
@@ -361,7 +363,9 @@ const QueryForm = ({
 
   const queryError = query?.error || errors.query;
   const queryOnChange = query?.onChange;
-  const observerCanRun = (typeof observer_can_run?.value !== "undefined" ? observer_can_run.value : storedQuery.observer_can_run) as boolean;
+  const observerCanRun = (typeof observer_can_run?.value !== "undefined"
+    ? observer_can_run.value
+    : storedQuery.observer_can_run) as boolean;
 
   if (isStoredQueryLoading) {
     return <Spinner />;
