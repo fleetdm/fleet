@@ -72,12 +72,12 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	svc.seenHostSet.addHostID(host.ID)
 	host.SeenTime = svc.clock.Now()
 
-	return host, svc.debugEnabledForHost(host), nil
+	return host, svc.debugEnabledForHost(ctx, host), nil
 }
 
-func (svc Service) debugEnabledForHost(host *fleet.Host) bool {
+func (svc Service) debugEnabledForHost(ctx context.Context, host *fleet.Host) bool {
 	hlogger := log.With(svc.logger, "host-id", host.ID)
-	ac, err := svc.ds.AppConfig()
+	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		level.Debug(hlogger).Log("err", errors.Wrap(err, "getting app config for host debug"))
 		return false
@@ -709,7 +709,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
-	svc.maybeDebugHost(host, results, statuses, messages)
+	svc.maybeDebugHost(ctx, host, results, statuses, messages)
 
 	if host.Modified {
 		err = svc.ds.SaveHost(ctx, &host)
@@ -722,12 +722,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 }
 
 func (svc *Service) maybeDebugHost(
+	ctx context.Context,
 	host fleet.Host,
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
 ) {
-	if svc.debugEnabledForHost(&host) {
+	if svc.debugEnabledForHost(ctx, &host) {
 		hlogger := log.With(svc.logger, "host-id", host.ID)
 
 		logJSON(hlogger, host, "host")

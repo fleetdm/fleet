@@ -139,7 +139,7 @@ func TestAuthenticateHost(t *testing.T) {
 		gotHostIDs = hostIDs
 		return nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -1497,7 +1497,7 @@ func TestAuthenticationErrors(t *testing.T) {
 	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
@@ -1610,7 +1610,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
 		return errors.New("something went wrong")
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
