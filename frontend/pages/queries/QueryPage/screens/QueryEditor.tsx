@@ -1,6 +1,5 @@
 import React, { useContext } from "react";
 import { Link } from "react-router";
-import { push } from "react-router-redux";
 import { useDispatch } from "react-redux";
 import { UseMutateAsyncFunction } from "react-query";
 
@@ -17,10 +16,11 @@ import { hasSavePermissions } from "pages/queries/QueryPage/helpers";
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 interface IQueryEditorProps {
+  router: any;
   baseClass: string;
   storedQuery: IQuery | undefined;
   typedQueryBody: string;
-  isEditMode: boolean;
+  queryIdForEdit: number | null;
   error: any;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
@@ -35,10 +35,11 @@ interface IQueryEditorProps {
 }
 
 const QueryEditor = ({
+  router,
   baseClass,
   storedQuery,
   typedQueryBody,
-  isEditMode,
+  queryIdForEdit,
   error,
   showOpenSchemaActionText,
   isStoredQueryLoading,
@@ -57,7 +58,7 @@ const QueryEditor = ({
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
     try {
       const { query }: { query: IQuery } = await createQuery(formData);
-      dispatch(push(PATHS.EDIT_QUERY(query)));
+      router.push(PATHS.EDIT_QUERY(query));
       dispatch(renderFlash("success", "Query created!"));
     } catch (createError) {
       console.error(createError);
@@ -71,7 +72,7 @@ const QueryEditor = ({
   });
 
   const onUpdateQuery = async (formData: IQueryFormData) => {
-    if (!isEditMode || !storedQuery) {
+    if (!queryIdForEdit || !storedQuery) {
       return false;
     }
 
@@ -124,7 +125,7 @@ const QueryEditor = ({
         serverErrors={error || {}}
         storedQuery={storedQuery}
         typedQueryBody={typedQueryBody}
-        isEditMode={isEditMode}
+        queryIdForEdit={queryIdForEdit}
         isStoredQueryLoading={isStoredQueryLoading}
         isEditorUsingDefaultQuery={isEditorUsingDefaultQuery}
         hasSavePermissions={hasSavePermissions(currentUser)}

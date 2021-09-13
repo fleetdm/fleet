@@ -16,10 +16,10 @@ export default PropTypes.shape({
   packs: PropTypes.arrayOf(packInterface),
 });
 export interface IQueryFormData {
-  description?: string | number | boolean | any[];
-  name?: string | number | boolean | any[];
-  query?: string | number | boolean | any[];
-  observer_can_run?: string | number | boolean | any[];
+  description?: string | number | boolean | any[] | undefined;
+  name?: string | number | boolean | any[] | undefined;
+  query?: string | number | boolean | any[] | undefined;
+  observer_can_run?: string | number | boolean | any[] | undefined;
 }
 
 export interface IQuery {

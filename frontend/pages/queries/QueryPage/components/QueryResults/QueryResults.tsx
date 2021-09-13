@@ -9,6 +9,7 @@ import { filter, get, keys, omit } from "lodash";
 import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
 import filterArrayByHash from "utilities/filter_array_by_hash";
 import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
+import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
@@ -22,6 +23,7 @@ interface IQueryResultsProps {
   isQueryFinished: boolean;
   onRunQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
 }
 
@@ -41,6 +43,7 @@ const QueryResults = ({
   isQueryFinished,
   onRunQuery,
   onStopQuery,
+  setSelectedTargets,
   goToQueryEditor,
 }: IQueryResultsProps) => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
@@ -122,6 +125,11 @@ const QueryResults = ({
 
       FileSaver.saveAs(file);
     }
+  };
+
+  const onQueryDone = () => {
+    setSelectedTargets([]);
+    goToQueryEditor();
   };
 
   const renderTableHeaderColumn = (column: string, index: number) => {
@@ -225,7 +233,7 @@ const QueryResults = ({
     <div className={`${baseClass}__btn-wrapper`}>
       <Button
         className={`${baseClass}__done-btn`}
-        onClick={goToQueryEditor}
+        onClick={onQueryDone}
         variant="brand"
       >
         Done

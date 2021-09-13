@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import AceEditor from "react-ace";
 import classnames from "classnames";
 import "ace-builds/src-noconflict/mode-sql";
@@ -45,28 +45,20 @@ const FleetAce = ({
   onChange,
   handleSubmit = noop,
 }: IFleetAceProps) => {
-  const renderLabel = () => {
+  const renderLabel = useCallback(() => {
+    const labelText = error || label;
     const labelClassName = classnames(`${baseClass}__label`, {
       [`${baseClass}__label--error`]: !!error,
       [`${baseClass}__label--with-action`]: !!labelActionComponent,
     });
 
-    const labelText = error || label;
-    if (labelActionComponent) {
-      return (
-        <div className={labelClassName}>
-          {!!labelText && <p>{labelText}</p>}
-          {labelActionComponent}
-        </div>
-      );
-    }
-
-    if (labelText) {
-      return <p className={labelClassName}>{error || label}</p>;
-    }
-
-    return null;
-  };
+    return (
+      <div className={labelClassName}>
+        <p>{labelText}</p>
+        {labelActionComponent}
+      </div>
+    );
+  }, [error, label, labelActionComponent]);
 
   const renderHint = () => {
     if (hint) {
