@@ -1,9 +1,11 @@
 package redis
 
 import (
+	"net"
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
@@ -83,34 +85,58 @@ func EachRedisNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
 }
 
 func newCluster(config PoolConfig) *redisc.Cluster {
+	opts := []redis.DialOption{
+		redis.DialDatabase(config.Database),
+		redis.DialUseTLS(config.UseTLS),
+		redis.DialConnectTimeout(config.ConnTimeout),
+		redis.DialKeepAlive(config.KeepAlive),
+		// Read/Write timeouts not set here because we may see results
+		// only rarely on the pub/sub channel.
+	}
+	if config.Password != "" {
+		opts = append(opts, redis.DialPassword(config.Password))
+	}
+
 	return &redisc.Cluster{
 		StartupNodes: []string{config.Server},
 		CreatePool: func(server string, _ ...redis.DialOption) (*redis.Pool, error) {
 			return &redis.Pool{
 				MaxIdle:     3,
 				IdleTimeout: 240 * time.Second,
+
 				Dial: func() (redis.Conn, error) {
-					c, err := redis.Dial(
-						"tcp",
-						server,
-						redis.DialDatabase(config.Database),
-						redis.DialUseTLS(config.UseTLS),
-						redis.DialConnectTimeout(config.ConnTimeout),
-						redis.DialKeepAlive(config.KeepAlive),
-						// Read/Write timeouts not set here because we may see results
-						// only rarely on the pub/sub channel.
-					)
-					if err != nil {
-						return nil, err
+					var conn redis.Conn
+					op := func() error {
+						c, err := redis.Dial("tcp", server, opts...)
+
+						var netErr net.Error
+						if errors.As(err, &netErr) {
+							if netErr.Temporary() || netErr.Timeout() {
+								// retryable error
+								return err
+							}
+						}
+						if err != nil {
+							// at this point, this is a non-retryable error
+							return backoff.Permanent(err)
+						}
+
+						// success, store the connection to use
+						conn = c
+						return nil
 					}
-					if config.Password != "" {
-						if _, err := c.Do("AUTH", config.Password); err != nil {
-							c.Close()
+
+					if config.ConnectRetryAttempts > 0 {
+						boff := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), uint64(config.ConnectRetryAttempts))
+						if err := backoff.Retry(op, boff); err != nil {
 							return nil, err
 						}
+					} else if err := op(); err != nil {
+						return nil, err
 					}
-					return c, err
+					return conn, nil
 				},
+
 				TestOnBorrow: func(c redis.Conn, t time.Time) error {
 					if time.Since(t) < time.Minute {
 						return nil

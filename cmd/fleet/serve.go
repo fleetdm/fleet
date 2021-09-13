@@ -201,20 +201,20 @@ the way that the Fleet server works.
 			}
 
 			redisPool, err := redis.NewRedisPool(redis.PoolConfig{
-				Server:      config.Redis.Address,
-				Password:    config.Redis.Password,
-				Database:    config.Redis.Database,
-				UseTLS:      config.Redis.UseTLS,
-				ConnTimeout: config.Redis.ConnectTimeout,
-				KeepAlive:   config.Redis.KeepAlive,
+				Server:                    config.Redis.Address,
+				Password:                  config.Redis.Password,
+				Database:                  config.Redis.Database,
+				UseTLS:                    config.Redis.UseTLS,
+				ConnTimeout:               config.Redis.ConnectTimeout,
+				KeepAlive:                 config.Redis.KeepAlive,
+				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
+				ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
-			// TODO: should that only be done when a certain "migrate" flag is set,
-			// to prevent affecting every startup?
 			if err := liveQueryStore.MigrateKeys(); err != nil {
 				level.Info(logger).Log(
 					"err", err,
