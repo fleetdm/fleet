@@ -66,6 +66,22 @@ describe("Settings flow", () => {
       .click()
       .type("rachelspassword");
 
+    cy.findByLabelText(/enable host status webhook/i).check({ force: true });
+
+    cy.findByLabelText(/destination url/i)
+      .click()
+      .type("http://server.com/example");
+
+    cy.get(".app-config-form__host-percentage").click();
+
+    cy.get(".app-config-form__host-percentage").contains(/5%/i).click();
+
+    cy.get(".app-config-form__days-count").click();
+
+    cy.get(".app-config-form__days-count")
+      .contains(/7 days/i)
+      .click();
+
     cy.findByLabelText(/domain/i)
       .click()
       .type("http://www.fleetdm.com");
@@ -134,6 +150,17 @@ describe("Settings flow", () => {
       "have.value",
       "rachelsusername"
     );
+
+    cy.findByLabelText(/destination url/i).should(
+      "have.value",
+      "http://server.com/example"
+    );
+
+    cy.findByText(/5%/i).should("exist");
+
+    cy.findByText(/7 days/i).should("exist");
+    cy.findByText(/1 day/i).should("not.exist");
+    cy.findByText(/select one/i).should("not.exist");
 
     cy.findByLabelText(/host expiry window/i).should("have.value", "5");
 

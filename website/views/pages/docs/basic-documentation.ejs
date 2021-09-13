@@ -10,17 +10,20 @@
         <!-- TODO automatically display latest release version or come up with some other way to present this that doesn't rely on knowing the version number -->
       </div>
   
-      <!-- TODO: bring back search -->
-      <!-- <div purpose="search" class="d-flex p-0 pt-4 mt-3">
+      <div purpose="search" class="d-flex p-0 mt-5">
         <div class="input-group">
-          <div class="input-group-prepend border-right-0">
-            <span class="input-group-text bg-transparent border-right-0 pl-3 pr-2">
-              <img style="height: 16px; width: auto;" class="search" alt="search" src="/images/icon-search-16x16@2x.png"></span>
+          <div class="input-group-prepend">
+            <span class="input-group-text border-0 bg-transparent pl-3" >
+              <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+            </span>
           </div>
-          <input class="form-control border-left-0 px-0" placeholder="Search the docs..." aria-label="Search the docs"
+          <div class="form-control border-0 ">
+          <input id="docsearch-query-landing" class="docsearch-input pr-1"
+            placeholder="Search the docs..." aria-label="Search the docs"
             v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+          </div>
         </div>
-      </div> -->
+      </div>
   
       <div purpose="cta-cards">
         <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 pt-4 mt-3">
@@ -65,7 +68,7 @@
   </div>
 
   <div v-else>
-    <div purpose="docs-template" style="max-width: 1200px;" class="container-fluid px-3 px-sm-4 mb-5">
+    <div purpose="docs-template" style="max-width: 1200px;" class="container-fluid px-lg-3  mb-5">
 
       <div purpose="breadcrumbs-and-search" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0 breadcrumbs-search">
         
@@ -87,16 +90,20 @@
           </div>
         </div>
   
-        <!-- <div purpose="search" class="d-flex p-0 mb-2 mb-lg-0">
+        <div purpose="search" class="d-flex p-0 mb-2 mb-lg-0">
           <div class="input-group">
-            <div class="input-group-prepend border-right-0">
-              <span class="input-group-text bg-transparent border-right-0 pl-3 pr-2"><img style="height: 16px; width: auto;" class="search" alt="search"
-                  src="/images/icon-search-16x16@2x.png"></span>
+            <div class="input-group-prepend">
+              <span class="input-group-text border-0 bg-transparent pl-3">
+                <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+              </span>
             </div>
-            <input class="form-control border-left-0 px-0" placeholder="Search the docs..." aria-label="Search the docs"
+            <div class="form-control border-0 ">
+              <input id="docsearch-query" class="docsearch-input pr-1"
+              placeholder="Search the docs..." aria-label="Search the docs"
               v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+            </div>
           </div>
-        </div> -->
+        </div>
   
         <div purpose="mobile-docs-nav" class="d-flex-block d-lg-none">
           <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
@@ -181,7 +188,7 @@
   
         </div>
 
-        <div purpose="content" id="body-content" class="d-flex flex-column p-0 px-lg-5 content" parasails-has-no-page-script>
+        <div purpose="content" id="body-content" class="d-flex flex-column px-lg-5 content" parasails-has-no-page-script>
           <%- partial(
             path.relative(
               path.dirname(__filename), 

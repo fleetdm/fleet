@@ -1,8 +1,10 @@
 package service
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
+	"flag"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -60,6 +62,10 @@ func (h *LiveQueryResultsHandler) Status() *campaignStatus {
 
 // LiveQuery creates a new live query and begins streaming results.
 func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
+	return c.LiveQueryWithContext(context.Background(), query, labels, hosts)
+}
+
+func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
 	req := createDistributedQueryCampaignByNamesRequest{
 		QuerySQL: query,
 		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
@@ -96,6 +102,9 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 
 	wssURL := *c.baseURL
 	wssURL.Scheme = "wss"
+	if flag.Lookup("test.v") != nil {
+		wssURL.Scheme = "ws"
+	}
 	wssURL.Path = c.urlPrefix + "/api/v1/fleet/results/websocket"
 	conn, _, err := dialer.Dial(wssURL.String(), nil)
 	if err != nil {
@@ -120,7 +129,7 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 	})
 	if err != nil {
 		_ = conn.Close()
-		return nil, errors.Wrap(err, "auth for results")
+		return nil, errors.Wrap(err, "selecting results")
 	}
 
 	resHandler := NewLiveQueryResultsHandler()
@@ -131,10 +140,25 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 				Type string          `json:"type"`
 				Data json.RawMessage `json:"data"`
 			}{}
-			err := conn.ReadJSON(&msg)
-			if err != nil {
-				resHandler.errors <- errors.Wrap(err, "receive ws message")
+
+			doneReadingChan := make(chan error)
+
+			go func() {
+				doneReadingChan <- conn.ReadJSON(&msg)
+			}()
+
+			select {
+			case <-ctx.Done():
+				return
+			case err := <-doneReadingChan:
+				if err != nil {
+					resHandler.errors <- errors.Wrap(err, "receive ws message")
+					if errors.Is(err, websocket.ErrCloseSent) {
+						return
+					}
+				}
 			}
+			close(doneReadingChan)
 
 			switch msg.Type {
 			case "result":

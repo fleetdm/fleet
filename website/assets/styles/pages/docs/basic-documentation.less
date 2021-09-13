@@ -39,6 +39,52 @@
 
   }
 
+  [purpose='search'] {
+
+    input {
+      padding-top: 6px;
+      padding-bottom: 6px;
+      border: none;
+      } &::placeholder {
+        font-size: 16px;
+        line-height: 24px;
+      }
+
+    .input-group {
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      border: 1px solid @core-fleet-black-25;
+    }
+
+    .input-group:focus-within {
+      border: 1px solid @core-vibrant-blue;
+    }
+
+    .docsearch-input {
+      height: 100%;
+      width: 98%;
+    }
+
+    .ds-input:focus-visible {
+      outline: rgba(0, 0, 0, 0);
+    }
+
+    .input-group-text {
+      color: @core-fleet-black-50;
+    }
+
+    .form-control {
+      height: 48px;
+      padding: 0px;
+      font-size: 16px;
+    } &:focus {
+      border: none;
+    }
+
+  }
+
   [purpose='docs-landing-page'] {
 
     h3 {
@@ -48,42 +94,6 @@
 
     a {
       color: @core-vibrant-blue;
-    }
-
-    [purpose='search'] {
-
-      input {
-        padding-top: 6px;
-        padding-bottom: 6px;
-
-        &::placeholder {
-          font-size: 16px;
-          line-height: 24px;
-
-        }
-
-      }
-
-      .input-group-text {
-        color: @core-fleet-black-50;
-        border-color: @core-fleet-black-25;
-        border-top-left-radius: 6px;
-        border-bottom-left-radius: 6px;
-      }
-
-      .form-control {
-        height: 48px;
-        font-size: 16px;
-        border-color: @core-fleet-black-25;
-        border-top-right-radius: 6px;
-        border-bottom-right-radius: 6px;
-
-        &:focus {
-          border: 1px solid @core-fleet-black-25;
-        }
-
-      }
-
     }
 
     [purpose='cta-cards'] {
@@ -181,45 +191,10 @@
 
     [purpose='search'] {
 
-      input {
-        padding-top: 6px;
-        padding-bottom: 6px;
-        border-radius: 6px;
-        border-top-left-radius: 0px;
-        border-bottom-left-radius: 0px;
-
-        &::placeholder {
-          font-size: 16px;
-          line-height: 24px;
-        }
-
-      }
-
-      .input-group-prepend {
-        border-radius: 6px;
-        border-top-right-radius: 0px;
-        border-bottom-right-radius: 0px;
-
-      }
-
-      .input-group-text {
-        color: #8b8fa2;
-        border-color: #c5c7d1;
-        border-top-left-radius: 8px;
-        border-bottom-left-radius: 8px;
-      }
-
       .form-control {
-        height: 40px;
+        height: 36px;
         font-size: 16px;
-        border-color: #c5c7d1;
-        border-top-right-radius: 8px;
-        border-bottom-right-radius: 8px;
-
-        &:focus {
-          border: 1px solid #c5c7d1;
-        }
-
+        padding: 0;
       }
 
     }
@@ -359,8 +334,9 @@
 
       img {
         display: flex;
-        width: 100%;
+        max-width: 100%;
         height: auto;
+        margin: auto;
         padding-top: 24px;
         padding-bottom: 24px;
       }
@@ -401,36 +377,8 @@
 
     }
 
-    // for smaller screens
-    @media (max-width: 991px) {
-
-      [purpose='right-sidebar'] {
-        width: 100%;
-
-        [purpose='subtopics'] {
-          color: @core-fleet-black;
-
-          a {
-            color: @core-vibrant-blue;
-          }
-
-        }
-
-      }
-
-      [purpose='content'] {
-        width: 100%;
-
-        h1:first-of-type {
-          display: none;  // hides on mobile
-        }
-
-      }
-
-    }
-
     // for larger screens
-    @media (min-width: 992px) {
+    @media (min-width: 990px) {
 
       ul {
         .topic {
@@ -474,18 +422,6 @@
 
           }
 
-          // .active {
-          //   color: @core-vibrant-blue;
-          //   position: absolute;
-          //   height: 32px;
-          //   transform: translate(-2px, -4px);
-          //   border-left: 3px solid @core-vibrant-blue;
-          //   border-radius: 2px;
-          //   a {
-          //     color: @core-vibrant-blue;
-          //   }
-          // }
-
         }
 
       }
@@ -493,6 +429,42 @@
       [purpose='content'] {
         min-width: 0px; // in order for <pre> elements to shrink properly, the parent flex element needs to override min-width auto
       }
+
+    }
+
+    // for smaller screens
+    @media (max-width: 990px) {
+
+      padding: 0px 40px;
+
+      [purpose='right-sidebar'] {
+        width: 100%;
+
+        [purpose='subtopics'] {
+          color: @core-fleet-black;
+
+          a {
+            color: @core-vibrant-blue;
+          }
+
+        }
+
+      }
+
+      [purpose='content'] {
+        width: 100%;
+
+        h1:first-of-type {
+          display: none;  // hides on mobile
+        }
+
+      }
+
+    }
+    // for mobile
+    @media (max-width: 576px) {
+
+      padding: 0px 24px;
 
     }
 
