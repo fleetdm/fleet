@@ -20,6 +20,7 @@ import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IQueryPageProps {
+  router: any;
   params: Params;
   location: any; // TODO: find Location type
 }
@@ -35,6 +36,7 @@ interface IHostResponse {
 const baseClass = "query-page";
 
 const QueryPage = ({
+  router,
   params: { id: paramsQueryId },
   location: { query: URLQuerySearch },
 }: IQueryPageProps) => {
@@ -64,7 +66,7 @@ const QueryPage = ({
     data: storedQuery = DEFAULT_QUERY,
     error: storedQueryError,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
-    "query",
+    ["query", queryIdForEdit],
     () => queryAPI.load(queryIdForEdit as number),
     {
       enabled: !!queryIdForEdit,
@@ -148,6 +150,7 @@ const QueryPage = ({
 
   const renderScreen = () => {
     const step1Opts = {
+      router,
       baseClass,
       storedQuery,
       typedQueryBody,
