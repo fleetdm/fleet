@@ -455,7 +455,7 @@ spec:
   Description:  Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
   query: SELECT path,sha256 FROM hash WHERE path in (SELECT path FROM file WHERE size < 50000000 AND path LIKE ""/Users/%/Documents/%%"") AND sha256 = ""16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75"";
   purpose: Informational
-  contributors: andrewbare
+  contributors: alphabrevity
 ---
 apiVersion: v1
 kind: query
@@ -465,7 +465,7 @@ spec:
   description: The query allows you to check macOS systems for local administrator accounts. 
   query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
-  contributors: andrewbare
+  contributors: alphabrevity
 —--
 apiVersion: v1
 kind: query
@@ -475,7 +475,7 @@ spec:
   Description: List ports that are listening on all interfaces, along with the process to which they are attached.
   query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
   purpose: Informational 
-  contributors: andrewbare
+  contributors: alphabrevity
 ---
 apiVersion: v1
 kind: query
@@ -485,7 +485,7 @@ spec:
   description: Description: Looks for the TeamViewer service running on machines. This is used often when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
   query: SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE "%teamviewer%";
   purpose: Detection
-  contributors: andrewbare
+  contributors: alphabrevity
 ---
 apiVersion: v1
 kind: query
@@ -495,7 +495,7 @@ spec:
   description: Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
   query: select case cnt when 0 then "NONE_INSTALLED" else "INSTALLED" end as "Malicious Python Packages",package_name,package_version from (select count(name) as  cnt,nameas package_name,version as package_version,path as package_pathfrom python_packages where package_name in ('acqusition','apidev-coop','bzip','crypt','django-server','pwd','setup-tools','telnet','urlib3','urllib'));
   purpose: Informational
-  contributors: andrewbare
+  contributors: alphabrevity
 ---
 
 
