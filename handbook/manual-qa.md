@@ -146,7 +146,7 @@ Make sure all queries were successfully added by running the following command:
 
 Run the "Get the version of the resident operating system" query against your local machine by running the following command:
 
-`fleetctl query --hosts <your-local-machine-here> --query Get the version of the resident operating system`
+`fleetctl query --hosts <your-local-machine-here> --query-name "Get the version of the resident operating system"`
 
 ### Pack flow
 
