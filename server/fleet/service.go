@@ -12,7 +12,7 @@ type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
 	) (nodeKey string, err error)
-	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, err error)
+	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetDistributedQueries retrieves the distributed queries to run for the host in the provided context. These may be
 	// detail queries, label queries, or user-initiated distributed queries. A map from query name to query is returned.

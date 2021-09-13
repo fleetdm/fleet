@@ -61,7 +61,7 @@ class FleetDetails extends Component {
           disabled={!currentPage}
           className="button button--brand"
         >
-          Submit
+          Next
         </Button>
       </form>
     );

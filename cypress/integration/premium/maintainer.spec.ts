@@ -29,9 +29,7 @@ describe(
 
       cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-      cy.get("thead").within(() => {
-        cy.findByText(/team/i).should("exist");
-      });
+      cy.findByText(/show enroll secret/i).should("exist");
 
       cy.contains("button", /add new host/i).click();
       // TODO: Check Team Apples is in Select a team dropdown
@@ -63,23 +61,26 @@ describe(
       // Query pages: Can see teams UI for create, edit, and run query
       cy.visit("/queries/manage");
 
-      cy.findByRole("button", { name: /create new query/i }).click();
+      cy.findByRole("button", { name: /create new query/i }).should("exist");
 
-      cy.get(".target-select").within(() => {
-        cy.findByText(/Label name, host name, IP address, etc./i).click();
-        cy.findByText(/teams/i).should("exist");
-      });
+      // TODO - Fix tests according to improved query experience - MP
+      // cy.findByRole("button", { name: /create new query/i }).click();
 
-      cy.visit("/queries/manage");
+      // cy.get(".target-select").within(() => {
+      //   cy.findByText(/Label name, host name, IP address, etc./i).click();
+      //   cy.findByText(/teams/i).should("exist");
+      // });
 
-      cy.findByText(/detect presence/i).click();
+      // cy.visit("/queries/manage");
 
-      cy.findByText(/edit & run query/i).should("exist");
+      // cy.findByText(/detect presence/i).click();
 
-      cy.get(".target-select").within(() => {
-        cy.findByText(/Label name, host name, IP address, etc./i).click();
-        cy.findByText(/teams/i).should("exist");
-      });
+      // cy.findByText(/edit & run query/i).should("exist");
+
+      // cy.get(".target-select").within(() => {
+      //   cy.findByText(/Label name, host name, IP address, etc./i).click();
+      //   cy.findByText(/teams/i).should("exist");
+      // });
 
       // On the Packs pages (manage, new, and edit), they should…
       // On the Schedule pages (manage, new, and edit), they should…

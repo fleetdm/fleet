@@ -127,7 +127,7 @@ type FleetEndpoints struct {
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
-func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore) FleetEndpoints {
+func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore, logger kitlog.Logger) FleetEndpoints {
 	limiter := ratelimit.NewMiddleware(limitStore)
 
 	return FleetEndpoints{
@@ -244,11 +244,11 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		// Osquery endpoints
 		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
 		// Authenticated osquery endpoints
-		GetClientConfig:               authenticatedHost(svc, makeGetClientConfigEndpoint(svc)),
-		GetDistributedQueries:         authenticatedHost(svc, makeGetDistributedQueriesEndpoint(svc)),
-		SubmitDistributedQueryResults: authenticatedHost(svc, makeSubmitDistributedQueryResultsEndpoint(svc)),
-		SubmitLogs:                    authenticatedHost(svc, makeSubmitLogsEndpoint(svc)),
-		CarveBegin:                    authenticatedHost(svc, makeCarveBeginEndpoint(svc)),
+		GetClientConfig:               authenticatedHost(svc, logger, makeGetClientConfigEndpoint(svc)),
+		GetDistributedQueries:         authenticatedHost(svc, logger, makeGetDistributedQueriesEndpoint(svc)),
+		SubmitDistributedQueryResults: authenticatedHost(svc, logger, makeSubmitDistributedQueryResultsEndpoint(svc)),
+		SubmitLogs:                    authenticatedHost(svc, logger, makeSubmitLogsEndpoint(svc)),
+		CarveBegin:                    authenticatedHost(svc, logger, makeCarveBeginEndpoint(svc)),
 		// For some reason osquery does not provide a node key with the block
 		// data. Instead the carve session ID should be verified in the service
 		// method.
@@ -541,7 +541,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 		),
 	}
 
-	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Server.URLPrefix, limitStore)
+	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Server.URLPrefix, limitStore, logger)
 	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
 
 	r := mux.NewRouter()
