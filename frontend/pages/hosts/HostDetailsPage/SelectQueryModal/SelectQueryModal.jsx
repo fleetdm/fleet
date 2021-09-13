@@ -112,7 +112,7 @@ const SelectQueryModal = (props) => {
               <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
             </a>
           </span>
-          {customQueryButton()}
+          {!isOnlyObserver && customQueryButton()}
         </div>
       );
     }
@@ -125,7 +125,7 @@ const SelectQueryModal = (props) => {
             Expecting to see queries? Try again in a few seconds as the system
             catches up.
           </span>
-          {customQueryButton()}
+          {!isOnlyObserver && customQueryButton()}
         </div>
       );
     }
@@ -179,10 +179,12 @@ const SelectQueryModal = (props) => {
                 value={queriesFilter}
               />
             </div>
-            <div className={`${baseClass}__create-query`}>
-              <span>OR</span>
-              {customQueryButton()}
-            </div>
+            {!isOnlyObserver && (
+              <div className={`${baseClass}__create-query`}>
+                <span>OR</span>
+                {customQueryButton()}
+              </div>
+            )}
           </div>
           <div className={`${baseClass}__no-query-results`}>
             <span className="info__header">
