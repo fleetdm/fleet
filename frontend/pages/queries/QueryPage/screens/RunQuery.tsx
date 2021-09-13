@@ -156,7 +156,7 @@ const RunQuery = ({
     try {
       const returnedCampaign = await queryAPI.run({
         query: sql,
-        queryId: queryIdForEdit,
+        queryId: typedQueryBody ? null : queryIdForEdit, // because we are not using saved query if user edits the SQL
         selected,
       });
 
