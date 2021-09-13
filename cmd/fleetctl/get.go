@@ -923,6 +923,10 @@ func getSoftwareCommand() *cli.Command {
 				return err
 			}
 
+			if c.Bool(yamlFlagName) && c.Bool(jsonFlagName) {
+				return errors.New("Can't specify both yaml and json flags.")
+			}
+
 			var teamID *uint
 
 			teamIDFlag := c.Uint(teamFlagName)
