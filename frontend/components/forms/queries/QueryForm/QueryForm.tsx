@@ -4,6 +4,8 @@ import { IAceEditor } from "react-ace/lib/types";
 import { size } from "lodash";
 
 import { IQueryFormFields, IQueryFormData, IQuery } from "interfaces/query";
+import { IFormField } from "interfaces/form_field";
+import { AppContext } from "context/app";
 
 // @ts-ignore
 import Form from "components/forms/Form"; // @ts-ignore
@@ -12,10 +14,7 @@ import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/loaders/Spinner";
-import { IFormField } from "interfaces/form_field";
-import { AppContext } from "context/app";
 import NewQueryModal from "./NewQueryModal";
-import { INewQueryModalProps } from "./NewQueryModal/NewQueryModal";
 
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
@@ -49,7 +48,6 @@ interface IRenderProps {
   description?: IFormField;
   observer_can_run?: IFormField;
   observerCanRun?: boolean;
-  modalProps?: INewQueryModalProps;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -253,7 +251,6 @@ const QueryForm = ({
     queryError,
     observer_can_run,
     observerCanRun,
-    modalProps,
   }: IRenderProps) => (
     <>
       <form className={`${baseClass}__wrapper`}>
@@ -342,7 +339,12 @@ const QueryForm = ({
           </Button>
         </div>
       </form>
-      {isSaveModalOpen && <NewQueryModal {...modalProps} />}
+      {isSaveModalOpen && (<NewQueryModal 
+        baseClass={baseClass}
+        queryValue={queryValue}
+        onCreateQuery={onCreateQuery}
+        setIsSaveModalOpen={setIsSaveModalOpen}
+      />)}
     </>
   );
 
@@ -359,14 +361,7 @@ const QueryForm = ({
 
   const queryError = query?.error || errors.query;
   const queryOnChange = query?.onChange;
-  const observerCanRun = (observer_can_run?.value ||
-    storedQuery.observer_can_run) as boolean;
-  const modalProps = {
-    baseClass,
-    queryValue,
-    onCreateQuery,
-    setIsSaveModalOpen,
-  } as INewQueryModalProps; // because we're missing "fields" which is added from the Form HOC
+  const observerCanRun = (typeof observer_can_run?.value !== "undefined" ? observer_can_run.value : storedQuery.observer_can_run) as boolean;
 
   if (isStoredQueryLoading) {
     return <Spinner />;
@@ -394,7 +389,6 @@ const QueryForm = ({
     nameText,
     descText,
     observerCanRun,
-    modalProps,
     queryOnChange,
   });
 };
