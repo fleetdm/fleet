@@ -19,10 +19,32 @@ type standalonePool struct {
 	addr string
 }
 
+func (p *standalonePool) ConfigureDoer(conn redis.Conn) redis.Conn {
+	return conn
+}
+
 func (p *standalonePool) Stats() map[string]redis.PoolStats {
 	return map[string]redis.PoolStats{
 		p.addr: p.Pool.Stats(),
 	}
+}
+
+type clusterPool struct {
+	*redisc.Cluster
+	followRedirs bool
+}
+
+// ConfigureDoer configures conn to follow redirections if the redis
+// configuration requested it. If the conn is already in error, or
+// if it is not a redisc cluster connection, it is returned unaltered.
+func (p *clusterPool) ConfigureDoer(conn redis.Conn) redis.Conn {
+	if err := conn.Err(); err == nil && p.followRedirs {
+		rc, err := redisc.RetryConn(conn, 3, 300*time.Millisecond)
+		if err == nil {
+			return rc
+		}
+	}
+	return conn
 }
 
 // PoolConfig holds the redis pool configuration options.
@@ -54,7 +76,7 @@ func NewRedisPool(config PoolConfig) (fleet.RedisPool, error) {
 		return nil, errors.Wrap(err, "refresh cluster")
 	}
 
-	return cluster, nil
+	return &clusterPool{cluster, config.ClusterFollowRedirections}, nil
 }
 
 // SplitRedisKeysBySlot takes a list of redis keys and groups them by hash slot
@@ -64,7 +86,7 @@ func NewRedisPool(config PoolConfig) (fleet.RedisPool, error) {
 // simply returns all keys in the same group (i.e. the top-level slice has a
 // length of 1).
 func SplitRedisKeysBySlot(pool fleet.RedisPool, keys ...string) [][]string {
-	if _, isCluster := pool.(*redisc.Cluster); isCluster {
+	if _, isCluster := pool.(*clusterPool); isCluster {
 		return redisc.SplitBySlot(keys...)
 	}
 	return [][]string{keys}
@@ -76,7 +98,7 @@ func SplitRedisKeysBySlot(pool fleet.RedisPool, keys ...string) [][]string {
 // of nodes stops and EachRedisNode returns that error. For standalone redis,
 // fn is called only once.
 func EachRedisNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
-	if cluster, isCluster := pool.(*redisc.Cluster); isCluster {
+	if cluster, isCluster := pool.(*clusterPool); isCluster {
 		return cluster.EachNode(false, func(_ string, conn redis.Conn) error {
 			return fn(conn)
 		})
