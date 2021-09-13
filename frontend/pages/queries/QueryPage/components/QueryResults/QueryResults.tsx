@@ -9,6 +9,7 @@ import { filter, get, keys, omit } from "lodash";
 import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
 import filterArrayByHash from "utilities/filter_array_by_hash";
 import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
+import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
@@ -16,7 +17,6 @@ import InputField from "components/forms/fields/InputField";
 import QueryResultsRow from "components/queries/QueryResultsRow";
 import Spinner from "components/loaders/Spinner";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
-import { ITarget } from "interfaces/target";
 
 interface IQueryResultsProps {
   campaign: ICampaign;

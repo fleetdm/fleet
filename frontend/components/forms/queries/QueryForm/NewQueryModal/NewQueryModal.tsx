@@ -122,6 +122,11 @@ const NewQueryModal = ({
 };
 
 export default Form(NewQueryModal, {
-  fields: ["descriptionModal", "nameModal", "queryModal", "observer_can_run_modal"],
+  fields: [
+    "descriptionModal",
+    "nameModal",
+    "queryModal",
+    "observer_can_run_modal",
+  ],
   validate: validateQueryName,
 });
