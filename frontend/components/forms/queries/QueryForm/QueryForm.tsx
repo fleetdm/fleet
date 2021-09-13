@@ -1,4 +1,4 @@
-import React, { useState, useRef, useContext } from "react";
+import React, { useState, useRef, useContext, useEffect } from "react";
 import ContentEditable, { ContentEditableEvent } from "react-contenteditable";
 import { IAceEditor } from "react-ace/lib/types";
 import { size } from "lodash";
@@ -25,11 +25,12 @@ interface IQueryFormProps {
   fields: IQueryFormFields;
   storedQuery: IQuery;
   typedQueryBody: string;
-  isEditMode: boolean;
+  queryIdForEdit: number | null;
   hasSavePermissions: boolean;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
   isEditorUsingDefaultQuery: boolean;
+  resetField: (fieldName: string) => void;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -67,11 +68,12 @@ const QueryForm = ({
   fields,
   storedQuery,
   typedQueryBody,
-  isEditMode,
+  queryIdForEdit,
   hasSavePermissions,
   showOpenSchemaActionText,
   isStoredQueryLoading,
   isEditorUsingDefaultQuery,
+  resetField,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -79,6 +81,7 @@ const QueryForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryFormProps) => {
+  const isEditMode = !!queryIdForEdit;
   const nameEditable = useRef(null);
   const descriptionEditable = useRef(null);
 
@@ -92,6 +95,13 @@ const QueryForm = ({
     isAnyTeamMaintainer,
     isGlobalMaintainer,
   } = useContext(AppContext);
+
+  // Not ideal but we need to reset
+  // form values if the query id changes
+  // TODO: local states for all forms
+  useEffect(() => {
+    resetField("observer_can_run");
+  }, [queryIdForEdit]);
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({

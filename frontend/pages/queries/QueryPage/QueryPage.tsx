@@ -154,7 +154,7 @@ const QueryPage = ({
       baseClass,
       storedQuery,
       typedQueryBody,
-      isEditMode: !!queryIdForEdit,
+      queryIdForEdit,
       showOpenSchemaActionText,
       isStoredQueryLoading,
       error: storedQueryError,

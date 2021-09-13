@@ -20,7 +20,7 @@ interface IQueryEditorProps {
   baseClass: string;
   storedQuery: IQuery | undefined;
   typedQueryBody: string;
-  isEditMode: boolean;
+  queryIdForEdit: number | null;
   error: any;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
@@ -39,7 +39,7 @@ const QueryEditor = ({
   baseClass,
   storedQuery,
   typedQueryBody,
-  isEditMode,
+  queryIdForEdit,
   error,
   showOpenSchemaActionText,
   isStoredQueryLoading,
@@ -72,7 +72,7 @@ const QueryEditor = ({
   });
 
   const onUpdateQuery = async (formData: IQueryFormData) => {
-    if (!isEditMode || !storedQuery) {
+    if (!queryIdForEdit || !storedQuery) {
       return false;
     }
 
@@ -125,7 +125,7 @@ const QueryEditor = ({
         serverErrors={error || {}}
         storedQuery={storedQuery}
         typedQueryBody={typedQueryBody}
-        isEditMode={isEditMode}
+        queryIdForEdit={queryIdForEdit}
         isStoredQueryLoading={isStoredQueryLoading}
         isEditorUsingDefaultQuery={isEditorUsingDefaultQuery}
         hasSavePermissions={hasSavePermissions(currentUser)}
