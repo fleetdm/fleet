@@ -29,7 +29,7 @@ func TestDeleteEntity(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	require.NoError(t, ds.deleteEntity("hosts", host.ID))
+	require.NoError(t, ds.deleteEntity(context.Background(), "hosts", host.ID))
 
 	host, err = ds.Host(context.Background(), host.ID)
 	require.Error(t, err)
@@ -42,7 +42,7 @@ func TestDeleteEntityByName(t *testing.T) {
 
 	query1 := test.NewQuery(t, ds, t.Name()+"time", "select * from time", 0, true)
 
-	require.NoError(t, ds.deleteEntityByName("queries", query1.Name))
+	require.NoError(t, ds.deleteEntityByName(context.Background(), "queries", query1.Name))
 
 	gotQ, err := ds.Query(context.Background(), query1.ID)
 	require.Error(t, err)
@@ -57,7 +57,7 @@ func TestDeleteEntities(t *testing.T) {
 	query2 := test.NewQuery(t, ds, t.Name()+"time2", "select * from time", 0, true)
 	query3 := test.NewQuery(t, ds, t.Name()+"time3", "select * from time", 0, true)
 
-	count, err := ds.deleteEntities("queries", []uint{query1.ID, query2.ID})
+	count, err := ds.deleteEntities(context.Background(), "queries", []uint{query1.ID, query2.ID})
 	require.NoError(t, err)
 	assert.Equal(t, uint(2), count)
 

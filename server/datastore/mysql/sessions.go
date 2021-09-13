@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -13,7 +14,7 @@ func (d *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Sessio
 			WHERE ` + "`key`" + ` = ? LIMIT 1
 	`
 	session := &fleet.Session{}
-	err := d.reader.Get(session, sqlStatement, key)
+	err := sqlx.GetContext(ctx, d.reader, session, sqlStatement, key)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting sessions")
 	}
@@ -28,7 +29,7 @@ func (d *Datastore) SessionByID(ctx context.Context, id uint) (*fleet.Session, e
 		LIMIT 1
 	`
 	session := &fleet.Session{}
-	err := d.reader.Get(session, sqlStatement, id)
+	err := sqlx.GetContext(ctx, d.reader, session, sqlStatement, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting session by id")
 	}
@@ -42,7 +43,7 @@ func (d *Datastore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.
 		WHERE user_id = ?
 	`
 	sessions := []*fleet.Session{}
-	err := d.reader.Select(&sessions, sqlStatement, id)
+	err := sqlx.SelectContext(ctx, d.reader, &sessions, sqlStatement, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting sessions for user")
 	}
@@ -58,7 +59,7 @@ func (d *Datastore) NewSession(ctx context.Context, session *fleet.Session) (*fl
 		)
 		VALUES(?,?)
 	`
-	result, err := d.writer.Exec(sqlStatement, session.UserID, session.Key)
+	result, err := d.writer.ExecContext(ctx, sqlStatement, session.UserID, session.Key)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting session")
 	}
@@ -69,7 +70,7 @@ func (d *Datastore) NewSession(ctx context.Context, session *fleet.Session) (*fl
 }
 
 func (d *Datastore) DestroySession(ctx context.Context, session *fleet.Session) error {
-	err := d.deleteEntity("sessions", session.ID)
+	err := d.deleteEntity(ctx, "sessions", session.ID)
 	if err != nil {
 		return errors.Wrap(err, "deleting session")
 	}
@@ -81,7 +82,7 @@ func (d *Datastore) DestroyAllSessionsForUser(ctx context.Context, id uint) erro
 	sqlStatement := `
 		DELETE FROM sessions WHERE user_id = ?
 	`
-	_, err := d.writer.Exec(sqlStatement, id)
+	_, err := d.writer.ExecContext(ctx, sqlStatement, id)
 	if err != nil {
 		return errors.Wrap(err, "deleting sessions for user")
 	}
@@ -95,7 +96,7 @@ func (d *Datastore) MarkSessionAccessed(ctx context.Context, session *fleet.Sess
 		accessed_at = ?
 		WHERE id = ?
 	`
-	results, err := d.writer.Exec(sqlStatement, d.clock.Now(), session.ID)
+	results, err := d.writer.ExecContext(ctx, sqlStatement, d.clock.Now(), session.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating mark session as accessed")
 	}
