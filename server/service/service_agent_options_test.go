@@ -17,12 +17,12 @@ func TestAgentOptionsForHost(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 
 	teamID := uint(1)
-	ds.TeamFunc = func(tid uint) (*fleet.Team, error) {
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		assert.Equal(t, teamID, tid)
 		opt := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
 		return &fleet.Team{AgentOptions: &opt}, nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"baz":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override2"}}}}`)),
 		}, nil

@@ -22,7 +22,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			return errors.Errorf("label %s is declared as manual but contains no `hosts key`", spec.Name)
 		}
 	}
-	return svc.ds.ApplyLabelSpecs(specs)
+	return svc.ds.ApplyLabelSpecs(ctx, specs)
 }
 
 func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
@@ -30,7 +30,7 @@ func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, erro
 		return nil, err
 	}
 
-	return svc.ds.GetLabelSpecs()
+	return svc.ds.GetLabelSpecs(ctx)
 }
 
 func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
@@ -38,7 +38,7 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 		return nil, err
 	}
 
-	return svc.ds.GetLabelSpec(name)
+	return svc.ds.GetLabelSpec(ctx, name)
 }
 
 func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.Label, error) {
@@ -66,7 +66,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		label.Description = *p.Description
 	}
 
-	label, err := svc.ds.NewLabel(label)
+	label, err := svc.ds.NewLabel(ctx, label)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		return nil, err
 	}
 
-	label, err := svc.ds.Label(id)
+	label, err := svc.ds.Label(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if payload.Description != nil {
 		label.Description = *payload.Description
 	}
-	return svc.ds.SaveLabel(label)
+	return svc.ds.SaveLabel(ctx, label)
 }
 
 func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Label, error) {
@@ -101,7 +101,7 @@ func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*f
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	return svc.ds.ListLabels(filter, opt)
+	return svc.ds.ListLabels(ctx, filter, opt)
 }
 
 func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, error) {
@@ -109,7 +109,7 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, error)
 		return nil, err
 	}
 
-	return svc.ds.Label(id)
+	return svc.ds.Label(ctx, id)
 }
 
 func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
@@ -117,7 +117,7 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 		return err
 	}
 
-	return svc.ds.DeleteLabel(name)
+	return svc.ds.DeleteLabel(ctx, name)
 }
 
 func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
@@ -125,11 +125,11 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 		return err
 	}
 
-	label, err := svc.ds.Label(id)
+	label, err := svc.ds.Label(ctx, id)
 	if err != nil {
 		return err
 	}
-	return svc.ds.DeleteLabel(label.Name)
+	return svc.ds.DeleteLabel(ctx, label.Name)
 }
 
 func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -142,7 +142,7 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	return svc.ds.ListHostsInLabel(filter, lid, opt)
+	return svc.ds.ListHostsInLabel(ctx, filter, lid, opt)
 }
 
 func (svc *Service) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.Label, error) {
@@ -150,5 +150,5 @@ func (svc *Service) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.L
 		return nil, err
 	}
 
-	return svc.ds.ListLabelsForHost(hid)
+	return svc.ds.ListLabelsForHost(ctx, hid)
 }

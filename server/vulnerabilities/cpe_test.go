@@ -2,6 +2,7 @@ package vulnerabilities
 
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -150,7 +151,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 
 	var cpes []string
 
-	ds.AddCPEForSoftwareFunc = func(software fleet.Software, cpe string) error {
+	ds.AddCPEForSoftwareFunc = func(ctx context.Context, software fleet.Software, cpe string) error {
 		cpes = append(cpes, cpe)
 		return nil
 	}
@@ -172,7 +173,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 		},
 	}
 
-	ds.AllSoftwareWithoutCPEIteratorFunc = func() (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context) (fleet.SoftwareIterator, error) {
 		return iterator, nil
 	}
 
@@ -183,7 +184,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
-	err = TranslateSoftwareToCPE(ds, tempDir, kitlog.NewNopLogger(), "")
+	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger(), "")
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",

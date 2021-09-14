@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
@@ -14,7 +15,7 @@ type statistics struct {
 	Identifier string `db:"anonymous_identifier"`
 }
 
-func (d *Datastore) ShouldSendStatistics(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 	amountEnrolledHosts, err := amountEnrolledHostsDB(d.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, err
@@ -54,7 +55,7 @@ func (d *Datastore) ShouldSendStatistics(frequency time.Duration) (fleet.Statist
 	}, true, nil
 }
 
-func (d *Datastore) RecordStatisticsSent() error {
+func (d *Datastore) RecordStatisticsSent(ctx context.Context) error {
 	_, err := d.writer.Exec(`UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
 	return err
 }

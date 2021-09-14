@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -12,17 +13,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
+func (d *Datastore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	info.ApplyDefaultsForNewInstalls()
 
-	if err := d.SaveAppConfig(info); err != nil {
+	if err := d.SaveAppConfig(ctx, info); err != nil {
 		return nil, errors.Wrap(err, "new app config")
 	}
 
 	return info, nil
 }
 
-func (d *Datastore) AppConfig() (*fleet.AppConfig, error) {
+func (d *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	info := &fleet.AppConfig{}
 	var bytes []byte
 	err := d.reader.Get(&bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
@@ -92,7 +93,7 @@ func manageHostExpiryEventDB(tx *sqlx.Tx, hostExpiryEnabled bool, hostExpiryWind
 	return nil
 }
 
-func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
+func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	eventSchedulerEnabled, err := d.isEventSchedulerEnabled()
 	if err != nil {
 		return err
@@ -134,7 +135,7 @@ func (d *Datastore) SaveAppConfig(info *fleet.AppConfig) error {
 	})
 }
 
-func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, error) {
+func (d *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 	var s fleet.EnrollSecret
 	err := d.reader.Get(&s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
@@ -144,7 +145,7 @@ func (d *Datastore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, erro
 	return &s, nil
 }
 
-func (d *Datastore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
+func (d *Datastore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 	return d.withRetryTxx(func(tx *sqlx.Tx) error {
 		return applyEnrollSecretsDB(tx, teamID, secrets)
 	})
@@ -175,7 +176,7 @@ func applyEnrollSecretsDB(exec sqlx.Execer, teamID *uint, secrets []*fleet.Enrol
 	return nil
 }
 
-func (d *Datastore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error) {
+func (d *Datastore) GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 	return getEnrollSecretsDB(d.reader, teamID)
 }
 

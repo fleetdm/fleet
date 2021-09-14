@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -20,7 +21,7 @@ func TestGetLabel(t *testing.T) {
 		Name:  "foo",
 		Query: "select * from foo;",
 	}
-	label, err := ds.NewLabel(label)
+	label, err := ds.NewLabel(context.Background(), label)
 	assert.Nil(t, err)
 	assert.NotZero(t, label.ID)
 
@@ -33,8 +34,8 @@ func TestGetLabels(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	require.NoError(t, ds.MigrateTables())
-	require.NoError(t, ds.MigrateData())
+	require.NoError(t, ds.MigrateTables(context.Background()))
+	require.NoError(t, ds.MigrateData(context.Background()))
 
 	svc := newTestService(ds, nil, nil)
 

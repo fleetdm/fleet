@@ -1,11 +1,13 @@
 package mysql
 
 import (
+	"context"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewPasswordResetRequest(req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error) {
+func (d *Datastore) NewPasswordResetRequest(ctx context.Context, req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error) {
 	sqlStatement := `
 		INSERT INTO password_reset_requests
 		( user_id, token, expires_at)
@@ -22,7 +24,7 @@ func (d *Datastore) NewPasswordResetRequest(req *fleet.PasswordResetRequest) (*f
 
 }
 
-func (d *Datastore) DeletePasswordResetRequestsForUser(userID uint) error {
+func (d *Datastore) DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error {
 	sqlStatement := `
 		DELETE FROM password_reset_requests WHERE user_id = ?
 	`
@@ -33,7 +35,7 @@ func (d *Datastore) DeletePasswordResetRequestsForUser(userID uint) error {
 
 	return nil
 }
-func (d *Datastore) FindPassswordResetByToken(token string) (*fleet.PasswordResetRequest, error) {
+func (d *Datastore) FindPassswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
 	sqlStatement := `
                SELECT * FROM password_reset_requests
                WHERE token = ? LIMIT 1

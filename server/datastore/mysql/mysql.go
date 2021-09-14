@@ -2,6 +2,7 @@
 package mysql
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
@@ -262,15 +263,15 @@ func checkConfig(conf *config.MysqlConfig) error {
 	return nil
 }
 
-func (d *Datastore) MigrateTables() error {
+func (d *Datastore) MigrateTables(ctx context.Context) error {
 	return tables.MigrationClient.Up(d.writer.DB, "")
 }
 
-func (d *Datastore) MigrateData() error {
+func (d *Datastore) MigrateData(ctx context.Context) error {
 	return data.MigrationClient.Up(d.writer.DB, "")
 }
 
-func (d *Datastore) MigrationStatus() (fleet.MigrationStatus, error) {
+func (d *Datastore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus, error) {
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
 		return 0, errors.New("unexpected nil migrations list")
 	}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -93,7 +94,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)
-		user, err = ds.NewUser(user)
+		user, err = ds.NewUser(context.Background(), user)
 		require.Nil(t, err)
 		users[user.Email] = *user
 	}

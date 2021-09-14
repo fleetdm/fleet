@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -12,7 +13,7 @@ import (
 
 var teamSearchColumns = []string{"name"}
 
-func (d *Datastore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
+func (d *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
 		query := `
     INSERT INTO teams (
@@ -43,7 +44,7 @@ func (d *Datastore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
 	return team, nil
 }
 
-func (d *Datastore) Team(tid uint) (*fleet.Team, error) {
+func (d *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 	return teamDB(d.reader, tid)
 }
 
@@ -77,14 +78,14 @@ func saveTeamSecretsDB(exec sqlx.Execer, team *fleet.Team) error {
 	return applyEnrollSecretsDB(exec, &team.ID, team.Secrets)
 }
 
-func (d *Datastore) DeleteTeam(tid uint) error {
+func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	if err := d.deleteEntity("teams", tid); err != nil {
 		return errors.Wrapf(err, "delete team id %d", tid)
 	}
 	return nil
 }
 
-func (d *Datastore) TeamByName(name string) (*fleet.Team, error) {
+func (d *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {
 	sql := `
 		SELECT * FROM teams
 			WHERE name = ?
@@ -150,7 +151,7 @@ func saveUsersForTeamDB(exec sqlx.Execer, team *fleet.Team) error {
 	return nil
 }
 
-func (d *Datastore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
+func (d *Datastore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
 		query := `
 		UPDATE teams SET
@@ -186,7 +187,7 @@ func updateTeamScheduleDB(exec sqlx.Execer, team *fleet.Team) error {
 
 // ListTeams lists all teams with limit, sort and offset passed in with
 // fleet.ListOptions
-func (d *Datastore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+func (d *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	query := fmt.Sprintf(`
 			SELECT *,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
@@ -219,7 +220,7 @@ func loadSecretsForTeamsDB(q sqlx.Queryer, teams []*fleet.Team) error {
 	return nil
 }
 
-func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
+func (d *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
@@ -242,7 +243,7 @@ func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit
 	return teams, nil
 }
 
-func (d *Datastore) TeamEnrollSecrets(teamID uint) ([]*fleet.EnrollSecret, error) {
+func (d *Datastore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	sql := `
 		SELECT * FROM enroll_secrets
 		WHERE team_id = ?

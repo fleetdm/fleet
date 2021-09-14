@@ -29,12 +29,12 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
 
-	user, err := svc.newUser(p)
+	user, err := svc.newUser(ctx, p)
 	if err != nil {
 		return nil, err
 	}
 
-	err = svc.ds.DeleteInvite(invite.ID)
+	err = svc.ds.DeleteInvite(ctx, invite.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,11 +46,11 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		return nil, err
 	}
 
-	if invite, err := svc.ds.InviteByEmail(*p.Email); err == nil && invite != nil {
+	if invite, err := svc.ds.InviteByEmail(ctx, *p.Email); err == nil && invite != nil {
 		return nil, errors.Errorf("%s already invited", *p.Email)
 	}
 
-	return svc.newUser(p)
+	return svc.newUser(ctx, p)
 }
 
 func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
@@ -70,10 +70,10 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 	p.GlobalRole = ptr.String(fleet.RoleAdmin)
 	p.Teams = nil
 
-	return svc.newUser(p)
+	return svc.newUser(ctx, p)
 }
 
-func (svc *Service) newUser(p fleet.UserPayload) (*fleet.User, error) {
+func (svc *Service) newUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	var ssoEnabled bool
 	// if user is SSO generate a fake password
 	if (p.SSOInvite != nil && *p.SSOInvite) || (p.SSOEnabled != nil && *p.SSOEnabled) {
@@ -89,7 +89,7 @@ func (svc *Service) newUser(p fleet.UserPayload) (*fleet.User, error) {
 		return nil, err
 	}
 	user.SSOEnabled = ssoEnabled
-	user, err = svc.ds.NewUser(user)
+	user, err = svc.ds.NewUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.GlobalRole = nil
 	}
 
-	err = svc.saveUser(user)
+	err = svc.saveUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		return err
 	}
 	token := base64.URLEncoding.EncodeToString([]byte(random))
-	err = svc.ds.PendingEmailChange(user.ID, email, token)
+	err = svc.ds.PendingEmailChange(ctx, user.ID, email, token)
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 		return err
 	}
 
-	return svc.ds.DeleteUser(id)
+	return svc.ds.DeleteUser(ctx, id)
 }
 
 func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
@@ -212,7 +212,7 @@ func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, 
 		return "", err
 	}
 
-	return svc.ds.ConfirmPendingEmailChange(vc.UserID(), token)
+	return svc.ds.ConfirmPendingEmailChange(ctx, vc.UserID(), token)
 }
 
 func (svc *Service) User(ctx context.Context, id uint) (*fleet.User, error) {
@@ -220,12 +220,12 @@ func (svc *Service) User(ctx context.Context, id uint) (*fleet.User, error) {
 		return nil, err
 	}
 
-	return svc.ds.UserByID(id)
+	return svc.ds.UserByID(ctx, id)
 }
 
 func (svc *Service) UserUnauthorized(ctx context.Context, id uint) (*fleet.User, error) {
 	// Explicitly no authorization check. Should only be used by middleware.
-	return svc.ds.UserByID(id)
+	return svc.ds.UserByID(ctx, id)
 }
 
 func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {
@@ -249,7 +249,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 		return nil, err
 	}
 
-	return svc.ds.ListUsers(opt)
+	return svc.ds.ListUsers(ctx, opt)
 }
 
 // setNewPassword is a helper for changing a user's password. It should be
@@ -263,7 +263,7 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 	if user.SSOEnabled {
 		return errors.New("set password for single sign on user not allowed")
 	}
-	err = svc.saveUser(user)
+	err = svc.saveUser(ctx, user)
 	if err != nil {
 		return errors.Wrap(err, "saving changed password")
 	}
@@ -304,11 +304,11 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	// reset token.
 	svc.authz.SkipAuthorization(ctx)
 
-	reset, err := svc.ds.FindPassswordResetByToken(token)
+	reset, err := svc.ds.FindPassswordResetByToken(ctx, token)
 	if err != nil {
 		return errors.Wrap(err, "looking up reset by token")
 	}
-	user, err := svc.ds.UserByID(reset.UserID)
+	user, err := svc.ds.UserByID(ctx, reset.UserID)
 	if err != nil {
 		return errors.Wrap(err, "retrieving user")
 	}
@@ -328,13 +328,13 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	}
 
 	// delete password reset tokens for user
-	if err := svc.ds.DeletePasswordResetRequestsForUser(user.ID); err != nil {
+	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
 		return errors.Wrap(err, "delete password reset requests")
 	}
 
 	// Clear sessions so that any other browsers will have to log in with
 	// the new password
-	if err := svc.ds.DestroyAllSessionsForUser(user.ID); err != nil {
+	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
 		return errors.Wrap(err, "delete user sessions")
 	}
 
@@ -381,7 +381,7 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 		return nil, err
 	}
 
-	user, err := svc.ds.UserByID(uid)
+	user, err := svc.ds.UserByID(ctx, uid)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading user by ID")
 	}
@@ -390,7 +390,7 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 	}
 	// Require reset on next login
 	user.AdminForcedPasswordReset = require
-	if err := svc.saveUser(user); err != nil {
+	if err := svc.saveUser(ctx, user); err != nil {
 		return nil, errors.Wrap(err, "saving user")
 	}
 
@@ -415,7 +415,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		time.Sleep(time.Until(start.Add(1 * time.Second)))
 	}(time.Now())
 
-	user, err := svc.ds.UserByEmail(email)
+	user, err := svc.ds.UserByEmail(ctx, email)
 	if err != nil {
 		return err
 	}
@@ -434,12 +434,12 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		UserID:    user.ID,
 		Token:     token,
 	}
-	_, err = svc.ds.NewPasswordResetRequest(request)
+	_, err = svc.ds.NewPasswordResetRequest(ctx, request)
 	if err != nil {
 		return err
 	}
 
-	config, err := svc.ds.AppConfig()
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -461,6 +461,6 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 // saves user in datastore.
 // doesn't need to be exposed to the transport
 // the service should expose actions for modifying a user instead
-func (svc *Service) saveUser(user *fleet.User) error {
-	return svc.ds.SaveUser(user)
+func (svc *Service) saveUser(ctx context.Context, user *fleet.User) error {
+	return svc.ds.SaveUser(ctx, user)
 }

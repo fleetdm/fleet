@@ -47,7 +47,7 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "creating db connection")
 			}
 
-			status, err := ds.MigrationStatus()
+			status, err := ds.MigrationStatus(cmd.Context())
 			if err != nil {
 				initFatal(err, "retrieving migration status")
 			}
@@ -70,11 +70,11 @@ To setup Fleet infrastructure, use one of the available commands.
 				}
 			}
 
-			if err := ds.MigrateTables(); err != nil {
+			if err := ds.MigrateTables(cmd.Context()); err != nil {
 				initFatal(err, "migrating db schema")
 			}
 
-			if err := ds.MigrateData(); err != nil {
+			if err := ds.MigrateData(cmd.Context()); err != nil {
 				initFatal(err, "migrating builtin data")
 			}
 

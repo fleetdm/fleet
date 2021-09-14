@@ -9,7 +9,7 @@ import (
 )
 
 func (mw validationMiddleware) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
-	existing, err := mw.ds.AppConfig()
+	existing, err := mw.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching existing app config in validation")
 	}
