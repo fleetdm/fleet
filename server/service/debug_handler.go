@@ -7,7 +7,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
-	"github.com/fleetdm/fleet/v4/server/errors"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	kitlog "github.com/go-kit/kit/log"
@@ -49,7 +48,6 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlo
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	r.HandleFunc("/debug/errors", errors.HttpHandler)
 	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		pprof.Index(rw, req)
 	})

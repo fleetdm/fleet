@@ -156,6 +156,19 @@ func New(err error) error {
 	return err
 }
 
-func HttpHandler(w http.ResponseWriter, r *http.Request) {
-
+func NewHttpHandler(eh ErrorFlusher) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		errors, err := eh.Flush()
+		if err != nil {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		bytes, err := json.Marshal(errors)
+		if err != nil {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		w.Write(bytes)
+		w.WriteHeader(http.StatusOK)
+	}
 }
