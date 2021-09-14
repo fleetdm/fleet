@@ -333,8 +333,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
-			rootMux.HandleFunc("/errors", fleetErrors.NewHttpHandler(eh))
-			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger))
+			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh))
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
