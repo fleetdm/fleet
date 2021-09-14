@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -10,6 +11,10 @@ import (
 )
 
 func SetupRedisForTest(t *testing.T, cluster bool) (store *redisQueryResults, teardown func()) {
+	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
+	}
+
 	var (
 		addr       = "127.0.0.1:"
 		password   = ""

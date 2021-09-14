@@ -2,6 +2,7 @@ package sso
 
 import (
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -12,6 +13,10 @@ import (
 )
 
 func newPool(t *testing.T, cluster bool) fleet.RedisPool {
+	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
+	}
+
 	if _, ok := os.LookupEnv("REDIS_TEST"); ok {
 		var (
 			addr     = "127.0.0.1:"

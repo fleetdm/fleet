@@ -1,6 +1,7 @@
 package live_query
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -99,6 +100,10 @@ func TestMigrateKeys(t *testing.T) {
 }
 
 func setupRedisLiveQuery(t *testing.T, cluster bool) (store *redisLiveQuery, teardown func()) {
+	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
+	}
+
 	var (
 		addr     = "127.0.0.1:"
 		password = ""

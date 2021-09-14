@@ -3,6 +3,7 @@ package redis
 import (
 	"fmt"
 	"io"
+	"runtime"
 	"testing"
 	"time"
 
@@ -217,6 +218,10 @@ func TestEachRedisNode(t *testing.T) {
 }
 
 func setupRedisForTest(t *testing.T, cluster, redir bool) (pool fleet.RedisPool, teardown func()) {
+	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
+	}
+
 	var (
 		addr     = "127.0.0.1:"
 		password = ""
