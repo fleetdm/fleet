@@ -104,7 +104,7 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 }
 
 func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	storedCurrentSoftware, err := listSoftwareDB(tx, &host.ID, nil, fleet.ListOptions{})
+	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, nil, fleet.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "loading current software for host")
 	}
@@ -212,7 +212,7 @@ func insertNewInstalledHostSoftwareDB(
 	return nil
 }
 
-func listSoftwareDB(q sqlx.Queryer, hostID *uint, teamID *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
+func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, teamID *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
 	hostWhere := `hs.host_id=?`
 	if hostID == nil {
 		hostWhere = "TRUE"
@@ -240,7 +240,7 @@ func listSoftwareDB(q sqlx.Queryer, hostID *uint, teamID *uint, opt fleet.ListOp
 	if teamID != nil {
 		vars = append(vars, teamID)
 	}
-	if err := sqlx.Select(q, &result, sql, vars...); err != nil {
+	if err := sqlx.SelectContext(ctx, q, &result, sql, vars...); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 
@@ -254,7 +254,7 @@ func listSoftwareDB(q sqlx.Queryer, hostID *uint, teamID *uint, opt fleet.ListOp
 		WHERE %s AND %s
 	`, hostWhere, teamWhere)
 
-	rows, err := q.Queryx(sql, vars...)
+	rows, err := q.QueryxContext(ctx, sql, vars...)
 	if err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
@@ -287,7 +287,7 @@ func listSoftwareDB(q sqlx.Queryer, hostID *uint, teamID *uint, opt fleet.ListOp
 
 func (d *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := listSoftwareDB(d.reader, &host.ID, nil, fleet.ListOptions{})
+	software, err := listSoftwareDB(ctx, d.reader, &host.ID, nil, fleet.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -364,5 +364,5 @@ func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 }
 
 func (d *Datastore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(d.reader, nil, teamId, opt)
+	return listSoftwareDB(ctx, d.reader, nil, teamId, opt)
 }
