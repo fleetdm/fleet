@@ -115,6 +115,57 @@ func TestConnectRetry(t *testing.T) {
 	}
 }
 
+func TestRedisPoolConfigureDoer(t *testing.T) {
+	const prefix = "TestRedisPoolConfigureDoer:"
+
+	t.Run("standalone", func(t *testing.T) {
+		pool, teardown := setupRedisForTest(t, false, false)
+		defer teardown()
+
+		c1 := pool.Get()
+		defer c1.Close()
+		c2 := pool.ConfigureDoer(pool.Get())
+		defer c2.Close()
+
+		// both conns work equally well, get nil because keys do not exist,
+		// but no redirection error (this is standalone redis).
+		_, err := redis.String(c1.Do("GET", prefix+"{a}"))
+		require.Equal(t, redis.ErrNil, err)
+		_, err = redis.String(c1.Do("GET", prefix+"{b}"))
+		require.Equal(t, redis.ErrNil, err)
+
+		_, err = redis.String(c2.Do("GET", prefix+"{a}"))
+		require.Equal(t, redis.ErrNil, err)
+		_, err = redis.String(c2.Do("GET", prefix+"{b}"))
+		require.Equal(t, redis.ErrNil, err)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool, teardown := setupRedisForTest(t, true, true)
+		defer teardown()
+
+		c1 := pool.Get()
+		defer c1.Close()
+		c2 := pool.ConfigureDoer(pool.Get())
+		defer c2.Close()
+
+		// unconfigured conn gets MOVED error on the second key
+		// (it is bound to {a}, {b} is on a different node)
+		_, err := redis.String(c1.Do("GET", prefix+"{a}"))
+		require.Equal(t, redis.ErrNil, err)
+		_, err = redis.String(c1.Do("GET", prefix+"{b}"))
+		rerr := redisc.ParseRedir(err)
+		require.Error(t, rerr)
+		require.Equal(t, "MOVED", rerr.Type)
+
+		// configured conn gets the nil value, it redirected automatically
+		_, err = redis.String(c2.Do("GET", prefix+"{a}"))
+		require.Equal(t, redis.ErrNil, err)
+		_, err = redis.String(c2.Do("GET", prefix+"{b}"))
+		require.Equal(t, redis.ErrNil, err)
+	})
+}
+
 func TestEachRedisNode(t *testing.T) {
 	const prefix = "TestEachRedisNode:"
 
@@ -153,19 +204,19 @@ func TestEachRedisNode(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool, teardown := setupRedisForTest(t, false)
+		pool, teardown := setupRedisForTest(t, false, false)
 		defer teardown()
 		runTest(t, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool, teardown := setupRedisForTest(t, true)
+		pool, teardown := setupRedisForTest(t, true, false)
 		defer teardown()
 		runTest(t, pool)
 	})
 }
 
-func setupRedisForTest(t *testing.T, cluster bool) (pool fleet.RedisPool, teardown func()) {
+func setupRedisForTest(t *testing.T, cluster, redir bool) (pool fleet.RedisPool, teardown func()) {
 	var (
 		addr     = "127.0.0.1:"
 		password = ""
@@ -179,12 +230,13 @@ func setupRedisForTest(t *testing.T, cluster bool) (pool fleet.RedisPool, teardo
 	addr += port
 
 	pool, err := NewRedisPool(PoolConfig{
-		Server:      addr,
-		Password:    password,
-		Database:    database,
-		UseTLS:      useTLS,
-		ConnTimeout: 5 * time.Second,
-		KeepAlive:   10 * time.Second,
+		Server:                    addr,
+		Password:                  password,
+		Database:                  database,
+		UseTLS:                    useTLS,
+		ConnTimeout:               5 * time.Second,
+		KeepAlive:                 10 * time.Second,
+		ClusterFollowRedirections: redir,
 	})
 	require.NoError(t, err)
 
