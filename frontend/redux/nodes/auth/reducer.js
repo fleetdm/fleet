@@ -87,6 +87,7 @@ const reducer = (state = initialState, action) => {
         ...state,
         loading: false,
         user: null,
+        isLoggingOut: true, // TODO: temporary until redux is removed - 9/1/21 MP
       };
     case LOGOUT_FAILURE:
       return {

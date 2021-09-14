@@ -65,7 +65,7 @@ func (s *fileStore) readData() error {
 		return errors.New("expected file store to be regular file")
 	}
 
-	f, err := os.Open(s.filename)
+	f, err := secure.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, constant.DefaultFileMode)
 	if err != nil {
 		return errors.Wrap(err, "open file store")
 	}

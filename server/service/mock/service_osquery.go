@@ -13,7 +13,7 @@ var _ fleet.OsqueryService = (*TLSService)(nil)
 
 type EnrollAgentFunc func(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error)
 
-type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (host *fleet.Host, err error)
+type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (host *fleet.Host, debug bool, err error)
 
 type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{}, err error)
 
@@ -53,7 +53,7 @@ func (s *TLSService) EnrollAgent(ctx context.Context, enrollSecret string, hostI
 	return s.EnrollAgentFunc(ctx, enrollSecret, hostIdentifier, hostDetails)
 }
 
-func (s *TLSService) AuthenticateHost(ctx context.Context, nodeKey string) (host *fleet.Host, err error) {
+func (s *TLSService) AuthenticateHost(ctx context.Context, nodeKey string) (host *fleet.Host, debug bool, err error) {
 	s.AuthenticateHostFuncInvoked = true
 	return s.AuthenticateHostFunc(ctx, nodeKey)
 }

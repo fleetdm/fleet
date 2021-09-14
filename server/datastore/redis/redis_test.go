@@ -74,7 +74,7 @@ func setupRedisForTest(t *testing.T, cluster bool) (pool fleet.RedisPool, teardo
 	}
 	addr += port
 
-	pool, err := NewRedisPool(addr, password, database, useTLS)
+	pool, err := NewRedisPool(addr, password, database, useTLS, 5*time.Second, 10*time.Second)
 	require.NoError(t, err)
 
 	conn := pool.Get()

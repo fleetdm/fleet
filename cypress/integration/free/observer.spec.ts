@@ -63,11 +63,7 @@ describe("Free tier - Observer user", () => {
     cy.findByLabelText(/description/i).should("not.exist");
     cy.findByLabelText(/observer can run/i).should("not.exist");
     cy.findByText(/show sql/i).click();
-    cy.get(".target-select").within(() => {
-      cy.findByText(/Label name, host name, IP address, etc./i).click();
-      cy.findByText(/teams/i).should("not.exist");
-    });
-    cy.findByRole("button", { name: /run/i }).should("exist");
+    cy.findByRole("button", { name: /run query/i }).should("exist");
 
     cy.visit("/queries/manage");
 
@@ -78,8 +74,7 @@ describe("Free tier - Observer user", () => {
     cy.findByLabelText(/description/i).should("not.exist");
     cy.findByLabelText(/observer can run/i).should("not.exist");
     cy.findByText(/show sql/i).click();
-    cy.get(".target-select").should("not.exist");
-    cy.findByRole("button", { name: /run/i }).should("not.exist");
+    cy.findByRole("button", { name: /run query/i }).should("not.exist");
 
     // On the Profile page, they should…
     // See Observer in Role section, and no Team section

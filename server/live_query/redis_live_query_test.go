@@ -111,7 +111,7 @@ func setupRedisLiveQuery(t *testing.T, cluster bool) (store *redisLiveQuery, tea
 	}
 	addr += port
 
-	pool, err := redis.NewRedisPool(addr, password, database, useTLS)
+	pool, err := redis.NewRedisPool(addr, password, database, useTLS, 5*time.Second, 10*time.Second)
 	require.NoError(t, err)
 	store = NewRedisLiveQuery(pool)
 

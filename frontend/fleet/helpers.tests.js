@@ -19,7 +19,7 @@ describe("Fleet API - helpers", () => {
   describe("#formatConfigDataForServer", () => {
     const { formatConfigDataForServer } = helpers;
     const config = {
-      org_name: "Kolide",
+      org_name: "Fleet",
       org_logo_url: "0.0.0.0:8080/logo.png",
       server_url: "",
       configured: false,
@@ -38,6 +38,10 @@ describe("Fleet API - helpers", () => {
       host_expiry_enabled: false,
       host_expiry_window: 0,
       live_query_disabled: false,
+      enable_host_status_webhook: false,
+      destination_url: "http://server.com/example",
+      host_percentage: 5,
+      days_count: 7,
     };
 
     it("splits config into categories for the server", () => {
@@ -211,12 +215,16 @@ describe("redux app node - helpers", () => {
         smtp_settings: smtpSettings,
         host_expiry_settings: hostExpirySettings,
       } = configStub;
+      const {
+        host_status_webhook: webhookSettings,
+      } = configStub.webhook_settings;
 
       expect(frontendFormattedConfig(configStub)).toEqual({
         ...orgInfo,
         ...serverSettings,
         ...smtpSettings,
         ...hostExpirySettings,
+        ...webhookSettings,
       });
     });
   });

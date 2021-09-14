@@ -1,14 +1,26 @@
 .fleet-ace {
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
-    display: block;
-    margin-bottom: $pad-xsmall;
-    min-height: 25px;
-
+    height: 25px;
+    margin-bottom: $pad-small;
+    display: flex;
+    align-items: center;
+    
+    p {
+      font-size: $x-small;
+      font-weight: $bold;
+      color: $core-fleet-black;
+      margin: 0;
+      flex: 1;
+    }
     &--error {
       color: $ui-error;
+    }
+    &--with-action {
+      justify-content: space-between;
+
+      button {
+        height: 36px; // aligning space between label and textarea
+      }
     }
   }
 

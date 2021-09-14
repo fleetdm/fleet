@@ -1,8 +1,8 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { push, goBack } from "react-router-redux";
-import { find, isEmpty, memoize, omit } from "lodash";
+import { goBack, push, replace } from "react-router-redux";
+import { find, isEmpty, isEqual, memoize, omit } from "lodash";
 
 import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
@@ -16,9 +16,7 @@ import TableDataError from "components/TableDataError";
 import labelInterface from "interfaces/label";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
-import osqueryTableInterface from "interfaces/osquery_table";
 import statusLabelsInterface from "interfaces/status_labels";
-import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import labelActions from "redux/nodes/entities/labels/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
@@ -27,8 +25,9 @@ import entityGetter, { memoizedGetEntity } from "redux/utilities/entityGetter";
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
 import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
+import { QueryContext } from "context/query";
 
-import hostClient from "services/entities/hosts";
+import hostAPI from "services/entities/hosts";
 import policiesClient from "services/entities/policies";
 
 import permissionUtils from "utilities/permissions";
@@ -120,7 +119,6 @@ export class ManageHostsPage extends PureComponent {
     selectedFilters: PropTypes.arrayOf(PropTypes.string),
     selectedLabel: labelInterface,
     selectedTeam: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
     canAddNewHosts: PropTypes.bool,
     canEnrollHosts: PropTypes.bool,
@@ -140,6 +138,8 @@ export class ManageHostsPage extends PureComponent {
   static defaultProps = {
     loadingLabels: false,
   };
+
+  static contextType = QueryContext; // eslint-disable-line react/sort-comp
 
   constructor(props) {
     super(props);
@@ -188,6 +188,8 @@ export class ManageHostsPage extends PureComponent {
       isTeamsLoaded: !isEmpty(this.props.teams),
       isTeamsLoading: false,
       policyName: null,
+      selectedOsqueryTable: null,
+      setSelectedOsqueryTable: null,
     };
   }
 
@@ -212,6 +214,13 @@ export class ManageHostsPage extends PureComponent {
           // );
         });
     }
+
+    // TODO: Very temporary until this component becomes functional
+    // this was so we could remove redux for selectedOsqueryTable - 8/31/21 - MP
+    /* eslint-disable react/no-did-mount-set-state */
+    const { selectedOsqueryTable, setSelectedOsqueryTable } = this.context;
+    this.setState({ selectedOsqueryTable, setSelectedOsqueryTable });
+    /* eslint-enable no-alert, react/no-did-mount-set-state */
   }
 
   componentWillReceiveProps() {
@@ -245,6 +254,22 @@ export class ManageHostsPage extends PureComponent {
         });
     }
   }
+
+  // TODO: Very temporary until this component becomes functional
+  // this was so we could remove redux for selectedOsqueryTable - 8/31/21 - MP
+  /* eslint-disable react/no-did-update-set-state */
+  componentDidUpdate() {
+    if (
+      !isEqual(
+        this.context.selectedOsqueryTable,
+        this.state.selectedOsqueryTable
+      )
+    ) {
+      const { selectedOsqueryTable } = this.context;
+      this.setState({ selectedOsqueryTable });
+    }
+  }
+  /* eslint-enable react/no-did-update-set-state */
 
   componentWillUnmount() {
     this.clearHostUpdates();
@@ -381,7 +406,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -427,9 +452,9 @@ export class ManageHostsPage extends PureComponent {
   };
 
   onOsqueryTableSelect = (tableName) => {
-    const { dispatch } = this.props;
-    dispatch(selectOsqueryTable(tableName));
-
+    if (this.state.setSelectedOsqueryTable) {
+      this.state.setSelectedOsqueryTable(tableName);
+    }
     return false;
   };
 
@@ -635,7 +660,6 @@ export class ManageHostsPage extends PureComponent {
   };
 
   retrieveHosts = async (options = {}) => {
-    const { dispatch } = this.props;
     const { getValidatedTeamId } = this;
 
     this.setState({ isHostsLoading: true });
@@ -646,7 +670,7 @@ export class ManageHostsPage extends PureComponent {
     };
 
     try {
-      const { hosts } = await hostClient.loadAll(options);
+      const { hosts } = await hostAPI.loadAll(options);
       this.setState({ hosts });
     } catch (error) {
       console.log(error);
@@ -727,7 +751,7 @@ export class ManageHostsPage extends PureComponent {
     });
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -760,7 +784,7 @@ export class ManageHostsPage extends PureComponent {
       teamId: selectedTeam,
     });
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
           routeTemplate,
@@ -806,7 +830,7 @@ export class ManageHostsPage extends PureComponent {
         ? omit(queryParams, "team_id")
         : Object.assign({}, queryParams, { team_id: teamIdParam }),
     });
-    dispatch(push(nextLocation));
+    dispatch(replace(nextLocation));
   };
 
   handleLabelChange = ({ slug }) => {
@@ -843,7 +867,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     dispatch(
-      push(
+      replace(
         getNextLocationPath({
           pathPrefix: isAllHosts
             ? MANAGE_HOSTS
@@ -1040,9 +1064,9 @@ export class ManageHostsPage extends PureComponent {
   };
 
   renderHeaderLabelBlock = ({
-    description,
-    display_text: displayText,
-    label_type: labelType,
+    description = "",
+    display_text: displayText = "",
+    label_type: labelType = "",
   }) => {
     const { onEditLabelClick, toggleDeleteLabelModal } = this;
 
@@ -1145,13 +1169,8 @@ export class ManageHostsPage extends PureComponent {
 
   renderSidePanel = () => {
     let SidePanel;
-    const {
-      isAddLabel,
-      labels,
-      selectedOsqueryTable,
-      statusLabels,
-      canAddNewLabels,
-    } = this.props;
+    const { isAddLabel, labels, statusLabels, canAddNewLabels } = this.props;
+    const { selectedOsqueryTable } = this.state;
     const {
       onAddLabelClick,
       onLabelClick,
@@ -1374,7 +1393,6 @@ const mapStateToProps = (state, ownProps) => {
   const isAddLabel = location.hash === NEW_LABEL_HASH;
   const isEditLabel = location.hash === EDIT_LABEL_HASH;
 
-  const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
   const config = state.app.config;
 
@@ -1412,7 +1430,6 @@ const mapStateToProps = (state, ownProps) => {
     labels,
     loadingLabels,
     selectedLabel,
-    selectedOsqueryTable,
     statusLabels,
     config,
     currentUser,

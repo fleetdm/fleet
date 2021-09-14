@@ -25,7 +25,7 @@ import RemovePoliciesModal from "./components/RemovePoliciesModal";
 const baseClass = "manage-policies-page";
 
 const DOCS_LINK =
-  "https://github.com/fleetdm/fleet/blob/fleet-v4.3.0/docs/2-Deploying/2-Configuration.md#osquery_detail_update_interval";
+  "https://fleetdm.com/docs/deploying/configuration#osquery_detail_update_interval";
 interface IRootState {
   app: {
     config: IConfig;

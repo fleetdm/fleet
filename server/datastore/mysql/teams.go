@@ -13,61 +13,68 @@ import (
 var teamSearchColumns = []string{"name"}
 
 func (d *Datastore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
-	query := `
-	INSERT INTO teams (
-		name,
-		agent_options,
-		description
-	) VALUES ( ?, ?, ? )
-	`
-	result, err := d.writer.Exec(
-		query,
-		team.Name,
-		team.AgentOptions,
-		team.Description,
-	)
+	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		query := `
+    INSERT INTO teams (
+      name,
+      agent_options,
+      description
+    ) VALUES ( ?, ?, ? )
+    `
+		result, err := tx.Exec(
+			query,
+			team.Name,
+			team.AgentOptions,
+			team.Description,
+		)
+		if err != nil {
+			return errors.Wrap(err, "insert team")
+		}
+
+		id, _ := result.LastInsertId()
+		team.ID = uint(id)
+
+		return saveTeamSecretsDB(tx, team)
+	})
+
 	if err != nil {
-		return nil, errors.Wrap(err, "insert team")
-	}
-
-	id, _ := result.LastInsertId()
-	team.ID = uint(id)
-
-	if err := d.saveTeamSecrets(team); err != nil {
 		return nil, err
 	}
-
 	return team, nil
 }
 
 func (d *Datastore) Team(tid uint) (*fleet.Team, error) {
+	return teamDB(d.reader, tid)
+}
+
+func teamDB(q sqlx.Queryer, tid uint) (*fleet.Team, error) {
 	sql := `
 		SELECT * FROM teams
 			WHERE id = ?
 	`
 	team := &fleet.Team{}
 
-	if err := d.reader.Get(team, sql, tid); err != nil {
+	if err := sqlx.Get(q, team, sql, tid); err != nil {
 		return nil, errors.Wrap(err, "select team")
 	}
 
-	if err := d.loadSecretsForTeams([]*fleet.Team{team}); err != nil {
+	if err := loadSecretsForTeamsDB(q, []*fleet.Team{team}); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 
-	if err := d.loadUsersForTeam(team); err != nil {
+	if err := loadUsersForTeamDB(q, team); err != nil {
 		return nil, err
 	}
 
 	return team, nil
 }
 
-func (d *Datastore) saveTeamSecrets(team *fleet.Team) error {
+func saveTeamSecretsDB(exec sqlx.Execer, team *fleet.Team) error {
 	if team.Secrets == nil {
 		return nil
 	}
 
-	return d.ApplyEnrollSecrets(&team.ID, team.Secrets)
+	return applyEnrollSecretsDB(exec, &team.ID, team.Secrets)
 }
 
 func (d *Datastore) DeleteTeam(tid uint) error {
@@ -88,25 +95,25 @@ func (d *Datastore) TeamByName(name string) (*fleet.Team, error) {
 		return nil, errors.Wrap(err, "select team")
 	}
 
-	if err := d.loadSecretsForTeams([]*fleet.Team{team}); err != nil {
+	if err := loadSecretsForTeamsDB(d.reader, []*fleet.Team{team}); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 
-	if err := d.loadUsersForTeam(team); err != nil {
+	if err := loadUsersForTeamDB(d.reader, team); err != nil {
 		return nil, err
 	}
 
 	return team, nil
 }
 
-func (d *Datastore) loadUsersForTeam(team *fleet.Team) error {
+func loadUsersForTeamDB(q sqlx.Queryer, team *fleet.Team) error {
 	sql := `
 		SELECT u.name, u.id, u.email, ut.role
 		FROM user_teams ut JOIN users u ON (ut.user_id = u.id)
 		WHERE ut.team_id = ?
 	`
 	rows := []fleet.TeamUser{}
-	if err := d.reader.Select(&rows, sql, team.ID); err != nil {
+	if err := sqlx.Select(q, &rows, sql, team.ID); err != nil {
 		return errors.Wrap(err, "load users for team")
 	}
 
@@ -114,67 +121,64 @@ func (d *Datastore) loadUsersForTeam(team *fleet.Team) error {
 	return nil
 }
 
-func (d *Datastore) saveUsersForTeam(team *fleet.Team) error {
+func saveUsersForTeamDB(exec sqlx.Execer, team *fleet.Team) error {
 	// Do a full user update by deleting existing users and then inserting all
 	// the current users in a single transaction.
-	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		// Delete before insert
-		sql := `DELETE FROM user_teams WHERE team_id = ?`
-		if _, err := tx.Exec(sql, team.ID); err != nil {
-			return errors.Wrap(err, "delete existing users")
-		}
+	// Delete before insert
+	sql := `DELETE FROM user_teams WHERE team_id = ?`
+	if _, err := exec.Exec(sql, team.ID); err != nil {
+		return errors.Wrap(err, "delete existing users")
+	}
 
-		if len(team.Users) == 0 {
-			return nil
-		}
-
-		// Bulk insert
-		const valueStr = "(?,?,?),"
-		var args []interface{}
-		for _, teamUser := range team.Users {
-			args = append(args, teamUser.User.ID, team.ID, teamUser.Role)
-		}
-		sql = "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
-			strings.Repeat(valueStr, len(team.Users))
-		sql = strings.TrimSuffix(sql, ",")
-		if _, err := tx.Exec(sql, args...); err != nil {
-			return errors.Wrap(err, "insert users")
-		}
-
+	if len(team.Users) == 0 {
 		return nil
-	}); err != nil {
-		return errors.Wrap(err, "save users for team")
+	}
+
+	// Bulk insert
+	const valueStr = "(?,?,?),"
+	var args []interface{}
+	for _, teamUser := range team.Users {
+		args = append(args, teamUser.User.ID, team.ID, teamUser.Role)
+	}
+	sql = "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
+		strings.Repeat(valueStr, len(team.Users))
+	sql = strings.TrimSuffix(sql, ",")
+	if _, err := exec.Exec(sql, args...); err != nil {
+		return errors.Wrap(err, "insert users")
 	}
 
 	return nil
 }
 
 func (d *Datastore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
-	query := `
+	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		query := `
 		UPDATE teams SET
 			name = ?,
 			agent_options = ?,
 			description = ?
 		WHERE id = ?
 	`
-	_, err := d.writer.Exec(query, team.Name, team.AgentOptions, team.Description, team.ID)
+		_, err := tx.Exec(query, team.Name, team.AgentOptions, team.Description, team.ID)
+		if err != nil {
+			return errors.Wrap(err, "saving team")
+		}
+
+		if err := saveUsersForTeamDB(tx, team); err != nil {
+			return err
+		}
+
+		return updateTeamScheduleDB(tx, team)
+	})
+
 	if err != nil {
-		return nil, errors.Wrap(err, "saving team")
-	}
-
-	if err := d.saveUsersForTeam(team); err != nil {
 		return nil, err
 	}
-
-	if err := d.updateTeamSchedule(team); err != nil {
-		return nil, err
-	}
-
 	return team, nil
 }
 
-func (d *Datastore) updateTeamSchedule(team *fleet.Team) error {
-	_, err := d.writer.Exec(
+func updateTeamScheduleDB(exec sqlx.Execer, team *fleet.Team) error {
+	_, err := exec.Exec(
 		`UPDATE packs SET name = ? WHERE pack_type = ?`, teamScheduleName(team), teamSchedulePackType(team),
 	)
 	return err
@@ -198,15 +202,15 @@ func (d *Datastore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([
 	if err := d.reader.Select(&teams, query, params...); err != nil {
 		return nil, errors.Wrap(err, "list teams")
 	}
-	if err := d.loadSecretsForTeams(teams); err != nil {
+	if err := loadSecretsForTeamsDB(d.reader, teams); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 	return teams, nil
 }
 
-func (d *Datastore) loadSecretsForTeams(teams []*fleet.Team) error {
+func loadSecretsForTeamsDB(q sqlx.Queryer, teams []*fleet.Team) error {
 	for _, team := range teams {
-		secrets, err := d.GetEnrollSecrets(ptr.Uint(team.ID))
+		secrets, err := getEnrollSecretsDB(q, ptr.Uint(team.ID))
 		if err != nil {
 			return err
 		}
@@ -232,7 +236,7 @@ func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit
 	if err := d.reader.Select(&teams, sql, params...); err != nil {
 		return nil, errors.Wrap(err, "search teams")
 	}
-	if err := d.loadSecretsForTeams(teams); err != nil {
+	if err := loadSecretsForTeamsDB(d.reader, teams); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 	return teams, nil

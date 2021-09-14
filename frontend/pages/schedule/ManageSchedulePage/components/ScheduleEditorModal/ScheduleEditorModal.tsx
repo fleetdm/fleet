@@ -18,7 +18,7 @@ import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
-  PLATFORM_OPTIONS,
+  PLATFORM_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
@@ -297,7 +297,7 @@ const ScheduleEditorModal = ({
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
               />
               <Dropdown
-                options={PLATFORM_OPTIONS}
+                options={PLATFORM_DROPDOWN_OPTIONS}
                 placeholder="Select"
                 label="Platform"
                 onChange={onChangeSelectPlatformOptions}

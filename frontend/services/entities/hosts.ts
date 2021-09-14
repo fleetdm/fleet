@@ -103,6 +103,12 @@ export default {
 
     return sendRequest("GET", path);
   },
+  search: (searchText: string) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}?query=${searchText}`;
+
+    return sendRequest("GET", path);
+  },
   transferToTeam: (teamId: number | null, hostIds: number[]) => {
     const { HOSTS_TRANSFER } = endpoints;
 
