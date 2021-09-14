@@ -6,11 +6,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sync/atomic"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
+	redigo "github.com/gomodule/redigo/redis"
+	"github.com/mna/redisc"
 	"github.com/rotisserie/eris"
 )
 
@@ -23,7 +27,7 @@ type errorHandler struct {
 }
 
 type ErrorFlusher interface {
-	Flush() (string, error)
+	Flush() ([]string, error)
 }
 
 func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger) ErrorFlusher {
@@ -37,8 +41,45 @@ func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger)
 	return e
 }
 
-func (e *errorHandler) Flush() (string, error) {
-	return "", nil
+func (e *errorHandler) Flush() ([]string, error) {
+	errorKeys, err := redis.ScanKeys(e.pool, "error:*")
+	if err != nil {
+		return nil, err
+	}
+	keysBySlot := redis.SplitRedisKeysBySlot(e.pool, errorKeys...)
+	var errors []string
+	for _, qkeys := range keysBySlot {
+		gotErrors, err := e.collectBatchErrors(qkeys)
+		errors = append(errors, gotErrors...)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return errors, nil
+}
+
+func (e *errorHandler) collectBatchErrors(errorKeys []string) ([]string, error) {
+	var errors []string
+
+	conn := e.pool.Get()
+	defer conn.Close()
+
+	if rc, err := redisc.RetryConn(conn, 3, 100*time.Millisecond); err == nil {
+		conn = rc
+	}
+	for _, key := range errorKeys {
+		errorJson, err := redigo.String(conn.Do("GET", key))
+		if err != nil {
+			return nil, err
+		}
+		errors = append(errors, errorJson)
+		_, err = conn.Do("DEL", key)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return errors, nil
 }
 
 func sha256b64(s string) string {
@@ -90,7 +131,7 @@ func (e errorHandler) handleErrors(ctx context.Context) {
 
 			jsonKey := fmt.Sprintf("error:%s:json", errorHash)
 
-			err = conn.Send("SET", jsonKey, errorJson, "EX", (24 * time.Hour).Seconds())
+			_, err = conn.Do("SET", jsonKey, errorJson, "EX", (24 * time.Hour).Seconds())
 			if err != nil {
 				// TODO: log
 				continue
@@ -104,6 +145,8 @@ func New(err error) error {
 		return err
 	}
 
+	// TODO: wrap in eris error with timestamp and other metadata
+
 	ticker := time.NewTicker(2 * time.Second)
 	select {
 	case errCh <- err:
@@ -111,4 +154,8 @@ func New(err error) error {
 	}
 
 	return err
+}
+
+func HttpHandler(w http.ResponseWriter, r *http.Request) {
+
 }
