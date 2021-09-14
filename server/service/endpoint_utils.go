@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -107,20 +108,22 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				if err != nil {
 					return nil, err
 				}
-			}
 
-			if ok && urlTagValue == "list_options" {
-				opts, err := listOptionsFromRequest(r)
-				if err != nil {
-					return nil, err
+				if urlTagValue == "list_options" {
+					opts, err := listOptionsFromRequest(r)
+					if err != nil {
+						return nil, err
+					}
+					field.Set(reflect.ValueOf(opts))
+					continue
 				}
-				field.Set(reflect.ValueOf(opts))
-				continue
-			}
 
-			if ok {
 				id, err := idFromRequest(r, urlTagValue)
-				if err != nil && err == errBadRoute && !optional {
+				if err != nil {
+					if err == errBadRoute && optional {
+						continue
+					}
+
 					return nil, err
 				}
 				field.SetUint(uint64(id))
@@ -130,6 +133,40 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			_, jsonExpected := f.Tag.Lookup("json")
 			if jsonExpected && nilBody {
 				return nil, errors.New("Expected JSON Body")
+			}
+
+			queryTagValue, ok := f.Tag.Lookup("query")
+
+			if ok {
+				queryTagValue, optional, err = parseTag(queryTagValue)
+				if err != nil {
+					return nil, err
+				}
+				queryVal := r.URL.Query().Get(queryTagValue)
+				if field.Kind() == reflect.Ptr {
+					// if optional and it's a ptr, leave as nil
+					if queryVal == "" {
+						if optional {
+							continue
+						}
+						return nil, errors.Errorf("Param %s is required", f.Name)
+					}
+					// create the new instance of whatever it is
+					field.Set(reflect.New(field.Type().Elem()))
+					field = field.Elem()
+				}
+				switch field.Kind() {
+				case reflect.String:
+					field.SetString(queryVal)
+				case reflect.Uint:
+					queryValUint, err := strconv.Atoi(queryVal)
+					if err != nil {
+						return nil, err
+					}
+					field.SetUint(uint64(queryValUint))
+				default:
+					return nil, errors.Errorf("Cant handle type for field %s %s", f.Name, field.Kind())
+				}
 			}
 		}
 

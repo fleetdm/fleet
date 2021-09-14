@@ -275,6 +275,8 @@ type MigrateDataFunc func(ctx context.Context) error
 
 type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error)
 
+type ListSoftwareFunc func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error)
+
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
 	NewCarveFuncInvoked bool
@@ -671,6 +673,9 @@ type DataStore struct {
 
 	MigrationStatusFunc        MigrationStatusFunc
 	MigrationStatusFuncInvoked bool
+
+	ListSoftwareFunc        ListSoftwareFunc
+	ListSoftwareFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1331,4 +1336,9 @@ func (s *DataStore) MigrateData(ctx context.Context) error {
 func (s *DataStore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus, error) {
 	s.MigrationStatusFuncInvoked = true
 	return s.MigrationStatusFunc(ctx)
+}
+
+func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
+	s.ListSoftwareFuncInvoked = true
+	return s.ListSoftwareFunc(ctx, teamId, opt)
 }
