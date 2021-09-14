@@ -388,16 +388,16 @@ func TestListSoftware(t *testing.T) {
 	}
 	host2.HostSoftware = soft2
 
-	require.NoError(t, ds.SaveHostSoftware(host1))
-	require.NoError(t, ds.SaveHostSoftware(host2))
-	require.NoError(t, ds.LoadHostSoftware(host1))
-	require.NoError(t, ds.LoadHostSoftware(host2))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 
 	sort.Slice(host1.Software, func(i, j int) bool { return host1.Software[i].Name < host1.Software[j].Name })
-	require.NoError(t, ds.AddCPEForSoftware(host1.Software[0], "somecpe"))
-	require.NoError(t, ds.AddCPEForSoftware(host1.Software[1], "someothercpewithoutvulns"))
-	require.NoError(t, ds.InsertCVEForCPE("cve-321-432-543", []string{"somecpe"}))
-	require.NoError(t, ds.InsertCVEForCPE("cve-333-444-555", []string{"somecpe"}))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[1], "someothercpewithoutvulns"))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-321-432-543", []string{"somecpe"}))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-333-444-555", []string{"somecpe"}))
 
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
@@ -438,9 +438,9 @@ func TestListSoftware(t *testing.T) {
 	})
 
 	t.Run("filters by team", func(t *testing.T) {
-		team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 		require.NoError(t, err)
-		require.NoError(t, ds.AddHostsToTeam(&team1.ID, []uint{host1.ID}))
+		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
 		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{})
 		require.NoError(t, err)
@@ -451,9 +451,9 @@ func TestListSoftware(t *testing.T) {
 	})
 
 	t.Run("filters by team and paginates", func(t *testing.T) {
-		team1, err := ds.NewTeam(&fleet.Team{Name: "team1-" + t.Name()})
+		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1-" + t.Name()})
 		require.NoError(t, err)
-		require.NoError(t, ds.AddHostsToTeam(&team1.ID, []uint{host1.ID}))
+		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
 		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{PerPage: 1, Page: 1, OrderKey: "id"})
 		require.NoError(t, err)
