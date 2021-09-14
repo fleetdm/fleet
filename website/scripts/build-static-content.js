@@ -33,7 +33,8 @@ module.exports = {
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
-          if ((query.remediation !== undefined && !_.isString(query.remediation)) || (query.purpose !== 'Detection' && _.isString(query.remediation))) {
+          if (false) {
+          // if ((query.remediation !== undefined && !_.isString(query.remediation)) || (query.purpose !== 'Detection' && _.isString(query.remediation))) {  TODO: maybe bring this back later
             // console.log(typeof query.remediation);
             queriesWithProblematicRemediations.push(query);
           } else if (query.remediation === undefined) {
