@@ -12,31 +12,31 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect Linux hosts with high severity vulnerable versions of OpenSSL
+  name: Get OpenSSL versions
   platforms: Linux
   description: Retrieves the OpenSSL version.
   query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
-  purpose: Detection
+  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
 kind: query
 spec:
-  name: Detect machines with Gatekeeper disabled
+  name: Get whether Gatekeeper is disabled
   platforms: macOS
   description: Gatekeeper tries to ensure only trusted software is run on a mac machine.
   query: SELECT * FROM gatekeeper WHERE assessments_enabled = 0;
-  purpose: Detection
+  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
 kind: query
 spec:
-  name: Detect presence of authorized SSH keys
+  name: Get authorized SSH keys
   platforms: macOS, Linux
   description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
   query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
-  purpose: Detection
+  purpose: Informational
   remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
   contributors: mike-j-thomas
 ---
@@ -273,22 +273,22 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect unencrypted SSH keys for local accounts
+  name: Get unencrypted SSH keys for local accounts
   platforms: macOS, Linux, Windows, FreeBSD
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
-  purpose: Detection
+  purpose: Informational
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
 ---
 apiVersion: v1
 kind: query
 spec:
-  name: Detect unencrypted SSH keys for domain joined accounts
+  name: Get unencrypted SSH keys for domain joined accounts
   platforms: macOS, Linux, Windows, FreeBSD
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
-  purpose: Detection
+  purpose: Informational
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
 ---
@@ -315,22 +315,22 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect dynamic linker hijacking on Linux (MITRE. T1574.006)
+  name: Get dynamic linker hijacking on Linux (MITRE. T1574.006)
   platforms: Linux
   description: Detect any processes that run with LD_PRELOAD environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
-  purpose: Detection
+  purpose: Informational
   remediation: Identify the process/binary detected and confirm with the system's owner.
   contributors: anelshaer
 ---
 apiVersion: v1
 kind: query
 spec:
-  name: Detect dynamic linker hijacking on macOS (MITRE. T1574.006)
+  name: Get dynamic linker hijacking on macOS (MITRE. T1574.006)
   platforms: macOS
   description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
-  purpose: Detection
+  purpose: Informational
   remediation: Identify the process/binary detected and confirm with the system's owner.
   contributors: anelshaer
 ---
@@ -367,24 +367,24 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect active user accounts on servers
+  name: Get active user accounts on servers
   platforms: Linux
   description: Domain Joined environment normally have root or other service account only and users are SSH-ing using their Domain Accounts.
   query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
-  purpose: Detection
+  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
 kind: query
 spec:
-  name: Detect Nmap scanner
+  name: Get Nmap scanner
   platforms: macOS, Linux, Windows, FreeBSD
-  description: Detect Nmap scanner process, identify the user, parent, process details.
+  description: Get Nmap scanner process, as well as its user, parent, and process details.
   query: SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent,
     (SELECT name FROM processes WHERE pid=p.parent) AS parent_name,
     (SELECT username FROM users WHERE uid=p.uid) AS username
     FROM processes as p WHERE cmdline like 'nmap%';
-  purpose: Detection
+  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -420,11 +420,11 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect Windows print spooler remote code execution vulnerability
+  name: Get Windows print spooler remote code execution vulnerability
   platforms: Windows
   description: Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.
   query: SELECT CASE cnt WHEN 2 THEN "TRUE" ELSE "FALSE" END "Vulnerable" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;
-  purpose: Detection
+  purpose: Informational
   contributors: maravedi
 ---
 apiVersion: v1
@@ -480,11 +480,11 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Detect if TeamViewer is installed/running
+  name: Get whether TeamViewer is installed/running
   platforms: Windows
   description: Description: Looks for the TeamViewer service running on machines. This is used often when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
   query: SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE "%teamviewer%";
-  purpose: Detection
+  purpose: Informational
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -497,5 +497,3 @@ spec:
   purpose: Informational
   contributors: alphabrevity
 ---
-
-
